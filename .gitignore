@@ -1,0 +1,25 @@
+# Zugangsdaten & Secrets – NIEMALS committen!
+Datenbank/migrations/Zugangsdaten*
+*.env
+.env.*
+secrets/
+**/secrets.json
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.g.dart
+*.freezed.dart
+
+# IDE
+.idea/
+.vscode/settings.json
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+nul

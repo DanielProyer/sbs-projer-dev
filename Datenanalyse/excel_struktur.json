@@ -1,0 +1,9 @@
+{
+  "Einzahlungen": {
+    "rows": 17,
+    "cols": 5,
+    "columns": [
+      {
+        "name": "Unnamed: 0",
+        "type": "float64",
+        "filled": 

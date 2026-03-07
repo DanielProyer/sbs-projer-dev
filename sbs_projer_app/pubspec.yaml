@@ -1,0 +1,70 @@
+name: sbs_projer_app
+description: "SBS Projer - Service-Management App für Zapfanlagen-Service"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Backend & Auth
+  supabase_flutter: ^2.0.0
+
+  # State Management
+  flutter_riverpod: ^2.5.0
+  riverpod_annotation: ^2.3.0
+
+  # Navigation
+  go_router: ^14.0.0
+
+  # Lokale Datenbank (Offline)
+  isar: ^3.1.0
+  isar_flutter_libs: ^3.1.0
+
+  # UI
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.0
+  cached_network_image: ^3.3.0
+
+  # Formulare & Validierung
+  flutter_form_builder: any
+  form_builder_validators: any
+
+  # Datum & Internationalisierung
+  intl: any
+
+  # PDF
+  pdf: ^3.10.0
+  printing: ^5.12.0
+
+  # Unterschrift
+  signature: ^5.4.0
+
+  # Kamera & Bilder
+  image_picker: ^1.0.0
+
+  # HTTP (für externe APIs)
+  dio: ^5.4.0
+
+  # Utilities
+  uuid: ^4.3.0
+  path_provider: ^2.1.0
+  flutter_dotenv: ^5.1.0
+  connectivity_plus: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.0
+  isar_generator: ^3.1.0
+  riverpod_generator: ^2.4.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
