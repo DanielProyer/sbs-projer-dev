@@ -19774,7 +19774,8 @@ k=e}}l=f}m=h}}if(j){if(n)p=o
 else{j=s?q:b
 o=(j==null?p.a(j):j).b
 p=o}A.d_(p)
-p=new A.af(Math.max(A.j0(m),A.j0(k)),Math.max(A.j0(l),p))
+a=new A.af(Math.max(A.j0(m),A.j0(k)),Math.max(A.j0(l),p))
+p=a
 break A}p=d}return p},
 bgy(a,b,c,d,e,f,g,h,i){var s,r=null,q=A.al(),p=J.akh(4,t.iy)
 for(s=0;s<4;++s)p[s]=new A.Aw(r,B.aW,B.ab,new A.iU(1),r,r,r,r,B.aI,r)
@@ -33307,8 +33308,11 @@ aKU:function aKU(a,b){this.a=a
 this.b=b},
 aKV:function aKV(a,b){this.a=a
 this.b=b},
-aKW:function aKW(a,b){this.a=a
-this.b=b},
+aKW:function aKW(a,b,c,d){var _=this
+_.a=a
+_.b=b
+_.c=c
+_.d=d},
 aKX:function aKX(a,b){this.a=a
 this.b=b},
 aKZ:function aKZ(a){this.a=a},
@@ -115710,56 +115714,57 @@ break}p.G(new A.aKY(p,o))
 p.p0()
 case 1:return A.r(q,r)}})
 return A.t($async$Eb,r)},
-p0(){var s=0,r=A.u(t.H),q=1,p=[],o=this,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0
-var $async$p0=A.p(function(a1,a2){if(a1===1){p.push(a2)
+p0(){var s=0,r=A.u(t.H),q=1,p=[],o=this,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2
+var $async$p0=A.p(function(a3,a4){if(a3===1){p.push(a4)
 s=q}for(;;)switch(s){case 0:q=3
-f=o.a
-e=f.e
-if(e==null){d=o.y
-e=d==null?null:d.f}n=e
-c=f.f
-if(c==null){f=o.y
-c=f==null?null:f.r}m=c
-f=$.bT().b
-f===$&&A.a()
-f=f.cB("preise").fJ()
-d=o.z
+d=o.a
+c=d.e
+if(c==null){b=o.y
+c=b==null?null:b.f}n=c
+a=d.f
+if(a==null){d=o.y
+a=d==null?null:d.r}m=a
+d=$.bT().b
 d===$&&A.a()
+d=d.cB("preise").fJ()
+b=o.z
+b===$&&A.a()
 s=6
-return A.o(A.uU(f.u1(f.yQ("gueltig_ab","lte."+B.c.a9(d.iF(),0,10))),f.$ti.c).SL("gueltig_ab",!1).o7(1),$async$p0)
-case 6:l=a2
+return A.o(A.uU(d.u1(d.yQ("gueltig_ab","lte."+B.c.a9(b.iF(),0,10))),d.$ti.c).SL("gueltig_ab",!1).o7(1),$async$p0)
+case 6:l=a4
 if(J.j3(l)&&o.c!=null)o.G(new A.aKU(o,l))
 s=m!=null&&o.a.d==null?7:8
 break
 case 7:s=9
 return A.o(A.n4(m),$async$p0)
-case 9:k=a2
+case 9:k=a4
 if(k!=null&&o.c!=null)o.G(new A.aKV(o,k))
 case 8:s=n!=null&&o.RG==null?10:11
 break
 case 10:s=12
 return A.o(A.wY(n),$async$p0)
-case 12:j=a2
-if(j!=null&&o.c!=null)o.G(new A.aKW(o,j))
-case 11:s=n!=null&&o.a.d==null?13:14
+case 12:j=a4
+if(j!=null&&o.c!=null){i=j.ax!=null&&j.ax!=="keiner"
+h=j.x.toLowerCase()==="orion"
+o.G(new A.aKW(o,j,i,h))}case 11:s=n!=null&&o.a.d==null?13:14
 break
 case 13:s=15
 return A.o(A.Dv(n),$async$p0)
-case 15:i=a2
-if(o.c!=null){b={}
-b.a=b.b=b.c=b.d=0
-for(f=J.bo(i);f.u();){h=f.gL()
-d=h.w
-if(d==null)d=""
-g=d.toLowerCase()
-if(J.kE(g,"wein")||J.kE(g,"wine"))++b.a
-else if(J.kE(g,"orion"))++b.c
-else if(J.kE(g,"heineken")||J.kE(g,"desperados")||J.kE(g,"calanda")||J.kE(g,"eichhof")||J.kE(g,"birra moretti")||J.c_(g)===0)++b.d
-else ++b.b}o.G(new A.aKX(b,o))}case 14:q=1
+case 15:g=a4
+if(o.c!=null){a0={}
+a0.a=a0.b=a0.c=a0.d=0
+for(d=J.bo(g);d.u();){f=d.gL()
+b=f.w
+if(b==null)b=""
+e=b.toLowerCase()
+if(J.kE(e,"wein")||J.kE(e,"wine"))++a0.a
+else if(J.kE(e,"orion"))++a0.c
+else if(J.kE(e,"heineken")||J.kE(e,"desperados")||J.kE(e,"calanda")||J.kE(e,"eichhof")||J.kE(e,"birra moretti")||J.c_(e)===0)++a0.d
+else ++a0.b}o.G(new A.aKX(a0,o))}case 14:q=1
 s=5
 break
 case 3:q=2
-a0=p.pop()
+a2=p.pop()
 s=5
 break
 case 2:s=1
@@ -116129,11 +116134,25 @@ A.aKV.prototype={
 $0(){return this.a.rx=this.b.CW},
 $S:0}
 A.aKW.prototype={
-$0(){var s=null,r=this.b.x.toLowerCase()
-A:{if("orion"===r){s="reinigung_orion"
-break A}if("heigenie"===r){s="heigenie"
-break A}s="reinigung_bier"
-break A}this.a.RG=s},
+$0(){var s=this,r=s.a,q=null,p=s.b,o=p.x.toLowerCase()
+A:{if("orion"===o){q="reinigung_orion"
+break A}if("heigenie"===o){q="heigenie"
+break A}q="reinigung_bier"
+break A}r.RG=q
+if(r.a.d==null){q=r.dx=s.c
+p=p.at
+r.fx=p==="Fassk\xfchler"
+r.fr=p==="K\xfchlzelle"
+r.dy=p==="Buffet"
+r.fy=q
+r.go=!0
+p=!s.d
+r.id=p
+r.k2=r.k1=q
+r.k3=!1
+r.p2=r.p1=r.ok=r.k4=!0
+r.p3=p
+r.p4=!0}},
 $S:0}
 A.aKX.prototype={
 $0(){var s=this.b,r=this.a
@@ -127633,4 +127652,3 @@ return}var s=document.scripts
 function onLoad(b){for(var q=0;q<s.length;++q){s[q].removeEventListener("load",onLoad,false)}a(b.target)}for(var r=0;r<s.length;++r){s[r].addEventListener("load",onLoad,false)}})(function(a){v.currentScript=a
 var s=A.aTP
 if(typeof dartMainRunner==="function"){dartMainRunner(s,[])}else{s([])}})})()
-//# sourceMappingURL=main.dart.js.map
