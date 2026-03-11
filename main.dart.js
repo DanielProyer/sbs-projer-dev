@@ -118488,12 +118488,14 @@ r=l.ry
 if(r!=null&&r>0)s.push(new A.fO("Bergkunden-Zuschlag",B.d.ad(r,2)+" CHF",m))
 r=l.to
 if(r!=null)s.push(new A.fO("Netto",B.d.ad(r,2)+" CHF",m))
-if(l.x2!=null){r=l.x1
+if(l.to!=null&&l.xr!=null){r=l.x1
 r=r==null?m:B.d.ad(r,1)
 if(r==null)r="8.1"
-q=l.x2
+q=l.xr
 q.toString
-s.push(new A.fO("MwSt ("+r+"%)",B.d.ad(q,2)+" CHF",m))}r=l.xr
+p=l.to
+p.toString
+s.push(new A.fO("MwSt ("+r+"%)",B.d.ad(q-p,2)+" CHF",m))}r=l.xr
 if(r!=null)s.push(new A.aj(B.hR,A.aJ(A.b([B.Fi,A.b_(A.T(B.d.ad(r,2)+" CHF",m,m,m,m,B.pu,m,m,m),1)],j),B.m,B.j,B.k,0,m),m))
 i.push(new A.wI("Preis",B.Ow,s,m))}if(l.id!=null||l.k1!=null){s=A.b([],j)
 r=l.id
