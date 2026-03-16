@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,8 +9,15 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:sbs_projer_app/services/sync/sync_service.dart';
+import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -22,6 +30,13 @@ class HomeScreen extends ConsumerWidget {
     final anlageCount = ref.watch(anlageCountProvider);
     final reinigungCount = ref.watch(reinigungCountProvider);
     final stoerungCount = ref.watch(stoerungCountProvider);
+    final faelligeCount = ref.watch(faelligeAnlagenCountProvider);
+    final offeneRechnungen = ref.watch(offeneRechnungenCountProvider);
+    final niedrigCount = ref.watch(niedrigCountProvider);
+    final eigenauftragCount = ref.watch(eigenauftragCountProvider);
+    final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
+    final heinekenCount = ref.watch(heinekenRechnungCountProvider);
+    final buchungenCount = ref.watch(buchungenCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,9 +51,9 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.logout),
             tooltip: 'Abmelden',
             onPressed: () async {
-              SyncService.stopListening();
+              if (!kIsWeb) SyncService.stopListening();
               await SupabaseService.client.auth.signOut();
-              if (context.mounted) context.go('/login');
+              // GoRouter redirected automatisch via refreshListenable
             },
           ),
         ],
@@ -56,6 +71,16 @@ class HomeScreen extends ConsumerWidget {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
+          ),
+          const SizedBox(height: 12),
+
+          // Tourenplanung Kachel (volle Breite)
+          _DashboardTile(
+            icon: Icons.route,
+            label: 'Tourenplanung',
+            count: faelligeCount > 0 ? '$faelligeCount fällig' : null,
+            color: AppColors.primary,
+            onTap: () => context.push('/touren'),
           ),
           const SizedBox(height: 12),
 
@@ -96,6 +121,26 @@ class HomeScreen extends ConsumerWidget {
                 color: AppColors.warning,
                 onTap: () => context.push('/stoerungen'),
               ),
+              _DashboardTile(
+                icon: Icons.receipt_long,
+                label: 'Rechnungen',
+                count: offeneRechnungen.valueOrNull != null &&
+                        offeneRechnungen.valueOrNull! > 0
+                    ? '${offeneRechnungen.valueOrNull} offen'
+                    : null,
+                color: AppColors.info,
+                onTap: () => context.push('/rechnungen'),
+              ),
+              _DashboardTile(
+                icon: Icons.inventory_2,
+                label: 'Material',
+                count: niedrigCount.valueOrNull != null &&
+                        niedrigCount.valueOrNull! > 0
+                    ? '${niedrigCount.valueOrNull} niedrig'
+                    : null,
+                color: AppColors.warning,
+                onTap: () => context.push('/materialien'),
+              ),
             ],
           ),
 
@@ -109,30 +154,50 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 12),
 
           _MenuListTile(
+            icon: Icons.account_balance,
+            label: 'Buchhaltung',
+            count: buchungenCount.valueOrNull?.toString(),
+            onTap: () => context.push('/buchhaltung'),
+          ),
+          _MenuListTile(
+            icon: Icons.receipt_long_outlined,
+            label: 'Heineken Rechnungen',
+            count: heinekenCount.valueOrNull?.toString(),
+            onTap: () => context.push('/heineken'),
+          ),
+          _MenuListTile(
+            icon: Icons.build_circle_outlined,
+            label: 'Eigenaufträge',
+            count: eigenauftragCount.valueOrNull?.toString(),
+            onTap: () => context.push('/eigenauftraege'),
+          ),
+          _MenuListTile(
+            icon: Icons.cleaning_services_outlined,
+            label: 'Eröffnungsreinigungen',
+            count: eroeffnungsreinigungCount.valueOrNull?.toString(),
+            onTap: () => context.push('/eroeffnungsreinigungen'),
+          ),
+          _MenuListTile(
             icon: Icons.build,
             label: 'Montagen',
-            onTap: () {},
+            onTap: () => context.push('/montagen'),
           ),
           _MenuListTile(
             icon: Icons.nightlight_round,
             label: 'Pikett-Dienste',
-            onTap: () {},
+            onTap: () => context.push('/pikett'),
           ),
-          _MenuListTile(
-            icon: Icons.inventory_2,
-            label: 'Lager',
-            onTap: () {},
-          ),
-          _MenuListTile(
-            icon: Icons.sync,
-            label: 'Sync erzwingen',
-            onTap: () {
-              SyncService.syncAll();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Synchronisierung gestartet...')),
-              );
-            },
-          ),
+          if (!kIsWeb)
+            _MenuListTile(
+              icon: Icons.sync,
+              label: 'Sync erzwingen',
+              onTap: () {
+                SyncService.syncAll();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Synchronisierung gestartet...')),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -280,11 +345,13 @@ class _DashboardTile extends StatelessWidget {
 class _MenuListTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? count;
   final VoidCallback onTap;
 
   const _MenuListTile({
     required this.icon,
     required this.label,
+    this.count,
     required this.onTap,
   });
 
@@ -294,7 +361,23 @@ class _MenuListTile extends StatelessWidget {
       child: ListTile(
         leading: Icon(icon),
         title: Text(label),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (count != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  count!,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
         onTap: onTap,
       ),
     );

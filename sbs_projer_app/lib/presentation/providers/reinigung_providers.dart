@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local.dart';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 
 final reinigungenStreamProvider = StreamProvider<List<ReinigungLocal>>((ref) {

@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/anlage_local.dart';
-import 'package:sbs_projer_app/data/local/bierleitung_local.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
+import 'package:sbs_projer_app/data/local/bierleitung_local_export.dart';
+import 'package:sbs_projer_app/data/models/anlage_foto.dart';
+import 'package:sbs_projer_app/data/repositories/anlage_foto_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local.dart';
-import 'package:sbs_projer_app/data/local/stoerung_local.dart';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 
 class AnlageDetailScreen extends ConsumerWidget {
-  final int anlageId;
+  final String anlageId;
 
   const AnlageDetailScreen({super.key, required this.anlageId});
 
@@ -42,22 +47,29 @@ class AnlageDetailScreen extends ConsumerWidget {
   }
 }
 
-class _AnlageDetailContent extends StatelessWidget {
+class _AnlageDetailContent extends ConsumerWidget {
   final AnlageLocal anlage;
 
   const _AnlageDetailContent({required this.anlage});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: Text(anlage.bezeichnung ?? anlage.typAnlage),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'Bearbeiten',
-            onPressed: () => context.push('/anlagen/${anlage.id}/bearbeiten'),
-          ),
+          if (!SupabaseService.isGuest) ...[
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Bearbeiten',
+              onPressed: () => context.push('/anlagen/${anlage.routeId}/bearbeiten'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Löschen',
+              onPressed: () => _confirmDelete(context, ref),
+            ),
+          ],
         ],
       ),
       body: ListView(
@@ -69,6 +81,10 @@ class _AnlageDetailContent extends StatelessWidget {
 
           // Betrieb-Info
           _BetriebCard(betriebId: anlage.betriebId),
+
+          // Fotos
+          if (anlage.serverId != null)
+            _FotosSection(anlageId: anlage.serverId!),
 
           // Grunddaten
           _SectionCard(
@@ -137,7 +153,7 @@ class _AnlageDetailContent extends StatelessWidget {
 
           // Bierleitungen
           if (anlage.serverId != null)
-            _BierleitungenSection(anlageServerId: anlage.serverId!),
+            _BierleitungenSection(anlage: anlage),
 
           // Reinigungen
           if (anlage.serverId != null)
@@ -189,20 +205,49 @@ class _AnlageDetailContent extends StatelessWidget {
       anlage.servicezeitNachmittagAb != null;
 
   String _vorkuehlerLabel(String value) {
-    switch (value) {
-      case 'keiner':
-        return 'Keiner';
-      case 'nass':
-        return 'Nasskühler';
-      case 'trocken':
-        return 'Trockenkühler';
-      default:
-        return value;
-    }
+    if (value == 'keiner') return 'Keiner';
+    return value; // DB-Werte sind bereits lesbar (Fasskühler, Kühlzelle, Buffet)
   }
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Anlage löschen'),
+        content: Text(
+          '${anlage.bezeichnung ?? anlage.typAnlage} und alle zugehörigen Reinigungen, Störungen und Bierleitungen werden unwiderruflich gelöscht.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await AnlageRepository.delete(anlage.routeId);
+        ref.invalidate(anlagenStreamProvider);
+        if (context.mounted) context.pop();
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Löschen nur mit Internetverbindung möglich')),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -229,7 +274,7 @@ class _BetriebCard extends StatelessWidget {
             onTap: () async {
               final betrieb = await BetriebRepository.getByServerId(betriebId);
               if (betrieb != null && context.mounted) {
-                context.push('/betriebe/${betrieb.id}');
+                context.push('/betriebe/${betrieb.routeId}');
               }
             },
           ),
@@ -241,6 +286,290 @@ class _BetriebCard extends StatelessWidget {
   Future<String?> _getBetriebName() async {
     final betrieb = await BetriebRepository.getByServerId(betriebId);
     return betrieb?.name;
+  }
+}
+
+class _FotosSection extends StatefulWidget {
+  final String anlageId;
+
+  const _FotosSection({required this.anlageId});
+
+  @override
+  State<_FotosSection> createState() => _FotosSectionState();
+}
+
+class _FotosSectionState extends State<_FotosSection> {
+  List<AnlageFoto>? _fotos;
+  Map<int, String> _signedUrls = {};
+  bool _isLoading = true;
+  int? _uploadingSlot;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFotos();
+  }
+
+  Future<void> _loadFotos() async {
+    try {
+      final fotos = await AnlageFotoRepository.getByAnlage(widget.anlageId);
+      final urls = await AnlageFotoRepository.getSignedUrls(fotos);
+      if (mounted) {
+        setState(() {
+          _fotos = fotos;
+          _signedUrls = urls;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pickAndUpload(int fotoNummer) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galerie'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Kamera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final picker = ImagePicker();
+      final xFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 80,
+      );
+      if (xFile == null) return;
+
+      setState(() => _uploadingSlot = fotoNummer);
+
+      final bytes = await xFile.readAsBytes();
+      await AnlageFotoRepository.upload(widget.anlageId, fotoNummer, bytes, null);
+      await _loadFotos();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload fehlgeschlagen: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingSlot = null);
+    }
+  }
+
+  Future<void> _deleteFoto(int fotoNummer) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Foto löschen'),
+        content: Text('Foto $fotoNummer wirklich löschen?'),
+        actions: [
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await AnlageFotoRepository.delete(widget.anlageId, fotoNummer);
+      await _loadFotos();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Löschen fehlgeschlagen: $e')),
+        );
+      }
+    }
+  }
+
+  void _showFullImage(String url, int fotoNummer) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text('Foto $fotoNummer'),
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            InteractiveViewer(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (_, e, s) => const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Icon(Icons.broken_image, size: 48, color: AppColors.textSecondary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fotoCount = _fotos?.length ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.photo_camera, size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  'Fotos ($fotoCount/4)',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              GridView.count(
+                crossAxisCount: 4,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                children: List.generate(4, (i) => _buildSlot(i + 1)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSlot(int fotoNummer) {
+    final url = _signedUrls[fotoNummer];
+    final isUploading = _uploadingSlot == fotoNummer;
+
+    if (isUploading) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.primary.withAlpha(100)),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (url != null) {
+      // Foto vorhanden
+      return GestureDetector(
+        onTap: () => _showFullImage(url, fotoNummer),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, e, s) => const Icon(
+                    Icons.broken_image,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 2,
+              right: 2,
+              child: GestureDetector(
+                onTap: () => _deleteFoto(fotoNummer),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(140),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Leerer Slot
+    return GestureDetector(
+      onTap: () => _pickAndUpload(fotoNummer),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.divider, style: BorderStyle.solid),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_photo_alternate_outlined,
+                size: 24, color: AppColors.textSecondary),
+            SizedBox(height: 4),
+            Text(
+              'Hinzufügen',
+              style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -330,7 +659,7 @@ class _ReinigungRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => context.push('/reinigungen/${reinigung.id}'),
+      onTap: () => context.push('/reinigungen/${reinigung.routeId}'),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -457,7 +786,7 @@ class _StoerungRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => context.push('/stoerungen/${stoerung.id}'),
+      onTap: () => context.push('/stoerungen/${stoerung.routeId}'),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -510,18 +839,28 @@ class _StoerungRow extends StatelessWidget {
   }
 }
 
-class _BierleitungenSection extends StatelessWidget {
-  final String anlageServerId;
+class _BierleitungenSection extends StatefulWidget {
+  final AnlageLocal anlage;
 
-  const _BierleitungenSection({required this.anlageServerId});
+  const _BierleitungenSection({required this.anlage});
+
+  @override
+  State<_BierleitungenSection> createState() => _BierleitungenSectionState();
+}
+
+class _BierleitungenSectionState extends State<_BierleitungenSection> {
+  int _refreshKey = 0;
+
+  void _refresh() => setState(() => _refreshKey++);
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<BierleitungLocal>>(
-      stream: BierleitungRepository.watchByAnlage(anlageServerId),
+      key: ValueKey(_refreshKey),
+      stream: BierleitungRepository.watchByAnlage(widget.anlage.serverId!),
       builder: (context, snapshot) {
-        final leitungen = snapshot.data ?? [];
-        if (leitungen.isEmpty) return const SizedBox.shrink();
+        final leitungen = snapshot.data ?? []
+          ..sort((a, b) => a.leitungsNummer.compareTo(b.leitungsNummer));
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -542,10 +881,35 @@ class _BierleitungenSection extends StatelessWidget {
                         fontSize: 14,
                       ),
                     ),
+                    const Spacer(),
+                    if (leitungen.length < 4)
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Neue Leitung'),
+                        onPressed: () => context.push(
+                          '/anlagen/${widget.anlage.routeId}/bierleitungen/neu',
+                        ),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ...leitungen.map((l) => _BierleitungRow(leitung: l)),
+                if (leitungen.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ...leitungen.map((l) => _BierleitungRow(
+                        leitung: l,
+                        anlageRouteId: widget.anlage.routeId,
+                        onDeleted: _refresh,
+                      )),
+                ],
+                if (leitungen.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Noch keine Bierleitungen erfasst',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -557,66 +921,111 @@ class _BierleitungenSection extends StatelessWidget {
 
 class _BierleitungRow extends StatelessWidget {
   final BierleitungLocal leitung;
+  final String anlageRouteId;
+  final VoidCallback? onDeleted;
 
-  const _BierleitungRow({required this.leitung});
+  const _BierleitungRow({
+    required this.leitung,
+    required this.anlageRouteId,
+    this.onDeleted,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppColors.info.withAlpha(25),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(
-                '${leitung.leitungsNummer}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: AppColors.info,
+    return InkWell(
+      onTap: () => context.push(
+        '/anlagen/$anlageRouteId/bierleitungen/${leitung.routeId}/bearbeiten',
+      ),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.info.withAlpha(25),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Text(
+                  '${leitung.leitungsNummer}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: AppColors.info,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  leitung.biersorte ?? 'Keine Biersorte',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                if (leitung.hahnTyp != null || leitung.niederdruckBar != null)
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    [
-                      if (leitung.hahnTyp != null) leitung.hahnTyp!,
-                      if (leitung.niederdruckBar != null)
-                        '${leitung.niederdruckBar} bar',
-                    ].join(' · '),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                    leitung.biersorte ?? 'Keine Biersorte',
+                    style: const TextStyle(fontSize: 14),
                   ),
-              ],
+                  if (leitung.hahnTyp != null || leitung.niederdruckBar != null)
+                    Text(
+                      [
+                        if (leitung.hahnTyp != null) leitung.hahnTyp!,
+                        if (leitung.niederdruckBar != null)
+                          '${leitung.niederdruckBar} bar',
+                      ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
             ),
+            if (leitung.hatFobStop)
+              const Tooltip(
+                message: 'FOB-Stop',
+                child: Icon(Icons.stop_circle_outlined,
+                    size: 16, color: AppColors.info),
+              ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              color: AppColors.textSecondary,
+              tooltip: 'Löschen',
+              onPressed: () => _confirmDelete(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bierleitung löschen'),
+        content: Text(
+          'Leitung ${leitung.leitungsNummer}${leitung.biersorte != null ? ' (${leitung.biersorte})' : ''} wirklich löschen?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
           ),
-          if (leitung.hatFobStop)
-            const Tooltip(
-              message: 'FOB-Stop',
-              child: Icon(Icons.stop_circle_outlined,
-                  size: 16, color: AppColors.info),
-            ),
+          FilledButton(
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
         ],
       ),
     );
+
+    if (confirmed == true && context.mounted) {
+      await BierleitungRepository.delete(leitung.routeId);
+      onDeleted?.call();
+    }
   }
 }
 

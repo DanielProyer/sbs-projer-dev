@@ -1,4 +1,4 @@
-import 'package:sbs_projer_app/data/local/eigenauftrag_local.dart';
+import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
 import 'package:sbs_projer_app/data/models/eigenauftrag.dart';
 
 class EigenauftragMapper {

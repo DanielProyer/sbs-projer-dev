@@ -25,6 +25,7 @@ class Reinigung {
   final bool zapfhahnZerlegtGereinigt;
   final bool zapfkopfZerlegtGereinigt;
   final bool servicekarteAusgefuellt;
+  final Map<String, String> checklisteNotizen;
 
   // Unterschriften
   final String? unterschriftTechniker;
@@ -78,6 +79,7 @@ class Reinigung {
     this.zapfhahnZerlegtGereinigt = false,
     this.zapfkopfZerlegtGereinigt = false,
     this.servicekarteAusgefuellt = false,
+    this.checklisteNotizen = const {},
     this.unterschriftTechniker,
     this.unterschriftKunde,
     this.unterschriftKundeName,
@@ -129,6 +131,9 @@ class Reinigung {
       zapfhahnZerlegtGereinigt: json['zapfhahn_zerlegt_gereinigt'] ?? false,
       zapfkopfZerlegtGereinigt: json['zapfkopf_zerlegt_gereinigt'] ?? false,
       servicekarteAusgefuellt: json['servicekarte_ausgefuellt'] ?? false,
+      checklisteNotizen: json['checkliste_notizen'] != null
+          ? Map<String, String>.from(json['checkliste_notizen'])
+          : {},
       unterschriftTechniker: json['unterschrift_techniker'],
       unterschriftKunde: json['unterschrift_kunde'],
       unterschriftKundeName: json['unterschrift_kunde_name'],
@@ -180,6 +185,7 @@ class Reinigung {
       'zapfhahn_zerlegt_gereinigt': zapfhahnZerlegtGereinigt,
       'zapfkopf_zerlegt_gereinigt': zapfkopfZerlegtGereinigt,
       'servicekarte_ausgefuellt': servicekarteAusgefuellt,
+      'checkliste_notizen': checklisteNotizen,
       'unterschrift_techniker': unterschriftTechniker,
       'unterschrift_kunde': unterschriftKunde,
       'unterschrift_kunde_name': unterschriftKundeName,

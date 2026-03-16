@@ -1,14 +1,21 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/pdf/reinigung_pdf_service.dart';
+import 'package:sbs_projer_app/services/pdf/heineken_rapport_service.dart';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 
 class ReinigungDetailScreen extends ConsumerWidget {
-  final int reinigungId;
+  final String reinigungId;
 
   const ReinigungDetailScreen({super.key, required this.reinigungId});
 
@@ -37,24 +44,43 @@ class ReinigungDetailScreen extends ConsumerWidget {
   }
 }
 
-class _ReinigungDetailContent extends StatelessWidget {
+class _ReinigungDetailContent extends ConsumerWidget {
   final ReinigungLocal reinigung;
 
   const _ReinigungDetailContent({required this.reinigung});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Reinigung ${_formatDate(reinigung.datum)}'),
         actions: [
-          if (reinigung.status == 'offen')
+          if (reinigung.status == 'abgeschlossen')
             IconButton(
-              icon: const Icon(Icons.edit),
-              tooltip: 'Bearbeiten',
-              onPressed: () =>
-                  context.push('/reinigungen/${reinigung.id}/bearbeiten'),
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'PDF drucken / teilen',
+              onPressed: () => _showPdf(context, reinigung),
             ),
+          if (reinigung.istBergkunde)
+            IconButton(
+              icon: const Icon(Icons.terrain),
+              tooltip: 'Anfahrtspauschale PDF',
+              onPressed: () => _showAnfahrtspauschale(context, reinigung),
+            ),
+          if (!SupabaseService.isGuest) ...[
+            if (reinigung.status == 'offen')
+              IconButton(
+                icon: const Icon(Icons.edit),
+                tooltip: 'Bearbeiten',
+                onPressed: () =>
+                    context.push('/reinigungen/${reinigung.routeId}/bearbeiten'),
+              ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Löschen',
+              onPressed: () => _confirmDelete(context, ref),
+            ),
+          ],
         ],
       ),
       body: ListView(
@@ -115,13 +141,20 @@ class _ReinigungDetailContent extends StatelessWidget {
                     reinigung.bergkundenZuschlag! > 0)
                   _InfoRow('Bergkunden-Zuschlag',
                       '${reinigung.bergkundenZuschlag!.toStringAsFixed(2)} CHF'),
-                if (reinigung.preisNetto != null)
+                if (reinigung.preisNetto != null) ...[
                   _InfoRow('Netto',
                       '${reinigung.preisNetto!.toStringAsFixed(2)} CHF'),
-                if (reinigung.preisMwst != null)
-                  _InfoRow(
-                      'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? '8.1'}%)',
-                      '${reinigung.preisMwst!.toStringAsFixed(2)} CHF'),
+                  if (reinigung.preisBrutto != null) ...[
+                    Builder(builder: (_) {
+                      final brutto = _roundTo5Rappen(reinigung.preisBrutto!);
+                      final mwst = brutto - reinigung.preisNetto!;
+                      return _InfoRow(
+                        'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? '8.1'}%)',
+                        '${mwst.toStringAsFixed(2)} CHF',
+                      );
+                    }),
+                  ],
+                ],
                 if (reinigung.preisBrutto != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -139,7 +172,7 @@ class _ReinigungDetailContent extends StatelessWidget {
                         ),
                         Expanded(
                           child: Text(
-                            '${reinigung.preisBrutto!.toStringAsFixed(2)} CHF',
+                            '${_roundTo5Rappen(reinigung.preisBrutto!).toStringAsFixed(2)} CHF',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
@@ -159,11 +192,55 @@ class _ReinigungDetailContent extends StatelessWidget {
               title: 'Unterschriften',
               icon: Icons.draw,
               children: [
-                if (reinigung.unterschriftTechniker != null)
-                  _InfoRow('Techniker', 'Vorhanden'),
-                if (reinigung.unterschriftKunde != null)
-                  _InfoRow('Kunde',
-                      reinigung.unterschriftKundeName ?? 'Vorhanden'),
+                if (reinigung.unterschriftTechniker != null) ...[
+                  const Text('Techniker',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: AppColors.divider),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(7),
+                      child: Image.memory(
+                        base64Decode(reinigung.unterschriftTechniker!),
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (reinigung.unterschriftKunde != null) ...[
+                  Text(
+                    reinigung.unterschriftKundeName != null
+                        ? 'Kunde: ${reinigung.unterschriftKundeName}'
+                        : 'Kunde',
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: AppColors.divider),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(7),
+                      child: Image.memory(
+                        base64Decode(reinigung.unterschriftKunde!),
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
 
@@ -204,8 +281,120 @@ class _ReinigungDetailContent extends StatelessWidget {
     );
   }
 
+  static double _roundTo5Rappen(double value) {
+    return (value * 20).roundToDouble() / 20;
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  Future<void> _showPdf(
+      BuildContext context, ReinigungLocal reinigung) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final pdfBytes = await ReinigungPdfService.generate(reinigung);
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Dialog schliessen
+        await Printing.layoutPdf(
+          onLayout: (_) => pdfBytes,
+          name:
+              'Reinigungsprotokoll_${_formatDate(reinigung.datum).replaceAll('.', '_')}',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showAnfahrtspauschale(
+      BuildContext context, ReinigungLocal reinigung) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      String kunde = '';
+      String ort = '';
+      final betrieb =
+          await BetriebRepository.getByServerId(reinigung.betriebId);
+      if (betrieb != null) {
+        kunde = betrieb.name;
+        ort = '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim();
+      }
+
+      final pdfBytes = await HeinekenRapportService.generateAnfahrtspauschale(
+        referenzNr: _formatDate(reinigung.datum).replaceAll('.', '_'),
+        datum: reinigung.datum,
+        kunde: kunde,
+        ort: ort,
+      );
+
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        await Printing.layoutPdf(
+          onLayout: (_) => pdfBytes,
+          name:
+              'Rapport_Anfahrtspauschale_${_formatDate(reinigung.datum).replaceAll('.', '_')}',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reinigung löschen'),
+        content: Text(
+          'Reinigung vom ${_formatDate(reinigung.datum)} wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await ReinigungRepository.delete(reinigung.routeId);
+        ref.invalidate(reinigungenStreamProvider);
+        if (context.mounted) context.pop();
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Löschen nur mit Internetverbindung möglich')),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -243,7 +432,7 @@ class _BetriebAnlageCard extends StatelessWidget {
                     final b = await BetriebRepository.getByServerId(
                         reinigung.betriebId);
                     if (b != null && context.mounted) {
-                      context.push('/betriebe/${b.id}');
+                      context.push('/betriebe/${b.routeId}');
                     }
                   },
                 ),
@@ -260,7 +449,7 @@ class _BetriebAnlageCard extends StatelessWidget {
                     final a = await AnlageRepository.getByServerId(
                         reinigung.anlageId);
                     if (a != null && context.mounted) {
-                      context.push('/anlagen/${a.id}');
+                      context.push('/anlagen/${a.routeId}');
                     }
                   },
                 ),
@@ -289,34 +478,54 @@ class _ChecklisteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final notizen = reinigung.checklisteNotizenJson != null
+        ? Map<String, String>.from(jsonDecode(reinigung.checklisteNotizenJson!))
+        : <String, String>{};
+
     final items = [
       ('Begleitkühlung kontrolliert',
-          reinigung.begleitkuehlungKontrolliert),
+          reinigung.begleitkuehlungKontrolliert,
+          'begleitkuehlung_kontrolliert'),
       ('Installation allgemein kontrolliert',
-          reinigung.installationAllgemeinKontrolliert),
+          reinigung.installationAllgemeinKontrolliert,
+          'installation_allgemein_kontrolliert'),
       ('Aligal-Anschlüsse kontrolliert',
-          reinigung.aligalAnschluesseKontrolliert),
+          reinigung.aligalAnschluesseKontrolliert,
+          'aligal_anschluesse_kontrolliert'),
       ('Durchlaufkühler ausgeblasen',
-          reinigung.durchlaufkuehlerAusgeblasen),
-      ('Wasserstand kontrolliert', reinigung.wasserstandKontrolliert),
-      ('Wasser gewechselt', reinigung.wasserGewechselt),
+          reinigung.durchlaufkuehlerAusgeblasen,
+          'durchlaufkuehler_ausgeblasen'),
+      ('Wasserstand kontrolliert', reinigung.wasserstandKontrolliert,
+          'wasserstand_kontrolliert'),
+      ('Wasser gewechselt', reinigung.wasserGewechselt,
+          'wasser_gewechselt'),
       ('Leitung mit Wasser vorgespült',
-          reinigung.leitungWasserVorgespuelt),
+          reinigung.leitungWasserVorgespuelt,
+          'leitung_wasser_vorgespuelt'),
       ('Leitungsreinigung mit Reinigungsmittel',
-          reinigung.leitungsreinigungReinigungsmittel),
-      ('Förderdruck kontrolliert', reinigung.foerderdruckKontrolliert),
+          reinigung.leitungsreinigungReinigungsmittel,
+          'leitungsreinigung_reinigungsmittel'),
+      ('Förderdruck kontrolliert', reinigung.foerderdruckKontrolliert,
+          'foerderdruck_kontrolliert'),
       ('Zapfhahn zerlegt & gereinigt',
-          reinigung.zapfhahnZerlegtGereinigt),
+          reinigung.zapfhahnZerlegtGereinigt,
+          'zapfhahn_zerlegt_gereinigt'),
       ('Zapfkopf zerlegt & gereinigt',
-          reinigung.zapfkopfZerlegtGereinigt),
-      ('Servicekarte ausgefüllt', reinigung.servicekarteAusgefuellt),
+          reinigung.zapfkopfZerlegtGereinigt,
+          'zapfkopf_zerlegt_gereinigt'),
+      ('Servicekarte ausgefüllt', reinigung.servicekarteAusgefuellt,
+          'servicekarte_ausgefuellt'),
     ];
 
     final anlagenItems = [
-      ('Durchlaufkühler', reinigung.hatDurchlaufkuehler),
-      ('Buffetanstich', reinigung.hatBuffetanstich),
-      ('Kühlkeller', reinigung.hatKuehlkeller),
-      ('Fasskühler', reinigung.hatFasskuehler),
+      ('Durchlaufkühler', reinigung.hatDurchlaufkuehler,
+          'hat_durchlaufkuehler'),
+      ('Buffetanstich', reinigung.hatBuffetanstich,
+          'hat_buffetanstich'),
+      ('Kühlkeller', reinigung.hatKuehlkeller,
+          'hat_kuehlkeller'),
+      ('Fasskühler', reinigung.hatFasskuehler,
+          'hat_fasskuehler'),
     ];
 
     final checkedCount =
@@ -352,6 +561,7 @@ class _ChecklisteCard extends StatelessWidget {
             ...items.map((item) => _CheckItem(
                   label: item.$1,
                   checked: item.$2,
+                  note: notizen[item.$3],
                 )),
             if (anlagenItems.any((i) => i.$2)) ...[
               const Divider(),
@@ -369,6 +579,7 @@ class _ChecklisteCard extends StatelessWidget {
                   .map((item) => _CheckItem(
                         label: item.$1,
                         checked: item.$2,
+                        note: notizen[item.$3],
                       )),
             ],
           ],
@@ -407,32 +618,48 @@ class _ProgressIndicator extends StatelessWidget {
 class _CheckItem extends StatelessWidget {
   final String label;
   final bool checked;
+  final String? note;
 
-  const _CheckItem({required this.label, required this.checked});
+  const _CheckItem({required this.label, required this.checked, this.note});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            checked ? Icons.check_circle : Icons.circle_outlined,
-            size: 18,
-            color: checked ? AppColors.success : AppColors.textSecondary,
+          Row(
+            children: [
+              Icon(
+                checked ? Icons.check_circle : Icons.circle_outlined,
+                size: 18,
+                color: checked ? AppColors.success : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: checked ? null : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: checked ? null : AppColors.textSecondary,
-                decoration:
-                    checked ? TextDecoration.none : TextDecoration.none,
+          if (note != null && note!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 2, bottom: 4),
+              child: Text(
+                note!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

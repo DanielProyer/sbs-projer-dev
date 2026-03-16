@@ -1,56 +1,87 @@
-import 'package:isar/isar.dart';
-import 'package:sbs_projer_app/data/local/anlage_local.dart';
-import 'package:sbs_projer_app/services/storage/isar_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
+import 'package:sbs_projer_app/data/models/anlage.dart';
+import 'package:sbs_projer_app/data/mappers/anlage_mapper.dart';
+import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class AnlageRepository {
-  static Isar get _isar => IsarService.instance;
+  static String get _userId => SupabaseService.currentUser!.id;
 
   static Future<List<AnlageLocal>> getAll() async {
-    return _isar.anlageLocals.where().findAll();
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('anlagen').select().eq('user_id', _userId);
+      return rows.map((r) => AnlageMapper.fromDto(Anlage.fromJson(r))).toList();
+    }
+    return IsarService.anlageFindAll();
   }
 
   static Stream<List<AnlageLocal>> watchAll() {
-    return _isar.anlageLocals.where().watch(fireImmediately: true);
+    if (kIsWeb) return Stream.fromFuture(getAll());
+    return IsarService.anlageWatchAll();
   }
 
-  static Future<AnlageLocal?> getById(int id) async {
-    return _isar.anlageLocals.get(id);
+  static Future<AnlageLocal?> getById(String id) async {
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('anlagen').select().eq('id', id).limit(1);
+      if (rows.isEmpty) return null;
+      return AnlageMapper.fromDto(Anlage.fromJson(rows.first));
+    }
+    return IsarService.anlageGet(int.parse(id));
   }
 
   static Future<AnlageLocal?> getByServerId(String serverId) async {
-    return _isar.anlageLocals
-        .filter()
-        .serverIdEqualTo(serverId)
-        .findFirst();
+    if (kIsWeb) return getById(serverId);
+    return IsarService.anlageFindByServerId(serverId);
   }
 
   static Future<List<AnlageLocal>> getByBetrieb(String betriebId) async {
-    return _isar.anlageLocals
-        .filter()
-        .betriebIdEqualTo(betriebId)
-        .findAll();
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('anlagen').select().eq('user_id', _userId).eq('betrieb_id', betriebId);
+      return rows.map((r) => AnlageMapper.fromDto(Anlage.fromJson(r))).toList();
+    }
+    return IsarService.anlageFilterByBetrieb(betriebId);
   }
 
   static Stream<List<AnlageLocal>> watchByBetrieb(String betriebId) {
-    return _isar.anlageLocals
-        .filter()
-        .betriebIdEqualTo(betriebId)
-        .watch(fireImmediately: true);
+    if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
+    return IsarService.anlageWatchByBetrieb(betriebId);
   }
 
   static Future<int> count() async {
-    return _isar.anlageLocals.count();
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('anlagen').select('id').eq('user_id', _userId);
+      return rows.length;
+    }
+    return IsarService.anlageCount();
   }
 
   static Future<void> save(AnlageLocal anlage) async {
-    anlage.userId = SupabaseService.currentUser!.id;
+    anlage.userId = _userId;
+    if (kIsWeb) {
+      final json = AnlageMapper.toJson(anlage);
+      await SupabaseService.client.from('anlagen').upsert(json);
+      return;
+    }
     anlage.isSynced = false;
     anlage.lastModifiedAt = DateTime.now().toUtc();
-    await _isar.writeTxn(() => _isar.anlageLocals.put(anlage));
+    await IsarService.anlagePut(anlage);
   }
 
-  static Future<void> delete(int id) async {
-    await _isar.writeTxn(() => _isar.anlageLocals.delete(id));
+  static Future<void> delete(String id) async {
+    if (kIsWeb) {
+      await SupabaseService.client.from('anlagen').delete().eq('id', id);
+      return;
+    }
+    // Native: Supabase löscht mit CASCADE, dann Isar aufräumen
+    final local = await IsarService.anlageGet(int.parse(id));
+    if (local?.serverId != null) {
+      await SupabaseService.client.from('anlagen').delete().eq('id', local!.serverId!);
+    }
+    await IsarService.anlageDeleteCascade(int.parse(id));
   }
 }

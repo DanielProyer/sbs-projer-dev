@@ -1,4 +1,4 @@
-import 'package:sbs_projer_app/data/local/bierleitung_local.dart';
+import 'package:sbs_projer_app/data/local/bierleitung_local_export.dart';
 import 'package:sbs_projer_app/data/models/bierleitung.dart';
 
 class BierleitungMapper {

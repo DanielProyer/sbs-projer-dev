@@ -19,6 +19,9 @@ build/
 .vscode/settings.json
 *.iml
 
+# Build Output (Web)
+web/
+
 # OS
 .DS_Store
 Thumbs.db

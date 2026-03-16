@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/anlage_local.dart';
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 
@@ -22,11 +22,11 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
     final anlagen = ref.watch(anlagenProvider);
     final betriebe = ref.watch(betriebeProvider);
 
-    // Betrieb-Name Lookup
-    final betriebNames = <String, String>{};
+    // Betrieb Lookup
+    final betriebMap = <String, ({String name, String? ort})>{};
     for (final b in betriebe) {
       if (b.serverId != null) {
-        betriebNames[b.serverId!] = b.name;
+        betriebMap[b.serverId!] = (name: b.name, ort: b.ort);
       }
     }
 
@@ -35,7 +35,7 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
       if (_statusFilter != 'alle' && a.status != _statusFilter) return false;
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        final betriebName = betriebNames[a.betriebId]?.toLowerCase() ?? '';
+        final betriebName = betriebMap[a.betriebId]?.name.toLowerCase() ?? '';
         return (a.bezeichnung?.toLowerCase().contains(query) ?? false) ||
             a.typAnlage.toLowerCase().contains(query) ||
             betriebName.contains(query) ||
@@ -56,6 +56,7 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
               _filterItem('alle', 'Alle'),
               _filterItem('aktiv', 'Aktiv'),
               _filterItem('inaktiv', 'Inaktiv'),
+              _filterItem('stillgelegt', 'Stillgelegt'),
             ],
           ),
         ],
@@ -105,10 +106,12 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final anlage = filtered[index];
+                      final betrieb = betriebMap[anlage.betriebId];
                       return _AnlageListItem(
                         anlage: anlage,
-                        betriebName: betriebNames[anlage.betriebId],
-                        onTap: () => context.push('/anlagen/${anlage.id}'),
+                        betriebName: betrieb?.name,
+                        betriebOrt: betrieb?.ort,
+                        onTap: () => context.push('/anlagen/${anlage.routeId}'),
                       );
                     },
                   ),
@@ -166,16 +169,23 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
 class _AnlageListItem extends StatelessWidget {
   final AnlageLocal anlage;
   final String? betriebName;
+  final String? betriebOrt;
   final VoidCallback onTap;
 
   const _AnlageListItem({
     required this.anlage,
     this.betriebName,
+    this.betriebOrt,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Titel: Betriebname, Ort
+    final titleParts = <String>[];
+    if (betriebName != null) titleParts.add(betriebName!);
+    if (betriebOrt != null && betriebOrt!.isNotEmpty) titleParts.add(betriebOrt!);
+
     return Card(
       child: ListTile(
         leading: CircleAvatar(
@@ -184,7 +194,7 @@ class _AnlageListItem extends StatelessWidget {
               color: _statusColor, size: 20),
         ),
         title: Text(
-          anlage.bezeichnung ?? anlage.typAnlage,
+          titleParts.isNotEmpty ? titleParts.join(', ') : (anlage.bezeichnung ?? anlage.typAnlage),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: _buildSubtitle(),
@@ -210,9 +220,9 @@ class _AnlageListItem extends StatelessWidget {
 
   Widget? _buildSubtitle() {
     final parts = <String>[];
-    if (betriebName != null) parts.add(betriebName!);
+    if (anlage.bezeichnung != null) parts.add(anlage.bezeichnung!);
+    parts.add(anlage.typAnlage);
     parts.add('${anlage.anzahlHaehne} Hähne');
-    if (anlage.bezeichnung != null) parts.add(anlage.typAnlage);
     return Text(parts.join(' · '));
   }
 
@@ -221,7 +231,9 @@ class _AnlageListItem extends StatelessWidget {
       case 'aktiv':
         return AppColors.aktiv;
       case 'inaktiv':
-        return AppColors.inaktiv;
+        return AppColors.warning;
+      case 'stillgelegt':
+        return AppColors.error;
       default:
         return AppColors.textSecondary;
     }

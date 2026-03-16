@@ -16,8 +16,8 @@ class BetriebKontaktLocal {
   // Felder
   late String userId;
   late String betriebId;
-  String? vorname;
-  late String nachname;
+  late String vorname;
+  String? nachname;
   String? funktion;
   String? telefon;
   String? email;

@@ -1,11 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sbs_projer_app/data/local/anlage_local.dart';
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 
 class AnlageFormScreen extends ConsumerStatefulWidget {
-  final int? anlageId; // null = neu erstellen
+  final String? anlageId; // null = neu erstellen
   final String? betriebId; // für neue Anlage: Zuordnung zum Betrieb
 
   const AnlageFormScreen({super.key, this.anlageId, this.betriebId});
@@ -22,10 +24,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
   // Controller
   late final _bezeichnungController = TextEditingController();
   late final _seriennummerController = TextEditingController();
-  late final _typSaeuleController = TextEditingController();
-  late final _durchlaufkuehlerController = TextEditingController();
-  late final _gasTyp1Controller = TextEditingController();
-  late final _gasTyp2Controller = TextEditingController();
   late final _hauptdruckController = TextEditingController();
   late final _serviceMorgenAbController = TextEditingController();
   late final _serviceMorgenBisController = TextEditingController();
@@ -35,10 +33,14 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
 
   // State
   String _typAnlage = 'Warmanstich';
+  String? _typSaeule;
   int _anzahlHaehne = 1;
   bool _backpython = false;
   bool _booster = false;
   String _vorkuehler = 'keiner';
+  String? _durchlaufkuehler;
+  String? _gasTyp1;
+  String? _gasTyp2;
   bool _hatNiederdruck = false;
   String _reinigungRhythmus = '4-Wochen';
   String _status = 'aktiv';
@@ -58,11 +60,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
     setState(() {
       _existing = anlage;
       _bezeichnungController.text = anlage.bezeichnung ?? '';
-      _seriennummerController.text = anlage.seriennummer ?? '';
-      _typSaeuleController.text = anlage.typSaeule ?? '';
-      _durchlaufkuehlerController.text = anlage.durchlaufkuehler ?? '';
-      _gasTyp1Controller.text = anlage.gasTyp1 ?? '';
-      _gasTyp2Controller.text = anlage.gasTyp2 ?? '';
       _hauptdruckController.text =
           anlage.hauptdruckBar?.toString() ?? '';
       _serviceMorgenAbController.text = anlage.servicezeitMorgenAb ?? '';
@@ -73,10 +70,15 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
           anlage.servicezeitNachmittagBis ?? '';
       _notizenController.text = anlage.notizen ?? '';
       _typAnlage = anlage.typAnlage;
+      _typSaeule = anlage.typSaeule;
+      _seriennummerController.text = anlage.seriennummer ?? '';
       _anzahlHaehne = anlage.anzahlHaehne;
       _backpython = anlage.backpython;
       _booster = anlage.booster;
       _vorkuehler = anlage.vorkuehler;
+      _durchlaufkuehler = anlage.durchlaufkuehler;
+      _gasTyp1 = anlage.gasTyp1;
+      _gasTyp2 = anlage.gasTyp2;
       _hatNiederdruck = anlage.hatNiederdruck;
       _reinigungRhythmus = anlage.reinigungRhythmus;
       _status = anlage.status;
@@ -85,6 +87,14 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Gas-Typ Validierung: Beide dürfen nicht gleich sein
+    if (_gasTyp1 != null && _gasTyp2 != null && _gasTyp1 == _gasTyp2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gas Typ 1 und 2 dürfen nicht gleich sein')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -99,15 +109,14 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
       anlage.bezeichnung = _emptyToNull(_bezeichnungController.text);
       anlage.seriennummer = _emptyToNull(_seriennummerController.text);
       anlage.typAnlage = _typAnlage;
-      anlage.typSaeule = _emptyToNull(_typSaeuleController.text);
+      anlage.typSaeule = _typSaeule;
       anlage.anzahlHaehne = _anzahlHaehne;
       anlage.backpython = _backpython;
       anlage.booster = _booster;
       anlage.vorkuehler = _vorkuehler;
-      anlage.durchlaufkuehler =
-          _emptyToNull(_durchlaufkuehlerController.text);
-      anlage.gasTyp1 = _emptyToNull(_gasTyp1Controller.text);
-      anlage.gasTyp2 = _emptyToNull(_gasTyp2Controller.text);
+      anlage.durchlaufkuehler = _durchlaufkuehler;
+      anlage.gasTyp1 = _gasTyp1;
+      anlage.gasTyp2 = _gasTyp2;
       anlage.hauptdruckBar =
           double.tryParse(_hauptdruckController.text.trim());
       anlage.hatNiederdruck = _hatNiederdruck;
@@ -132,12 +141,29 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 Text(_isEdit ? 'Anlage aktualisiert' : 'Anlage erstellt'),
           ),
         );
+        if (kIsWeb) ref.invalidate(anlagenStreamProvider);
         context.pop();
       }
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Fehler beim Speichern'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 400,
+              child: SingleChildScrollView(
+                child: SelectableText('$e\n\n$stack'),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
         );
       }
     } finally {
@@ -154,10 +180,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
   void dispose() {
     _bezeichnungController.dispose();
     _seriennummerController.dispose();
-    _typSaeuleController.dispose();
-    _durchlaufkuehlerController.dispose();
-    _gasTyp1Controller.dispose();
-    _gasTyp2Controller.dispose();
     _hauptdruckController.dispose();
     _serviceMorgenAbController.dispose();
     _serviceMorgenBisController.dispose();
@@ -223,13 +245,33 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _typSaeuleController,
+            DropdownButtonFormField<String?>(
+              initialValue: _typSaeule,
               decoration: const InputDecoration(
                 labelText: 'Säulen-Typ',
                 prefixIcon: Icon(Icons.view_column),
               ),
-              textInputAction: TextInputAction.next,
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Keine Angabe')),
+                DropdownMenuItem(value: 'Keine', child: Text('Keine')),
+                DropdownMenuItem(value: 'Europe 1-Way', child: Text('Europe 1-Way')),
+                DropdownMenuItem(value: 'Europe 2-Way', child: Text('Europe 2-Way')),
+                DropdownMenuItem(value: 'Europe 3-Way', child: Text('Europe 3-Way')),
+                DropdownMenuItem(value: 'Europe 4-Way', child: Text('Europe 4-Way')),
+                DropdownMenuItem(value: 'HeiTube 1-Way', child: Text('HeiTube 1-Way')),
+                DropdownMenuItem(value: 'Arrow 1-Way', child: Text('Arrow 1-Way')),
+                DropdownMenuItem(value: 'Fountain 1-Way', child: Text('Fountain 1-Way')),
+                DropdownMenuItem(value: 'Fountain Extra Cold 1-Way', child: Text('Fountain Extra Cold 1-Way')),
+                DropdownMenuItem(value: 'Cobra 1-Way', child: Text('Cobra 1-Way')),
+                DropdownMenuItem(value: 'Falco 2-Way', child: Text('Falco 2-Way')),
+                DropdownMenuItem(value: 'Keramik 1-Way', child: Text('Keramik 1-Way')),
+                DropdownMenuItem(value: 'Keramik 2-Way', child: Text('Keramik 2-Way')),
+                DropdownMenuItem(value: 'Adimat', child: Text('Adimat')),
+                DropdownMenuItem(value: 'BuyToSell', child: Text('BuyToSell')),
+                DropdownMenuItem(value: 'Fremdsäule', child: Text('Fremdsäule')),
+                DropdownMenuItem(value: 'Spezial', child: Text('Spezial')),
+              ],
+              onChanged: (v) => setState(() => _typSaeule = v),
             ),
             const SizedBox(height: 12),
             Row(
@@ -265,22 +307,40 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
               ),
               items: const [
                 DropdownMenuItem(value: 'keiner', child: Text('Keiner')),
-                DropdownMenuItem(value: 'nass', child: Text('Nasskühler')),
-                DropdownMenuItem(
-                    value: 'trocken', child: Text('Trockenkühler')),
+                DropdownMenuItem(value: 'Fasskühler', child: Text('Fasskühler')),
+                DropdownMenuItem(value: 'Kühlzelle', child: Text('Kühlzelle')),
+                DropdownMenuItem(value: 'Buffet', child: Text('Buffet')),
+                DropdownMenuItem(value: 'Bierbar', child: Text('Bierbar')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _vorkuehler = v);
               },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _durchlaufkuehlerController,
+            DropdownButtonFormField<String?>(
+              initialValue: _durchlaufkuehler,
               decoration: const InputDecoration(
                 labelText: 'Durchlaufkühler',
                 prefixIcon: Icon(Icons.kitchen),
               ),
-              textInputAction: TextInputAction.next,
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Keine Angabe')),
+                DropdownMenuItem(value: 'H60', child: Text('H60')),
+                DropdownMenuItem(value: 'H75', child: Text('H75')),
+                DropdownMenuItem(value: 'H100', child: Text('H100')),
+                DropdownMenuItem(value: 'H120', child: Text('H120')),
+                DropdownMenuItem(value: 'H150', child: Text('H150')),
+                DropdownMenuItem(value: 'H200', child: Text('H200')),
+                DropdownMenuItem(value: 'OT-Lux', child: Text('OT-Lux')),
+                DropdownMenuItem(value: 'Gamko liegend', child: Text('Gamko liegend')),
+                DropdownMenuItem(value: 'Gamko stehend', child: Text('Gamko stehend')),
+                DropdownMenuItem(value: 'Gamko Sat.', child: Text('Gamko Sat.')),
+                DropdownMenuItem(value: 'Safari', child: Text('Safari')),
+                DropdownMenuItem(value: 'Fremdkühler', child: Text('Fremdkühler')),
+                DropdownMenuItem(value: 'Fremdkühler Sat.', child: Text('Fremdkühler Sat.')),
+                DropdownMenuItem(value: 'keiner', child: Text('Keiner')),
+              ],
+              onChanged: (v) => setState(() => _durchlaufkuehler = v),
             ),
             const SizedBox(height: 12),
             SwitchListTile(
@@ -299,20 +359,32 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
-                    controller: _gasTyp1Controller,
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: _gasTyp1,
                     decoration:
                         const InputDecoration(labelText: 'Gas Typ 1'),
-                    textInputAction: TextInputAction.next,
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('Keiner')),
+                      DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
+                      DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
+                      DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
+                    ],
+                    onChanged: (v) => setState(() => _gasTyp1 = v),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextFormField(
-                    controller: _gasTyp2Controller,
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: _gasTyp2,
                     decoration:
                         const InputDecoration(labelText: 'Gas Typ 2'),
-                    textInputAction: TextInputAction.next,
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('Keiner')),
+                      DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
+                      DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
+                      DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
+                    ],
+                    onChanged: (v) => setState(() => _gasTyp2 = v),
                   ),
                 ),
               ],
@@ -394,14 +466,14 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 prefixIcon: Icon(Icons.cleaning_services),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: '2-Wochen', child: Text('2-Wochen')),
-                DropdownMenuItem(
-                    value: '4-Wochen', child: Text('4-Wochen')),
-                DropdownMenuItem(
-                    value: '6-Wochen', child: Text('6-Wochen')),
-                DropdownMenuItem(
-                    value: '8-Wochen', child: Text('8-Wochen')),
+                DropdownMenuItem(value: '4-Wochen', child: Text('4-Wochen')),
+                DropdownMenuItem(value: '6-Wochen', child: Text('6-Wochen')),
+                DropdownMenuItem(value: '2-Monate', child: Text('2-Monate')),
+                DropdownMenuItem(value: '3-Monate', child: Text('3-Monate')),
+                DropdownMenuItem(value: '6-Monate', child: Text('6-Monate')),
+                DropdownMenuItem(value: 'Jährlich', child: Text('Jährlich')),
+                DropdownMenuItem(value: 'auf-Abruf', child: Text('Auf Abruf')),
+                DropdownMenuItem(value: 'Selbstreiniger', child: Text('Selbstreiniger')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _reinigungRhythmus = v);
@@ -420,8 +492,8 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
               ),
               items: const [
                 DropdownMenuItem(value: 'aktiv', child: Text('Aktiv')),
-                DropdownMenuItem(
-                    value: 'inaktiv', child: Text('Inaktiv')),
+                DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
+                DropdownMenuItem(value: 'stillgelegt', child: Text('Stillgelegt')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _status = v);

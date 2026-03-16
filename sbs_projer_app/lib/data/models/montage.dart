@@ -2,7 +2,7 @@ class Montage {
   final String id;
   final String userId;
   final String? anlageId;
-  final String betriebId;
+  final String? betriebId;
   final String montageTyp;
   final String beschreibung;
   final String? referenzNr;
@@ -40,7 +40,7 @@ class Montage {
     required this.id,
     required this.userId,
     this.anlageId,
-    required this.betriebId,
+    this.betriebId,
     required this.montageTyp,
     required this.beschreibung,
     this.referenzNr,

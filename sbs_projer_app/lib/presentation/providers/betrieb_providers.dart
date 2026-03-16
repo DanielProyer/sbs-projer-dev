@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sbs_projer_app/data/local/betrieb_local.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 
 final betriebeStreamProvider = StreamProvider<List<BetriebLocal>>((ref) {

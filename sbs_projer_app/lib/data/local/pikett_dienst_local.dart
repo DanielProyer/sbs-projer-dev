@@ -6,6 +6,9 @@ part 'pikett_dienst_local.g.dart';
 class PikettDienstLocal {
   Id id = Isar.autoIncrement;
 
+  @ignore
+  String get routeId => id.toString();
+
   // Supabase Sync
   @Index()
   String? serverId;

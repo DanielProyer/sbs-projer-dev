@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/stoerung_local.dart';
+import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class StoerungenListScreen extends ConsumerStatefulWidget {
   const StoerungenListScreen({super.key});
@@ -41,9 +42,10 @@ class _StoerungenListScreenState
       if (_statusFilter != 'alle' && s.status != _statusFilter) return false;
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        final betriebName = betriebNames[s.betriebId]?.toLowerCase() ?? '';
+        final betriebName = (s.betriebId != null ? betriebNames[s.betriebId!] : null)?.toLowerCase() ?? '';
         return betriebName.contains(query) ||
             s.stoerungsnummer.toLowerCase().contains(query) ||
+            (s.referenzNr?.toLowerCase().contains(query) ?? false) ||
             s.problemBeschreibung.toLowerCase().contains(query) ||
             (s.notizen?.toLowerCase().contains(query) ?? false);
       }
@@ -61,8 +63,8 @@ class _StoerungenListScreenState
             itemBuilder: (context) => [
               _filterItem('alle', 'Alle'),
               _filterItem('offen', 'Offen'),
-              _filterItem('abgeschlossen', 'Abgeschlossen'),
-              _filterItem('abgebrochen', 'Abgebrochen'),
+              _filterItem('behoben', 'Behoben'),
+              _filterItem('nicht_behebbar', 'Nicht behebbar'),
             ],
           ),
         ],
@@ -116,15 +118,21 @@ class _StoerungenListScreenState
                       final stoerung = filtered[index];
                       return _StoerungListItem(
                         stoerung: stoerung,
-                        betriebName: betriebNames[stoerung.betriebId],
+                        betriebName: stoerung.betriebId != null ? betriebNames[stoerung.betriebId!] : null,
                         onTap: () =>
-                            context.push('/stoerungen/${stoerung.id}'),
+                            context.push('/stoerungen/${stoerung.routeId}'),
                       );
                     },
                   ),
           ),
         ],
       ),
+      floatingActionButton: SupabaseService.isGuest
+          ? null
+          : FloatingActionButton(
+              onPressed: () => context.push('/stoerungen/neu'),
+              child: const Icon(Icons.add),
+            ),
     );
   }
 
@@ -164,7 +172,7 @@ class _StoerungenListScreenState
           Text(
             _searchQuery.isNotEmpty
                 ? 'Versuche einen anderen Suchbegriff'
-                : 'Erfasse eine Störung über die Anlage-Detailseite',
+                : 'Erfasse eine neue Störung mit dem + Button',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -211,7 +219,7 @@ class _StoerungListItem extends StatelessWidget {
                   color: AppColors.warning,
                 ),
               ),
-            if (stoerung.status == 'abgeschlossen')
+            if (stoerung.status == 'behoben')
               const Icon(Icons.check_circle,
                   size: 16, color: AppColors.success),
             if (stoerung.istPikettEinsatz)
@@ -231,13 +239,14 @@ class _StoerungListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
+    if (stoerung.referenzNr != null) parts.add('HN-${stoerung.referenzNr}');
     if (betriebName != null) parts.add(betriebName!);
     parts.add(_formatDate(stoerung.datum));
     if (stoerung.stoerungBereich != null) {
       parts.add('Bereich ${stoerung.stoerungBereich}');
     }
-    if (stoerung.preisBrutto != null) {
-      parts.add('${stoerung.preisBrutto!.toStringAsFixed(2)} CHF');
+    if (stoerung.preisNetto != null) {
+      parts.add('${stoerung.preisNetto!.toStringAsFixed(2)} CHF');
     }
     return parts.join(' · ');
   }
@@ -250,9 +259,9 @@ class _StoerungListItem extends StatelessWidget {
     switch (stoerung.status) {
       case 'offen':
         return AppColors.warning;
-      case 'abgeschlossen':
+      case 'behoben':
         return AppColors.success;
-      case 'abgebrochen':
+      case 'nicht_behebbar':
         return AppColors.inaktiv;
       default:
         return AppColors.textSecondary;

@@ -6,6 +6,8 @@ part 'eigenauftrag_local.g.dart';
 class EigenauftragLocal {
   Id id = Isar.autoIncrement;
 
+  String get routeId => id.toString();
+
   // Supabase Sync
   @Index()
   String? serverId;
@@ -14,15 +16,15 @@ class EigenauftragLocal {
   DateTime? lastModifiedAt;
 
   // Felder
-  late String userId;
-  late String anlageId;
-  late String betriebId;
-  late String stoerungsnummer;
+  String userId = '';
+  String? anlageId;
+  String? betriebId;
+  String stoerungsnummer = '';
   String? referenzNr;
-  late DateTime datum;
+  DateTime datum = DateTime.now();
   String? uhrzeit;
   String? entdecktBeiServiceId;
-  late String problemBeschreibung;
+  String problemBeschreibung = '';
   String? loesungBeschreibung;
   String status = 'behoben';
 

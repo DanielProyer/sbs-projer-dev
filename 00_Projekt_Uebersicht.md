@@ -2,23 +2,23 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 20.02.2026
+**Stand**: 15.03.2026
 **Tech-Stack**: Flutter + Supabase
 
 ---
 
 ## 📊 PROJEKT-STATUS
 
-### Aktueller Stand: **Phase 1 - Setup & Grundlagen** 🔄
+### Aktueller Stand: **Phase 4 - Polish & Testing** 📅
 
 | Phase | Status | Fortschritt | Fertig am |
 |-------|--------|-------------|-----------|
 | **Phase 0: Planung & Analyse** | ✅ Abgeschlossen | 100% | 12.02.2026 |
 | **Phase 1: Setup & Grundlagen** | ✅ Abgeschlossen | 100% | 20.02.2026 |
-| **Phase 2: Core Features (MVP)** | 🔄 Laufend | 40% | - |
-| **Phase 3: Administration** | 📅 Geplant | 0% | - |
-| **Phase 4: Polish & Testing** | 📅 Geplant | 0% | - |
-| **Phase 5: Deployment & Launch** | 📅 Geplant | 0% | - |
+| **Phase 2: Core Features (MVP)** | ✅ Abgeschlossen | 100% | 14.03.2026 |
+| **Phase 3: Administration** | ✅ Abgeschlossen | 100% | 15.03.2026 |
+| **Phase 4: Polish & Testing** | 📅 Nächste Phase | 0% | - |
+| **Phase 5: Deployment & Launch** | 🔄 Vorgezogen | 20% | - |
 
 ---
 
@@ -161,27 +161,39 @@
 |---------|--------|-----------|---------------|
 | ✅ Datenmodell in Code (24 DTOs + 13 Isar) | Abgeschlossen | 🔴 Hoch | 20.02.2026 |
 | ✅ Offline-Sync-Logik (12 Entitäten) | Abgeschlossen | 🔴 Hoch | 20.02.2026 |
-| 🔄 Authentication (Supabase Auth) | Basis-Login ✅ | 🔴 Hoch | 2 Tage |
+| ✅ Authentication (Supabase Auth) | Abgeschlossen | 🔴 Hoch | 11.03.2026 |
 | ✅ Betriebe CRUD (Liste, Detail, Form, Providers) | Abgeschlossen | 🔴 Hoch | 20.02.2026 |
+| ✅ Betrieb MVP (Kontakte, Rechnungsadresse, Form-Erweiterungen) | Abgeschlossen | 🔴 Hoch | 07.03.2026 |
 | ✅ Anlagen CRUD (Liste, Detail, Form, Providers, Bierleitungen) | Abgeschlossen | 🔴 Hoch | 20.02.2026 |
+| ✅ Anlagen MVP (Dropdown-Fixes, Bierleitung CRUD, Gas-Validierung) | Abgeschlossen | 🔴 Hoch | 07.03.2026 |
 | ✅ Reinigungen CRUD (Liste, Detail, Form, Providers, Service-Flow) | Abgeschlossen | 🔴 Hoch | 20.02.2026 |
 | ✅ Störungen CRUD (Liste, Detail, Form, Providers, Störungsnummer) | Abgeschlossen | 🔴 Hoch | 20.02.2026 |
-| 📅 Tourenplanung (Basis) | Ausstehend | 🔴 Hoch | 5 Tage |
-| 📅 Service-Protokoll (Erweiterung: Unterschriften, Fotos) | Ausstehend | 🔴 Hoch | 4 Tage |
-| 📅 Unterschriften-Funktion | Ausstehend | 🔴 Hoch | 2 Tage |
-| 📅 Foto-Upload | Ausstehend | 🔴 Hoch | 2 Tage |
-| 📅 Preis-Kalkulator | Ausstehend | 🟡 Mittel | 3 Tage |
+| ✅ Web-Deployment (GitHub Pages) | Abgeschlossen | 🔴 Hoch | 07.03.2026 |
+| ✅ Android APK (Emulator getestet) | Abgeschlossen | 🔴 Hoch | 07.03.2026 |
+| ✅ Isar Extension Bug Fix + Repository Refactoring | Abgeschlossen | 🔴 Hoch | 07.03.2026 |
+| ✅ Tourenplanung (Basis) | Abgeschlossen | 🔴 Hoch | 11.03.2026 |
+| ✅ Service-Protokoll (Unterschriften, Fotos, Preis) | Abgeschlossen | 🔴 Hoch | 11.03.2026 |
+| ✅ Unterschriften-Funktion | Abgeschlossen | 🔴 Hoch | 11.03.2026 |
+| ✅ Foto-Upload | Abgeschlossen | 🔴 Hoch | 11.03.2026 |
+| ✅ Preis-Kalkulator | Abgeschlossen | 🟡 Mittel | 11.03.2026 |
+| ✅ Reinigungsprotokoll-PDF (Heineken FOR 1220) | Abgeschlossen | 🔴 Hoch | 12.03.2026 |
 
 ### Phase 3: Administration (Woche 9-12)
 
 | Feature | Status | Priorität | Zeitschätzung |
 |---------|--------|-----------|---------------|
-| 📅 Rechnung-Generierung (PDF) | Ausstehend | 🔴 Hoch | 5 Tage |
-| 📅 Materialverwaltung | Ausstehend | 🔴 Hoch | 5 Tage |
-| 📅 Störungs-Management | Ausstehend | 🔴 Hoch | 3 Tage |
-| 📅 Montage-Management | Ausstehend | 🔴 Hoch | 3 Tage |
-| 📅 Monatsrechnung Heineken | Ausstehend | 🔴 Hoch | 4 Tage |
-| 📅 Mahnwesen (Basis) | Ausstehend | 🟡 Mittel | 3 Tage |
+| ✅ Kundenrechnung-Generierung (PDF + QR-Einzahlungsschein) | Abgeschlossen | 🔴 Hoch | 12.03.2026 |
+| ✅ Materialverwaltung (CRUD, Bestellliste, Material-Picker) | Abgeschlossen | 🔴 Hoch | 12.03.2026 |
+| ✅ Störungs-Management (Entkopplung, Vereinfachung, MwSt-Entfernung) | Abgeschlossen | 🔴 Hoch | 13.03.2026 |
+| ✅ Montage-Management (CRUD, Betrieb-Autocomplete, Material) | Abgeschlossen | 🔴 Hoch | 13.03.2026 |
+| ✅ Pikett-Dienste (CRUD, Pauschale 80 CHF) | Abgeschlossen | 🔴 Hoch | 13.03.2026 |
+| ✅ Eigenaufträge (CRUD, 30 CHF Pauschale, Material) | Abgeschlossen | 🔴 Hoch | 13.03.2026 |
+| ✅ Eröffnungsreinigungen (CRUD, Bergkunde auto-detect, Preise aus DB) | Abgeschlossen | 🔴 Hoch | 14.03.2026 |
+| ✅ Betrieb-Verbesserungen (Ferien, Ruhetage, Saison→Datum) | Abgeschlossen | 🟡 Mittel | 14.03.2026 |
+| ✅ Heineken Monatsrechnung (8 Kategorien, Combined PDF) | Abgeschlossen | 🔴 Hoch | 15.03.2026 |
+| ✅ Heineken PDF-Formulare (6 Rapport-Typen als Beilagen) | Abgeschlossen | 🔴 Hoch | 15.03.2026 |
+| ✅ Mahnwesen (Überfällige Rechnungen, Mahnstufen 0-3) | Abgeschlossen | 🟡 Mittel | 15.03.2026 |
+| ✅ Buchhaltung komplett (Dashboard, Kontenplan, Journal, Buchungen, Berichte) | Abgeschlossen | 🔴 Hoch | 15.03.2026 |
 
 ### Phase 4: Polish & Testing (Woche 13-16)
 
@@ -199,7 +211,7 @@
 |---------|--------|-----------|---------------|
 | 📅 App Store Submission (iOS) | Ausstehend | 🔴 Hoch | 2 Tage |
 | 📅 Google Play Submission (Android) | Ausstehend | 🔴 Hoch | 2 Tage |
-| 📅 Web Deployment (Vercel/Netlify) | Ausstehend | 🔴 Hoch | 1 Tag |
+| ✅ Web Deployment (GitHub Pages) | Abgeschlossen | 🔴 Hoch | 07.03.2026 |
 | 📅 Dokumentation (Benutzerhandbuch) | Ausstehend | 🟡 Mittel | 2 Tage |
 | 📅 Training für Daniel | Ausstehend | 🔴 Hoch | 1 Tag |
 | 📅 Excel-Daten-Migration | Ausstehend | 🟡 Mittel | 2 Tage |
@@ -211,15 +223,18 @@
 | Feature | Beschreibung | Status |
 |---------|--------------|--------|
 | **Betriebe & Anlagen** | CRUD, Suche, Filter | ✅ Erledigt |
-| **Tourenplanung** | Tour von vor 1 Monat, Drag & Drop | 📅 Geplant |
-| **Service-Protokoll** | 17-Punkt-Checkliste digital | ✅ Basis-CRUD |
-| **Unterschriften** | Digital auf Smartphone | 📅 Geplant |
-| **Fotos** | Probleme dokumentieren | 📅 Geplant |
-| **Offline-Sync** | Funktioniert ohne Internet | 📅 Geplant |
-| **Rechnungen** | PDF generieren, versenden | 📅 Geplant |
-| **Materialverwaltung** | Bestand tracken, Bestellliste | 📅 Geplant |
-| **Störungen** | Mit Störungsnummer, flexibel | ✅ Basis-CRUD |
-| **Montagen** | Zeiterfassung, Stundensatz | 📅 Geplant |
+| **Tourenplanung** | Tour von vor 1 Monat, Drag & Drop | ✅ Erledigt |
+| **Service-Protokoll** | 17-Punkt-Checkliste + PDF | ✅ Erledigt |
+| **Unterschriften** | Digital auf Smartphone | ✅ Erledigt |
+| **Fotos** | Probleme dokumentieren | ✅ Erledigt |
+| **Offline-Sync** | Funktioniert ohne Internet | ✅ Erledigt |
+| **Rechnungen** | PDF mit QR-Einzahlungsschein | ✅ Erledigt |
+| **Materialverwaltung** | Bestand tracken, Bestellliste | ✅ Erledigt |
+| **Störungen** | Mit Störungsnummer, flexibel | ✅ Erledigt |
+| **Montagen** | Zeiterfassung, 80 CHF/h | ✅ Erledigt |
+| **Pikett** | Pauschale 80 CHF, Datum | ✅ Erledigt |
+| **Eigenaufträge** | 30 CHF Pauschale, Material | ✅ Erledigt |
+| **Eröffnungsreinigungen** | Bergkunde auto-detect, 60/135 CHF | ✅ Erledigt |
 
 **Geschätzte MVP-Entwicklungszeit**: 12-16 Wochen
 
@@ -359,11 +374,141 @@
 41. ✅ Navigation: context.go() → context.push() (27 Stellen, Back-Buttons überall)
 42. ✅ Windows Desktop Build (Visual Studio C++, Developer Mode)
 
-### Nächste Schritte (KW 9)
-1. ☐ Tourenplanung (Basis)
-2. ☐ Auth Provider (Riverpod)
-3. ☐ Löschen-Funktion für Betriebe, Anlagen, Reinigungen & Störungen
-4. ☐ Unterschriften-Widget
+### Erledigt am 07.03.2026
+43. ✅ Web-Deployment auf GitHub Pages (Conditional Exports, kIsWeb-Branching)
+44. ✅ Alle 6 Repositories mit Web-Support (Supabase direkt auf Web, Isar auf Native)
+45. ✅ `routeId` Getter auf allen Local Models (Web: serverId, Native: id)
+46. ✅ String-basierte IDs im Router und allen 12 Screens
+47. ✅ Web-Stubs für Isar Models (`*_local_web.dart`)
+48. ✅ Web-Shortcuts für Connectivity/Sync Provider
+49. ✅ Android APK Build + Emulator-Test (Sync funktioniert)
+50. ✅ Isar Extension Bug behoben (Extensions funktionieren nicht auf `dynamic`)
+51. ✅ IsarService mit typed Query Methods (alle Isar-Queries zentral gewrappt)
+52. ✅ 6 Repositories auf `IsarService.xxxMethod()` Pattern refactored
+53. ✅ Web-Build + Native-Build beide fehlerfrei (`flutter analyze`)
+54. ✅ Betrieb-Formular erweitert (Heineken-Nr → Betrieb Nr, Rechnungsstellung-Dropdown, Saison-Details, Region-Dropdown)
+55. ✅ DB Migration 008 (betrieb_nr, rechnungsstellung Enum, saison_start/ende)
+56. ✅ BetriebKontakt CRUD komplett (Repository, Form-Screen, Detail-Section, Web-Stubs, Sync)
+57. ✅ BetriebRechnungsadresse CRUD komplett (Isar Model, Mapper, Repository, Form-Screen, Detail-Section, Web-Stubs, Sync)
+58. ✅ 8 Repositories (+ BetriebKontakt, BetriebRechnungsadresse)
+59. ✅ 19 Routes im GoRouter (+ Kontakt-Create/Edit, Rechnungsadresse)
+60. ✅ Betrieb MVP abgeschlossen
+61. ✅ Anlage-Formular: Vorkühler-Dropdown korrigiert ('nass'/'trocken' → DB-Werte 'Fasskühler'/'Kühlzelle'/'Buffet')
+62. ✅ Anlage-Formular: Durchlaufkühler Freitext → Dropdown (9 DB-Optionen)
+63. ✅ Anlage-Formular: Säulen-Typ Freitext → Dropdown (14 DB-Optionen)
+64. ✅ Anlage-Formular: Gas-Typ 1/2 Freitext → Dropdown (3 DB-Optionen) + Cross-Validierung
+65. ✅ Anlage-Formular: Reinigung-Rhythmus korrigiert (8 korrekte DB-Optionen)
+66. ✅ Anlage-Formular: Status 'stillgelegt' hinzugefügt
+67. ✅ Anlage-Detail: Vorkühler-Label Fix
+68. ✅ Bierleitung CRUD komplett (Form-Screen, Auto-Nummer, Add/Edit/Delete im Detail)
+69. ✅ 21 Routes im GoRouter (+ Bierleitung-Create/Edit)
+70. ✅ Anlagen MVP abgeschlossen
+71. ✅ Gast-User in Supabase erstellt (`gast@sbsprojer.ch`)
+72. ✅ DB Migration 009: RLS SELECT-Policies für Gast auf 9 Tabellen
+73. ✅ SupabaseService erweitert: `isGuest`, `dataUserId` (Gast sieht Daniels Live-Daten)
+74. ✅ 8 Repositories: `_userId` → `SupabaseService.dataUserId`
+75. ✅ GoRouter: Redirect-Guard für Form-Routes (Gast kann keine `/neu`/`/bearbeiten`-URLs aufrufen)
+76. ✅ 5 UI-Screens: Create/Edit/Delete-Buttons für Gast ausgeblendet (3-Schicht-Sicherheit: DB + Router + UI)
+77. ✅ Web-Build + Deploy auf GitHub Pages mit Gastzugang
+
+### Erledigt am 11.03.2026
+78. ✅ Auth Provider (authStateProvider, isAuthenticatedProvider, currentUserProvider)
+79. ✅ Passwort vergessen (Dialog mit Reset-Link, redirectTo Web-App)
+80. ✅ Reaktiver Auth-Guard (GoRouter refreshListenable, automatischer Redirect)
+81. ✅ Session-Refresh beim App-Start (bei Fehler automatisch signOut)
+82. ✅ Passwort-Recovery-Dialog (Neues Passwort setzen nach Reset-Link)
+83. ✅ Tourenplanung Basis (Kalender-Wochenansicht, Tour-Vorschlag ±2 Tage, Drag & Drop, Filter, Dashboard-Kachel)
+84. ✅ Unterschriften (Signature-Widget, Techniker + Kunde, Base64-PNG)
+85. ✅ Fotos (image_picker, Supabase Storage, Max 4/Anlage, Grid + Vollbild)
+86. ✅ Preis-Kalkulator (Reinigung + Störung, Live-Preview, Preisliste aus DB)
+87. ✅ Betriebe-Filter erweitert (Meine Kunden, Region Multi-Select, Status Default Aktiv)
+88. ✅ Bierleitung-Delete Refresh-Fix + Hahn-Typ Dropdown
+89. ✅ BackButton-Fix (context.pop statt Navigator.maybePop)
+90. ✅ Löschen-Funktion für Betriebe, Anlagen, Reinigungen & Störungen (Cascade)
+91. ✅ Checkliste-Notizen pro Punkt (Migration 013)
+
+### Erledigt am 12.03.2026
+92. ✅ Reinigungsprotokoll-PDF (Heineken FOR 1220/Vers.04, Supabase Storage, Printing)
+93. ✅ Kundenrechnung komplett:
+    - RechnungRepository + RechnungsPositionRepository (Supabase-only)
+    - RechnungService (Auto-Erstellung bei Reinigung-Abschluss)
+    - RechnungPdfService (A4-PDF mit Swiss QR-Einzahlungsschein)
+    - RechnungPdfStorage (Bucket: rechnung-pdfs)
+    - Rechnungen-Liste + Detail-Screen (Suche, Status-Filter, PDF-Druck)
+    - Rechnung-Providers (Stream, Count, offene, byBetrieb)
+    - Dashboard-Kachel ("X offen")
+    - Routes: /rechnungen, /rechnungen/:id
+
+### Erledigt am 12.03.2026 (Abend)
+94. ✅ Materialverwaltung komplett:
+    - 4 Repositories (Lager, MaterialKategorie, MaterialArtikel, MaterialVerbrauch)
+    - Material-Providers (materialienStream, materialCount, niedrigCount)
+    - Materialien-Liste (Suche, Kategorie-Filter, Bestand-Filter niedrig)
+    - Material-Detail (Bestand-Visualisierung, Info, Verbrauchshistorie, Quick-Bestand-Anpassung)
+    - Material-Formular (Kategorie, Einheit, Bestand aktuell/mindest/optimal, Lieferant, Heineken-Artikel-Picker)
+    - Bestellliste (niedrige Bestände, Fehlmenge, Zwischenablage-Export)
+    - Dashboard-Kachel "Material" mit "X niedrig" Badge
+    - Material-Picker in Störungs-Formular (5 progressive Slots)
+    - Störung-Detail: Lager-Namen statt UUIDs
+    - 5 Routes (/materialien, /bestellliste, /neu, /:id, /:id/bearbeiten)
+
+### Erledigt am 13.03.2026
+95. ✅ Montage CRUD komplett (Liste, Detail, Form, Router, Home, Betrieb-Detail Section, Sync)
+96. ✅ Montage vereinfacht (Beschreibung als Pflichtfeld, Datum, Uhrzeit, Betrieb-Autocomplete, Material 3 Slots)
+97. ✅ Betrieb: Ruhetage + Ferien-Management für alle Betriebe (DB Migration 014)
+98. ✅ Pikett-Dienste CRUD komplett (Liste, Detail, Form, Router, Home, Sync, Pauschale 80 CHF)
+99. ✅ Störungen von Anlage entkoppelt (DB Migration 016, anlage_id optional, betrieb_id direkt)
+100. ✅ Störungs-Formular vereinfacht (Betrieb-Autocomplete, MwSt entfernt, Preis-Keys fix)
+101. ✅ Störungen-Section auf Betrieb-Detail + Autocomplete im Form
+102. ✅ Eigenauftrag CRUD komplett (Migration 017, Model, Local, Mapper, IsarService, Repository, Providers, 3 Screens, Router, Home, Betrieb-Detail Section, Sync)
+103. ✅ Eigenauftrag: Lösung + Notizen Felder entfernt (nicht benötigt)
+
+### Erledigt am 14.03.2026
+104. ✅ Saison-Felder von Monat (int) zu Datum umgestellt (DB Migration 018, DatePicker statt Dropdown)
+105. ✅ Eröffnungsreinigung CRUD komplett:
+    - DB Migration 019 (eroeffnungsreinigungen Tabelle + RLS)
+    - DTO, Isar Local Model, Web-Stub, Conditional Export, Mapper
+    - IsarService Methoden + Web-Stubs (8 Methoden)
+    - Repository + Providers
+    - 3 Screens (Liste, Detail, Form)
+    - Betrieb-Autocomplete → automatische Bergkunde-Erkennung
+    - Preis automatisch aus Preistabelle (Normal 60 CHF, Bergkunde 135 CHF)
+    - Eröffnungsreinigungen-Section auf Betrieb-Detail
+    - Router (4 Routes) + Home Tile + Sync
+
+### Erledigt am 15.03.2026
+106. ✅ Heineken Monatsrechnung komplett:
+    - HeinekenRechnungService (8 Kategorien aggregieren, Supabase-Queries)
+    - HeinekenPdfService (Übersicht + Detail im Heineken-Format)
+    - HeinekenMonatsDaten Model (Summen + Raw Data)
+    - 3 Screens: Liste, Generierung (Monats-Picker + Vorschau), Detail
+    - Heineken Providers + Router + Home-Kachel
+107. ✅ 6 Heineken Rapport-PDFs:
+    - HeinekenRapportService: F_Störung, F_Eigenauftrag, F_EE_Reinigung, F_Montage, F_Pikett, F_Pauschale
+    - buildXPage() + generateX() Pattern für Wiederverwendung
+108. ✅ Rapport-PDFs an Monatsrechnung angehängt:
+    - Combined PDF: Hauptrechnung + alle Rapport-Beilagen in einem Dokument
+    - _addRapportPages() mit 6 Sektionen
+109. ✅ Buchhaltung komplett:
+    - 3 Repositories: KontoRepository, BuchungRepository, BuchungsVorlageRepository
+    - 4 Provider-Dateien (Konten, Buchungen, Vorlagen, Buchhaltung-Aggregate)
+    - BuchungService (Buchung aus Vorlage, Kontosaldo-Berechnung)
+    - 7 Screens: Dashboard, Kontenplan, Journal, Buchung-Detail, Buchung-Formular, Berichte, Mahnwesen
+    - Berichte: Erfolgsrechnung (monatlich/jährlich) + MwSt-Abrechnung (quartalsweise) aus DB-Views
+    - Mahnwesen: Überfällige Rechnungen, Mahnstufen 0-3
+    - 7 neue Routes unter /buchhaltung/*
+    - Home-Kachel "Buchhaltung"
+
+### Nächste Schritte (Phase 4: Polish & Testing)
+1. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
+2. ☐ Heineken Rapport-PDFs Layout-Fehler beheben
+3. ☐ Buchhaltung Screens testen und Fehler beheben
+4. ☐ Betriebe nach System-Typ unterscheiden (Konventionell/Buffet/Orion/David/Heigenie)
+5. ☐ Materialbestellung / Materialliste kontrollieren
+6. ☐ UI/UX Verbesserungen (alle Screens durchgehen)
+7. ☐ Beta-Testing mit Daniel (reale Umgebung)
+8. ☐ Bug-Fixes
+9. ☐ App Store Submissions (iOS + Android)
 
 ---
 
@@ -382,5 +527,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 20.02.2026 – Betriebe ✅, Anlagen ✅, Reinigungen ✅, Störungen ✅. 6 Repos, 7 Providers, 16 Routes. Navigation mit Back-Buttons. Windows Desktop Build funktioniert. Phase 2 bei 40%.
-**Nächstes Update**: Nach Tourenplanung & Unterschriften
+**Zuletzt aktualisiert**: 15.03.2026 – Phase 3 abgeschlossen! Heineken Monatsrechnung (8 Kategorien, 6 Rapport-PDFs), Buchhaltung komplett (Dashboard, Kontenplan, Journal, Buchungen, Berichte, Mahnwesen). Alle Features implementiert.
+**Nächstes Update**: Nach Phase 4 (Polish & Testing)

@@ -2,8 +2,8 @@ class BetriebKontakt {
   final String id;
   final String userId;
   final String betriebId;
-  final String? vorname;
-  final String nachname;
+  final String vorname;
+  final String? nachname;
   final String? funktion;
   final String? telefon;
   final String? email;
@@ -20,8 +20,8 @@ class BetriebKontakt {
     required this.id,
     required this.userId,
     required this.betriebId,
-    this.vorname,
-    required this.nachname,
+    required this.vorname,
+    this.nachname,
     this.funktion,
     this.telefon,
     this.email,
@@ -40,7 +40,7 @@ class BetriebKontakt {
       id: json['id'],
       userId: json['user_id'],
       betriebId: json['betrieb_id'],
-      vorname: json['vorname'],
+      vorname: json['vorname'] ?? '',
       nachname: json['nachname'],
       funktion: json['funktion'],
       telefon: json['telefon'],
@@ -77,9 +77,9 @@ class BetriebKontakt {
   }
 
   String get vollerName {
-    if (vorname != null && vorname!.isNotEmpty) {
+    if (nachname != null && nachname!.isNotEmpty) {
       return '$vorname $nachname';
     }
-    return nachname;
+    return vorname;
   }
 }

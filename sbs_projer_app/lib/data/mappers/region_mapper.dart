@@ -1,4 +1,4 @@
-import 'package:sbs_projer_app/data/local/region_local.dart';
+import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/models/region.dart';
 
 class RegionMapper {

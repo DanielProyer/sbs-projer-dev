@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/stoerung_local.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/pdf/heineken_rapport_service.dart';
+import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
+import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 
 class StoerungDetailScreen extends ConsumerWidget {
-  final int stoerungId;
+  final String stoerungId;
 
   const StoerungDetailScreen({super.key, required this.stoerungId});
 
@@ -37,10 +42,47 @@ class StoerungDetailScreen extends ConsumerWidget {
   }
 }
 
-class _StoerungDetailContent extends StatelessWidget {
+class _StoerungDetailContent extends ConsumerStatefulWidget {
   final StoerungLocal stoerung;
 
   const _StoerungDetailContent({required this.stoerung});
+
+  @override
+  ConsumerState<_StoerungDetailContent> createState() =>
+      _StoerungDetailContentState();
+}
+
+class _StoerungDetailContentState
+    extends ConsumerState<_StoerungDetailContent> {
+  final Map<String, String> _materialNames = {};
+
+  StoerungLocal get stoerung => widget.stoerung;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMaterialNames();
+  }
+
+  Future<void> _loadMaterialNames() async {
+    final ids = [
+      stoerung.material1Id,
+      stoerung.material2Id,
+      stoerung.material3Id,
+      stoerung.material4Id,
+      stoerung.material5Id,
+    ].whereType<String>().toSet();
+    if (ids.isEmpty) return;
+
+    for (final id in ids) {
+      try {
+        final lager = await LagerRepository.getById(id);
+        if (lager != null && mounted) {
+          setState(() => _materialNames[id] = lager.name);
+        }
+      } catch (_) {}
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,11 +91,23 @@ class _StoerungDetailContent extends StatelessWidget {
         title: Text(stoerung.stoerungsnummer),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'Bearbeiten',
-            onPressed: () =>
-                context.push('/stoerungen/${stoerung.id}/bearbeiten'),
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Rapport PDF',
+            onPressed: () => _showRapportPdf(),
           ),
+          if (!SupabaseService.isGuest) ...[
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Bearbeiten',
+              onPressed: () =>
+                  context.push('/stoerungen/${stoerung.routeId}/bearbeiten'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Löschen',
+              onPressed: () => _confirmDelete(),
+            ),
+          ],
         ],
       ),
       body: ListView(
@@ -64,7 +118,8 @@ class _StoerungDetailContent extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Betrieb & Anlage
-          _BetriebAnlageCard(stoerung: stoerung),
+          if (stoerung.betriebId != null)
+            _BetriebAnlageCard(stoerung: stoerung),
 
           // Zeiterfassung
           _SectionCard(
@@ -72,10 +127,10 @@ class _StoerungDetailContent extends StatelessWidget {
             icon: Icons.schedule,
             children: [
               _InfoRow('Datum', _formatDate(stoerung.datum)),
+              if (stoerung.referenzNr != null)
+                _InfoRow('Heineken-Nr', stoerung.referenzNr!),
               if (stoerung.uhrzeitStart != null)
-                _InfoRow('Startzeit', stoerung.uhrzeitStart!),
-              if (stoerung.uhrzeitEnde != null)
-                _InfoRow('Endzeit', stoerung.uhrzeitEnde!),
+                _InfoRow('Störungseingang', stoerung.uhrzeitStart!),
             ],
           ),
 
@@ -88,9 +143,7 @@ class _StoerungDetailContent extends StatelessWidget {
                 _InfoRow('Bereich', _bereichLabel(stoerung.stoerungBereich!)),
               if (stoerung.anlageTyp != null)
                 _InfoRow('Anlagetyp', stoerung.anlageTyp!),
-              _InfoRow('Problem', stoerung.problemBeschreibung),
-              if (stoerung.loesungBeschreibung != null)
-                _InfoRow('Lösung', stoerung.loesungBeschreibung!),
+              _InfoRow('Beschreibung', stoerung.problemBeschreibung),
             ],
           ),
 
@@ -116,13 +169,6 @@ class _StoerungDetailContent extends StatelessWidget {
                   _InfoRow('Zuschlag',
                       '${stoerung.komplexitaetZuschlag!.toStringAsFixed(2)} CHF'),
                 if (stoerung.preisNetto != null)
-                  _InfoRow('Netto',
-                      '${stoerung.preisNetto!.toStringAsFixed(2)} CHF'),
-                if (stoerung.mwstSatz != null && stoerung.preisMwst != null)
-                  _InfoRow(
-                      'MwSt. (${stoerung.mwstSatz!.toStringAsFixed(1)}%)',
-                      '${stoerung.preisMwst!.toStringAsFixed(2)} CHF'),
-                if (stoerung.preisBrutto != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Row(
@@ -139,7 +185,7 @@ class _StoerungDetailContent extends StatelessWidget {
                         ),
                         Expanded(
                           child: Text(
-                            '${stoerung.preisBrutto!.toStringAsFixed(2)} CHF',
+                            '${stoerung.preisNetto!.toStringAsFixed(2)} CHF',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
@@ -229,25 +275,26 @@ class _StoerungDetailContent extends StatelessWidget {
 
   List<Widget> _buildMaterialRows() {
     final rows = <Widget>[];
-    if (stoerung.material1Id != null) {
-      rows.add(_InfoRow('Position 1',
-          '${stoerung.material1Id} (${stoerung.material1Menge ?? 1}x)'));
-    }
-    if (stoerung.material2Id != null) {
-      rows.add(_InfoRow('Position 2',
-          '${stoerung.material2Id} (${stoerung.material2Menge ?? 1}x)'));
-    }
-    if (stoerung.material3Id != null) {
-      rows.add(_InfoRow('Position 3',
-          '${stoerung.material3Id} (${stoerung.material3Menge ?? 1}x)'));
-    }
-    if (stoerung.material4Id != null) {
-      rows.add(_InfoRow('Position 4',
-          '${stoerung.material4Id} (${stoerung.material4Menge ?? 1}x)'));
-    }
-    if (stoerung.material5Id != null) {
-      rows.add(_InfoRow('Position 5',
-          '${stoerung.material5Id} (${stoerung.material5Menge ?? 1}x)'));
+    final ids = [
+      stoerung.material1Id,
+      stoerung.material2Id,
+      stoerung.material3Id,
+      stoerung.material4Id,
+      stoerung.material5Id,
+    ];
+    final mengen = [
+      stoerung.material1Menge,
+      stoerung.material2Menge,
+      stoerung.material3Menge,
+      stoerung.material4Menge,
+      stoerung.material5Menge,
+    ];
+    for (int i = 0; i < 5; i++) {
+      if (ids[i] != null) {
+        final name = _materialNames[ids[i]!] ?? 'Laden...';
+        final menge = (mengen[i] ?? 1).toStringAsFixed(0);
+        rows.add(_InfoRow('Position ${i + 1}', '$name (${menge}x)'));
+      }
     }
     return rows;
   }
@@ -272,6 +319,117 @@ class _StoerungDetailContent extends StatelessWidget {
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
+
+  Future<void> _showRapportPdf() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Betrieb-Name + Ort laden
+      String kunde = '';
+      String ort = '';
+      if (stoerung.betriebId != null) {
+        final betrieb =
+            await BetriebRepository.getByServerId(stoerung.betriebId!);
+        if (betrieb != null) {
+          kunde = betrieb.name;
+          ort = '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim();
+        }
+      }
+
+      // Material-Namen sammeln
+      final materialien = <(String, double)>[];
+      final ids = [
+        stoerung.material1Id, stoerung.material2Id, stoerung.material3Id,
+        stoerung.material4Id, stoerung.material5Id,
+      ];
+      final mengen = [
+        stoerung.material1Menge, stoerung.material2Menge,
+        stoerung.material3Menge, stoerung.material4Menge,
+        stoerung.material5Menge,
+      ];
+      for (int i = 0; i < 5; i++) {
+        if (ids[i] != null) {
+          final name = _materialNames[ids[i]!] ?? ids[i]!;
+          materialien.add((name, mengen[i] ?? 1));
+        }
+      }
+
+      final pdfBytes = await HeinekenRapportService.generateStoerung(
+        referenzNr: stoerung.referenzNr ?? stoerung.stoerungsnummer,
+        stoerungsnummer: stoerung.stoerungsnummer,
+        datum: stoerung.datum,
+        kunde: kunde,
+        ort: ort,
+        stoerungBereich: stoerung.stoerungBereich,
+        uhrzeitStart: stoerung.uhrzeitStart,
+        istPikettEinsatz: stoerung.istPikettEinsatz,
+        istBergkunde: stoerung.istBergkunde,
+        anfahrtKm: stoerung.anfahrtKm,
+        preisBasis: stoerung.preisBasis,
+        preisAnfahrt: stoerung.preisAnfahrt,
+        preisWochenende: stoerung.preisWochenende,
+        komplexitaetZuschlag: stoerung.komplexitaetZuschlag,
+        preisNetto: stoerung.preisNetto,
+        materialien: materialien,
+      );
+
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        await Printing.layoutPdf(
+          onLayout: (_) => pdfBytes,
+          name: 'Rapport_Stoerung_${stoerung.stoerungsnummer}',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Störung löschen'),
+        content: Text(
+          'Störung ${stoerung.stoerungsnummer} wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await StoerungRepository.delete(stoerung.routeId);
+        ref.invalidate(stoerungenStreamProvider);
+        if (context.mounted) context.pop();
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Löschen nur mit Internetverbindung möglich')),
+          );
+        }
+      }
+    }
+  }
 }
 
 class _BetriebAnlageCard extends StatelessWidget {
@@ -283,10 +441,14 @@ class _BetriebAnlageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return FutureBuilder<List<String?>>(
       future: Future.wait([
-        BetriebRepository.getByServerId(stoerung.betriebId)
-            .then((b) => b?.name),
-        AnlageRepository.getByServerId(stoerung.anlageId)
-            .then((a) => a?.bezeichnung ?? a?.typAnlage),
+        stoerung.betriebId != null
+            ? BetriebRepository.getByServerId(stoerung.betriebId!)
+                .then((b) => b?.name)
+            : Future.value(null),
+        stoerung.anlageId != null
+            ? AnlageRepository.getByServerId(stoerung.anlageId!)
+                .then((a) => a?.bezeichnung ?? a?.typAnlage)
+            : Future.value(null),
       ]),
       builder: (context, snapshot) {
         final betriebName = snapshot.data?[0];
@@ -302,30 +464,32 @@ class _BetriebAnlageCard extends StatelessWidget {
                 subtitle: const Text('Betrieb'),
                 trailing:
                     const Icon(Icons.chevron_right, size: 20),
-                onTap: () async {
+                onTap: stoerung.betriebId != null ? () async {
                   final betrieb = await BetriebRepository.getByServerId(
-                      stoerung.betriebId);
+                      stoerung.betriebId!);
                   if (betrieb != null && context.mounted) {
-                    context.push('/betriebe/${betrieb.id}');
+                    context.push('/betriebe/${betrieb.routeId}');
                   }
-                },
+                } : null,
               ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.precision_manufacturing,
-                    color: AppColors.info),
-                title: Text(anlageName ?? 'Laden...'),
-                subtitle: const Text('Anlage'),
-                trailing:
-                    const Icon(Icons.chevron_right, size: 20),
-                onTap: () async {
-                  final anlage = await AnlageRepository.getByServerId(
-                      stoerung.anlageId);
-                  if (anlage != null && context.mounted) {
-                    context.push('/anlagen/${anlage.id}');
-                  }
-                },
-              ),
+              if (stoerung.anlageId != null) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.precision_manufacturing,
+                      color: AppColors.info),
+                  title: Text(anlageName ?? 'Laden...'),
+                  subtitle: const Text('Anlage'),
+                  trailing:
+                      const Icon(Icons.chevron_right, size: 20),
+                  onTap: () async {
+                    final anlage = await AnlageRepository.getByServerId(
+                        stoerung.anlageId!);
+                    if (anlage != null && context.mounted) {
+                      context.push('/anlagen/${anlage.routeId}');
+                    }
+                  },
+                ),
+              ],
             ],
           ),
         );
@@ -347,7 +511,7 @@ class _StatusRow extends StatelessWidget {
       children: [
         _StatusChip(
           label: stoerung.status,
-          color: stoerung.status == 'abgeschlossen'
+          color: stoerung.status == 'behoben'
               ? AppColors.success
               : stoerung.status == 'offen'
                   ? AppColors.warning

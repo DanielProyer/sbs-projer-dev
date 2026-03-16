@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/services/connectivity/connectivity_service.dart';
 
 final connectivityProvider = StreamProvider<bool>((ref) {
+  if (kIsWeb) return Stream.value(true);
+
   final controller = StreamController<bool>();
   controller.add(ConnectivityService.isOnline);
 
@@ -19,5 +22,6 @@ final connectivityProvider = StreamProvider<bool>((ref) {
 });
 
 final isOnlineProvider = Provider<bool>((ref) {
+  if (kIsWeb) return true;
   return ref.watch(connectivityProvider).valueOrNull ?? ConnectivityService.isOnline;
 });

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local.dart';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 
@@ -116,7 +116,7 @@ class _ReinigungenListScreenState
                         reinigung: reinigung,
                         betriebName: betriebNames[reinigung.betriebId],
                         onTap: () =>
-                            context.push('/reinigungen/${reinigung.id}'),
+                            context.push('/reinigungen/${reinigung.routeId}'),
                       );
                     },
                   ),
@@ -231,7 +231,8 @@ class _ReinigungListItem extends StatelessWidget {
     final checked = _checkedCount;
     parts.add('$checked/16 Punkte');
     if (reinigung.preisBrutto != null) {
-      parts.add('${reinigung.preisBrutto!.toStringAsFixed(2)} CHF');
+      final brutto = (reinigung.preisBrutto! * 20).roundToDouble() / 20;
+      parts.add('${brutto.toStringAsFixed(2)} CHF');
     }
     return parts.join(' · ');
   }

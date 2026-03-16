@@ -1,4 +1,4 @@
-import 'package:sbs_projer_app/data/local/montage_local.dart';
+import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/models/montage.dart';
 
 class MontageMapper {

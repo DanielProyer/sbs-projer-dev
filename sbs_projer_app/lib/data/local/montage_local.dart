@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:isar/isar.dart';
 
 part 'montage_local.g.dart';
@@ -5,6 +6,9 @@ part 'montage_local.g.dart';
 @collection
 class MontageLocal {
   Id id = Isar.autoIncrement;
+
+  @ignore
+  String get routeId => kIsWeb ? serverId! : id.toString();
 
   // Supabase Sync
   @Index()
@@ -16,7 +20,7 @@ class MontageLocal {
   // Felder
   late String userId;
   String? anlageId;
-  late String betriebId;
+  String? betriebId;
   late String montageTyp;
   late String beschreibung;
   String? referenzNr;

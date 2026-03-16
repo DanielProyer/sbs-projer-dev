@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:sbs_projer_app/services/sync/sync_service.dart';
+import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 import 'package:sbs_projer_app/services/connectivity/connectivity_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,17 +29,74 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Sync starten nach Login
-      SyncService.startListening();
-      if (ConnectivityService.isOnline) {
-        SyncService.syncAll();
+      // Sync starten nach Login (nur Native)
+      if (!kIsWeb) {
+        SyncService.startListening();
+        if (ConnectivityService.isOnline) {
+          SyncService.syncAll();
+        }
       }
-      if (mounted) context.go('/');
+      // GoRouter redirected automatisch via refreshListenable
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _showResetPasswordDialog() async {
+    final resetEmailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Passwort zurücksetzen'),
+        content: TextField(
+          controller: resetEmailController,
+          decoration: const InputDecoration(
+            labelText: 'E-Mail-Adresse',
+            border: OutlineInputBorder(),
+          ),
+          keyboardType: TextInputType.emailAddress,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Link senden'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final email = resetEmailController.text.trim();
+      if (email.isEmpty) return;
+
+      try {
+        await SupabaseService.resetPassword(email);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Link zum Zurücksetzen wurde gesendet. Prüfe dein E-Mail-Postfach.'),
+            ),
+          );
+        }
+      } on AuthException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message)),
+          );
+        }
+      }
+    }
+    resetEmailController.dispose();
   }
 
   @override
@@ -119,6 +176,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : const Text('Anmelden'),
                   ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: _showResetPasswordDialog,
+                  child: const Text('Passwort vergessen?'),
                 ),
               ],
             ),

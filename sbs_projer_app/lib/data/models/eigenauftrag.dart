@@ -1,8 +1,8 @@
 class Eigenauftrag {
   final String id;
   final String userId;
-  final String anlageId;
-  final String betriebId;
+  final String? anlageId;
+  final String? betriebId;
   final String stoerungsnummer;
   final String? referenzNr;
   final DateTime datum;
@@ -33,8 +33,8 @@ class Eigenauftrag {
   Eigenauftrag({
     required this.id,
     required this.userId,
-    required this.anlageId,
-    required this.betriebId,
+    this.anlageId,
+    this.betriebId,
     required this.stoerungsnummer,
     this.referenzNr,
     required this.datum,

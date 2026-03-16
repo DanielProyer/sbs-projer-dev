@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:isar/isar.dart';
 
 part 'reinigung_local.g.dart';
@@ -5,6 +6,9 @@ part 'reinigung_local.g.dart';
 @collection
 class ReinigungLocal {
   Id id = Isar.autoIncrement;
+
+  @ignore
+  String get routeId => kIsWeb ? serverId! : id.toString();
 
   // Supabase Sync
   @Index()
@@ -38,6 +42,7 @@ class ReinigungLocal {
   bool zapfhahnZerlegtGereinigt = false;
   bool zapfkopfZerlegtGereinigt = false;
   bool servicekarteAusgefuellt = false;
+  String? checklisteNotizenJson;
 
   // Unterschriften (Base64)
   String? unterschriftTechniker;

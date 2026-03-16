@@ -15,12 +15,14 @@ import 'package:sbs_projer_app/data/local/lager_local.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local.dart';
+import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local.dart';
 import 'package:sbs_projer_app/data/local/anlage_local.dart';
 import 'package:sbs_projer_app/data/local/bierleitung_local.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local.dart';
 import 'package:sbs_projer_app/data/local/montage_local.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local.dart';
+import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
 
 // DTOs
 import 'package:sbs_projer_app/data/models/region.dart';
@@ -29,12 +31,14 @@ import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/models/pikett_dienst.dart';
 import 'package:sbs_projer_app/data/models/betrieb.dart';
 import 'package:sbs_projer_app/data/models/betrieb_kontakt.dart';
+import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/anlage.dart';
 import 'package:sbs_projer_app/data/models/bierleitung.dart';
 import 'package:sbs_projer_app/data/models/reinigung.dart';
 import 'package:sbs_projer_app/data/models/stoerung.dart';
 import 'package:sbs_projer_app/data/models/montage.dart';
 import 'package:sbs_projer_app/data/models/eigenauftrag.dart';
+import 'package:sbs_projer_app/data/models/eroeffnungsreinigung.dart';
 
 // Mappers
 import 'package:sbs_projer_app/data/mappers/region_mapper.dart';
@@ -43,12 +47,14 @@ import 'package:sbs_projer_app/data/mappers/lager_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/pikett_dienst_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_kontakt_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/anlage_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/bierleitung_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/reinigung_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/stoerung_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/montage_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/eigenauftrag_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/eroeffnungsreinigung_mapper.dart';
 
 enum SyncState { idle, syncing, error }
 
@@ -123,6 +129,7 @@ class SyncService {
         // Tier 2: → Betrieb
         [
           () => _syncBetriebKontakte(userId),
+          () => _syncBetriebRechnungsadressen(userId),
           () => _syncAnlagen(userId),
         ],
         // Tier 3: → Anlage
@@ -132,8 +139,11 @@ class SyncService {
           () => _syncStoerungen(userId),
           () => _syncMontagen(userId),
         ],
-        // Tier 4: → Anlage + optional Reinigung
-        [() => _syncEigenauftraege(userId)],
+        // Tier 4: → Betrieb/Anlage
+        [
+          () => _syncEigenauftraege(userId),
+          () => _syncEroeffnungsreinigungen(userId),
+        ],
       ];
 
       for (final tier in tiers) {
@@ -405,6 +415,35 @@ class SyncService {
     return (pushed: pushed.length, pulled: toSave.length);
   }
 
+  static Future<({int pushed, int pulled})> _syncBetriebRechnungsadressen(String uid) async {
+    final unsynced =
+        await _isar.betriebRechnungsadresseLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<BetriebRechnungsadresseLocal>(
+      'betrieb_rechnungsadressen', unsynced, BetriebRechnungsadresseMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.betriebRechnungsadresseLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('betrieb_rechnungsadressen', 'betrieb_rechnungsadressen', uid);
+    final toSave = <BetriebRechnungsadresseLocal>[];
+    for (final row in rows) {
+      final dto = BetriebRechnungsadresse.fromJson(row);
+      final ex = await _isar.betriebRechnungsadresseLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(BetriebRechnungsadresseMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.betriebRechnungsadresseLocals.putAll(toSave));
+    }
+    await _updateMeta('betrieb_rechnungsadressen');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
   static Future<({int pushed, int pulled})> _syncAnlagen(String uid) async {
     final unsynced =
         await _isar.anlageLocals.filter().isSyncedEqualTo(false).findAll();
@@ -585,6 +624,35 @@ class SyncService {
       await _isar.writeTxn(() => _isar.eigenauftragLocals.putAll(toSave));
     }
     await _updateMeta('eigenauftraege');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  static Future<({int pushed, int pulled})> _syncEroeffnungsreinigungen(String uid) async {
+    final unsynced =
+        await _isar.eroeffnungsreinigungLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EroeffnungsreinigungLocal>(
+      'eroeffnungsreinigungen', unsynced, EroeffnungsreinigungMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eroeffnungsreinigungLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('eroeffnungsreinigungen', 'eroeffnungsreinigungen', uid);
+    final toSave = <EroeffnungsreinigungLocal>[];
+    for (final row in rows) {
+      final dto = Eroeffnungsreinigung.fromJson(row);
+      final ex = await _isar.eroeffnungsreinigungLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EroeffnungsreinigungMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eroeffnungsreinigungLocals.putAll(toSave));
+    }
+    await _updateMeta('eroeffnungsreinigungen');
     return (pushed: pushed.length, pulled: toSave.length);
   }
 }

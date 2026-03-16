@@ -1,4 +1,4 @@
-import 'package:sbs_projer_app/data/local/anlage_local.dart';
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/models/anlage.dart';
 
 class AnlageMapper {

@@ -1,4 +1,5 @@
-import 'package:sbs_projer_app/data/local/reinigung_local.dart';
+import 'dart:convert';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/reinigung.dart';
 
 class ReinigungMapper {
@@ -28,6 +29,9 @@ class ReinigungMapper {
     local.zapfhahnZerlegtGereinigt = dto.zapfhahnZerlegtGereinigt;
     local.zapfkopfZerlegtGereinigt = dto.zapfkopfZerlegtGereinigt;
     local.servicekarteAusgefuellt = dto.servicekarteAusgefuellt;
+    local.checklisteNotizenJson = dto.checklisteNotizen.isNotEmpty
+        ? jsonEncode(dto.checklisteNotizen)
+        : null;
     local.unterschriftTechniker = dto.unterschriftTechniker;
     local.unterschriftKunde = dto.unterschriftKunde;
     local.unterschriftKundeName = dto.unterschriftKundeName;
@@ -81,6 +85,9 @@ class ReinigungMapper {
       'zapfhahn_zerlegt_gereinigt': local.zapfhahnZerlegtGereinigt,
       'zapfkopf_zerlegt_gereinigt': local.zapfkopfZerlegtGereinigt,
       'servicekarte_ausgefuellt': local.servicekarteAusgefuellt,
+      'checkliste_notizen': local.checklisteNotizenJson != null
+          ? jsonDecode(local.checklisteNotizenJson!)
+          : {},
       'unterschrift_techniker': local.unterschriftTechniker,
       'unterschrift_kunde': local.unterschriftKunde,
       'unterschrift_kunde_name': local.unterschriftKundeName,

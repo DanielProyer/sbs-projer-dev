@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:isar/isar.dart';
 
 part 'betrieb_local.g.dart';
@@ -5,6 +6,9 @@ part 'betrieb_local.g.dart';
 @collection
 class BetriebLocal {
   Id id = Isar.autoIncrement;
+
+  @ignore
+  String get routeId => kIsWeb ? serverId! : id.toString();
 
   // Supabase Sync
   @Index()
@@ -20,27 +24,38 @@ class BetriebLocal {
   String? nr;
   String? plz;
   String? ort;
+  String? telefon;
   String? regionId;
   String? email;
   String? website;
   String? zugangNotizen;
-  String? heinekenNr;
+  String? betriebNr;
   String status = 'aktiv';
   bool istMeinKunde = true;
   bool istBergkunde = false;
   bool istSaisonbetrieb = false;
   bool winterSaisonAktiv = false;
-  int? winterStartMonat;
-  int? winterEndeMonat;
+  DateTime? winterStartDatum;
+  DateTime? winterEndeDatum;
   bool sommerSaisonAktiv = false;
-  int? sommerStartMonat;
-  int? sommerEndeMonat;
+  DateTime? sommerStartDatum;
+  DateTime? sommerEndeDatum;
   List<String> ruhetage = [];
+  List<String> zapfsysteme = [];
   String rechnungsstellung = 'rechnung_mail';
   double? latitude;
   double? longitude;
   DateTime? ferienStart;
   DateTime? ferienEnde;
+  DateTime? ferien2Start;
+  DateTime? ferien2Ende;
+  DateTime? ferien3Start;
+  DateTime? ferien3Ende;
+  bool keineBetriebsferien = false;
+  String? oeffnungMorgenVon;
+  String? oeffnungMorgenBis;
+  String? oeffnungNachmittagVon;
+  String? oeffnungNachmittagBis;
   String? notizen;
   DateTime? createdAt;
   DateTime? updatedAt;

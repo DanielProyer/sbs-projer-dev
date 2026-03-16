@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:isar/isar.dart';
 
 part 'stoerung_local.g.dart';
@@ -5,6 +6,9 @@ part 'stoerung_local.g.dart';
 @collection
 class StoerungLocal {
   Id id = Isar.autoIncrement;
+
+  @ignore
+  String get routeId => kIsWeb ? serverId! : id.toString();
 
   // Supabase Sync
   @Index()
@@ -15,8 +19,8 @@ class StoerungLocal {
 
   // Felder
   late String userId;
-  late String anlageId;
-  late String betriebId;
+  String? anlageId;
+  String? betriebId;
   late String stoerungsnummer;
   String? referenzNr;
   late DateTime datum;

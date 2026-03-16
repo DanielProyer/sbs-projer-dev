@@ -1,4 +1,4 @@
-import 'package:sbs_projer_app/data/local/pikett_dienst_local.dart';
+import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/models/pikett_dienst.dart';
 
 class PikettDienstMapper {

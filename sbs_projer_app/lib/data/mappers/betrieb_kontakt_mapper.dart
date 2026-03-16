@@ -1,4 +1,4 @@
-import 'package:sbs_projer_app/data/local/betrieb_kontakt_local.dart';
+import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_kontakt.dart';
 
 class BetriebKontaktMapper {
