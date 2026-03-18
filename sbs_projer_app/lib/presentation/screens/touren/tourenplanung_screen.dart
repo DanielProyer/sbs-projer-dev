@@ -572,7 +572,24 @@ class _AnlageListItem extends StatelessWidget {
           betrieb?.name ?? 'Unbekannter Betrieb',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(_buildSubtitle()),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_buildSubtitle()),
+            Text(
+              anlage.letzteReinigung != null
+                  ? 'Letzte Reinigung: ${anlage.letzteReinigung!.day.toString().padLeft(2, '0')}.${anlage.letzteReinigung!.month.toString().padLeft(2, '0')}.${anlage.letzteReinigung!.year}'
+                  : 'Noch nie gereinigt',
+              style: TextStyle(
+                fontSize: 12,
+                color: anlage.letzteReinigung != null
+                    ? AppColors.textSecondary
+                    : AppColors.error,
+              ),
+            ),
+          ],
+        ),
+        isThreeLine: true,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -623,10 +640,6 @@ class _AnlageListItem extends StatelessWidget {
       parts.add(anlage.bezeichnung!);
     }
     if (betrieb?.ort != null) parts.add(betrieb!.ort!);
-    if (anlage.letzteReinigung != null) {
-      parts.add(
-          'Letzte: ${anlage.letzteReinigung!.day.toString().padLeft(2, '0')}.${anlage.letzteReinigung!.month.toString().padLeft(2, '0')}.');
-    }
     parts.add(anlage.typAnlage);
     return parts.join(' · ');
   }

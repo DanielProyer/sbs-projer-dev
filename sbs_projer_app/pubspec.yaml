@@ -52,6 +52,9 @@ dependencies:
   # Links (tel, mailto, https)
   url_launcher: ^6.2.0
 
+  # Handykontakte
+  flutter_contacts: ^1.1.0
+
   # Utilities
   uuid: ^4.3.0
   path_provider: ^2.1.0

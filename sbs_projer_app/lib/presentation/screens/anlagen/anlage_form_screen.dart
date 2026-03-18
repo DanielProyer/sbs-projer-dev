@@ -25,10 +25,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
   late final _bezeichnungController = TextEditingController();
   late final _seriennummerController = TextEditingController();
   late final _hauptdruckController = TextEditingController();
-  late final _serviceMorgenAbController = TextEditingController();
-  late final _serviceMorgenBisController = TextEditingController();
-  late final _serviceNachmittagAbController = TextEditingController();
-  late final _serviceNachmittagBisController = TextEditingController();
   late final _notizenController = TextEditingController();
 
   // State
@@ -62,12 +58,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
       _bezeichnungController.text = anlage.bezeichnung ?? '';
       _hauptdruckController.text =
           anlage.hauptdruckBar?.toString() ?? '';
-      _serviceMorgenAbController.text = anlage.servicezeitMorgenAb ?? '';
-      _serviceMorgenBisController.text = anlage.servicezeitMorgenBis ?? '';
-      _serviceNachmittagAbController.text =
-          anlage.servicezeitNachmittagAb ?? '';
-      _serviceNachmittagBisController.text =
-          anlage.servicezeitNachmittagBis ?? '';
       _notizenController.text = anlage.notizen ?? '';
       _typAnlage = anlage.typAnlage;
       _typSaeule = anlage.typSaeule;
@@ -120,14 +110,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
       anlage.hauptdruckBar =
           double.tryParse(_hauptdruckController.text.trim());
       anlage.hatNiederdruck = _hatNiederdruck;
-      anlage.servicezeitMorgenAb =
-          _emptyToNull(_serviceMorgenAbController.text);
-      anlage.servicezeitMorgenBis =
-          _emptyToNull(_serviceMorgenBisController.text);
-      anlage.servicezeitNachmittagAb =
-          _emptyToNull(_serviceNachmittagAbController.text);
-      anlage.servicezeitNachmittagBis =
-          _emptyToNull(_serviceNachmittagBisController.text);
       anlage.reinigungRhythmus = _reinigungRhythmus;
       anlage.status = _status;
       anlage.notizen = _emptyToNull(_notizenController.text);
@@ -181,10 +163,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
     _bezeichnungController.dispose();
     _seriennummerController.dispose();
     _hauptdruckController.dispose();
-    _serviceMorgenAbController.dispose();
-    _serviceMorgenBisController.dispose();
-    _serviceNachmittagAbController.dispose();
-    _serviceNachmittagBisController.dispose();
     _notizenController.dispose();
     super.dispose();
   }
@@ -263,6 +241,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 DropdownMenuItem(value: 'Fountain 1-Way', child: Text('Fountain 1-Way')),
                 DropdownMenuItem(value: 'Fountain Extra Cold 1-Way', child: Text('Fountain Extra Cold 1-Way')),
                 DropdownMenuItem(value: 'Cobra 1-Way', child: Text('Cobra 1-Way')),
+                DropdownMenuItem(value: 'Cola Säule', child: Text('Cola Säule')),
                 DropdownMenuItem(value: 'Falco 2-Way', child: Text('Falco 2-Way')),
                 DropdownMenuItem(value: 'Keramik 1-Way', child: Text('Keramik 1-Way')),
                 DropdownMenuItem(value: 'Keramik 2-Way', child: Text('Keramik 2-Way')),
@@ -331,7 +310,9 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 DropdownMenuItem(value: 'H120', child: Text('H120')),
                 DropdownMenuItem(value: 'H150', child: Text('H150')),
                 DropdownMenuItem(value: 'H200', child: Text('H200')),
+                DropdownMenuItem(value: 'Orion', child: Text('Orion')),
                 DropdownMenuItem(value: 'OT-Lux', child: Text('OT-Lux')),
+                DropdownMenuItem(value: 'V100', child: Text('V100')),
                 DropdownMenuItem(value: 'Gamko liegend', child: Text('Gamko liegend')),
                 DropdownMenuItem(value: 'Gamko stehend', child: Text('Gamko stehend')),
                 DropdownMenuItem(value: 'Gamko Sat.', child: Text('Gamko Sat.')),
@@ -405,54 +386,6 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
               value: _hatNiederdruck,
               contentPadding: EdgeInsets.zero,
               onChanged: (v) => setState(() => _hatNiederdruck = v),
-            ),
-            const SizedBox(height: 16),
-
-            // === Servicezeiten ===
-            _sectionTitle(context, 'Servicezeiten'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _serviceMorgenAbController,
-                    decoration:
-                        const InputDecoration(labelText: 'Morgen ab'),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _serviceMorgenBisController,
-                    decoration:
-                        const InputDecoration(labelText: 'Morgen bis'),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _serviceNachmittagAbController,
-                    decoration:
-                        const InputDecoration(labelText: 'Nachmittag ab'),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _serviceNachmittagBisController,
-                    decoration:
-                        const InputDecoration(labelText: 'Nachmittag bis'),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 16),
 

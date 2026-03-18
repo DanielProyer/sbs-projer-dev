@@ -727,4 +727,4 @@ Phase 5: Deployment & Launch       ████░░░░░░░░░░░
 
 **Hinweis**: Diese Roadmap ist eine Schätzung und wird während der Entwicklung angepasst. Nach jeder Phase erfolgt eine Review und ggf. Neu-Planung der nächsten Phase.
 
-**Zuletzt aktualisiert**: 15.03.2026 – Phase 3 abgeschlossen! Heineken Monatsrechnung (8 Kategorien, 6 Rapport-PDFs als Beilagen), Buchhaltung komplett (Dashboard, Kontenplan, Journal, Buchungen, Berichte, Mahnwesen). Alle Features implementiert, Restarbeit: Testing + Polish + Deployment.
+**Zuletzt aktualisiert**: 18.03.2026 – Tourenplanung Fällig-Tab überarbeitet (dynamische Fälligkeit aus Rhythmus, neue Anlagen sichtbar, Ruhetag-Check entfernt), Dropdown-Erweiterungen (Higenie, Orion, V100, Cola Säule), Kontakt-Handysync, Rechnungsadresse-Verbesserung. 5 offene DB-Migrationen (026-030).

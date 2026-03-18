@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/services/phone_contact_service.dart';
 
 class BetriebKontaktFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -27,13 +31,13 @@ class _BetriebKontaktFormScreenState
 
   late final _vornameController = TextEditingController();
   late final _nachnameController = TextEditingController();
-  late final _funktionController = TextEditingController();
   late final _telefonController = TextEditingController();
-  late final _emailController = TextEditingController();
   late final _notizenController = TextEditingController();
 
-  String _kontaktMethode = 'telefon';
+  String? _selectedFunktion;
+  String? _phoneContactId;
   bool _istHauptkontakt = false;
+  bool _istDuAnrede = false;
 
   bool get _isEdit => widget.kontaktId != null;
 
@@ -51,12 +55,12 @@ class _BetriebKontaktFormScreenState
       _existing = kontakt;
       _vornameController.text = kontakt.vorname;
       _nachnameController.text = kontakt.nachname ?? '';
-      _funktionController.text = kontakt.funktion ?? '';
+      _selectedFunktion = kontakt.funktion;
+      _phoneContactId = kontakt.phoneContactId;
       _telefonController.text = kontakt.telefon ?? '';
-      _emailController.text = kontakt.email ?? '';
       _notizenController.text = kontakt.notizen ?? '';
-      _kontaktMethode = kontakt.kontaktMethode;
       _istHauptkontakt = kontakt.istHauptkontakt;
+      _istDuAnrede = kontakt.istDuAnrede;
     });
   }
 
@@ -70,12 +74,33 @@ class _BetriebKontaktFormScreenState
       kontakt.betriebId = widget.betriebId;
       kontakt.vorname = _vornameController.text.trim();
       kontakt.nachname = _emptyToNull(_nachnameController.text);
-      kontakt.funktion = _emptyToNull(_funktionController.text);
+      kontakt.funktion = _selectedFunktion;
       kontakt.telefon = _emptyToNull(_telefonController.text);
-      kontakt.email = _emptyToNull(_emailController.text);
       kontakt.notizen = _emptyToNull(_notizenController.text);
-      kontakt.kontaktMethode = _kontaktMethode;
       kontakt.istHauptkontakt = _istHauptkontakt;
+      kontakt.istDuAnrede = _istDuAnrede;
+      kontakt.phoneContactId = _phoneContactId;
+
+      // Auf Handy speichern (nur Android/iOS)
+      if (!kIsWeb) {
+        try {
+          final betrieb = await BetriebRepository.getById(widget.betriebId);
+          final betriebName = betrieb?.name ?? '';
+          final newPhoneId = await PhoneContactService.saveToPhone(
+            vorname: kontakt.vorname,
+            nachname: kontakt.nachname,
+            telefon: kontakt.telefon,
+            betriebName: betriebName,
+            existingPhoneContactId: _phoneContactId,
+          );
+          if (newPhoneId != null) {
+            kontakt.phoneContactId = newPhoneId;
+            _phoneContactId = newPhoneId;
+          }
+        } catch (_) {
+          // Handy-Sync fehlgeschlagen, App-Kontakt trotzdem speichern
+        }
+      }
 
       await BetriebKontaktRepository.save(kontakt);
 
@@ -99,6 +124,18 @@ class _BetriebKontaktFormScreenState
     }
   }
 
+  Future<void> _importFromPhone() async {
+    final data = await PhoneContactService.pickContact();
+    if (data == null || !mounted) return;
+
+    setState(() {
+      if (data['vorname'] != null) _vornameController.text = data['vorname']!;
+      if (data['nachname'] != null) _nachnameController.text = data['nachname']!;
+      if (data['telefon'] != null) _telefonController.text = data['telefon']!;
+      if (data['phoneContactId'] != null) _phoneContactId = data['phoneContactId'];
+    });
+  }
+
   String? _emptyToNull(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
@@ -108,9 +145,7 @@ class _BetriebKontaktFormScreenState
   void dispose() {
     _vornameController.dispose();
     _nachnameController.dispose();
-    _funktionController.dispose();
     _telefonController.dispose();
-    _emailController.dispose();
     _notizenController.dispose();
     super.dispose();
   }
@@ -130,6 +165,17 @@ class _BetriebKontaktFormScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // === Import von Handykontakten (nur Android/iOS) ===
+            if (!kIsWeb)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.contacts),
+                  label: const Text('Aus Kontakten importieren'),
+                  onPressed: _importFromPhone,
+                ),
+              ),
+
             // === Name ===
             Row(
               children: [
@@ -161,56 +207,41 @@ class _BetriebKontaktFormScreenState
             const SizedBox(height: 12),
 
             // === Funktion ===
-            TextFormField(
-              controller: _funktionController,
+            DropdownButtonFormField<String>(
+              value: _selectedFunktion,
               decoration: const InputDecoration(
                 labelText: 'Funktion',
                 prefixIcon: Icon(Icons.work_outline),
-                hintText: 'z.B. Geschäftsführer, Barkeeper',
               ),
-              textInputAction: TextInputAction.next,
+              items: const [
+                DropdownMenuItem(value: 'Geschäftsführer', child: Text('Geschäftsführer')),
+                DropdownMenuItem(value: 'F&B Manager', child: Text('F&B Manager')),
+                DropdownMenuItem(value: 'Mitarbeiter', child: Text('Mitarbeiter')),
+                DropdownMenuItem(value: 'Hauswart', child: Text('Hauswart')),
+                DropdownMenuItem(value: 'Sonstige', child: Text('Sonstige')),
+              ],
+              onChanged: (v) => setState(() => _selectedFunktion = v),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // === Kontaktdaten ===
-            Text('Kontaktdaten',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
-            const SizedBox(height: 8),
+            // === Telefon ===
             TextFormField(
               controller: _telefonController,
               decoration: const InputDecoration(
                 labelText: 'Telefon',
+                hintText: '+41 81 378 40 20',
                 prefixIcon: Icon(Icons.phone),
               ),
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'E-Mail',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _kontaktMethode,
-              decoration: const InputDecoration(
-                labelText: 'Bevorzugte Kontaktmethode',
-                prefixIcon: Icon(Icons.contact_mail),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'telefon', child: Text('Telefon')),
-                DropdownMenuItem(value: 'email', child: Text('E-Mail')),
-                DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _kontaktMethode = v);
+              inputFormatters: [_PhoneFormatter()],
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                final digits = v.replaceAll(RegExp(r'[^\d]'), '');
+                if (!v.startsWith('+') || digits.length < 10) {
+                  return 'Format: +41 81 378 40 20';
+                }
+                return null;
               },
             ),
             const SizedBox(height: 12),
@@ -222,6 +253,13 @@ class _BetriebKontaktFormScreenState
               value: _istHauptkontakt,
               contentPadding: EdgeInsets.zero,
               onChanged: (v) => setState(() => _istHauptkontakt = v),
+            ),
+            SwitchListTile(
+              title: Text(_istDuAnrede ? 'Du' : 'Sie'),
+              subtitle: Text(_istDuAnrede ? 'Informelle Anrede' : 'Formelle Anrede'),
+              value: _istDuAnrede,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _istDuAnrede = v),
             ),
             const SizedBox(height: 12),
 
@@ -253,6 +291,36 @@ class _BetriebKontaktFormScreenState
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    var digits = newValue.text.replaceAll(RegExp(r'[^\d+]'), '');
+    if (digits.isEmpty) return const TextEditingValue();
+
+    final buffer = StringBuffer();
+    if (digits.startsWith('+')) {
+      buffer.write('+');
+      digits = digits.substring(1);
+    }
+
+    // Format: XX XX XXX XX XX (Leerzeichen nach Position 2, 4, 7, 9)
+    const gaps = {2, 4, 7, 9};
+    for (var i = 0; i < digits.length && i < 11; i++) {
+      if (gaps.contains(i)) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+
+    final text = buffer.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

@@ -2,7 +2,7 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 15.03.2026
+**Stand**: 18.03.2026
 **Tech-Stack**: Flutter + Supabase
 
 ---
@@ -499,16 +499,36 @@
     - 7 neue Routes unter /buchhaltung/*
     - Home-Kachel "Buchhaltung"
 
+### Erledigt am 18.03.2026
+110. ✅ Rechnungsadresse: Betrieb-Feld unter Firma verschoben, auto-gefüllt (non-editable)
+111. ✅ Hahn-Typ "Higenie" zu Bierleitung-Dropdown hinzugefügt
+112. ✅ Durchlaufkühler "Orion" + "V100" zu Anlagen-Dropdown hinzugefügt (+ DB Migrationen 028, 029)
+113. ✅ Säulen-Typ "Cola Säule" zu Anlagen-Dropdown hinzugefügt (+ DB Migration 030)
+114. ✅ Tourenplanung Fällig-Tab komplett überarbeitet:
+    - Fälligkeit dynamisch berechnet aus letzteReinigung + reinigungRhythmus
+    - Neue Anlagen (nie gereinigt) erscheinen als "überfällig"
+    - auf-Abruf/Selbstreiniger ausgeschlossen
+    - Ruhetag-Check entfernt (alle aktiven Betriebe unabhängig vom Wochentag)
+    - Letzte Reinigung als separate Zeile angezeigt ("Noch nie gereinigt" in rot)
+115. ✅ Viewport Meta-Tag in web/index.html hinzugefügt
+116. ✅ Kontakt-Formular: Handykontakte importieren + auf Handy speichern (PhoneContactService)
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
 2. ☐ Heineken Rapport-PDFs Layout-Fehler beheben
 3. ☐ Buchhaltung Screens testen und Fehler beheben
-4. ☐ Betriebe nach System-Typ unterscheiden (Konventionell/Buffet/Orion/David/Heigenie)
-5. ☐ Materialbestellung / Materialliste kontrollieren
-6. ☐ UI/UX Verbesserungen (alle Screens durchgehen)
-7. ☐ Beta-Testing mit Daniel (reale Umgebung)
-8. ☐ Bug-Fixes
-9. ☐ App Store Submissions (iOS + Android)
+4. ☐ Materialbestellung / Materialliste kontrollieren
+5. ☐ UI/UX Verbesserungen (alle Screens durchgehen)
+6. ☐ Beta-Testing mit Daniel (reale Umgebung)
+7. ☐ Bug-Fixes
+8. ☐ App Store Submissions (iOS + Android)
+
+### Offene DB-Migrationen (im Supabase SQL Editor ausführen)
+- `Datenbank/migrations/026_bierleitung_gekoppelt.sql`
+- `Datenbank/migrations/027_kontakt_du_anrede.sql`
+- `Datenbank/migrations/028_durchlaufkuehler_orion.sql`
+- `Datenbank/migrations/029_durchlaufkuehler_v100.sql`
+- `Datenbank/migrations/030_typ_saeule_cola.sql`
 
 ---
 
@@ -527,5 +547,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 15.03.2026 – Phase 3 abgeschlossen! Heineken Monatsrechnung (8 Kategorien, 6 Rapport-PDFs), Buchhaltung komplett (Dashboard, Kontenplan, Journal, Buchungen, Berichte, Mahnwesen). Alle Features implementiert.
+**Zuletzt aktualisiert**: 18.03.2026 – Tourenplanung Fällig-Tab überarbeitet (dynamische Fälligkeit, neue Anlagen sichtbar), Dropdown-Erweiterungen (Higenie, Orion, V100, Cola Säule), Rechnungsadresse-Verbesserung, Kontakt-Handysync.
 **Nächstes Update**: Nach Phase 4 (Polish & Testing)

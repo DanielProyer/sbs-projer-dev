@@ -20,6 +20,7 @@ class BetriebKontaktLocal {
   String? phoneContactId;
   String kontaktMethode = 'telefon';
   bool istHauptkontakt = false;
+  bool istDuAnrede = false;
   String? notizen;
   DateTime? createdAt;
   DateTime? updatedAt;

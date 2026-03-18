@@ -25,4 +25,5 @@ class BierleitungLocal {
   String? hahnTyp;
   double? niederdruckBar;
   bool hatFobStop = false;
+  bool istGekoppelt = false;
 }

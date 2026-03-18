@@ -22,9 +22,33 @@ final regionenProvider = Provider<List<RegionLocal>>((ref) {
 
 enum FaelligkeitsStatus { ueberfaellig, faellig, baldFaellig, nichtFaellig }
 
+int? _rhythmusTage(String rhythmus) {
+  switch (rhythmus) {
+    case '4-Wochen': return 28;
+    case '6-Wochen': return 42;
+    case '2-Monate': return 60;
+    case '3-Monate': return 90;
+    case '6-Monate': return 180;
+    case 'Jährlich': return 365;
+    default: return null; // auf-Abruf, Selbstreiniger
+  }
+}
+
 FaelligkeitsStatus getFaelligkeit(AnlageLocal anlage, DateTime datum) {
-  if (anlage.naechsteReinigung == null) return FaelligkeitsStatus.nichtFaellig;
-  final diff = datum.difference(anlage.naechsteReinigung!).inDays;
+  final tage = _rhythmusTage(anlage.reinigungRhythmus);
+  if (tage == null) return FaelligkeitsStatus.nichtFaellig;
+
+  // naechsteReinigung bestimmen
+  DateTime? naechste = anlage.naechsteReinigung;
+  if (naechste == null && anlage.letzteReinigung != null) {
+    naechste = anlage.letzteReinigung!.add(Duration(days: tage));
+  }
+  if (naechste == null) {
+    // Neue Anlage, nie gereinigt → überfällig
+    return FaelligkeitsStatus.ueberfaellig;
+  }
+
+  final diff = datum.difference(naechste).inDays;
   if (diff > 7) return FaelligkeitsStatus.ueberfaellig;
   if (diff >= 0) return FaelligkeitsStatus.faellig;
   if (diff >= -7) return FaelligkeitsStatus.baldFaellig;
@@ -79,6 +103,46 @@ bool isBetriebOffen(BetriebLocal b, DateTime datum) {
   return true;
 }
 
+// ─── Betrieb "aktiv" Check (ohne Ruhetag, für Fällig-Tab) ───
+
+bool _isBetriebAktiv(BetriebLocal b, DateTime datum) {
+  if (b.status != 'aktiv') return false;
+
+  // Ferien-Check
+  if (b.ferienStart != null && b.ferienEnde != null) {
+    if (!datum.isBefore(b.ferienStart!) && !datum.isAfter(b.ferienEnde!)) {
+      return false;
+    }
+  }
+
+  // Saison-Check
+  if (b.istSaisonbetrieb) {
+    bool inAktiverSaison = false;
+
+    if (b.winterSaisonAktiv &&
+        b.winterStartDatum != null &&
+        b.winterEndeDatum != null) {
+      if (!datum.isBefore(b.winterStartDatum!) &&
+          !datum.isAfter(b.winterEndeDatum!)) {
+        inAktiverSaison = true;
+      }
+    }
+
+    if (b.sommerSaisonAktiv &&
+        b.sommerStartDatum != null &&
+        b.sommerEndeDatum != null) {
+      if (!datum.isBefore(b.sommerStartDatum!) &&
+          !datum.isAfter(b.sommerEndeDatum!)) {
+        inAktiverSaison = true;
+      }
+    }
+
+    if (!inAktiverSaison) return false;
+  }
+
+  return true;
+}
+
 // ─── Fällige Anlagen Provider ───
 
 final faelligeAnlagenProvider =
@@ -98,9 +162,9 @@ final faelligeAnlagenProvider =
     final faelligkeit = getFaelligkeit(a, datum);
     if (faelligkeit == FaelligkeitsStatus.nichtFaellig) return false;
 
-    // Betrieb offen?
+    // Betrieb aktiv? (ohne Ruhetag-Check)
     final betrieb = betriebMap[a.betriebId];
-    if (betrieb != null && !isBetriebOffen(betrieb, datum)) return false;
+    if (betrieb != null && !_isBetriebAktiv(betrieb, datum)) return false;
 
     return true;
   }).toList()

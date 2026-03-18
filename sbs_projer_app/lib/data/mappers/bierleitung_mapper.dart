@@ -12,6 +12,7 @@ class BierleitungMapper {
     local.hahnTyp = dto.hahnTyp;
     local.niederdruckBar = dto.niederdruckBar;
     local.hatFobStop = dto.hatFobStop;
+    local.istGekoppelt = dto.istGekoppelt;
     local.isSynced = true;
     local.lastModifiedAt = DateTime.now();
     return local;
@@ -26,6 +27,7 @@ class BierleitungMapper {
       'hahn_typ': local.hahnTyp,
       'niederdruck_bar': local.niederdruckBar,
       'hat_fob_stop': local.hatFobStop,
+      'ist_gekoppelt': local.istGekoppelt,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

@@ -32,19 +32,21 @@ class _BierleitungFormScreenState
 
   int _leitungsNummer = 1;
   bool _hatFobStop = false;
+  bool _istGekoppelt = false;
   String? _selectedHahnTyp;
   List<String> _biersortenVorschlaege = [];
 
   static const _hahnTypen = [
     'Adimat',
     'BuyToSell',
-    'Celli FC2 (Standart)',
+    'Celli FC2 (Standard)',
     'Celli FC4',
     'Celli Celtic (Guiness)',
     'Celli BT',
     'Celli Foreline (Guiness)',
     'Eurostar (silber)',
     'Eurostar (gold)',
+    'Higenie',
     'Anderer',
   ];
 
@@ -125,6 +127,7 @@ class _BierleitungFormScreenState
       _niederdruckBarController.text =
           leitung.niederdruckBar?.toString() ?? '';
       _hatFobStop = leitung.hatFobStop;
+      _istGekoppelt = leitung.istGekoppelt;
     });
   }
 
@@ -144,6 +147,7 @@ class _BierleitungFormScreenState
       leitung.niederdruckBar =
           double.tryParse(_niederdruckBarController.text.trim());
       leitung.hatFobStop = _hatFobStop;
+      leitung.istGekoppelt = _istGekoppelt;
 
       await BierleitungRepository.save(leitung);
 
@@ -299,6 +303,15 @@ class _BierleitungFormScreenState
               value: _hatFobStop,
               contentPadding: EdgeInsets.zero,
               onChanged: (v) => setState(() => _hatFobStop = v),
+            ),
+
+            // === Gekoppelt ===
+            SwitchListTile(
+              title: const Text('Gekoppelt'),
+              subtitle: const Text('Zwei Tanks an einer Leitung'),
+              value: _istGekoppelt,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _istGekoppelt = v),
             ),
             const SizedBox(height: 24),
 

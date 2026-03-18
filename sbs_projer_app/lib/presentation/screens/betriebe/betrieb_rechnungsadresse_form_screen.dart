@@ -1,8 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 
 class BetriebRechnungsadresseFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -24,10 +26,9 @@ class _BetriebRechnungsadresseFormScreenState
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   BetriebRechnungsadresseLocal? _existing;
+  String _betriebName = '';
 
   late final _firmaController = TextEditingController();
-  late final _vornameController = TextEditingController();
-  late final _nachnameController = TextEditingController();
   late final _strasseController = TextEditingController();
   late final _nrController = TextEditingController();
   late final _plzController = TextEditingController();
@@ -40,10 +41,18 @@ class _BetriebRechnungsadresseFormScreenState
   @override
   void initState() {
     super.initState();
+    _loadBetriebName();
     if (_isEdit) {
       _loadAdresse();
     } else {
       _loadExisting();
+    }
+  }
+
+  Future<void> _loadBetriebName() async {
+    final betrieb = await BetriebRepository.getById(widget.betriebId);
+    if (betrieb != null && mounted) {
+      setState(() => _betriebName = betrieb.name);
     }
   }
 
@@ -55,8 +64,6 @@ class _BetriebRechnungsadresseFormScreenState
       setState(() {
         _existing = existing;
         _firmaController.text = existing.firma ?? '';
-        _vornameController.text = existing.vorname ?? '';
-        _nachnameController.text = existing.nachname;
         _strasseController.text = existing.strasse;
         _nrController.text = existing.nr ?? '';
         _plzController.text = existing.plz;
@@ -75,8 +82,6 @@ class _BetriebRechnungsadresseFormScreenState
     setState(() {
       _existing = adresse;
       _firmaController.text = adresse.firma ?? '';
-      _vornameController.text = adresse.vorname ?? '';
-      _nachnameController.text = adresse.nachname;
       _strasseController.text = adresse.strasse;
       _nrController.text = adresse.nr ?? '';
       _plzController.text = adresse.plz;
@@ -95,8 +100,8 @@ class _BetriebRechnungsadresseFormScreenState
       final adresse = _existing ?? BetriebRechnungsadresseLocal();
       adresse.betriebId = widget.betriebId;
       adresse.firma = _emptyToNull(_firmaController.text);
-      adresse.vorname = _emptyToNull(_vornameController.text);
-      adresse.nachname = _nachnameController.text.trim();
+      adresse.vorname = null;
+      adresse.nachname = _betriebName;
       adresse.strasse = _strasseController.text.trim();
       adresse.nr = _emptyToNull(_nrController.text);
       adresse.plz = _plzController.text.trim();
@@ -123,6 +128,23 @@ class _BetriebRechnungsadresseFormScreenState
     }
   }
 
+  Future<void> _lookupPlz(String plz) async {
+    if (plz.length != 4) return;
+    if (_ortController.text.isNotEmpty) return;
+    try {
+      final response = await Dio().get('https://api.zippopotam.us/ch/$plz');
+      if (response.statusCode == 200 && mounted) {
+        final places = response.data['places'] as List?;
+        if (places != null && places.isNotEmpty) {
+          final ort = places[0]['place name'] as String?;
+          if (ort != null && _ortController.text.isEmpty) {
+            setState(() => _ortController.text = ort);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   String? _emptyToNull(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
@@ -131,8 +153,6 @@ class _BetriebRechnungsadresseFormScreenState
   @override
   void dispose() {
     _firmaController.dispose();
-    _vornameController.dispose();
-    _nachnameController.dispose();
     _strasseController.dispose();
     _nrController.dispose();
     _plzController.dispose();
@@ -157,44 +177,26 @@ class _BetriebRechnungsadresseFormScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // === Firma ===
+            // === Firma (abweichend) ===
             TextFormField(
               controller: _firmaController,
               decoration: const InputDecoration(
-                labelText: 'Firma',
+                labelText: 'Firma (falls abweichend)',
                 prefixIcon: Icon(Icons.business),
               ),
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
 
-            // === Name ===
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _vornameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Vorname',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _nachnameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nachname *',
-                    ),
-                    textInputAction: TextInputAction.next,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Nachname ist erforderlich'
-                        : null,
-                  ),
-                ),
-              ],
+            // === Betriebname (automatisch, nicht editierbar) ===
+            TextFormField(
+              initialValue: _betriebName,
+              decoration: const InputDecoration(
+                labelText: 'Betrieb',
+                prefixIcon: Icon(Icons.store),
+              ),
+              readOnly: true,
+              enabled: false,
             ),
             const SizedBox(height: 16),
 
@@ -236,6 +238,7 @@ class _BetriebRechnungsadresseFormScreenState
                     decoration: const InputDecoration(labelText: 'PLZ *'),
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
+                    onChanged: _lookupPlz,
                     validator: (v) => v == null || v.trim().isEmpty
                         ? 'PLZ ist erforderlich'
                         : null,

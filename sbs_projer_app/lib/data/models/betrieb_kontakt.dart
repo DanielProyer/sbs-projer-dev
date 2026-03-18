@@ -12,6 +12,7 @@ class BetriebKontakt {
   final DateTime? phoneLastSyncedAt;
   final String kontaktMethode;
   final bool istHauptkontakt;
+  final bool istDuAnrede;
   final String? notizen;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -30,6 +31,7 @@ class BetriebKontakt {
     this.phoneLastSyncedAt,
     this.kontaktMethode = 'telefon',
     this.istHauptkontakt = false,
+    this.istDuAnrede = false,
     this.notizen,
     this.createdAt,
     this.updatedAt,
@@ -52,6 +54,7 @@ class BetriebKontakt {
           : null,
       kontaktMethode: json['kontakt_methode'] ?? 'telefon',
       istHauptkontakt: json['ist_hauptkontakt'] ?? false,
+      istDuAnrede: json['ist_du_anrede'] ?? false,
       notizen: json['notizen'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -72,6 +75,7 @@ class BetriebKontakt {
       'phone_contact_id': phoneContactId,
       'kontakt_methode': kontaktMethode,
       'ist_hauptkontakt': istHauptkontakt,
+      'ist_du_anrede': istDuAnrede,
       'notizen': notizen,
     };
   }

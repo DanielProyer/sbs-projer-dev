@@ -17,6 +17,7 @@ class BetriebKontaktMapper {
     // phoneLastSyncedAt exists only in DTO, not in Local
     local.kontaktMethode = dto.kontaktMethode;
     local.istHauptkontakt = dto.istHauptkontakt;
+    local.istDuAnrede = dto.istDuAnrede;
     local.notizen = dto.notizen;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
@@ -38,6 +39,7 @@ class BetriebKontaktMapper {
       'phone_contact_id': local.phoneContactId,
       'kontakt_methode': local.kontaktMethode,
       'ist_hauptkontakt': local.istHauptkontakt,
+      'ist_du_anrede': local.istDuAnrede,
       'notizen': local.notizen,
     };
     if (local.serverId != null) json['id'] = local.serverId;
