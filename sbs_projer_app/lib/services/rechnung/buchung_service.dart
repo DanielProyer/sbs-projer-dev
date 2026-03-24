@@ -11,6 +11,8 @@ class BuchungService {
     required double betragNetto,
     String? beschreibung,
     String? belegnummer,
+    String? belegTyp,
+    String? belegId,
   }) async {
     final mwstSatz = vorlage.mwstSatz ?? 0;
     final mwstBetrag = betragNetto * mwstSatz / 100;
@@ -30,7 +32,8 @@ class BuchungService {
       'beschreibung': beschreibung ?? vorlage.bezeichnung,
       'zahlungsweg': vorlage.zahlungsweg,
       'belegordner': vorlage.belegordner,
-      'beleg_typ': 'sonstiges',
+      'beleg_typ': belegTyp ?? 'sonstiges',
+      'beleg_id': belegId,
       'geschaeftsjahr': datum.year,
     });
   }

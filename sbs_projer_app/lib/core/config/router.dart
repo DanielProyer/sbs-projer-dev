@@ -38,6 +38,7 @@ import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnungen
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_generate_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_import_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/kontenplan_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchungen_list_screen.dart';
@@ -402,6 +403,10 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/mahnwesen',
       builder: (context, state) => const MahnwesenScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/camt-import',
+      builder: (context, state) => const CamtImportScreen(),
     ),
 
     // Materialien

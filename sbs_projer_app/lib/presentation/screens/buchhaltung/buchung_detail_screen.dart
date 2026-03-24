@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/beleg_upload_widget.dart';
 
 class BuchungDetailScreen extends ConsumerStatefulWidget {
   final String buchungId;
@@ -166,6 +167,10 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
               ),
             ),
           ),
+
+          // Belege (Upload + Liste)
+          const SizedBox(height: 8),
+          BelegUploadWidget(buchungId: b.id),
 
           // Verknüpfter Beleg
           if (b.belegId != null) ...[

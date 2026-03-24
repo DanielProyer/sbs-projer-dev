@@ -134,6 +134,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             subtitle: 'Überfällige Rechnungen verwalten',
             onTap: () => context.push('/buchhaltung/mahnwesen'),
           ),
+          _NavTile(
+            icon: Icons.account_balance,
+            title: 'Bankauszug Import',
+            subtitle: 'camt.053 Transaktionen importieren',
+            onTap: () => context.push('/buchhaltung/camt-import'),
+          ),
 
           const SizedBox(height: 24),
 

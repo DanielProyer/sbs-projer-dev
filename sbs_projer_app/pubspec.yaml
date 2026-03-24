@@ -46,6 +46,12 @@ dependencies:
   # Kamera & Bilder
   image_picker: ^1.0.0
 
+  # Datei-Auswahl
+  file_picker: ^8.0.0
+
+  # XML-Parsing (camt.053)
+  xml: ^6.3.0
+
   # HTTP (für externe APIs)
   dio: ^5.4.0
 
