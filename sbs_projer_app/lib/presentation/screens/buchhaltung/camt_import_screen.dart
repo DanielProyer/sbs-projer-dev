@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
@@ -13,6 +12,7 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
 import 'package:sbs_projer_app/services/camt/camt_import_service.dart';
+import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 
 class CamtImportScreen extends ConsumerStatefulWidget {
   const CamtImportScreen({super.key});
@@ -100,41 +100,45 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   }
 
   Future<void> _pickFile() async {
+    String schritt = 'Datei wählen';
     try {
       setState(() { _loading = true; _error = null; });
 
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xml'],
-        withData: true,
-      );
+      final picked = await pickXmlFile();
 
-      if (result == null || result.files.single.bytes == null) {
+      if (picked == null) {
         setState(() => _loading = false);
         return;
       }
 
-      final xmlString = utf8.decode(result.files.single.bytes!, allowMalformed: true);
+      schritt = 'XML dekodieren';
+      final bytes = picked.bytes;
+      var xmlString = utf8.decode(bytes, allowMalformed: true);
+      // BOM entfernen falls vorhanden
+      if (xmlString.startsWith('\uFEFF')) {
+        xmlString = xmlString.substring(1);
+      }
+
+      schritt = 'XML parsen';
       final statement = Camt053Parser.parse(xmlString);
 
-      // Duplikat-Erkennung: bestehende Belegnummern laden
+      schritt = 'Duplikate prüfen';
       final existingBuchungen = await BuchungRepository.getAll();
       final existingRefs = <String>{};
       for (final b in existingBuchungen) {
         if (b.belegnummer != null) existingRefs.add(b.belegnummer!);
       }
 
-      // Transaktionen gegen bestehende Belegnummern prüfen
       int dupes = 0;
       for (final tx in statement.transactions) {
         if (tx.accountServiceRef != null && existingRefs.contains(tx.accountServiceRef)) {
           tx.isDuplicate = true;
-          tx.selected = false; // Duplikate standardmässig abwählen
+          tx.selected = false;
           dupes++;
         }
       }
 
-      // Auto-Match Betriebe
+      schritt = 'Betriebe matchen';
       final betriebe = ref.read(betriebeProvider);
       final betriebMaps = betriebe.map((b) => {
         'id': b.routeId,
@@ -142,7 +146,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       }).toList();
       CamtBetriebMatcher.matchAll(statement.transactions, betriebMaps);
 
-      // Auto-Assign Vorlage "Zahlungseingang" wenn vorhanden
+      schritt = 'Vorlagen zuweisen';
       final vorlagen = ref.read(buchungsVorlagenProvider);
       final zahlungsVorlage = vorlagen.cast<BuchungsVorlage?>().firstWhere(
         (v) => v!.autoTrigger == 'zahlungseingang',
@@ -164,7 +168,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Fehler beim Parsen: $e';
+        _error = 'Fehler bei "$schritt": $e';
         _loading = false;
       });
     }
