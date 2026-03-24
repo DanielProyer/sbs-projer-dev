@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -113,7 +114,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         return;
       }
 
-      final xmlString = String.fromCharCodes(result.files.single.bytes!);
+      final xmlString = utf8.decode(result.files.single.bytes!, allowMalformed: true);
       final statement = Camt053Parser.parse(xmlString);
 
       // Duplikat-Erkennung: bestehende Belegnummern laden
