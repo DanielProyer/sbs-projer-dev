@@ -7,14 +7,18 @@ class Camt053Parser {
   /// Parst einen camt.053-XML-String und gibt ein CamtStatement zurück.
   static CamtStatement parse(String xmlString) {
     final document = XmlDocument.parse(xmlString);
-    final stmt = _findElement(document.rootElement, 'Stmt');
+    // camt.053: <Document> → <BkToCstmrStmt> → <Stmt>
+    final bkToCstmrStmt = _findElement(document.rootElement, 'BkToCstmrStmt');
+    final stmt = _findElement(bkToCstmrStmt, 'Stmt')
+        ?? _findElementDeep(document.rootElement, 'Stmt');
     if (stmt == null) {
       throw FormatException('Kein <Stmt>-Element im camt.053 gefunden');
     }
 
-    // Account-Info
+    // Account-Info: <Acct> → <Id> → <IBAN>
     final acct = _findElement(stmt, 'Acct');
-    final iban = _text(_findElement(acct, 'IBAN')) ?? '';
+    final acctId = _findElement(acct, 'Id');
+    final iban = _text(_findElement(acctId, 'IBAN')) ?? '';
     final ccy = _text(_findElement(acct, 'Ccy')) ?? 'CHF';
     final ownerName = _text(_findElement(_findElement(acct, 'Ownr'), 'Nm')) ?? '';
 
@@ -168,6 +172,19 @@ class Camt053Parser {
     for (final child in parent.children) {
       if (child is XmlElement && child.name.local == localName) {
         return child;
+      }
+    }
+    return null;
+  }
+
+  /// Rekursive Tiefensuche nach einem Element (Fallback).
+  static XmlElement? _findElementDeep(XmlNode? parent, String localName) {
+    if (parent == null) return null;
+    for (final child in parent.children) {
+      if (child is XmlElement) {
+        if (child.name.local == localName) return child;
+        final found = _findElementDeep(child, localName);
+        if (found != null) return found;
       }
     }
     return null;

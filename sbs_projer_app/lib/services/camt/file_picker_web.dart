@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:html' as html;
-import 'dart:typed_data';
 
-/// Web: Nutzt dart:html direkt (umgeht file_picker LateInitializationError).
-Future<({String name, Uint8List bytes})?> pickXmlFile() async {
-  final completer = Completer<({String name, Uint8List bytes})?>();
+/// Web: Nutzt dart:html direkt, liest XML als Text (umgeht ByteBuffer-Probleme).
+Future<({String name, String content})?> pickXmlFile() async {
+  final completer = Completer<({String name, String content})?>();
 
   final input = html.FileUploadInputElement()
     ..accept = '.xml'
@@ -15,7 +14,7 @@ Future<({String name, Uint8List bytes})?> pickXmlFile() async {
   input.onChange.listen((event) {
     final files = input.files;
     if (files == null || files.isEmpty) {
-      completer.complete(null);
+      if (!completer.isCompleted) completer.complete(null);
       input.remove();
       return;
     }
@@ -24,24 +23,27 @@ Future<({String name, Uint8List bytes})?> pickXmlFile() async {
     final reader = html.FileReader();
 
     reader.onLoadEnd.listen((_) {
-      final result = reader.result;
-      if (result is List<int>) {
-        completer.complete((
-          name: file.name,
-          bytes: Uint8List.fromList(result),
-        ));
-      } else {
-        completer.complete(null);
+      try {
+        final result = reader.result;
+        if (result is String && result.isNotEmpty) {
+          if (!completer.isCompleted) {
+            completer.complete((name: file.name, content: result));
+          }
+        } else {
+          if (!completer.isCompleted) completer.complete(null);
+        }
+      } catch (e) {
+        if (!completer.isCompleted) completer.complete(null);
       }
       input.remove();
     });
 
     reader.onError.listen((_) {
-      completer.complete(null);
+      if (!completer.isCompleted) completer.complete(null);
       input.remove();
     });
 
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
   });
 
   input.click();

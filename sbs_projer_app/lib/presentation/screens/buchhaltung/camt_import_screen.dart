@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -91,7 +90,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
               ),
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Text(_error!, style: const TextStyle(color: AppColors.error)),
+              Text(_error!, style: const TextStyle(color: AppColors.error), textAlign: TextAlign.center),
             ],
           ],
         ),
@@ -107,51 +106,69 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       final picked = await pickXmlFile();
 
       if (picked == null) {
-        setState(() => _loading = false);
+        setState(() { _loading = false; _error = 'Keine Datei ausgewählt oder Datei konnte nicht gelesen werden.'; });
         return;
       }
 
-      schritt = 'XML dekodieren';
-      final bytes = picked.bytes;
-      var xmlString = utf8.decode(bytes, allowMalformed: true);
+      schritt = 'XML parsen';
+      var xmlString = picked.content;
       // BOM entfernen falls vorhanden
       if (xmlString.startsWith('\uFEFF')) {
         xmlString = xmlString.substring(1);
       }
 
-      schritt = 'XML parsen';
-      final statement = Camt053Parser.parse(xmlString);
+      CamtStatement statement;
+      try {
+        statement = Camt053Parser.parse(xmlString);
+      } catch (e) {
+        setState(() {
+          _error = 'XML-Parse-Fehler: $e';
+          _loading = false;
+        });
+        return;
+      }
 
       schritt = 'Duplikate prüfen';
-      final existingBuchungen = await BuchungRepository.getAll();
-      final existingRefs = <String>{};
-      for (final b in existingBuchungen) {
-        if (b.belegnummer != null) existingRefs.add(b.belegnummer!);
+      List<String> existingRefs = [];
+      try {
+        final existingBuchungen = await BuchungRepository.getAll();
+        existingRefs = existingBuchungen
+            .where((b) => b.belegnummer != null)
+            .map((b) => b.belegnummer!)
+            .toList();
+      } catch (_) {
+        // Wenn Buchungen nicht geladen werden können, ohne Duplikat-Check weiter
       }
 
       int dupes = 0;
-      for (final tx in statement.transactions) {
-        if (tx.accountServiceRef != null && existingRefs.contains(tx.accountServiceRef)) {
-          tx.isDuplicate = true;
-          tx.selected = false;
-          dupes++;
+      if (existingRefs.isNotEmpty) {
+        final refSet = existingRefs.toSet();
+        for (final tx in statement.transactions) {
+          if (tx.accountServiceRef != null && refSet.contains(tx.accountServiceRef)) {
+            tx.isDuplicate = true;
+            tx.selected = false;
+            dupes++;
+          }
         }
       }
 
       schritt = 'Betriebe matchen';
       final betriebe = ref.read(betriebeProvider);
-      final betriebMaps = betriebe.map((b) => {
-        'id': b.routeId,
-        'name': b.name,
-      }).toList();
+      final betriebMaps = betriebe
+          .where((b) => b.serverId != null)
+          .map((b) => {'id': b.serverId!, 'name': b.name})
+          .toList();
       CamtBetriebMatcher.matchAll(statement.transactions, betriebMaps);
 
       schritt = 'Vorlagen zuweisen';
       final vorlagen = ref.read(buchungsVorlagenProvider);
-      final zahlungsVorlage = vorlagen.cast<BuchungsVorlage?>().firstWhere(
-        (v) => v!.autoTrigger == 'zahlungseingang',
-        orElse: () => null,
-      );
+      BuchungsVorlage? zahlungsVorlage;
+      for (final v in vorlagen) {
+        if (v.autoTrigger == 'zahlungseingang') {
+          zahlungsVorlage = v;
+          break;
+        }
+      }
       if (zahlungsVorlage != null) {
         for (final tx in statement.transactions) {
           if (tx.isCredit) {
