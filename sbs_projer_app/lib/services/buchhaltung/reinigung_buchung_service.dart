@@ -65,9 +65,9 @@ class ReinigungBuchungService {
     final mwstSatz = vorlage.mwstSatz ?? 0.0;
     final datumStr = reinigung.datum.toIso8601String().split('T').first;
 
-    // Beträge: 5-Rappen-Rundung nur bei Barzahlung (physisches Bargeld)
+    // Beträge: 5-Rappen-Rundung für alle CHF-Beträge (Schweizer Standard)
     final bruttoRaw = netto * (1 + mwstSatz / 100);
-    final brutto = istBar ? _round5Rappen(bruttoRaw) : _round2(bruttoRaw);
+    final brutto = _round5Rappen(bruttoRaw);
     final mwstBetrag = _round2(brutto - netto);
 
     final zahlungsweg = istBar ? 'kasse' : 'rechnung';
