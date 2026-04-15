@@ -1,22 +1,27 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:signature/signature.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
-import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:sbs_projer_app/services/pdf/reinigung_pdf_service.dart';
-import 'package:sbs_projer_app/services/pdf/reinigung_pdf_storage.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
+import 'package:uuid/uuid.dart';
 
 class ReinigungFormScreen extends ConsumerStatefulWidget {
   final String? reinigungId; // null = neu
@@ -46,39 +51,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   late final _uhrzeitEndeController = TextEditingController();
   late final _notizenController = TextEditingController();
 
-  // Unterschriften
-  late final SignatureController _sigTechnikerController;
-  late final SignatureController _sigKundeController;
-  late final _kundeNameController = TextEditingController();
-  String? _existingTechnikerSig;
-  String? _existingKundeSig;
-  bool _techDrawNew = false;
-  bool _kundeDrawNew = false;
+  // Protokoll-Foto
+  Uint8List? _fotoBytes;
+  bool _fotoUploading = false;
+  String? _existingFotoPfad;
 
-  // Checkliste - Anlagen-Checks
-  bool _hatDurchlaufkuehler = false;
-  bool _hatBuffetanstich = false;
-  bool _hatKuehlkeller = false;
-  bool _hatFasskuehler = false;
-
-  // Checkliste - Service-Checks
-  bool _begleitkuehlungKontrolliert = false;
-  bool _installationAllgemeinKontrolliert = false;
-  bool _aligalAnschluesseKontrolliert = false;
-  bool _durchlaufkuehlerAusgeblasen = false;
-  bool _wasserstandKontrolliert = false;
-  bool _wasserGewechselt = false;
-  bool _leitungWasserVorgespuelt = false;
-  bool _leitungsreinigungReinigungsmittel = false;
-  bool _foerderdruckKontrolliert = false;
-  bool _zapfhahnZerlegtGereinigt = false;
-  bool _zapfkopfZerlegtGereinigt = false;
-  bool _servicekarteAusgefuellt = false;
-
-  String _status = 'offen';
-
-  // Checkliste-Notizen
-  Map<String, String> _checklisteNotizen = {};
+  // Neue Felder
+  bool _istKulanz = false;
+  bool _istHeinekenMonteur = false;
+  String _serviceArt = 'standardservice';
+  bool _wasserKuehlerGewechselt = false;
+  ReinigungLocal? _letzteReinigung;
 
   // Preis-Kalkulator
   String? _serviceTyp;
@@ -90,6 +73,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   int _anzahlHaehneAndererStandort = 0;
   Map<String, dynamic>? _preisliste;
 
+  String _status = 'offen';
+  BetriebLocal? _betrieb;
+  String? _rechnungsstellung;
+
+  // Multi-Anlagen-Auswahl
+  List<AnlageLocal> _anlagenDesBetrieb = [];
+  Set<String> _selectedAnlageIds = {};
+
   bool get _isEdit => widget.reinigungId != null;
 
   @override
@@ -97,16 +88,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     super.initState();
     _datum = DateTime.now();
     _uhrzeitStartController.text = _formatTime(TimeOfDay.now());
-    _sigTechnikerController = SignatureController(
-      penStrokeWidth: 2.0,
-      penColor: Colors.black,
-      exportBackgroundColor: Colors.white,
-    );
-    _sigKundeController = SignatureController(
-      penStrokeWidth: 2.0,
-      penColor: Colors.black,
-      exportBackgroundColor: Colors.white,
-    );
     if (_isEdit) {
       _loadReinigung();
     } else {
@@ -128,31 +109,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       _uhrzeitStartController.text = r.uhrzeitStart ?? '';
       _uhrzeitEndeController.text = r.uhrzeitEnde ?? '';
       _notizenController.text = r.notizen ?? '';
-      _hatDurchlaufkuehler = r.hatDurchlaufkuehler;
-      _hatBuffetanstich = r.hatBuffetanstich;
-      _hatKuehlkeller = r.hatKuehlkeller;
-      _hatFasskuehler = r.hatFasskuehler;
-      _begleitkuehlungKontrolliert = r.begleitkuehlungKontrolliert;
-      _installationAllgemeinKontrolliert =
-          r.installationAllgemeinKontrolliert;
-      _aligalAnschluesseKontrolliert = r.aligalAnschluesseKontrolliert;
-      _durchlaufkuehlerAusgeblasen = r.durchlaufkuehlerAusgeblasen;
-      _wasserstandKontrolliert = r.wasserstandKontrolliert;
-      _wasserGewechselt = r.wasserGewechselt;
-      _leitungWasserVorgespuelt = r.leitungWasserVorgespuelt;
-      _leitungsreinigungReinigungsmittel =
-          r.leitungsreinigungReinigungsmittel;
-      _foerderdruckKontrolliert = r.foerderdruckKontrolliert;
-      _zapfhahnZerlegtGereinigt = r.zapfhahnZerlegtGereinigt;
-      _zapfkopfZerlegtGereinigt = r.zapfkopfZerlegtGereinigt;
-      _servicekarteAusgefuellt = r.servicekarteAusgefuellt;
-      _checklisteNotizen = r.checklisteNotizenJson != null
-          ? Map<String, String>.from(jsonDecode(r.checklisteNotizenJson!))
-          : {};
       _status = r.status;
-      _existingTechnikerSig = r.unterschriftTechniker;
-      _existingKundeSig = r.unterschriftKunde;
-      _kundeNameController.text = r.unterschriftKundeName ?? '';
+      _existingFotoPfad = r.protokollFotoPfad;
+      _istKulanz = r.istKulanz;
+      _istHeinekenMonteur = r.istHeinekenMonteur;
+      _serviceArt = r.serviceArt;
+      _wasserKuehlerGewechselt = r.wasserKuehlerGewechselt;
       // Preis-Felder
       _serviceTyp = r.serviceTyp;
       _istBergkunde = r.istBergkunde;
@@ -161,13 +123,19 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       _anzahlHaehneFremd = r.anzahlHaehneFremd;
       _anzahlHaehneWein = r.anzahlHaehneWein;
       _anzahlHaehneAndererStandort = r.anzahlHaehneAndererStandort;
+      // Multi-Anlagen: aus anlageIdsJson laden
+      if (r.anlageIdsJson != null) {
+        _selectedAnlageIds = Set<String>.from(
+            (jsonDecode(r.anlageIdsJson!) as List).map((e) => e.toString()));
+      } else if (r.anlageId != null) {
+        _selectedAnlageIds = {r.anlageId!};
+      }
     });
     _loadPreisData();
   }
 
   Future<void> _loadPreisData() async {
     try {
-      final anlageId = widget.anlageId ?? _existing?.anlageId;
       final betriebId = widget.betriebId ?? _existing?.betriebId;
 
       // Preisliste laden
@@ -181,87 +149,139 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         setState(() => _preisliste = preisRows.first);
       }
 
-      // Betrieb → Bergkunde (nur wenn noch nicht manuell gesetzt)
-      if (betriebId != null && !_isEdit) {
+      // Betrieb → Bergkunde + Rechnungsstellung + Anlagen laden
+      if (betriebId != null) {
         final betrieb = await BetriebRepository.getByServerId(betriebId);
         if (betrieb != null && mounted) {
-          setState(() => _istBergkunde = betrieb.istBergkunde);
+          setState(() {
+            _betrieb = betrieb;
+            _rechnungsstellung = betrieb.rechnungsstellung;
+            if (!_isEdit) _istBergkunde = betrieb.istBergkunde;
+          });
+        }
+
+        // Alle Anlagen des Betriebs laden
+        final anlagen = await AnlageRepository.getByBetrieb(betriebId);
+        if (mounted) {
+          setState(() {
+            _anlagenDesBetrieb = anlagen;
+            // Bei neuer Reinigung: alle Anlagen vorausgewählt
+            if (!_isEdit && _selectedAnlageIds.isEmpty) {
+              _selectedAnlageIds = anlagen
+                  .map((a) => a.serverId ?? a.routeId)
+                  .toSet();
+            }
+          });
+        }
+
+        // Letzte Reinigung laden (für Vorausfüllung bei neuer Reinigung)
+        if (!_isEdit) {
+          final letzte = await ReinigungRepository.getLastByBetrieb(betriebId);
+          if (letzte != null && mounted) {
+            _letzteReinigung = letzte;
+            // Positionen + Preise von letzter Reinigung übernehmen
+            setState(() {
+              _serviceTyp ??= letzte.serviceTyp;
+              if (_anzahlHaehneEigen == 0) _anzahlHaehneEigen = letzte.anzahlHaehneEigen;
+              if (_anzahlHaehneOrion == 0) _anzahlHaehneOrion = letzte.anzahlHaehneOrion;
+              if (_anzahlHaehneFremd == 0) _anzahlHaehneFremd = letzte.anzahlHaehneFremd;
+              if (_anzahlHaehneWein == 0) _anzahlHaehneWein = letzte.anzahlHaehneWein;
+              if (_anzahlHaehneAndererStandort == 0) {
+                _anzahlHaehneAndererStandort = letzte.anzahlHaehneAndererStandort;
+              }
+            });
+          }
         }
       }
 
-      // Anlage → ServiceTyp + Checklist-Defaults ableiten
-      if (anlageId != null && _serviceTyp == null) {
-        final anlage = await AnlageRepository.getByServerId(anlageId);
-        if (anlage != null && mounted) {
-          final hatDLK = anlage.durchlaufkuehler != null &&
-              anlage.durchlaufkuehler != 'keiner';
-          final isOrion = anlage.typAnlage.toLowerCase() == 'orion';
-
+      // ServiceTyp ableiten (aus erster ausgewählter Anlage)
+      if (_serviceTyp == null && _selectedAnlageIds.isNotEmpty) {
+        final firstAnlage = _anlagenDesBetrieb.where(
+            (a) => _selectedAnlageIds.contains(a.serverId ?? a.routeId)).firstOrNull;
+        if (firstAnlage != null && mounted) {
           setState(() {
-            _serviceTyp = switch (anlage.typAnlage.toLowerCase()) {
+            _serviceTyp = switch (firstAnlage.typAnlage.toLowerCase()) {
               'orion' => 'reinigung_orion',
               'heigenie' => 'heigenie',
               _ => 'reinigung_bier',
             };
-
-            if (!_isEdit) {
-              // Anlagen-Checks — aus Anlage-Daten
-              _hatDurchlaufkuehler = hatDLK;
-              _hatFasskuehler = anlage.vorkuehler == 'Fasskühler';
-              _hatKuehlkeller = anlage.vorkuehler == 'Kühlzelle';
-              _hatBuffetanstich = anlage.vorkuehler == 'Buffet';
-
-              // Service-Checks
-              _begleitkuehlungKontrolliert = hatDLK;
-              _installationAllgemeinKontrolliert = true;
-              _aligalAnschluesseKontrolliert = !isOrion;
-              _durchlaufkuehlerAusgeblasen = hatDLK;
-              _wasserstandKontrolliert = hatDLK;
-              _wasserGewechselt = false; // wird selten gemacht
-              _leitungWasserVorgespuelt = true;
-              _leitungsreinigungReinigungsmittel = true;
-              _foerderdruckKontrolliert = true;
-              _zapfhahnZerlegtGereinigt = true;
-              _zapfkopfZerlegtGereinigt = !isOrion;
-              _servicekarteAusgefuellt = true;
-            }
           });
         }
       }
 
-      // Bierleitungen → Hähne zählen
-      if (anlageId != null && !_isEdit) {
-        final leitungen = await BierleitungRepository.getByAnlage(anlageId);
-        if (mounted) {
-          int eigen = 0, orion = 0, fremd = 0, wein = 0;
-          for (final l in leitungen) {
-            final sorte = (l.biersorte ?? '').toLowerCase();
-            if (sorte.contains('wein') || sorte.contains('wine')) {
-              wein++;
-            } else if (sorte.contains('orion')) {
-              orion++;
-            } else if (sorte.contains('heineken') ||
-                sorte.contains('desperados') ||
-                sorte.contains('calanda') ||
-                sorte.contains('eichhof') ||
-                sorte.contains('birra moretti') ||
-                sorte.isEmpty) {
-              eigen++;
-            } else {
-              fremd++;
-            }
-          }
-          setState(() {
-            _anzahlHaehneEigen = eigen;
-            _anzahlHaehneOrion = orion;
-            _anzahlHaehneFremd = fremd;
-            _anzahlHaehneWein = wein;
-          });
-        }
+      // Bierleitungen → Hähne zählen (aus allen ausgewählten Anlagen)
+      if (!_isEdit && _selectedAnlageIds.isNotEmpty && _letzteReinigung == null) {
+        await _recalculateHaehne();
       }
     } catch (_) {
-      // Preisberechnung ist optional, Fehler nicht kritisch
+      // Preisberechnung ist optional
     }
+  }
+
+  Future<void> _recalculateHaehne() async {
+    int eigen = 0, orion = 0, fremd = 0, wein = 0;
+    for (final anlageId in _selectedAnlageIds) {
+      final leitungen = await BierleitungRepository.getByAnlage(anlageId);
+      for (final l in leitungen) {
+        if (!l.istAktiv) continue;
+        final sorte = (l.biersorte ?? '').toLowerCase();
+        if (sorte.contains('wein') || sorte.contains('wine')) {
+          wein++;
+        } else if (sorte.contains('orion')) {
+          orion++;
+        } else if (sorte.contains('heineken') ||
+            sorte.contains('desperados') ||
+            sorte.contains('calanda') ||
+            sorte.contains('eichhof') ||
+            sorte.contains('birra moretti') ||
+            sorte.isEmpty) {
+          eigen++;
+        } else {
+          fremd++;
+        }
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _anzahlHaehneEigen = eigen;
+        _anzahlHaehneOrion = orion;
+        _anzahlHaehneFremd = fremd;
+        _anzahlHaehneWein = wein;
+      });
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+      maxWidth: 2000,
+    );
+    if (image == null || !mounted) return;
+
+    final bytes = await image.readAsBytes();
+    _onPhotoTaken(bytes);
+  }
+
+  Future<void> _pickPhoto() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 2000,
+    );
+    if (image == null || !mounted) return;
+
+    final bytes = await image.readAsBytes();
+    _onPhotoTaken(bytes);
+  }
+
+  void _onPhotoTaken(Uint8List bytes) {
+    setState(() {
+      _fotoBytes = bytes;
+      _existingFotoPfad = null;
+    });
   }
 
   Future<void> _save({bool abschliessen = false}) async {
@@ -273,8 +293,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       final r = _existing ?? ReinigungLocal();
 
       if (!_isEdit) {
-        r.anlageId = widget.anlageId!;
         r.betriebId = widget.betriebId!;
+        // Multi-Anlagen: anlageIds setzen, anlageId = erste (Backward-Compat)
+        if (_selectedAnlageIds.isNotEmpty) {
+          r.anlageIdsJson = jsonEncode(_selectedAnlageIds.toList());
+          r.anlageId = _selectedAnlageIds.first;
+        } else {
+          r.anlageId = widget.anlageId;
+        }
+      } else if (_selectedAnlageIds.isNotEmpty) {
+        // Auch bei Edit die anlageIds aktualisieren
+        r.anlageIdsJson = jsonEncode(_selectedAnlageIds.toList());
+        r.anlageId = _selectedAnlageIds.first;
       }
 
       r.datum = _datum;
@@ -282,65 +312,67 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       r.uhrzeitEnde = _emptyToNull(_uhrzeitEndeController.text);
       r.notizen = _emptyToNull(_notizenController.text);
 
-      r.hatDurchlaufkuehler = _hatDurchlaufkuehler;
-      r.hatBuffetanstich = _hatBuffetanstich;
-      r.hatKuehlkeller = _hatKuehlkeller;
-      r.hatFasskuehler = _hatFasskuehler;
-      r.begleitkuehlungKontrolliert = _begleitkuehlungKontrolliert;
-      r.installationAllgemeinKontrolliert =
-          _installationAllgemeinKontrolliert;
-      r.aligalAnschluesseKontrolliert = _aligalAnschluesseKontrolliert;
-      r.durchlaufkuehlerAusgeblasen = _durchlaufkuehlerAusgeblasen;
-      r.wasserstandKontrolliert = _wasserstandKontrolliert;
-      r.wasserGewechselt = _wasserGewechselt;
-      r.leitungWasserVorgespuelt = _leitungWasserVorgespuelt;
-      r.leitungsreinigungReinigungsmittel =
-          _leitungsreinigungReinigungsmittel;
-      r.foerderdruckKontrolliert = _foerderdruckKontrolliert;
-      r.zapfhahnZerlegtGereinigt = _zapfhahnZerlegtGereinigt;
-      r.zapfkopfZerlegtGereinigt = _zapfkopfZerlegtGereinigt;
-      r.servicekarteAusgefuellt = _servicekarteAusgefuellt;
+      // Kulanz / Heineken-Monteur
+      r.istKulanz = _istKulanz;
+      r.istHeinekenMonteur = _istHeinekenMonteur;
+      r.serviceArt = _serviceArt;
+      r.wasserKuehlerGewechselt = _wasserKuehlerGewechselt;
 
-      // Checkliste-Notizen (leere Einträge entfernen)
-      final cleanedNotizen = Map<String, String>.from(_checklisteNotizen)
-        ..removeWhere((_, v) => v.trim().isEmpty);
-      r.checklisteNotizenJson =
-          cleanedNotizen.isNotEmpty ? jsonEncode(cleanedNotizen) : null;
+      if (_istHeinekenMonteur) {
+        // Heineken-Monteur: nur Datum, keine Preise/Checkliste
+        r.serviceTyp = null;
+        r.istBergkunde = false;
+        r.anzahlHaehneEigen = 0;
+        r.anzahlHaehneOrion = 0;
+        r.anzahlHaehneFremd = 0;
+        r.anzahlHaehneWein = 0;
+        r.anzahlHaehneAndererStandort = 0;
+        r.preisGrundtarif = null;
+        r.preisZusatzHaehne = null;
+        r.bergkundenZuschlag = null;
+        r.preisNetto = null;
+        r.mwstSatz = null;
+        r.preisMwst = null;
+        r.preisBrutto = null;
+      } else if (_istKulanz) {
+        // Kulanz: Positionen normal, aber alle Preise 0
+        r.serviceTyp = _serviceTyp;
+        r.istBergkunde = _istBergkunde;
+        r.anzahlHaehneEigen = _anzahlHaehneEigen;
+        r.anzahlHaehneOrion = _anzahlHaehneOrion;
+        r.anzahlHaehneFremd = _anzahlHaehneFremd;
+        r.anzahlHaehneWein = _anzahlHaehneWein;
+        r.anzahlHaehneAndererStandort = _anzahlHaehneAndererStandort;
+        r.preisGrundtarif = 0;
+        r.preisZusatzHaehne = 0;
+        r.bergkundenZuschlag = 0;
+        r.preisNetto = 0;
+        r.mwstSatz = 8.1;
+        r.preisMwst = 0;
+        r.preisBrutto = 0;
+      } else {
+        // Normal: Preis-Kalkulation
+        r.serviceTyp = _serviceTyp;
+        r.istBergkunde = _istBergkunde;
+        r.anzahlHaehneEigen = _anzahlHaehneEigen;
+        r.anzahlHaehneOrion = _anzahlHaehneOrion;
+        r.anzahlHaehneFremd = _anzahlHaehneFremd;
+        r.anzahlHaehneWein = _anzahlHaehneWein;
+        r.anzahlHaehneAndererStandort = _anzahlHaehneAndererStandort;
 
-      // Preis-Felder
-      r.serviceTyp = _serviceTyp;
-      r.istBergkunde = _istBergkunde;
-      r.anzahlHaehneEigen = _anzahlHaehneEigen;
-      r.anzahlHaehneOrion = _anzahlHaehneOrion;
-      r.anzahlHaehneFremd = _anzahlHaehneFremd;
-      r.anzahlHaehneWein = _anzahlHaehneWein;
-      r.anzahlHaehneAndererStandort = _anzahlHaehneAndererStandort;
-      final preis = _calculatePreis();
-      if (preis.isNotEmpty) {
-        r.preisGrundtarif = preis['grundtarif'];
-        r.preisZusatzHaehne = preis['zusatz'];
-        r.bergkundenZuschlag = preis['bergkundenZuschlag'];
-        r.preisNetto = preis['netto'];
-        r.mwstSatz = preis['mwstSatz'];
-        r.preisMwst = preis['mwst'];
-        r.preisBrutto = preis['brutto'];
+        final preis = _calculatePreis();
+        if (preis.isNotEmpty) {
+          r.preisGrundtarif = preis['grundtarif'];
+          r.preisZusatzHaehne = preis['zusatz'];
+          r.bergkundenZuschlag = preis['bergkundenZuschlag'];
+          r.preisNetto = preis['netto'];
+          r.mwstSatz = preis['mwstSatz'];
+          r.preisMwst = preis['mwst'];
+          r.preisBrutto = preis['brutto'];
+        }
       }
 
-      // Unterschriften
-      if (_sigTechnikerController.isNotEmpty) {
-        final bytes = await _sigTechnikerController.toPngBytes();
-        if (bytes != null) r.unterschriftTechniker = base64Encode(bytes);
-      } else if (_existingTechnikerSig != null && !_techDrawNew) {
-        r.unterschriftTechniker = _existingTechnikerSig;
-      }
-      if (_sigKundeController.isNotEmpty) {
-        final bytes = await _sigKundeController.toPngBytes();
-        if (bytes != null) r.unterschriftKunde = base64Encode(bytes);
-      } else if (_existingKundeSig != null && !_kundeDrawNew) {
-        r.unterschriftKunde = _existingKundeSig;
-      }
-      r.unterschriftKundeName = _emptyToNull(_kundeNameController.text);
-
+      // Status ZUERST setzen (vor Foto-Upload, damit kein Doppel-Eintrag entsteht)
       if (abschliessen) {
         r.status = 'abgeschlossen';
         r.uhrzeitEnde ??= _formatTime(TimeOfDay.now());
@@ -348,29 +380,58 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         r.status = _status;
       }
 
+      r.userId = SupabaseService.currentUser!.id;
+
+      // Auf Web: UUID vorab generieren damit Foto-Upload und finaler Save dieselbe ID verwenden
+      if (kIsWeb && !_isEdit && r.serverId == null) {
+        r.serverId = const Uuid().v4();
+      }
+
+      // Foto hochladen (wenn neues Foto aufgenommen)
+      if (_fotoBytes != null && !_istHeinekenMonteur) {
+        setState(() => _fotoUploading = true);
+        try {
+          // Auf Native: zuerst speichern um eine Isar-ID zu haben
+          if (!kIsWeb && !_isEdit) {
+            await ReinigungRepository.save(r);
+          }
+
+          final reinigungId = r.serverId ?? r.routeId;
+          final pfad =
+              await ProtokollFotoStorage.uploadFoto(reinigungId, _fotoBytes!);
+          r.protokollFotoPfad = pfad;
+        } catch (e) {
+          debugPrint('Foto-Upload fehlgeschlagen: $e');
+        } finally {
+          if (mounted) setState(() => _fotoUploading = false);
+        }
+      } else if (_existingFotoPfad != null && !_istHeinekenMonteur) {
+        r.protokollFotoPfad = _existingFotoPfad;
+      }
+
       await ReinigungRepository.save(r);
 
-      // PDF generieren und hochladen bei Abschluss
-      if (abschliessen) {
+      // Kundenrechnung + Buchung erstellen bei Abschluss (nicht bei Kulanz/Heineken)
+      bool buchungVerbucht = false;
+      String? buchungTypLabel;
+      if (abschliessen && kIsWeb && !_istKulanz && !_istHeinekenMonteur) {
         try {
-          final pdfBytes = await ReinigungPdfService.generate(r);
-          await ReinigungPdfStorage.uploadPdf(r.routeId, pdfBytes);
-        } catch (e) {
-          // PDF-Fehler blockiert Reinigung nicht
-          debugPrint('PDF-Generierung fehlgeschlagen: $e');
-        }
+          final betrieb = _betrieb ??
+              await BetriebRepository.getByServerId(r.betriebId);
+          if (betrieb != null) {
+            await RechnungService.createFromReinigung(r, betrieb);
 
-        // Kundenrechnung erstellen (falls zutreffend)
-        if (kIsWeb) {
-          try {
-            final betrieb =
-                await BetriebRepository.getByServerId(r.betriebId);
-            if (betrieb != null) {
-              await RechnungService.createFromReinigung(r, betrieb);
+            // Automatische Buchung (Barzahlung oder Rechnung)
+            final buchung = await ReinigungBuchungService.createFromReinigung(r, betrieb);
+            if (buchung != null) {
+              buchungVerbucht = true;
+              buchungTypLabel = betrieb.rechnungsstellung == 'barzahlung'
+                  ? 'Barzahlung'
+                  : 'Rechnung';
             }
-          } catch (e) {
-            debugPrint('Rechnungserstellung fehlgeschlagen: $e');
           }
+        } catch (e) {
+          debugPrint('Rechnungs-/Buchungserstellung fehlgeschlagen: $e');
         }
       }
 
@@ -378,7 +439,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(abschliessen
-                ? 'Reinigung abgeschlossen'
+                ? (buchungVerbucht
+                    ? 'Reinigung abgeschlossen – $buchungTypLabel verbucht'
+                    : 'Reinigung abgeschlossen')
                 : _isEdit
                     ? 'Reinigung aktualisiert'
                     : 'Reinigung gestartet'),
@@ -386,7 +449,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         );
         if (kIsWeb) {
           ref.invalidate(reinigungenStreamProvider);
-          if (abschliessen) ref.invalidate(rechnungenStreamProvider);
+          if (abschliessen) {
+            ref.invalidate(rechnungenStreamProvider);
+            ref.invalidate(buchungenStreamProvider);
+          }
         }
         context.pop();
       }
@@ -401,6 +467,85 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     }
   }
 
+  Future<void> _showAbschlussDialog() async {
+    // Heineken-Monteur: direkt abschliessen ohne Rechnungsdialog
+    if (_istHeinekenMonteur || _istKulanz) {
+      _save(abschliessen: true);
+      return;
+    }
+
+    var selectedRechnungsstellung = _rechnungsstellung ?? 'rechnung_tresen';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Reinigung abschliessen'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Rechnungsart für diesen Service:'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: selectedRechnungsstellung,
+                decoration: const InputDecoration(
+                  labelText: 'Rechnungsstellung',
+                  prefixIcon: Icon(Icons.receipt),
+                  isDense: true,
+                ),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'rechnung_mail', child: Text('Per E-Mail')),
+                  DropdownMenuItem(
+                      value: 'rechnung_post', child: Text('Per Post')),
+                  DropdownMenuItem(
+                      value: 'rechnung_tresen',
+                      child: Text('Rechnung Tresen')),
+                  DropdownMenuItem(
+                      value: 'barzahlung', child: Text('Barzahlung')),
+                  DropdownMenuItem(
+                      value: 'jahresrechnung',
+                      child: Text('Jahresrechnung')),
+                  DropdownMenuItem(
+                      value: 'heineken', child: Text('Via Heineken')),
+                ],
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selectedRechnungsstellung = v);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.check_circle, size: 18),
+              label: const Text('Abschliessen'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      // Rechnungsstellung am Betrieb aktualisieren wenn geändert
+      if (_betrieb != null &&
+          selectedRechnungsstellung != _betrieb!.rechnungsstellung) {
+        _betrieb!.rechnungsstellung = selectedRechnungsstellung;
+        await BetriebRepository.save(_betrieb!);
+        if (kIsWeb && mounted) ref.invalidate(betriebeStreamProvider);
+      }
+      setState(() => _rechnungsstellung = selectedRechnungsstellung);
+      _save(abschliessen: true);
+    }
+  }
+
   String? _emptyToNull(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
@@ -411,13 +556,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     _uhrzeitStartController.dispose();
     _uhrzeitEndeController.dispose();
     _notizenController.dispose();
-    _sigTechnikerController.dispose();
-    _sigKundeController.dispose();
-    _kundeNameController.dispose();
     super.dispose();
   }
 
-  /// Kaufmännisch auf 0.05 CHF runden (5 Rappen)
   double _roundTo5Rappen(double value) {
     return (value * 20).roundToDouble() / 20;
   }
@@ -427,23 +568,33 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     final p = _preisliste!;
 
     final grundtarif = switch (_serviceTyp) {
-      'reinigung_bier' => (p['grundtarif_reinigung_bier'] as num?)?.toDouble() ?? 0,
-      'reinigung_orion' => (p['grundtarif_reinigung_orion'] as num?)?.toDouble() ?? 0,
+      'reinigung_bier' =>
+        (p['grundtarif_reinigung_bier'] as num?)?.toDouble() ?? 0,
+      'reinigung_orion' =>
+        (p['grundtarif_reinigung_orion'] as num?)?.toDouble() ?? 0,
       'heigenie' => (p['grundtarif_heigenie'] as num?)?.toDouble() ?? 0,
-      'reinigung_fremd' => (p['grundtarif_reinigung_fremd'] as num?)?.toDouble() ?? 0,
+      'reinigung_fremd' =>
+        (p['grundtarif_reinigung_fremd'] as num?)?.toDouble() ?? 0,
       'wein' => (p['grundtarif_wein'] as num?)?.toDouble() ?? 0,
       _ => 0.0,
     };
 
-    // Zusätzliche Hähne — Grundtarif beinhaltet 1 Hahn, fixe Preise
-    double zusatz = 0;
-    zusatz += _anzahlHaehneEigen * 18.0;
-    zusatz += _anzahlHaehneOrion * 18.0;
-    zusatz += _anzahlHaehneFremd * 23.0;
-    zusatz += _anzahlHaehneWein * 23.0;
-    zusatz += _anzahlHaehneAndererStandort * 30.0;
+    final hEigen = (p['zusatz_hahn_eigen'] as num?)?.toDouble() ?? 18.0;
+    final hOrion = (p['zusatz_hahn_orion'] as num?)?.toDouble() ?? 18.0;
+    final hFremd = (p['zusatz_hahn_fremd'] as num?)?.toDouble() ?? 23.0;
+    final hWein = (p['zusatz_hahn_wein'] as num?)?.toDouble() ?? 23.0;
+    final hStandort = (p['zusatz_hahn_anderer_standort'] as num?)?.toDouble() ?? 30.0;
 
-    final bergkundenZuschlag = _istBergkunde ? 100.0 : 0.0;
+    double zusatz = 0;
+    zusatz += _anzahlHaehneEigen * hEigen;
+    zusatz += _anzahlHaehneOrion * hOrion;
+    zusatz += _anzahlHaehneFremd * hFremd;
+    zusatz += _anzahlHaehneWein * hWein;
+    zusatz += _anzahlHaehneAndererStandort * hStandort;
+
+    final bergkundenZuschlag = _istBergkunde
+        ? ((p['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100.0)
+        : 0.0;
     final netto = grundtarif + zusatz + bergkundenZuschlag;
     final mwstSatz = (p['mwst_satz'] as num?)?.toDouble() ?? 8.1;
     final brutto = _roundTo5Rappen(netto * (1 + mwstSatz / 100));
@@ -460,27 +611,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     };
   }
 
-  int get _checkedCount {
-    var count = 0;
-    if (_begleitkuehlungKontrolliert) count++;
-    if (_installationAllgemeinKontrolliert) count++;
-    if (_aligalAnschluesseKontrolliert) count++;
-    if (_durchlaufkuehlerAusgeblasen) count++;
-    if (_wasserstandKontrolliert) count++;
-    if (_wasserGewechselt) count++;
-    if (_leitungWasserVorgespuelt) count++;
-    if (_leitungsreinigungReinigungsmittel) count++;
-    if (_foerderdruckKontrolliert) count++;
-    if (_zapfhahnZerlegtGereinigt) count++;
-    if (_zapfkopfZerlegtGereinigt) count++;
-    if (_servicekarteAusgefuellt) count++;
-    if (_hatDurchlaufkuehler) count++;
-    if (_hatBuffetanstich) count++;
-    if (_hatKuehlkeller) count++;
-    if (_hatFasskuehler) count++;
-    return count;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isEdit && _existing == null) {
@@ -491,27 +621,22 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'Reinigung bearbeiten' : 'Neue Reinigung'),
-        actions: [
-          if (_isEdit || !_isEdit)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                '$_checkedCount/16',
-                style: TextStyle(
-                  color: _checkedCount == 16
-                      ? AppColors.success
-                      : AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // === Heineken-Monteur Switch ===
+            _buildHeinekenMonteurSwitch(),
+            const SizedBox(height: 8),
+
+            // === Anlagen-Auswahl ===
+            if (!_istHeinekenMonteur && _anlagenDesBetrieb.isNotEmpty) ...[
+              _buildAnlagenAuswahl(),
+              const SizedBox(height: 16),
+            ],
+
             // === Zeiterfassung ===
             _sectionTitle(context, 'Zeiterfassung'),
             const SizedBox(height: 8),
@@ -535,227 +660,119 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 child: Text(_formatDate(_datum)),
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _uhrzeitStartController,
-                    decoration: const InputDecoration(
-                      labelText: 'Start',
-                      prefixIcon: Icon(Icons.play_arrow),
+
+            // Bei Heineken-Monteur: nur Datum, Rest ausblenden
+            if (!_istHeinekenMonteur) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _uhrzeitStartController,
+                      decoration: const InputDecoration(
+                        labelText: 'Start',
+                        prefixIcon: Icon(Icons.play_arrow),
+                      ),
+                      textInputAction: TextInputAction.next,
                     ),
-                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _uhrzeitEndeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Ende',
+                        prefixIcon: Icon(Icons.stop),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // === Service-Art & Wasserwechsel ===
+              _sectionTitle(context, 'Service-Art'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _serviceArt,
+                decoration: const InputDecoration(
+                  labelText: 'Service-Art',
+                  prefixIcon: Icon(Icons.build),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'standardservice', child: Text('Standardservice')),
+                  DropdownMenuItem(
+                      value: 'endreinigung', child: Text('Endreinigung')),
+                  DropdownMenuItem(
+                      value: 'eroeffnungsservice',
+                      child: Text('Eröffnungsservice')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _serviceArt = v);
+                },
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                value: _wasserKuehlerGewechselt,
+                onChanged: (v) =>
+                    setState(() => _wasserKuehlerGewechselt = v ?? false),
+                title: const Text('Wasser im Kühler gewechselt'),
+                secondary: const Icon(Icons.water_drop),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              const SizedBox(height: 24),
+
+              // === Protokoll ===
+              _sectionTitle(context, 'Protokoll'),
+              const SizedBox(height: 8),
+              if (_fotoBytes == null && _existingFotoPfad == null)
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton.icon(
+                    onPressed: _fotoUploading ? null : _takePhoto,
+                    icon: const Icon(Icons.document_scanner, size: 24),
+                    label: const Text('Protokoll digitalisieren',
+                        style: TextStyle(fontSize: 16)),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _uhrzeitEndeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Ende',
-                      prefixIcon: Icon(Icons.stop),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
+              if (_fotoBytes != null || _existingFotoPfad != null)
+                _buildFotoSection(),
+              const SizedBox(height: 24),
+
+              // === Beanstandungen / Notizen ===
+              _sectionTitle(context, 'Beanstandungen / Notizen'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(
+                  labelText: 'Beanstandungen / Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                  hintText: 'Auffälligkeiten, Mängel, Kundenhinweise...',
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // === Anlagen-Checks ===
-            _sectionTitle(context, 'Anlagen-Checks'),
-            const SizedBox(height: 8),
-            _checkTile('Durchlaufkühler vorhanden',
-                _hatDurchlaufkuehler,
-                (v) => setState(() => _hatDurchlaufkuehler = v),
-                noteKey: 'hat_durchlaufkuehler'),
-            _checkTile('Buffetanstich vorhanden', _hatBuffetanstich,
-                (v) => setState(() => _hatBuffetanstich = v),
-                noteKey: 'hat_buffetanstich'),
-            _checkTile('Kühlkeller vorhanden', _hatKuehlkeller,
-                (v) => setState(() => _hatKuehlkeller = v),
-                noteKey: 'hat_kuehlkeller'),
-            _checkTile('Fasskühler vorhanden', _hatFasskuehler,
-                (v) => setState(() => _hatFasskuehler = v),
-                noteKey: 'hat_fasskuehler'),
-            const SizedBox(height: 16),
-
-            // === Service-Checkliste ===
-            _sectionTitle(context, 'Service-Checkliste (12 Punkte)'),
-            const SizedBox(height: 8),
-            _checkTile('Begleitkühlung kontrolliert',
-                _begleitkuehlungKontrolliert,
-                (v) => setState(() => _begleitkuehlungKontrolliert = v),
-                noteKey: 'begleitkuehlung_kontrolliert'),
-            _checkTile('Installation allgemein kontrolliert',
-                _installationAllgemeinKontrolliert,
-                (v) => setState(
-                    () => _installationAllgemeinKontrolliert = v),
-                noteKey: 'installation_allgemein_kontrolliert'),
-            _checkTile('Aligal-Anschlüsse kontrolliert',
-                _aligalAnschluesseKontrolliert,
-                (v) => setState(
-                    () => _aligalAnschluesseKontrolliert = v),
-                noteKey: 'aligal_anschluesse_kontrolliert'),
-            _checkTile('Durchlaufkühler ausgeblasen',
-                _durchlaufkuehlerAusgeblasen,
-                (v) =>
-                    setState(() => _durchlaufkuehlerAusgeblasen = v),
-                noteKey: 'durchlaufkuehler_ausgeblasen'),
-            _checkTile('Wasserstand kontrolliert',
-                _wasserstandKontrolliert,
-                (v) => setState(() => _wasserstandKontrolliert = v),
-                noteKey: 'wasserstand_kontrolliert'),
-            _checkTile('Wasser gewechselt', _wasserGewechselt,
-                (v) => setState(() => _wasserGewechselt = v),
-                noteKey: 'wasser_gewechselt'),
-            _checkTile('Leitung mit Wasser vorgespült',
-                _leitungWasserVorgespuelt,
-                (v) => setState(() => _leitungWasserVorgespuelt = v),
-                noteKey: 'leitung_wasser_vorgespuelt'),
-            _checkTile('Leitungsreinigung mit Reinigungsmittel',
-                _leitungsreinigungReinigungsmittel,
-                (v) => setState(
-                    () => _leitungsreinigungReinigungsmittel = v),
-                noteKey: 'leitungsreinigung_reinigungsmittel'),
-            _checkTile('Förderdruck kontrolliert',
-                _foerderdruckKontrolliert,
-                (v) => setState(() => _foerderdruckKontrolliert = v),
-                noteKey: 'foerderdruck_kontrolliert'),
-            _checkTile('Zapfhahn zerlegt & gereinigt',
-                _zapfhahnZerlegtGereinigt,
-                (v) => setState(() => _zapfhahnZerlegtGereinigt = v),
-                noteKey: 'zapfhahn_zerlegt_gereinigt'),
-            _checkTile('Zapfkopf zerlegt & gereinigt',
-                _zapfkopfZerlegtGereinigt,
-                (v) => setState(() => _zapfkopfZerlegtGereinigt = v),
-                noteKey: 'zapfkopf_zerlegt_gereinigt'),
-            _checkTile('Servicekarte ausgefüllt',
-                _servicekarteAusgefuellt,
-                (v) => setState(() => _servicekarteAusgefuellt = v),
-                noteKey: 'servicekarte_ausgefuellt'),
-            const SizedBox(height: 16),
-
-            // === Notizen ===
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+                maxLines: 4,
+                textInputAction: TextInputAction.done,
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // === Preiskalkulation ===
-            _sectionTitle(context, 'Preiskalkulation'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _serviceTyp,
-              decoration: const InputDecoration(
-                labelText: 'Grundtarif',
-                prefixIcon: Icon(Icons.category),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'reinigung_bier', child: Text('Heineken/Bier')),
-                DropdownMenuItem(value: 'reinigung_orion', child: Text('Orion')),
-                DropdownMenuItem(value: 'heigenie', child: Text('Heigenie')),
-                DropdownMenuItem(value: 'reinigung_fremd', child: Text('Fremdbier')),
-                DropdownMenuItem(value: 'wein', child: Text('Wein')),
-              ],
-              onChanged: (v) => setState(() => _serviceTyp = v),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _haehneField('Zusätzliche Eigen', _anzahlHaehneEigen,
-                      (v) => setState(() => _anzahlHaehneEigen = v)),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _haehneField('Zusätzliche Orion', _anzahlHaehneOrion,
-                      (v) => setState(() => _anzahlHaehneOrion = v)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _haehneField('Zusätzliche Fremd', _anzahlHaehneFremd,
-                      (v) => setState(() => _anzahlHaehneFremd = v)),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _haehneField('Zusätzliche Wein', _anzahlHaehneWein,
-                      (v) => setState(() => _anzahlHaehneWein = v)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _haehneField('Zusätzliche Anderer Standort', _anzahlHaehneAndererStandort,
-                (v) => setState(() => _anzahlHaehneAndererStandort = v)),
-            const SizedBox(height: 12),
-            _buildPreisPreview(),
-            const SizedBox(height: 24),
+              // === Kulanz Switch ===
+              _buildKulanzSwitch(),
+              const SizedBox(height: 16),
 
-            // === Unterschriften ===
-            _sectionTitle(context, 'Unterschriften'),
-            const SizedBox(height: 12),
+              // === Positionen ===
+              _sectionTitle(context, 'Positionen'),
+              const SizedBox(height: 8),
+              _buildPositionen(),
+              const SizedBox(height: 16),
 
-            // Techniker
-            Text('Techniker',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary)),
-            const SizedBox(height: 6),
-            _buildSignaturePad(
-              controller: _sigTechnikerController,
-              existingSig: _existingTechnikerSig,
-              drawNew: _techDrawNew,
-              onClear: () => setState(() {
-                _sigTechnikerController.clear();
-                _existingTechnikerSig = null;
-                _techDrawNew = true;
-              }),
-              onRedraw: () => setState(() => _techDrawNew = true),
-            ),
-            const SizedBox(height: 16),
-
-            // Kunde
-            Text('Kunde',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary)),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _kundeNameController,
-              decoration: const InputDecoration(
-                labelText: 'Name des Kunden',
-                prefixIcon: Icon(Icons.person),
-                isDense: true,
-              ),
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 8),
-            _buildSignaturePad(
-              controller: _sigKundeController,
-              existingSig: _existingKundeSig,
-              drawNew: _kundeDrawNew,
-              onClear: () => setState(() {
-                _sigKundeController.clear();
-                _existingKundeSig = null;
-                _kundeDrawNew = true;
-              }),
-              onRedraw: () => setState(() => _kundeDrawNew = true),
-            ),
-            const SizedBox(height: 24),
+              // === Preisliste-Referenz ===
+              if (_preisliste != null) _buildPreislisteReferenz(),
+              const SizedBox(height: 24),
+            ],
 
             // === Aktionen ===
             if (_isEdit) ...[
@@ -772,18 +789,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               if (_status == 'offen') ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: _isLoading
-                      ? null
-                      : () => _save(abschliessen: true),
+                  onPressed: _isLoading ? null : _showAbschlussDialog,
                   icon: const Icon(Icons.check_circle),
                   label: const Text('Reinigung abschliessen'),
                 ),
               ],
             ] else
               FilledButton.icon(
-                onPressed: _isLoading
-                    ? null
-                    : () => _save(abschliessen: true),
+                onPressed: _isLoading ? null : _showAbschlussDialog,
                 icon: _isLoading
                     ? const SizedBox(
                         height: 20,
@@ -791,7 +804,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check_circle),
-                label: const Text('Reinigung abschliessen'),
+                label: Text(_istHeinekenMonteur
+                    ? 'Heineken-Monteur erfassen'
+                    : 'Reinigung abschliessen'),
               ),
             const SizedBox(height: 32),
           ],
@@ -800,42 +815,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     );
   }
 
-  Widget _haehneField(String label, int value, ValueChanged<int> onChanged) {
-    return TextFormField(
-      initialValue: value.toString(),
-      decoration: InputDecoration(
-        labelText: '$label Hähne',
-        isDense: true,
-        suffixText: label.startsWith('Zusätzliche') ? _haehnePreis(label) : null,
-      ),
-      keyboardType: TextInputType.number,
-      onChanged: (v) => onChanged(int.tryParse(v) ?? 0),
-    );
-  }
-
-  String? _haehnePreis(String label) {
-    if (label.contains('Eigen') || label.contains('Orion')) return '@ 18.-';
-    if (label.contains('Fremd') || label.contains('Wein')) return '@ 23.-';
-    if (label.contains('Anderer')) return '@ 30.-';
-    return null;
-  }
-
-  Widget _buildPreisPreview() {
-    final preis = _calculatePreis();
-    if (preis.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.divider),
-        ),
-        child: const Text(
-          'Preisliste wird geladen...',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        ),
-      );
-    }
+  Widget _buildAnlagenAuswahl() {
+    final selectedCount = _selectedAnlageIds.length;
+    final totalCount = _anlagenDesBetrieb.length;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -845,23 +827,530 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _preisRow('Grundtarif', preis['grundtarif']!),
-          if (preis['zusatz']! > 0)
-            _preisRow('Zusätzliche Hähne', preis['zusatz']!),
-          if (preis['bergkundenZuschlag']! > 0)
-            _preisRow('Bergkunden-Zuschlag', preis['bergkundenZuschlag']!),
-          const Divider(height: 16),
-          _preisRow('Netto', preis['netto']!),
-          _preisRow('MwSt (${preis['mwstSatz']!.toStringAsFixed(1)}%)', preis['mwst']!),
-          const Divider(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              Text('${preis['brutto']!.toStringAsFixed(2)} CHF',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const Icon(Icons.precision_manufacturing, size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              const Text('Anlagen',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Spacer(),
+              Text('$selectedCount/$totalCount ausgewählt',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             ],
+          ),
+          const SizedBox(height: 4),
+          ...(_anlagenDesBetrieb.map((anlage) {
+            final anlageId = anlage.serverId ?? anlage.routeId;
+            final isSelected = _selectedAnlageIds.contains(anlageId);
+            return CheckboxListTile(
+              value: isSelected,
+              onChanged: (v) {
+                setState(() {
+                  if (v == true) {
+                    _selectedAnlageIds.add(anlageId);
+                  } else {
+                    _selectedAnlageIds.remove(anlageId);
+                  }
+                });
+                // Hähne neu berechnen bei neuer Reinigung
+                if (!_isEdit) _recalculateHaehne();
+              },
+              title: Text(anlage.bezeichnung ?? anlage.typAnlage,
+                  style: const TextStyle(fontSize: 14)),
+              subtitle: anlage.bezeichnung != null
+                  ? Text(anlage.typAnlage, style: const TextStyle(fontSize: 12))
+                  : null,
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+            );
+          })),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeinekenMonteurSwitch() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: _istHeinekenMonteur
+            ? AppColors.info.withAlpha(25)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _istHeinekenMonteur
+              ? AppColors.info.withAlpha(100)
+              : AppColors.divider,
+        ),
+      ),
+      child: SwitchListTile(
+        title: const Text('Heineken-Monteur',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: const Text('Nur Datum erfassen (kein Preis/Protokoll)',
+            style: TextStyle(fontSize: 12)),
+        secondary: const Icon(Icons.engineering, color: AppColors.info),
+        value: _istHeinekenMonteur,
+        contentPadding: EdgeInsets.zero,
+        onChanged: (v) => setState(() {
+          _istHeinekenMonteur = v;
+          if (v) _istKulanz = false;
+        }),
+      ),
+    );
+  }
+
+  Widget _buildKulanzSwitch() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: _istKulanz
+            ? AppColors.warning.withAlpha(25)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _istKulanz
+              ? AppColors.warning.withAlpha(100)
+              : AppColors.divider,
+        ),
+      ),
+      child: SwitchListTile(
+        title: const Text('Kulanz (kostenlos)',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: const Text('Gesamtpreis CHF 0.–',
+            style: TextStyle(fontSize: 12)),
+        secondary: const Icon(Icons.volunteer_activism, color: AppColors.warning),
+        value: _istKulanz,
+        contentPadding: EdgeInsets.zero,
+        onChanged: (v) => setState(() {
+          _istKulanz = v;
+          if (v) _istHeinekenMonteur = false;
+        }),
+      ),
+    );
+  }
+
+  Widget _buildFotoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Foto-Vorschau
+        if (_fotoBytes != null) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              _fotoBytes!,
+              width: double.infinity,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ] else if (_existingFotoPfad != null) ...[
+          if (ProtokollFotoStorage.isPdf(_existingFotoPfad!))
+            // PDF: Platzhalter mit Öffnen-Button
+            FutureBuilder<String>(
+              future: ProtokollFotoStorage.getSignedUrl(_existingFotoPfad!),
+              builder: (context, snapshot) {
+                return Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.picture_as_pdf,
+                            size: 40, color: AppColors.error),
+                        const SizedBox(height: 8),
+                        if (snapshot.hasData)
+                          FilledButton.icon(
+                            onPressed: () => launchUrl(
+                                Uri.parse(snapshot.data!),
+                                mode: LaunchMode.externalApplication),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('PDF öffnen'),
+                          )
+                        else
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            )
+          else
+            // JPG (legacy): Bild direkt anzeigen
+            FutureBuilder<String>(
+              future:
+                  ProtokollFotoStorage.getSignedUrl(_existingFotoPfad!),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      snapshot.data!,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.broken_image,
+                                  color: AppColors.textSecondary),
+                              SizedBox(height: 4),
+                              Text('Foto konnte nicht geladen werden',
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return Container(
+                  height: 250,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child:
+                      const Center(child: CircularProgressIndicator()),
+                );
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+
+        // Buttons
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _fotoUploading ? null : _takePhoto,
+                icon: const Icon(Icons.camera_alt),
+                label: Text(_fotoBytes != null || _existingFotoPfad != null
+                    ? 'Neues Foto'
+                    : 'Protokoll fotografieren'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _fotoUploading ? null : _pickPhoto,
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Galerie'),
+            ),
+          ],
+        ),
+        if (_fotoUploading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Foto wird hochgeladen...',
+                  style: TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _updatePositionAndPreis(VoidCallback update) {
+    setState(() {
+      update();
+    });
+  }
+
+  Widget _buildPositionen() {
+    final preis = _calculatePreis();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Service-Typ
+          DropdownButtonFormField<String>(
+            value: _serviceTyp,
+            decoration: const InputDecoration(
+              labelText: 'Service-Typ',
+              prefixIcon: Icon(Icons.cleaning_services),
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem(
+                  value: 'reinigung_bier', child: Text('Reinigung Bier')),
+              DropdownMenuItem(
+                  value: 'reinigung_orion',
+                  child: Text('Reinigung Orion')),
+              DropdownMenuItem(
+                  value: 'heigenie', child: Text('Heigenie')),
+              DropdownMenuItem(
+                  value: 'reinigung_fremd',
+                  child: Text('Reinigung Fremd')),
+              DropdownMenuItem(value: 'wein', child: Text('Wein')),
+            ],
+            onChanged: (v) => _updatePositionAndPreis(() => _serviceTyp = v),
+          ),
+          const SizedBox(height: 12),
+
+          // Grundtarif (readonly, aus Preisliste)
+          if (_preisliste != null && _serviceTyp != null) ...[
+            _preisRow(
+              'Grundtarif ${_serviceTypLabel(_serviceTyp)} (exkl. MwSt)',
+              _istKulanz ? 0 : _getGrundtarif(),
+            ),
+            const Divider(height: 16),
+          ],
+
+          // Hähne-Aufstellung
+          _haehneRow('Hähne Eigen', _anzahlHaehneEigen, _hahnPreis('zusatz_hahn_eigen'),
+              (v) => _updatePositionAndPreis(() => _anzahlHaehneEigen = v)),
+          _haehneRow('Hähne Orion', _anzahlHaehneOrion, _hahnPreis('zusatz_hahn_orion'),
+              (v) => _updatePositionAndPreis(() => _anzahlHaehneOrion = v)),
+          _haehneRow('Hähne Fremd', _anzahlHaehneFremd, _hahnPreis('zusatz_hahn_fremd'),
+              (v) => _updatePositionAndPreis(() => _anzahlHaehneFremd = v)),
+          _haehneRow('Hähne Wein', _anzahlHaehneWein, _hahnPreis('zusatz_hahn_wein'),
+              (v) => _updatePositionAndPreis(() => _anzahlHaehneWein = v)),
+          _haehneRow('Anderer Standort', _anzahlHaehneAndererStandort, _hahnPreis('zusatz_hahn_anderer_standort'),
+              (v) => _updatePositionAndPreis(() => _anzahlHaehneAndererStandort = v)),
+
+          // Bergkunden-Zuschlag
+          if (_istBergkunde) ...[
+            const SizedBox(height: 4),
+            _preisRow('Bergkunden-Zuschlag (exkl. MwSt)',
+                _istKulanz ? 0 : ((_preisliste?['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100.0)),
+          ],
+
+          // Kalkulation
+          const Divider(height: 16),
+          if (_istKulanz)
+            ..._buildKulanzKalkulationRows()
+          else
+            ..._buildKalkulationRows(preis),
+        ],
+      ),
+    );
+  }
+
+  double _hahnPreis(String key) {
+    return (_preisliste?[key] as num?)?.toDouble() ?? 18.0;
+  }
+
+  double _getGrundtarif() {
+    if (_preisliste == null || _serviceTyp == null) return 0;
+    final p = _preisliste!;
+    return switch (_serviceTyp) {
+      'reinigung_bier' =>
+        (p['grundtarif_reinigung_bier'] as num?)?.toDouble() ?? 0,
+      'reinigung_orion' =>
+        (p['grundtarif_reinigung_orion'] as num?)?.toDouble() ?? 0,
+      'heigenie' => (p['grundtarif_heigenie'] as num?)?.toDouble() ?? 0,
+      'reinigung_fremd' =>
+        (p['grundtarif_reinigung_fremd'] as num?)?.toDouble() ?? 0,
+      'wein' => (p['grundtarif_wein'] as num?)?.toDouble() ?? 0,
+      _ => 0.0,
+    };
+  }
+
+  String _serviceTypLabel(String? typ) {
+    return switch (typ) {
+      'reinigung_bier' => 'Bier',
+      'reinigung_orion' => 'Orion',
+      'heigenie' => 'Heigenie',
+      'reinigung_fremd' => 'Fremd',
+      'wein' => 'Wein',
+      _ => '',
+    };
+  }
+
+  List<Widget> _buildKulanzKalkulationRows() {
+    return [
+      _preisRow('Netto (exkl. MwSt)', 0),
+      _preisRow('MwSt (8.1%)', 0),
+      const Divider(height: 16),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Total (inkl. 8.1% MwSt)',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const Text('0.00 CHF',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        ],
+      ),
+      const SizedBox(height: 4),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withAlpha(25),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Text(
+          'Kulanz — keine Verrechnung',
+          style: TextStyle(
+            color: AppColors.warning,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildKalkulationRows(Map<String, double> preis) {
+    if (preis.isEmpty) return [];
+    return [
+      _preisRow('Netto (exkl. MwSt)', preis['netto']!),
+      _preisRow(
+          'MwSt (${preis['mwstSatz']!.toStringAsFixed(1)}%)', preis['mwst']!),
+      const Divider(height: 16),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Total (inkl. 8.1% MwSt)',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          Text('${preis['brutto']!.toStringAsFixed(2)} CHF',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        ],
+      ),
+    ];
+  }
+
+  Widget _buildPreislisteReferenz() {
+    final p = _preisliste!;
+    return ExpansionTile(
+      title: const Text('Preisliste (exkl. MwSt)',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      children: [
+        _preislisteRow('Grundtarif Eigen',
+            (p['grundtarif_reinigung_bier'] as num?)?.toDouble() ?? 0),
+        _preislisteRow('Grundtarif Orion',
+            (p['grundtarif_reinigung_orion'] as num?)?.toDouble() ?? 0),
+        _preislisteRow('Service Heigenie (Leihvertrag)',
+            (p['grundtarif_heigenie'] as num?)?.toDouble() ?? 0),
+        _preislisteRow('Grundtarif Fremd',
+            (p['grundtarif_reinigung_fremd'] as num?)?.toDouble() ?? 0),
+        const Divider(height: 8),
+        _preislisteRow('Zusätzl. Hahn Eigen/Orion',
+            (p['zusatz_hahn_eigen'] as num?)?.toDouble() ?? 18),
+        _preislisteRow('Zusätzl. Hahn Fremd',
+            (p['zusatz_hahn_fremd'] as num?)?.toDouble() ?? 23),
+        _preislisteRow('Zusätzl. Hahn anderer Standort',
+            (p['zusatz_hahn_anderer_standort'] as num?)?.toDouble() ?? 30),
+        const Divider(height: 8),
+        _preislisteRow('Bergkunden-Zuschlag',
+            (p['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100),
+      ],
+    );
+  }
+
+  Widget _preislisteRow(String label, double betrag) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary)),
+          ),
+          Text('CHF ${betrag.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _haehneRow(
+      String label, int anzahl, double preisProHahn, ValueChanged<int> onChanged) {
+    final total = _istKulanz ? 0.0 : anzahl * preisProHahn;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+          ),
+          // Minus-Button
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              iconSize: 18,
+              onPressed: anzahl > 0 ? () => onChanged(anzahl - 1) : null,
+              icon: const Icon(Icons.remove_circle_outline),
+            ),
+          ),
+          SizedBox(
+            width: 24,
+            child: Text(
+              '$anzahl',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+          // Plus-Button
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              iconSize: 18,
+              onPressed: () => onChanged(anzahl + 1),
+              icon: const Icon(Icons.add_circle_outline),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: Text(
+              total > 0 ? '${total.toStringAsFixed(0)} CHF' : '–',
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 13,
+                color: total > 0 ? null : AppColors.textSecondary,
+              ),
+            ),
           ),
         ],
       ),
@@ -874,172 +1363,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          Text('${betrag.toStringAsFixed(2)} CHF', style: const TextStyle(fontSize: 13)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          Text('${betrag.toStringAsFixed(2)} CHF',
+              style: const TextStyle(fontSize: 13)),
         ],
       ),
     );
-  }
-
-  Widget _buildSignaturePad({
-    required SignatureController controller,
-    required String? existingSig,
-    required bool drawNew,
-    required VoidCallback onClear,
-    required VoidCallback onRedraw,
-  }) {
-    // Bestehende Signatur anzeigen (wenn vorhanden und nicht "neu zeichnen")
-    if (existingSig != null && !drawNew) {
-      return Column(
-        children: [
-          Container(
-            width: double.infinity,
-            height: 150,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: AppColors.divider),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(7),
-              child: Image.memory(
-                base64Decode(existingSig),
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: onRedraw,
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Neu zeichnen'),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    // Zeichenfläche
-    return Column(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.divider),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(7),
-            child: Signature(
-              controller: controller,
-              height: 150,
-              backgroundColor: Colors.white,
-            ),
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton.icon(
-              onPressed: onClear,
-              icon: const Icon(Icons.delete_outline, size: 16),
-              label: const Text('Löschen'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _checkTile(String label, bool value, ValueChanged<bool> onChanged,
-      {String? noteKey}) {
-    final hasNote = noteKey != null &&
-        _checklisteNotizen[noteKey] != null &&
-        _checklisteNotizen[noteKey]!.isNotEmpty;
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: CheckboxListTile(
-                title: Text(label, style: const TextStyle(fontSize: 14)),
-                value: value,
-                onChanged: (v) => onChanged(v ?? false),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                controlAffinity: ListTileControlAffinity.leading,
-                activeColor: AppColors.success,
-              ),
-            ),
-            if (noteKey != null)
-              IconButton(
-                icon: Icon(
-                  hasNote ? Icons.note : Icons.note_add_outlined,
-                  size: 18,
-                  color: hasNote ? AppColors.primary : AppColors.textSecondary,
-                ),
-                tooltip: 'Notiz',
-                onPressed: () => _showNoteDialog(noteKey, label),
-              ),
-          ],
-        ),
-        if (hasNote)
-          Padding(
-            padding: const EdgeInsets.only(left: 52, bottom: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _checklisteNotizen[noteKey]!,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _showNoteDialog(String key, String label) async {
-    final controller = TextEditingController(
-      text: _checklisteNotizen[key] ?? '',
-    );
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(label, style: const TextStyle(fontSize: 15)),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Notiz',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ''),
-            child: const Text('Löschen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (result != null && mounted) {
-      setState(() {
-        if (result.trim().isEmpty) {
-          _checklisteNotizen.remove(key);
-        } else {
-          _checklisteNotizen[key] = result.trim();
-        }
-      });
-    }
   }
 
   Widget _sectionTitle(BuildContext context, String title) {
