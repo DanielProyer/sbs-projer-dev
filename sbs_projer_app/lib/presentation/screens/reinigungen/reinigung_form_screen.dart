@@ -90,6 +90,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     super.initState();
     _datum = DateTime.now();
     _uhrzeitStartController.text = _formatTime(TimeOfDay.now());
+    // Betrieb sofort aus Provider laden (synchron)
+    if (widget.betriebId != null) {
+      final betriebe = ref.read(betriebeProvider);
+      final match = betriebe
+          .where((b) => b.serverId == widget.betriebId)
+          .firstOrNull;
+      if (match != null) {
+        _betrieb = match;
+        _rechnungsstellung = match.rechnungsstellung;
+        _istBergkunde = match.istBergkunde;
+      }
+    }
     if (_isEdit) {
       _loadReinigung();
     } else {
@@ -132,15 +144,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       } else if (r.anlageId != null) {
         _selectedAnlageIds = {r.anlageId!};
       }
+      // Betrieb sofort aus Provider laden (synchron, Fallback)
+      if (r.betriebId.isNotEmpty) {
+        final betriebe = ref.read(betriebeProvider);
+        final match = betriebe
+            .where((b) => b.serverId == r.betriebId)
+            .firstOrNull;
+        if (match != null) {
+          _betrieb = match;
+          _rechnungsstellung = match.rechnungsstellung;
+        }
+      }
     });
     _loadPreisData();
   }
 
   Future<void> _loadPreisData() async {
-    try {
-      final betriebId = widget.betriebId ?? _existing?.betriebId;
+    final betriebId = widget.betriebId ?? _existing?.betriebId;
 
-      // Preisliste laden
+    // Preisliste laden (optional, darf nicht Betrieb/Anlagen blockieren)
+    try {
       final preisRows = await SupabaseService.client
           .from('preise')
           .select()
@@ -150,9 +173,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       if (preisRows.isNotEmpty && mounted) {
         setState(() => _preisliste = preisRows.first);
       }
+    } catch (_) {}
 
-      // Betrieb → Bergkunde + Rechnungsstellung + Anlagen laden
-      if (betriebId != null) {
+    // Betrieb → Bergkunde + Rechnungsstellung + Anlagen laden
+    if (betriebId != null) {
+      try {
         final betrieb = await BetriebRepository.getByServerId(betriebId);
         if (betrieb != null && mounted) {
           setState(() {
@@ -161,7 +186,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             if (!_isEdit) _istBergkunde = betrieb.istBergkunde;
           });
         }
+      } catch (_) {}
 
+      try {
         // Alle Anlagen des Betriebs laden
         final anlagen = await AnlageRepository.getByBetrieb(betriebId);
         if (mounted) {
@@ -175,13 +202,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             }
           });
         }
+      } catch (_) {}
 
-        // Letzte Reinigung laden (für Vorausfüllung bei neuer Reinigung)
-        if (!_isEdit) {
+      // Letzte Reinigung laden (für Vorausfüllung bei neuer Reinigung)
+      if (!_isEdit) {
+        try {
           final letzte = await ReinigungRepository.getLastByBetrieb(betriebId);
           if (letzte != null && mounted) {
             _letzteReinigung = letzte;
-            // Positionen + Preise von letzter Reinigung übernehmen
             setState(() {
               _serviceTyp ??= letzte.serviceTyp;
               if (_anzahlHaehneEigen == 0) _anzahlHaehneEigen = letzte.anzahlHaehneEigen;
@@ -193,31 +221,31 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               }
             });
           }
-        }
+        } catch (_) {}
       }
+    }
 
-      // ServiceTyp ableiten (aus erster ausgewählter Anlage)
-      if (_serviceTyp == null && _selectedAnlageIds.isNotEmpty) {
-        final firstAnlage = _anlagenDesBetrieb.where(
-            (a) => _selectedAnlageIds.contains(a.serverId ?? a.routeId)).firstOrNull;
-        if (firstAnlage != null && mounted) {
-          setState(() {
-            _serviceTyp = switch (firstAnlage.typAnlage.toLowerCase()) {
-              'orion' => 'reinigung_orion',
-              'heigenie' => 'heigenie',
-              _ => 'reinigung_bier',
-            };
-          });
-        }
+    // ServiceTyp ableiten (aus erster ausgewählter Anlage)
+    if (_serviceTyp == null && _selectedAnlageIds.isNotEmpty) {
+      final firstAnlage = _anlagenDesBetrieb.where(
+          (a) => _selectedAnlageIds.contains(a.serverId ?? a.routeId)).firstOrNull;
+      if (firstAnlage != null && mounted) {
+        setState(() {
+          _serviceTyp = switch (firstAnlage.typAnlage.toLowerCase()) {
+            'orion' => 'reinigung_orion',
+            'heigenie' => 'heigenie',
+            _ => 'reinigung_bier',
+          };
+        });
       }
+    }
 
-      // Bierleitungen → Hähne zählen (aus allen ausgewählten Anlagen)
+    // Bierleitungen → Hähne zählen (aus allen ausgewählten Anlagen)
+    try {
       if (!_isEdit && _selectedAnlageIds.isNotEmpty && _letzteReinigung == null) {
         await _recalculateHaehne();
       }
-    } catch (_) {
-      // Preisberechnung ist optional
-    }
+    } catch (_) {}
   }
 
   Future<void> _recalculateHaehne() async {
