@@ -248,6 +248,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 DropdownMenuItem(value: 'Adimat', child: Text('Adimat')),
                 DropdownMenuItem(value: 'BuyToSell', child: Text('BuyToSell')),
                 DropdownMenuItem(value: 'Fremdsäule', child: Text('Fremdsäule')),
+                DropdownMenuItem(value: 'Smartschank', child: Text('Smartschank')),
                 DropdownMenuItem(value: 'Spezial', child: Text('Spezial')),
               ],
               onChanged: (v) => setState(() => _typSaeule = v),
@@ -290,6 +291,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 DropdownMenuItem(value: 'Kühlzelle', child: Text('Kühlzelle')),
                 DropdownMenuItem(value: 'Buffet', child: Text('Buffet')),
                 DropdownMenuItem(value: 'Bierbar', child: Text('Bierbar')),
+                DropdownMenuItem(value: 'Kühlkeller', child: Text('Kühlkeller')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _vorkuehler = v);
@@ -312,11 +314,16 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 DropdownMenuItem(value: 'H200', child: Text('H200')),
                 DropdownMenuItem(value: 'Orion', child: Text('Orion')),
                 DropdownMenuItem(value: 'OT-Lux', child: Text('OT-Lux')),
+                DropdownMenuItem(value: 'OT-Dry Cooler', child: Text('OT-Dry Cooler')),
+                DropdownMenuItem(value: 'OT-Berg', child: Text('OT-Berg')),
+                DropdownMenuItem(value: 'OT-Fest', child: Text('OT-Fest')),
                 DropdownMenuItem(value: 'V100', child: Text('V100')),
                 DropdownMenuItem(value: 'Gamko liegend', child: Text('Gamko liegend')),
                 DropdownMenuItem(value: 'Gamko stehend', child: Text('Gamko stehend')),
                 DropdownMenuItem(value: 'Gamko Sat.', child: Text('Gamko Sat.')),
                 DropdownMenuItem(value: 'Safari', child: Text('Safari')),
+                DropdownMenuItem(value: 'CR5', child: Text('CR5')),
+                DropdownMenuItem(value: 'Coca Cola', child: Text('Coca Cola')),
                 DropdownMenuItem(value: 'Fremdkühler', child: Text('Fremdkühler')),
                 DropdownMenuItem(value: 'Fremdkühler Sat.', child: Text('Fremdkühler Sat.')),
                 DropdownMenuItem(value: 'keiner', child: Text('Keiner')),
@@ -346,6 +353,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                         const InputDecoration(labelText: 'Gas Typ 1'),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('Keiner')),
+                      DropdownMenuItem(value: 'Aligal1', child: Text('Aligal1')),
                       DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
                       DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
                       DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
@@ -361,6 +369,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                         const InputDecoration(labelText: 'Gas Typ 2'),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('Keiner')),
+                      DropdownMenuItem(value: 'Aligal1', child: Text('Aligal1')),
                       DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
                       DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
                       DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
@@ -427,6 +436,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 DropdownMenuItem(value: 'aktiv', child: Text('Aktiv')),
                 DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
                 DropdownMenuItem(value: 'stillgelegt', child: Text('Stillgelegt')),
+                DropdownMenuItem(value: 'demontiert', child: Text('Demontiert')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _status = v);

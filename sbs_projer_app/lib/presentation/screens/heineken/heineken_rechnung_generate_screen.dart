@@ -1,10 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class HeinekenRechnungGenerateScreen extends ConsumerStatefulWidget {
   const HeinekenRechnungGenerateScreen({super.key});
@@ -62,10 +66,56 @@ class _HeinekenRechnungGenerateScreenState
     try {
       final rechnung =
           await HeinekenRechnungService.erstelleMonatsrechnung(_daten!);
+
+      // Mail direkt versenden via Edge Function
+      try {
+        final monatLabel =
+            '${_monatNamen[_selectedMonat.month]} ${_selectedMonat.year}';
+        final empfaenger =
+            MailConfig.empfaenger(null, bereich: 'heineken');
+
+        final response =
+            await SupabaseService.client.functions.invoke(
+          'send-rechnung-mail',
+          body: {
+            'to': empfaenger,
+            'subject': 'Monatsrechnung $monatLabel SBS Projer GmbH',
+            'bodyText': 'Hallo\n\n'
+                'Im Anhang sende ich Dir die Monatsrechnung '
+                'für den $monatLabel.\n\n'
+                'Gruass Dani',
+            'rechnungId': rechnung.id,
+            'userId': SupabaseService.dataUserId,
+          },
+        );
+
+        debugPrint('[HeiMail] Response: ${response.status} ${response.data}');
+
+        // Status auf 'versendet' setzen
+        await RechnungRepository.update(rechnung.id, {
+          'zahlungsstatus': 'versendet',
+          'versendet_am':
+              DateTime.now().toIso8601String().split('T').first,
+        });
+      } catch (e) {
+        debugPrint('[HeiMail] Fehler: $e');
+        // Mail-Fehler zeigen, Rechnung ist trotzdem erstellt
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.error,
+              content: Text('MAIL-VERSAND FEHLGESCHLAGEN: $e',
+                  style: const TextStyle(color: Colors.white)),
+              duration: const Duration(seconds: 8),
+            ),
+          );
+        }
+      }
+
       if (mounted) {
         ref.invalidate(heinekenRechnungenProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rechnung erstellt!')),
+          const SnackBar(content: Text('Rechnung erstellt & Mail versendet')),
         );
         context.pushReplacement('/heineken/${rechnung.id}');
       }

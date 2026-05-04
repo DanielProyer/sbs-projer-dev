@@ -13,6 +13,7 @@ class BierleitungMapper {
     local.niederdruckBar = dto.niederdruckBar;
     local.hatFobStop = dto.hatFobStop;
     local.istGekoppelt = dto.istGekoppelt;
+    local.istAktiv = dto.istAktiv;
     local.isSynced = true;
     local.lastModifiedAt = DateTime.now();
     return local;
@@ -28,6 +29,7 @@ class BierleitungMapper {
       'niederdruck_bar': local.niederdruckBar,
       'hat_fob_stop': local.hatFobStop,
       'ist_gekoppelt': local.istGekoppelt,
+      'ist_aktiv': local.istAktiv,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

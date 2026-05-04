@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -61,11 +62,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   List<String> _ruhetage = [];
   List<String> _zapfsysteme = [];
 
-  // Öffnungszeiten
-  TimeOfDay? _oeffnungMorgenVon;
-  TimeOfDay? _oeffnungMorgenBis;
-  TimeOfDay? _oeffnungNachmittagVon;
-  TimeOfDay? _oeffnungNachmittagBis;
+  // Öffnungszeiten pro Wochentag: {"Mo": [{"von":"HH:mm","bis":"HH:mm"}, ...], ...}
+  Map<String, List<Map<String, String>>> _oeffnungszeiten = {
+    for (final t in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) t: [],
+  };
 
   List<RegionLocal> _regionen = [];
 
@@ -121,10 +121,19 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _keineBetriebsferien = betrieb.keineBetriebsferien;
       _ruhetage = List<String>.from(betrieb.ruhetage);
       _zapfsysteme = List<String>.from(betrieb.zapfsysteme);
-      _oeffnungMorgenVon = _parseTime(betrieb.oeffnungMorgenVon);
-      _oeffnungMorgenBis = _parseTime(betrieb.oeffnungMorgenBis);
-      _oeffnungNachmittagVon = _parseTime(betrieb.oeffnungNachmittagVon);
-      _oeffnungNachmittagBis = _parseTime(betrieb.oeffnungNachmittagBis);
+      if (betrieb.oeffnungszeitenJson != null && betrieb.oeffnungszeitenJson!.isNotEmpty) {
+        try {
+          final map = jsonDecode(betrieb.oeffnungszeitenJson!) as Map<String, dynamic>;
+          for (final tag in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) {
+            final slots = map[tag];
+            if (slots is List) {
+              _oeffnungszeiten[tag] = slots
+                  .map((s) => {'von': s['von']?.toString() ?? '', 'bis': s['bis']?.toString() ?? ''})
+                  .toList();
+            }
+          }
+        } catch (_) {}
+      }
     });
   }
 
@@ -167,10 +176,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.keineBetriebsferien = _keineBetriebsferien;
       betrieb.ruhetage = _ruhetage;
       betrieb.zapfsysteme = _zapfsysteme;
-      betrieb.oeffnungMorgenVon = _formatTime(_oeffnungMorgenVon);
-      betrieb.oeffnungMorgenBis = _formatTime(_oeffnungMorgenBis);
-      betrieb.oeffnungNachmittagVon = _formatTime(_oeffnungNachmittagVon);
-      betrieb.oeffnungNachmittagBis = _formatTime(_oeffnungNachmittagBis);
+      betrieb.oeffnungszeitenJson = jsonEncode(_oeffnungszeiten);
 
       await BetriebRepository.save(betrieb);
 
@@ -693,50 +699,23 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
             // === Öffnungszeiten ===
             const SizedBox(height: 16),
-            Text('Öffnungszeiten',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Öffnungszeiten',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          )),
+                ),
+                TextButton.icon(
+                  onPressed: _oeffnungszeitenAlleUebernehmen,
+                  icon: const Icon(Icons.copy_all, size: 16),
+                  label: const Text('Mo → alle', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _TimePickerField(
-                    label: 'Morgen von',
-                    value: _oeffnungMorgenVon,
-                    onChanged: (v) => setState(() => _oeffnungMorgenVon = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _TimePickerField(
-                    label: 'Morgen bis',
-                    value: _oeffnungMorgenBis,
-                    onChanged: (v) => setState(() => _oeffnungMorgenBis = v),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _TimePickerField(
-                    label: 'Nachmittag von',
-                    value: _oeffnungNachmittagVon,
-                    onChanged: (v) => setState(() => _oeffnungNachmittagVon = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _TimePickerField(
-                    label: 'Nachmittag bis',
-                    value: _oeffnungNachmittagBis,
-                    onChanged: (v) => setState(() => _oeffnungNachmittagBis = v),
-                  ),
-                ),
-              ],
-            ),
+            ..._buildOeffnungszeitenForm(),
             const SizedBox(height: 16),
 
             // === Notizen ===
@@ -779,6 +758,84 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
         ),
       ),
     );
+  }
+
+  // === Öffnungszeiten Helpers ===
+  static const _tageLabel = {
+    'Mo': 'Montag', 'Di': 'Dienstag', 'Mi': 'Mittwoch',
+    'Do': 'Donnerstag', 'Fr': 'Freitag', 'Sa': 'Samstag', 'So': 'Sonntag',
+  };
+
+  List<Widget> _buildOeffnungszeitenForm() {
+    const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    return tage.map((tag) {
+      final slots = _oeffnungszeiten[tag] ?? [];
+      final slotsText = slots.isNotEmpty
+          ? slots.map((s) => '${s['von']} – ${s['bis']}').join(', ')
+          : 'Ruhetag';
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: InkWell(
+          onTap: () => _editTagOeffnungszeiten(tag),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Text(tag, style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13)),
+                ),
+                Expanded(
+                  child: Text(slotsText, style: TextStyle(
+                    fontSize: 13,
+                    color: slots.isEmpty ? Colors.grey : null,
+                  )),
+                ),
+                const Icon(Icons.edit, size: 16, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  void _oeffnungszeitenAlleUebernehmen() {
+    final moSlots = _oeffnungszeiten['Mo'] ?? [];
+    setState(() {
+      for (final tag in ['Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) {
+        _oeffnungszeiten[tag] = moSlots
+            .map((s) => Map<String, String>.from(s))
+            .toList();
+      }
+    });
+  }
+
+  Future<void> _editTagOeffnungszeiten(String tag) async {
+    final slots = (_oeffnungszeiten[tag] ?? [])
+        .map((s) => Map<String, String>.from(s))
+        .toList();
+
+    // Mindestens 1 Slot anzeigen
+    if (slots.isEmpty) slots.add({'von': '', 'bis': ''});
+
+    final result = await showDialog<List<Map<String, String>>>(
+      context: context,
+      builder: (ctx) => _OeffnungszeitenDialog(
+        tag: _tageLabel[tag] ?? tag,
+        initialSlots: slots,
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _oeffnungszeiten[tag] = result
+            .where((s) => s['von']!.isNotEmpty && s['bis']!.isNotEmpty)
+            .toList();
+      });
+    }
   }
 
   static TimeOfDay? _parseTime(String? value) {
@@ -927,6 +984,139 @@ class _PhoneFormatter extends TextInputFormatter {
     return TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+}
+
+class _OeffnungszeitenDialog extends StatefulWidget {
+  final String tag;
+  final List<Map<String, String>> initialSlots;
+
+  const _OeffnungszeitenDialog({
+    required this.tag,
+    required this.initialSlots,
+  });
+
+  @override
+  State<_OeffnungszeitenDialog> createState() => _OeffnungszeitenDialogState();
+}
+
+class _OeffnungszeitenDialogState extends State<_OeffnungszeitenDialog> {
+  late List<Map<String, String>> _slots;
+
+  @override
+  void initState() {
+    super.initState();
+    _slots = widget.initialSlots
+        .map((s) => Map<String, String>.from(s))
+        .toList();
+  }
+
+  TimeOfDay? _parse(String? v) {
+    if (v == null || v.isEmpty) return null;
+    final parts = v.split(':');
+    if (parts.length < 2) return null;
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  String _fmt(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pickTime(int index, String field) async {
+    final current = _parse(_slots[index][field]);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: current ?? const TimeOfDay(hour: 8, minute: 0),
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() => _slots[index][field] = _fmt(picked));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.tag),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ..._slots.asMap().entries.map((e) {
+              final i = e.key;
+              final slot = e.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _pickTime(i, 'von'),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Von',
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                          ),
+                          child: Text(slot['von']!.isEmpty ? '–' : slot['von']!),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _pickTime(i, 'bis'),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Bis',
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                          ),
+                          child: Text(slot['bis']!.isEmpty ? '–' : slot['bis']!),
+                        ),
+                      ),
+                    ),
+                    if (_slots.length > 1)
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, size: 20),
+                        onPressed: () => setState(() => _slots.removeAt(i)),
+                      ),
+                  ],
+                ),
+              );
+            }),
+            if (_slots.length < 3)
+              TextButton.icon(
+                onPressed: () =>
+                    setState(() => _slots.add({'von': '', 'bis': ''})),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Zeitfenster hinzufügen'),
+              ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.pop(context, <Map<String, String>>[]);
+              },
+              child: const Text('Ruhetag (keine Zeiten)'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _slots),
+          child: const Text('OK'),
+        ),
+      ],
     );
   }
 }

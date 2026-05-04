@@ -86,6 +86,24 @@ class ReinigungRepository {
     await IsarService.reinigungPut(reinigung);
   }
 
+  static Future<ReinigungLocal?> getLastByBetrieb(String betriebId) async {
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('reinigungen')
+          .select()
+          .eq('user_id', _userId)
+          .eq('betrieb_id', betriebId)
+          .order('datum', ascending: false)
+          .limit(1);
+      if (rows.isEmpty) return null;
+      return ReinigungMapper.fromDto(Reinigung.fromJson(rows.first));
+    }
+    final all = await IsarService.reinigungFilterByBetrieb(betriebId);
+    if (all.isEmpty) return null;
+    all.sort((a, b) => b.datum.compareTo(a.datum));
+    return all.first;
+  }
+
   static Future<void> delete(String id) async {
     if (kIsWeb) {
       await SupabaseService.client.from('reinigungen').delete().eq('id', id);

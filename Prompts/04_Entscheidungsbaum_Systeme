@@ -1,0 +1,60 @@
+Systeme:
+
+Allgemein:
+    - Beim Einsatz von Biertanks wird der Druck über den Zapfkopf auf das Fass gegeben und das Bier fliesst durch den Zapfkopf in die Bierleitung
+    - als Druckgas werden Aligal2 und Aligal13 verwendet (recherchiere dazu im Internet), die Wahl des Gases ist abhängig von System, Setup, Biersorte und Raumtemperatur
+    - Es gibt verschiedene Hahntypen je nach System, Kundenwunsch, und Biersorte
+
+David:  
+    - Kühlung durch Davidsystem selber oder Buffet, ideale Temperatur 1.5-3.0 Grad
+    - Tanks haben einen Schlauf der in eine Schlauchführung eingeführt und im Zapfhahn aretiert wird
+    - Als Druckgas darf nur Aligal 2 verwendet werden
+    - Idealdruck 0.45-0.50 Bar
+    - Die Anlage reagiert sehr sensibel auf Druckveränderungen
+    - Der Druck kann nur von Heineken Technikern mit Messgerät gemessen werden
+    - Das System bietet platz für 2 Tanks (20l), ein Tank braucht im System ca. 8h um runterzukühlen 
+    - einige Betriebe Lagern die Tanks in Kühlzellen, damit sie schneller Einsatzbereit sind
+    - Das System hat keinen kompensator zum einstellen der Auslaufgeschwindigkeit
+    - eher für kleineren Verbrauch gedacht, System ist eher langsam (im Ausschenken)
+
+Konventionell (warmanstich):
+    - Die Biertanks werden nicht vorgekühlt
+    - Die Kühlung erfolgt durch einen Durchlaufkühler (verschiedene Modelle)
+    - Mehrere Bierleitungen (je nach Kühler) verlaufen in einer Python (Bündel von Bierleitungen, isoliert) zusammen mit einer Begleitkühlung
+    - Heineken hat einige Anlagen so umgebaut, das auch die Strecke vom Tank bis zum Bierkühler gekühlt wird (Backpython)
+    - Bei Anlagen mit mehr als einer Bierleitung sind Teilweise Niederdruckmanometer für die einzelnen Leitungen vorhanden so kann der Druck individuell eingestellt werden
+    - Die Leitungen gehen im Rastaurant oder Bar auf Säulen welche montiert sind, diese Säulen werden durch die Begleitkühlung ebenfalls gekühlt
+    - Es ist möglich das Ein Kunde mehrere Säulen nebeneinander hat aus optischen gründen, es gibt aber auch Säulen mit mehreren Hähnen und auch elektronische Säulen
+
+Konventionell (Kaltanstich):
+    - Die Biertanks werden vorgekühlt, entweder mit Fasskühlern oder in Kühlzellen
+    - als Druckgas wird Aligal13 eingesetzt, Aligal2 führt zu Schaumbildung
+    - der restliche Aufbau der Anlage ist gleich wie bei Warmasntichen
+
+Konventionell (Buffetanstich):
+    - Die Biertanks werden im Buffet gekühlt
+    - Die Buffettemperatur ist entscheidend für die Bierqualität
+    - Sehr kurze Leitung, Säule ist meist gerade oberhalb der Tanks
+    - in den Buffetschubladen haben meist 2-4 Tanks Platz
+    - Die Tanks müssen Kühl sein sonst funktioniert das System nicht
+
+Orion:
+    - Grosstanksystem mit 500 oder 1000l Tanks 
+    - Tanks werden direkt von Lastwagen befüllt
+    - Druckgas durch kompressor
+    - Tanks entweder in Kühlzelle oder passive Kühlung
+    - immer mit Durchlaufkühler (Python mit Begleitkühlung)
+    - Die Füllstände der Tanks werden direkt der Heineken übermittel (fehleranfällig, häufiges resetten der Elektronik nötig)
+    - Für die Füllstandsmessung sind kalibrationen notwendig, diese werden aber nicht von mir gemacht
+    - auch hier sind verschieden Säulen und Hahntypen möglich
+
+Heigenie:
+    - neustes System der Heineken
+    - Warmasntich mit Durchlaufkühler
+    - Die Bierleitung verläuft innerhalb einer weiteren Leitung welche durch den Durchlaufkühler gekühlt wird (Pumpe)
+    - Die Strecke Tank-Durchlaufkühler wird ebenfalls gekühlt, ähnlich wie Backpython aber bessere Kühlung (Leitung in Leitung statt nebeneinander)
+    - Bei diesen Anlagen wird der Service nur alle 6 Monate durchgeführt
+    - Das System hat nur einen Hahntypen (Heigenie Hahn)
+    - Das System hat keinen kompensator zum einstellen der Auslaufgeschwindigkeit
+    - Als Druckgas kommen Aligal2 und Aligal13 in frage (gleich wie Warmanstich)
+

@@ -58,6 +58,15 @@ class ReinigungLocal {
   double? preisMwst;
   double? preisBrutto;
 
+  bool istKulanz = false;
+  bool istHeinekenMonteur = false;
+  String? protokollFotoPfad;
+  String? serviceArt;
+  List<String> anlageIds = [];
+  String? anlageIdsJson;
+  bool istAbgerechnet = false;
+  bool wasserKuehlerGewechselt = false;
+
   String status = 'offen';
   DateTime? createdAt;
   DateTime? updatedAt;

@@ -8,6 +8,7 @@ class Bierleitung {
   final double? niederdruckBar;
   final bool hatFobStop;
   final bool istGekoppelt;
+  final bool istAktiv;
 
   Bierleitung({
     required this.id,
@@ -19,6 +20,7 @@ class Bierleitung {
     this.niederdruckBar,
     this.hatFobStop = false,
     this.istGekoppelt = false,
+    this.istAktiv = true,
   });
 
   factory Bierleitung.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class Bierleitung {
           : null,
       hatFobStop: json['hat_fob_stop'] ?? false,
       istGekoppelt: json['ist_gekoppelt'] ?? false,
+      istAktiv: json['ist_aktiv'] ?? true,
     );
   }
 
@@ -48,6 +51,7 @@ class Bierleitung {
       'niederdruck_bar': niederdruckBar,
       'hat_fob_stop': hatFobStop,
       'ist_gekoppelt': istGekoppelt,
+      'ist_aktiv': istAktiv,
     };
   }
 }

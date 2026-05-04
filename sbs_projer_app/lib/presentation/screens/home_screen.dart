@@ -16,6 +16,8 @@ import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dar
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 
@@ -61,8 +63,8 @@ class HomeScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Status-Banner
-          _StatusBanner(isOnline: isOnline, isSyncing: isSyncing),
+          // Tagesübersicht
+          _TagesUebersicht(),
           const SizedBox(height: 24),
 
           // Schnellzugriff
@@ -187,6 +189,41 @@ class HomeScreen extends ConsumerWidget {
             label: 'Pikett-Dienste',
             onTap: () => context.push('/pikett'),
           ),
+          _MenuListTile(
+            icon: Icons.contacts,
+            label: 'Kontakte',
+            onTap: () => context.push('/kontakte'),
+          ),
+          _MenuListTile(
+            icon: Icons.landscape,
+            label: 'Bergkundenpauschalen',
+            onTap: () => context.push('/bergkundenpauschalen'),
+          ),
+          _MenuListTile(
+            icon: Icons.calendar_month,
+            label: 'Termine',
+            onTap: () => context.push('/termine'),
+          ),
+          _MenuListTile(
+            icon: Icons.receipt,
+            label: 'Jahresrechnung',
+            onTap: () => context.push('/jahresrechnung'),
+          ),
+          _MenuListTile(
+            icon: Icons.receipt_long,
+            label: 'Spesen erfassen',
+            onTap: () => context.push('/spesen'),
+          ),
+          _MenuListTile(
+            icon: Icons.search,
+            label: 'Fehlersuche',
+            onTap: () => context.push('/fehlersuche'),
+          ),
+          _MenuListTile(
+            icon: Icons.settings,
+            label: 'Einstellungen',
+            onTap: () => context.push('/einstellungen'),
+          ),
           if (!kIsWeb)
             _MenuListTile(
               icon: Icons.sync,
@@ -227,49 +264,121 @@ class _SyncIndicator extends StatelessWidget {
   }
 }
 
-class _StatusBanner extends StatelessWidget {
-  final bool isOnline;
-  final bool isSyncing;
+const _wochentage = [
+  'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag',
+  'Freitag', 'Samstag', 'Sonntag',
+];
 
-  const _StatusBanner({required this.isOnline, required this.isSyncing});
+class _TagesUebersicht extends ConsumerWidget {
+  const _TagesUebersicht();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+
+    final reinigungen = ref.watch(reinigungenProvider);
+    final stoerungen = ref.watch(stoerungenProvider);
+    final montagen = ref.watch(montagenProvider);
+    final eigenauftraege = ref.watch(eigenauftraegeProvider);
+    final eroeffnungen = ref.watch(eroeffnungsreinigungenProvider);
+
+    bool _isToday(DateTime d) =>
+        DateTime(d.year, d.month, d.day) == todayDate;
+
+    final hR = reinigungen.where((r) => _isToday(r.datum)).toList();
+    final hS = stoerungen.where((s) => _isToday(s.datum)).toList();
+    final hM = montagen.where((m) => _isToday(m.datum)).toList();
+    final hE = eigenauftraege.where((e) => _isToday(e.datum)).toList();
+    final hER = eroeffnungen.where((e) => _isToday(e.datum)).toList();
+
+    final total = hR.length + hS.length + hM.length + hE.length + hER.length;
+    final totalCHF = hR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
+        hS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
+        hM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
+        hE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +
+        hER.fold(0.0, (s, r) => s + (r.preis ?? 0));
+
+    final datumStr =
+        '${_wochentage[today.weekday - 1]}, ${today.day.toString().padLeft(2, '0')}.${today.month.toString().padLeft(2, '0')}.${today.year}';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.today, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(datumStr,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 15)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (total == 0)
+              Text('Keine Einsätze heute',
+                  style: TextStyle(color: AppColors.textSecondary))
+            else ...[
+              Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                children: [
+                  if (hR.isNotEmpty)
+                    _CountChip(
+                        '${hR.length} Reinigung${hR.length > 1 ? 'en' : ''}',
+                        AppColors.success),
+                  if (hS.isNotEmpty)
+                    _CountChip(
+                        '${hS.length} Störung${hS.length > 1 ? 'en' : ''}',
+                        AppColors.warning),
+                  if (hM.isNotEmpty)
+                    _CountChip(
+                        '${hM.length} Montage${hM.length > 1 ? 'n' : ''}',
+                        AppColors.info),
+                  if (hE.isNotEmpty)
+                    _CountChip(
+                        '${hE.length} Eigenauftr${hE.length > 1 ? 'äge' : 'ag'}',
+                        AppColors.textSecondary),
+                  if (hER.isNotEmpty)
+                    _CountChip(
+                        '${hER.length} Eröffnung${hER.length > 1 ? 'en' : ''}',
+                        AppColors.primary),
+                ],
+              ),
+              if (totalCHF > 0) ...[
+                const SizedBox(height: 8),
+                Text('Tagesumsatz: ${totalCHF.toStringAsFixed(2)} CHF',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary)),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CountChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _CountChip(this.label, this.color);
 
   @override
   Widget build(BuildContext context) {
-    final color = isSyncing
-        ? AppColors.syncing
-        : isOnline
-            ? AppColors.online
-            : AppColors.offline;
-    final text = isSyncing
-        ? 'Synchronisiere...'
-        : isOnline
-            ? 'Online — Daten synchronisiert'
-            : 'Offline — Änderungen werden lokal gespeichert';
-    final icon = isSyncing
-        ? Icons.sync
-        : isOnline
-            ? Icons.cloud_done
-            : Icons.cloud_off;
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withAlpha(50)),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: color, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontWeight: FontWeight.w600, fontSize: 12)),
     );
   }
 }

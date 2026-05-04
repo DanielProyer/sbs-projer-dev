@@ -1,0 +1,33 @@
+David:
+
+    - kein Bier
+        - Gasflasche leer
+        - Tank eingefroren
+
+    - Bier läuft langsam
+        - Druck zu niedrig
+        - Manometer defekt
+        - Lippenventil Manometer verklemmt
+
+    - Bier läuft zu schnell
+        - Druck zu hoch
+        - Manometer defekt
+
+    - Bier schäumt
+        - Kühlung defekt (Temperatur Bier)
+        - Falsches Gas
+        - Hahn loose
+        - Plastikleitung defekt
+        - Tank defekt
+        - Zapfkopf defekt
+        - falscher Druck
+
+    - Schlauch lässt sich nicht einführen
+        - Versatz in Säule
+        - Schlauch ohne Kappe eingeführt
+        - Schlauchführung deformiert
+
+    - Bier ist trüb oder schmeckt komisch
+        - Tank mit schlechter Qualität
+        - Tank war eingefroren
+        - Falsches Bier

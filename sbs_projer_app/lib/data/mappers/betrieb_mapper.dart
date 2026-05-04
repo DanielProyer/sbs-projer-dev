@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb.dart';
 
@@ -39,10 +40,9 @@ class BetriebMapper {
     local.ferien3Start = dto.ferien3Start;
     local.ferien3Ende = dto.ferien3Ende;
     local.keineBetriebsferien = dto.keineBetriebsferien;
-    local.oeffnungMorgenVon = dto.oeffnungMorgenVon;
-    local.oeffnungMorgenBis = dto.oeffnungMorgenBis;
-    local.oeffnungNachmittagVon = dto.oeffnungNachmittagVon;
-    local.oeffnungNachmittagBis = dto.oeffnungNachmittagBis;
+    local.oeffnungszeitenJson = dto.oeffnungszeiten != null
+        ? jsonEncode(dto.oeffnungszeiten)
+        : null;
     local.notizen = dto.notizen;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
@@ -87,10 +87,9 @@ class BetriebMapper {
       'ferien3_start': local.ferien3Start?.toIso8601String().split('T').first,
       'ferien3_ende': local.ferien3Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': local.keineBetriebsferien,
-      'oeffnung_morgen_von': local.oeffnungMorgenVon,
-      'oeffnung_morgen_bis': local.oeffnungMorgenBis,
-      'oeffnung_nachmittag_von': local.oeffnungNachmittagVon,
-      'oeffnung_nachmittag_bis': local.oeffnungNachmittagBis,
+      'oeffnungszeiten': local.oeffnungszeitenJson != null
+          ? jsonDecode(local.oeffnungszeitenJson!)
+          : {},
       'notizen': local.notizen,
     };
     if (local.serverId != null) json['id'] = local.serverId;

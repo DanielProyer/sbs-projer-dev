@@ -43,10 +43,7 @@ class BetriebLocal {
   DateTime? ferien3Start;
   DateTime? ferien3Ende;
   bool keineBetriebsferien = false;
-  String? oeffnungMorgenVon;
-  String? oeffnungMorgenBis;
-  String? oeffnungNachmittagVon;
-  String? oeffnungNachmittagBis;
+  String? oeffnungszeitenJson;
   String? notizen;
   DateTime? createdAt;
   DateTime? updatedAt;

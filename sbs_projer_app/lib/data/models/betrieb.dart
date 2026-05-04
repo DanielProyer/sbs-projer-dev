@@ -34,10 +34,7 @@ class Betrieb {
   final DateTime? ferien3Start;
   final DateTime? ferien3Ende;
   final bool keineBetriebsferien;
-  final String? oeffnungMorgenVon;
-  final String? oeffnungMorgenBis;
-  final String? oeffnungNachmittagVon;
-  final String? oeffnungNachmittagBis;
+  final Map<String, dynamic>? oeffnungszeiten;
   final String? notizen;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -78,10 +75,7 @@ class Betrieb {
     this.ferien3Start,
     this.ferien3Ende,
     this.keineBetriebsferien = false,
-    this.oeffnungMorgenVon,
-    this.oeffnungMorgenBis,
-    this.oeffnungNachmittagVon,
-    this.oeffnungNachmittagBis,
+    this.oeffnungszeiten,
     this.notizen,
     this.createdAt,
     this.updatedAt,
@@ -128,10 +122,9 @@ class Betrieb {
       ferien3Start: json['ferien3_start'] != null ? DateTime.parse(json['ferien3_start']) : null,
       ferien3Ende: json['ferien3_ende'] != null ? DateTime.parse(json['ferien3_ende']) : null,
       keineBetriebsferien: json['keine_betriebsferien'] ?? false,
-      oeffnungMorgenVon: json['oeffnung_morgen_von'],
-      oeffnungMorgenBis: json['oeffnung_morgen_bis'],
-      oeffnungNachmittagVon: json['oeffnung_nachmittag_von'],
-      oeffnungNachmittagBis: json['oeffnung_nachmittag_bis'],
+      oeffnungszeiten: json['oeffnungszeiten'] is Map
+          ? Map<String, dynamic>.from(json['oeffnungszeiten'])
+          : null,
       notizen: json['notizen'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -175,10 +168,7 @@ class Betrieb {
       'ferien3_start': ferien3Start?.toIso8601String().split('T').first,
       'ferien3_ende': ferien3Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': keineBetriebsferien,
-      'oeffnung_morgen_von': oeffnungMorgenVon,
-      'oeffnung_morgen_bis': oeffnungMorgenBis,
-      'oeffnung_nachmittag_von': oeffnungNachmittagVon,
-      'oeffnung_nachmittag_bis': oeffnungNachmittagBis,
+      'oeffnungszeiten': oeffnungszeiten ?? {},
       'notizen': notizen,
     };
   }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,12 +168,7 @@ class _BetriebDetailContent extends ConsumerWidget {
             _SectionCard(
               title: 'Öffnungszeiten',
               icon: Icons.access_time,
-              children: [
-                if (betrieb.oeffnungMorgenVon != null || betrieb.oeffnungMorgenBis != null)
-                  _InfoRow('Morgen', '${_formatTimeStr(betrieb.oeffnungMorgenVon)} – ${_formatTimeStr(betrieb.oeffnungMorgenBis)}'),
-                if (betrieb.oeffnungNachmittagVon != null || betrieb.oeffnungNachmittagBis != null)
-                  _InfoRow('Nachmittag', '${_formatTimeStr(betrieb.oeffnungNachmittagVon)} – ${_formatTimeStr(betrieb.oeffnungNachmittagBis)}'),
-              ],
+              children: _buildOeffnungszeiten(betrieb),
             ),
 
           // Zugang & Notizen
@@ -242,15 +238,46 @@ class _BetriebDetailContent extends ConsumerWidget {
   }
 
   bool _hasOeffnungszeiten(BetriebLocal b) {
-    return b.oeffnungMorgenVon != null ||
-        b.oeffnungMorgenBis != null ||
-        b.oeffnungNachmittagVon != null ||
-        b.oeffnungNachmittagBis != null;
+    if (b.oeffnungszeitenJson == null || b.oeffnungszeitenJson!.isEmpty) {
+      return false;
+    }
+    try {
+      final map = jsonDecode(b.oeffnungszeitenJson!);
+      if (map is! Map) return false;
+      return map.values.any((v) => v is List && v.isNotEmpty);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  List<Widget> _buildOeffnungszeiten(BetriebLocal b) {
+    const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    const tageLabel = {
+      'Mo': 'Montag', 'Di': 'Dienstag', 'Mi': 'Mittwoch',
+      'Do': 'Donnerstag', 'Fr': 'Freitag', 'Sa': 'Samstag', 'So': 'Sonntag',
+    };
+    try {
+      final map = jsonDecode(b.oeffnungszeitenJson!) as Map<String, dynamic>;
+      final widgets = <Widget>[];
+      for (final tag in tage) {
+        final slots = map[tag];
+        if (slots is List && slots.isNotEmpty) {
+          final slotsStr = slots
+              .map((s) => '${s['von']} – ${s['bis']}')
+              .join(', ');
+          widgets.add(_InfoRow(tageLabel[tag]!, slotsStr));
+        } else {
+          widgets.add(_InfoRow(tageLabel[tag]!, 'Ruhetag'));
+        }
+      }
+      return widgets;
+    } catch (_) {
+      return [const Text('Fehler beim Laden')];
+    }
   }
 
   String _formatTimeStr(String? time) {
     if (time == null) return '–';
-    // "HH:mm:ss" from Supabase → "HH:mm"
     return time.length > 5 ? time.substring(0, 5) : time;
   }
 

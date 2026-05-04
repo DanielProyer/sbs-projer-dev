@@ -7,6 +7,11 @@ import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dar
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+const _monatNamen = [
+  '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+
 class EigenauftragListScreen extends ConsumerStatefulWidget {
   const EigenauftragListScreen({super.key});
 
@@ -19,6 +24,8 @@ class _EigenauftragListScreenState
     extends ConsumerState<EigenauftragListScreen> {
   String _searchQuery = '';
   String _statusFilter = 'alle';
+  int _selectedYear = DateTime.now().year;
+  int _selectedMonth = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +39,21 @@ class _EigenauftragListScreenState
       }
     }
 
+    // Verfügbare Jahre
+    final jahreSet = <int>{};
+    for (final e in eigenauftraege) {
+      jahreSet.add(e.datum.year);
+    }
+    final jahre = jahreSet.toList()..sort((a, b) => b.compareTo(a));
+    if (jahre.isEmpty) jahre.add(DateTime.now().year);
+    if (!jahre.contains(_selectedYear)) _selectedYear = jahre.first;
+
     final sorted = List<EigenauftragLocal>.from(eigenauftraege)
       ..sort((a, b) => b.datum.compareTo(a.datum));
 
     final filtered = sorted.where((e) {
+      if (e.datum.year != _selectedYear) return false;
+      if (_selectedMonth != 0 && e.datum.month != _selectedMonth) return false;
       if (_statusFilter != 'alle' && e.status != _statusFilter) return false;
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
@@ -50,6 +68,24 @@ class _EigenauftragListScreenState
       }
       return true;
     }).toList();
+
+    // Monats- und Tagesgruppierung
+    final groups = <_MonatsGruppe>[];
+    for (final e in filtered) {
+      final m = e.datum.month;
+      final d = DateTime(e.datum.year, e.datum.month, e.datum.day);
+      if (groups.isEmpty || groups.last.monat != m) {
+        groups.add(_MonatsGruppe(jahr: e.datum.year, monat: m));
+      }
+      final g = groups.last;
+      if (g.tage.isEmpty || g.tage.last.datum != d) {
+        g.tage.add(_TagesGruppe(datum: d));
+      }
+      g.tage.last.eintraege.add(e);
+    }
+
+    final jahrSumme =
+        filtered.fold(0.0, (sum, e) => sum + (e.pauschale ?? 0));
 
     return Scaffold(
       appBar: AppBar(
@@ -81,6 +117,57 @@ class _EigenauftragListScreenState
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                DropdownButton<int>(
+                  value: _selectedYear,
+                  underline: const SizedBox.shrink(),
+                  isDense: true,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  items: jahre
+                      .map((y) =>
+                          DropdownMenuItem(value: y, child: Text('$y')))
+                      .toList(),
+                  onChanged: (y) {
+                    if (y != null) setState(() => _selectedYear = y);
+                  },
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<int>(
+                  value: _selectedMonth,
+                  underline: const SizedBox.shrink(),
+                  isDense: true,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  items: [
+                    const DropdownMenuItem(
+                        value: 0, child: Text('Alle Monate')),
+                    for (int m = 1; m <= 12; m++)
+                      DropdownMenuItem(value: m, child: Text(_monatNamen[m])),
+                  ],
+                  onChanged: (m) {
+                    if (m != null) setState(() => _selectedMonth = m);
+                  },
+                ),
+                const Spacer(),
+                Text(
+                  jahrSumme > 0
+                      ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                      : '${filtered.length} Eigenaufträge',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ),
           if (_statusFilter != 'alle')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -95,33 +182,27 @@ class _EigenauftragListScreenState
                 ],
               ),
             ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${filtered.length} Eigenaufträge',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-            ),
-          ),
           Expanded(
             child: filtered.isEmpty
                 ? _buildEmpty()
                 : ListView.builder(
-                    itemCount: filtered.length,
+                    itemCount: _listItemCount(groups),
                     itemBuilder: (context, index) {
-                      final ea = filtered[index];
+                      final item = _listItemAt(groups, index);
+                      if (item is _MonatsGruppe) {
+                        return _buildMonatsHeader(context, item);
+                      }
+                      if (item is _TagesGruppe) {
+                        return _buildTagesHeader(context, item);
+                      }
+                      final entry = item as EigenauftragLocal;
                       return _EigenauftragListItem(
-                        eigenauftrag: ea,
-                        betriebName: ea.betriebId != null
-                            ? betriebNames[ea.betriebId!]
+                        eigenauftrag: entry,
+                        betriebName: entry.betriebId != null
+                            ? betriebNames[entry.betriebId!]
                             : null,
                         onTap: () =>
-                            context.push('/eigenauftraege/${ea.routeId}'),
+                            context.push('/eigenauftraege/${entry.routeId}'),
                       );
                     },
                   ),
@@ -134,6 +215,109 @@ class _EigenauftragListScreenState
               onPressed: () => context.push('/eigenauftraege/neu'),
               child: const Icon(Icons.add),
             ),
+    );
+  }
+
+  int _listItemCount(List<_MonatsGruppe> groups) {
+    int count = 0;
+    for (final g in groups) {
+      count++;
+      for (final t in g.tage) {
+        count += 1 + t.eintraege.length;
+      }
+    }
+    return count;
+  }
+
+  Object _listItemAt(List<_MonatsGruppe> groups, int index) {
+    int pos = 0;
+    for (final g in groups) {
+      if (index == pos) return g;
+      pos++;
+      for (final t in g.tage) {
+        if (index == pos) return t;
+        pos++;
+        if (index < pos + t.eintraege.length) {
+          return t.eintraege[index - pos];
+        }
+        pos += t.eintraege.length;
+      }
+    }
+    return groups.last;
+  }
+
+  Widget _buildMonatsHeader(BuildContext context, _MonatsGruppe gruppe) {
+    final count =
+        gruppe.tage.fold(0, (sum, t) => sum + t.eintraege.length);
+    final summe = gruppe.tage.fold(
+        0.0,
+        (sum, t) =>
+            sum +
+            t.eintraege.fold(0.0, (s, e) => s + (e.pauschale ?? 0)));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${_monatNamen[gruppe.monat]} ${gruppe.jahr}',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+          ),
+          Text('$count St.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary)),
+          if (summe > 0) ...[
+            const SizedBox(width: 8),
+            Text('${summe.toStringAsFixed(2)} CHF',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTagesHeader(BuildContext context, _TagesGruppe gruppe) {
+    final count = gruppe.eintraege.length;
+    final summe = gruppe.eintraege
+        .fold(0.0, (sum, e) => sum + (e.pauschale ?? 0));
+    final tag =
+        '${gruppe.datum.day.toString().padLeft(2, '0')}.${gruppe.datum.month.toString().padLeft(2, '0')}';
+    const wt = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 8, 16, 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('${wt[gruppe.datum.weekday - 1]} $tag',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    )),
+          ),
+          Text('$count St.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+          if (summe > 0) ...[
+            const SizedBox(width: 6),
+            Text('${summe.toStringAsFixed(2)} CHF',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    )),
+          ],
+        ],
+      ),
     );
   }
 
@@ -182,6 +366,19 @@ class _EigenauftragListScreenState
       ),
     );
   }
+}
+
+class _MonatsGruppe {
+  final int jahr;
+  final int monat;
+  final List<_TagesGruppe> tage = [];
+  _MonatsGruppe({required this.jahr, required this.monat});
+}
+
+class _TagesGruppe {
+  final DateTime datum;
+  final List<EigenauftragLocal> eintraege = [];
+  _TagesGruppe({required this.datum});
 }
 
 class _EigenauftragListItem extends StatelessWidget {

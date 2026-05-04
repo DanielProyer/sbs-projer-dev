@@ -51,6 +51,14 @@ class ReinigungMapper {
     local.mwstSatz = dto.mwstSatz;
     local.preisMwst = dto.preisMwst;
     local.preisBrutto = dto.preisBrutto;
+    local.istKulanz = dto.istKulanz;
+    local.istHeinekenMonteur = dto.istHeinekenMonteur;
+    local.protokollFotoPfad = dto.protokollFotoPfad;
+    local.serviceArt = dto.serviceArt;
+    local.anlageIds = dto.anlageIds;
+    local.istAbgerechnet = dto.istAbgerechnet;
+    local.anlageIdsJson = dto.anlageIds.isNotEmpty ? jsonEncode(dto.anlageIds) : null;
+    local.wasserKuehlerGewechselt = false; // not in DTO yet
     local.status = dto.status;
     // dto.istSynced is NOT mapped to local.isSynced (different purpose)
     local.createdAt = dto.createdAt;
@@ -106,6 +114,13 @@ class ReinigungMapper {
       'mwst_satz': local.mwstSatz,
       'preis_mwst': local.preisMwst,
       'preis_brutto': local.preisBrutto,
+      'ist_kulanz': local.istKulanz,
+      'ist_heineken_monteur': local.istHeinekenMonteur,
+      'protokoll_foto_pfad': local.protokollFotoPfad,
+      'service_art': local.serviceArt,
+      'anlage_ids': local.anlageIds.isNotEmpty ? local.anlageIds : null,
+      'ist_abgerechnet': local.istAbgerechnet,
+      'wasser_kuehler_gewechselt': local.wasserKuehlerGewechselt,
       'status': local.status,
     };
     if (local.serverId != null) json['id'] = local.serverId;

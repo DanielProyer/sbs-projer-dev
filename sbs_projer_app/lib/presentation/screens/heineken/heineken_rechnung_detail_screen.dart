@@ -5,9 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
+import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
+import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -82,6 +85,50 @@ class _HeinekenRechnungDetailScreenState
         'zahlung_eingegangen_am':
             DateTime.now().toIso8601String().split('T').first,
     });
+
+    // Buchung bei Freigabe erstellen
+    if (newStatus == 'freigegeben' && _rechnung != null) {
+      try {
+        final buchung =
+            await HeinekenBuchungService.createFromRechnung(_rechnung!);
+        if (buchung != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Buchung erstellt (Debitoren/Ertrag)')),
+          );
+        }
+        ref.invalidate(buchungenStreamProvider);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Buchung fehlgeschlagen: $e')),
+          );
+        }
+      }
+    }
+
+    // Zahlungseingang bei Bezahlt erstellen
+    if (newStatus == 'bezahlt' && _rechnung != null) {
+      try {
+        final aktuell = await RechnungRepository.getById(widget.rechnungId);
+        if (aktuell != null) {
+          final buchung =
+              await HeinekenBuchungService.createZahlungseingang(aktuell);
+          if (buchung != null && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Zahlungseingang gebucht')),
+            );
+          }
+          ref.invalidate(buchungenStreamProvider);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Zahlungseingang-Buchung fehlgeschlagen: $e')),
+          );
+        }
+      }
+    }
+
     ref.invalidate(heinekenRechnungenProvider);
     _load();
   }
@@ -107,6 +154,18 @@ class _HeinekenRechnungDetailScreenState
       ),
     );
     if (confirmed == true) {
+      // Zugehörige Buchungen löschen
+      try {
+        final buchungen =
+            await BuchungRepository.getByBeleg(widget.rechnungId);
+        for (final b in buchungen) {
+          await BuchungRepository.delete(b.id);
+        }
+        if (buchungen.isNotEmpty) {
+          ref.invalidate(buchungenStreamProvider);
+        }
+      } catch (_) {}
+
       await RechnungRepository.delete(widget.rechnungId);
       ref.invalidate(heinekenRechnungenProvider);
       if (mounted) context.pop();
@@ -144,6 +203,7 @@ class _HeinekenRechnungDetailScreenState
               switch (value) {
                 case 'offen':
                 case 'versendet':
+                case 'freigegeben':
                 case 'bezahlt':
                   _updateStatus(value);
                   break;
@@ -153,16 +213,28 @@ class _HeinekenRechnungDetailScreenState
               }
             },
             itemBuilder: (context) => [
-              if (r.zahlungsstatus != 'versendet')
+              // Status-Flow: offen → versendet → freigegeben → bezahlt
+              if (r.zahlungsstatus == 'offen')
                 const PopupMenuItem(
                     value: 'versendet', child: Text('Als versendet markieren')),
-              if (r.zahlungsstatus != 'bezahlt')
+              if (r.zahlungsstatus == 'versendet') ...[
                 const PopupMenuItem(
-                    value: 'bezahlt', child: Text('Als bezahlt markieren')),
-              if (r.zahlungsstatus == 'versendet' ||
-                  r.zahlungsstatus == 'bezahlt')
+                    value: 'freigegeben',
+                    child: Text('Als freigegeben markieren')),
                 const PopupMenuItem(
                     value: 'offen', child: Text('Auf offen zurücksetzen')),
+              ],
+              if (r.zahlungsstatus == 'freigegeben') ...[
+                const PopupMenuItem(
+                    value: 'bezahlt', child: Text('Als bezahlt markieren')),
+                const PopupMenuItem(
+                    value: 'versendet',
+                    child: Text('Auf versendet zurücksetzen')),
+              ],
+              if (r.zahlungsstatus == 'bezahlt')
+                const PopupMenuItem(
+                    value: 'freigegeben',
+                    child: Text('Auf freigegeben zurücksetzen')),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',
@@ -261,6 +333,7 @@ class _HeinekenRechnungDetailScreenState
       case 'entwurf': return 'Entwurf';
       case 'offen': return 'Offen';
       case 'versendet': return 'Versendet';
+      case 'freigegeben': return 'Freigegeben';
       case 'bezahlt': return 'Bezahlt';
       case 'ueberfaellig': return 'Überfällig';
       default: return status;
@@ -283,10 +356,15 @@ class _StatusBanner extends StatelessWidget {
         icon = Icons.check_circle;
         text = 'Bezahlt';
         break;
+      case 'freigegeben':
+        color = const Color(0xFF4CAF50);
+        icon = Icons.verified;
+        text = 'Freigegeben — bereit zur Buchung';
+        break;
       case 'versendet':
         color = AppColors.info;
         icon = Icons.send;
-        text = 'Versendet — warte auf Zahlung';
+        text = 'Versendet — warte auf Freigabe';
         break;
       case 'ueberfaellig':
         color = AppColors.error;

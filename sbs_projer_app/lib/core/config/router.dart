@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/presentation/screens/anlagen/bierleitung_form_scr
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigungen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_betrieb_auswahl_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerungen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_form_screen.dart';
@@ -46,6 +47,21 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_detail_s
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/berichte_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/mahnwesen_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/kontakte/kontakte_list_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/kontakte/kontakt_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_list_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_detail_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/einstellungen/einstellungen_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/einstellungen/preis_version_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/einstellungen/biersorten_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/jahresrechnung/jahresrechnung_generate_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/fehlersuche/fehlersuche_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/fehlersuche/symptom_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/fehlersuche/ursachen_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/spesen/spesen_scanner_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/termine/termine_kalender_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/termine/termin_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/heineken/heineken_zuweisungen_screen.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 final router = GoRouter(
@@ -174,8 +190,11 @@ final router = GoRouter(
     GoRoute(
       path: '/reinigungen/neu',
       builder: (context, state) {
-        final anlageId = state.uri.queryParameters['anlageId']!;
-        final betriebId = state.uri.queryParameters['betriebId']!;
+        final anlageId = state.uri.queryParameters['anlageId'];
+        final betriebId = state.uri.queryParameters['betriebId'];
+        if (betriebId == null) {
+          return const ReinigungBetriebAuswahlScreen();
+        }
         return ReinigungFormScreen(
             anlageId: anlageId, betriebId: betriebId);
       },
@@ -435,6 +454,122 @@ final router = GoRouter(
         final id = state.pathParameters['id']!;
         return MaterialFormScreen(materialId: id);
       },
+    ),
+
+    // Kontakte
+    GoRoute(
+      path: '/kontakte',
+      builder: (context, state) => const KontakteListScreen(),
+    ),
+    GoRoute(
+      path: '/kontakte/neu',
+      builder: (context, state) {
+        final kategorie = state.uri.queryParameters['kategorie'];
+        final betriebId = state.uri.queryParameters['betriebId'];
+        return KontaktFormScreen(
+            initialKategorie: kategorie, initialBetriebId: betriebId);
+      },
+    ),
+    GoRoute(
+      path: '/kontakte/:id/bearbeiten',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return KontaktFormScreen(kontaktId: id);
+      },
+    ),
+
+    // Bergkundenpauschalen
+    GoRoute(
+      path: '/bergkundenpauschalen',
+      builder: (context, state) => const BergkundenpauschaleListScreen(),
+    ),
+    GoRoute(
+      path: '/bergkundenpauschalen/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return BergkundenpauschaleDetailScreen(pauschaleId: id);
+      },
+    ),
+
+    // Einstellungen
+    GoRoute(
+      path: '/einstellungen',
+      builder: (context, state) => const EinstellungenScreen(),
+    ),
+    GoRoute(
+      path: '/einstellungen/preise/neu',
+      builder: (context, state) => const PreisVersionFormScreen(),
+    ),
+    GoRoute(
+      path: '/einstellungen/preise/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return PreisVersionFormScreen(preisId: id);
+      },
+    ),
+    GoRoute(
+      path: '/einstellungen/biersorten',
+      builder: (context, state) => const BiersortenScreen(),
+    ),
+
+    // Jahresrechnung
+    GoRoute(
+      path: '/jahresrechnung',
+      builder: (context, state) => const JahresrechnungGenerateScreen(),
+    ),
+
+    // Fehlersuche
+    GoRoute(
+      path: '/fehlersuche',
+      builder: (context, state) => const FehlerSucheScreen(),
+    ),
+    GoRoute(
+      path: '/fehlersuche/:systemId',
+      builder: (context, state) {
+        final systemId = state.pathParameters['systemId']!;
+        return SymptomScreen(systemId: systemId);
+      },
+    ),
+    GoRoute(
+      path: '/fehlersuche/:systemId/:symptomId',
+      builder: (context, state) {
+        final systemId = state.pathParameters['systemId']!;
+        final symptomId = state.pathParameters['symptomId']!;
+        return UrsachenScreen(systemId: systemId, symptomId: symptomId);
+      },
+    ),
+
+    // Spesen
+    GoRoute(
+      path: '/spesen',
+      builder: (context, state) => const SpesenScannerScreen(),
+    ),
+
+    // Termine
+    GoRoute(
+      path: '/termine',
+      builder: (context, state) => const TermineKalenderScreen(),
+    ),
+    GoRoute(
+      path: '/termine/neu',
+      builder: (context, state) {
+        final betriebId = state.uri.queryParameters['betriebId'];
+        final datum = state.uri.queryParameters['datum'];
+        return TerminFormScreen(betriebId: betriebId, datum: datum);
+      },
+    ),
+    GoRoute(
+      path: '/termine/:id/bearbeiten',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return TerminFormScreen(terminId: id);
+      },
+    ),
+
+    // Heineken Zuweisungen
+    GoRoute(
+      path: '/heineken/zuweisungen',
+      builder: (context, state) => const HeinekenZuweisungenScreen(),
     ),
   ],
 );

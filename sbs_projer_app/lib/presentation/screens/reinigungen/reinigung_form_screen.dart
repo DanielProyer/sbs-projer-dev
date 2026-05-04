@@ -17,6 +17,8 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
@@ -113,7 +115,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       _existingFotoPfad = r.protokollFotoPfad;
       _istKulanz = r.istKulanz;
       _istHeinekenMonteur = r.istHeinekenMonteur;
-      _serviceArt = r.serviceArt;
+      _serviceArt = r.serviceArt ?? _serviceArt;
       _wasserKuehlerGewechselt = r.wasserKuehlerGewechselt;
       // Preis-Felder
       _serviceTyp = r.serviceTyp;
@@ -293,13 +295,13 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       final r = _existing ?? ReinigungLocal();
 
       if (!_isEdit) {
-        r.betriebId = widget.betriebId!;
+        r.betriebId = _betrieb?.serverId ?? widget.betriebId ?? '';
         // Multi-Anlagen: anlageIds setzen, anlageId = erste (Backward-Compat)
         if (_selectedAnlageIds.isNotEmpty) {
           r.anlageIdsJson = jsonEncode(_selectedAnlageIds.toList());
           r.anlageId = _selectedAnlageIds.first;
         } else {
-          r.anlageId = widget.anlageId;
+          r.anlageId = widget.anlageId ?? '';
         }
       } else if (_selectedAnlageIds.isNotEmpty) {
         // Auch bei Edit die anlageIds aktualisieren
@@ -419,7 +421,46 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           final betrieb = _betrieb ??
               await BetriebRepository.getByServerId(r.betriebId);
           if (betrieb != null) {
-            await RechnungService.createFromReinigung(r, betrieb);
+            final rechnung = await RechnungService.createFromReinigung(r, betrieb);
+
+            // Mail versenden wenn rechnung_mail
+            if (rechnung != null && betrieb.rechnungsstellung == 'rechnung_mail') {
+              try {
+                final empfaenger = MailConfig.empfaenger(null, bereich: 'reinigung');
+                final response = await SupabaseService.client.functions.invoke(
+                  'send-rechnung-mail',
+                  body: {
+                    'to': empfaenger,
+                    'subject': 'Rechnung ${rechnung.rechnungsnummer} – SBS Projer GmbH',
+                    'bodyText': 'Guten Tag\n\n'
+                        'Im Anhang finden Sie die Rechnung für den Service '
+                        'vom ${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}.\n\n'
+                        'Freundliche Grüsse\nDaniel Proyer\nSBS Projer GmbH',
+                    'rechnungId': rechnung.id,
+                    'userId': SupabaseService.dataUserId,
+                    if (r.protokollFotoPfad != null)
+                      'protokollFotoPfad': r.protokollFotoPfad,
+                  },
+                );
+                debugPrint('[ServiceMail] Response: ${response.status} ${response.data}');
+                await RechnungRepository.update(rechnung.id, {
+                  'zahlungsstatus': 'versendet',
+                  'versendet_am': DateTime.now().toIso8601String().split('T').first,
+                });
+              } catch (e) {
+                debugPrint('[ServiceMail] Fehler: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.error,
+                      content: Text('MAIL-VERSAND FEHLGESCHLAGEN: $e',
+                          style: const TextStyle(color: Colors.white)),
+                      duration: const Duration(seconds: 8),
+                    ),
+                  );
+                }
+              }
+            }
 
             // Automatische Buchung (Barzahlung oder Rechnung)
             final buchung = await ReinigungBuchungService.createFromReinigung(r, betrieb);
@@ -729,15 +770,32 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               _sectionTitle(context, 'Protokoll'),
               const SizedBox(height: 8),
               if (_fotoBytes == null && _existingFotoPfad == null)
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton.icon(
-                    onPressed: _fotoUploading ? null : _takePhoto,
-                    icon: const Icon(Icons.document_scanner, size: 24),
-                    label: const Text('Protokoll digitalisieren',
-                        style: TextStyle(fontSize: 16)),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 56,
+                        child: FilledButton.icon(
+                          onPressed: _fotoUploading ? null : _takePhoto,
+                          icon: const Icon(Icons.document_scanner, size: 24),
+                          label: const Text('Digitalisieren',
+                              style: TextStyle(fontSize: 15)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 56,
+                        child: OutlinedButton.icon(
+                          onPressed: _fotoUploading ? null : _pickPhoto,
+                          icon: const Icon(Icons.upload_file, size: 24),
+                          label: const Text('Hochladen',
+                              style: TextStyle(fontSize: 15)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               if (_fotoBytes != null || _existingFotoPfad != null)
                 _buildFotoSection(),

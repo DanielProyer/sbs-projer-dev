@@ -130,6 +130,34 @@ class IsarService {
   static dynamic eroeffnungsreinigungFilterByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
   static dynamic eroeffnungsreinigungWatchByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
 
+  // ─── Kontakt ───
+  static dynamic kontaktFindAll() => throw UnsupportedError('Isar not available on web');
+  static dynamic kontaktFilterByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
+  static dynamic kontaktWatchByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
+  static dynamic kontaktFilterByKategorie(String kategorie) => throw UnsupportedError('Isar not available on web');
+  static dynamic kontaktGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic kontaktPut(dynamic k) => throw UnsupportedError('Isar not available on web');
+  static dynamic kontaktDelete(int id) => throw UnsupportedError('Isar not available on web');
+
+  // ─── Termin ───
+  static dynamic terminFindAll() => throw UnsupportedError('Isar not available on web');
+  static dynamic terminWatchAll() => throw UnsupportedError('Isar not available on web');
+  static dynamic terminGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic terminFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic terminFilterByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
+  static dynamic terminWatchByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
+  static dynamic terminFilterByDatumRange(DateTime von, DateTime bis) => throw UnsupportedError('Isar not available on web');
+  static dynamic terminCount() => throw UnsupportedError('Isar not available on web');
+  static dynamic terminPut(dynamic t) => throw UnsupportedError('Isar not available on web');
+  static dynamic terminDelete(int id) => throw UnsupportedError('Isar not available on web');
+
+  // ─── Preis ───
+  static dynamic preisFindAll() => throw UnsupportedError('Isar not available on web');
+  static dynamic preisGet(int id) => throw UnsupportedError('Isar not available on web');
+
+  // ─── Biersorte ───
+  static dynamic biersorteFindAll() => throw UnsupportedError('Isar not available on web');
+
   // ─── Cascade Deletes ───
   static dynamic anlageDeleteCascade(int id) => throw UnsupportedError('Isar not available on web');
   static dynamic betriebDeleteCascade(int id) => throw UnsupportedError('Isar not available on web');

@@ -6,6 +6,11 @@ import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+const _monatNamen = [
+  '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+
 class PikettDiensteListScreen extends ConsumerStatefulWidget {
   const PikettDiensteListScreen({super.key});
 
@@ -17,17 +22,30 @@ class PikettDiensteListScreen extends ConsumerStatefulWidget {
 class _PikettDiensteListScreenState
     extends ConsumerState<PikettDiensteListScreen> {
   String _searchQuery = '';
+  int _selectedYear = DateTime.now().year;
+  int _selectedMonth = 0;
 
   @override
   Widget build(BuildContext context) {
     final dienste = ref.watch(pikettDiensteProvider);
 
-    // Sortieren: neueste zuerst
+    // Verfügbare Jahre
+    final jahreSet = <int>{};
+    for (final p in dienste) {
+      jahreSet.add(p.datumStart.year);
+    }
+    final jahre = jahreSet.toList()..sort((a, b) => b.compareTo(a));
+    if (jahre.isEmpty) jahre.add(DateTime.now().year);
+    if (!jahre.contains(_selectedYear)) _selectedYear = jahre.first;
+
     final sorted = List<PikettDienstLocal>.from(dienste)
       ..sort((a, b) => b.datumStart.compareTo(a.datumStart));
 
-    // Suche
     final filtered = sorted.where((p) {
+      if (p.datumStart.year != _selectedYear) return false;
+      if (_selectedMonth != 0 && p.datumStart.month != _selectedMonth) {
+        return false;
+      }
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final kw = _kw(p.datumStart);
@@ -38,6 +56,21 @@ class _PikettDiensteListScreenState
       }
       return true;
     }).toList();
+
+    // Monatsgruppierung
+    final groups = <_MonatsGruppe>[];
+    for (final p in filtered) {
+      final m = p.datumStart.month;
+      if (groups.isEmpty || groups.last.monat != m) {
+        groups.add(_MonatsGruppe(jahr: p.datumStart.year, monat: m));
+      }
+      groups.last.eintraege.add(p);
+    }
+
+    double _getPreis(PikettDienstLocal p) =>
+        p.pauschaleGesamt ?? p.pauschale ?? 0;
+
+    final jahrSumme = filtered.fold(0.0, (sum, p) => sum + _getPreis(p));
 
     return Scaffold(
       appBar: AppBar(
@@ -58,27 +91,70 @@ class _PikettDiensteListScreenState
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${filtered.length} Pikett-Dienste',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
+            child: Row(
+              children: [
+                DropdownButton<int>(
+                  value: _selectedYear,
+                  underline: const SizedBox.shrink(),
+                  isDense: true,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  items: jahre
+                      .map((y) =>
+                          DropdownMenuItem(value: y, child: Text('$y')))
+                      .toList(),
+                  onChanged: (y) {
+                    if (y != null) setState(() => _selectedYear = y);
+                  },
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<int>(
+                  value: _selectedMonth,
+                  underline: const SizedBox.shrink(),
+                  isDense: true,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  items: [
+                    const DropdownMenuItem(
+                        value: 0, child: Text('Alle Monate')),
+                    for (int m = 1; m <= 12; m++)
+                      DropdownMenuItem(value: m, child: Text(_monatNamen[m])),
+                  ],
+                  onChanged: (m) {
+                    if (m != null) setState(() => _selectedMonth = m);
+                  },
+                ),
+                const Spacer(),
+                Text(
+                  jahrSumme > 0
+                      ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                      : '${filtered.length} Pikett-Dienste',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
             ),
           ),
           Expanded(
             child: filtered.isEmpty
                 ? _buildEmpty()
                 : ListView.builder(
-                    itemCount: filtered.length,
+                    itemCount: _listItemCount(groups),
                     itemBuilder: (context, index) {
-                      final pikett = filtered[index];
+                      final item = _listItemAt(groups, index);
+                      if (item is _MonatsGruppe) {
+                        return _buildMonatsHeader(context, item);
+                      }
+                      final entry = item as PikettDienstLocal;
                       return _PikettListItem(
-                        pikett: pikett,
+                        pikett: entry,
                         onTap: () =>
-                            context.push('/pikett/${pikett.routeId}'),
+                            context.push('/pikett/${entry.routeId}'),
                       );
                     },
                   ),
@@ -94,6 +170,64 @@ class _PikettDiensteListScreenState
     );
   }
 
+  int _listItemCount(List<_MonatsGruppe> groups) {
+    int count = 0;
+    for (final g in groups) {
+      count += 1 + g.eintraege.length;
+    }
+    return count;
+  }
+
+  Object _listItemAt(List<_MonatsGruppe> groups, int index) {
+    int pos = 0;
+    for (final g in groups) {
+      if (index == pos) return g;
+      pos++;
+      if (index < pos + g.eintraege.length) {
+        return g.eintraege[index - pos];
+      }
+      pos += g.eintraege.length;
+    }
+    return groups.last;
+  }
+
+  Widget _buildMonatsHeader(BuildContext context, _MonatsGruppe gruppe) {
+    final count = gruppe.eintraege.length;
+    double getPreis(PikettDienstLocal p) =>
+        p.pauschaleGesamt ?? p.pauschale ?? 0;
+    final summe =
+        gruppe.eintraege.fold(0.0, (sum, p) => sum + getPreis(p));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${_monatNamen[gruppe.monat]} ${gruppe.jahr}',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+          ),
+          Text('$count St.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary)),
+          if (summe > 0) ...[
+            const SizedBox(width: 8),
+            Text('${summe.toStringAsFixed(2)} CHF',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmpty() {
     return Center(
       child: Column(
@@ -103,7 +237,7 @@ class _PikettDiensteListScreenState
               size: 64, color: AppColors.textSecondary.withAlpha(100)),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty
+            _searchQuery.isNotEmpty || _selectedMonth != 0
                 ? 'Keine Ergebnisse'
                 : 'Noch keine Pikett-Dienste',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -112,8 +246,8 @@ class _PikettDiensteListScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'Versuche einen anderen Suchbegriff'
+            _searchQuery.isNotEmpty || _selectedMonth != 0
+                ? 'Versuche einen anderen Suchbegriff oder Filter'
                 : 'Tippe auf + um einen Pikett-Dienst zu erfassen',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
@@ -123,6 +257,13 @@ class _PikettDiensteListScreenState
       ),
     );
   }
+}
+
+class _MonatsGruppe {
+  final int jahr;
+  final int monat;
+  final List<PikettDienstLocal> eintraege = [];
+  _MonatsGruppe({required this.jahr, required this.monat});
 }
 
 String _formatDate(DateTime date) {
@@ -183,7 +324,8 @@ class _PikettListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    parts.add('Fr ${_formatDate(pikett.datumStart)} / Sa ${_formatDate(pikett.datumEnde)}');
+    parts.add(
+        'Fr ${_formatDate(pikett.datumStart)} / Sa ${_formatDate(pikett.datumEnde)}');
     if (pikett.pauschaleGesamt != null) {
       parts.add('${pikett.pauschaleGesamt!.toStringAsFixed(2)} CHF');
     } else if (pikett.pauschale != null) {

@@ -4,6 +4,8 @@ class Preis {
   final DateTime gueltigAb;
   final DateTime? gueltigBis;
   final double mwstSatz;
+  final double mwstSatzReduziert;
+  final String? heinekenPoNummer;
   final double bergkundenZuschlag;
   final double grundtarifReinigungBier;
   final double grundtarifReinigungOrion;
@@ -38,12 +40,20 @@ class Preis {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// MwSt-Satz als Faktor (z.B. 0.081 für 8.1%)
+  double get mwstFaktor => mwstSatz / 100;
+
+  /// MwSt-Label für Anzeige (z.B. "8.1%")
+  String get mwstLabel => '${mwstSatz.toStringAsFixed(1)}%';
+
   Preis({
     required this.id,
     required this.userId,
     required this.gueltigAb,
     this.gueltigBis,
     this.mwstSatz = 8.10,
+    this.mwstSatzReduziert = 2.60,
+    this.heinekenPoNummer,
     this.bergkundenZuschlag = 180.00,
     required this.grundtarifReinigungBier,
     required this.grundtarifReinigungOrion,
@@ -86,6 +96,8 @@ class Preis {
       gueltigAb: DateTime.parse(json['gueltig_ab']),
       gueltigBis: json['gueltig_bis'] != null ? DateTime.parse(json['gueltig_bis']) : null,
       mwstSatz: _d(json['mwst_satz'], 8.10),
+      mwstSatzReduziert: _d(json['mwst_satz_reduziert'], 2.60),
+      heinekenPoNummer: json['heineken_po_nummer'] as String?,
       bergkundenZuschlag: _d(json['bergkunden_zuschlag'], 180.00),
       grundtarifReinigungBier: _d(json['grundtarif_reinigung_bier'], 0),
       grundtarifReinigungOrion: _d(json['grundtarif_reinigung_orion'], 0),
@@ -129,6 +141,8 @@ class Preis {
       'gueltig_ab': gueltigAb.toIso8601String().split('T').first,
       'gueltig_bis': gueltigBis?.toIso8601String().split('T').first,
       'mwst_satz': mwstSatz,
+      'mwst_satz_reduziert': mwstSatzReduziert,
+      'heineken_po_nummer': heinekenPoNummer,
       'bergkunden_zuschlag': bergkundenZuschlag,
       'grundtarif_reinigung_bier': grundtarifReinigungBier,
       'grundtarif_reinigung_orion': grundtarifReinigungOrion,

@@ -29,6 +29,19 @@ class RechnungPdfStorage {
         .createSignedUrl(path, 3600);
   }
 
+  /// Protokolle-PDF hochladen (separate Datei neben der Rechnung)
+  static Future<void> uploadProtokollePdf(String rechnungId, Uint8List bytes) async {
+    final path = '$_userId/$rechnungId/protokolle.pdf';
+    await SupabaseService.client.storage.from(_bucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'application/pdf',
+            upsert: true,
+          ),
+        );
+  }
+
   /// PDF aus Storage löschen
   static Future<void> deletePdf(String rechnungId) async {
     final path = '$_userId/$rechnungId/rechnung.pdf';

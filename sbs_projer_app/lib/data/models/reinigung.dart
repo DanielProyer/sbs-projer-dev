@@ -49,6 +49,12 @@ class Reinigung {
   final double? mwstSatz;
   final double? preisMwst;
   final double? preisBrutto;
+  final bool istKulanz;
+  final bool istHeinekenMonteur;
+  final String? protokollFotoPfad;
+  final String? serviceArt;
+  final List<String> anlageIds;
+  final bool istAbgerechnet;
   final String status;
   final bool istSynced;
   final DateTime? createdAt;
@@ -99,6 +105,12 @@ class Reinigung {
     this.mwstSatz,
     this.preisMwst,
     this.preisBrutto,
+    this.istKulanz = false,
+    this.istHeinekenMonteur = false,
+    this.protokollFotoPfad,
+    this.serviceArt,
+    this.anlageIds = const [],
+    this.istAbgerechnet = false,
     this.status = 'offen',
     this.istSynced = false,
     this.createdAt,
@@ -153,6 +165,14 @@ class Reinigung {
       mwstSatz: _toDouble(json['mwst_satz']),
       preisMwst: _toDouble(json['preis_mwst']),
       preisBrutto: _toDouble(json['preis_brutto']),
+      istKulanz: json['ist_kulanz'] ?? false,
+      istHeinekenMonteur: json['ist_heineken_monteur'] ?? false,
+      protokollFotoPfad: json['protokoll_foto_pfad'],
+      serviceArt: json['service_art'],
+      anlageIds: json['anlage_ids'] != null
+          ? List<String>.from(json['anlage_ids'])
+          : [],
+      istAbgerechnet: json['ist_abgerechnet'] ?? false,
       status: json['status'] ?? 'offen',
       istSynced: json['ist_synced'] ?? false,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
@@ -205,6 +225,12 @@ class Reinigung {
       'mwst_satz': mwstSatz,
       'preis_mwst': preisMwst,
       'preis_brutto': preisBrutto,
+      'ist_kulanz': istKulanz,
+      'ist_heineken_monteur': istHeinekenMonteur,
+      'protokoll_foto_pfad': protokollFotoPfad,
+      'service_art': serviceArt,
+      'anlage_ids': anlageIds.isNotEmpty ? anlageIds : null,
+      'ist_abgerechnet': istAbgerechnet,
       'status': status,
     };
   }

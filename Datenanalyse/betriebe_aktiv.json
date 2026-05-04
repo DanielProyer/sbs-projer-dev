@@ -1,0 +1,3407 @@
+[
+  {
+    "name": "Rofflaschlucht",
+    "plz": "7440",
+    "ort": "Andeer"
+  },
+  {
+    "name": "Fravi",
+    "plz": "7440",
+    "ort": "Andeer"
+  },
+  {
+    "name": "Robinson",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Brüggli",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Kulm",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Gspan",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Vetter",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Spettacolo",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Pop Corn",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Sport- und Kongresszentrum",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Halli Galli",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Lindemann's Over Time",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Grischuna",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Hold",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Alpensonne",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Hörnlihütte",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Güterschuppen",
+    "plz": "7050",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Bergalga",
+    "plz": "7447",
+    "ort": "Avers"
+  },
+  {
+    "name": "Garni Albula",
+    "plz": "7482",
+    "ort": "Bergün"
+  },
+  {
+    "name": "Kistenpass",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Hemingway",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Rätushof",
+    "plz": "7002",
+    "ort": "Chur"
+  },
+  {
+    "name": "Jamies",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Calanda",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Confetti",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Nikki",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Street Cafe",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Barbar",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Marsöl",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Franziskaner",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Ring",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Helvetia",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Valentinos",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Astoria",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Oldtimer",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Süsswinkel",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bierkönig",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Rheinkrone",
+    "plz": "7004",
+    "ort": "Chur"
+  },
+  {
+    "name": "Merz Wiesental",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Zollhaus",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Schützenhaus",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Surselva",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bodega Española",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Edelweiss",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Caluori",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Hotel Chur",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "La Vita",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Passagino",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Stiva Retica",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "La Piazza",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Piranha",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Zum Metzgertor",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Pradaschier",
+    "plz": "7075",
+    "ort": "Churwalden"
+  },
+  {
+    "name": "Alte Schwendi",
+    "plz": "7241",
+    "ort": "Conters im Prättigau"
+  },
+  {
+    "name": "Parsenn",
+    "plz": "7241",
+    "ort": "Conters im Prättigau"
+  },
+  {
+    "name": "Ustria Larisch",
+    "plz": "7142",
+    "ort": "Lumnezia"
+  },
+  {
+    "name": "Cuntera",
+    "plz": "7184",
+    "ort": "Curaglia"
+  },
+  {
+    "name": "Schifer",
+    "plz": "7249",
+    "ort": "Serneus"
+  },
+  {
+    "name": "Mühle",
+    "plz": "7272",
+    "ort": "Davos"
+  },
+  {
+    "name": "Parsenn",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Gemsli",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Weissfluhjoch",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Weissfluhgipfel",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Höhenweg",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Bünda",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Parsennhütte",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Emerald",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "BOX",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Montana Stübli",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Seehof",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Concordia",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Meierhof",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Jatzmeder",
+    "plz": "7277",
+    "ort": "Davos"
+  },
+  {
+    "name": "Blockhuus",
+    "plz": "7277",
+    "ort": "Davos"
+  },
+  {
+    "name": "Platzhirsch",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Vaillant Arena",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Strela",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Sunstar",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Hilton Garden Inn",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Bündnerhof",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Steakhouse Ochsen",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "AMERON",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Waldhuus",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Stall Valär",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Alte Post",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Jschalp",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Chalet Güggel",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Bolgen Plaza",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Grischa",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Bolgenschanze",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Tijuana",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Central",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Hugo",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Clavadeleralp",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Fuxägufer",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Gentiana",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Piz Piz",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Walserhuus",
+    "plz": "7272",
+    "ort": "Davos"
+  },
+  {
+    "name": "Bellevue",
+    "plz": "7494",
+    "ort": "Davos"
+  },
+  {
+    "name": "Kulm",
+    "plz": "7265",
+    "ort": "Davos"
+  },
+  {
+    "name": "Alte Buendnerstube",
+    "plz": "7180",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Ustria Fontanivas",
+    "plz": "7180",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Center da sport e cultura",
+    "plz": "7180",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Veltlinerhalle",
+    "plz": "7013",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Golfrestaurant",
+    "plz": "7013",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Merz",
+    "plz": "7013",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Ustria Aurora",
+    "plz": "7153",
+    "ort": "Falera"
+  },
+  {
+    "name": "Encarna",
+    "plz": "7153",
+    "ort": "Falera"
+  },
+  {
+    "name": "Wildenstein",
+    "plz": "7404",
+    "ort": "Feldis"
+  },
+  {
+    "name": "Calanda",
+    "plz": "7012",
+    "ort": "Felsberg"
+  },
+  {
+    "name": "Heuberge",
+    "plz": "7235",
+    "ort": "Fideris"
+  },
+  {
+    "name": "Hapimag Vitget Alpin",
+    "plz": "7018",
+    "ort": "Flims"
+  },
+  {
+    "name": "Legna",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Foppa",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Ustria Startgels",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Nagens",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "American Burger",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Grand Hotel Surselva",
+    "plz": "7018",
+    "ort": "Flims"
+  },
+  {
+    "name": "Ustria Posta Veglia",
+    "plz": "7137",
+    "ort": "Flond"
+  },
+  {
+    "name": "Sporti",
+    "plz": "7214",
+    "ort": "Grüsch"
+  },
+  {
+    "name": "Bahnhöfli",
+    "plz": "7023",
+    "ort": "Haldenstein"
+  },
+  {
+    "name": "Krone",
+    "plz": "7206",
+    "ort": "Igis"
+  },
+  {
+    "name": "Rätia",
+    "plz": "7130",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Obertor",
+    "plz": "7130",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Pub Pin",
+    "plz": "7130",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Tödi",
+    "plz": "7130",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Sunstar",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Bargis",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Sport",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Alpina",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Wynegg",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Skihütte Selfranga",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Armando",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Schwendi",
+    "plz": "7249",
+    "ort": "Serneus"
+  },
+  {
+    "name": "Sonne",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Alpenrösli",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Bad Serneus",
+    "plz": "7249",
+    "ort": "Serneus"
+  },
+  {
+    "name": "Hirschen",
+    "plz": "7240",
+    "ort": "Küblis"
+  },
+  {
+    "name": "Bahnhöfli",
+    "plz": "7240",
+    "ort": "Küblis"
+  },
+  {
+    "name": "Il Pub",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Crap Sogn Gion",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Signina",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Tegia Larnags",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "St. Cassian",
+    "plz": "7083",
+    "ort": "Lantsch/Lenz"
+  },
+  {
+    "name": "Sarain",
+    "plz": "7083",
+    "ort": "Lantsch/Lenz"
+  },
+  {
+    "name": "Forellenstube",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Dieschen",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Spescha",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Sunstar",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Lenzerhorn",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Alp Lavoz",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Rothorngipfel",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Kurhaus",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Acla Grischuna",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Muloin",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Ninos",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Tgantieni",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Alp Nova",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Grotto Pizzeria da Elio",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Alte Post",
+    "plz": "7026",
+    "ort": "Maladers"
+  },
+  {
+    "name": "Gipfelbar Setz Nair",
+    "plz": "7134",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Kartitscha",
+    "plz": "7134",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Agarta",
+    "plz": "7134",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Wali",
+    "plz": "7134",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Bestzeit Lifestyle & Sport",
+    "plz": "7076",
+    "ort": "Parpan"
+  },
+  {
+    "name": "Obertor",
+    "plz": "7076",
+    "ort": "Parpan"
+  },
+  {
+    "name": "Stäzerhorn",
+    "plz": "7076",
+    "ort": "Parpan"
+  },
+  {
+    "name": "Milez",
+    "plz": "7189",
+    "ort": "Rueras"
+  },
+  {
+    "name": "Gasthaus zum Rathaus",
+    "plz": "7247",
+    "ort": "Saas"
+  },
+  {
+    "name": "Alpina",
+    "plz": "7220",
+    "ort": "Schiers"
+  },
+  {
+    "name": "Fasan",
+    "plz": "7214",
+    "ort": "Grüsch"
+  },
+  {
+    "name": "Reha Seewis",
+    "plz": "7212",
+    "ort": "Seewis"
+  },
+  {
+    "name": "Gotschna",
+    "plz": "7249",
+    "ort": "Serneus"
+  },
+  {
+    "name": "Bodenhaus",
+    "plz": "7435",
+    "ort": "Splügen"
+  },
+  {
+    "name": "Weiss Kreuz",
+    "plz": "7435",
+    "ort": "Splügen"
+  },
+  {
+    "name": "Seeblick",
+    "plz": "7434",
+    "ort": "Sufers"
+  },
+  {
+    "name": "Valata",
+    "plz": "7138",
+    "ort": "Surcuolm"
+  },
+  {
+    "name": "Im Park",
+    "plz": "7430",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Boccalino",
+    "plz": "7430",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Zur alten Brauerei",
+    "plz": "7430",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Bernina",
+    "plz": "7430",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Alpina Resort",
+    "plz": "7064",
+    "ort": "Tschiertschen"
+  },
+  {
+    "name": "Waldhaus",
+    "plz": "7077",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Valbella Inn",
+    "plz": "7077",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Slalom Bar",
+    "plz": "7077",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Steakhouse Buscadero",
+    "plz": "7077",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Alp Stätz",
+    "plz": "7075",
+    "ort": "Churwalden"
+  },
+  {
+    "name": "Sartons",
+    "plz": "7077",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Gasthaus am Brunnen",
+    "plz": "7122",
+    "ort": "Valendas"
+  },
+  {
+    "name": "Rovanada",
+    "plz": "7132",
+    "ort": "Vals"
+  },
+  {
+    "name": "Edelweiss",
+    "plz": "7132",
+    "ort": "Vals"
+  },
+  {
+    "name": "Glenner",
+    "plz": "7132",
+    "ort": "Vals"
+  },
+  {
+    "name": "BARacca",
+    "plz": "7144",
+    "ort": "Lumnezia"
+  },
+  {
+    "name": "Rössli",
+    "plz": "7104",
+    "ort": "Versam"
+  },
+  {
+    "name": "Sonnenhalde",
+    "plz": "7494",
+    "ort": "Davos"
+  },
+  {
+    "name": "Alte Post",
+    "plz": "7432",
+    "ort": "Zillis"
+  },
+  {
+    "name": "Hotel Sportcenter Fünf Dörfer",
+    "plz": "7205",
+    "ort": "Zizers"
+  },
+  {
+    "name": "Nussbaum",
+    "plz": "7205",
+    "ort": "Zizers"
+  },
+  {
+    "name": "Rotliechti",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "IKIGAI",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Indy Bar",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Snake Bar",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Waldhaus",
+    "plz": "7018",
+    "ort": "Flims"
+  },
+  {
+    "name": "Landhus",
+    "plz": "7416",
+    "ort": "Almens"
+  },
+  {
+    "name": "Zementwerk Untervaz",
+    "plz": "7204",
+    "ort": "Untervaz"
+  },
+  {
+    "name": "Arena",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Chrona Stübli",
+    "plz": "7214",
+    "ort": "Grüsch"
+  },
+  {
+    "name": "Madrisa Lodge",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Fonduestübli",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Cafe Bar",
+    "plz": "",
+    "ort": "Trimmis"
+  },
+  {
+    "name": "Plaun",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Schönhalden",
+    "plz": "8894",
+    "ort": "Flumserberg"
+  },
+  {
+    "name": "Tegia Curnius",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Elefant",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Piz Scalottas",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Scharmoin",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Leo's",
+    "plz": "7133",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Vorburg",
+    "plz": "7205",
+    "ort": "Zizers"
+  },
+  {
+    "name": "Turrahus",
+    "plz": "7107",
+    "ort": "Safien Thalkirch"
+  },
+  {
+    "name": "Rathaus",
+    "plz": "7107",
+    "ort": "Safien Thalkirch"
+  },
+  {
+    "name": "Radons",
+    "plz": "7460",
+    "ort": "Savognin"
+  },
+  {
+    "name": "Somtgant",
+    "plz": "7460",
+    "ort": "Savognin"
+  },
+  {
+    "name": "Tigignas",
+    "plz": "7460",
+    "ort": "Savognin"
+  },
+  {
+    "name": "Erezsäss",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Triemelhütte",
+    "plz": "7028",
+    "ort": "St.Peter"
+  },
+  {
+    "name": "Piz Platta",
+    "plz": "7455",
+    "ort": "Mulegns"
+  },
+  {
+    "name": "Furt",
+    "plz": "7323",
+    "ort": "Wangs"
+  },
+  {
+    "name": "Pizolstübli",
+    "plz": "7323",
+    "ort": "Wangs"
+  },
+  {
+    "name": "Planatsch",
+    "plz": "7189",
+    "ort": "Rueras"
+  },
+  {
+    "name": "Guidon",
+    "plz": "7457",
+    "ort": "Bivio"
+  },
+  {
+    "name": "Grischuna",
+    "plz": "7457",
+    "ort": "Bivio"
+  },
+  {
+    "name": "Post",
+    "plz": "7457",
+    "ort": "Bivio"
+  },
+  {
+    "name": "Romana",
+    "plz": "7460",
+    "ort": "Savognin"
+  },
+  {
+    "name": "Danilo",
+    "plz": "7460",
+    "ort": "Savognin"
+  },
+  {
+    "name": "Seerestaurant",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Arlos",
+    "plz": "7460",
+    "ort": "Savognin"
+  },
+  {
+    "name": "Ladina",
+    "plz": "7482",
+    "ort": "Bergün"
+  },
+  {
+    "name": "Albula",
+    "plz": "7482",
+    "ort": "Bergün"
+  },
+  {
+    "name": "Weisses Kreuz",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Edelweiss",
+    "plz": "",
+    "ort": "Tschiertschen"
+  },
+  {
+    "name": "Grischuna",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Rätia",
+    "plz": "",
+    "ort": "Filisur"
+  },
+  {
+    "name": "Golfclub",
+    "plz": "",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Bognin",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Post",
+    "plz": "",
+    "ort": "Sils"
+  },
+  {
+    "name": "Hirschen",
+    "plz": "",
+    "ort": "Jenaz"
+  },
+  {
+    "name": "Kakadu",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Schöntal",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Sporthotel",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Bellaluna",
+    "plz": "",
+    "ort": ""
+  },
+  {
+    "name": "Bar Terre",
+    "plz": "7460",
+    "ort": "Savognin"
+  },
+  {
+    "name": "Albula+Julier AG",
+    "plz": "",
+    "ort": "Tiefencastel"
+  },
+  {
+    "name": "Bistro Casti",
+    "plz": "",
+    "ort": "Tiefencastel"
+  },
+  {
+    "name": "Bellavista",
+    "plz": "",
+    "ort": "Parsonz"
+  },
+  {
+    "name": "Davos Munts",
+    "plz": "7146",
+    "ort": "Vattiz"
+  },
+  {
+    "name": "Belfort",
+    "plz": "7492",
+    "ort": "Alvaneu"
+  },
+  {
+    "name": "Pagigerstübli",
+    "plz": "7028",
+    "ort": "Pagig"
+  },
+  {
+    "name": "Hallenstadion",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Lieto",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "FC Flums",
+    "plz": "8890",
+    "ort": "Flums"
+  },
+  {
+    "name": "Hacis Anatolia Kebab",
+    "plz": "7018",
+    "ort": "Flims"
+  },
+  {
+    "name": "Bosshard Arena (EV Zug)",
+    "plz": "6303",
+    "ort": "Zug"
+  },
+  {
+    "name": "Merz Bahnhofstrasse",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Q Bar",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Tabasco",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Glenner",
+    "plz": "",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Valetta",
+    "plz": "",
+    "ort": "Sumaprada"
+  },
+  {
+    "name": "Posta Veglia",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Walhalla",
+    "plz": "",
+    "ort": "St Gallen"
+  },
+  {
+    "name": "Z Bar",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Collina",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Piz Tambo",
+    "plz": "",
+    "ort": "Splügen"
+  },
+  {
+    "name": "La Meridiana",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "La Carretta",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Central",
+    "plz": "",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Waldhotel",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Caumasee",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "EHC Visp",
+    "plz": "",
+    "ort": "Visp"
+  },
+  {
+    "name": "Montana Bar",
+    "plz": "7260",
+    "ort": "Davos"
+  },
+  {
+    "name": "Catrina",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "FC Luzern",
+    "plz": "",
+    "ort": "Luzern"
+  },
+  {
+    "name": "Turnerwiese",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Benis Backroad Beiz",
+    "plz": "7411",
+    "ort": "Sils i. D."
+  },
+  {
+    "name": "Pizzeria Veneziana",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Maron",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bierhalle",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bahnhofbuffet",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Openair Val Lumnezia",
+    "plz": "",
+    "ort": "Degen"
+  },
+  {
+    "name": "Sonnegg",
+    "plz": "",
+    "ort": "Zizers"
+  },
+  {
+    "name": "Bambi",
+    "plz": "7310",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Mühle",
+    "plz": "",
+    "ort": "Pasugg"
+  },
+  {
+    "name": "Franz-Anton",
+    "plz": "7320",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Madrisa Joch",
+    "plz": "",
+    "ort": "St. Antönien"
+  },
+  {
+    "name": "Campell",
+    "plz": "",
+    "ort": "Sils i. D."
+  },
+  {
+    "name": "Churerfest",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Tumpiv",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Iguana",
+    "plz": "9475",
+    "ort": "Sevelen"
+  },
+  {
+    "name": "Triangle",
+    "plz": "",
+    "ort": "Paspels"
+  },
+  {
+    "name": "Pinochio",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Panoramabar",
+    "plz": "",
+    "ort": "Fatschel"
+  },
+  {
+    "name": "Dilos Pizza Kebab",
+    "plz": "",
+    "ort": "Flums"
+  },
+  {
+    "name": "EHC Arosa",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Cafe Arcas",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bergbahnen Vals",
+    "plz": "",
+    "ort": "Vals"
+  },
+  {
+    "name": "Torcello",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Oktoberfest",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Alp Arosa",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "La Fabricaa",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Ganni",
+    "plz": "",
+    "ort": "Vals"
+  },
+  {
+    "name": "Placi Pign",
+    "plz": "",
+    "ort": "Surrein"
+  },
+  {
+    "name": "Des Alpes",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Adula",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Chalet Bolgen",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Ari Kebap Haus",
+    "plz": "",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Breitbild",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Spengler Cup",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Edis Bar",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Chesa",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Ochsen 2",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Golden Dragon",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Altein",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Ustria dalla Staziun",
+    "plz": "7175",
+    "ort": "Sumvitg"
+  },
+  {
+    "name": "Sunshine Pub",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Clavau",
+    "plz": "7403",
+    "ort": "Rhäzüns"
+  },
+  {
+    "name": "Krone",
+    "plz": "",
+    "ort": "Jenaz"
+  },
+  {
+    "name": "Arena Bar 2",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "WG Giovadin",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Skihütte Urmein",
+    "plz": "",
+    "ort": "Urmein"
+  },
+  {
+    "name": "Tschuggen Grand Hotel",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Hotel Greina",
+    "plz": "",
+    "ort": "Rabius"
+  },
+  {
+    "name": "Heimberg",
+    "plz": "",
+    "ort": "Parpan"
+  },
+  {
+    "name": "Alpsu",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Surselva",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Piaggio Dosch",
+    "plz": "",
+    "ort": "Mobil"
+  },
+  {
+    "name": "Jatzhütte",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Vincenz",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Tegia Miez",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Spiga",
+    "plz": "7001",
+    "ort": "Chur"
+  },
+  {
+    "name": "Portal",
+    "plz": "",
+    "ort": "Churwalden"
+  },
+  {
+    "name": "Pot au Feu",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Grischuna",
+    "plz": "",
+    "ort": "Bivio"
+  },
+  {
+    "name": "Astoria",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Robinson Mittelstation",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Dulezi",
+    "plz": "",
+    "ort": "Trun"
+  },
+  {
+    "name": "Posthotel",
+    "plz": "",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Rufalipark",
+    "plz": "",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Real",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Pizzeria Cristallina",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Drei Bünde",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Seda",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Chumerbühl",
+    "plz": "",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Mira Tödi",
+    "plz": "",
+    "ort": "Feldis"
+  },
+  {
+    "name": "Dorfbeiz Chesa",
+    "plz": "",
+    "ort": "Seewis"
+  },
+  {
+    "name": "Ischi",
+    "plz": "",
+    "ort": "Trun"
+  },
+  {
+    "name": "Dalla Posta",
+    "plz": "",
+    "ort": "Vella"
+  },
+  {
+    "name": "FC Chur",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Caltgera",
+    "plz": "",
+    "ort": "Pignia"
+  },
+  {
+    "name": "Term Bel",
+    "plz": "",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Schyn",
+    "plz": "",
+    "ort": "Vaz"
+  },
+  {
+    "name": "Bongert",
+    "plz": "7402",
+    "ort": "Bonaduz"
+  },
+  {
+    "name": "Pizol Bar",
+    "plz": "7323",
+    "ort": "Wangs"
+  },
+  {
+    "name": "Smoothie & Panini Bar",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Traube",
+    "plz": "8887",
+    "ort": "Mels"
+  },
+  {
+    "name": "Hinnastall",
+    "plz": "8897",
+    "ort": "Flumserberg"
+  },
+  {
+    "name": "Schlüssel",
+    "plz": "8887",
+    "ort": "Mels"
+  },
+  {
+    "name": "Burleun",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Stiva Grischuna",
+    "plz": "",
+    "ort": "Sagogn"
+  },
+  {
+    "name": "Casa Seeli",
+    "plz": "",
+    "ort": "Falera"
+  },
+  {
+    "name": "Schiff",
+    "plz": "8880",
+    "ort": "Walenstadt"
+  },
+  {
+    "name": "Bierhalle",
+    "plz": "8880",
+    "ort": "Walenstadt"
+  },
+  {
+    "name": "Da Noi",
+    "plz": "9494",
+    "ort": "Schaan"
+  },
+  {
+    "name": "Palazzo",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Alpenrose",
+    "plz": "",
+    "ort": "Juf"
+  },
+  {
+    "name": "Galiano",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bahnhofbuffet",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Sudada",
+    "plz": "",
+    "ort": "Rueras"
+  },
+  {
+    "name": "Passage",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Furka",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Camping",
+    "plz": "",
+    "ort": "Trun"
+  },
+  {
+    "name": "Soliva",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Rezgia Viglia",
+    "plz": "",
+    "ort": "Brienz"
+  },
+  {
+    "name": "Cafe und Herberge zur Einkehr & Mystik",
+    "plz": "",
+    "ort": "Versam"
+  },
+  {
+    "name": "Haldahof",
+    "plz": "",
+    "ort": "Fidaz"
+  },
+  {
+    "name": "Cosa Nostra",
+    "plz": "",
+    "ort": "Flums"
+  },
+  {
+    "name": "Bistro Lounge",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Panizza",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Parlatsch",
+    "plz": "",
+    "ort": "Trin"
+  },
+  {
+    "name": "Peng",
+    "plz": "",
+    "ort": "Vals"
+  },
+  {
+    "name": "Trutg",
+    "plz": "",
+    "ort": "Vella"
+  },
+  {
+    "name": "Q Vadis",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Pellas",
+    "plz": "",
+    "ort": "Vella"
+  },
+  {
+    "name": "Caramelo",
+    "plz": "",
+    "ort": "Sumaprada"
+  },
+  {
+    "name": "Camping Au",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Feurwehr Ems",
+    "plz": "",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Plattas",
+    "plz": "",
+    "ort": "Präz"
+  },
+  {
+    "name": "Peanuts",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Annahof",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Cruna",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Pizzeria Centro",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Mühle",
+    "plz": "",
+    "ort": "Morissen"
+  },
+  {
+    "name": "Edelweiss",
+    "plz": "7444",
+    "ort": "Ausserferrera"
+  },
+  {
+    "name": "Golfrestaurant",
+    "plz": "",
+    "ort": "Sagogn"
+  },
+  {
+    "name": "Gemsli",
+    "plz": "",
+    "ort": "St. Antönien"
+  },
+  {
+    "name": "Getränke Jäger",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Sternen",
+    "plz": "",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Alpina",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Diana",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Cresta",
+    "plz": "",
+    "ort": "Rueras"
+  },
+  {
+    "name": "Tankstelle",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Valsana",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Waldeck",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Vabene",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Tschuggen",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Obelisk",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Twelve",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Camping",
+    "plz": "",
+    "ort": "Surcuolm"
+  },
+  {
+    "name": "Rätikon",
+    "plz": "",
+    "ort": "Schiers"
+  },
+  {
+    "name": "Rustico",
+    "plz": "",
+    "ort": "Splügen"
+  },
+  {
+    "name": "Totalp",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Big Chefs Kebap",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Türmli",
+    "plz": "7310",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Cafe Sgier",
+    "plz": "",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Arena",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Ritterhof",
+    "plz": "7320",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Ramoz",
+    "plz": "",
+    "ort": "Lizirüti"
+  },
+  {
+    "name": "Am Rhein",
+    "plz": "",
+    "ort": "Schluein"
+  },
+  {
+    "name": "La Val",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Triel",
+    "plz": "",
+    "ort": "Vella"
+  },
+  {
+    "name": "Terminus",
+    "plz": "",
+    "ort": "Küblis"
+  },
+  {
+    "name": "Getränke Wieland",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Alpenblick",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Valserstube",
+    "plz": "",
+    "ort": "Avers"
+  },
+  {
+    "name": "Samba",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Hotelfachschule",
+    "plz": "",
+    "ort": "Passugg"
+  },
+  {
+    "name": "Hostel 3000",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Badus",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Edelweiss",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Holländer",
+    "plz": "7302",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Peppino",
+    "plz": "7302",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Espresso Bar",
+    "plz": "7302",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Flora",
+    "plz": "7302",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Klosterhof",
+    "plz": "7317",
+    "ort": "Valens"
+  },
+  {
+    "name": "Heidihof",
+    "plz": "7304",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "Swissheidi",
+    "plz": "7304",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "Gasthaus St. Luzisteg",
+    "plz": "7304",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "Clubhaus FC Landquart",
+    "plz": "7302",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Mühle",
+    "plz": "7306",
+    "ort": "Fläsch"
+  },
+  {
+    "name": "Bahnhofbuffet",
+    "plz": "7320",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Dancing Zur Zinne",
+    "plz": "7320",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Tiki Bar",
+    "plz": "7320",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Zum Ochsen",
+    "plz": "8880",
+    "ort": "Walenstadt"
+  },
+  {
+    "name": "Don Camillo",
+    "plz": "8883",
+    "ort": "Quarten"
+  },
+  {
+    "name": "Edelweiss",
+    "plz": "9497",
+    "ort": "Triesenberg"
+  },
+  {
+    "name": "Schöntal",
+    "plz": "9642",
+    "ort": "Ebnat-Kappel"
+  },
+  {
+    "name": "Sonne",
+    "plz": "9643",
+    "ort": "Krummenau"
+  },
+  {
+    "name": "Säntis",
+    "plz": "9657",
+    "ort": "Unterwasser"
+  },
+  {
+    "name": "Hotel Toggenburg",
+    "plz": "9658",
+    "ort": "Wildhaus"
+  },
+  {
+    "name": "Alpina Gitzihöll",
+    "plz": "9497",
+    "ort": "Triesenberg"
+  },
+  {
+    "name": "Falknis",
+    "plz": "9490",
+    "ort": "Vaduz"
+  },
+  {
+    "name": "Grill Aueli",
+    "plz": "7324",
+    "ort": "Vilters"
+  },
+  {
+    "name": "Gemse",
+    "plz": "7326",
+    "ort": "Weisstannen"
+  },
+  {
+    "name": "Gemsli",
+    "plz": "8887",
+    "ort": "Mels"
+  },
+  {
+    "name": "Vereina",
+    "plz": "7250",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Rössli",
+    "plz": "7310",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Don Antonio",
+    "plz": "7243",
+    "ort": "Pany"
+  },
+  {
+    "name": "Laaxerhof",
+    "plz": "7032",
+    "ort": "Laax"
+  },
+  {
+    "name": "Niederurner Pub",
+    "plz": "8867",
+    "ort": "Niederurnen"
+  },
+  {
+    "name": "Classicao Bar",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Stenna Cafe",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Pazola",
+    "plz": "7180",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Crestasee",
+    "plz": "7016",
+    "ort": "Trin"
+  },
+  {
+    "name": "Papej Kebap",
+    "plz": "7430",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Suretta",
+    "plz": "7435",
+    "ort": "Splügen"
+  },
+  {
+    "name": "Valatscha",
+    "plz": "7184",
+    "ort": "Curaglia"
+  },
+  {
+    "name": "GioiA",
+    "plz": "7205",
+    "ort": "Zizers"
+  },
+  {
+    "name": "Rodlerbar",
+    "plz": "7075",
+    "ort": "Churwalden"
+  },
+  {
+    "name": "Gallis",
+    "plz": "7204",
+    "ort": "Untervaz"
+  },
+  {
+    "name": "Bahnhöfli",
+    "plz": "7220",
+    "ort": "Schiers"
+  },
+  {
+    "name": "Mamma Mia",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Freieck",
+    "plz": "8882",
+    "ort": "Quarten"
+  },
+  {
+    "name": "Blumenau",
+    "plz": "8882",
+    "ort": "Quarten"
+  },
+  {
+    "name": "Jackson",
+    "plz": "7130",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Strega",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bräma",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Churchill",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Danis",
+    "plz": "7078",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "FC Sargans",
+    "plz": "7320",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Vanessas Kitchen",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Piz Terri",
+    "plz": "",
+    "ort": "Vrin"
+  },
+  {
+    "name": "Pomodoro",
+    "plz": "7017",
+    "ort": "Flims"
+  },
+  {
+    "name": "Weinstube",
+    "plz": "8737",
+    "ort": "Gomiswald"
+  },
+  {
+    "name": "Piz Mundaun",
+    "plz": "",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Jecklin Getränkehandel",
+    "plz": "",
+    "ort": "Schiers"
+  },
+  {
+    "name": "Getränke Wieland",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Rathaus",
+    "plz": "7304",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "Getränke Candreja",
+    "plz": "",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Alparosa",
+    "plz": "",
+    "ort": "Vals"
+  },
+  {
+    "name": "Post",
+    "plz": "",
+    "ort": "Rhäzüns"
+  },
+  {
+    "name": "Wagner",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "El Gusto",
+    "plz": "7320",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Cooma",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Gansplatz",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Cresta",
+    "plz": "7186",
+    "ort": "Segnas"
+  },
+  {
+    "name": "L'angolo die sapori",
+    "plz": "",
+    "ort": "Rueun"
+  },
+  {
+    "name": "Ustria Cresta",
+    "plz": "",
+    "ort": "Segnas"
+  },
+  {
+    "name": "Jones",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Oberalp",
+    "plz": "",
+    "ort": "Bonaduz"
+  },
+  {
+    "name": "Sportplatz Schluein",
+    "plz": "",
+    "ort": "Schluein"
+  },
+  {
+    "name": "Eisstadion Davos",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Flavours",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Alpina",
+    "plz": "",
+    "ort": "Vals"
+  },
+  {
+    "name": "Unihockey Chur",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Dörfli Bar",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Rössli",
+    "plz": "",
+    "ort": "Bonaduz"
+  },
+  {
+    "name": "Weinstube",
+    "plz": "",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "EHC Chur",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Big Air Chur",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Jodys",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Zollhaus",
+    "plz": "",
+    "ort": "Splügen"
+  },
+  {
+    "name": "Brauerei",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Calanda",
+    "plz": "",
+    "ort": "Haldenstein"
+  },
+  {
+    "name": "Sommerau",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Mottahütte",
+    "plz": "",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Jodys",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Milan Club",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Pizzeria Solaris",
+    "plz": "7428",
+    "ort": "Obergmeind"
+  },
+  {
+    "name": "Villa Davos",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Bellaval",
+    "plz": "",
+    "ort": "Laax"
+  },
+  {
+    "name": "Kebap",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Rheinfels",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Bär",
+    "plz": "",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Bargia",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Pizzeria Paradies",
+    "plz": "7310",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Schäfli",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Sternen",
+    "plz": "",
+    "ort": "Flums"
+  },
+  {
+    "name": "Kanonenbar",
+    "plz": "",
+    "ort": "Klosters-Serneus"
+  },
+  {
+    "name": "Scalettas",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Caruso",
+    "plz": "",
+    "ort": "Bonaduz"
+  },
+  {
+    "name": "Viola Bar",
+    "plz": "",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Tödi",
+    "plz": "7165",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Silvias Besenbeiz",
+    "plz": "",
+    "ort": "Flims"
+  },
+  {
+    "name": "Ella",
+    "plz": "",
+    "ort": "Flims"
+  },
+  {
+    "name": "Royal Kebap",
+    "plz": "",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Tschutt",
+    "plz": "",
+    "ort": "Trun"
+  },
+  {
+    "name": "Waldheim",
+    "plz": "",
+    "ort": "Fürstenau"
+  },
+  {
+    "name": "Falken",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Merz",
+    "plz": "7402",
+    "ort": "Bonaduz"
+  },
+  {
+    "name": "Treff",
+    "plz": "",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Golfrestaurant",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Aurora",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Bundys",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "7 Days",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Reich",
+    "plz": "",
+    "ort": "Sumaprada"
+  },
+  {
+    "name": "Golf",
+    "plz": "",
+    "ort": "Brigels"
+  },
+  {
+    "name": "FC Walenstadt",
+    "plz": "",
+    "ort": "Walenstadt"
+  },
+  {
+    "name": "Alpin Lounge",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Romana",
+    "plz": "",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Big T",
+    "plz": "",
+    "ort": "Rueras"
+  },
+  {
+    "name": "Indigo",
+    "plz": "",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Landhaus",
+    "plz": "",
+    "ort": "Jenaz"
+  },
+  {
+    "name": "Tennisclub Ganda",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Bistro Bahnhöfli",
+    "plz": "7220",
+    "ort": "Schiers"
+  },
+  {
+    "name": "Seehof",
+    "plz": "",
+    "ort": "Laax"
+  },
+  {
+    "name": "Cooma",
+    "plz": "",
+    "ort": "Flims"
+  },
+  {
+    "name": "Cresta",
+    "plz": "",
+    "ort": "Flumserberg"
+  },
+  {
+    "name": "Los",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Falknis",
+    "plz": "",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "City Shop",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Alpine Inn",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Löwen",
+    "plz": "",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "Schlagerparade",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Riders",
+    "plz": "",
+    "ort": "Laax"
+  },
+  {
+    "name": "Stätz da Miez",
+    "plz": "",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Bellevue",
+    "plz": "",
+    "ort": "Flims"
+  },
+  {
+    "name": "Blue Cinema",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Kaufmanns Frauen",
+    "plz": "",
+    "ort": "Flims"
+  },
+  {
+    "name": "Ochsen",
+    "plz": "",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Piz Calmot",
+    "plz": "",
+    "ort": "Andermatt"
+  },
+  {
+    "name": "Krone",
+    "plz": "",
+    "ort": "Churwalden"
+  },
+  {
+    "name": "Schirmbar La Famusa",
+    "plz": "",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Raststätte Viamala",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Da Papa",
+    "plz": "",
+    "ort": "Vals"
+  },
+  {
+    "name": "Clubhotel",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Pizzeria Ganda",
+    "plz": "",
+    "ort": "Landquart"
+  },
+  {
+    "name": "Motta",
+    "plz": "",
+    "ort": "Scuol"
+  },
+  {
+    "name": "Hurti",
+    "plz": "",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Patata",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "HüscheraBar",
+    "plz": "",
+    "ort": "Splügen"
+  },
+  {
+    "name": "Italy",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Bogn Sedrun",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Garage Gort",
+    "plz": "",
+    "ort": "Küblis"
+  },
+  {
+    "name": "Cruna",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Curtginet",
+    "plz": "",
+    "ort": "Waltensburg"
+  },
+  {
+    "name": "Steak House Pizzeria",
+    "plz": "",
+    "ort": "Trübbach"
+  },
+  {
+    "name": "Chrüzli Egga",
+    "plz": "",
+    "ort": "Felsberg"
+  },
+  {
+    "name": "La Tgoma",
+    "plz": "",
+    "ort": "Lantsch/Lenz"
+  },
+  {
+    "name": "Sternen Treff",
+    "plz": "",
+    "ort": "Maienfeld"
+  },
+  {
+    "name": "Balans",
+    "plz": "",
+    "ort": "Malans"
+  },
+  {
+    "name": "Tankstelle Kriesern",
+    "plz": "",
+    "ort": "Kriesern"
+  },
+  {
+    "name": "Ustria Val Sumvitg",
+    "plz": "",
+    "ort": "Surrein"
+  },
+  {
+    "name": "K-Bar",
+    "plz": "",
+    "ort": "Trimmis"
+  },
+  {
+    "name": "Shisha Bar",
+    "plz": "",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Lescha",
+    "plz": "",
+    "ort": "Sarn"
+  },
+  {
+    "name": "Muntsulej",
+    "plz": "",
+    "ort": "Mathon"
+  },
+  {
+    "name": "Pizzakurier",
+    "plz": "",
+    "ort": "Walenstadt"
+  },
+  {
+    "name": "Kuhstall Schamuela",
+    "plz": "",
+    "ort": "Valbella"
+  },
+  {
+    "name": "Rheinwald",
+    "plz": "",
+    "ort": "Nufenen"
+  },
+  {
+    "name": "Zyytlos",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Timeout",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Da Noi",
+    "plz": "",
+    "ort": "Buchs"
+  },
+  {
+    "name": "Kornplatz",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Postresidenz am See",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Gasthaus zum Engel",
+    "plz": "9496",
+    "ort": "Balzers"
+  },
+  {
+    "name": "Sportrestaurant Obere Au",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Kontaktzentrum",
+    "plz": "",
+    "ort": "Mels"
+  },
+  {
+    "name": "Cafe Cappucino",
+    "plz": "",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Loe",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Giacometti",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Laguna",
+    "plz": "",
+    "ort": "Laax"
+  },
+  {
+    "name": "Frosch",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Mountain Plaza",
+    "plz": "7270",
+    "ort": "Davos"
+  },
+  {
+    "name": "Fantasie",
+    "plz": "",
+    "ort": "Sargans"
+  },
+  {
+    "name": "Albani Fest",
+    "plz": "",
+    "ort": "Winterthur"
+  },
+  {
+    "name": "Bernina Bar",
+    "plz": "",
+    "ort": "Thusis"
+  },
+  {
+    "name": "Golfrestaurant",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Luce",
+    "plz": "",
+    "ort": "Vaduz"
+  },
+  {
+    "name": "Swiss Ever",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Sports Zugerland",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Krone",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Vieri Bar",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Raben",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Mastro Alfonso Frangipan",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Rössli",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Arte Povera",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Kreuz",
+    "plz": "",
+    "ort": "Hochdorf"
+  },
+  {
+    "name": "Padelta",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Public Viewing Chur 2024",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Stadtfest Winterthur 2024",
+    "plz": "",
+    "ort": "Winterthur"
+  },
+  {
+    "name": "Openair Frauenfeld 2024",
+    "plz": "",
+    "ort": "Frauenfeld"
+  },
+  {
+    "name": "Ela",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Dinos Pizza",
+    "plz": "7013",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Aquasana",
+    "plz": "",
+    "ort": "Saas"
+  },
+  {
+    "name": "Burgerei",
+    "plz": "",
+    "ort": "Näfels"
+  },
+  {
+    "name": "Openair Gampel",
+    "plz": "",
+    "ort": "Gampel"
+  },
+  {
+    "name": "Seehotel Gotthard",
+    "plz": "",
+    "ort": "Weggis"
+  },
+  {
+    "name": "Eden",
+    "plz": "",
+    "ort": "Ilanz"
+  },
+  {
+    "name": "Pöschtli",
+    "plz": "",
+    "ort": "Obersaxen"
+  },
+  {
+    "name": "Casa Nostra",
+    "plz": "",
+    "ort": "Mels"
+  },
+  {
+    "name": "Rössli",
+    "plz": "",
+    "ort": "Steinhausen"
+  },
+  {
+    "name": "Casa Giovanoli",
+    "plz": "",
+    "ort": "Tomils"
+  },
+  {
+    "name": "Casa Greina",
+    "plz": "",
+    "ort": "Surrein"
+  },
+  {
+    "name": "Mephisto",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Cafe Alexanderplatz",
+    "plz": "",
+    "ort": "Chur"
+  },
+  {
+    "name": "Sil Plaz",
+    "plz": "",
+    "ort": "Surcuolm"
+  },
+  {
+    "name": "Luzia",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Chalet Campino",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Depot Arosa",
+    "plz": "",
+    "ort": "Arosa"
+  },
+  {
+    "name": "Dischma",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Me and All Hotel Flims",
+    "plz": "",
+    "ort": "Flims"
+  },
+  {
+    "name": "Scuntrada",
+    "plz": "",
+    "ort": "Lenzerheide"
+  },
+  {
+    "name": "Pizzeria Fortuna",
+    "plz": "",
+    "ort": "Sedrun"
+  },
+  {
+    "name": "Pizzeria Tennishalle",
+    "plz": "",
+    "ort": "Vaduz"
+  },
+  {
+    "name": "Nevada",
+    "plz": "",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Roof 61",
+    "plz": "8953",
+    "ort": "Dietikon"
+  },
+  {
+    "name": "Hotel Central",
+    "plz": "6353",
+    "ort": "Weggis"
+  },
+  {
+    "name": "The Green Wildmann",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Victoria",
+    "plz": "",
+    "ort": "Weggis"
+  },
+  {
+    "name": "Landgasthof",
+    "plz": "",
+    "ort": "Jenaz"
+  },
+  {
+    "name": "Tapas Bar",
+    "plz": "7310",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Avis",
+    "plz": "",
+    "ort": "Cham"
+  },
+  {
+    "name": "Fratelli del Vecchio",
+    "plz": "9495",
+    "ort": "Triesen"
+  },
+  {
+    "name": "Central",
+    "plz": "7310",
+    "ort": "Bad Ragaz"
+  },
+  {
+    "name": "Stau",
+    "plz": "",
+    "ort": "Davos"
+  },
+  {
+    "name": "Piccolino",
+    "plz": "",
+    "ort": "Luzern"
+  },
+  {
+    "name": "Capetta",
+    "plz": "",
+    "ort": "Avers"
+  },
+  {
+    "name": "Insieme",
+    "plz": "",
+    "ort": "DomatEms"
+  },
+  {
+    "name": "Piz Mitgel",
+    "plz": "",
+    "ort": "Savognin"
+  },
+  {
+    "name": "La Meridiana",
+    "plz": "7000",
+    "ort": "Chur"
+  },
+  {
+    "name": "Stiva Ursus",
+    "plz": "7180",
+    "ort": "Disentis/Muster"
+  },
+  {
+    "name": "Surselva",
+    "plz": "",
+    "ort": "Brigels"
+  },
+  {
+    "name": "Pasta Toni",
+    "plz": "7000",
+    "ort": "Chur"
+  }
+]

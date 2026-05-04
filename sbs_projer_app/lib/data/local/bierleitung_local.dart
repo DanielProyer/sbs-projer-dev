@@ -26,4 +26,5 @@ class BierleitungLocal {
   double? niederdruckBar;
   bool hatFobStop = false;
   bool istGekoppelt = false;
+  bool istAktiv = true;
 }
