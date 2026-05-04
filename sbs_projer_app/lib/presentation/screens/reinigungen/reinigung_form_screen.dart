@@ -58,6 +58,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   bool _fotoUploading = false;
   String? _existingFotoPfad;
 
+  // Lade-Status
+  bool _anlagenLoaded = false;
+
   // Neue Felder
   bool _istKulanz = false;
   bool _istHeinekenMonteur = false;
@@ -176,7 +179,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     } catch (_) {}
 
     // Betrieb → Bergkunde + Rechnungsstellung + Anlagen laden
-    if (betriebId != null) {
+    if (betriebId != null && betriebId.isNotEmpty) {
       try {
         final betrieb = await BetriebRepository.getByServerId(betriebId);
         if (betrieb != null && mounted) {
@@ -186,7 +189,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             if (!_isEdit) _istBergkunde = betrieb.istBergkunde;
           });
         }
-      } catch (_) {}
+      } catch (e) {
+        print('[Reinigung] Betrieb laden fehlgeschlagen: $e');
+      }
 
       try {
         // Alle Anlagen des Betriebs laden
@@ -194,6 +199,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         if (mounted) {
           setState(() {
             _anlagenDesBetrieb = anlagen;
+            _anlagenLoaded = true;
             // Bei neuer Reinigung: alle Anlagen vorausgewählt
             if (!_isEdit && _selectedAnlageIds.isEmpty) {
               _selectedAnlageIds = anlagen
@@ -202,7 +208,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             }
           });
         }
-      } catch (_) {}
+      } catch (e) {
+        print('[Reinigung] Anlagen laden fehlgeschlagen: $e');
+        if (mounted) setState(() => _anlagenLoaded = true);
+      }
 
       // Letzte Reinigung laden (für Vorausfüllung bei neuer Reinigung)
       if (!_isEdit) {
@@ -702,9 +711,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             const SizedBox(height: 8),
 
             // === Anlagen-Auswahl ===
-            if (!_istHeinekenMonteur && _anlagenDesBetrieb.isNotEmpty) ...[
-              _buildAnlagenAuswahl(),
-              const SizedBox(height: 16),
+            if (!_istHeinekenMonteur) ...[
+              if (_anlagenDesBetrieb.isNotEmpty) ...[
+                _buildAnlagenAuswahl(),
+                const SizedBox(height: 16),
+              ] else if (!_anlagenLoaded && _betrieb != null) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+              ],
             ],
 
             // === Zeiterfassung ===
@@ -929,9 +945,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.swap_horiz, size: 20),
-            tooltip: 'Betrieb wechseln',
-            onPressed: _showBetriebWechselDialog,
+            icon: const Icon(Icons.edit, size: 20, color: AppColors.primary),
+            tooltip: 'Betrieb bearbeiten',
+            onPressed: () {
+              context.push('/betriebe/${_betrieb!.serverId ?? _betrieb!.routeId}/bearbeiten');
+            },
           ),
         ],
       ),
