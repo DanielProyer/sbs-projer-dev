@@ -294,19 +294,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     try {
       final r = _existing ?? ReinigungLocal();
 
-      if (!_isEdit) {
-        r.betriebId = _betrieb?.serverId ?? widget.betriebId ?? '';
-        // Multi-Anlagen: anlageIds setzen, anlageId = erste (Backward-Compat)
-        if (_selectedAnlageIds.isNotEmpty) {
-          r.anlageIdsJson = jsonEncode(_selectedAnlageIds.toList());
-          r.anlageId = _selectedAnlageIds.first;
-        } else {
-          r.anlageId = widget.anlageId ?? '';
-        }
-      } else if (_selectedAnlageIds.isNotEmpty) {
-        // Auch bei Edit die anlageIds aktualisieren
+      // Betrieb immer aktualisieren (auch bei Edit, falls gewechselt)
+      r.betriebId = _betrieb?.serverId ?? widget.betriebId ?? r.betriebId;
+      // Multi-Anlagen: anlageIds setzen, anlageId = erste (Backward-Compat)
+      if (_selectedAnlageIds.isNotEmpty) {
         r.anlageIdsJson = jsonEncode(_selectedAnlageIds.toList());
         r.anlageId = _selectedAnlageIds.first;
+      } else if (!_isEdit) {
+        r.anlageId = widget.anlageId ?? '';
       }
 
       r.datum = _datum;
@@ -668,6 +663,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // === Betrieb-Info ===
+            if (_betrieb != null) ...[
+              _buildBetriebCard(),
+              const SizedBox(height: 8),
+            ],
+
             // === Heineken-Monteur Switch ===
             _buildHeinekenMonteurSwitch(),
             const SizedBox(height: 8),
@@ -871,6 +872,146 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildBetriebCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.primary.withAlpha(60)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.store, size: 20, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_betrieb!.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
+                if (_betrieb!.ort != null)
+                  Text(_betrieb!.ort!,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.swap_horiz, size: 20),
+            tooltip: 'Betrieb wechseln',
+            onPressed: _showBetriebWechselDialog,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showBetriebWechselDialog() async {
+    final betriebe = ref
+        .read(betriebeProvider)
+        .where((b) => b.serverId != null && b.status != 'inaktiv')
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    String search = '';
+
+    final selected = await showModalBottomSheet<BetriebLocal>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final filtered = search.isEmpty
+                ? betriebe
+                : betriebe.where((b) {
+                    final q = search.toLowerCase();
+                    return b.name.toLowerCase().contains(q) ||
+                        (b.ort?.toLowerCase().contains(q) ?? false);
+                  }).toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (ctx, scrollController) {
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: SearchBar(
+                        hintText: 'Betrieb suchen...',
+                        leading: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(Icons.search, size: 20),
+                        ),
+                        onChanged: (v) => setSheetState(() => search = v),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollController,
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) {
+                          final b = filtered[i];
+                          final isCurrent =
+                              b.serverId == _betrieb?.serverId;
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isCurrent
+                                  ? AppColors.primary.withAlpha(40)
+                                  : AppColors.primary.withAlpha(15),
+                              child: Icon(Icons.store,
+                                  color: AppColors.primary, size: 18),
+                            ),
+                            title: Text(b.name,
+                                style: TextStyle(
+                                    fontWeight: isCurrent
+                                        ? FontWeight.bold
+                                        : FontWeight.w500)),
+                            subtitle: b.ort != null ? Text(b.ort!) : null,
+                            trailing: isCurrent
+                                ? const Icon(Icons.check,
+                                    color: AppColors.primary, size: 20)
+                                : null,
+                            onTap: () => Navigator.pop(ctx, b),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+
+    if (selected != null && selected.serverId != _betrieb?.serverId && mounted) {
+      setState(() {
+        _betrieb = selected;
+        _rechnungsstellung = selected.rechnungsstellung;
+        _istBergkunde = selected.istBergkunde;
+        _anlagenDesBetrieb = [];
+        _selectedAnlageIds = {};
+      });
+      // Anlagen des neuen Betriebs laden
+      final anlagen =
+          await AnlageRepository.getByBetrieb(selected.serverId!);
+      if (mounted) {
+        setState(() {
+          _anlagenDesBetrieb = anlagen;
+          _selectedAnlageIds =
+              anlagen.map((a) => a.serverId ?? a.routeId).toSet();
+        });
+        if (!_isEdit) await _recalculateHaehne();
+      }
+    }
   }
 
   Widget _buildAnlagenAuswahl() {
