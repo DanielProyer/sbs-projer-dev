@@ -444,15 +444,40 @@ class _ReinigungListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    parts.add(_formatDate(reinigung.datum));
-    if (reinigung.uhrzeitStart != null) {
-      final zeit = reinigung.uhrzeitStart!;
-      parts.add(zeit.length >= 5 ? zeit.substring(0, 5) : zeit);
+    final start = reinigung.uhrzeitStart;
+    final ende = reinigung.uhrzeitEnde;
+    if (start != null) {
+      final s = start.length >= 5 ? start.substring(0, 5) : start;
+      if (ende != null) {
+        final e = ende.length >= 5 ? ende.substring(0, 5) : ende;
+        parts.add('$s – $e');
+      } else {
+        parts.add(s);
+      }
+    }
+    if (start != null && ende != null) {
+      final dauer = _berechneDauer(start, ende);
+      if (dauer != null) parts.add('${dauer} Min.');
     }
     if (reinigung.preisBrutto != null) {
-      parts.add(_chf(reinigung.preisBrutto!));
+      final brutto = (reinigung.preisBrutto! * 20).roundToDouble() / 20;
+      parts.add('${brutto.toStringAsFixed(2)} CHF');
     }
     return parts.join(' · ');
+  }
+
+  static int? _berechneDauer(String start, String ende) {
+    try {
+      final sParts = start.split(':');
+      final eParts = ende.split(':');
+      if (sParts.length < 2 || eParts.length < 2) return null;
+      final startMin = int.parse(sParts[0]) * 60 + int.parse(sParts[1]);
+      final endeMin = int.parse(eParts[0]) * 60 + int.parse(eParts[1]);
+      final diff = endeMin - startMin;
+      return diff > 0 ? diff : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   int get _checkedCount {
