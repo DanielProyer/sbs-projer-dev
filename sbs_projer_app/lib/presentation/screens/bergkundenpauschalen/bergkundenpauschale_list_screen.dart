@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/bergkundenpauschale_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+
+final _nf = NumberFormat('#,##0', 'de_CH');
+String _chf(double v) => '${_nf.format(v.round())} CHF';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -149,7 +153,7 @@ class _BergkundenpauschaleListScreenState
                 const Spacer(),
                 Text(
                   jahrSumme > 0
-                      ? '${filtered.length} – ${jahrSumme.toInt()} CHF'
+                      ? '${filtered.length} – ${_chf(jahrSumme)}'
                       : '${filtered.length} Pauschalen',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
@@ -242,7 +246,7 @@ class _BergkundenpauschaleListScreenState
                   ?.copyWith(color: AppColors.textSecondary)),
           if (summe > 0) ...[
             const SizedBox(width: 8),
-            Text('${summe.toInt()} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -278,7 +282,7 @@ class _BergkundenpauschaleListScreenState
                   ?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
           if (summe > 0) ...[
             const SizedBox(width: 6),
-            Text('${summe.toInt()} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -356,7 +360,9 @@ class _PauschaleListItem extends StatelessWidget {
           child: const Icon(Icons.landscape, color: AppColors.primary, size: 20),
         ),
         title: Text(
-          betriebName ?? 'Unbekannt',
+          betriebOrt != null
+              ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+              : betriebName ?? 'Unbekannt',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(_buildSubtitle()),

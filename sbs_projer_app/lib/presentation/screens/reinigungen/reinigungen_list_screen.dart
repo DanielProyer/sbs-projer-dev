@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+
+final _nf = NumberFormat('#,##0', 'de_CH');
+String _chf(double v) => '${_nf.format(v.round())} CHF';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -66,7 +70,9 @@ class _ReinigungenListScreenState
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final betriebName = betriebNames[r.betriebId]?.toLowerCase() ?? '';
+        final betriebOrt = betriebOrte[r.betriebId]?.toLowerCase() ?? '';
         return betriebName.contains(query) ||
+            betriebOrt.contains(query) ||
             (r.notizen?.toLowerCase().contains(query) ?? false);
       }
       return true;
@@ -162,7 +168,7 @@ class _ReinigungenListScreenState
                 const Spacer(),
                 Text(
                   jahrSumme > 0
-                      ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                      ? '${filtered.length} – ${_chf(jahrSumme)}'
                       : '${filtered.length} Reinigungen',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
@@ -276,7 +282,7 @@ class _ReinigungenListScreenState
                   ?.copyWith(color: AppColors.textSecondary)),
           if (summe > 0) ...[
             const SizedBox(width: 8),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -312,7 +318,7 @@ class _ReinigungenListScreenState
                   ?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
           if (summe > 0) ...[
             const SizedBox(width: 6),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -444,8 +450,7 @@ class _ReinigungListItem extends StatelessWidget {
       parts.add(zeit.length >= 5 ? zeit.substring(0, 5) : zeit);
     }
     if (reinigung.preisBrutto != null) {
-      final brutto = (reinigung.preisBrutto! * 20).roundToDouble() / 20;
-      parts.add('${brutto.toStringAsFixed(2)} CHF');
+      parts.add(_chf(reinigung.preisBrutto!));
     }
     return parts.join(' · ');
   }

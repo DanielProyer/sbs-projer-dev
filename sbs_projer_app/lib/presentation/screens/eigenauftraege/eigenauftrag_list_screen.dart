@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+
+final _nf = NumberFormat('#,##0', 'de_CH');
+String _chf(double v) => '${_nf.format(v.round())} CHF';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -33,9 +37,11 @@ class _EigenauftragListScreenState
     final betriebe = ref.watch(betriebeProvider);
 
     final betriebNames = <String, String>{};
+    final betriebOrte = <String, String>{};
     for (final b in betriebe) {
       if (b.serverId != null) {
         betriebNames[b.serverId!] = b.name;
+        if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
       }
     }
 
@@ -61,7 +67,12 @@ class _EigenauftragListScreenState
             (e.betriebId != null ? betriebNames[e.betriebId!] : null)
                     ?.toLowerCase() ??
                 '';
+        final betriebOrt =
+            (e.betriebId != null ? betriebOrte[e.betriebId!] : null)
+                    ?.toLowerCase() ??
+                '';
         return betriebName.contains(query) ||
+            betriebOrt.contains(query) ||
             e.stoerungsnummer.toLowerCase().contains(query) ||
             e.problemBeschreibung.toLowerCase().contains(query) ||
             (e.notizen?.toLowerCase().contains(query) ?? false);
@@ -159,7 +170,7 @@ class _EigenauftragListScreenState
                 const Spacer(),
                 Text(
                   jahrSumme > 0
-                      ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                      ? '${filtered.length} – ${_chf(jahrSumme)}'
                       : '${filtered.length} Eigenaufträge',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
@@ -200,6 +211,9 @@ class _EigenauftragListScreenState
                         eigenauftrag: entry,
                         betriebName: entry.betriebId != null
                             ? betriebNames[entry.betriebId!]
+                            : null,
+                        betriebOrt: entry.betriebId != null
+                            ? betriebOrte[entry.betriebId!]
                             : null,
                         onTap: () =>
                             context.push('/eigenauftraege/${entry.routeId}'),
@@ -274,7 +288,7 @@ class _EigenauftragListScreenState
                   ?.copyWith(color: AppColors.textSecondary)),
           if (summe > 0) ...[
             const SizedBox(width: 8),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -310,7 +324,7 @@ class _EigenauftragListScreenState
                   ?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
           if (summe > 0) ...[
             const SizedBox(width: 6),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -384,11 +398,13 @@ class _TagesGruppe {
 class _EigenauftragListItem extends StatelessWidget {
   final EigenauftragLocal eigenauftrag;
   final String? betriebName;
+  final String? betriebOrt;
   final VoidCallback onTap;
 
   const _EigenauftragListItem({
     required this.eigenauftrag,
     this.betriebName,
+    this.betriebOrt,
     required this.onTap,
   });
 
@@ -432,10 +448,14 @@ class _EigenauftragListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    if (betriebName != null) parts.add(betriebName!);
+    if (betriebOrt != null && betriebName != null) {
+      parts.add('$betriebOrt – $betriebName');
+    } else if (betriebName != null) {
+      parts.add(betriebName!);
+    }
     parts.add(_formatDate(eigenauftrag.datum));
     if (eigenauftrag.pauschale != null) {
-      parts.add('${eigenauftrag.pauschale!.toStringAsFixed(2)} CHF');
+      parts.add(_chf(eigenauftrag.pauschale!));
     }
     return parts.join(' · ');
   }

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+
+final _nf = NumberFormat('#,##0', 'de_CH');
+String _chf(double v) => '${_nf.format(v.round())} CHF';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -33,9 +37,11 @@ class _StoerungenListScreenState
     final betriebe = ref.watch(betriebeProvider);
 
     final betriebNames = <String, String>{};
+    final betriebOrte = <String, String>{};
     for (final b in betriebe) {
       if (b.serverId != null) {
         betriebNames[b.serverId!] = b.name;
+        if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
       }
     }
 
@@ -61,7 +67,12 @@ class _StoerungenListScreenState
             (s.betriebId != null ? betriebNames[s.betriebId!] : null)
                     ?.toLowerCase() ??
                 '';
+        final betriebOrt =
+            (s.betriebId != null ? betriebOrte[s.betriebId!] : null)
+                    ?.toLowerCase() ??
+                '';
         return betriebName.contains(query) ||
+            betriebOrt.contains(query) ||
             (s.stoerungsnummer?.toLowerCase().contains(query) ?? false) ||
             (s.referenzNr?.toLowerCase().contains(query) ?? false) ||
             s.problemBeschreibung.toLowerCase().contains(query) ||
@@ -160,7 +171,7 @@ class _StoerungenListScreenState
                 const Spacer(),
                 Text(
                   jahrSumme > 0
-                      ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                      ? '${filtered.length} – ${_chf(jahrSumme)}'
                       : '${filtered.length} Störungen',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
@@ -201,6 +212,9 @@ class _StoerungenListScreenState
                         stoerung: entry,
                         betriebName: entry.betriebId != null
                             ? betriebNames[entry.betriebId!]
+                            : null,
+                        betriebOrt: entry.betriebId != null
+                            ? betriebOrte[entry.betriebId!]
                             : null,
                         onTap: () =>
                             context.push('/stoerungen/${entry.routeId}'),
@@ -275,7 +289,7 @@ class _StoerungenListScreenState
                   ?.copyWith(color: AppColors.textSecondary)),
           if (summe > 0) ...[
             const SizedBox(width: 8),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -311,7 +325,7 @@ class _StoerungenListScreenState
                   ?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
           if (summe > 0) ...[
             const SizedBox(width: 6),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -385,11 +399,13 @@ class _TagesGruppe {
 class _StoerungListItem extends StatelessWidget {
   final StoerungLocal stoerung;
   final String? betriebName;
+  final String? betriebOrt;
   final VoidCallback onTap;
 
   const _StoerungListItem({
     required this.stoerung,
     this.betriebName,
+    this.betriebOrt,
     required this.onTap,
   });
 
@@ -439,13 +455,17 @@ class _StoerungListItem extends StatelessWidget {
   String _buildSubtitle() {
     final parts = <String>[];
     if (stoerung.referenzNr != null) parts.add('HN-${stoerung.referenzNr}');
-    if (betriebName != null) parts.add(betriebName!);
+    if (betriebOrt != null && betriebName != null) {
+      parts.add('$betriebOrt – $betriebName');
+    } else if (betriebName != null) {
+      parts.add(betriebName!);
+    }
     parts.add(_formatDate(stoerung.datum));
     if (stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty) {
       parts.add('Bereich ${stoerung.stoerungBereiche!.join(', ')}');
     }
     if (stoerung.preisNetto != null) {
-      parts.add('${stoerung.preisNetto!.toStringAsFixed(2)} CHF');
+      parts.add(_chf(stoerung.preisNetto!));
     }
     return parts.join(' · ');
   }

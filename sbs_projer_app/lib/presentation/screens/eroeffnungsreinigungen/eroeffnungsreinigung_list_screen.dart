@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+
+final _nf = NumberFormat('#,##0', 'de_CH');
+String _chf(double v) => '${_nf.format(v.round())} CHF';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -32,9 +36,11 @@ class _EroeffnungsreinigungListScreenState
     final betriebe = ref.watch(betriebeProvider);
 
     final betriebNames = <String, String>{};
+    final betriebOrte = <String, String>{};
     for (final b in betriebe) {
       if (b.serverId != null) {
         betriebNames[b.serverId!] = b.name;
+        if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
       }
     }
 
@@ -59,7 +65,12 @@ class _EroeffnungsreinigungListScreenState
             (e.betriebId != null ? betriebNames[e.betriebId!] : null)
                     ?.toLowerCase() ??
                 '';
+        final betriebOrt =
+            (e.betriebId != null ? betriebOrte[e.betriebId!] : null)
+                    ?.toLowerCase() ??
+                '';
         return betriebName.contains(query) ||
+            betriebOrt.contains(query) ||
             e.stoerungsnummer.toLowerCase().contains(query);
       }
       return true;
@@ -142,7 +153,7 @@ class _EroeffnungsreinigungListScreenState
                 const Spacer(),
                 Text(
                   jahrSumme > 0
-                      ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                      ? '${filtered.length} – ${_chf(jahrSumme)}'
                       : '${filtered.length} Einträge',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
@@ -169,6 +180,9 @@ class _EroeffnungsreinigungListScreenState
                         item: entry,
                         betriebName: entry.betriebId != null
                             ? betriebNames[entry.betriebId!]
+                            : null,
+                        betriebOrt: entry.betriebId != null
+                            ? betriebOrte[entry.betriebId!]
                             : null,
                         onTap: () => context.push(
                             '/eroeffnungsreinigungen/${entry.routeId}'),
@@ -244,7 +258,7 @@ class _EroeffnungsreinigungListScreenState
                   ?.copyWith(color: AppColors.textSecondary)),
           if (summe > 0) ...[
             const SizedBox(width: 8),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -280,7 +294,7 @@ class _EroeffnungsreinigungListScreenState
                   ?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
           if (summe > 0) ...[
             const SizedBox(width: 6),
-            Text('${summe.toStringAsFixed(2)} CHF',
+            Text(_chf(summe),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -338,11 +352,13 @@ class _TagesGruppe {
 class _ListItem extends StatelessWidget {
   final EroeffnungsreinigungLocal item;
   final String? betriebName;
+  final String? betriebOrt;
   final VoidCallback onTap;
 
   const _ListItem({
     required this.item,
     this.betriebName,
+    this.betriebOrt,
     required this.onTap,
   });
 
@@ -384,10 +400,14 @@ class _ListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    if (betriebName != null) parts.add(betriebName!);
+    if (betriebOrt != null && betriebName != null) {
+      parts.add('$betriebOrt – $betriebName');
+    } else if (betriebName != null) {
+      parts.add(betriebName!);
+    }
     parts.add(_formatDate(item.datum));
     if (item.preis != null) {
-      parts.add('${item.preis!.toStringAsFixed(2)} CHF');
+      parts.add(_chf(item.preis!));
     }
     return parts.join(' · ');
   }
