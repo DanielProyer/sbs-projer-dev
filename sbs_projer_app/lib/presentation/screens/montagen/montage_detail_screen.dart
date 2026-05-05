@@ -116,7 +116,8 @@ class _MontageDetailContentState
             children: [
               _TypeChip(
                 label: _montageTypLabel(montage.montageTyp),
-                icon: Icons.build,
+                icon: _montageTypIcon(montage.montageTyp),
+                color: _montageTypColor(montage.montageTyp),
               ),
             ],
           ),
@@ -406,6 +407,48 @@ String _montageTypLabel(String typ) {
   }
 }
 
+IconData _montageTypIcon(String typ) {
+  switch (typ) {
+    case 'neumontage': case 'neu_installation': case 'montage':
+      return Icons.add_circle_outline;
+    case 'demontage': case 'abbau':
+      return Icons.remove_circle_outline;
+    case 'abaenderung': case 'umbau': case 'erweiterung':
+      return Icons.tune;
+    case 'heigenie_service':
+      return Icons.cleaning_services;
+    case 'anlass': case 'anlass_mitarbeit':
+      return Icons.celebration;
+    case 'spesen':
+      return Icons.receipt_long;
+    case 'aufwandsentschaedigung':
+      return Icons.account_balance_wallet;
+    default:
+      return Icons.build;
+  }
+}
+
+Color _montageTypColor(String typ) {
+  switch (typ) {
+    case 'neumontage': case 'neu_installation': case 'montage':
+      return const Color(0xFF16A34A); // Grün
+    case 'demontage': case 'abbau':
+      return const Color(0xFFDC2626); // Rot
+    case 'abaenderung': case 'umbau': case 'erweiterung':
+      return const Color(0xFF2563EB); // Blau
+    case 'heigenie_service':
+      return const Color(0xFF0D9488); // Teal
+    case 'anlass': case 'anlass_mitarbeit':
+      return const Color(0xFF7C3AED); // Violett
+    case 'spesen':
+      return const Color(0xFFD97706); // Amber
+    case 'aufwandsentschaedigung':
+      return const Color(0xFF64748B); // Grau
+    default:
+      return const Color(0xFF6B7280);
+  }
+}
+
 class _BetriebAnlageCard extends StatelessWidget {
   final MontageLocal montage;
 
@@ -474,27 +517,32 @@ class _BetriebAnlageCard extends StatelessWidget {
 class _TypeChip extends StatelessWidget {
   final String label;
   final IconData icon;
+  final Color color;
 
-  const _TypeChip({required this.label, required this.icon});
+  const _TypeChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(25),
+        color: color.withAlpha(25),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withAlpha(50)),
+        border: Border.all(color: color.withAlpha(50)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.primary),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.primary,
+            style: TextStyle(
+              color: color,
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),

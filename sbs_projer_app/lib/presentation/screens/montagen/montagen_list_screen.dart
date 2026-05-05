@@ -368,21 +368,42 @@ String _montageTypLabel(String typ) {
 IconData _montageTypIcon(String typ) {
   switch (typ) {
     case 'neumontage': case 'neu_installation': case 'montage':
-      return Icons.add_circle;
+      return Icons.add_circle_outline;
     case 'demontage': case 'abbau':
-      return Icons.remove_circle;
+      return Icons.remove_circle_outline;
     case 'abaenderung': case 'umbau': case 'erweiterung':
-      return Icons.swap_horiz;
+      return Icons.tune;
     case 'heigenie_service':
       return Icons.cleaning_services;
     case 'anlass': case 'anlass_mitarbeit':
-      return Icons.festival;
+      return Icons.celebration;
     case 'spesen':
-      return Icons.receipt;
+      return Icons.receipt_long;
     case 'aufwandsentschaedigung':
-      return Icons.add_task;
+      return Icons.account_balance_wallet;
     default:
       return Icons.build;
+  }
+}
+
+Color _montageTypColor(String typ) {
+  switch (typ) {
+    case 'neumontage': case 'neu_installation': case 'montage':
+      return const Color(0xFF16A34A); // Grün
+    case 'demontage': case 'abbau':
+      return const Color(0xFFDC2626); // Rot
+    case 'abaenderung': case 'umbau': case 'erweiterung':
+      return const Color(0xFF2563EB); // Blau
+    case 'heigenie_service':
+      return const Color(0xFF0D9488); // Teal
+    case 'anlass': case 'anlass_mitarbeit':
+      return const Color(0xFF7C3AED); // Violett
+    case 'spesen':
+      return const Color(0xFFD97706); // Amber
+    case 'aufwandsentschaedigung':
+      return const Color(0xFF64748B); // Grau
+    default:
+      return const Color(0xFF6B7280);
   }
 }
 
@@ -404,9 +425,9 @@ class _MontageListItem extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.primary.withAlpha(25),
+          backgroundColor: _montageTypColor(montage.montageTyp).withAlpha(25),
           child: Icon(_montageTypIcon(montage.montageTyp),
-              color: AppColors.primary, size: 20),
+              color: _montageTypColor(montage.montageTyp), size: 20),
         ),
         title: Text(
           betriebOrt != null
