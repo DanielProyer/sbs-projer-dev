@@ -31,9 +31,6 @@ class _PreisVersionFormScreenState
   final _mwstSatzCtrl = TextEditingController();
   final _mwstSatzRedCtrl = TextEditingController();
 
-  // Heineken
-  final _poNummerCtrl = TextEditingController();
-
   // Reinigung Grundtarife
   final _reinBierCtrl = TextEditingController();
   final _reinOrionCtrl = TextEditingController();
@@ -97,7 +94,6 @@ class _PreisVersionFormScreenState
     } else {
       _mwstSatzCtrl.text = '8.10';
       _mwstSatzRedCtrl.text = '2.60';
-      _poNummerCtrl.text = '6100259429';
     }
 
     if (mounted) setState(() => _isLoading = false);
@@ -107,7 +103,6 @@ class _PreisVersionFormScreenState
     _gueltigAb = _isReadOnly ? p.gueltigAb : DateTime.now();
     _mwstSatzCtrl.text = p.mwstSatz.toStringAsFixed(2);
     _mwstSatzRedCtrl.text = p.mwstSatzReduziert.toStringAsFixed(2);
-    _poNummerCtrl.text = p.heinekenPoNummer ?? '';
 
     _reinBierCtrl.text = p.grundtarifReinigungBier.toStringAsFixed(2);
     _reinOrionCtrl.text = p.grundtarifReinigungOrion.toStringAsFixed(2);
@@ -162,9 +157,6 @@ class _PreisVersionFormScreenState
         'gueltig_ab': _gueltigAb.toIso8601String().split('T').first,
         'mwst_satz': _d(_mwstSatzCtrl),
         'mwst_satz_reduziert': _d(_mwstSatzRedCtrl),
-        'heineken_po_nummer': _poNummerCtrl.text.trim().isEmpty
-            ? null
-            : _poNummerCtrl.text.trim(),
         'bergkunden_zuschlag': _d(_bergkundenZCtrl),
         'grundtarif_reinigung_bier': _d(_reinBierCtrl),
         'grundtarif_reinigung_orion': _d(_reinOrionCtrl),
@@ -294,24 +286,22 @@ class _PreisVersionFormScreenState
             ),
             const SizedBox(height: 20),
 
-            // MwSt
-            _sectionHeader('MwSt-Sätze'),
+            // === KATEGORIE 1: MwSt ===
+            _categoryHeader(
+              'MwSt-Sätze',
+              Icons.percent,
+              'Änderung ca. alle 5–10 Jahre',
+            ),
             _numRow('Normal', _mwstSatzCtrl, suffix: '%'),
             _numRow('Reduziert', _mwstSatzRedCtrl, suffix: '%'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            // Heineken
-            _sectionHeader('Heineken'),
-            _textRow('PO-Nummer', _poNummerCtrl),
-            if (!_isReadOnly)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 8),
-                child: Text(
-                  'Kontakte werden unter Einstellungen → Heineken Kontakte verwaltet.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ),
-            const SizedBox(height: 16),
+            // === KATEGORIE 2: Heineken Preise ===
+            _categoryHeader(
+              'Heineken Preise',
+              Icons.business,
+              'Änderung ca. alle 2–5 Jahre',
+            ),
 
             // Reinigung Grundtarife
             _sectionHeader('Reinigung Grundtarife'),
@@ -385,6 +375,35 @@ class _PreisVersionFormScreenState
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _categoryHeader(String title, IconData icon, String subtitle) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border(left: BorderSide(color: AppColors.primary, width: 4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primary, size: 22),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.grey.shade600)),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -469,7 +488,6 @@ class _PreisVersionFormScreenState
   void dispose() {
     _mwstSatzCtrl.dispose();
     _mwstSatzRedCtrl.dispose();
-    _poNummerCtrl.dispose();
     _reinBierCtrl.dispose();
     _reinOrionCtrl.dispose();
     _reinHeigenieCtrl.dispose();
