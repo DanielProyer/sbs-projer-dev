@@ -11,12 +11,14 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
+import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 
 class BetriebDetailScreen extends ConsumerWidget {
@@ -193,6 +195,10 @@ class _BetriebDetailContent extends ConsumerWidget {
           // Anlagen
           if (betrieb.serverId != null)
             _AnlagenSection(betrieb: betrieb),
+
+          // Reinigungen
+          if (betrieb.serverId != null)
+            _ReinigungenSection(betrieb: betrieb),
 
           // Störungen
           if (betrieb.serverId != null)
@@ -1007,6 +1013,113 @@ class _AnlageRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReinigungenSection extends StatelessWidget {
+  final BetriebLocal betrieb;
+
+  const _ReinigungenSection({required this.betrieb});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ReinigungLocal>>(
+      stream: ReinigungRepository.watchByBetrieb(betrieb.serverId!),
+      builder: (context, snapshot) {
+        final reinigungen = snapshot.data ?? [];
+        reinigungen.sort((a, b) => b.datum.compareTo(a.datum));
+        final display = reinigungen.take(5).toList();
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.cleaning_services,
+                        size: 18, color: AppColors.textSecondary),
+                    const SizedBox(width: 8),
+                    const Text('Reinigungen',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    const Spacer(),
+                    Text('${reinigungen.length}',
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13)),
+                  ],
+                ),
+                if (display.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ...display.map((r) => InkWell(
+                        onTap: () =>
+                            context.push('/reinigungen/${r.routeId}'),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              Icon(
+                                r.status == 'abgeschlossen'
+                                    ? Icons.check_circle
+                                    : Icons.hourglass_top,
+                                size: 18,
+                                color: r.status == 'abgeschlossen'
+                                    ? AppColors.success
+                                    : AppColors.warning,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                              if (r.preisBrutto != null)
+                                Text(
+                                  '${r.preisBrutto!.toStringAsFixed(2)} CHF',
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.chevron_right,
+                                  size: 18, color: AppColors.textSecondary),
+                            ],
+                          ),
+                        ),
+                      )),
+                  if (reinigungen.length > 5)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '+ ${reinigungen.length - 5} weitere',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+                if (display.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Noch keine Reinigungen',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
