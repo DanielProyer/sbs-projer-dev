@@ -450,25 +450,23 @@ class _BetriebListItem extends StatelessWidget {
   }
 
   Widget? _buildSubtitle() {
-    final parts = <String>[];
-    if (betrieb.ort != null) parts.add(betrieb.ort!);
-    if (betrieb.betriebNr != null) parts.add('Nr: ${betrieb.betriebNr}');
-    if (parts.isEmpty) return null;
-    return Text(parts.join(' · '));
+    if (betrieb.ort == null) return null;
+    return Text(betrieb.ort!);
   }
 
   Color get _zapfSystemColor {
-    final sys = betrieb.zapfsysteme.isNotEmpty ? betrieb.zapfsysteme.first : '';
+    final sys = betrieb.zapfsysteme.isNotEmpty
+        ? betrieb.zapfsysteme.first.toLowerCase()
+        : '';
     switch (sys) {
       case 'konventionell':
-        return AppColors.success;
       case 'orion':
-        return Colors.orange;
-      case 'heigenie':
+        return AppColors.success;
+      case 'higenie':
         return AppColors.info;
       case 'david':
         return AppColors.textSecondary;
-      case 'veranstaltung':
+      case 'veranstaltungen':
         return AppColors.error;
       default:
         return AppColors.textSecondary;
