@@ -33,9 +33,11 @@ class _ReinigungenListScreenState
     final betriebe = ref.watch(betriebeProvider);
 
     final betriebNames = <String, String>{};
+    final betriebOrte = <String, String>{};
     for (final b in betriebe) {
       if (b.serverId != null) {
         betriebNames[b.serverId!] = b.name;
+        if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
       }
     }
 
@@ -200,6 +202,7 @@ class _ReinigungenListScreenState
                       return _ReinigungListItem(
                         reinigung: entry,
                         betriebName: betriebNames[entry.betriebId],
+                        betriebOrt: betriebOrte[entry.betriebId],
                         onTap: () =>
                             context.push('/reinigungen/${entry.routeId}'),
                       );
@@ -383,11 +386,13 @@ class _TagesGruppe {
 class _ReinigungListItem extends StatelessWidget {
   final ReinigungLocal reinigung;
   final String? betriebName;
+  final String? betriebOrt;
   final VoidCallback onTap;
 
   const _ReinigungListItem({
     required this.reinigung,
     this.betriebName,
+    this.betriebOrt,
     required this.onTap,
   });
 
@@ -401,7 +406,9 @@ class _ReinigungListItem extends StatelessWidget {
               Icon(Icons.cleaning_services, color: _statusColor, size: 20),
         ),
         title: Text(
-          betriebName ?? 'Unbekannter Betrieb',
+          betriebOrt != null
+              ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+              : betriebName ?? 'Unbekannter Betrieb',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(_buildSubtitle()),
