@@ -372,7 +372,9 @@ class _ListItem extends StatelessWidget {
               color: AppColors.primary, size: 20),
         ),
         title: Text(
-          item.stoerungsnummer,
+          betriebOrt != null
+              ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+              : betriebName ?? item.stoerungsnummer,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(_buildSubtitle()),
@@ -400,11 +402,7 @@ class _ListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    if (betriebOrt != null && betriebName != null) {
-      parts.add('$betriebOrt – $betriebName');
-    } else if (betriebName != null) {
-      parts.add(betriebName!);
-    }
+    parts.add(item.stoerungsnummer);
     parts.add(_formatDate(item.datum));
     if (item.preis != null) {
       parts.add(_chf(item.preis!));

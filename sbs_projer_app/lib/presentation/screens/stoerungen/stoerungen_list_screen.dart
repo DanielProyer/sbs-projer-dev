@@ -418,7 +418,9 @@ class _StoerungListItem extends StatelessWidget {
           child: Icon(Icons.warning_amber, color: _statusColor, size: 20),
         ),
         title: Text(
-          stoerung.stoerungsnummer ?? 'Störung',
+          betriebOrt != null
+              ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+              : betriebName ?? stoerung.stoerungsnummer ?? 'Störung',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(_buildSubtitle()),
@@ -454,12 +456,8 @@ class _StoerungListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
+    if (stoerung.stoerungsnummer != null) parts.add(stoerung.stoerungsnummer!);
     if (stoerung.referenzNr != null) parts.add('HN-${stoerung.referenzNr}');
-    if (betriebOrt != null && betriebName != null) {
-      parts.add('$betriebOrt – $betriebName');
-    } else if (betriebName != null) {
-      parts.add(betriebName!);
-    }
     parts.add(_formatDate(stoerung.datum));
     if (stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty) {
       parts.add('Bereich ${stoerung.stoerungBereiche!.join(', ')}');

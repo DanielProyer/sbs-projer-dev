@@ -418,7 +418,9 @@ class _EigenauftragListItem extends StatelessWidget {
               Icon(Icons.build_circle_outlined, color: _statusColor, size: 20),
         ),
         title: Text(
-          eigenauftrag.stoerungsnummer,
+          betriebOrt != null
+              ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+              : betriebName ?? eigenauftrag.stoerungsnummer,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(_buildSubtitle()),
@@ -448,11 +450,7 @@ class _EigenauftragListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    if (betriebOrt != null && betriebName != null) {
-      parts.add('$betriebOrt – $betriebName');
-    } else if (betriebName != null) {
-      parts.add(betriebName!);
-    }
+    parts.add(eigenauftrag.stoerungsnummer);
     parts.add(_formatDate(eigenauftrag.datum));
     if (eigenauftrag.pauschale != null) {
       parts.add(_chf(eigenauftrag.pauschale!));

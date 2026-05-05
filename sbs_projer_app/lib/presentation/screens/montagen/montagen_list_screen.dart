@@ -412,7 +412,9 @@ class _MontageListItem extends StatelessWidget {
               color: AppColors.primary, size: 20),
         ),
         title: Text(
-          _montageTypLabel(montage.montageTyp),
+          betriebOrt != null
+              ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+              : betriebName ?? _montageTypLabel(montage.montageTyp),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(_buildSubtitle()),
@@ -438,11 +440,7 @@ class _MontageListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    if (betriebOrt != null && betriebName != null) {
-      parts.add('$betriebOrt – $betriebName');
-    } else if (betriebName != null) {
-      parts.add(betriebName!);
-    }
+    parts.add(_montageTypLabel(montage.montageTyp));
     parts.add(_formatDate(montage.datum));
     if (montage.dauerStunden != null) {
       parts.add('${montage.dauerStunden!.toStringAsFixed(1)} h');

@@ -420,7 +420,9 @@ class _BetriebListItem extends StatelessWidget {
           child: Icon(Icons.store, color: _statusColor, size: 20),
         ),
         title: Text(
-          betrieb.name,
+          betrieb.ort != null
+              ? '${betrieb.ort} – ${betrieb.name}'
+              : betrieb.name,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: _buildSubtitle(),
@@ -451,7 +453,6 @@ class _BetriebListItem extends StatelessWidget {
 
   Widget? _buildSubtitle() {
     final parts = <String>[];
-    if (betrieb.ort != null) parts.add(betrieb.ort!);
     if (betrieb.betriebNr != null) parts.add('Nr: ${betrieb.betriebNr}');
     if (parts.isEmpty) return null;
     return Text(parts.join(' · '));
