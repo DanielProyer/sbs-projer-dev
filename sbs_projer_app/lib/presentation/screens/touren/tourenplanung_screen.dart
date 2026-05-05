@@ -3,12 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
-import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
-import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
@@ -19,26 +13,15 @@ class TourenplanungScreen extends ConsumerStatefulWidget {
       _TourenplanungScreenState();
 }
 
-class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
-    with SingleTickerProviderStateMixin {
+class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
   late DateTime _selectedDate;
-  String? _selectedRegionId;
-  String? _selectedTyp;
-  late TabController _tabController;
-  List<String>? _vorschlagOrder; // anlageId order for drag & drop
+  bool _initialVorschlagLoaded = false;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   DateTime get _weekStart {
@@ -49,14 +32,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   void _changeWeek(int delta) {
     setState(() {
       _selectedDate = _selectedDate.add(Duration(days: 7 * delta));
-      _vorschlagOrder = null;
+      _initialVorschlagLoaded = false;
     });
   }
 
   void _selectDay(DateTime day) {
     setState(() {
       _selectedDate = day;
-      _vorschlagOrder = null;
+      _initialVorschlagLoaded = false;
     });
   }
 
@@ -68,65 +51,40 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
   @override
   Widget build(BuildContext context) {
-    final betriebe = ref.watch(betriebeProvider);
     final regionen = ref.watch(regionenProvider);
-    final vorschlagReinigungen = ref.watch(tourVorschlagProvider(_selectedDate));
-    final faelligeAnlagen = ref.watch(faelligeAnlagenProvider(_selectedDate));
-    final alleAnlagen = ref.watch(anlagenProvider);
+    final selectedRegionen = ref.watch(selectedRegionenProvider);
+    final selectedFaelligkeit = ref.watch(selectedFaelligkeitProvider);
+    final tagesplan = ref.watch(tagesplanProvider);
+    final dayCounts = ref.watch(tagesCountsProvider(_weekStart));
 
-    // Lookup maps
-    final betriebMap = <String, BetriebLocal>{};
-    for (final b in betriebe) {
-      betriebMap[b.routeId] = b;
-      if (b.serverId != null) betriebMap[b.serverId!] = b;
-    }
-    final anlageMap = <String, AnlageLocal>{};
-    for (final a in alleAnlagen) {
-      anlageMap[a.routeId] = a;
-      if (a.serverId != null) anlageMap[a.serverId!] = a;
+    // Auto-load Vorschlag beim ersten Mal
+    if (!_initialVorschlagLoaded) {
+      _initialVorschlagLoaded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final vorschlag =
+            ref.read(tourVorschlagErweitertProvider(_selectedDate));
+        ref.read(tagesplanProvider.notifier).setFromVorschlag(vorschlag);
+      });
     }
 
-    // Vorschlag: Reinigungen → Anlagen (dedupliziert)
-    final vorschlagAnlagen = <AnlageLocal>[];
-    final seenIds = <String>{};
-    for (final r in vorschlagReinigungen) {
-      final anlage = anlageMap[r.anlageId];
-      if (anlage != null && anlage.status == 'aktiv' && seenIds.add(anlage.routeId)) {
-        final betrieb = betriebMap[anlage.betriebId];
-        if (betrieb == null || isBetriebOffen(betrieb, _selectedDate)) {
-          vorschlagAnlagen.add(anlage);
-        }
+    // Filter anwenden
+    var angezeigt = tagesplan.where((e) {
+      if (selectedRegionen.isNotEmpty &&
+          e.regionId != null &&
+          !selectedRegionen.contains(e.regionId)) {
+        return false;
       }
-    }
-
-    // Apply filters to both lists
-    final filteredVorschlag = _applyFilters(vorschlagAnlagen, betriebMap);
-    final filteredFaellig = _applyFilters(faelligeAnlagen, betriebMap);
-
-    // Manage drag & drop order for Vorschlag tab
-    _vorschlagOrder ??= filteredVorschlag.map((a) => a.routeId).toList();
-    final orderedVorschlag = <AnlageLocal>[];
-    for (final id in _vorschlagOrder!) {
-      final a = filteredVorschlag.firstWhere(
-        (a) => a.routeId == id,
-        orElse: () => filteredVorschlag.first,
-      );
-      if (filteredVorschlag.contains(a) && !orderedVorschlag.contains(a)) {
-        orderedVorschlag.add(a);
+      if (selectedFaelligkeit != null && e.faelligkeit != selectedFaelligkeit) {
+        return false;
       }
-    }
-    // Add any new items not in the order list
-    for (final a in filteredVorschlag) {
-      if (!orderedVorschlag.contains(a)) {
-        orderedVorschlag.add(a);
-      }
-    }
+      return true;
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tourenplanung')),
       body: Column(
         children: [
-          // ─── Wochen-Navigation ───
+          // Wochen-Navigation
           _WeekNavigator(
             weekStart: _weekStart,
             weekNumber: _weekNumber(_selectedDate),
@@ -134,191 +92,63 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             onNext: () => _changeWeek(1),
           ),
 
-          // ─── Tages-Chips ───
+          // Tages-Chips
           _DayChips(
             weekStart: _weekStart,
             selectedDate: _selectedDate,
             onSelect: _selectDay,
-            vorschlagCounts: _buildDayCounts(vorschlagReinigungen, alleAnlagen, betriebMap),
+            counts: dayCounts,
           ),
 
           const Divider(height: 1),
 
-          // ─── Filter ───
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _selectedRegionId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Region',
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('Alle Regionen')),
-                      ...regionen.map((r) => DropdownMenuItem(
-                          value: r.routeId, child: Text(r.name))),
-                    ],
-                    onChanged: (v) => setState(() {
-                      _selectedRegionId = v;
-                      _vorschlagOrder = null;
-                    }),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _selectedTyp,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Anlagentyp',
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Alle Typen')),
-                      DropdownMenuItem(
-                          value: 'Warmanstich', child: Text('Warmanstich')),
-                      DropdownMenuItem(
-                          value: 'Kaltanstich', child: Text('Kaltanstich')),
-                      DropdownMenuItem(
-                          value: 'Buffetanstich',
-                          child: Text('Buffetanstich')),
-                      DropdownMenuItem(value: 'Orion', child: Text('Orion')),
-                    ],
-                    onChanged: (v) => setState(() {
-                      _selectedTyp = v;
-                      _vorschlagOrder = null;
-                    }),
-                  ),
-                ),
-              ],
-            ),
+          // Filter-Zeile
+          _FilterBar(
+            regionen: regionen,
+            selectedRegionen: selectedRegionen,
+            selectedFaelligkeit: selectedFaelligkeit,
+            onRegionenChanged: (regSet) =>
+                ref.read(selectedRegionenProvider.notifier).state = regSet,
+            onFaelligkeitChanged: (f) =>
+                ref.read(selectedFaelligkeitProvider.notifier).state = f,
           ),
 
-          // ─── TabBar ───
-          TabBar(
-            controller: _tabController,
-            tabs: [
-              Tab(text: 'Vorschlag (${orderedVorschlag.length})'),
-              Tab(text: 'Fällig (${filteredFaellig.length})'),
-            ],
+          // Tagesplan-Header
+          _TagesplanHeader(
+            datum: _selectedDate,
+            onLeeren: () =>
+                ref.read(tagesplanProvider.notifier).leeren(),
+            onAusFaelligBefuellen: () {
+              final faellige =
+                  ref.read(faelligeEintraegeProvider(_selectedDate));
+              ref.read(tagesplanProvider.notifier).befuellenAusFaellig(faellige);
+            },
           ),
 
-          // ─── Tab Content ───
+          // Tagesplan-Liste
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Vorschlag Tab (mit Drag & Drop)
-                orderedVorschlag.isEmpty
-                    ? _buildEmpty(
-                        'Kein Vorschlag',
-                        'Vor 4 Wochen wurden am ${_formatDate(_selectedDate.subtract(const Duration(days: 28)))} keine Reinigungen durchgeführt.',
-                      )
-                    : ReorderableListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: orderedVorschlag.length,
-                        onReorder: (oldIndex, newIndex) {
-                          setState(() {
-                            if (newIndex > oldIndex) newIndex--;
-                            final item = _vorschlagOrder!.removeAt(oldIndex);
-                            _vorschlagOrder!.insert(newIndex, item);
-                          });
-                        },
-                        itemBuilder: (context, index) {
-                          final anlage = orderedVorschlag[index];
-                          final betrieb = betriebMap[anlage.betriebId];
-                          return _AnlageListItem(
-                            key: ValueKey(anlage.routeId),
-                            anlage: anlage,
-                            betrieb: betrieb,
-                            selectedDate: _selectedDate,
-                            position: index + 1,
-                            showDragHandle: true,
-                            onTap: () => context
-                                .push('/anlagen/${anlage.routeId}'),
-                          );
-                        },
-                      ),
-
-                // Fällig Tab
-                filteredFaellig.isEmpty
-                    ? _buildEmpty(
-                        'Keine fälligen Anlagen',
-                        'Zum ${_formatDate(_selectedDate)} sind keine Reinigungen fällig.',
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: filteredFaellig.length,
-                        itemBuilder: (context, index) {
-                          final anlage = filteredFaellig[index];
-                          final betrieb = betriebMap[anlage.betriebId];
-                          return _AnlageListItem(
-                            key: ValueKey(anlage.routeId),
-                            anlage: anlage,
-                            betrieb: betrieb,
-                            selectedDate: _selectedDate,
-                            onTap: () => context
-                                .push('/anlagen/${anlage.routeId}'),
-                          );
-                        },
-                      ),
-              ],
-            ),
+            child: angezeigt.isEmpty
+                ? _buildEmpty()
+                : _TagesplanListe(
+                    eintraege: angezeigt,
+                    onReorder: (old, neu) =>
+                        ref.read(tagesplanProvider.notifier).reorder(old, neu),
+                    onDismiss: (id) =>
+                        ref.read(tagesplanProvider.notifier).entfernen(id),
+                    onTap: _navigateToDetail,
+                  ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showFaelligBottomSheet(context),
+        tooltip: 'Fällige Einträge',
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  List<AnlageLocal> _applyFilters(
-      List<AnlageLocal> anlagen, Map<String, BetriebLocal> betriebMap) {
-    return anlagen.where((a) {
-      // Typ-Filter
-      if (_selectedTyp != null && a.typAnlage != _selectedTyp) return false;
-      // Region-Filter
-      if (_selectedRegionId != null) {
-        final betrieb = betriebMap[a.betriebId];
-        if (betrieb == null || betrieb.regionId != _selectedRegionId) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-  }
-
-  /// Zählt pro Wochentag (Mo-Sa) wie viele Vorschlag-Anlagen es gibt.
-  List<int> _buildDayCounts(
-    List<ReinigungLocal> vorschlagReinigungen,
-    List<AnlageLocal> alleAnlagen,
-    Map<String, BetriebLocal> betriebMap,
-  ) {
-    final counts = List<int>.filled(6, 0); // Mo-Sa
-    for (int i = 0; i < 6; i++) {
-      final day = _weekStart.add(Duration(days: i));
-      final referenz = day.subtract(const Duration(days: 28));
-      final von = referenz.subtract(const Duration(days: 2));
-      final bis = referenz.add(const Duration(days: 2));
-      final reinigungen = ref.read(reinigungenProvider);
-      final seen = <String>{};
-      for (final r in reinigungen) {
-        if (r.datum.isAfter(von) && r.datum.isBefore(bis)) {
-          if (seen.add(r.anlageId ?? r.betriebId)) counts[i]++;
-        }
-      }
-    }
-    return counts;
-  }
-
-  Widget _buildEmpty(String title, String subtitle) {
+  Widget _buildEmpty() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -329,14 +159,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                 size: 64, color: AppColors.textSecondary.withAlpha(100)),
             const SizedBox(height: 16),
             Text(
-              title,
+              'Kein Tagesplan',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              subtitle,
+              'Drücke + um fällige Einträge hinzuzufügen,\noder "Aus Fällig befüllen".',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
@@ -348,12 +178,42 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  void _navigateToDetail(TourEintrag eintrag) {
+    switch (eintrag.typ) {
+      case TourEintragTyp.reinigung:
+        if (eintrag.anlageId != null) {
+          context.push('/anlagen/${eintrag.anlageId}');
+        }
+        break;
+      case TourEintragTyp.stoerung:
+        // ID: 's_<routeId>'
+        final id = eintrag.id.substring(2);
+        context.push('/stoerungen/$id');
+        break;
+      case TourEintragTyp.montage:
+      case TourEintragTyp.heigenie:
+        final id = eintrag.id.substring(2);
+        context.push('/montagen/$id');
+        break;
+    }
+  }
+
+  void _showFaelligBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _FaelligBottomSheet(
+        datum: _selectedDate,
+        onHinzufuegen: (eintrag) {
+          ref.read(tagesplanProvider.notifier).hinzufuegen(eintrag);
+        },
+      ),
+    );
   }
 }
 
-// ─── Wochen-Navigation Widget ───
+// ─── Wochen-Navigation ───
 
 class _WeekNavigator extends StatelessWidget {
   final DateTime weekStart;
@@ -407,19 +267,19 @@ class _WeekNavigator extends StatelessWidget {
   }
 }
 
-// ─── Tages-Chips Widget ───
+// ─── Tages-Chips ───
 
 class _DayChips extends StatelessWidget {
   final DateTime weekStart;
   final DateTime selectedDate;
   final void Function(DateTime) onSelect;
-  final List<int> vorschlagCounts;
+  final List<int> counts;
 
   const _DayChips({
     required this.weekStart,
     required this.selectedDate,
     required this.onSelect,
-    required this.vorschlagCounts,
+    required this.counts,
   });
 
   static const _dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -441,7 +301,7 @@ class _DayChips extends StatelessWidget {
           final isToday = day.year == todayDate.year &&
               day.month == todayDate.month &&
               day.day == todayDate.day;
-          final count = vorschlagCounts[i];
+          final count = counts[i];
 
           return GestureDetector(
             onTap: () => onSelect(day),
@@ -466,7 +326,8 @@ class _DayChips extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : AppColors.textSecondary,
+                      color:
+                          isSelected ? Colors.white : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -509,164 +370,662 @@ class _DayChips extends StatelessWidget {
   }
 }
 
-// ─── Anlage List Item ───
+// ─── Filter-Zeile (Multi-Select Region + Fälligkeits-Dropdown) ───
 
-class _AnlageListItem extends StatelessWidget {
-  final AnlageLocal anlage;
-  final BetriebLocal? betrieb;
-  final DateTime selectedDate;
-  final int? position;
-  final bool showDragHandle;
+class _FilterBar extends StatelessWidget {
+  final List<dynamic> regionen;
+  final Set<String> selectedRegionen;
+  final FaelligkeitsStatus? selectedFaelligkeit;
+  final void Function(Set<String>) onRegionenChanged;
+  final void Function(FaelligkeitsStatus?) onFaelligkeitChanged;
+
+  const _FilterBar({
+    required this.regionen,
+    required this.selectedRegionen,
+    required this.selectedFaelligkeit,
+    required this.onRegionenChanged,
+    required this.onFaelligkeitChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+      child: Row(
+        children: [
+          // Region Chips
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ...selectedRegionen.map((id) {
+                    final region = regionen.firstWhere(
+                      (r) => r.routeId == id,
+                      orElse: () => null,
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: FilterChip(
+                        label: Text(region?.name ?? id,
+                            style: const TextStyle(fontSize: 12)),
+                        selected: true,
+                        onSelected: (_) {
+                          final updated = Set<String>.from(selectedRegionen)
+                            ..remove(id);
+                          onRegionenChanged(updated);
+                        },
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  }),
+                  ActionChip(
+                    avatar: const Icon(Icons.add, size: 16),
+                    label: Text(
+                      selectedRegionen.isEmpty ? 'Regionen' : '+',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () => _showRegionenPicker(context),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Fälligkeits-Filter
+          SizedBox(
+            width: 130,
+            child: DropdownButtonFormField<FaelligkeitsStatus?>(
+              value: selectedFaelligkeit,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Fälligkeit',
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              ),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Alle')),
+                DropdownMenuItem(
+                    value: FaelligkeitsStatus.ueberfaellig,
+                    child: Text('Überfällig')),
+                DropdownMenuItem(
+                    value: FaelligkeitsStatus.faellig,
+                    child: Text('Fällig')),
+                DropdownMenuItem(
+                    value: FaelligkeitsStatus.baldFaellig,
+                    child: Text('Bald fällig')),
+              ],
+              onChanged: (v) => onFaelligkeitChanged(v),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRegionenPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setModalState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Text('Regionen auswählen',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    if (selectedRegionen.isNotEmpty)
+                      TextButton(
+                        onPressed: () {
+                          onRegionenChanged({});
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Alle zurücksetzen'),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: regionen.length,
+                  itemBuilder: (_, i) {
+                    final r = regionen[i];
+                    final isChecked = selectedRegionen.contains(r.routeId);
+                    return CheckboxListTile(
+                      title: Text(r.name),
+                      value: isChecked,
+                      onChanged: (checked) {
+                        final updated = Set<String>.from(selectedRegionen);
+                        if (checked == true) {
+                          updated.add(r.routeId);
+                        } else {
+                          updated.remove(r.routeId);
+                        }
+                        onRegionenChanged(updated);
+                        setModalState(() {});
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          );
+        });
+      },
+    );
+  }
+}
+
+// ─── Tagesplan-Header ───
+
+class _TagesplanHeader extends StatelessWidget {
+  final DateTime datum;
+  final VoidCallback onLeeren;
+  final VoidCallback onAusFaelligBefuellen;
+
+  const _TagesplanHeader({
+    required this.datum,
+    required this.onLeeren,
+    required this.onAusFaelligBefuellen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final df = DateFormat('EE, d. MMM', 'de_CH');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+      child: Row(
+        children: [
+          Text(
+            'Tagesplan ${df.format(datum)}',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: onAusFaelligBefuellen,
+            icon: const Icon(Icons.playlist_add, size: 18),
+            label: const Text('Fällig', style: TextStyle(fontSize: 12)),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: onLeeren,
+            icon: const Icon(Icons.clear_all, size: 18),
+            label: const Text('Leeren', style: TextStyle(fontSize: 12)),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              foregroundColor: AppColors.error,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Tagesplan-Liste (ReorderableListView mit Zeitachse) ───
+
+class _TagesplanListe extends StatelessWidget {
+  final List<TourEintrag> eintraege;
+  final void Function(int, int) onReorder;
+  final void Function(String) onDismiss;
+  final void Function(TourEintrag) onTap;
+
+  const _TagesplanListe({
+    required this.eintraege,
+    required this.onReorder,
+    required this.onDismiss,
+    required this.onTap,
+  });
+
+  // Dekorative Zeitmarken je nach Position
+  static const _zeitmarken = ['08:00', '09:00', '10:00', '11:00', '12:00',
+      '13:00', '14:00', '15:00', '16:00', '17:00'];
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 80),
+      itemCount: eintraege.length,
+      onReorder: onReorder,
+      proxyDecorator: (child, index, animation) {
+        return Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(12),
+          child: child,
+        );
+      },
+      itemBuilder: (context, index) {
+        final eintrag = eintraege[index];
+        final zeitmarke =
+            index < _zeitmarken.length ? _zeitmarken[index] : null;
+
+        return Dismissible(
+          key: ValueKey(eintrag.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            color: AppColors.error.withAlpha(30),
+            child: const Icon(Icons.delete_outline, color: AppColors.error),
+          ),
+          onDismissed: (_) => onDismiss(eintrag.id),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Zeitmarke (dekorativ)
+              if (zeitmarke != null && (index % 2 == 0 || index < 4))
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 4, bottom: 2),
+                  child: Text(
+                    zeitmarke,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary.withAlpha(150),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              _TourEintragKarte(
+                eintrag: eintrag,
+                position: index + 1,
+                onTap: () => onTap(eintrag),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Tour-Eintrag Karte ───
+
+class _TourEintragKarte extends StatelessWidget {
+  final TourEintrag eintrag;
+  final int position;
   final VoidCallback onTap;
 
-  const _AnlageListItem({
-    super.key,
-    required this.anlage,
-    this.betrieb,
-    required this.selectedDate,
-    this.position,
-    this.showDragHandle = false,
+  const _TourEintragKarte({
+    required this.eintrag,
+    required this.position,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final faelligkeit = getFaelligkeit(anlage, selectedDate);
+    final color = _typColor(eintrag.typ);
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      child: ListTile(
-        leading: showDragHandle
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ReorderableDragStartListener(
-                    index: (position ?? 1) - 1,
-                    child: const Icon(Icons.drag_handle,
-                        color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(width: 4),
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: _faelligkeitsColor(faelligkeit).withAlpha(25),
-                    child: Text(
-                      '${position ?? ''}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: _faelligkeitsColor(faelligkeit),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : CircleAvatar(
-                backgroundColor: _faelligkeitsColor(faelligkeit).withAlpha(25),
-                child: Icon(
-                  _faelligkeitsIcon(faelligkeit),
-                  color: _faelligkeitsColor(faelligkeit),
-                  size: 20,
-                ),
-              ),
-        title: Text(
-          betrieb?.name ?? 'Unbekannter Betrieb',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_buildSubtitle()),
-            Text(
-              anlage.letzteReinigung != null
-                  ? 'Letzte Reinigung: ${anlage.letzteReinigung!.day.toString().padLeft(2, '0')}.${anlage.letzteReinigung!.month.toString().padLeft(2, '0')}.${anlage.letzteReinigung!.year}'
-                  : 'Noch nie gereinigt',
-              style: TextStyle(
-                fontSize: 12,
-                color: anlage.letzteReinigung != null
-                    ? AppColors.textSecondary
-                    : AppColors.error,
-              ),
-            ),
-          ],
-        ),
-        isThreeLine: true,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (faelligkeit == FaelligkeitsStatus.ueberfaellig)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withAlpha(25),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'überfällig',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.error,
-                  ),
-                ),
-              )
-            else if (faelligkeit == FaelligkeitsStatus.faellig)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withAlpha(25),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'fällig',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.warning,
-                  ),
-                ),
-              ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, size: 20),
-          ],
-        ),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              // Farbbalken links
+              Container(width: 5, color: color),
+              // Inhalt
+              Expanded(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      // Icon
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: color.withAlpha(25),
+                        child: Icon(_typIcon(eintrag.typ),
+                            color: color, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      // Text
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    eintrag.betriebName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (eintrag.betriebOrt != null)
+                                  Text(
+                                    eintrag.betriebOrt!,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    eintrag.beschreibung,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                _StatusBadge(eintrag: eintrag),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Drag Handle
+                      ReorderableDragStartListener(
+                        index: position - 1,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(Icons.drag_handle,
+                              color: AppColors.textSecondary, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  String _buildSubtitle() {
-    final parts = <String>[];
-    if (anlage.bezeichnung != null && anlage.bezeichnung!.isNotEmpty) {
-      parts.add(anlage.bezeichnung!);
-    }
-    if (betrieb?.ort != null) parts.add(betrieb!.ort!);
-    parts.add(anlage.typAnlage);
-    return parts.join(' · ');
-  }
-
-  Color _faelligkeitsColor(FaelligkeitsStatus status) {
-    switch (status) {
-      case FaelligkeitsStatus.ueberfaellig:
-        return AppColors.error;
-      case FaelligkeitsStatus.faellig:
-        return AppColors.warning;
-      case FaelligkeitsStatus.baldFaellig:
+  static Color _typColor(TourEintragTyp typ) {
+    switch (typ) {
+      case TourEintragTyp.reinigung:
         return AppColors.success;
-      case FaelligkeitsStatus.nichtFaellig:
+      case TourEintragTyp.stoerung:
+        return AppColors.error;
+      case TourEintragTyp.montage:
         return AppColors.info;
+      case TourEintragTyp.heigenie:
+        return AppColors.warning;
     }
   }
 
-  IconData _faelligkeitsIcon(FaelligkeitsStatus status) {
-    switch (status) {
-      case FaelligkeitsStatus.ueberfaellig:
-        return Icons.warning;
-      case FaelligkeitsStatus.faellig:
-        return Icons.schedule;
-      case FaelligkeitsStatus.baldFaellig:
-        return Icons.upcoming;
-      case FaelligkeitsStatus.nichtFaellig:
-        return Icons.check_circle_outline;
+  static IconData _typIcon(TourEintragTyp typ) {
+    switch (typ) {
+      case TourEintragTyp.reinigung:
+        return Icons.cleaning_services;
+      case TourEintragTyp.stoerung:
+        return Icons.warning_amber;
+      case TourEintragTyp.montage:
+        return Icons.construction;
+      case TourEintragTyp.heigenie:
+        return Icons.build;
     }
+  }
+}
+
+// ─── Status-Badge ───
+
+class _StatusBadge extends StatelessWidget {
+  final TourEintrag eintrag;
+
+  const _StatusBadge({required this.eintrag});
+
+  @override
+  Widget build(BuildContext context) {
+    String? label;
+    Color? color;
+
+    if (eintrag.faelligkeit == FaelligkeitsStatus.ueberfaellig) {
+      label = 'überfällig';
+      color = AppColors.error;
+    } else if (eintrag.faelligkeit == FaelligkeitsStatus.faellig) {
+      label = 'fällig';
+      color = AppColors.warning;
+    } else if (eintrag.faelligkeit == FaelligkeitsStatus.baldFaellig) {
+      label = 'bald fällig';
+      color = AppColors.success;
+    } else if (eintrag.typ == TourEintragTyp.stoerung) {
+      label = 'offen';
+      color = AppColors.error;
+    } else if (eintrag.typ == TourEintragTyp.montage ||
+        eintrag.typ == TourEintragTyp.heigenie) {
+      label = 'geplant';
+      color = AppColors.info;
+    }
+
+    if (label == null || color == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withAlpha(25),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Fällig-BottomSheet ───
+
+class _FaelligBottomSheet extends ConsumerStatefulWidget {
+  final DateTime datum;
+  final void Function(TourEintrag) onHinzufuegen;
+
+  const _FaelligBottomSheet({
+    required this.datum,
+    required this.onHinzufuegen,
+  });
+
+  @override
+  ConsumerState<_FaelligBottomSheet> createState() =>
+      _FaelligBottomSheetState();
+}
+
+class _FaelligBottomSheetState extends ConsumerState<_FaelligBottomSheet> {
+  TourEintragTyp? _typFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedRegionen = ref.watch(selectedRegionenProvider);
+    final alleEintraege =
+        ref.watch(faelligeEintraegeProvider(widget.datum));
+    final tagesplan = ref.watch(tagesplanProvider);
+    final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
+
+    // Filter anwenden
+    var eintraege = alleEintraege.where((e) {
+      if (_typFilter != null && e.typ != _typFilter) return false;
+      if (selectedRegionen.isNotEmpty &&
+          e.regionId != null &&
+          !selectedRegionen.contains(e.regionId)) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      minChildSize: 0.3,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) => Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+            child: Row(
+              children: [
+                Text(
+                  'Fällige Einträge (${eintraege.length})',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          // Typ-Filter Chips
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildTypChip(null, 'Alle'),
+                  _buildTypChip(TourEintragTyp.reinigung, 'Reinigung'),
+                  _buildTypChip(TourEintragTyp.stoerung, 'Störung'),
+                  _buildTypChip(TourEintragTyp.montage, 'Montage'),
+                  _buildTypChip(TourEintragTyp.heigenie, 'HeiGenie'),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          // Liste
+          Expanded(
+            child: eintraege.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text(
+                        'Keine fälligen Einträge',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: eintraege.length,
+                    itemBuilder: (_, i) {
+                      final e = eintraege[i];
+                      final imPlan = bereitsImPlan.contains(e.id);
+                      return _FaelligEintragKarte(
+                        eintrag: e,
+                        imPlan: imPlan,
+                        onAdd: () {
+                          widget.onHinzufuegen(e);
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypChip(TourEintragTyp? typ, String label) {
+    final isSelected = _typFilter == typ;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: FilterChip(
+        label: Text(label, style: const TextStyle(fontSize: 12)),
+        selected: isSelected,
+        onSelected: (_) => setState(() => _typFilter = typ),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
+// ─── Fällig-Eintrag Karte (im BottomSheet) ───
+
+class _FaelligEintragKarte extends StatelessWidget {
+  final TourEintrag eintrag;
+  final bool imPlan;
+  final VoidCallback onAdd;
+
+  const _FaelligEintragKarte({
+    required this.eintrag,
+    required this.imPlan,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _TourEintragKarte._typColor(eintrag.typ);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: ListTile(
+        dense: true,
+        leading: CircleAvatar(
+          radius: 16,
+          backgroundColor: color.withAlpha(25),
+          child:
+              Icon(_TourEintragKarte._typIcon(eintrag.typ), color: color, size: 16),
+        ),
+        title: Text(
+          eintrag.betriebName,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+        subtitle: Text(
+          eintrag.beschreibung,
+          style: const TextStyle(fontSize: 11),
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _StatusBadge(eintrag: eintrag),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: Icon(
+                imPlan ? Icons.check : Icons.add_circle_outline,
+                color: imPlan ? AppColors.success : AppColors.primary,
+              ),
+              onPressed: imPlan ? null : onAdd,
+              tooltip: imPlan ? 'Bereits im Plan' : 'Zum Tagesplan',
+              iconSize: 22,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
