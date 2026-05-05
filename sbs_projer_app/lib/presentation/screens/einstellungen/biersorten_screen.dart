@@ -13,13 +13,13 @@ class BiersortenScreen extends ConsumerStatefulWidget {
 }
 
 class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
-  static const _kategorien = ['eigen', 'fremd', 'orion', 'wein'];
+  static const _kategorien = ['eigen', 'fremd', 'mineral', 'wein'];
 
   static Color kategorieColor(String kategorie) {
     return switch (kategorie) {
       'eigen' => AppColors.primary,
       'fremd' => Colors.orange.shade700,
-      'orion' => AppColors.info,
+      'mineral' => AppColors.info,
       'wein' => Colors.purple.shade600,
       _ => AppColors.textSecondary,
     };
@@ -29,7 +29,7 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
     return switch (kategorie) {
       'eigen' => 'Eigen (Heineken)',
       'fremd' => 'Fremd',
-      'orion' => 'Orion',
+      'mineral' => 'Mineral/Softgetränke',
       'wein' => 'Wein',
       _ => kategorie,
     };
@@ -39,7 +39,7 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
     return switch (kategorie) {
       'eigen' => 'Eigen',
       'fremd' => 'Fremd',
-      'orion' => 'Orion',
+      'mineral' => 'Mineral',
       'wein' => 'Wein',
       _ => kategorie,
     };
@@ -49,7 +49,7 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
     return switch (kategorie) {
       'eigen' => Icons.star,
       'fremd' => Icons.sports_bar,
-      'orion' => Icons.water_drop,
+      'mineral' => Icons.water_drop,
       'wein' => Icons.wine_bar,
       _ => Icons.local_drink,
     };
