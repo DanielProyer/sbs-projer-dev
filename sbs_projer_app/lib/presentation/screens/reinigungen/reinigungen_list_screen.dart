@@ -401,9 +401,9 @@ class _ReinigungListItem extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: _statusColor.withAlpha(25),
+          backgroundColor: _iconColor.withAlpha(25),
           child:
-              Icon(Icons.cleaning_services, color: _statusColor, size: 20),
+              Icon(Icons.cleaning_services, color: _iconColor, size: 20),
         ),
         title: Text(
           betriebOrt != null
@@ -475,7 +475,11 @@ class _ReinigungListItem extends StatelessWidget {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
-  Color get _statusColor {
+  Color get _iconColor {
+    final art = reinigung.serviceArt;
+    if (art == 'eroeffnungsservice' || art == 'endreinigung') {
+      return Colors.orange;
+    }
     switch (reinigung.status) {
       case 'offen':
         return AppColors.warning;
