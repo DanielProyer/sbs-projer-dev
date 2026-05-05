@@ -103,13 +103,6 @@ class HomeScreen extends ConsumerWidget {
                 onTap: () => context.push('/betriebe'),
               ),
               _DashboardTile(
-                icon: Icons.precision_manufacturing,
-                label: 'Anlagen',
-                count: anlageCount.valueOrNull?.toString(),
-                color: AppColors.info,
-                onTap: () => context.push('/anlagen'),
-              ),
-              _DashboardTile(
                 icon: Icons.cleaning_services,
                 label: 'Reinigungen',
                 count: reinigungCount.valueOrNull?.toString(),
@@ -124,24 +117,24 @@ class HomeScreen extends ConsumerWidget {
                 onTap: () => context.push('/stoerungen'),
               ),
               _DashboardTile(
-                icon: Icons.receipt_long,
-                label: 'Rechnungen',
-                count: offeneRechnungen.valueOrNull != null &&
-                        offeneRechnungen.valueOrNull! > 0
-                    ? '${offeneRechnungen.valueOrNull} offen'
-                    : null,
+                icon: Icons.build,
+                label: 'Montagen',
                 color: AppColors.info,
-                onTap: () => context.push('/rechnungen'),
+                onTap: () => context.push('/montagen'),
               ),
               _DashboardTile(
-                icon: Icons.inventory_2,
-                label: 'Material',
-                count: niedrigCount.valueOrNull != null &&
-                        niedrigCount.valueOrNull! > 0
-                    ? '${niedrigCount.valueOrNull} niedrig'
-                    : null,
-                color: AppColors.warning,
-                onTap: () => context.push('/materialien'),
+                icon: Icons.build_circle_outlined,
+                label: 'Eigenaufträge',
+                count: eigenauftragCount.valueOrNull?.toString(),
+                color: const Color(0xFF7C3AED),
+                onTap: () => context.push('/eigenauftraege'),
+              ),
+              _DashboardTile(
+                icon: Icons.cleaning_services_outlined,
+                label: 'Eröffnungen',
+                count: eroeffnungsreinigungCount.valueOrNull?.toString(),
+                color: AppColors.primary,
+                onTap: () => context.push('/eroeffnungsreinigungen'),
               ),
             ],
           ),
@@ -156,10 +149,19 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 12),
 
           _MenuListTile(
-            icon: Icons.account_balance,
-            label: 'Buchhaltung',
-            count: buchungenCount.valueOrNull?.toString(),
-            onTap: () => context.push('/buchhaltung'),
+            icon: Icons.precision_manufacturing,
+            label: 'Anlagen',
+            count: anlageCount.valueOrNull?.toString(),
+            onTap: () => context.push('/anlagen'),
+          ),
+          _MenuListTile(
+            icon: Icons.receipt_long,
+            label: 'Rechnungen',
+            count: offeneRechnungen.valueOrNull != null &&
+                    offeneRechnungen.valueOrNull! > 0
+                ? '${offeneRechnungen.valueOrNull} offen'
+                : null,
+            onTap: () => context.push('/rechnungen'),
           ),
           _MenuListTile(
             icon: Icons.receipt_long_outlined,
@@ -168,21 +170,19 @@ class HomeScreen extends ConsumerWidget {
             onTap: () => context.push('/heineken'),
           ),
           _MenuListTile(
-            icon: Icons.build_circle_outlined,
-            label: 'Eigenaufträge',
-            count: eigenauftragCount.valueOrNull?.toString(),
-            onTap: () => context.push('/eigenauftraege'),
+            icon: Icons.account_balance,
+            label: 'Buchhaltung',
+            count: buchungenCount.valueOrNull?.toString(),
+            onTap: () => context.push('/buchhaltung'),
           ),
           _MenuListTile(
-            icon: Icons.cleaning_services_outlined,
-            label: 'Eröffnungsreinigungen',
-            count: eroeffnungsreinigungCount.valueOrNull?.toString(),
-            onTap: () => context.push('/eroeffnungsreinigungen'),
-          ),
-          _MenuListTile(
-            icon: Icons.build,
-            label: 'Montagen',
-            onTap: () => context.push('/montagen'),
+            icon: Icons.inventory_2,
+            label: 'Material',
+            count: niedrigCount.valueOrNull != null &&
+                    niedrigCount.valueOrNull! > 0
+                ? '${niedrigCount.valueOrNull} niedrig'
+                : null,
+            onTap: () => context.push('/materialien'),
           ),
           _MenuListTile(
             icon: Icons.nightlight_round,
