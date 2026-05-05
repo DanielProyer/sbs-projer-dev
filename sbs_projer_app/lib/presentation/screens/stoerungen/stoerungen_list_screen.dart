@@ -482,9 +482,6 @@ class _StoerungListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    if (stoerung.stoerungsnummer != null) parts.add(stoerung.stoerungsnummer!);
-    if (stoerung.referenzNr != null) parts.add('HN-${stoerung.referenzNr}');
-    parts.add(_formatDate(stoerung.datum));
     if (stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty) {
       parts.add('Bereich ${stoerung.stoerungBereiche!.join(', ')}');
     }
