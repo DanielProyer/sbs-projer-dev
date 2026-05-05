@@ -7,7 +7,6 @@ import 'package:sbs_projer_app/data/models/preis.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:uuid/uuid.dart';
 
 class PreisVersionFormScreen extends ConsumerStatefulWidget {
   final String? preisId;
@@ -159,7 +158,6 @@ class _PreisVersionFormScreenState
 
     try {
       final data = {
-        'id': const Uuid().v4(),
         'user_id': SupabaseService.dataUserId,
         'gueltig_ab': _gueltigAb.toIso8601String().split('T').first,
         'mwst_satz': _d(_mwstSatzCtrl),
