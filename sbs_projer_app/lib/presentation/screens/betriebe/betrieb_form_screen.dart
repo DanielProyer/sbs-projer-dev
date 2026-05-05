@@ -280,6 +280,66 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Name ist erforderlich' : null,
             ),
+            const SizedBox(height: 12),
+
+            // === Zapfsysteme (direkt unter Name) ===
+            Wrap(
+              spacing: 8,
+              children: ['David', 'Konventionell', 'Higenie', 'Orion', 'Veranstaltungen'].map((system) {
+                final selected = _zapfsysteme.contains(system);
+                return FilterChip(
+                  label: Text(system),
+                  selected: selected,
+                  onSelected: (v) {
+                    setState(() {
+                      if (v) {
+                        _zapfsysteme.add(system);
+                      } else {
+                        _zapfsysteme.remove(system);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            SwitchListTile(
+              title: const Text('Mein Kunde'),
+              value: _istMeinKunde,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _istMeinKunde = v),
+            ),
+            SwitchListTile(
+              title: const Text('Bergkunde'),
+              subtitle: const Text('+100 CHF Zuschlag'),
+              value: _istBergkunde,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _istBergkunde = v),
+            ),
+            if (_istMeinKunde)
+              DropdownButtonFormField<String>(
+                initialValue: _rechnungsstellung,
+                decoration: const InputDecoration(
+                  labelText: 'Rechnungsstellung',
+                  prefixIcon: Icon(Icons.receipt),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'rechnung_mail', child: Text('Per E-Mail')),
+                  DropdownMenuItem(
+                      value: 'rechnung_post', child: Text('Per Post')),
+                  DropdownMenuItem(
+                      value: 'rechnung_tresen', child: Text('Rechnung Tresen')),
+                  DropdownMenuItem(
+                      value: 'barzahlung', child: Text('Barzahlung')),
+                  DropdownMenuItem(
+                      value: 'jahresrechnung', child: Text('Jahresrechnung')),
+                  DropdownMenuItem(
+                      value: 'heineken', child: Text('Via Heineken')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _rechnungsstellung = v);
+                },
+              ),
             const SizedBox(height: 16),
 
             // === Adresse ===
@@ -412,31 +472,6 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _rechnungsstellung,
-              decoration: const InputDecoration(
-                labelText: 'Rechnungsstellung',
-                prefixIcon: Icon(Icons.receipt),
-              ),
-              items: const [
-                DropdownMenuItem(
-                    value: 'rechnung_mail', child: Text('Per E-Mail')),
-                DropdownMenuItem(
-                    value: 'rechnung_post', child: Text('Per Post')),
-                DropdownMenuItem(
-                    value: 'rechnung_tresen', child: Text('Rechnung Tresen')),
-                DropdownMenuItem(
-                    value: 'barzahlung', child: Text('Barzahlung')),
-                DropdownMenuItem(
-                    value: 'jahresrechnung', child: Text('Jahresrechnung')),
-                DropdownMenuItem(
-                    value: 'heineken', child: Text('Via Heineken')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _rechnungsstellung = v);
-              },
-            ),
-            const SizedBox(height: 12),
             // === Region ===
             DropdownButtonFormField<String>(
               initialValue: _regionId,
@@ -455,45 +490,6 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               onChanged: (v) => setState(() => _regionId = v),
             ),
             const SizedBox(height: 12),
-            // === Zapfsysteme ===
-            Text('Zapfsysteme',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: ['David', 'Konventionell', 'Higenie', 'Orion', 'Veranstaltungen'].map((system) {
-                final selected = _zapfsysteme.contains(system);
-                return FilterChip(
-                  label: Text(system),
-                  selected: selected,
-                  onSelected: (v) {
-                    setState(() {
-                      if (v) {
-                        _zapfsysteme.add(system);
-                      } else {
-                        _zapfsysteme.remove(system);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text('Mein Kunde'),
-              value: _istMeinKunde,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istMeinKunde = v),
-            ),
-            SwitchListTile(
-              title: const Text('Bergkunde'),
-              subtitle: const Text('+100 CHF Zuschlag'),
-              value: _istBergkunde,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istBergkunde = v),
-            ),
             SwitchListTile(
               title: const Text('Saisonbetrieb'),
               value: _istSaisonbetrieb,
