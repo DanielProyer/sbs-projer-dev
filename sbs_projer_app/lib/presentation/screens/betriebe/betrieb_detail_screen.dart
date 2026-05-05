@@ -11,14 +11,12 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
-import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
-import 'package:sbs_projer_app/data/repositories/eroeffnungsreinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 
 class BetriebDetailScreen extends ConsumerWidget {
@@ -203,10 +201,6 @@ class _BetriebDetailContent extends ConsumerWidget {
           // Eigenaufträge
           if (betrieb.serverId != null)
             _EigenauftraegeSection(betrieb: betrieb),
-
-          // Eröffnungsreinigungen
-          if (betrieb.serverId != null)
-            _EroeffnungsreinigungenSection(betrieb: betrieb),
 
           // Sync-Info
           if (!betrieb.isSynced)
@@ -948,124 +942,6 @@ class _EigenauftragRow extends StatelessWidget {
   }
 }
 
-class _EroeffnungsreinigungenSection extends StatelessWidget {
-  final BetriebLocal betrieb;
-
-  const _EroeffnungsreinigungenSection({required this.betrieb});
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<EroeffnungsreinigungLocal>>(
-      future: EroeffnungsreinigungRepository.getByBetrieb(betrieb.serverId!),
-      builder: (context, snapshot) {
-        final items = snapshot.data ?? [];
-        final sorted = List<EroeffnungsreinigungLocal>.from(items)
-          ..sort((a, b) => b.datum.compareTo(a.datum));
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.cleaning_services_outlined,
-                        size: 18, color: AppColors.textSecondary),
-                    const SizedBox(width: 8),
-                    const Text('Eröffnungsreinigungen',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const Spacer(),
-                    Text('${items.length}',
-                        style: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 13)),
-                  ],
-                ),
-                if (sorted.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ...sorted.take(5).map((e) => InkWell(
-                        onTap: () => context.push(
-                            '/eroeffnungsreinigungen/${e.routeId}'),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withAlpha(25),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                    Icons.cleaning_services_outlined,
-                                    size: 16,
-                                    color: AppColors.primary),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      e.stoerungsnummer,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Text(
-                                      [
-                                        _formatDate(e.datum),
-                                        if (e.preis != null)
-                                          '${e.preis!.toStringAsFixed(2)} CHF',
-                                        if (e.istBergkunde) 'Bergkunde',
-                                      ].join(' · '),
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.chevron_right,
-                                  size: 18,
-                                  color: AppColors.textSecondary),
-                            ],
-                          ),
-                        ),
-                      )),
-                ],
-                if (!SupabaseService.isGuest) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.push(
-                          '/eroeffnungsreinigungen/neu?betriebId=${betrieb.serverId}'),
-                      icon: const Icon(Icons.add, size: 18),
-                      label:
-                          const Text('Neue Eröffnungsreinigung'),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
 
 class _AnlageRow extends StatelessWidget {
   final AnlageLocal anlage;
