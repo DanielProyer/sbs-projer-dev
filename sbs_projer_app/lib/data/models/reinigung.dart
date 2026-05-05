@@ -176,7 +176,7 @@ class Reinigung {
       anlageIds: json['anlage_ids'] != null
           ? List<String>.from(json['anlage_ids'])
           : [],
-      istAbgerechnet: json['ist_abgerechnet'] ?? false,
+      istAbgerechnet: json['abgerechnet'] ?? false,
       hahnTemperaturenJson: json['hahn_temperaturen'] != null
           ? (json['hahn_temperaturen'] is String
               ? json['hahn_temperaturen']
@@ -239,7 +239,7 @@ class Reinigung {
       'protokoll_foto_pfad': protokollFotoPfad,
       'service_art': serviceArt,
       'anlage_ids': anlageIds.isNotEmpty ? anlageIds : null,
-      'ist_abgerechnet': istAbgerechnet,
+      'abgerechnet': istAbgerechnet,
       'hahn_temperaturen': hahnTemperaturenJson != null
           ? jsonDecode(hahnTemperaturenJson!)
           : null,

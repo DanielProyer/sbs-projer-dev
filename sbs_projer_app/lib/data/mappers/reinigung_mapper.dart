@@ -120,7 +120,7 @@ class ReinigungMapper {
       'protokoll_foto_pfad': local.protokollFotoPfad,
       'service_art': local.serviceArt,
       'anlage_ids': local.anlageIds.isNotEmpty ? local.anlageIds : null,
-      'ist_abgerechnet': local.istAbgerechnet,
+      'abgerechnet': local.istAbgerechnet,
       'hahn_temperaturen': local.hahnTemperaturenJson != null
           ? jsonDecode(local.hahnTemperaturenJson!)
           : null,
