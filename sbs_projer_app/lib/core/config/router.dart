@@ -368,6 +368,10 @@ final router = GoRouter(
       builder: (context, state) => const HeinekenRechnungGenerateScreen(),
     ),
     GoRoute(
+      path: '/heineken/zuweisungen',
+      builder: (context, state) => const HeinekenZuweisungenScreen(),
+    ),
+    GoRoute(
       path: '/heineken/:id',
       builder: (context, state) {
         final id = state.pathParameters['id']!;
@@ -566,10 +570,5 @@ final router = GoRouter(
       },
     ),
 
-    // Heineken Zuweisungen
-    GoRoute(
-      path: '/heineken/zuweisungen',
-      builder: (context, state) => const HeinekenZuweisungenScreen(),
-    ),
   ],
 );
