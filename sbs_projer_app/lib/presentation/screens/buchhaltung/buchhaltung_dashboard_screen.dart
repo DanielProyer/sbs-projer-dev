@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -140,6 +141,18 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             subtitle: 'camt.053 Transaktionen importieren',
             onTap: () => context.push('/buchhaltung/camt-import'),
           ),
+          _NavTile(
+            icon: Icons.document_scanner,
+            title: 'Spesen Scanner',
+            subtitle: 'Kassenzettel scannen & automatisch buchen',
+            onTap: () => context.push('/spesen-scanner'),
+          ),
+          _NavTile(
+            icon: Icons.calendar_month,
+            title: 'Jahresrechnungen',
+            subtitle: 'Sammelrechnungen pro Betrieb erstellen',
+            onTap: () => context.push('/jahresrechnungen'),
+          ),
 
           const SizedBox(height: 24),
 
@@ -164,7 +177,14 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
               ),
             )
           else
-            ...buchungen.take(5).map((b) => Card(
+            ...(List.of(buchungen)
+              ..sort((a, b) {
+                final cmp = b.datum.compareTo(a.datum);
+                if (cmp != 0) return cmp;
+                final catA = a.createdAt ?? a.datum;
+                final catB = b.createdAt ?? b.datum;
+                return catB.compareTo(catA);
+              })).take(5).map((b) => Card(
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: b.istStorniert
@@ -190,7 +210,7 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '${_formatDate(b.datum)} · ${b.sollKonto} → ${b.habenKonto}',
+                      '${_formatDateTime(b)} · ${b.sollKonto} → ${b.habenKonto}',
                       style: const TextStyle(fontSize: 12),
                     ),
                     trailing: Text(
@@ -220,8 +240,16 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
     return namen[m];
   }
 
-  static String _formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  static String _formatDateTime(Buchung b) {
+    final d = b.datum;
+    final date = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    final c = b.createdAt;
+    if (c != null) {
+      final time = '${c.hour.toString().padLeft(2, '0')}:${c.minute.toString().padLeft(2, '0')}';
+      return '$date $time';
+    }
+    return date;
+  }
 }
 
 class _KennzahlCard extends StatelessWidget {

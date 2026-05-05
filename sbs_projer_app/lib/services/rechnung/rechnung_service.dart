@@ -6,11 +6,22 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
+import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
-import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class RechnungService {
+  static double _mwstFaktor = 0.081;
+  static double _mwstSatzProzent = 8.10;
+
+  static Future<void> _loadMwst({DateTime? datum}) async {
+    final preis = await PreisRepository.getAktuell(datum: datum);
+    if (preis != null) {
+      _mwstFaktor = preis.mwstFaktor;
+      _mwstSatzProzent = preis.mwstSatz;
+    }
+  }
+
   static const _invoiceRechnungsstellungen = [
     'rechnung_mail',
     'rechnung_post',
@@ -27,7 +38,15 @@ class RechnungService {
       return null;
     }
 
+    // Keine Rechnung bei Kulanz oder Heineken-Monteur
+    if (reinigung.istKulanz || reinigung.istHeinekenMonteur) {
+      return null;
+    }
+
     try {
+      // 0. MwSt-Satz laden
+      await _loadMwst(datum: reinigung.datum);
+
       // 1. Rechnungsnummer bauen
       final nr = (betrieb.betriebNr ?? '0000').padLeft(4, '0');
       final d = reinigung.datum;
@@ -40,7 +59,7 @@ class RechnungService {
       for (final p in positionen) {
         netto += (p['betrag_netto'] as double);
       }
-      final mwst = _round2(netto * 0.081);
+      final mwst = _round2(netto * _mwstFaktor);
       final brutto = _round2(netto + mwst);
 
       // 3. Rechnung erstellen
@@ -111,13 +130,36 @@ class RechnungService {
   }
 
   /// Baut Rechnungspositionen aus einer Reinigung.
+  /// Wenn preisBrutto direkt gesetzt ist (OCR/manuell) und kein Grundtarif vorhanden,
+  /// wird eine einzige Position "Reinigung gemäss Protokoll" erstellt.
   static List<Map<String, dynamic>> _buildPositionen(
       ReinigungLocal reinigung) {
     final positionen = <Map<String, dynamic>>[];
     int pos = 0;
 
-    // Grundtarif (immer)
-    if (reinigung.preisGrundtarif != null && reinigung.preisGrundtarif! > 0) {
+    // Neuer Workflow: Preis direkt aus Protokoll-Foto (OCR)
+    final hatGrundtarif =
+        reinigung.preisGrundtarif != null && reinigung.preisGrundtarif! > 0;
+
+    if (!hatGrundtarif &&
+        reinigung.preisBrutto != null &&
+        reinigung.preisBrutto! > 0) {
+      // Einzige Position: Netto aus Brutto zurückrechnen
+      final brutto = reinigung.preisBrutto!;
+      final netto = _round2(brutto / (1 + _mwstFaktor));
+      pos++;
+      positionen.add(_position(
+        pos: pos,
+        beschreibung: 'Reinigung gemäss Protokoll',
+        netto: netto,
+        serviceTyp: 'reinigung',
+        serviceId: reinigung.serverId,
+      ));
+      return positionen;
+    }
+
+    // Bisheriger Workflow: Detaillierte Preiskalkulation
+    if (hatGrundtarif) {
       pos++;
       final netto = reinigung.preisGrundtarif!;
       positionen.add(_position(
@@ -126,6 +168,18 @@ class RechnungService {
         netto: netto,
         serviceTyp: 'reinigung',
         serviceId: reinigung.serverId,
+      ));
+    }
+
+    // Weitere zusätzliche Leitungen (Eigen) — direkt nach Grundtarif
+    if (reinigung.anzahlHaehneEigen > 0) {
+      pos++;
+      final netto = reinigung.anzahlHaehneEigen * 18.0;
+      positionen.add(_position(
+        pos: pos,
+        beschreibung:
+            'Weitere zusätzliche Leitungen (×${reinigung.anzahlHaehneEigen})',
+        netto: netto,
       ));
     }
 
@@ -177,29 +231,7 @@ class RechnungService {
       ));
     }
 
-    // Weitere zusätzliche Leitungen
-    if (reinigung.anzahlHaehneEigen > 0) {
-      pos++;
-      final netto = reinigung.anzahlHaehneEigen * 18.0;
-      positionen.add(_position(
-        pos: pos,
-        beschreibung:
-            'Weitere zusätzliche Leitungen (×${reinigung.anzahlHaehneEigen})',
-        netto: netto,
-      ));
-    }
-
-    // Bergkunden-Zuschlag
-    if (reinigung.istBergkunde &&
-        reinigung.bergkundenZuschlag != null &&
-        reinigung.bergkundenZuschlag! > 0) {
-      pos++;
-      positionen.add(_position(
-        pos: pos,
-        beschreibung: 'Bergkunden-Zuschlag',
-        netto: reinigung.bergkundenZuschlag!,
-      ));
-    }
+    // Bergkundenzuschlag wird Heineken verrechnet, NICHT dem Kunden
 
     return positionen;
   }
@@ -211,12 +243,12 @@ class RechnungService {
     String? serviceTyp,
     String? serviceId,
   }) {
-    final mwst = _round2(netto * 0.081);
+    final mwst = _round2(netto * _mwstFaktor);
     return {
       'position': pos,
       'beschreibung': beschreibung,
       'betrag_netto': _round2(netto),
-      'mwst_satz': 8.10,
+      'mwst_satz': _mwstSatzProzent,
       'mwst_betrag': mwst,
       'betrag_brutto': _round2(netto + mwst),
       if (serviceTyp != null) 'service_typ': serviceTyp,

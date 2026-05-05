@@ -45,6 +45,10 @@ class MontageLocal {
   String? material7Id;
   double? material7Menge;
 
+  int? anzahlHaehne;
+  String? protokollFotoPfad;
+  bool istBergkunde = false;
+
   String? notizen;
   DateTime? createdAt;
   DateTime? updatedAt;

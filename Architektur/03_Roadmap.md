@@ -14,6 +14,7 @@ Phase 0: Planung & Analyse         ███████████████
 Phase 1: Setup & Grundlagen        ████████████████████ 100% (Abgeschlossen ✅)
 Phase 2: Core Features (MVP)       ████████████████████ 100% (Abgeschlossen ✅)
 Phase 3: Administration            ████████████████████ 100% (Abgeschlossen ✅)
+Phase 3b: Buchhaltung-Erweiterung  ████████████████████ 100% (Abgeschlossen ✅)
 Phase 4: Polish & Testing          ░░░░░░░░░░░░░░░░░░░░   0% (3-4 Wochen)
 Phase 5: Deployment & Launch       ████░░░░░░░░░░░░░░░░  20% (Vorgezogen 🔄)
 
@@ -512,6 +513,77 @@ Phase 5: Deployment & Launch       ████░░░░░░░░░░░
 
 ---
 
+## PHASE 3b: BUCHHALTUNG-ERWEITERUNG
+
+**Dauer**: 2 Wochen (KW 13-14, 31.03.2026)
+**Status**: Abgeschlossen ✅
+**Fortschritt**: 100%
+
+### Spesen-Scanner mit OCR (Claude Haiku)
+
+- [x] **Supabase Edge Function `parse-beleg`** ✅ (31.03.2026)
+  - Claude Haiku 4.5 API für Beleg-OCR (Schweizer Quittungen)
+  - Erkennt: Geschäft, Datum, Positionen (MwSt 2.6%/8.1%), Total, Zahlungsmethode
+  - Gruppierung nach (kategorie + mwst_satz) — Mischkäufe (Essen + Benzin) als separate Positionen
+  - TWINT/Bar/Karte-Erkennung für automatische Zahlungsweg-Vorauswahl
+  - CORS-Headers für Web-Zugriff
+
+- [x] **Spesen-Scanner Screen** ✅ (31.03.2026)
+  - Kamera öffnet direkt beim Betreten (kein Auswahl-Screen)
+  - OCR-Ergebnis anzeigen (Geschäft, Datum, Positionen, Konfidenz-Badge)
+  - Mischkauf-Info-Banner bei mehreren Positionen
+  - Zahlungsweg-Buttons (Bar/Bank/Privat) mit Auto-Erkennung (TWINT → Privat)
+  - "Buchen"-Button erstellt 1-n Buchungen pro Position
+
+- [x] **Spesen-Import-Service** ✅ (31.03.2026)
+  - Pro Position: Aufwand-Buchung (Soll 5820/6200, Haben 1000/1020/2260)
+  - Pro Position: Vorsteuer-Buchung (Soll 1171, Haben Zahlungskonto)
+  - Beleg-Upload zu Supabase Storage (Bucket: buchungs-belege)
+  - Beleg wird allen Buchungen zugeordnet
+
+- [x] **Beleg-Viewer** ✅ (31.03.2026)
+  - Belege in Buchungs-Detail öffnen via url_launcher (Signed URL)
+
+- [x] **Provider-Invalidation** ✅ (31.03.2026)
+  - Kontenplan/Journal aktualisieren sich automatisch nach Buchung
+  - `kontoSaldiProvider` watched `buchungenStreamProvider`
+
+### camt.053 Bankimport
+
+- [x] **camt.053 XML-Parser** ✅ (31.03.2026)
+  - Schweizer Bankstandard camt.053 importieren
+  - UTF-8 Dekodierung, XML-Parser-Hierarchie
+  - Duplikat-Erkennung (Referenz-basiert)
+  - Auto-Betrieb-Matching
+  - Web File Picker für Datei-Upload
+
+### Termine
+
+- [x] **Termine CRUD** ✅ (31.03.2026)
+  - Termin-Model, Local, Mapper, Repository, Providers
+  - Kalender-Ansicht, Betrieb-Zuordnung
+  - IsarService + Web-Stubs
+  - DB Migration 037
+
+### DB-Migrationen (Phase 3b)
+- `031_gas_typ_aligal1.sql`
+- `032_durchlaufkuehler_ot_dry_cooler.sql`
+- `034_biersorte_eichhof_lager.sql`
+- `035_durchlaufkuehler_cr5_coca_cola.sql`
+- `036_bierleitung_ist_aktiv.sql`
+- `037_termine.sql`
+- `038_beleg_quelle_spesen.sql`
+
+### Deliverables Phase 3b
+- [x] Spesen-Scanner mit OCR (Beleg → Buchung in 1 Tap) ✅
+- [x] Automatische Vorsteuer-Buchungen (Konto 1171) ✅
+- [x] Mischkauf-Handling (Essen + Benzin auf einem Beleg) ✅
+- [x] TWINT/Zahlungsweg-Erkennung ✅
+- [x] camt.053 Bankimport ✅
+- [x] Termine-Modul ✅
+
+---
+
 ## PHASE 4: POLISH & TESTING
 
 **Dauer**: 4 Wochen (KW 20-23, 12.05. - 08.06.2026)
@@ -638,6 +710,7 @@ Phase 5: Deployment & Launch       ████░░░░░░░░░░░
 | **M2.7: Heineken Monatsrechnung** | ✅ 15.03.2026 | 8 Kategorien aggregiert, 6 Rapport-PDFs, Combined PDF |
 | **M2.8: Buchhaltung** | ✅ 15.03.2026 | Kontenplan, Journal, Buchungen, Berichte, Mahnwesen |
 | **M3: Administration komplett** | ✅ 15.03.2026 | Alle Service-Typen, Heineken, Buchhaltung, Mahnwesen |
+| **M3.5: Buchhaltung-Erweiterung** | ✅ 31.03.2026 | Spesen-Scanner OCR, camt.053 Import, Vorsteuer, Termine |
 | **M4: Beta-Testing** | 📅 08.06.2026 | App stabil, Daniel testet |
 | **M5: Launch** | 📅 22.06.2026 | App in Stores, Web live |
 
@@ -727,4 +800,4 @@ Phase 5: Deployment & Launch       ████░░░░░░░░░░░
 
 **Hinweis**: Diese Roadmap ist eine Schätzung und wird während der Entwicklung angepasst. Nach jeder Phase erfolgt eine Review und ggf. Neu-Planung der nächsten Phase.
 
-**Zuletzt aktualisiert**: 18.03.2026 – Tourenplanung Fällig-Tab überarbeitet (dynamische Fälligkeit aus Rhythmus, neue Anlagen sichtbar, Ruhetag-Check entfernt), Dropdown-Erweiterungen (Higenie, Orion, V100, Cola Säule), Kontakt-Handysync, Rechnungsadresse-Verbesserung. 5 offene DB-Migrationen (026-030).
+**Zuletzt aktualisiert**: 31.03.2026 – Phase 3b abgeschlossen: Spesen-Scanner mit OCR (Claude Haiku, Supabase Edge Function), Vorsteuer-Buchungen, TWINT-Erkennung, camt.053 Bankimport, Termine-Modul, Beleg-Viewer, Provider-Invalidation-Fixes. 7 neue DB-Migrationen (031-038). App-Version 0.2.5+7.

@@ -19,7 +19,7 @@ class StoerungMapper {
     local.loesungBeschreibung = dto.loesungBeschreibung;
     local.istPikettEinsatz = dto.istPikettEinsatz;
     local.status = dto.status;
-    local.stoerungBereich = dto.stoerungBereich;
+    local.stoerungBereiche = dto.stoerungBereiche;
     local.preislisteId = dto.preislisteId;
     local.istBergkunde = dto.istBergkunde;
     local.anfahrtKm = dto.anfahrtKm;
@@ -44,6 +44,7 @@ class StoerungMapper {
     local.material5Menge = dto.material5Menge;
     local.abrechnungsMonat = dto.abrechnungsMonat;
     local.abgerechnet = dto.abgerechnet;
+    local.istKilometerabrechnung = dto.istKilometerabrechnung;
     local.notizen = dto.notizen;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
@@ -68,7 +69,7 @@ class StoerungMapper {
       'loesung_beschreibung': local.loesungBeschreibung,
       'ist_pikett_einsatz': local.istPikettEinsatz,
       'status': local.status,
-      'stoerung_bereich': local.stoerungBereich,
+      'stoerung_bereiche': local.stoerungBereiche,
       'preisliste_id': local.preislisteId,
       'ist_bergkunde': local.istBergkunde,
       'anfahrt_km': local.anfahrtKm,
@@ -93,6 +94,7 @@ class StoerungMapper {
       'material_5_menge': local.material5Menge,
       'abrechnungs_monat': local.abrechnungsMonat?.toIso8601String().split('T').first,
       'abgerechnet': local.abgerechnet,
+      'ist_kilometerabrechnung': local.istKilometerabrechnung,
       'notizen': local.notizen,
     };
     if (local.serverId != null) json['id'] = local.serverId;

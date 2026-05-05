@@ -62,7 +62,7 @@ class _StoerungenListScreenState
                     ?.toLowerCase() ??
                 '';
         return betriebName.contains(query) ||
-            s.stoerungsnummer.toLowerCase().contains(query) ||
+            (s.stoerungsnummer?.toLowerCase().contains(query) ?? false) ||
             (s.referenzNr?.toLowerCase().contains(query) ?? false) ||
             s.problemBeschreibung.toLowerCase().contains(query) ||
             (s.notizen?.toLowerCase().contains(query) ?? false);
@@ -402,7 +402,7 @@ class _StoerungListItem extends StatelessWidget {
           child: Icon(Icons.warning_amber, color: _statusColor, size: 20),
         ),
         title: Text(
-          stoerung.stoerungsnummer,
+          stoerung.stoerungsnummer ?? 'Störung',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(_buildSubtitle()),
@@ -441,8 +441,8 @@ class _StoerungListItem extends StatelessWidget {
     if (stoerung.referenzNr != null) parts.add('HN-${stoerung.referenzNr}');
     if (betriebName != null) parts.add(betriebName!);
     parts.add(_formatDate(stoerung.datum));
-    if (stoerung.stoerungBereich != null) {
-      parts.add('Bereich ${stoerung.stoerungBereich}');
+    if (stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty) {
+      parts.add('Bereich ${stoerung.stoerungBereiche!.join(', ')}');
     }
     if (stoerung.preisNetto != null) {
       parts.add('${stoerung.preisNetto!.toStringAsFixed(2)} CHF');

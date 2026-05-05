@@ -66,6 +66,7 @@ class ReinigungLocal {
   String? anlageIdsJson;
   bool istAbgerechnet = false;
   bool wasserKuehlerGewechselt = false;
+  String? hahnTemperaturenJson;
 
   String status = 'offen';
   DateTime? createdAt;

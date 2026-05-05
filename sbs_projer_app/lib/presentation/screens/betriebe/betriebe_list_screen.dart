@@ -16,8 +16,8 @@ class BetriebeListScreen extends ConsumerStatefulWidget {
 
 class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   String _searchQuery = '';
-  String _statusFilter = 'aktiv';
-  String _kundenFilter = 'meine'; // 'alle', 'meine', 'fremde'
+  String _statusFilter = 'alle';
+  String _kundenFilter = 'alle'; // 'alle', 'meine', 'fremde'
   Set<String> _selectedZapfsysteme = {};
   Set<String> _selectedRegionIds = {};
 
@@ -279,6 +279,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 _statusChip('alle', 'Alle'),
                 _statusChip('aktiv', 'Aktiv'),
                 _statusChip('inaktiv', 'Inaktiv'),
+                _statusChip('geschlossen', 'Geschlossen'),
               ],
             ),
 
@@ -462,8 +463,8 @@ class _BetriebListItem extends StatelessWidget {
         return AppColors.aktiv;
       case 'inaktiv':
         return AppColors.inaktiv;
-      case 'saisonpause':
-        return AppColors.saisonpause;
+      case 'geschlossen':
+        return AppColors.geschlossen;
       default:
         return AppColors.textSecondary;
     }

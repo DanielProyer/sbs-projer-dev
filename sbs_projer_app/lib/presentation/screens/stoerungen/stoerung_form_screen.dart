@@ -34,7 +34,6 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   StoerungLocal? _existing;
-  String? _stoerungsnummer;
 
   // Zeiterfassung
   late DateTime _datum;
@@ -43,7 +42,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
 
   // Störungsdetails
   late final _beschreibungController = TextEditingController();
-  int? _stoerungBereich;
+  List<int> _stoerungBereiche = [];
   bool _istPikettWochenende = false;
   bool _istBergkunde = false;
 
@@ -59,15 +58,17 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   final List<TextEditingController> _materialMengenControllers =
       List.generate(5, (_) => TextEditingController(text: '1'));
 
+  // Kilometerabrechnung
+  bool _istKilometerabrechnung = false;
+
   // Betrieb
   String? _betriebId;
+  String? _anlageTyp;
 
   // Preis-Kalkulator
   late final _anfahrtKmController = TextEditingController(text: '0');
   late final _komplexitaetController = TextEditingController(text: '0');
   Map<String, dynamic>? _preisliste;
-
-  String _status = 'offen';
 
   bool get _isEdit => widget.stoerungId != null;
 
@@ -81,8 +82,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
     if (_isEdit) {
       _loadStoerung();
     } else {
-      _generateNummer();
       _loadPreisData();
+      _istPikettWochenende = _shouldAutoPikett();
     }
   }
 
@@ -108,30 +109,26 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _generateNummer() async {
-    final nr = await StoerungRepository.generateStoerungsnummer();
-    if (mounted) setState(() => _stoerungsnummer = nr);
-  }
-
   Future<void> _loadStoerung() async {
     final s = await StoerungRepository.getById(widget.stoerungId!);
     if (s == null || !mounted) return;
 
     setState(() {
       _existing = s;
-      _stoerungsnummer = s.stoerungsnummer;
       _datum = s.datum;
       _heinekennrController.text = s.referenzNr ?? '';
-      _stoerungseingangController.text = s.uhrzeitStart ?? '';
+      final zeit = s.uhrzeitStart ?? '';
+      _stoerungseingangController.text = zeit.length >= 5 ? zeit.substring(0, 5) : zeit;
       _beschreibungController.text = s.problemBeschreibung;
-      _stoerungBereich = s.stoerungBereich;
+      _stoerungBereiche = s.stoerungBereiche ?? [];
       _betriebId = s.betriebId;
+      _anlageTyp = s.anlageTyp;
       _istPikettWochenende = s.istPikettEinsatz;
       _istBergkunde = s.istBergkunde;
+      _istKilometerabrechnung = s.istKilometerabrechnung;
       _notizenController.text = s.notizen ?? '';
       _anfahrtKmController.text = s.anfahrtKm.toString();
       _komplexitaetController.text = (s.komplexitaetZuschlag ?? 0).toStringAsFixed(0);
-      _status = s.status;
 
       // Material IDs + Mengen
       _materialIds[0] = s.material1Id;
@@ -175,13 +172,16 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   }
 
   Map<String, double> _calculatePreis() {
-    if (_preisliste == null || _stoerungBereich == null) return {};
+    if (_preisliste == null || (_stoerungBereiche.isEmpty && !_istKilometerabrechnung)) return {};
     final p = _preisliste!;
 
-    // Basis nach Bereich + Bergkunde (DB: stoerung_1_normal, stoerung_1_bergkunde)
+    // Basis: Summe über alle gewählten Bereiche (0 bei Kilometerabrechnung)
     final keySuffix = _istBergkunde ? 'bergkunde' : 'normal';
-    final basisKey = 'stoerung_${_stoerungBereich}_$keySuffix';
-    final basis = (p[basisKey] as num?)?.toDouble() ?? 0;
+    double basis = 0;
+    for (final b in _stoerungBereiche) {
+      final key = 'stoerung_${b}_$keySuffix';
+      basis += (p[key] as num?)?.toDouble() ?? 0;
+    }
 
     // Anfahrt
     final km = int.tryParse(_anfahrtKmController.text) ?? 0;
@@ -190,7 +190,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
     final kmSatz = (p['stoerung_anfahrt_km_satz'] as num?)?.toDouble() ?? 0.72;
     final anfahrt = km >= kmGrenze ? km * kmSatz : pauschale;
 
-    final wochenende = _istPikettWochenende
+    final wochenende = (_istPikettWochenende && !_istKilometerabrechnung)
         ? ((p['stoerung_wochenende_zuschlag'] as num?)?.toDouble() ?? 0)
         : 0.0;
     final komplex = double.tryParse(_komplexitaetController.text) ?? 0;
@@ -206,7 +206,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
     };
   }
 
-  Future<void> _save({bool abschliessen = false}) async {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -214,33 +214,48 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
     try {
       final s = _existing ?? StoerungLocal();
 
-      if (!_isEdit) {
-        s.anlageId = widget.anlageId;
-        s.stoerungsnummer = _stoerungsnummer!;
+      s.istKilometerabrechnung = _istKilometerabrechnung;
+
+      if (_istKilometerabrechnung) {
+        s.betriebId = null;
+        s.anlageTyp = null;
+        s.stoerungBereiche = null;
+        s.referenzNr = null;
+        s.anlageId = null;
+        // Material leer
+        s.material1Id = null; s.material1Menge = null;
+        s.material2Id = null; s.material2Menge = null;
+        s.material3Id = null; s.material3Menge = null;
+        s.material4Id = null; s.material4Menge = null;
+        s.material5Id = null; s.material5Menge = null;
+      } else {
+        if (!_isEdit) {
+          s.anlageId = widget.anlageId;
+        }
+        s.betriebId = _betriebId;
+        s.anlageTyp = _anlageTyp;
+        s.referenzNr = _emptyToNull(_heinekennrController.text);
+        s.stoerungBereiche = _stoerungBereiche.isEmpty ? null : _stoerungBereiche;
+        // Material-Felder
+        s.material1Id = _materialIds[0];
+        s.material1Menge = _materialIds[0] != null ? _materialMengen[0] : null;
+        s.material2Id = _materialIds[1];
+        s.material2Menge = _materialIds[1] != null ? _materialMengen[1] : null;
+        s.material3Id = _materialIds[2];
+        s.material3Menge = _materialIds[2] != null ? _materialMengen[2] : null;
+        s.material4Id = _materialIds[3];
+        s.material4Menge = _materialIds[3] != null ? _materialMengen[3] : null;
+        s.material5Id = _materialIds[4];
+        s.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
       }
-      s.betriebId = _betriebId;
 
       s.datum = _datum;
-      s.referenzNr = _emptyToNull(_heinekennrController.text);
       s.uhrzeitStart = _emptyToNull(_stoerungseingangController.text);
       s.problemBeschreibung = _beschreibungController.text.trim();
-      s.stoerungBereich = _stoerungBereich;
       s.istPikettEinsatz = _istPikettWochenende;
       s.istBergkunde = _istBergkunde;
       s.istWochenende = _istPikettWochenende;
       s.notizen = _emptyToNull(_notizenController.text);
-
-      // Material-Felder
-      s.material1Id = _materialIds[0];
-      s.material1Menge = _materialIds[0] != null ? _materialMengen[0] : null;
-      s.material2Id = _materialIds[1];
-      s.material2Menge = _materialIds[1] != null ? _materialMengen[1] : null;
-      s.material3Id = _materialIds[2];
-      s.material3Menge = _materialIds[2] != null ? _materialMengen[2] : null;
-      s.material4Id = _materialIds[3];
-      s.material4Menge = _materialIds[3] != null ? _materialMengen[3] : null;
-      s.material5Id = _materialIds[4];
-      s.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
 
       // Preis-Felder
       s.anfahrtKm = int.tryParse(_anfahrtKmController.text) ?? 0;
@@ -254,22 +269,16 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.preisBrutto = preis['total'];
       }
 
-      if (abschliessen) {
-        s.status = 'behoben';
-      } else {
-        s.status = _status;
-      }
+      s.status = 'behoben';
 
       await StoerungRepository.save(s);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(abschliessen
-                ? 'Störung behoben'
-                : _isEdit
-                    ? 'Störung aktualisiert'
-                    : 'Störung erfasst'),
+            content: Text(_isEdit
+                ? (_istKilometerabrechnung ? 'Kilometerabrechnung aktualisiert' : 'Störung aktualisiert')
+                : (_istKilometerabrechnung ? 'Kilometerabrechnung erfasst' : 'Störung erfasst')),
           ),
         );
         if (kIsWeb) ref.invalidate(stoerungenStreamProvider);
@@ -289,6 +298,70 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   String? _emptyToNull(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  // === Auto-Pikett: Wochenende / Feiertag / Abend ===
+
+  bool _shouldAutoPikett() {
+    final isWeekend = _datum.weekday == DateTime.saturday ||
+        _datum.weekday == DateTime.sunday;
+    final isHoliday = _isSwissHoliday(_datum);
+    bool isPikettTime = false;
+    final timeText = _stoerungseingangController.text.trim();
+    if (timeText.contains(':')) {
+      final parts = timeText.split(':');
+      final hour = int.tryParse(parts[0]) ?? 0;
+      if (hour < 7 || hour >= 18) isPikettTime = true;
+      // Freitag ab 17:00 = Pikett
+      if (_datum.weekday == DateTime.friday && hour >= 17) isPikettTime = true;
+    }
+    return isWeekend || isHoliday || isPikettTime;
+  }
+
+  void _updatePikettAuto() {
+    setState(() => _istPikettWochenende = _shouldAutoPikett());
+  }
+
+  bool _isSwissHoliday(DateTime date) {
+    final year = date.year;
+    final d = DateTime(year, date.month, date.day);
+    // Feste Feiertage (Graubünden)
+    final fixed = [
+      DateTime(year, 1, 1), // Neujahr
+      DateTime(year, 1, 2), // Berchtoldstag
+      DateTime(year, 8, 1), // Bundesfeiertag
+      DateTime(year, 12, 25), // Weihnachten
+      DateTime(year, 12, 26), // Stephanstag
+    ];
+    // Bewegliche Feiertage (Ostern-basiert)
+    final easter = _computeEaster(year);
+    final moving = [
+      easter.subtract(const Duration(days: 2)), // Karfreitag
+      easter.add(const Duration(days: 1)), // Ostermontag
+      easter.add(const Duration(days: 39)), // Auffahrt
+      easter.add(const Duration(days: 50)), // Pfingstmontag
+    ];
+    return fixed.any((h) => h == d) ||
+        moving.any((h) =>
+            h.year == d.year && h.month == d.month && h.day == d.day);
+  }
+
+  DateTime _computeEaster(int year) {
+    final a = year % 19;
+    final b = year ~/ 100;
+    final c = year % 100;
+    final d = b ~/ 4;
+    final e = b % 4;
+    final f = (b + 8) ~/ 25;
+    final g = (b - f + 1) ~/ 3;
+    final h = (19 * a + b - d - g + 15) % 30;
+    final i = c ~/ 4;
+    final k = c % 4;
+    final l = (32 + 2 * e + 2 * i - h - k) % 7;
+    final m = (a + 11 * h + 22 * l) ~/ 451;
+    final month = (h + l - 7 * m + 114) ~/ 31;
+    final day = ((h + l - 7 * m + 114) % 31) + 1;
+    return DateTime(year, month, day);
   }
 
   @override
@@ -313,29 +386,59 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEdit ? 'Störung bearbeiten' : 'Neue Störung'),
-        actions: [
-          if (_stoerungsnummer != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Center(
-                child: Text(
-                  _stoerungsnummer!,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-        ],
+        title: Text(_istKilometerabrechnung
+            ? (_isEdit ? 'Kilometerabrechnung bearbeiten' : 'Neue Kilometerabrechnung')
+            : (_isEdit ? 'Störung bearbeiten' : 'Neue Störung')),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // === Kilometerabrechnung Switch ===
+            SwitchListTile(
+              title: const Text('Kilometerabrechnung'),
+              subtitle: const Text('Nur Anfahrt abrechnen (ohne Störung)'),
+              secondary: const Icon(Icons.directions_car),
+              value: _istKilometerabrechnung,
+              activeTrackColor: AppColors.primary,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) {
+                setState(() => _istKilometerabrechnung = v);
+                // Bei neuem Eintrag: Beschreibung aus letzter Km-Abrechnung vorausfüllen
+                if (v && !_isEdit) {
+                  final stoerungen = ref.read(stoerungenProvider);
+                  final letzte = stoerungen
+                      .where((s) => s.istKilometerabrechnung)
+                      .toList()
+                    ..sort((a, b) => b.datum.compareTo(a.datum));
+                  if (letzte.isNotEmpty) {
+                    if (_beschreibungController.text.isEmpty) {
+                      _beschreibungController.text = letzte.first.problemBeschreibung;
+                    }
+                    if (_anfahrtKmController.text == '0') {
+                      _anfahrtKmController.text = letzte.first.anfahrtKm.toString();
+                    }
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // === Betrieb (nur bei normaler Störung) ===
+            if (!_istKilometerabrechnung) ...[
+              _sectionTitle(context, 'Betrieb'),
+              const SizedBox(height: 8),
+              _buildBetriebField(),
+              const SizedBox(height: 16),
+
+              // === Anlagentyp ===
+              _sectionTitle(context, 'Anlagentyp'),
+              const SizedBox(height: 8),
+              _buildAnlageTypChips(),
+              const SizedBox(height: 24),
+            ],
+
             // === Zeiterfassung ===
             _sectionTitle(context, 'Zeiterfassung'),
             const SizedBox(height: 8),
@@ -353,6 +456,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                       );
                       if (picked != null) {
                         setState(() => _datum = picked);
+                        _updatePikettAuto();
                       }
                     },
                     child: InputDecorator(
@@ -364,81 +468,85 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _heinekennrController,
-                    decoration: const InputDecoration(
-                      labelText: 'Heineken-Nr',
-                      prefixIcon: Icon(Icons.tag),
-                      isDense: true,
+                if (!_istKilometerabrechnung) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _heinekennrController,
+                      decoration: const InputDecoration(
+                        labelText: 'Störungsnummer',
+                        prefixIcon: Icon(Icons.tag),
+                        isDense: true,
+                      ),
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
                     ),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
                   ),
+                ],
+              ],
+            ),
+            if (!_istKilometerabrechnung) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _stoerungseingangController,
+                decoration: const InputDecoration(
+                  labelText: 'Störungseingang (Uhrzeit)',
+                  prefixIcon: Icon(Icons.phone_callback),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _stoerungseingangController,
-              decoration: const InputDecoration(
-                labelText: 'Störungseingang (Uhrzeit)',
-                prefixIcon: Icon(Icons.phone_callback),
+                textInputAction: TextInputAction.next,
+                onChanged: (_) => _updatePikettAuto(),
               ),
-              textInputAction: TextInputAction.next,
-            ),
+            ],
             const SizedBox(height: 24),
 
-            // === Betrieb ===
-            _sectionTitle(context, 'Betrieb'),
-            const SizedBox(height: 8),
-            _buildBetriebField(),
-            const SizedBox(height: 24),
-
-            // === Störungsbereich ===
-            _sectionTitle(context, 'Störungsbereich'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              initialValue: _stoerungBereich,
-              decoration: const InputDecoration(
-                labelText: 'Bereich',
-                prefixIcon: Icon(Icons.category),
+            // === Störungsbereiche (nur bei normaler Störung) ===
+            if (!_istKilometerabrechnung) ...[
+              _sectionTitle(context, 'Störungsbereiche'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  _bereichChip(1, 'Zapfhahn/Säule'),
+                  _bereichChip(2, 'Leitung/Python'),
+                  _bereichChip(3, 'Kühler/Vorkühler'),
+                  _bereichChip(4, 'Zapfkopf/Tank'),
+                  _bereichChip(5, 'Gas/Manometer'),
+                ],
               ),
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('1 - Kühlung/Durchlaufkühler')),
-                DropdownMenuItem(value: 2, child: Text('2 - Schankanlage/Zapfhahn')),
-                DropdownMenuItem(value: 3, child: Text('3 - Kühlsystem')),
-                DropdownMenuItem(value: 4, child: Text('4 - Druckgasanlage')),
-                DropdownMenuItem(value: 5, child: Text('5 - Sonstiges')),
-              ],
-              onChanged: (v) => setState(() => _stoerungBereich = v),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
+            ],
 
             // === Beschreibung ===
-            _sectionTitle(context, 'Störungsbeschreibung'),
+            _sectionTitle(context, _istKilometerabrechnung ? 'Beschreibung' : 'Störungsbeschreibung'),
             const SizedBox(height: 8),
             TextFormField(
               controller: _beschreibungController,
-              decoration: const InputDecoration(
-                labelText: 'Beschreibung',
-                prefixIcon: Icon(Icons.description),
+              decoration: InputDecoration(
+                labelText: _istKilometerabrechnung
+                    ? 'Beschreibung (z.B. Fahrt Innerschweiz)'
+                    : 'Beschreibung',
+                prefixIcon: const Icon(Icons.description),
                 alignLabelWithHint: true,
               ),
               maxLines: 3,
               textInputAction: TextInputAction.next,
+              validator: _istKilometerabrechnung
+                  ? (v) => (v == null || v.trim().isEmpty) ? 'Beschreibung erforderlich' : null
+                  : null,
             ),
             const SizedBox(height: 24),
 
-            // === Optionen ===
-            _sectionTitle(context, 'Optionen'),
-            const SizedBox(height: 8),
-            _checkTile('Pikett / Wochenende / Feiertag', _istPikettWochenende,
-                (v) => setState(() => _istPikettWochenende = v)),
-            _checkTile('Bergkunde', _istBergkunde,
-                (v) => setState(() => _istBergkunde = v)),
-            const SizedBox(height: 24),
+            // === Optionen (nur bei normaler Störung) ===
+            if (!_istKilometerabrechnung) ...[
+              _sectionTitle(context, 'Optionen'),
+              const SizedBox(height: 8),
+              _checkTile('Pikett / Wochenende / Feiertag', _istPikettWochenende,
+                  (v) => setState(() => _istPikettWochenende = v)),
+              _checkTile('Bergkunde', _istBergkunde,
+                  (v) => setState(() => _istBergkunde = v)),
+              const SizedBox(height: 24),
+            ],
 
             // === Preiskalkulation ===
             _sectionTitle(context, 'Preiskalkulation'),
@@ -476,7 +584,17 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
             _buildPreisPreview(),
             const SizedBox(height: 24),
 
+            // === Material (nur bei normaler Störung) ===
+            if (!_istKilometerabrechnung) ...[
+              _sectionTitle(context, 'Verwendetes Material'),
+              const SizedBox(height: 8),
+              ..._buildMaterialSlots(),
+              const SizedBox(height: 24),
+            ],
+
             // === Notizen ===
+            _sectionTitle(context, 'Notizen'),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _notizenController,
               decoration: const InputDecoration(
@@ -484,37 +602,22 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                 prefixIcon: Icon(Icons.note),
                 alignLabelWithHint: true,
               ),
-              maxLines: 3,
+              maxLines: 2,
               textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 24),
 
-            // === Material ===
-            _sectionTitle(context, 'Verwendetes Material'),
-            const SizedBox(height: 8),
-            ..._buildMaterialSlots(),
-            const SizedBox(height: 24),
-
             // === Aktionen ===
             FilledButton(
-              onPressed: _isLoading ? null : () => _save(),
+              onPressed: _isLoading ? null : _save,
               child: _isLoading
                   ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(_isEdit ? 'Speichern' : 'Störung erfassen'),
+                  : Text(_isEdit ? 'Speichern' : (_istKilometerabrechnung ? 'Kilometerabrechnung erfassen' : 'Störung erfassen')),
             ),
-            const SizedBox(height: 12),
-            if (_status == 'offen')
-              OutlinedButton.icon(
-                onPressed: _isLoading
-                    ? null
-                    : () => _save(abschliessen: true),
-                icon: const Icon(Icons.check_circle),
-                label: const Text('Störung behoben'),
-              ),
             const SizedBox(height: 32),
           ],
         ),
@@ -533,6 +636,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                 ? Autocomplete<Lager>(
                     initialValue: TextEditingValue(text: _materialControllers[i].text),
                     displayStringForOption: (l) => l.name,
+                    optionsViewOpenDirection: OptionsViewOpenDirection.up,
                     optionsBuilder: (textEditingValue) {
                       if (textEditingValue.text.isEmpty) return _lagerItems.take(10);
                       final q = textEditingValue.text.toLowerCase();
@@ -563,7 +667,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                     },
                     optionsViewBuilder: (context, onSelected, options) {
                       return Align(
-                        alignment: Alignment.topLeft,
+                        alignment: Alignment.bottomLeft,
                         child: Material(
                           elevation: 4,
                           borderRadius: BorderRadius.circular(8),
@@ -621,6 +725,44 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         ],
       ),
     ));
+  }
+
+  String? _autoSelectAnlageTyp(List<String> zapfsysteme) {
+    const mapping = {
+      'David': 'david',
+      'Higenie': 'heigenie',
+      'Konventionell': 'konventionell',
+      'Orion': 'orion',
+    };
+    final gueltig = zapfsysteme
+        .map((z) => mapping[z])
+        .whereType<String>()
+        .toList();
+    return gueltig.length == 1 ? gueltig.first : null;
+  }
+
+  Widget _buildAnlageTypChips() {
+    Widget chip(String value, String label) {
+      final selected = _anlageTyp == value;
+      return FilterChip(
+        label: Text(label),
+        selected: selected,
+        selectedColor: AppColors.primary.withAlpha(40),
+        checkmarkColor: AppColors.primary,
+        onSelected: (v) => setState(() => _anlageTyp = v ? value : null),
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        chip('david', 'David'),
+        chip('heigenie', 'Heigenie'),
+        chip('konventionell', 'Konventionell'),
+        chip('orion', 'Orion'),
+      ],
+    );
   }
 
   Widget _buildBetriebField() {
@@ -700,8 +842,29 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         setState(() {
           _betriebId = b.serverId;
           _istBergkunde = b.istBergkunde;
+          // Anlagentyp vorauswählen aus Zapfsystemen
+          _anlageTyp = _autoSelectAnlageTyp(b.zapfsysteme);
         });
         _loadPreisData();
+      },
+    );
+  }
+
+  Widget _bereichChip(int value, String label) {
+    final selected = _stoerungBereiche.contains(value);
+    return FilterChip(
+      label: Text('$value - $label'),
+      selected: selected,
+      selectedColor: AppColors.primary.withAlpha(40),
+      checkmarkColor: AppColors.primary,
+      onSelected: (v) {
+        setState(() {
+          if (v) {
+            _stoerungBereiche = [..._stoerungBereiche, value]..sort();
+          } else {
+            _stoerungBereiche = _stoerungBereiche.where((b) => b != value).toList();
+          }
+        });
       },
     );
   }
@@ -738,9 +901,11 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           border: Border.all(color: AppColors.divider),
         ),
         child: Text(
-          _stoerungBereich == null
-              ? 'Bitte Störungsbereich wählen'
-              : 'Preisliste wird geladen...',
+          _istKilometerabrechnung
+              ? 'Preisliste wird geladen...'
+              : (_stoerungBereiche.isEmpty
+                  ? 'Bitte Störungsbereich wählen'
+                  : 'Preisliste wird geladen...'),
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
       );
@@ -755,7 +920,11 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       ),
       child: Column(
         children: [
-          _preisRow('Basis (Bereich $_stoerungBereich)', preis['basis']!),
+          if (!_istKilometerabrechnung || preis['basis']! > 0)
+            _preisRow(
+              _istKilometerabrechnung ? 'Basis' : 'Basis (Bereich ${_stoerungBereiche.join(', ')})',
+              preis['basis']!,
+            ),
           if (preis['anfahrt']! > 0)
             _preisRow('Anfahrt', preis['anfahrt']!),
           if (preis['wochenende']! > 0)

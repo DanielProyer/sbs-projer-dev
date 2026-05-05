@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 12.02.2026
+**Stand**: 23.04.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -45,6 +45,46 @@
   - Aktuelle Excel-Datei sichern
   - Letzte Änderungen eintragen
   - Bereit für Import
+
+---
+
+## 🔵 BUCHHALTUNG SCHARFSTELLEN (01.07.2026)
+
+**Detailplan**: `.claude/plans/snuggly-frolicking-pine.md`
+**Strategie**: Sauberer Start — Test-Buchungen loeschen, Eroeffnungsbilanz erfassen
+
+### Features entwickeln (Mai/Juni)
+
+- [ ] **A1: Eroeffnungsbilanz-Screen** (KRITISCH)
+  - Anfangssalden aller Bilanzkonten (Klasse 1+2) per 01.07. erfassen
+  - Gegenkonto 9100 "Eroeffnungsbilanz" anlegen
+  - Soll/Haben-Buchungen automatisch erstellen
+
+- [ ] **A2: Heineken-Rechnung → automatische Buchung** (KRITISCH)
+  - Bei Erstellung Heineken-Monatsrechnung: Soll 1100 / Haben 3400 + MwSt
+  - Aktuell werden KEINE Buchungen erstellt
+
+- [ ] **A3: Zahlungseingang → automatische Buchung** (KRITISCH)
+  - "Als bezahlt markieren" → Soll 1020 (Bank) / Haben 1100 (Debitoren)
+  - Vorlage GF "2" existiert bereits
+
+- [ ] **A4: Wiederkehrende Buchungen** (WICHTIG)
+  - Monatliche Standard-Buchungen mit 1 Klick (Lohn, AHV, Miete, etc.)
+  - Konfigurierbare Liste, Duplikat-Check
+
+- [ ] **A5: Monatsabschluss-Checkliste** (NICE-TO-HAVE)
+  - Automatisch berechnete Checkliste pro Monat
+  - Alle Services gebucht? Heineken-Rechnung? Spesen? Bank-Import?
+
+- [ ] **A6: Kontenplan pruefen & ergaenzen** (KRITISCH)
+  - Konto 9100 (Eroeffnungsbilanz) hinzufuegen
+  - Pruefen ob alle Konten fuer Vollbetrieb vorhanden (Loehne, Sozialversicherungen, etc.)
+
+### Umstellung (25.-30. Juni 2026)
+
+- [ ] **B1: Test-Buchungen loeschen** (nur buchungen + buchungs_belege, NICHT Servicedaten!)
+- [ ] **B2: Eroeffnungsbilanz erfassen** (Daniel: Bank-Saldo, Kasse, Debitoren, MwSt, Eigenkapital etc.)
+- [ ] **B3: Kontroll-Check** (Aktiven = Passiven, Saldi korrekt, Erfolgsrechnung = 0)
 
 ---
 
@@ -99,7 +139,20 @@
 - [x] Regionen-Liste erstellt (11 Regionen)
 - [x] Tech-Stack-Entscheidung (Flutter + Supabase)
 - [x] Datenmodell entworfen
+- [x] Spesen-Scanner mit OCR (Claude Haiku) — Beleg fotografieren → automatische Buchung
+- [x] camt.053 Bankimport — XML-Import, Duplikat-Erkennung, Auto-Betrieb-Matching
+- [x] Vorsteuer-Buchungen (separate MwSt-Einträge auf Konto 1171)
+- [x] TWINT/Karte Zahlungsweg-Erkennung (automatisch aus Beleg)
+- [x] Beleg-Viewer (Belege direkt öffnen statt URL anzeigen)
+- [x] Termine-Modul (Kalender, CRUD, Betrieb-Zuordnung)
+- [x] Störungen UI komplett überarbeitet (Anlagentyp-Filter, Monatsgruppierung, Störungsnummer-Avatar)
+- [x] Störungs-Formular: Anlagentyp-Auswahl mit Betrieb-Vorauswahl
+- [x] Material-Dropdown öffnet nach oben (Mobile-Tastatur-Fix)
+- [x] Uhrzeiten HH:mm statt HH:mm:ss überall
+- [x] Betrieb: Saison ohne Datum anzeigen, Mein-Kunde-Logik bei Zapfsystemen
+- [x] 5-Rappen-Rundung für alle CHF-Beträge
+- [x] Reinigung-Buchung: Automatische Buchung bei Tresen/Mail/Post
 
 ---
 
-**Zuletzt aktualisiert**: 12.02.2026
+**Zuletzt aktualisiert**: 23.04.2026

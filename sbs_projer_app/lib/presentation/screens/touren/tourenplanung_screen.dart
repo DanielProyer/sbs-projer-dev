@@ -311,7 +311,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       final seen = <String>{};
       for (final r in reinigungen) {
         if (r.datum.isAfter(von) && r.datum.isBefore(bis)) {
-          if (seen.add(r.anlageId)) counts[i]++;
+          if (seen.add(r.anlageId ?? r.betriebId)) counts[i]++;
         }
       }
     }

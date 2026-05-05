@@ -98,6 +98,15 @@ class BuchungRepository {
     await SupabaseService.client.from('buchungen').delete().eq('id', id);
   }
 
+  /// Löscht alle Buchungen die zu einem Beleg gehören.
+  static Future<void> deleteByBeleg(String belegId) async {
+    await SupabaseService.client
+        .from('buchungen')
+        .delete()
+        .eq('user_id', _userId)
+        .eq('beleg_id', belegId);
+  }
+
   /// Storniert eine Buchung: Setzt ist_storniert und erstellt Gegenbuchung.
   static Future<Buchung> stornieren(String id) async {
     final original = await getById(id);

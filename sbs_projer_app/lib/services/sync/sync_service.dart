@@ -23,6 +23,7 @@ import 'package:sbs_projer_app/data/local/stoerung_local.dart';
 import 'package:sbs_projer_app/data/local/montage_local.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
+import 'package:sbs_projer_app/data/local/termin_local.dart';
 
 // DTOs
 import 'package:sbs_projer_app/data/models/region.dart';
@@ -39,6 +40,7 @@ import 'package:sbs_projer_app/data/models/stoerung.dart';
 import 'package:sbs_projer_app/data/models/montage.dart';
 import 'package:sbs_projer_app/data/models/eigenauftrag.dart';
 import 'package:sbs_projer_app/data/models/eroeffnungsreinigung.dart';
+import 'package:sbs_projer_app/data/models/termin.dart';
 
 // Mappers
 import 'package:sbs_projer_app/data/mappers/region_mapper.dart';
@@ -55,6 +57,7 @@ import 'package:sbs_projer_app/data/mappers/stoerung_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/montage_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/eigenauftrag_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/eroeffnungsreinigung_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
 
 enum SyncState { idle, syncing, error }
 
@@ -143,6 +146,7 @@ class SyncService {
         [
           () => _syncEigenauftraege(userId),
           () => _syncEroeffnungsreinigungen(userId),
+          () => _syncTermine(userId),
         ],
       ];
 
@@ -653,6 +657,35 @@ class SyncService {
       await _isar.writeTxn(() => _isar.eroeffnungsreinigungLocals.putAll(toSave));
     }
     await _updateMeta('eroeffnungsreinigungen');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  static Future<({int pushed, int pulled})> _syncTermine(String uid) async {
+    final unsynced =
+        await _isar.terminLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<TerminLocal>(
+      'termine', unsynced, TerminMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.terminLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('termine', 'termine', uid);
+    final toSave = <TerminLocal>[];
+    for (final row in rows) {
+      final dto = Termin.fromJson(row);
+      final ex = await _isar.terminLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(TerminMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.terminLocals.putAll(toSave));
+    }
+    await _updateMeta('termine');
     return (pushed: pushed.length, pulled: toSave.length);
   }
 }

@@ -15,6 +15,13 @@ final stoerungCountProvider = FutureProvider<int>((ref) {
   return StoerungRepository.count();
 });
 
+/// Anzahl Störungen im aktuellen Jahr
+final stoerungCountAktuellesJahrProvider = Provider<int>((ref) {
+  final all = ref.watch(stoerungenProvider);
+  final jahr = DateTime.now().year;
+  return all.where((s) => s.datum.year == jahr).length;
+});
+
 final stoerungenByAnlageProvider =
     StreamProvider.family<List<StoerungLocal>, String>((ref, anlageId) {
   return StoerungRepository.watchByAnlage(anlageId);

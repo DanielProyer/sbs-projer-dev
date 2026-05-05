@@ -1,28 +1,24 @@
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 /// Generiert die 6 Heineken-Rapport-Formulare als PDFs.
-///
-/// Templates basierend auf den F_-Sheets der Hauptexcel:
-/// 1. F_Störung        → Störungsrapport
-/// 2. F_Eigenauftrag   → Eigenauftrag-Rapport
-/// 3. F_EE_Reinigung   → Eröffnungs-/Endreinigung-Rapport
-/// 4. F_Montage        → Montage-Rapport
-/// 5. F_Pikett         → Pikett-Rapport
-/// 6. F_Pauschale      → Anfahrtspauschale-Rapport
+/// Design matcht die Original-Heineken-Excel-Vorlagen mit Logo,
+/// gelben Hintergründen, Umrandungen und strukturiertem Layout.
 class HeinekenRapportService {
-  // ─── Konstanten ───
-  static const _firmaName = 'SBS Projer GmbH';
+  // ─── Farben (Original-Heineken-Design) ───
+  static const _yellowTitle = PdfColor(1.0, 0.78, 0.0);
+  static const _yellowCell = PdfColor(1.0, 1.0, 0.76);
   static const _black = PdfColor.fromInt(0xFF000000);
-  static const _grey = PdfColor.fromInt(0xFF555555);
 
+  static const _firmaName = 'SBS Projer GmbH';
   static final _dateFormat = DateFormat('dd.MM.yyyy');
 
   // ═══════════════════════════════════════════════════════════════
-  // 1. STÖRUNGSRAPPORT (F_Störung)
+  // 1. STÖRUNGSRAPPORT
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Page buildStoerungPage({
@@ -30,8 +26,9 @@ class HeinekenRapportService {
     required String stoerungsnummer,
     required DateTime datum,
     required String kunde,
+    String adresse = '',
     required String ort,
-    int? stoerungBereich,
+    List<int>? stoerungBereiche,
     String? serienNrKuehler,
     String? uhrzeitStart,
     bool istPikettEinsatz = false,
@@ -43,86 +40,88 @@ class HeinekenRapportService {
     double? komplexitaetZuschlag,
     double? preisNetto,
     List<(String name, double menge)> materialien = const [],
+    Uint8List? logoBytes,
   }) {
     return pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 30, 50, 40),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header
-              _buildHeader('Störung'),
-
-              pw.SizedBox(height: 12),
-              // Referenz-Nr + Bergkunde
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(referenzNr,
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.Text(
-                      'Bergrestaurant: ${istBergkunde ? "Ja" : "Nein"}',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-
-              // Kundendaten
-              _labelValue('Kunde / Rest.', kunde),
-              _labelValue('PLZ / Ort', ort),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: _labelValue(
-                        'Störungs Nr. / Datum',
-                        '$stoerungsnummer   ${_dateFormat.format(datum)}'),
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 30, 40, 30),
+      build: (context) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildFormHeader('Störung', logoBytes: logoBytes),
+            pw.SizedBox(height: 14),
+            // Kundendaten + Zeit
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 310,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _formField('Kunde / Rest.', kunde),
+                      _formField('Name', ''),
+                      _formField('Vorname', ''),
+                      _formField('Adresse', adresse),
+                      _formField('PLZ / Ort', ort),
+                      _formFieldDual('Störungs Nr. / Datum',
+                          stoerungsnummer, _dateFormat.format(datum)),
+                      _formField('Seriennummer Kühler',
+                          serienNrKuehler ?? '-'),
+                    ],
                   ),
-                  pw.SizedBox(
-                    width: 140,
-                    child: pw.Text('Kontrolliert RSL',
-                        style: pw.TextStyle(
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.bold,
-                            color: _grey)),
+                ),
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Zeit der Störungsmeldung:',
+                          style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 4),
+                      _borderedBox(uhrzeitStart != null && uhrzeitStart.length >= 5 ? uhrzeitStart.substring(0, 5) : uhrzeitStart ?? '', width: 80),
+                      pw.SizedBox(height: 50),
+                      pw.Row(children: [
+                        pw.Text('Kontrolliert RSL',
+                            style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(width: 8),
+                        _borderedBox('', width: 60),
+                      ]),
+                    ],
                   ),
-                ],
-              ),
-              if (serienNrKuehler != null)
-                _labelValue('Seriennummer Kühler', serienNrKuehler),
-              if (uhrzeitStart != null)
-                _labelValue('Zeit der Störungsmeldung', uhrzeitStart),
-              pw.SizedBox(height: 12),
-
-              // Bereich Checkboxen
-              _buildBereichCheckboxes(stoerungBereich),
-              pw.SizedBox(height: 12),
-
-              // Material
-              _buildMaterialTabelle(materialien),
-              pw.SizedBox(height: 12),
-
-              // Störungspositionen (6 Bereiche)
-              _buildStoerungsPositionen(stoerungBereich, preisBasis),
-              pw.SizedBox(height: 8),
-
-              // Anfahrt
-              _buildAnfahrt(anfahrtKm, preisAnfahrt),
-              pw.SizedBox(height: 8),
-
-              // Pikett falls zutreffend
-              if (istPikettEinsatz) ...[
-                _buildPikettZeile(preisWochenende),
-                pw.SizedBox(height: 8),
+                ),
               ],
-
-              pw.Spacer(),
-
-              // Total
-              _buildTotalZeile(preisNetto ?? 0),
-            ],
-          );
-        },
+            ),
+            pw.SizedBox(height: 6),
+            // Bereich + Material
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                    width: 150,
+                    child: _buildBereichCheckboxes(stoerungBereiche)),
+                pw.SizedBox(width: 8),
+                pw.Expanded(child: _buildMaterialTabelle(materialien, 3)),
+              ],
+            ),
+            pw.SizedBox(height: 4),
+            // Störungspositionen
+            _buildStoerungsPositionen(stoerungBereiche, preisBasis),
+            pw.SizedBox(height: 2),
+            // Anfahrt
+            _buildAnfahrt(anfahrtKm, preisAnfahrt),
+            pw.SizedBox(height: 2),
+            // Pikett
+            _buildPikettPositionen(
+                istPikettEinsatz ? 1 : 0, preisWochenende, 0, null),
+            pw.Spacer(),
+            _buildTotalZeile(preisNetto ?? 0),
+          ],
+        );
+      },
     );
   }
 
@@ -132,7 +131,7 @@ class HeinekenRapportService {
     required DateTime datum,
     required String kunde,
     required String ort,
-    int? stoerungBereich,
+    List<int>? stoerungBereiche,
     String? serienNrKuehler,
     String? uhrzeitStart,
     bool istPikettEinsatz = false,
@@ -145,6 +144,7 @@ class HeinekenRapportService {
     double? preisNetto,
     List<(String name, double menge)> materialien = const [],
   }) async {
+    final logo = await _loadLogo();
     final pdf = pw.Document();
     pdf.addPage(buildStoerungPage(
       referenzNr: referenzNr,
@@ -152,7 +152,7 @@ class HeinekenRapportService {
       datum: datum,
       kunde: kunde,
       ort: ort,
-      stoerungBereich: stoerungBereich,
+      stoerungBereiche: stoerungBereiche,
       serienNrKuehler: serienNrKuehler,
       uhrzeitStart: uhrzeitStart,
       istPikettEinsatz: istPikettEinsatz,
@@ -164,12 +164,13 @@ class HeinekenRapportService {
       komplexitaetZuschlag: komplexitaetZuschlag,
       preisNetto: preisNetto,
       materialien: materialien,
+      logoBytes: logo,
     ));
     return pdf.save();
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 2. EIGENAUFTRAG-RAPPORT (F_Eigenauftrag)
+  // 2. EIGENAUFTRAG-RAPPORT
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Page buildEigenauftragPage({
@@ -177,81 +178,91 @@ class HeinekenRapportService {
     required String stoerungsnummer,
     required DateTime datum,
     required String kunde,
+    String adresse = '',
     required String ort,
     required String problemBeschreibung,
     String? loesungBeschreibung,
     double? pauschale,
     List<(String name, double menge)> materialien = const [],
+    Uint8List? logoBytes,
   }) {
     return pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 30, 50, 40),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              _buildHeader('Eigener Auftrag'),
-              pw.SizedBox(height: 12),
-
-              pw.Text(referenzNr,
-                  style: const pw.TextStyle(fontSize: 10)),
-              pw.SizedBox(height: 12),
-
-              _labelValue('Kunde / Rest.', kunde),
-              _labelValue('PLZ / Ort', ort),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: _labelValue(
-                        'Störungs Nr. / Datum',
-                        '$stoerungsnummer   ${_dateFormat.format(datum)}'),
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 30, 40, 30),
+      build: (context) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildFormHeader('Eigener Auftrag', logoBytes: logoBytes),
+            pw.SizedBox(height: 14),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 310,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _formField('Kunde / Rest.', kunde),
+                      _formField('Name', ''),
+                      _formField('Vorname', ''),
+                      _formField('Adresse', adresse),
+                      _formField('PLZ / Ort', ort),
+                      _formFieldDual('Störungs Nr. / Datum',
+                          stoerungsnummer, _dateFormat.format(datum)),
+                    ],
                   ),
-                  pw.SizedBox(
-                    width: 140,
-                    child: pw.Text('Kontrolliert RSL',
-                        style: pw.TextStyle(
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.bold,
-                            color: _grey)),
+                ),
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(height: 95),
+                      pw.Row(children: [
+                        pw.Text('Kontrolliert RSL',
+                            style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(width: 8),
+                        _borderedBox('', width: 60),
+                      ]),
+                    ],
                   ),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-
-              // Material
-              _buildMaterialTabelle(materialien),
-              pw.SizedBox(height: 16),
-
-              // Umschreibung der Arbeit
-              pw.Text('Umschreibung der Arbeit',
-                  style: pw.TextStyle(
-                      fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(width: 0.5),
                 ),
-                child: pw.Text(
-                  problemBeschreibung +
-                      (loesungBeschreibung != null
-                          ? '\n\n$loesungBeschreibung'
-                          : ''),
-                  style: const pw.TextStyle(fontSize: 10),
-                ),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            _buildMaterialTabelle(materialien, 3),
+            pw.SizedBox(height: 12),
+            // Umschreibung der Arbeit
+            pw.Text('Umschreibung der Arbeit',
+                style: pw.TextStyle(
+                    fontSize: 10, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Container(
+              width: double.infinity,
+              constraints: const pw.BoxConstraints(minHeight: 80),
+              padding: const pw.EdgeInsets.all(6),
+              decoration: pw.BoxDecoration(
+                color: _yellowCell,
+                border: pw.Border.all(width: 0.5),
               ),
-              pw.SizedBox(height: 16),
-
-              // Eigenauftrag-Position
-              _buildPositionsZeile(
-                  'Eigener Auftrag', 1, pauschale ?? 0, pauschale ?? 0),
-
-              pw.Spacer(),
-              _buildTotalZeile(pauschale ?? 0),
-            ],
-          );
-        },
+              child: pw.Text(
+                problemBeschreibung +
+                    (loesungBeschreibung != null
+                        ? '\n\n$loesungBeschreibung'
+                        : ''),
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            ),
+            pw.SizedBox(height: 16),
+            _buildPositionRow('Eigener Auftrag', 1, pauschale ?? 0,
+                pauschale ?? 0,
+                waehrung: 'CHF'),
+            pw.Spacer(),
+            _buildTotalZeile(pauschale ?? 0),
+          ],
+        );
+      },
     );
   }
 
@@ -266,6 +277,7 @@ class HeinekenRapportService {
     double? pauschale,
     List<(String name, double menge)> materialien = const [],
   }) async {
+    final logo = await _loadLogo();
     final pdf = pw.Document();
     pdf.addPage(buildEigenauftragPage(
       referenzNr: referenzNr,
@@ -277,12 +289,13 @@ class HeinekenRapportService {
       loesungBeschreibung: loesungBeschreibung,
       pauschale: pauschale,
       materialien: materialien,
+      logoBytes: logo,
     ));
     return pdf.save();
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 3. EE-REINIGUNG-RAPPORT (F_EE_Reinigung)
+  // 3. EE-REINIGUNG-RAPPORT
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Page buildEEReinigungPage({
@@ -290,80 +303,69 @@ class HeinekenRapportService {
     required String stoerungsnummer,
     required DateTime datum,
     required String kunde,
+    String adresse = '',
     required String ort,
     required bool istBergkunde,
     required double preis,
     List<(String name, double menge)> materialien = const [],
+    Uint8List? logoBytes,
   }) {
     return pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 30, 50, 40),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              _buildHeader(
-                  'Eröffnungen / Endreinigungen Berg-\nrestaurant im Auftrag von Heineken'),
-              pw.SizedBox(height: 12),
-
-              // Referenz + Bergkunde
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(referenzNr,
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.Text(
-                      'Bergrestaurant: ${istBergkunde ? "Ja" : "Nein"}',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-
-              _labelValue('Eröffnung/Endreinigung', 'Eröffnung'),
-              pw.SizedBox(height: 4),
-              _labelValue('Kunde / Rest.', kunde),
-              _labelValue('PLZ / Ort', ort),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: _labelValue(
-                        'Störungs Nr. / Datum',
-                        '$stoerungsnummer   ${_dateFormat.format(datum)}'),
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 30, 40, 30),
+      build: (context) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildFormHeader(
+                'Eröffnungen / Endreinigungen\nim Auftrag von Heineken',
+                logoBytes: logoBytes),
+            pw.SizedBox(height: 14),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 310,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _formField('Eröffnung/Endrein.', 'Eröffnung'),
+                      _formField('Kunde / Rest.', kunde),
+                      _formField('Name', ''),
+                      _formField('Vorname', ''),
+                      _formField('Adresse', adresse),
+                      _formField('PLZ / Ort', ort),
+                      _formFieldDual('Störungs Nr. / Datum',
+                          stoerungsnummer, _dateFormat.format(datum)),
+                    ],
                   ),
-                  pw.SizedBox(
-                    width: 140,
-                    child: pw.Text('Kontrolliert RSL',
-                        style: pw.TextStyle(
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.bold,
-                            color: _grey)),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-
-              // Material
-              _buildMaterialTabelle(materialien),
-              pw.SizedBox(height: 16),
-
-              // Anfahrtspauschale
-              _buildPositionsZeile(
-                  'Anfahrtspauschale', 1, preis, preis),
-              if (istBergkunde)
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(left: 20),
-                  child: pw.Text('(inkl. Bergbahnentschädigung)',
-                      style: pw.TextStyle(
-                          fontSize: 9,
-                          fontStyle: pw.FontStyle.italic,
-                          color: _grey)),
                 ),
-
-              pw.Spacer(),
-              _buildTotalZeile(preis),
-            ],
-          );
-        },
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(height: 95),
+                      pw.Row(children: [
+                        pw.Text('Kontrolliert RSL',
+                            style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(width: 8),
+                        _borderedBox('', width: 60),
+                      ]),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            _buildMaterialTabelle(materialien, 3),
+            pw.SizedBox(height: 16),
+            _buildPositionRow('Anfahrtspauschale', 1, preis, preis),
+            pw.Spacer(),
+            _buildTotalZeile(preis),
+          ],
+        );
+      },
     );
   }
 
@@ -377,6 +379,7 @@ class HeinekenRapportService {
     required double preis,
     List<(String name, double menge)> materialien = const [],
   }) async {
+    final logo = await _loadLogo();
     final pdf = pw.Document();
     pdf.addPage(buildEEReinigungPage(
       referenzNr: referenzNr,
@@ -387,18 +390,20 @@ class HeinekenRapportService {
       istBergkunde: istBergkunde,
       preis: preis,
       materialien: materialien,
+      logoBytes: logo,
     ));
     return pdf.save();
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 4. MONTAGE-RAPPORT (F_Montage)
+  // 4. MONTAGE-RAPPORT
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Page buildMontagePage({
     required String referenzNr,
     required DateTime datum,
     required String kunde,
+    String adresse = '',
     required String ort,
     required String montageTyp,
     required String beschreibung,
@@ -406,74 +411,75 @@ class HeinekenRapportService {
     double? dauerStunden,
     double? kostenArbeit,
     List<(String name, double menge)> materialien = const [],
+    Uint8List? logoBytes,
   }) {
     return pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 30, 50, 40),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              _buildHeader('Montageaufträge'),
-              pw.SizedBox(height: 12),
-
-              pw.Text(referenzNr,
-                  style: const pw.TextStyle(fontSize: 10)),
-              pw.SizedBox(height: 12),
-
-              _labelValue('Art der Montage:', _montageTypLabel(montageTyp)),
-              pw.SizedBox(height: 4),
-              _labelValue('Kunde / Rest.', kunde),
-              _labelValue('PLZ / Ort', ort),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: _labelValue(
-                        'Auftrags Nr. / Datum',
-                        '${_dateFormat.format(datum)}'),
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 30, 40, 30),
+      build: (context) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildFormHeader('Montageaufträge', logoBytes: logoBytes),
+            pw.SizedBox(height: 14),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 310,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _formField('Art der Montage', _montageTypLabel(montageTyp)),
+                      _formField('Kunde / Rest.', kunde),
+                      _formField('Name', ''),
+                      _formField('Vorname', ''),
+                      _formField('Adresse', adresse),
+                      _formField('PLZ / Ort', ort),
+                      _formFieldDual('Auftrags Nr. / Datum', '-',
+                          _dateFormat.format(datum)),
+                    ],
                   ),
-                  pw.SizedBox(
-                    width: 140,
-                    child: pw.Text('Kontrolliert RSL',
-                        style: pw.TextStyle(
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.bold,
-                            color: _grey)),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-
-              // Material (7 Positionen bei Montage)
-              _buildMaterialTabelle(materialien),
-              pw.SizedBox(height: 16),
-
-              // Beschreibung
-              pw.Text('Beschreibung',
-                  style: pw.TextStyle(
-                      fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(width: 0.5),
                 ),
-                child: pw.Text(beschreibung,
-                    style: const pw.TextStyle(fontSize: 10)),
-              ),
-              pw.SizedBox(height: 16),
-
-              // Stunden-Position
-              if (dauerStunden != null && stundensatz != null)
-                _buildPositionsZeile('Anzahl Stunden',
-                    dauerStunden, stundensatz, kostenArbeit ?? 0),
-
-              pw.Spacer(),
-              _buildTotalZeile(kostenArbeit ?? 0),
-            ],
-          );
-        },
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(height: 95),
+                      pw.Row(children: [
+                        pw.Text('Kontrolliert RSL',
+                            style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(width: 8),
+                        _borderedBox('', width: 60),
+                      ]),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            // Anlass: Tages-Einträge statt Material-Tabelle
+            montageTyp == 'anlass'
+                ? _buildAnlassTabelle(materialien, 5)
+                : _buildMaterialTabelle(materialien, 7),
+            pw.SizedBox(height: 12),
+            // Stunden-Position
+            _buildPositionRow(
+                'Anzahl Stunden',
+                dauerStunden ?? 0,
+                stundensatz ?? 80,
+                kostenArbeit ?? 0),
+            pw.SizedBox(height: 12),
+            // Montagepauschale (nicht bei Anlass)
+            if (montageTyp != 'anlass')
+              _buildPositionRow(
+                  'Montagepauschale\npro Montagetag', 0, 600, 0),
+            pw.Spacer(),
+            _buildTotalZeile(kostenArbeit ?? 0),
+          ],
+        );
+      },
     );
   }
 
@@ -489,6 +495,7 @@ class HeinekenRapportService {
     double? kostenArbeit,
     List<(String name, double menge)> materialien = const [],
   }) async {
+    final logo = await _loadLogo();
     final pdf = pw.Document();
     pdf.addPage(buildMontagePage(
       referenzNr: referenzNr,
@@ -501,12 +508,13 @@ class HeinekenRapportService {
       dauerStunden: dauerStunden,
       kostenArbeit: kostenArbeit,
       materialien: materialien,
+      logoBytes: logo,
     ));
     return pdf.save();
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 5. PIKETT-RAPPORT (F_Pikett)
+  // 5. PIKETT-RAPPORT (nutzt Störung-Template)
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Page buildPikettPage({
@@ -518,100 +526,99 @@ class HeinekenRapportService {
     int anzahlFeiertage = 0,
     double? feiertagZuschlag,
     double? pauschaleGesamt,
+    Uint8List? logoBytes,
   }) {
     return pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 30, 50, 40),
-        build: (context) {
-          final pauschalePro = pauschale ?? 160;
-          final feiertagPro = feiertagZuschlag != null && anzahlFeiertage > 0
-              ? feiertagZuschlag! / anzahlFeiertage
-              : 80.0;
-          final pikettTotal = pauschalePro;
-          final feiertagTotal =
-              anzahlFeiertage > 0 ? anzahlFeiertage * feiertagPro : 0.0;
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 30, 40, 30),
+      build: (context) {
+        final pauschalePro = pauschale ?? 160;
+        final feiertagPro = feiertagZuschlag != null && anzahlFeiertage > 0
+            ? feiertagZuschlag / anzahlFeiertage
+            : 80.0;
+        final pikettTotal = pauschalePro;
+        final feiertagTotal =
+            anzahlFeiertage > 0 ? anzahlFeiertage * feiertagPro : 0.0;
 
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              _buildHeader('Störung'),
-              pw.SizedBox(height: 12),
-
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(referenzNr,
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.Text('Bergrestaurant: nein',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-
-              _labelValue('Kunde / Rest.', ''),
-              pw.Row(
-                children: [
-                  pw.SizedBox(
-                    width: 130,
-                    child: pw.Text('Vorname',
-                        style: const pw.TextStyle(fontSize: 10)),
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildFormHeader('Störung', logoBytes: logoBytes),
+            pw.SizedBox(height: 14),
+            // Pikett-Kundendaten (Vorname = "Pikett KW X")
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 310,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _formField('Kunde / Rest.', ''),
+                      _formField('Name', ''),
+                      _formField('Vorname', 'Pikett KW $kalenderwoche'),
+                      _formField('Adresse', ''),
+                      _formField('PLZ / Ort', ''),
+                      _formField('Störungs Nr. / Datum', ''),
+                      _formField('Seriennummer Kühler', ''),
+                    ],
                   ),
-                  pw.Text('Pikett KW $kalenderwoche',
-                      style: pw.TextStyle(
-                          fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                ],
-              ),
-              pw.SizedBox(height: 4),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: _labelValue('Störungs Nr. / Datum', ''),
+                ),
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Zeit der Störungsmeldung:',
+                          style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 4),
+                      _borderedBox('', width: 80),
+                      pw.SizedBox(height: 50),
+                      pw.Row(children: [
+                        pw.Text('Kontrolliert RSL',
+                            style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(width: 8),
+                        _borderedBox('', width: 60),
+                      ]),
+                    ],
                   ),
-                  pw.SizedBox(
-                    width: 140,
-                    child: pw.Text('Kontrolliert RSL',
-                        style: pw.TextStyle(
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.bold,
-                            color: _grey)),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-
-              // Leere Störungspositionen
-              _buildStoerungsPositionenLeer(),
-              pw.SizedBox(height: 8),
-
-              // Leere Anfahrt
-              _buildAnfahrtLeer(),
-              pw.SizedBox(height: 12),
-
-              // Pikett-Position
-              _buildPositionsZeile(
-                  'Pikettbereitschaft KW $kalenderwoche',
-                  1,
-                  pauschalePro,
-                  pikettTotal),
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(left: 250),
-                child: pw.Text('(pro Woche)',
-                    style: const pw.TextStyle(fontSize: 8)),
-              ),
-              pw.SizedBox(height: 4),
-
-              // Feiertag
-              _buildPositionsZeile(
-                  'Pikett Feiertag',
-                  anzahlFeiertage.toDouble(),
-                  feiertagPro,
-                  feiertagTotal),
-
-              pw.Spacer(),
-              _buildTotalZeile(pauschaleGesamt ?? (pikettTotal + feiertagTotal)),
-            ],
-          );
-        },
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 6),
+            // Bereich + Material (leer)
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                    width: 150,
+                    child: _buildBereichCheckboxes(null)),
+                pw.SizedBox(width: 8),
+                pw.Expanded(child: _buildMaterialTabelle([], 3)),
+              ],
+            ),
+            pw.SizedBox(height: 4),
+            // Leere Störungspositionen
+            _buildStoerungsPositionen(null, null),
+            pw.SizedBox(height: 2),
+            // Leere Anfahrt
+            _buildAnfahrt(0, null),
+            pw.SizedBox(height: 2),
+            // Pikett-Positionen mit echten Werten
+            _buildPikettPositionen(
+              1,
+              pikettTotal,
+              anzahlFeiertage,
+              feiertagTotal > 0 ? feiertagTotal : null,
+            ),
+            pw.Spacer(),
+            _buildTotalZeile(
+                pauschaleGesamt ?? (pikettTotal + feiertagTotal)),
+          ],
+        );
+      },
     );
   }
 
@@ -625,6 +632,7 @@ class HeinekenRapportService {
     double? feiertagZuschlag,
     double? pauschaleGesamt,
   }) async {
+    final logo = await _loadLogo();
     final pdf = pw.Document();
     pdf.addPage(buildPikettPage(
       referenzNr: referenzNr,
@@ -635,68 +643,77 @@ class HeinekenRapportService {
       anzahlFeiertage: anzahlFeiertage,
       feiertagZuschlag: feiertagZuschlag,
       pauschaleGesamt: pauschaleGesamt,
+      logoBytes: logo,
     ));
     return pdf.save();
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 6. ANFAHRTSPAUSCHALE-RAPPORT (F_Pauschale)
+  // 6. ANFAHRTSPAUSCHALE-RAPPORT
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Page buildAnfahrtspauschPage({
     required String referenzNr,
     required DateTime datum,
     required String kunde,
+    String adresse = '',
     required String ort,
+    Uint8List? logoBytes,
   }) {
     return pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 30, 50, 40),
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              _buildHeader('Anfahrtspauschale Bergrestaurant'),
-              pw.SizedBox(height: 12),
-
-              pw.Text(referenzNr,
-                  style: const pw.TextStyle(fontSize: 10)),
-              pw.SizedBox(height: 12),
-
-              _labelValue('Art der Pauschale:', '-'),
-              pw.SizedBox(height: 4),
-              _labelValue('Kunde / Rest.', kunde),
-              _labelValue('PLZ / Ort', ort),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: _labelValue(
-                        'Datum', _dateFormat.format(datum)),
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 30, 40, 30),
+      build: (context) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildFormHeader('Anfahrtspauschale Bergrestaurant',
+                logoBytes: logoBytes),
+            pw.SizedBox(height: 14),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 310,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _formField('Art der Pauschale', '-'),
+                      _formField('Kunde / Rest.', kunde),
+                      _formField('Name', ''),
+                      _formField('Vorname', ''),
+                      _formField('Adresse', adresse),
+                      _formField('PLZ / Ort', ort),
+                      _formField('Datum', _dateFormat.format(datum)),
+                    ],
                   ),
-                  pw.SizedBox(
-                    width: 140,
-                    child: pw.Text('Kontrolliert RSL',
-                        style: pw.TextStyle(
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.bold,
-                            color: _grey)),
+                ),
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(height: 95),
+                      pw.Row(children: [
+                        pw.Text('Kontrolliert RSL',
+                            style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(width: 8),
+                        _borderedBox('', width: 60),
+                      ]),
+                    ],
                   ),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-
-              // Material (leer)
-              _buildMaterialTabelle([]),
-              pw.SizedBox(height: 16),
-
-              // Anfahrtspauschale
-              _buildPositionsZeile('Anfahrtspauschale', 1, 180, 180),
-
-              pw.Spacer(),
-              _buildTotalZeile(180),
-            ],
-          );
-        },
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            _buildMaterialTabelle([], 3),
+            pw.SizedBox(height: 16),
+            _buildPositionRow('Anfahrtspauschale', 1, 180, 180),
+            pw.Spacer(),
+            _buildTotalZeile(180),
+          ],
+        );
+      },
     );
   }
 
@@ -706,12 +723,14 @@ class HeinekenRapportService {
     required String kunde,
     required String ort,
   }) async {
+    final logo = await _loadLogo();
     final pdf = pw.Document();
     pdf.addPage(buildAnfahrtspauschPage(
       referenzNr: referenzNr,
       datum: datum,
       kunde: kunde,
       ort: ort,
+      logoBytes: logo,
     ));
     return pdf.save();
   }
@@ -720,83 +739,178 @@ class HeinekenRapportService {
   // SHARED HELPER WIDGETS
   // ═══════════════════════════════════════════════════════════════
 
-  /// Header: "SBS Projer GmbH" rechtsbündig + Titel links
-  static pw.Widget _buildHeader(String titel) {
+  /// Logo laden
+  static Future<Uint8List?> _loadLogo() async {
+    try {
+      final data = await rootBundle.load('assets/images/heineken_logo.png');
+      return data.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Heineken-Logo Widget
+  static pw.Widget _buildLogo(Uint8List? logoBytes) {
+    if (logoBytes != null) {
+      return pw.Image(pw.MemoryImage(logoBytes), width: 160);
+    }
+    return pw.Text('HEINEKEN',
+        style: pw.TextStyle(
+          fontSize: 22,
+          fontWeight: pw.FontWeight.bold,
+          color: const PdfColor(0, 0.51, 0),
+        ));
+  }
+
+  /// Form-Header: Logo + SBS Projer GmbH + gelbe Titelleiste
+  static pw.Widget _buildFormHeader(String titel,
+      {Uint8List? logoBytes}) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Text(_firmaName,
-              style: pw.TextStyle(
-                  fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildLogo(logoBytes),
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 3),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(width: 0.5),
+              ),
+              child: pw.Text(_firmaName,
+                  style: pw.TextStyle(
+                      fontSize: 10, fontWeight: pw.FontWeight.bold)),
+            ),
+          ],
         ),
-        pw.SizedBox(height: 8),
-        pw.Text(titel,
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-            )),
-        pw.Container(height: 0.5, color: _black),
+        pw.SizedBox(height: 6),
+        pw.Container(
+          width: double.infinity,
+          padding:
+              const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(width: 0.5),
+          ),
+          child: pw.Center(
+            child: pw.Text(titel,
+                style: const pw.TextStyle(fontSize: 22),
+                textAlign: pw.TextAlign.center),
+          ),
+        ),
       ],
     );
   }
 
-  /// Label-Value Zeile
-  static pw.Widget _labelValue(String label, String value) {
+  /// Gelbe Zelle mit Rand
+  static pw.Widget _yellowBox(String text,
+      {double? width,
+      double height = 18,
+      pw.TextStyle? style,
+      pw.TextAlign textAlign = pw.TextAlign.left}) {
+    return pw.Container(
+      width: width,
+      height: height,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: pw.BoxDecoration(
+        color: _yellowCell,
+        border: pw.Border.all(width: 0.5),
+      ),
+      child: pw.Text(text,
+          style: style ?? const pw.TextStyle(fontSize: 10),
+          textAlign: textAlign),
+    );
+  }
+
+  /// Zelle mit Rand (ohne Farbe)
+  static pw.Widget _borderedBox(String text,
+      {double? width, double height = 18}) {
+    return pw.Container(
+      width: width,
+      height: height,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(width: 0.5),
+      ),
+      child:
+          pw.Text(text, style: const pw.TextStyle(fontSize: 10)),
+    );
+  }
+
+  /// Formular-Feld: Label links, gelbe Wert-Zelle rechts
+  static pw.Widget _formField(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 4),
+      padding: const pw.EdgeInsets.only(bottom: 1),
       child: pw.Row(
         children: [
           pw.SizedBox(
-            width: 130,
-            child: pw.Text(label,
-                style: const pw.TextStyle(fontSize: 10)),
-          ),
-          pw.Expanded(
-            child: pw.Text(value,
-                style: pw.TextStyle(
-                    fontSize: 10, fontWeight: pw.FontWeight.bold)),
-          ),
+              width: 115,
+              child: pw.Text(label,
+                  style: const pw.TextStyle(fontSize: 10))),
+          pw.Expanded(child: _yellowBox(value)),
         ],
       ),
     );
   }
 
-  /// Bereich-Checkboxen (K/B/D/H/O)
-  static pw.Widget _buildBereichCheckboxes(int? bereich) {
-    final bereiche = [
-      (1, 'K = Konventionell'),
+  /// Formular-Feld mit zwei gelben Zellen (z.B. Nr + Datum)
+  static pw.Widget _formFieldDual(
+      String label, String val1, String val2) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 1),
+      child: pw.Row(
+        children: [
+          pw.SizedBox(
+              width: 115,
+              child: pw.Text(label,
+                  style: const pw.TextStyle(fontSize: 10))),
+          _yellowBox(val1, width: 50),
+          pw.SizedBox(width: 4),
+          pw.Expanded(child: _yellowBox(val2)),
+        ],
+      ),
+    );
+  }
+
+  /// Bereich-Checkboxen (B/D/K/H/O) mit gelben Zellen
+  static pw.Widget _buildBereichCheckboxes(List<int>? bereiche) {
+    final bereichDefs = [
       (2, 'B = Blade'),
       (3, 'D = David'),
+      (1, 'K = Konventionell'),
       (4, 'H = Heigenie'),
       (5, 'O = Orion'),
     ];
-
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: bereiche.map((b) {
-        final isSelected = bereich == b.$1;
+      children: bereichDefs.map((b) {
+        final isSelected = bereiche?.contains(b.$1) ?? false;
         return pw.Padding(
           padding: const pw.EdgeInsets.only(bottom: 2),
           child: pw.Row(
             children: [
+              pw.SizedBox(
+                width: 110,
+                child: pw.Text(b.$2,
+                    style: pw.TextStyle(
+                        fontSize: 9, fontWeight: pw.FontWeight.bold)),
+              ),
               pw.Container(
-                width: 12,
-                height: 12,
+                width: 16,
+                height: 16,
                 decoration: pw.BoxDecoration(
+                  color: _yellowCell,
                   border: pw.Border.all(width: 0.5),
                 ),
                 child: isSelected
                     ? pw.Center(
                         child: pw.Text('X',
                             style: pw.TextStyle(
-                                fontSize: 8,
+                                fontSize: 10,
                                 fontWeight: pw.FontWeight.bold)))
                     : pw.SizedBox(),
               ),
-              pw.SizedBox(width: 6),
-              pw.Text(b.$2, style: const pw.TextStyle(fontSize: 9)),
             ],
           ),
         );
@@ -804,24 +918,37 @@ class HeinekenRapportService {
     );
   }
 
-  /// Material-Tabelle
+  /// Material-Tabelle mit gelben Zellen (volle Breite)
   static pw.Widget _buildMaterialTabelle(
-      List<(String name, double menge)> materialien) {
+      List<(String name, double menge)> materialien, int maxRows) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         // Header
         pw.Row(
           children: [
-            pw.SizedBox(width: 300),
-            pw.SizedBox(
-              width: 120,
-              child: pw.Text('Art. Nr. verbrauchtes Mat.',
-                  style: pw.TextStyle(
-                      fontSize: 8, fontWeight: pw.FontWeight.bold)),
+            pw.Expanded(
+              child: pw.Container(
+                height: 18,
+                padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 2),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(width: 0.5),
+                ),
+                child: pw.Text('Art. Nr. verbrauchtes Mat.',
+                    style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold)),
+              ),
             ),
-            pw.SizedBox(
-              width: 50,
+            pw.Container(
+              width: 60,
+              height: 18,
+              padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 4, vertical: 2),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(width: 0.5),
+              ),
               child: pw.Text('Anzahl',
                   style: pw.TextStyle(
                       fontSize: 8, fontWeight: pw.FontWeight.bold),
@@ -829,32 +956,44 @@ class HeinekenRapportService {
             ),
           ],
         ),
-        // Zeilen (min 3, max je nach Typ)
+        // Datenzeilen
         ...List.generate(
-          materialien.length < 3 ? 3 : materialien.length,
+          materialien.length < maxRows ? maxRows : materialien.length,
           (i) {
-            final mat = i < materialien.length ? materialien[i] : null;
-            return pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 1),
-              child: pw.Row(
-                children: [
-                  pw.SizedBox(width: 300),
-                  pw.SizedBox(
-                    width: 120,
+            final mat =
+                i < materialien.length ? materialien[i] : null;
+            return pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    height: 16,
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 1),
+                    decoration: pw.BoxDecoration(
+                      color: _yellowCell,
+                      border: pw.Border.all(width: 0.5),
+                    ),
                     child: pw.Text(mat?.$1 ?? '-',
                         style: const pw.TextStyle(fontSize: 9)),
                   ),
-                  pw.SizedBox(
-                    width: 50,
-                    child: pw.Text(
-                        mat != null
-                            ? mat.$2.toStringAsFixed(0)
-                            : '-',
-                        style: const pw.TextStyle(fontSize: 9),
-                        textAlign: pw.TextAlign.right),
+                ),
+                pw.Container(
+                  width: 60,
+                  height: 16,
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 4, vertical: 1),
+                  decoration: pw.BoxDecoration(
+                    color: _yellowCell,
+                    border: pw.Border.all(width: 0.5),
                   ),
-                ],
-              ),
+                  child: pw.Text(
+                      mat != null
+                          ? mat.$2.toStringAsFixed(0)
+                          : '-',
+                      style: const pw.TextStyle(fontSize: 9),
+                      textAlign: pw.TextAlign.right),
+                ),
+              ],
             );
           },
         ),
@@ -862,73 +1001,166 @@ class HeinekenRapportService {
     );
   }
 
-  /// Störungspositionen (6 Bereiche mit Preisen)
+  /// Anlass: Tages-/Spesen-Tabelle (Freitext + Stunden statt Material + Anzahl)
+  static pw.Widget _buildAnlassTabelle(
+      List<(String name, double menge)> eintraege, int maxRows) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Header
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child: pw.Container(
+                height: 18,
+                padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 2),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(width: 0.5),
+                ),
+                child: pw.Text('Tag / Spesen',
+                    style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold)),
+              ),
+            ),
+            pw.Container(
+              width: 60,
+              height: 18,
+              padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 4, vertical: 2),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(width: 0.5),
+              ),
+              child: pw.Text('Stunden',
+                  style: pw.TextStyle(
+                      fontSize: 8, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.right),
+            ),
+          ],
+        ),
+        // Datenzeilen
+        ...List.generate(
+          eintraege.length < maxRows ? maxRows : eintraege.length,
+          (i) {
+            final e = i < eintraege.length ? eintraege[i] : null;
+            return pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    height: 16,
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 1),
+                    decoration: pw.BoxDecoration(
+                      color: _yellowCell,
+                      border: pw.Border.all(width: 0.5),
+                    ),
+                    child: pw.Text(e?.$1 ?? '-',
+                        style: const pw.TextStyle(fontSize: 9)),
+                  ),
+                ),
+                pw.Container(
+                  width: 60,
+                  height: 16,
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 4, vertical: 1),
+                  decoration: pw.BoxDecoration(
+                    color: _yellowCell,
+                    border: pw.Border.all(width: 0.5),
+                  ),
+                  child: pw.Text(
+                      e != null
+                          ? e.$2.toStringAsFixed(2)
+                          : '-',
+                      style: const pw.TextStyle(fontSize: 9),
+                      textAlign: pw.TextAlign.right),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Störungspositionen 1–6
   static pw.Widget _buildStoerungsPositionen(
-      int? bereich, double? preisBasis) {
+      List<int>? bereiche, double? preisBasis) {
     final positionen = [
       ('Störung 1', 55.0),
       ('Störung 2', 55.0),
       ('Störung 3', 90.0),
       ('Störung 4', 45.0),
       ('Störung 5', 45.0),
-      ('Störung 6 – Reinigung gem.DBO-Handbuch', 0.0),
+      ('Störung 6', 0.0),
     ];
 
     return pw.Column(
       children: [
-        pw.Row(
-          children: [
-            pw.SizedBox(width: 200),
-            pw.SizedBox(
-              width: 60,
+        // "Menge" Header
+        pw.Row(children: [
+          pw.SizedBox(width: 200),
+          pw.SizedBox(
+              width: 55,
               child: pw.Text('Menge',
                   style: pw.TextStyle(
                       fontSize: 8, fontWeight: pw.FontWeight.bold),
-                  textAlign: pw.TextAlign.center),
-            ),
-            pw.SizedBox(width: 60),
-            pw.SizedBox(
-              width: 80,
-              child: pw.Text('CHF',
-                  style: const pw.TextStyle(fontSize: 8),
-                  textAlign: pw.TextAlign.right),
-            ),
-          ],
-        ),
+                  textAlign: pw.TextAlign.center)),
+        ]),
         ...positionen.asMap().entries.map((e) {
           final idx = e.key;
           final name = e.value.$1;
           final einzelpreis = e.value.$2;
-          // Bereich 1-5 mappt auf Störung 1-5 (vereinfacht)
-          final menge = (bereich != null && bereich == idx + 1) ? 1 : 0;
+          final menge =
+              (bereiche != null && bereiche.contains(idx + 1)) ? 1 : 0;
           final total = menge * einzelpreis;
 
           return pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 2),
+            padding: const pw.EdgeInsets.only(bottom: 6),
             child: pw.Row(
               children: [
                 pw.SizedBox(
-                  width: 200,
-                  child: pw.Text(name,
-                      style: const pw.TextStyle(fontSize: 9)),
-                ),
+                    width: 200,
+                    child: pw.Text(name,
+                        style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold))),
+                _yellowBox(menge.toString(),
+                    width: 55,
+                    textAlign: pw.TextAlign.center),
+                pw.SizedBox(width: 10),
                 pw.SizedBox(
-                  width: 60,
-                  child: pw.Text('$menge',
-                      style: const pw.TextStyle(fontSize: 9),
-                      textAlign: pw.TextAlign.center),
-                ),
+                    width: 25,
+                    child: pw.Text('SFr.',
+                        style: const pw.TextStyle(fontSize: 9))),
                 pw.SizedBox(
-                  width: 60,
-                  child: pw.Text(einzelpreis > 0
-                          ? einzelpreis.toStringAsFixed(0)
-                          : '',
-                      style: const pw.TextStyle(fontSize: 9),
-                      textAlign: pw.TextAlign.right),
-                ),
+                    width: 50,
+                    child: pw.Text(
+                        idx == 5
+                            ? ''
+                            : einzelpreis.toStringAsFixed(2),
+                        style: const pw.TextStyle(fontSize: 9),
+                        textAlign: pw.TextAlign.right)),
+                if (idx == 5)
+                  pw.Expanded(
+                      child: pw.Text(
+                          '  Reinigung gem.DBO-Handbuch',
+                          style: const pw.TextStyle(fontSize: 8))),
+                if (idx != 5) pw.Spacer(),
                 pw.SizedBox(
-                  width: 80,
-                  child: pw.Text(total.toStringAsFixed(0),
+                    width: 25,
+                    child: pw.Text('SFr.',
+                        style: const pw.TextStyle(fontSize: 9))),
+                pw.Container(
+                  width: 55,
+                  decoration: const pw.BoxDecoration(
+                    border: pw.Border(
+                        bottom: pw.BorderSide(width: 0.5)),
+                  ),
+                  child: pw.Text(
+                      total > 0
+                          ? total.toStringAsFixed(2)
+                          : '-',
                       style: const pw.TextStyle(fontSize: 9),
                       textAlign: pw.TextAlign.right),
                 ),
@@ -940,121 +1172,317 @@ class HeinekenRapportService {
     );
   }
 
-  /// Leere Störungspositionen für Pikett
-  static pw.Widget _buildStoerungsPositionenLeer() {
-    return _buildStoerungsPositionen(null, null);
-  }
-
   /// Anfahrt-Sektion
   static pw.Widget _buildAnfahrt(int km, double? preisAnfahrt) {
     final istLangstrecke = km > 80;
+    final anfahrtMenge = preisAnfahrt != null && preisAnfahrt > 0
+        ? (istLangstrecke ? km.toDouble() : 1.0)
+        : 0.0;
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        if (!istLangstrecke) ...[
-          pw.Text('Fahrweg kürzer als 80 Km',
-              style: pw.TextStyle(
-                  fontSize: 9, fontWeight: pw.FontWeight.bold)),
-          _buildPositionsZeile(
-              'Anfahrt Pauschal',
-              preisAnfahrt != null && preisAnfahrt > 0 ? 1 : 0,
-              60,
-              preisAnfahrt ?? 0),
-        ] else ...[
-          pw.Text('Fahrweg länger als 80 Km',
-              style: pw.TextStyle(
-                  fontSize: 9, fontWeight: pw.FontWeight.bold)),
-          _buildPositionsZeile(
-              'Anfahrt in Km (berechnet)',
-              km.toDouble(),
-              0.72,
-              preisAnfahrt ?? (km * 0.72)),
-        ],
+        // Kürzer als 80 Km
+        pw.Row(children: [
+          pw.SizedBox(
+              width: 200,
+              child: pw.Text('Fahrweg kürzer als 80 Km',
+                  style: pw.TextStyle(
+                      fontSize: 9,
+                      fontStyle: pw.FontStyle.italic))),
+          pw.SizedBox(
+              width: 55,
+              child: pw.Text('Menge',
+                  style: pw.TextStyle(
+                      fontSize: 8, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center)),
+        ]),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 6),
+          child: pw.Row(
+            children: [
+              pw.SizedBox(
+                  width: 200,
+                  child: pw.Text('Anfahrt Pauschal',
+                      style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold))),
+              _yellowBox(
+                  !istLangstrecke
+                      ? anfahrtMenge.toInt().toString()
+                      : '0',
+                  width: 55,
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(width: 10),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.SizedBox(
+                  width: 50,
+                  child: pw.Text('60.00',
+                      style: const pw.TextStyle(fontSize: 9),
+                      textAlign: pw.TextAlign.right)),
+              pw.Spacer(),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.Container(
+                width: 55,
+                decoration: const pw.BoxDecoration(
+                  border:
+                      pw.Border(bottom: pw.BorderSide(width: 0.5)),
+                ),
+                child: pw.Text(
+                    !istLangstrecke && preisAnfahrt != null && preisAnfahrt > 0
+                        ? preisAnfahrt.toStringAsFixed(2)
+                        : '-',
+                    style: const pw.TextStyle(fontSize: 9),
+                    textAlign: pw.TextAlign.right),
+              ),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        // Länger als 80 Km
+        pw.Row(children: [
+          pw.SizedBox(
+              width: 200,
+              child: pw.Text('Fahrweg länger als 80 Km',
+                  style: pw.TextStyle(
+                      fontSize: 9,
+                      fontStyle: pw.FontStyle.italic))),
+          pw.SizedBox(
+              width: 55,
+              child: pw.Text('Anzahl Km',
+                  style: pw.TextStyle(
+                      fontSize: 8, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center)),
+        ]),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 6),
+          child: pw.Row(
+            children: [
+              pw.SizedBox(
+                  width: 200,
+                  child: pw.Text('Anfahrt in Km (berechnet)',
+                      style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold))),
+              _yellowBox(
+                  istLangstrecke ? km.toString() : '0',
+                  width: 55,
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(width: 10),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.SizedBox(
+                  width: 50,
+                  child: pw.Text('0.72',
+                      style: const pw.TextStyle(fontSize: 9),
+                      textAlign: pw.TextAlign.right)),
+              pw.Spacer(),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.Container(
+                width: 55,
+                decoration: const pw.BoxDecoration(
+                  border:
+                      pw.Border(bottom: pw.BorderSide(width: 0.5)),
+                ),
+                child: pw.Text(
+                    istLangstrecke && preisAnfahrt != null && preisAnfahrt > 0
+                        ? preisAnfahrt.toStringAsFixed(2)
+                        : '-',
+                    style: const pw.TextStyle(fontSize: 9),
+                    textAlign: pw.TextAlign.right),
+              ),
+            ],
+          ),
+        ),
+        // Fahrweg von-bis-nach
+        pw.Row(children: [
+          pw.SizedBox(
+              width: 200,
+              child: pw.Text('Fahrweg von-bis-nach',
+                  style: const pw.TextStyle(fontSize: 9))),
+          pw.Expanded(child: _yellowBox('-')),
+        ]),
       ],
     );
   }
 
-  /// Leere Anfahrt für Pikett
-  static pw.Widget _buildAnfahrtLeer() {
+  /// Pikett-Positionen (Bereitschaft + Feiertag)
+  static pw.Widget _buildPikettPositionen(
+      int mengePikett, double? preisPikett,
+      int feiertage, double? preisFeiert) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Fahrweg kürzer als 80 Km',
-            style: pw.TextStyle(
-                fontSize: 9, fontWeight: pw.FontWeight.bold)),
-        _buildPositionsZeile('Anfahrt Pauschal', 0, 60, 0),
+        pw.SizedBox(height: 4),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 6),
+          child: pw.Row(
+            children: [
+              pw.SizedBox(
+                  width: 200,
+                  child: pw.Text('Pikettbereitschaft KW …',
+                      style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold))),
+              _yellowBox(mengePikett.toString(),
+                  width: 55, textAlign: pw.TextAlign.center),
+              pw.SizedBox(width: 10),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.SizedBox(
+                  width: 50,
+                  child: pw.Text('160.00',
+                      style: const pw.TextStyle(fontSize: 9),
+                      textAlign: pw.TextAlign.right)),
+              pw.SizedBox(
+                  width: 60,
+                  child: pw.Text('(pro Woche)',
+                      style: const pw.TextStyle(fontSize: 7),
+                      textAlign: pw.TextAlign.center)),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.Container(
+                width: 55,
+                decoration: const pw.BoxDecoration(
+                  border:
+                      pw.Border(bottom: pw.BorderSide(width: 0.5)),
+                ),
+                child: pw.Text(
+                    mengePikett > 0 && preisPikett != null
+                        ? preisPikett.toStringAsFixed(2)
+                        : '-',
+                    style: const pw.TextStyle(fontSize: 9),
+                    textAlign: pw.TextAlign.right),
+              ),
+            ],
+          ),
+        ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 6),
+          child: pw.Row(
+            children: [
+              pw.SizedBox(
+                  width: 200,
+                  child: pw.Text('Pikett Feiertag',
+                      style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold))),
+              _yellowBox(feiertage.toString(),
+                  width: 55, textAlign: pw.TextAlign.center),
+              pw.SizedBox(width: 10),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.SizedBox(
+                  width: 50,
+                  child: pw.Text('80.00',
+                      style: const pw.TextStyle(fontSize: 9),
+                      textAlign: pw.TextAlign.right)),
+              pw.Spacer(),
+              pw.SizedBox(
+                  width: 25,
+                  child: pw.Text('SFr.',
+                      style: const pw.TextStyle(fontSize: 9))),
+              pw.Container(
+                width: 55,
+                decoration: const pw.BoxDecoration(
+                  border:
+                      pw.Border(bottom: pw.BorderSide(width: 0.5)),
+                ),
+                child: pw.Text(
+                    feiertage > 0 && preisFeiert != null
+                        ? preisFeiert.toStringAsFixed(2)
+                        : '-',
+                    style: const pw.TextStyle(fontSize: 9),
+                    textAlign: pw.TextAlign.right),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  /// Pikett-Zeile (Wochenend-/Pikettbereitschaft)
-  static pw.Widget _buildPikettZeile(double? zuschlag) {
+  /// Einzelne Position (für Eigenauftrag, Montage etc.)
+  static pw.Widget _buildPositionRow(
+      String label, double menge, double einzelpreis, double total,
+      {String waehrung = 'SFr.', String? mengeLabel}) {
+    final mengeStr = menge == menge.roundToDouble()
+        ? menge.toInt().toString()
+        : menge.toStringAsFixed(2);
     return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Zusatz Pikett',
-            style: pw.TextStyle(
-                fontSize: 9, fontWeight: pw.FontWeight.bold)),
-        _buildPositionsZeile(
-            'Pikettbereitschaft',
-            zuschlag != null && zuschlag > 0 ? 1 : 0,
-            160,
-            zuschlag ?? 0),
+        pw.Row(children: [
+          pw.SizedBox(width: 200),
+          pw.SizedBox(
+              width: 55,
+              child: pw.Text(mengeLabel ?? 'Menge',
+                  style: pw.TextStyle(
+                      fontSize: 8, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center)),
+        ]),
+        pw.Row(
+          children: [
+            pw.SizedBox(
+                width: 200,
+                child: pw.Text(label,
+                    style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold))),
+            _yellowBox(mengeStr,
+                width: 55, textAlign: pw.TextAlign.center),
+            pw.SizedBox(width: 10),
+            pw.SizedBox(
+                width: 25,
+                child: pw.Text(waehrung,
+                    style: const pw.TextStyle(fontSize: 9))),
+            pw.SizedBox(
+                width: 50,
+                child: pw.Text(einzelpreis.toStringAsFixed(2),
+                    style: const pw.TextStyle(fontSize: 9),
+                    textAlign: pw.TextAlign.right)),
+            pw.Spacer(),
+            pw.SizedBox(
+                width: 25,
+                child: pw.Text('SFr.',
+                    style: const pw.TextStyle(fontSize: 9))),
+            pw.Container(
+              width: 55,
+              decoration: const pw.BoxDecoration(
+                border:
+                    pw.Border(bottom: pw.BorderSide(width: 0.5)),
+              ),
+              child: pw.Text(
+                  total > 0 ? total.toStringAsFixed(2) : '-',
+                  style: const pw.TextStyle(fontSize: 9),
+                  textAlign: pw.TextAlign.right),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  /// Positions-Zeile: Name | Menge | Einzelpreis | Total
-  static pw.Widget _buildPositionsZeile(
-      String name, double menge, double einzelpreis, double total) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
-      child: pw.Row(
-        children: [
-          pw.SizedBox(
-            width: 200,
-            child: pw.Text(name,
-                style: const pw.TextStyle(fontSize: 9)),
-          ),
-          pw.SizedBox(
-            width: 60,
-            child: pw.Text(
-                menge == menge.roundToDouble()
-                    ? menge.toInt().toString()
-                    : menge.toStringAsFixed(2),
-                style: const pw.TextStyle(fontSize: 9),
-                textAlign: pw.TextAlign.center),
-          ),
-          pw.SizedBox(
-            width: 60,
-            child: pw.Text(
-                einzelpreis == einzelpreis.roundToDouble()
-                    ? einzelpreis.toInt().toString()
-                    : einzelpreis.toStringAsFixed(2),
-                style: const pw.TextStyle(fontSize: 9),
-                textAlign: pw.TextAlign.right),
-          ),
-          pw.SizedBox(
-            width: 80,
-            child: pw.Text(
-                total == total.roundToDouble()
-                    ? total.toInt().toString()
-                    : total.toStringAsFixed(2),
-                style: const pw.TextStyle(fontSize: 9),
-                textAlign: pw.TextAlign.right),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Total-Zeile am Ende
+  /// Total-Zeile mit Doppel-Unterstrich
   static pw.Widget _buildTotalZeile(double total) {
     return pw.Column(
       children: [
-        pw.Container(height: 0.5, color: _black),
-        pw.SizedBox(height: 4),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.end,
           children: [
@@ -1063,14 +1491,34 @@ class HeinekenRapportService {
                     fontSize: 11, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(width: 20),
             pw.SizedBox(
-              width: 80,
+                width: 25,
+                child: pw.Text('SFr.',
+                    style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold))),
+            pw.SizedBox(
+              width: 60,
               child: pw.Text(
                   total == total.roundToDouble()
-                      ? total.toInt().toString()
+                      ? total.toStringAsFixed(2)
                       : total.toStringAsFixed(2),
                   style: pw.TextStyle(
-                      fontSize: 11, fontWeight: pw.FontWeight.bold),
+                      fontSize: 10, fontWeight: pw.FontWeight.bold),
                   textAlign: pw.TextAlign.right),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 2),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.end,
+          children: [
+            pw.SizedBox(
+              width: 85,
+              child: pw.Column(children: [
+                pw.Container(height: 1, color: _black),
+                pw.SizedBox(height: 1),
+                pw.Container(height: 1, color: _black),
+              ]),
             ),
           ],
         ),
@@ -1081,24 +1529,25 @@ class HeinekenRapportService {
   /// Montage-Typ Label
   static String _montageTypLabel(String typ) {
     switch (typ) {
-      case 'neu_installation':
+      case 'neumontage':
         return 'Neumontage';
-      case 'umbau':
-        return 'Abänderung';
-      case 'erweiterung':
-        return 'Erweiterung';
-      case 'abbau':
+      case 'demontage':
         return 'Demontage';
+      case 'abaenderung':
+        return 'Abänderung';
       case 'heigenie_service':
         return 'HeiGenie Service';
-      case 'anlass_mitarbeit':
-        return 'Anlass-Mitarbeit';
-      case 'mehraufwand':
-        return 'Mehraufwand';
+      case 'anlass':
+        return 'Anlass';
       case 'spesen':
         return 'Spesen';
-      case 'sonstiges':
-        return 'Sonstiges';
+      case 'aufwandsentschaedigung':
+        return 'Aufwandsentsch.';
+      // Legacy
+      case 'neu_installation': case 'montage': return 'Neumontage';
+      case 'umbau': case 'erweiterung': return 'Abänderung';
+      case 'abbau': return 'Demontage';
+      case 'anlass_mitarbeit': return 'Anlass';
       default:
         return typ;
     }

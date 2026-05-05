@@ -3,6 +3,7 @@ class Eroeffnungsreinigung {
   final String userId;
   final String? betriebId;
   final String stoerungsnummer;
+  final String art; // 'eroeffnung' oder 'endreinigung'
   final DateTime datum;
   final bool istBergkunde;
   final double? preis;
@@ -16,6 +17,7 @@ class Eroeffnungsreinigung {
     required this.userId,
     this.betriebId,
     required this.stoerungsnummer,
+    this.art = 'eroeffnung',
     required this.datum,
     this.istBergkunde = false,
     this.preis,
@@ -31,6 +33,7 @@ class Eroeffnungsreinigung {
       userId: json['user_id'],
       betriebId: json['betrieb_id'],
       stoerungsnummer: json['stoerungsnummer'],
+      art: json['art'] ?? 'eroeffnung',
       datum: DateTime.parse(json['datum']),
       istBergkunde: json['ist_bergkunde'] ?? false,
       preis: json['preis'] != null
@@ -55,6 +58,7 @@ class Eroeffnungsreinigung {
       'user_id': userId,
       'betrieb_id': betriebId,
       'stoerungsnummer': stoerungsnummer,
+      'art': art,
       'datum': datum.toIso8601String().split('T').first,
       'ist_bergkunde': istBergkunde,
       'preis': preis,

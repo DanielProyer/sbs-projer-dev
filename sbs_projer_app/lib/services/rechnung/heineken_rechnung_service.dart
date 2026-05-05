@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,17 +12,35 @@ import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.d
 import 'package:sbs_projer_app/services/pdf/heineken_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/heineken_rapport_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
+import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
+import 'package:sbs_projer_app/data/models/preis.dart';
+import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class HeinekenRechnungService {
-  static const _anfahrtPauschale = 180.0;
-  static const _mwstSatz = 0.081;
-  static const _heinekenPoNummer = '6100259429';
+  // Defaults als Fallback, werden dynamisch aus Preisen geladen
+  static double _anfahrtPauschale = 180.0;
+  static double _mwstSatz = 0.081;
+  static String _heinekenPoNummer = '6100259429';
+  static String _mwstLabel = '8.1%';
+
+  static Future<Preis?> _loadPreise({DateTime? datum}) async {
+    final preis = await PreisRepository.getAktuell(datum: datum);
+    if (preis != null) {
+      _mwstSatz = preis.mwstFaktor;
+      _anfahrtPauschale = preis.bergkundenZuschlag;
+      _heinekenPoNummer = preis.heinekenPoNummer ?? '6100259429';
+      _mwstLabel = preis.mwstLabel;
+    }
+    return preis;
+  }
 
   static String get _userId => SupabaseService.dataUserId;
 
   /// Sammelt alle Heineken-relevanten Daten für den gegebenen Monat.
   static Future<HeinekenMonatsDaten> sammleMonatsDaten(DateTime monat) async {
+    // Preise für den Monat laden
+    await _loadPreise(datum: monat);
     final start = DateTime(monat.year, monat.month, 1);
     final end = DateTime(monat.year, monat.month + 1, 1);
     final startStr = start.toIso8601String().split('T').first;
@@ -33,6 +54,7 @@ class HeinekenRechnungService {
       _queryTable('montagen', 'datum', startStr, endStr),
       _queryTable('pikett_dienste', 'datum_start', startStr, endStr),
       _queryReinigungen(startStr, endStr),
+      _queryTable('bergkundenpauschalen', 'datum', startStr, endStr),
     ]);
 
     final stoerungsRows = results[0] as List<Map<String, dynamic>>;
@@ -41,6 +63,7 @@ class HeinekenRechnungService {
     final montageRows = results[3] as List<Map<String, dynamic>>;
     final pikettRows = results[4] as List<Map<String, dynamic>>;
     final reinigungData = results[5] as Map<String, List<Map<String, dynamic>>>;
+    final bergkundenRows = results[6] as List<Map<String, dynamic>>;
 
     // Betrieb-Namen laden
     final betriebIds = <String>{};
@@ -54,7 +77,7 @@ class HeinekenRechnungService {
       if (bid != null) betriebIds.add(bid);
     }
     for (final row in [
-      ...reinigungData['bergkunden']!,
+      ...bergkundenRows,
       ...reinigungData['gratisreinigungen']!,
     ]) {
       final bid = row['betrieb_id'] as String?;
@@ -76,8 +99,12 @@ class HeinekenRechnungService {
     for (final entry in betriebe.entries) {
       betriebMap[entry.key] = {
         'name': entry.value.name,
+        'strasse': entry.value.strasse,
+        'nr': entry.value.nr,
         'ort': entry.value.ort,
         'plz': entry.value.plz,
+        'betrieb_nr': entry.value.betriebNr,
+        'rechnungsstellung': entry.value.rechnungsstellung,
         'ist_bergkunde': entry.value.istBergkunde,
       };
     }
@@ -91,7 +118,7 @@ class HeinekenRechnungService {
       montagen: _mapMontagen(montageRows, betriebe),
       pikettDienste: _mapPikett(pikettRows),
       berghaeuserAnfahrt:
-          _mapBerghaeuserAnfahrt(reinigungData['bergkunden']!, betriebe),
+          _mapBerghaeuserAnfahrt(bergkundenRows, betriebe),
       gratisreinigungen:
           _mapGratisreinigungen(reinigungData['gratisreinigungen']!, betriebe),
       // Raw data for rapport PDF generation
@@ -100,9 +127,11 @@ class HeinekenRechnungService {
       eroeffnungRows: eroeffnungRows,
       montageRows: montageRows,
       pikettRows: pikettRows,
-      bergkundenRows: reinigungData['bergkunden']!,
+      bergkundenRows: bergkundenRows,
+      gratisreinigungRows: reinigungData['gratisreinigungen']!,
       betriebMap: betriebMap,
       materialNames: materialNames,
+      mwstFaktor: _mwstSatz,
     );
   }
 
@@ -145,7 +174,7 @@ class HeinekenRechnungService {
         'position': pos,
         'beschreibung': name,
         'betrag_netto': _round2(total),
-        'mwst_satz': 8.10,
+        'mwst_satz': _mwstSatz * 100,
         'mwst_betrag': mwst,
         'betrag_brutto': _round2(total + mwst),
       });
@@ -154,27 +183,64 @@ class HeinekenRechnungService {
 
     // 3. Combined PDF generieren (Hauptrechnung + Rapport-Beilagen)
     try {
+      // Logo laden
+      debugPrint('[HEI] Step 3a: Logo laden...');
+      Uint8List? logoBytes;
+      try {
+        final data = await rootBundle.load('assets/images/heineken_logo.png');
+        logoBytes = data.buffer.asUint8List();
+        debugPrint('[HEI] Logo geladen: ${logoBytes.length} bytes');
+      } catch (e) {
+        debugPrint('[HEI] Logo laden fehlgeschlagen: $e');
+      }
+
+      debugPrint('[HEI] Step 3b: PDF Seiten erstellen...');
       final pdf = pw.Document();
 
       // Hauptrechnung: Übersicht + Detail
       pdf.addPage(HeinekenPdfService.buildUebersichtPage(
-          daten, rechnung.rechnungsnummer));
+          daten, rechnung.rechnungsnummer,
+          logoBytes: logoBytes,
+          poNummer: _heinekenPoNummer,
+          mwstLabel: _mwstLabel));
+      debugPrint('[HEI] Übersicht-Seite hinzugefügt');
+
       final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);
       pdf.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 40),
+        header: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          child: HeinekenPdfService.buildDetailHeader(),
+        ),
         build: (context) => detailWidgets,
       ));
+      debugPrint('[HEI] Detail-Seite hinzugefügt');
 
       // Rapport-Beilagen anhängen
-      _addRapportPages(pdf, daten);
+      debugPrint('[HEI] Step 3c: Rapport-Beilagen anhängen...');
+      await _addRapportPages(pdf, daten, logoBytes);
+      debugPrint('[HEI] Rapport-Seiten hinzugefügt');
 
+      debugPrint('[HEI] Step 3d: PDF speichern...');
       final pdfBytes = await pdf.save();
+      debugPrint('[HEI] PDF generiert: ${pdfBytes.length} bytes (${(pdfBytes.length / 1024 / 1024).toStringAsFixed(2)} MB)');
+
+      debugPrint('[HEI] Step 3e: Upload zu Storage (Rechnung ${rechnung.id})...');
       await RechnungPdfStorage.uploadPdf(rechnung.id, pdfBytes);
+      debugPrint('[HEI] PDF hochgeladen');
+
+      debugPrint('[HEI] Step 3f: Signed URL holen...');
       final signedUrl = await RechnungPdfStorage.getSignedUrl(rechnung.id);
+      debugPrint('[HEI] Signed URL erhalten');
+
       await RechnungRepository.update(rechnung.id, {'pdf_url': signedUrl});
-    } catch (e) {
-      debugPrint('Heineken PDF Generierung fehlgeschlagen: $e');
+      debugPrint('[HEI] PDF URL in DB gesetzt');
+    } catch (e, stack) {
+      debugPrint('[HEI] FEHLER: $e');
+      debugPrint('[HEI] Typ: ${e.runtimeType}');
+      debugPrint('[HEI] Stack: $stack');
+      rethrow;
     }
 
     // 4. Service-Einträge als abgerechnet markieren
@@ -207,7 +273,8 @@ class HeinekenRechnungService {
     }
   }
 
-  /// Lädt Reinigungen und splittet in Bergkunden / Gratisreinigungen.
+  /// Lädt Reinigungen für Gratisreinigungen (heineken, noch nicht abgerechnet).
+  /// Bergkunden kommen jetzt aus der separaten bergkundenpauschalen-Tabelle.
   static Future<Map<String, List<Map<String, dynamic>>>> _queryReinigungen(
     String startStr,
     String endStr,
@@ -218,13 +285,14 @@ class HeinekenRechnungService {
           .from('reinigungen')
           .select()
           .eq('user_id', _userId)
+          .eq('abgerechnet', false)
           .gte('datum', startStr)
           .lt('datum', endStr)
           .order('datum');
       allRows = List<Map<String, dynamic>>.from(rows);
     } catch (e) {
       debugPrint('Heineken: Fehler beim Laden von reinigungen: $e');
-      return {'bergkunden': [], 'gratisreinigungen': []};
+      return {'gratisreinigungen': []};
     }
 
     // Betrieb-IDs sammeln
@@ -234,36 +302,30 @@ class HeinekenRechnungService {
       if (bid != null) betriebIds.add(bid);
     }
 
-    // Betriebe laden für istBergkunde und rechnungsstellung
+    // Betriebe laden für rechnungsstellung
     Map<String, Map<String, dynamic>> betriebe = {};
     if (betriebIds.isNotEmpty) {
       final bRows = await SupabaseService.client
           .from('betriebe')
-          .select('id, ist_bergkunde, rechnungsstellung')
+          .select('id, rechnungsstellung')
           .inFilter('id', betriebIds.toList());
       for (final b in bRows) {
         betriebe[b['id'] as String] = b;
       }
     }
 
-    final bergkunden = <Map<String, dynamic>>[];
     final gratis = <Map<String, dynamic>>[];
-
     for (final row in allRows) {
       final bid = row['betrieb_id'] as String?;
       if (bid == null) continue;
       final betrieb = betriebe[bid];
       if (betrieb == null) continue;
-
-      if (betrieb['ist_bergkunde'] == true) {
-        bergkunden.add(row);
-      }
-      if (betrieb['rechnungsstellung'] == 'rechnung_heineken') {
+      if (betrieb['rechnungsstellung'] == 'heineken') {
         gratis.add(row);
       }
     }
 
-    return {'bergkunden': bergkunden, 'gratisreinigungen': gratis};
+    return {'gratisreinigungen': gratis};
   }
 
   static Future<Map<String, _BetriebInfo>> _loadBetriebe(
@@ -271,14 +333,18 @@ class HeinekenRechnungService {
     if (ids.isEmpty) return {};
     final rows = await SupabaseService.client
         .from('betriebe')
-        .select('id, name, ort, plz, ist_bergkunde')
+        .select('id, name, strasse, nr, ort, plz, ist_bergkunde, heineken_nr, rechnungsstellung')
         .inFilter('id', ids.toList());
     final map = <String, _BetriebInfo>{};
     for (final row in rows) {
       map[row['id'] as String] = _BetriebInfo(
         name: row['name'] as String? ?? '',
+        strasse: row['strasse'] as String? ?? '',
+        nr: row['nr'] as String? ?? '',
         ort: row['ort'] as String? ?? '',
         plz: row['plz'] as String? ?? '',
+        betriebNr: row['heineken_nr'] as String? ?? '',
+        rechnungsstellung: row['rechnungsstellung'] as String? ?? '',
         istBergkunde: row['ist_bergkunde'] == true,
       );
     }
@@ -328,12 +394,13 @@ class HeinekenRechnungService {
     Map<String, _BetriebInfo> betriebe,
   ) {
     return rows.map((r) {
-      final bereich = r['stoerung_bereich'];
+      final isKm = r['ist_kilometerabrechnung'] == true;
+      final bereiche = (r['stoerung_bereiche'] as List?)?.cast<int>();
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
-        stoerNr: r['stoerungsnummer']?.toString(),
-        bereich: bereich?.toString(),
-        kunde: _betriebLabel(r['betrieb_id'], betriebe),
+        stoerNr: isKm ? '0' : r['referenz_nr']?.toString(),
+        bereich: isKm ? 'Konventionell' : (bereiche != null && bereiche.isNotEmpty ? bereiche.join(', ') : null),
+        kunde: isKm ? (r['problem_beschreibung']?.toString() ?? '') : _betriebLabel(r['betrieb_id'], betriebe),
         betrag: _toDouble(r['preis_netto']),
       );
     }).toList();
@@ -346,7 +413,7 @@ class HeinekenRechnungService {
     return rows.map((r) {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
-        stoerNr: r['stoerungsnummer']?.toString(),
+        stoerNr: r['referenz_nr']?.toString(),
         bereich: 'EA',
         kunde: _betriebLabel(r['betrieb_id'], betriebe),
         betrag: _toDouble(r['pauschale']),
@@ -361,7 +428,7 @@ class HeinekenRechnungService {
     return rows.map((r) {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
-        stoerNr: r['stoerungsnummer']?.toString(),
+        stoerNr: r['referenz_nr']?.toString(),
         bereich: 'Eröffnung',
         kunde: _betriebLabel(r['betrieb_id'], betriebe),
         betrag: _toDouble(r['preis']),
@@ -374,14 +441,39 @@ class HeinekenRechnungService {
     Map<String, _BetriebInfo> betriebe,
   ) {
     return rows.map((r) {
+      final typ = r['montage_typ']?.toString() ?? 'neumontage';
+      final betriebId = r['betrieb_id'] as String?;
+      // Ohne Betrieb (Spesen/Aufwandsentschädigung): Beschreibung als Kunde
+      final kunde = betriebId != null
+          ? _betriebLabel(betriebId, betriebe)
+          : (r['beschreibung']?.toString() ?? '');
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
         stoerNr: '-',
-        bereich: r['montage_typ']?.toString() ?? 'Abänderung',
-        kunde: _betriebLabel(r['betrieb_id'], betriebe),
+        bereich: _montageTypLabel(typ),
+        kunde: kunde,
         betrag: _toDouble(r['kosten_arbeit']),
       );
     }).toList();
+  }
+
+  /// Lesbare Labels für Montage-Typen (für Heineken-Rechnung).
+  static String _montageTypLabel(String typ) {
+    switch (typ) {
+      case 'neumontage': return 'Neumontage';
+      case 'demontage': return 'Demontage';
+      case 'abaenderung': return 'Abänderung';
+      case 'heigenie_service': return 'HeiGenie';
+      case 'anlass': return 'Anlass';
+      case 'spesen': return 'Spesen';
+      case 'aufwandsentschaedigung': return 'Aufwandsentsch.';
+      // Legacy (vor Migration 062)
+      case 'neu_installation': case 'montage': return 'Neumontage';
+      case 'umbau': case 'erweiterung': return 'Abänderung';
+      case 'abbau': return 'Demontage';
+      case 'anlass_mitarbeit': return 'Anlass';
+      default: return typ;
+    }
   }
 
   static List<HeinekenPosition> _mapPikett(
@@ -409,7 +501,7 @@ class HeinekenRechnungService {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
         kunde: _betriebLabel(r['betrieb_id'], betriebe),
-        betrag: _anfahrtPauschale,
+        betrag: _toDouble(r['betrag']) ?? _anfahrtPauschale,
       );
     }).toList();
   }
@@ -441,6 +533,7 @@ class HeinekenRechnungService {
       'eigenauftraege',
       'eroeffnungsreinigungen',
       'montagen',
+      'bergkundenpauschalen',
     ];
 
     for (final table in tables) {
@@ -465,6 +558,31 @@ class HeinekenRechnungService {
         .eq('user_id', _userId)
         .gte('datum_start', startStr)
         .lt('datum_start', endStr);
+
+    // Reinigungen: nur Heineken-Betriebe markieren
+    try {
+      final bRows = await SupabaseService.client
+          .from('betriebe')
+          .select('id')
+          .eq('user_id', _userId)
+          .eq('rechnungsstellung', 'heineken');
+      final heinekenBetriebIds =
+          bRows.map((b) => b['id'] as String).toList();
+      if (heinekenBetriebIds.isNotEmpty) {
+        await SupabaseService.client
+            .from('reinigungen')
+            .update({
+              'abgerechnet': true,
+              'abrechnungs_monat': monatStr,
+            })
+            .eq('user_id', _userId)
+            .inFilter('betrieb_id', heinekenBetriebIds)
+            .gte('datum', startStr)
+            .lt('datum', endStr);
+      }
+    } catch (e) {
+      debugPrint('Heineken: Reinigungen markieren fehlgeschlagen: $e');
+    }
   }
 
   // ── Utils ──────────────────────────────────────────────────────
@@ -495,91 +613,141 @@ class HeinekenRechnungService {
 
   // ── Rapport-Beilagen ────────────────────────────────────────────
 
+  /// Adresse aus betriebMap: "Strasse Nr"
+  static String _adresse(Map<String, dynamic>? b) {
+    if (b == null) return '';
+    return '${b['strasse'] ?? ''} ${b['nr'] ?? ''}'.trim();
+  }
+
+  /// PLZ + Ort aus betriebMap
+  static String _plzOrt(Map<String, dynamic>? b) {
+    if (b == null) return '';
+    return '${b['plz'] ?? ''} ${b['ort'] ?? ''}'.trim();
+  }
+
+  /// Sortiert Rows nach datum-Spalte (aufsteigend).
+  static List<Map<String, dynamic>> _sortByDatum(
+      List<Map<String, dynamic>> rows, [String datumCol = 'datum']) {
+    final sorted = List<Map<String, dynamic>>.from(rows);
+    sorted.sort((a, b) =>
+        (a[datumCol]?.toString() ?? '').compareTo(b[datumCol]?.toString() ?? ''));
+    return sorted;
+  }
+
   /// Fügt alle Rapport-PDF-Seiten zum Dokument hinzu.
-  static void _addRapportPages(pw.Document pdf, HeinekenMonatsDaten daten) {
+  /// Reihenfolge: Störungen → Eigenaufträge → Eröffnungen → Montagen →
+  /// Pikett → Bergkunden → Gratisreinigungen (gleich wie Übersicht).
+  /// Innerhalb jeder Kategorie: nach Datum sortiert.
+  static Future<void> _addRapportPages(
+      pw.Document pdf, HeinekenMonatsDaten daten, Uint8List? logoBytes) async {
     final names = daten.materialNames;
     final betriebe = daten.betriebMap;
 
-    // 1. Störungsrapporte
-    for (final row in daten.stoerungRows) {
+    // 1. Störungsrapporte (nach Datum)
+    for (final row in _sortByDatum(daten.stoerungRows)) {
+      final isKm = row['ist_kilometerabrechnung'] == true;
       final bid = row['betrieb_id'] as String?;
       final b = bid != null ? betriebe[bid] : null;
       pdf.addPage(HeinekenRapportService.buildStoerungPage(
-        referenzNr: row['referenz_nr']?.toString() ??
-            row['stoerungsnummer']?.toString() ?? '',
-        stoerungsnummer: row['stoerungsnummer']?.toString() ?? '',
+        referenzNr: isKm ? '0' : (row['referenz_nr']?.toString() ?? ''),
+        stoerungsnummer: isKm ? '0' : (row['referenz_nr']?.toString() ?? ''),
         datum: DateTime.parse(row['datum']),
-        kunde: b?['name'] ?? 'UNBEKANNT',
-        ort: '${b?['plz'] ?? ''} ${b?['ort'] ?? ''}'.trim(),
-        stoerungBereich: row['stoerung_bereich'] as int?,
-        serienNrKuehler: row['serien_nr_kuehler']?.toString(),
-        uhrzeitStart: row['uhrzeit_start']?.toString(),
-        istPikettEinsatz: row['ist_pikett_einsatz'] == true,
-        istBergkunde: b?['ist_bergkunde'] == true,
+        kunde: isKm ? (row['problem_beschreibung']?.toString() ?? '') : (b?['name'] ?? 'UNBEKANNT'),
+        adresse: isKm ? '' : _adresse(b),
+        ort: isKm ? (row['notizen']?.toString() ?? '') : _plzOrt(b),
+        stoerungBereiche: isKm ? null : (row['stoerung_bereiche'] as List?)?.cast<int>(),
+        serienNrKuehler: isKm ? null : row['serien_nr_kuehler']?.toString(),
+        uhrzeitStart: isKm ? '00:00' : row['uhrzeit_start']?.toString(),
+        istPikettEinsatz: isKm ? false : row['ist_pikett_einsatz'] == true,
+        istBergkunde: isKm ? false : (b?['ist_bergkunde'] == true),
         anfahrtKm: _toInt(row['anfahrt_km']),
-        preisBasis: _toDoubleN(row['preis_basis']),
+        preisBasis: isKm ? null : _toDoubleN(row['preis_basis']),
         preisAnfahrt: _toDoubleN(row['preis_anfahrt']),
-        preisWochenende: _toDoubleN(row['preis_wochenende']),
+        preisWochenende: isKm ? null : _toDoubleN(row['preis_wochenende']),
         komplexitaetZuschlag: _toDoubleN(row['komplexitaet_zuschlag']),
         preisNetto: _toDoubleN(row['preis_netto']),
-        materialien: _extractMaterialien(row, names, 5),
+        materialien: isKm ? const [] : _extractMaterialien(row, names, 5),
+        logoBytes: logoBytes,
       ));
     }
 
-    // 2. Eigenauftrag-Rapporte
-    for (final row in daten.eigenauftragRows) {
+    // 2. Eigenauftrag-Rapporte (nach Datum)
+    for (final row in _sortByDatum(daten.eigenauftragRows)) {
       final bid = row['betrieb_id'] as String?;
       final b = bid != null ? betriebe[bid] : null;
       pdf.addPage(HeinekenRapportService.buildEigenauftragPage(
-        referenzNr: row['referenz_nr']?.toString() ??
-            row['stoerungsnummer']?.toString() ?? '',
-        stoerungsnummer: row['stoerungsnummer']?.toString() ?? '',
+        referenzNr: row['referenz_nr']?.toString() ?? '',
+        stoerungsnummer: row['referenz_nr']?.toString() ?? '',
         datum: DateTime.parse(row['datum']),
         kunde: b?['name'] ?? 'UNBEKANNT',
-        ort: '${b?['plz'] ?? ''} ${b?['ort'] ?? ''}'.trim(),
+        adresse: _adresse(b),
+        ort: _plzOrt(b),
         problemBeschreibung: row['problem_beschreibung']?.toString() ?? '',
         loesungBeschreibung: row['loesung_beschreibung']?.toString(),
         pauschale: _toDoubleN(row['pauschale']),
         materialien: _extractMaterialien(row, names, 3),
+        logoBytes: logoBytes,
       ));
     }
 
-    // 3. Eröffnungs-/Endreinigung-Rapporte
-    for (final row in daten.eroeffnungRows) {
+    // 3. Eröffnungs-/Endreinigung-Rapporte (nach Datum)
+    for (final row in _sortByDatum(daten.eroeffnungRows)) {
       final bid = row['betrieb_id'] as String?;
       final b = bid != null ? betriebe[bid] : null;
       pdf.addPage(HeinekenRapportService.buildEEReinigungPage(
-        referenzNr: row['stoerungsnummer']?.toString() ?? '',
-        stoerungsnummer: row['stoerungsnummer']?.toString() ?? '',
+        referenzNr: row['referenz_nr']?.toString() ?? '',
+        stoerungsnummer: row['referenz_nr']?.toString() ?? '',
         datum: DateTime.parse(row['datum']),
         kunde: b?['name'] ?? 'UNBEKANNT',
-        ort: '${b?['plz'] ?? ''} ${b?['ort'] ?? ''}'.trim(),
+        adresse: _adresse(b),
+        ort: _plzOrt(b),
         istBergkunde: row['ist_bergkunde'] == true || b?['ist_bergkunde'] == true,
         preis: _toDouble(row['preis']),
+        logoBytes: logoBytes,
       ));
     }
 
-    // 4. Montage-Rapporte
-    for (final row in daten.montageRows) {
+    // 4. Montage-Rapporte (nach Datum)
+    for (final row in _sortByDatum(daten.montageRows)) {
       final bid = row['betrieb_id'] as String?;
       final b = bid != null ? betriebe[bid] : null;
-      pdf.addPage(HeinekenRapportService.buildMontagePage(
-        referenzNr: row['referenz_nr']?.toString() ??
-            row['montage_typ']?.toString() ?? '',
-        datum: DateTime.parse(row['datum']),
-        kunde: b?['name'] ?? 'UNBEKANNT',
-        ort: '${b?['plz'] ?? ''} ${b?['ort'] ?? ''}'.trim(),
-        montageTyp: row['montage_typ']?.toString() ?? 'sonstiges',
-        beschreibung: row['beschreibung']?.toString() ?? '',
-        stundensatz: _toDoubleN(row['stundensatz']),
-        dauerStunden: _toDoubleN(row['dauer_stunden']),
-        kostenArbeit: _toDoubleN(row['kosten_arbeit']),
-        materialien: _extractMaterialien(row, names, 5),
-      ));
+      final typ = row['montage_typ']?.toString() ?? 'sonstiges';
+      final fotoPfad = row['protokoll_foto_pfad'] as String?;
+
+      // HeiGenie mit Protokoll-Foto → gescanntes Papierprotokoll als Seite
+      if (typ == 'heigenie_service' &&
+          fotoPfad != null &&
+          fotoPfad.isNotEmpty) {
+        try {
+          final jpgPfad = ProtokollFotoStorage.jpgPathFromPdf(fotoPfad);
+          final bytes = await SupabaseService.client.storage
+              .from('reinigung-fotos')
+              .download(jpgPfad);
+
+          final image = pw.MemoryImage(bytes);
+          pdf.addPage(pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: pw.EdgeInsets.zero,
+            build: (context) => pw.Center(
+              child: pw.Image(image, fit: pw.BoxFit.contain),
+            ),
+          ));
+        } catch (e) {
+          debugPrint(
+              '[HEI] HeiGenie Protokoll-Foto nicht ladbar ($fotoPfad): $e');
+          // Fallback: Standard-Rapport
+          _addStandardMontagePage(
+              pdf, row, bid, b, names, logoBytes);
+        }
+      } else {
+        // Standard-Rapport (alle anderen Montage-Typen)
+        _addStandardMontagePage(
+            pdf, row, bid, b, names, logoBytes);
+      }
     }
 
-    // 5. Pikett-Rapporte
-    for (final row in daten.pikettRows) {
+    // 5. Pikett-Rapporte (nach Datum)
+    for (final row in _sortByDatum(daten.pikettRows, 'datum_start')) {
       final datumStart = DateTime.parse(row['datum_start']);
       final datumEnde = row['datum_ende'] != null
           ? DateTime.parse(row['datum_ende'])
@@ -595,11 +763,12 @@ class HeinekenRechnungService {
         anzahlFeiertage: _toInt(row['anzahl_feiertage']),
         feiertagZuschlag: _toDoubleN(row['feiertag_zuschlag']),
         pauschaleGesamt: _toDoubleN(row['pauschale_gesamt']),
+        logoBytes: logoBytes,
       ));
     }
 
-    // 6. Anfahrtspauschale-Rapporte (Bergkunden)
-    for (final row in daten.bergkundenRows) {
+    // 6. Anfahrtspauschale-Rapporte (Bergkunden, nach Datum)
+    for (final row in _sortByDatum(daten.bergkundenRows)) {
       final bid = row['betrieb_id'] as String?;
       final b = bid != null ? betriebe[bid] : null;
       final datum = DateTime.parse(row['datum']);
@@ -609,9 +778,87 @@ class HeinekenRechnungService {
         referenzNr: dateStr,
         datum: datum,
         kunde: b?['name'] ?? 'UNBEKANNT',
-        ort: '${b?['plz'] ?? ''} ${b?['ort'] ?? ''}'.trim(),
+        adresse: _adresse(b),
+        ort: _plzOrt(b),
+        logoBytes: logoBytes,
       ));
     }
+
+    // 7. Gratisreinigungen → gescannte Papierprotokolle (nach Datum)
+    if (daten.gratisreinigungRows.isNotEmpty) {
+      for (final row in _sortByDatum(daten.gratisreinigungRows)) {
+        final fotoPfad = row['protokoll_foto_pfad'] as String?;
+        if (fotoPfad == null || fotoPfad.isEmpty) continue;
+
+        try {
+          // JPEG-Version des Protokolls herunterladen
+          final jpgPfad = ProtokollFotoStorage.jpgPathFromPdf(fotoPfad);
+          final bytes = await SupabaseService.client.storage
+              .from('reinigung-fotos')
+              .download(jpgPfad);
+
+          final image = pw.MemoryImage(bytes);
+          pdf.addPage(pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: pw.EdgeInsets.zero,
+            build: (context) => pw.Center(
+              child: pw.Image(image, fit: pw.BoxFit.contain),
+            ),
+          ));
+        } catch (e) {
+          debugPrint('[HEI] Protokoll-Foto nicht ladbar ($fotoPfad): $e');
+        }
+      }
+    }
+  }
+
+  /// Fügt eine Standard-Montage-Rapport-Seite hinzu.
+  static void _addStandardMontagePage(
+    pw.Document pdf,
+    Map<String, dynamic> row,
+    String? bid,
+    Map<String, dynamic>? b,
+    Map<String, String> names,
+    Uint8List? logoBytes,
+  ) {
+    final kunde = bid != null
+        ? (b?['name'] ?? 'UNBEKANNT')
+        : (row['beschreibung']?.toString() ?? '');
+    final typ = row['montage_typ']?.toString() ?? 'neumontage';
+
+    // Bei Anlass: material_ids SIND die Freitext-Beschreibungen (keine Lager-IDs)
+    final materialien = typ == 'anlass'
+        ? _extractAnlassEintraege(row, 5)
+        : _extractMaterialien(row, names, 5);
+
+    pdf.addPage(HeinekenRapportService.buildMontagePage(
+      referenzNr: row['referenz_nr']?.toString() ?? typ,
+      datum: DateTime.parse(row['datum']),
+      kunde: kunde,
+      adresse: bid != null ? _adresse(b) : '',
+      ort: bid != null ? _plzOrt(b) : '',
+      montageTyp: typ,
+      beschreibung: row['beschreibung']?.toString() ?? '',
+      stundensatz: _toDoubleN(row['stundensatz']),
+      dauerStunden: _toDoubleN(row['dauer_stunden']),
+      kostenArbeit: _toDoubleN(row['kosten_arbeit']),
+      materialien: materialien,
+      logoBytes: logoBytes,
+    ));
+  }
+
+  /// Extrahiert Anlass-Einträge (Freitext + Stunden) aus einer Raw-Row.
+  static List<(String, double)> _extractAnlassEintraege(
+      Map<String, dynamic> row, int max) {
+    final result = <(String, double)>[];
+    for (int i = 1; i <= max; i++) {
+      final text = row['material${i}_id'] as String?;
+      if (text != null && text.isNotEmpty) {
+        final stunden = _toDouble(row['material${i}_menge']);
+        result.add((text, stunden));
+      }
+    }
+    return result;
   }
 
   /// Extrahiert Material-Positionen aus einer Raw-Row.
@@ -632,13 +879,21 @@ class HeinekenRechnungService {
 
 class _BetriebInfo {
   final String name;
+  final String strasse;
+  final String nr;
   final String ort;
   final String plz;
+  final String betriebNr;
+  final String rechnungsstellung;
   final bool istBergkunde;
   _BetriebInfo({
     required this.name,
+    this.strasse = '',
+    this.nr = '',
     required this.ort,
     this.plz = '',
+    this.betriebNr = '',
+    this.rechnungsstellung = '',
     this.istBergkunde = false,
   });
 }

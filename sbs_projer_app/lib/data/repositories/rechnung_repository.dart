@@ -10,7 +10,7 @@ class RechnungRepository {
         .from('rechnungen')
         .select()
         .eq('user_id', _userId)
-        .order('rechnungsdatum', ascending: false);
+        .order('created_at', ascending: false);
     return rows.map((r) => Rechnung.fromJson(r)).toList();
   }
 
@@ -34,7 +34,7 @@ class RechnungRepository {
         .select()
         .eq('user_id', _userId)
         .eq('betrieb_id', betriebId)
-        .order('rechnungsdatum', ascending: false);
+        .order('created_at', ascending: false);
     return rows.map((r) => Rechnung.fromJson(r)).toList();
   }
 

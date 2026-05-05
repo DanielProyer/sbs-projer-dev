@@ -16,10 +16,6 @@ class Anlage {
   final String? gasTyp2;
   final double? hauptdruckBar;
   final bool hatNiederdruck;
-  final String? servicezeitMorgenAb;
-  final String? servicezeitMorgenBis;
-  final String? servicezeitNachmittagAb;
-  final String? servicezeitNachmittagBis;
   final String reinigungRhythmus;
   final DateTime? letzteReinigung;
   final DateTime? naechsteReinigung;
@@ -46,10 +42,6 @@ class Anlage {
     this.gasTyp2,
     this.hauptdruckBar,
     this.hatNiederdruck = false,
-    this.servicezeitMorgenAb,
-    this.servicezeitMorgenBis,
-    this.servicezeitNachmittagAb,
-    this.servicezeitNachmittagBis,
     this.reinigungRhythmus = '4-Wochen',
     this.letzteReinigung,
     this.naechsteReinigung,
@@ -82,10 +74,6 @@ class Anlage {
           ? double.tryParse(json['hauptdruck_bar'].toString())
           : null,
       hatNiederdruck: json['hat_niederdruck'] ?? false,
-      servicezeitMorgenAb: json['servicezeit_morgen_ab'],
-      servicezeitMorgenBis: json['servicezeit_morgen_bis'],
-      servicezeitNachmittagAb: json['servicezeit_nachmittag_ab'],
-      servicezeitNachmittagBis: json['servicezeit_nachmittag_bis'],
       reinigungRhythmus: json['reinigung_rhythmus'] ?? '4-Wochen',
       letzteReinigung: json['letzte_reinigung'] != null
           ? DateTime.parse(json['letzte_reinigung'])
@@ -119,10 +107,6 @@ class Anlage {
       'gas_typ_2': gasTyp2,
       'hauptdruck_bar': hauptdruckBar,
       'hat_niederdruck': hatNiederdruck,
-      'servicezeit_morgen_ab': servicezeitMorgenAb,
-      'servicezeit_morgen_bis': servicezeitMorgenBis,
-      'servicezeit_nachmittag_ab': servicezeitNachmittagAb,
-      'servicezeit_nachmittag_bis': servicezeitNachmittagBis,
       'reinigung_rhythmus': reinigungRhythmus,
       'status': status,
       'notizen': notizen,

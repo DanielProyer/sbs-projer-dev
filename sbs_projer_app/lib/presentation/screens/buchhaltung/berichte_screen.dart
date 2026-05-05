@@ -206,66 +206,110 @@ class _ErfolgsrechnungTab extends ConsumerWidget {
   }
 }
 
-class _MwstTab extends ConsumerWidget {
+class _MwstTab extends ConsumerStatefulWidget {
   final int jahr;
 
   const _MwstTab({required this.jahr});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final dataAsync = ref.watch(mwstAbrechnungProvider(jahr));
+  ConsumerState<_MwstTab> createState() => _MwstTabState();
+}
+
+class _MwstTabState extends ConsumerState<_MwstTab> {
+  late int _selectedQuartal;
+
+  static const _abgabefristen = {
+    1: '31.05.',
+    2: '31.08.',
+    3: '30.11.',
+    4: '28.02.',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedQuartal = ((DateTime.now().month - 1) ~/ 3) + 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dataAsync = ref.watch(mwstQuartalDetailProvider(widget.jahr));
 
     return dataAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Fehler: $e')),
       data: (rows) {
-        if (rows.isEmpty) {
-          return Center(
-            child: Text(
-              'Keine MwSt-Daten für $jahr',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          );
-        }
+        final selected = rows.firstWhere(
+          (r) => r['quartal'] == _selectedQuartal,
+          orElse: () => <String, dynamic>{},
+        );
+
+        final umsatz = _d(selected['umsatz']);
+        final umsatzsteuer = _d(selected['umsatzsteuer']);
+        final vorsteuerMaterial = _d(selected['vorsteuer_material']);
+        final vorsteuerBetrieb = _d(selected['vorsteuer_betrieb']);
+        final netto = _d(selected['netto_mwst_schuld']);
+        final fristJahr = _selectedQuartal == 4 ? widget.jahr + 1 : widget.jahr;
+        final frist = '${_abgabefristen[_selectedQuartal]}$fristJahr';
 
         return ListView(
           padding: const EdgeInsets.all(16),
-          children: rows.map((row) {
-            final quartal = row['quartal'] as int;
-            final umsatzsteuer = _d(row['umsatzsteuer']);
-            final vorsteuerInv = _d(row['vorsteuer_investitionen']);
-            final vorsteuerBetrieb = _d(row['vorsteuer_betrieb']);
-            final netto = _d(row['netto_mwst_schuld']);
+          children: [
+            // Quartal-Auswahl
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 1, label: Text('Q1')),
+                ButtonSegment(value: 2, label: Text('Q2')),
+                ButtonSegment(value: 3, label: Text('Q3')),
+                ButtonSegment(value: 4, label: Text('Q4')),
+              ],
+              selected: {_selectedQuartal},
+              onSelectionChanged: (sel) =>
+                  setState(() => _selectedQuartal = sel.first),
+            ),
+            const SizedBox(height: 16),
 
-            return Card(
+            // MwSt-Detail-Card
+            Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Q$quartal $jahr',
+                      'Q$_selectedQuartal ${widget.jahr}',
                       style: Theme.of(context)
                           .textTheme
                           .titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 12),
-                    _SummenZeile('Umsatzsteuer (geschuldet)', umsatzsteuer, AppColors.error),
-                    _SummenZeile('Vorsteuer Investitionen', -vorsteuerInv, AppColors.success),
-                    _SummenZeile('Vorsteuer Betriebsaufwand', -vorsteuerBetrieb, AppColors.success),
+                    _SummenZeile('Umsatz (Ziff. 200)', umsatz, AppColors.success),
+                    _SummenZeile('Umsatzsteuer (Ziff. 382)', umsatzsteuer, AppColors.error),
+                    const SizedBox(height: 4),
+                    _SummenZeile('Vorsteuer Material (Ziff. 400)', vorsteuerMaterial, AppColors.success),
+                    _SummenZeile('Vorsteuer Betrieb (Ziff. 405)', vorsteuerBetrieb, AppColors.success),
                     const Divider(),
                     _SummenZeile(
-                      'Netto MwSt-Schuld',
+                      'Zu bezahlen (Ziff. 500)',
                       netto,
                       netto > 0 ? AppColors.error : AppColors.success,
                       bold: true,
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Abgabefrist: $frist',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            );
-          }).toList(),
+            ),
+          ],
         );
       },
     );

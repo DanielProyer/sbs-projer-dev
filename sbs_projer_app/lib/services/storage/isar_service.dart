@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/data/local/lager_local.dart';
 import 'package:sbs_projer_app/data/local/preis_local.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
+import 'package:sbs_projer_app/data/local/termin_local.dart';
 import 'package:sbs_projer_app/data/local/sync_meta_local.dart';
 
 class IsarService {
@@ -46,6 +47,7 @@ class IsarService {
         LagerLocalSchema,
         PreisLocalSchema,
         EroeffnungsreinigungLocalSchema,
+        TerminLocalSchema,
         SyncMetaLocalSchema,
       ],
       directory: dir.path,
@@ -144,6 +146,10 @@ class IsarService {
       instance.reinigungLocals.filter().anlageIdEqualTo(anlageId).watch(fireImmediately: true);
   static Stream<List<ReinigungLocal>> reinigungWatchByBetrieb(String betriebId) =>
       instance.reinigungLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+  static Future<ReinigungLocal?> reinigungFindLastByBetrieb(String betriebId) async {
+    final all = await instance.reinigungLocals.filter().betriebIdEqualTo(betriebId).sortByDatumDesc().findAll();
+    return all.isEmpty ? null : all.first;
+  }
 
   // ─── Stoerung ───
   static Future<List<StoerungLocal>> stoerungFindAll() =>
@@ -166,8 +172,6 @@ class IsarService {
       instance.stoerungLocals.filter().anlageIdEqualTo(anlageId).watch(fireImmediately: true);
   static Stream<List<StoerungLocal>> stoerungWatchByBetrieb(String betriebId) =>
       instance.stoerungLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
-  static Future<List<StoerungLocal>> stoerungFilterByNummer(String prefix) =>
-      instance.stoerungLocals.filter().stoerungsnummerStartsWith(prefix).findAll();
 
   // ─── Montage ───
   static Future<List<MontageLocal>> montageFindAll() =>
@@ -282,6 +286,28 @@ class IsarService {
       instance.eroeffnungsreinigungLocals.filter().betriebIdEqualTo(betriebId).findAll();
   static Stream<List<EroeffnungsreinigungLocal>> eroeffnungsreinigungWatchByBetrieb(String betriebId) =>
       instance.eroeffnungsreinigungLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+
+  // ─── Termin ───
+  static Future<List<TerminLocal>> terminFindAll() =>
+      instance.terminLocals.where().findAll();
+  static Stream<List<TerminLocal>> terminWatchAll() =>
+      instance.terminLocals.where().watch(fireImmediately: true);
+  static Future<int> terminCount() =>
+      instance.terminLocals.count();
+  static Future<TerminLocal?> terminGet(int id) =>
+      instance.terminLocals.get(id);
+  static Future<void> terminPut(TerminLocal t) =>
+      instance.writeTxn(() => instance.terminLocals.put(t));
+  static Future<void> terminDelete(int id) =>
+      instance.writeTxn(() => instance.terminLocals.delete(id));
+  static Future<TerminLocal?> terminFindByServerId(String serverId) =>
+      instance.terminLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<List<TerminLocal>> terminFilterByBetrieb(String betriebId) =>
+      instance.terminLocals.filter().betriebIdEqualTo(betriebId).findAll();
+  static Stream<List<TerminLocal>> terminWatchByBetrieb(String betriebId) =>
+      instance.terminLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+  static Future<List<TerminLocal>> terminFilterByDatumRange(DateTime von, DateTime bis) =>
+      instance.terminLocals.filter().datumBetween(von, bis).findAll();
 
   // ─── Cascade Deletes ───
   static Future<void> anlageDeleteCascade(int id) async {

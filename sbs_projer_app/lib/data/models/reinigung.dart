@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Reinigung {
   final String id;
   final String userId;
@@ -55,6 +57,7 @@ class Reinigung {
   final String? serviceArt;
   final List<String> anlageIds;
   final bool istAbgerechnet;
+  final String? hahnTemperaturenJson;
   final String status;
   final bool istSynced;
   final DateTime? createdAt;
@@ -111,6 +114,7 @@ class Reinigung {
     this.serviceArt,
     this.anlageIds = const [],
     this.istAbgerechnet = false,
+    this.hahnTemperaturenJson,
     this.status = 'offen',
     this.istSynced = false,
     this.createdAt,
@@ -173,6 +177,11 @@ class Reinigung {
           ? List<String>.from(json['anlage_ids'])
           : [],
       istAbgerechnet: json['ist_abgerechnet'] ?? false,
+      hahnTemperaturenJson: json['hahn_temperaturen'] != null
+          ? (json['hahn_temperaturen'] is String
+              ? json['hahn_temperaturen']
+              : jsonEncode(json['hahn_temperaturen']))
+          : null,
       status: json['status'] ?? 'offen',
       istSynced: json['ist_synced'] ?? false,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
@@ -231,6 +240,9 @@ class Reinigung {
       'service_art': serviceArt,
       'anlage_ids': anlageIds.isNotEmpty ? anlageIds : null,
       'ist_abgerechnet': istAbgerechnet,
+      'hahn_temperaturen': hahnTemperaturenJson != null
+          ? jsonDecode(hahnTemperaturenJson!)
+          : null,
       'status': status,
     };
   }

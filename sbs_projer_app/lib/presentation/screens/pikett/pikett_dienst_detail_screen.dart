@@ -280,9 +280,12 @@ class _PikettDetailContent extends ConsumerWidget {
 }
 
 int _kw(DateTime date) {
-  final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays;
-  final wday = date.weekday;
-  return ((dayOfYear - wday + 10) / 7).floor();
+  // ISO 8601: KW wird über den Donnerstag der Woche bestimmt
+  // UTC verwenden um DST-Probleme bei Duration.inDays zu vermeiden
+  final d = DateTime.utc(date.year, date.month, date.day);
+  final thursday = d.add(Duration(days: DateTime.thursday - d.weekday));
+  final jan1 = DateTime.utc(thursday.year, 1, 1);
+  return (thursday.difference(jan1).inDays / 7).floor() + 1;
 }
 
 String _formatDate(DateTime date) {

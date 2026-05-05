@@ -12,6 +12,43 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 
+// === Anlagentyp-Helpers (shared zwischen Content + StatusRow) ===
+String _anlageTypLetter(String? typ) {
+  switch (typ) {
+    case 'david': return 'D';
+    case 'heigenie': return 'H';
+    case 'konventionell': return 'K';
+    case 'orion': return 'O';
+    default: return 'S';
+  }
+}
+
+/// HH:mm:ss → HH:mm
+String _kurzZeit(String zeit) {
+  if (zeit.length >= 5) return zeit.substring(0, 5);
+  return zeit;
+}
+
+Color _anlageTypColor(String? typ) {
+  switch (typ) {
+    case 'david': return AppColors.info;
+    case 'heigenie': return AppColors.primary;
+    case 'konventionell': return AppColors.textSecondary;
+    case 'orion': return Colors.amber;
+    default: return AppColors.textSecondary;
+  }
+}
+
+String _anlageTypLabel(String typ) {
+  switch (typ) {
+    case 'david': return 'David';
+    case 'heigenie': return 'Heigenie';
+    case 'konventionell': return 'Konventionell';
+    case 'orion': return 'Orion';
+    default: return typ;
+  }
+}
+
 class StoerungDetailScreen extends ConsumerWidget {
   final String stoerungId;
 
@@ -88,7 +125,9 @@ class _StoerungDetailContentState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(stoerung.stoerungsnummer),
+        title: Text(stoerung.istKilometerabrechnung
+            ? 'Kilometerabrechnung ${_formatDate(stoerung.datum)}'
+            : 'Störung ${_formatDate(stoerung.datum)}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
@@ -117,8 +156,8 @@ class _StoerungDetailContentState
           _StatusRow(stoerung: stoerung),
           const SizedBox(height: 16),
 
-          // Betrieb & Anlage
-          if (stoerung.betriebId != null)
+          // Betrieb & Anlage (nicht bei Kilometerabrechnung)
+          if (stoerung.betriebId != null && !stoerung.istKilometerabrechnung)
             _BetriebAnlageCard(stoerung: stoerung),
 
           // Zeiterfassung
@@ -127,22 +166,35 @@ class _StoerungDetailContentState
             icon: Icons.schedule,
             children: [
               _InfoRow('Datum', _formatDate(stoerung.datum)),
-              if (stoerung.referenzNr != null)
-                _InfoRow('Heineken-Nr', stoerung.referenzNr!),
+              if (stoerung.referenzNr != null && !stoerung.istKilometerabrechnung)
+                _InfoRow('Störungsnummer', stoerung.referenzNr!),
               if (stoerung.uhrzeitStart != null)
-                _InfoRow('Störungseingang', stoerung.uhrzeitStart!),
+                _InfoRow('Störungseingang', _kurzZeit(stoerung.uhrzeitStart!)),
             ],
           ),
 
-          // Störungsdetails
+          // Störungsdetails / Beschreibung
           _SectionCard(
-            title: 'Störungsdetails',
-            icon: Icons.warning_amber,
+            title: stoerung.istKilometerabrechnung ? 'Beschreibung' : 'Störungsdetails',
+            icon: stoerung.istKilometerabrechnung ? Icons.directions_car : Icons.build,
             children: [
-              if (stoerung.stoerungBereich != null)
-                _InfoRow('Bereich', _bereichLabel(stoerung.stoerungBereich!)),
-              if (stoerung.anlageTyp != null)
-                _InfoRow('Anlagetyp', stoerung.anlageTyp!),
+              if (!stoerung.istKilometerabrechnung && stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty)
+                _InfoRow('Bereiche', stoerung.stoerungBereiche!.map(_bereichLabel).join(', ')),
+              if (!stoerung.istKilometerabrechnung && stoerung.anlageTyp != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 130,
+                        child: Text('Anlagetyp', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                      ),
+                      Text(_anlageTypLetter(stoerung.anlageTyp), style: TextStyle(color: _anlageTypColor(stoerung.anlageTyp), fontWeight: FontWeight.w700, fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(_anlageTypLabel(stoerung.anlageTyp!), style: const TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                ),
               _InfoRow('Beschreibung', stoerung.problemBeschreibung),
             ],
           ),
@@ -302,15 +354,15 @@ class _StoerungDetailContentState
   String _bereichLabel(int bereich) {
     switch (bereich) {
       case 1:
-        return '1 - Kühlung/Durchlaufkühler';
+        return '1 - Zapfhahn/Säule';
       case 2:
-        return '2 - Schankanlage/Zapfhahn';
+        return '2 - Leitung/Python';
       case 3:
-        return '3 - Kühlsystem';
+        return '3 - Kühler/Vorkühler';
       case 4:
-        return '4 - Druckgasanlage';
+        return '4 - Zapfkopf/Tank';
       case 5:
-        return '5 - Sonstiges';
+        return '5 - Gas/Manometer';
       default:
         return 'Bereich $bereich';
     }
@@ -359,12 +411,12 @@ class _StoerungDetailContentState
       }
 
       final pdfBytes = await HeinekenRapportService.generateStoerung(
-        referenzNr: stoerung.referenzNr ?? stoerung.stoerungsnummer,
-        stoerungsnummer: stoerung.stoerungsnummer,
+        referenzNr: stoerung.referenzNr ?? '',
+        stoerungsnummer: stoerung.referenzNr ?? '',
         datum: stoerung.datum,
         kunde: kunde,
         ort: ort,
-        stoerungBereich: stoerung.stoerungBereich,
+        stoerungBereiche: stoerung.stoerungBereiche,
         uhrzeitStart: stoerung.uhrzeitStart,
         istPikettEinsatz: stoerung.istPikettEinsatz,
         istBergkunde: stoerung.istBergkunde,
@@ -381,7 +433,7 @@ class _StoerungDetailContentState
         Navigator.of(context).pop();
         await Printing.layoutPdf(
           onLayout: (_) => pdfBytes,
-          name: 'Rapport_Stoerung_${stoerung.stoerungsnummer}',
+          name: 'Rapport_Stoerung_${stoerung.referenzNr ?? _formatDate(stoerung.datum)}',
         );
       }
     } catch (e) {
@@ -399,8 +451,8 @@ class _StoerungDetailContentState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Störung löschen'),
-        content: Text(
-          'Störung ${stoerung.stoerungsnummer} wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.',
+        content: const Text(
+          'Störung wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.',
         ),
         actions: [
           TextButton(
@@ -509,17 +561,20 @@ class _StatusRow extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _StatusChip(
-          label: stoerung.status,
-          color: stoerung.status == 'behoben'
-              ? AppColors.success
-              : stoerung.status == 'offen'
-                  ? AppColors.warning
-                  : AppColors.inaktiv,
-        ),
-        if (stoerung.stoerungBereich != null)
+        if (stoerung.istKilometerabrechnung)
+          const _StatusChip(
+            label: 'Kilometerabrechnung',
+            color: Colors.orange,
+            icon: Icons.directions_car,
+          ),
+        if (!stoerung.istKilometerabrechnung && stoerung.anlageTyp != null)
           _StatusChip(
-            label: 'Bereich ${stoerung.stoerungBereich}',
+            label: _anlageTypLabel(stoerung.anlageTyp!),
+            color: _anlageTypColor(stoerung.anlageTyp),
+          ),
+        if (!stoerung.istKilometerabrechnung && stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty)
+          _StatusChip(
+            label: 'Bereich ${stoerung.stoerungBereiche!.join(', ')}',
             color: AppColors.info,
             icon: Icons.category,
           ),

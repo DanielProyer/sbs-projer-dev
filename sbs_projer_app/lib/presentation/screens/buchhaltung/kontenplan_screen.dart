@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/konto.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/konto_providers.dart';
-import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
 
 class KontenplanScreen extends ConsumerStatefulWidget {
   const KontenplanScreen({super.key});
@@ -15,27 +15,13 @@ class KontenplanScreen extends ConsumerStatefulWidget {
 
 class _KontenplanScreenState extends ConsumerState<KontenplanScreen> {
   String _searchQuery = '';
-  Map<int, double>? _saldi;
-  bool _loadingSaldi = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSaldi();
-  }
-
-  Future<void> _loadSaldi() async {
-    try {
-      final saldi = await BuchungService.getAllSaldi();
-      if (mounted) setState(() { _saldi = saldi; _loadingSaldi = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loadingSaldi = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final konten = ref.watch(kontenProvider);
+    final saldiAsync = ref.watch(kontoSaldiProvider);
+    final saldi = saldiAsync.valueOrNull;
+    final loadingSaldi = saldiAsync.isLoading;
 
     final filtered = konten.where((k) {
       if (_searchQuery.isEmpty) return true;
@@ -103,8 +89,8 @@ class _KontenplanScreenState extends ConsumerState<KontenplanScreen> {
                       return _KategorieSection(
                         kategorie: kat,
                         konten: kontenInKat,
-                        saldi: _saldi,
-                        loadingSaldi: _loadingSaldi,
+                        saldi: saldi,
+                        loadingSaldi: loadingSaldi,
                         onKontoTap: (k) => context.push(
                           '/buchhaltung/buchungen',
                           extra: k.kontonummer,

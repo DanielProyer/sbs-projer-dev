@@ -12,6 +12,7 @@ class EroeffnungsreinigungLocal {
   String userId = '';
   String? betriebId;
   String stoerungsnummer = '';
+  String art = 'eroeffnung';
   DateTime datum = DateTime.now();
   bool istBergkunde = false;
   double? preis;

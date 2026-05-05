@@ -120,21 +120,6 @@ class _AnlageDetailContent extends ConsumerWidget {
             ],
           ),
 
-          // Servicezeiten
-          if (_hasServicezeiten)
-            _SectionCard(
-              title: 'Servicezeiten',
-              icon: Icons.schedule,
-              children: [
-                if (anlage.servicezeitMorgenAb != null)
-                  _InfoRow('Morgen',
-                      '${anlage.servicezeitMorgenAb} - ${anlage.servicezeitMorgenBis ?? '?'}'),
-                if (anlage.servicezeitNachmittagAb != null)
-                  _InfoRow('Nachmittag',
-                      '${anlage.servicezeitNachmittagAb} - ${anlage.servicezeitNachmittagBis ?? '?'}'),
-              ],
-            ),
-
           // Reinigung
           _SectionCard(
             title: 'Reinigung',
@@ -171,6 +156,20 @@ class _AnlageDetailContent extends ConsumerWidget {
               children: [_InfoRow('', anlage.notizen!)],
             ),
 
+          // Zuletzt geändert
+          if (anlage.updatedAt != null || anlage.createdAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                'Zuletzt geändert: ${_formatDateTime(anlage.updatedAt ?? anlage.createdAt!)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+
           // Sync-Info
           if (!anlage.isSynced)
             Container(
@@ -200,10 +199,6 @@ class _AnlageDetailContent extends ConsumerWidget {
     );
   }
 
-  bool get _hasServicezeiten =>
-      anlage.servicezeitMorgenAb != null ||
-      anlage.servicezeitNachmittagAb != null;
-
   String _vorkuehlerLabel(String value) {
     if (value == 'keiner') return 'Keiner';
     return value; // DB-Werte sind bereits lesbar (Fasskühler, Kühlzelle, Buffet)
@@ -211,6 +206,11 @@ class _AnlageDetailContent extends ConsumerWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}.${local.month.toString().padLeft(2, '0')}.${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
@@ -608,13 +608,6 @@ class _ReinigungenSection extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    TextButton.icon(
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Neue Reinigung'),
-                      onPressed: () => context.push(
-                        '/reinigungen/neu?anlageId=${anlage.serverId}&betriebId=${anlage.betriebId}',
-                      ),
-                    ),
                   ],
                 ),
                 if (display.isNotEmpty) ...[
@@ -807,16 +800,17 @@ class _StoerungRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    stoerung.stoerungsnummer,
+                    'Störung ${stoerung.datum.day.toString().padLeft(2, '0')}.${stoerung.datum.month.toString().padLeft(2, '0')}.${stoerung.datum.year}',
                     style: const TextStyle(fontSize: 14),
                   ),
-                  Text(
-                    '${stoerung.datum.day.toString().padLeft(2, '0')}.${stoerung.datum.month.toString().padLeft(2, '0')}.${stoerung.datum.year}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  if (stoerung.referenzNr != null)
+                    Text(
+                      'HN-${stoerung.referenzNr}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -932,70 +926,102 @@ class _BierleitungRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push(
-        '/anlagen/$anlageRouteId/bierleitungen/${leitung.routeId}/bearbeiten',
-      ),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: AppColors.info.withAlpha(25),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Center(
-                child: Text(
-                  '${leitung.leitungsNummer}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: AppColors.info,
+    final isInaktiv = !leitung.istAktiv;
+
+    return Opacity(
+      opacity: isInaktiv ? 0.5 : 1.0,
+      child: InkWell(
+        onTap: () => context.push(
+          '/anlagen/$anlageRouteId/bierleitungen/${leitung.routeId}/bearbeiten',
+        ),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: isInaktiv
+                      ? AppColors.textSecondary.withAlpha(25)
+                      : AppColors.info.withAlpha(25),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Text(
+                    '${leitung.leitungsNummer}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      color: isInaktiv
+                          ? AppColors.textSecondary
+                          : AppColors.info,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    leitung.biersorte ?? 'Keine Biersorte',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  if (leitung.hahnTyp != null || leitung.niederdruckBar != null)
-                    Text(
-                      [
-                        if (leitung.hahnTyp != null) leitung.hahnTyp!,
-                        if (leitung.niederdruckBar != null)
-                          '${leitung.niederdruckBar} bar',
-                      ].join(' · '),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          leitung.biersorte ?? 'Keine Biersorte',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        if (isInaktiv) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.textSecondary.withAlpha(25),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Inaktiv',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                ],
+                    if (leitung.hahnTyp != null || leitung.niederdruckBar != null)
+                      Text(
+                        [
+                          if (leitung.hahnTyp != null) leitung.hahnTyp!,
+                          if (leitung.niederdruckBar != null)
+                            '${leitung.niederdruckBar} bar',
+                        ].join(' · '),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            if (leitung.hatFobStop)
-              const Tooltip(
-                message: 'FOB-Stop',
-                child: Icon(Icons.stop_circle_outlined,
-                    size: 16, color: AppColors.info),
+              if (leitung.hatFobStop)
+                const Tooltip(
+                  message: 'FOB-Stop',
+                  child: Icon(Icons.stop_circle_outlined,
+                      size: 16, color: AppColors.info),
+                ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 18),
+                color: AppColors.textSecondary,
+                tooltip: 'Löschen',
+                onPressed: () => _confirmDelete(context),
               ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 18),
-              color: AppColors.textSecondary,
-              tooltip: 'Löschen',
-              onPressed: () => _confirmDelete(context),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1042,7 +1068,12 @@ class _StatusRow extends StatelessWidget {
       children: [
         _StatusChip(
           label: anlage.status,
-          color: anlage.status == 'aktiv' ? AppColors.aktiv : AppColors.inaktiv,
+          color: switch (anlage.status) {
+            'aktiv' => AppColors.aktiv,
+            'stillgelegt' => AppColors.geschlossen,
+            'demontiert' => AppColors.demontiert,
+            _ => AppColors.inaktiv,
+          },
         ),
         _StatusChip(
           label: anlage.typAnlage,

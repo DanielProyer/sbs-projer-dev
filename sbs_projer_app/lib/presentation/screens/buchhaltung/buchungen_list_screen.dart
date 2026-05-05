@@ -52,7 +52,16 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
             b.habenKonto.toString().contains(q);
       }
       return true;
-    }).toList();
+    }).toList()
+      // Sortieren nach Datum + Uhrzeit (neueste zuerst)
+      ..sort((a, b) {
+        final cmp = b.datum.compareTo(a.datum);
+        if (cmp != 0) return cmp;
+        // Bei gleichem Datum: createdAt als Uhrzeit-Proxy
+        final catA = a.createdAt ?? a.datum;
+        final catB = b.createdAt ?? b.datum;
+        return catB.compareTo(catA);
+      });
 
     return Scaffold(
       appBar: AppBar(
@@ -308,7 +317,7 @@ class _BuchungListItem extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${_formatDate(buchung.datum)} · ${buchung.sollKonto} → ${buchung.habenKonto}'
+          '${_formatDateTime(buchung)} · ${buchung.sollKonto} → ${buchung.habenKonto}'
           '${buchung.belegnummer != null ? ' · ${buchung.belegnummer}' : ''}',
           style: const TextStyle(fontSize: 12),
         ),
@@ -325,6 +334,14 @@ class _BuchungListItem extends StatelessWidget {
     );
   }
 
-  static String _formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  static String _formatDateTime(Buchung b) {
+    final d = b.datum;
+    final date = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    final c = b.createdAt;
+    if (c != null) {
+      final time = '${c.hour.toString().padLeft(2, '0')}:${c.minute.toString().padLeft(2, '0')}';
+      return '$date $time';
+    }
+    return date;
+  }
 }

@@ -33,6 +33,7 @@ class _EroeffnungsreinigungFormScreenState
   // Felder
   String? _betriebId;
   String _betriebSearchText = '';
+  String _art = 'eroeffnung';
   bool _istBergkunde = false;
   late DateTime _datum;
   late final _stoerungsnummerController = TextEditingController();
@@ -79,6 +80,7 @@ class _EroeffnungsreinigungFormScreenState
     setState(() {
       _existing = er;
       _betriebId = er.betriebId;
+      _art = er.art;
       _datum = er.datum;
       _istBergkunde = er.istBergkunde;
       _stoerungsnummerController.text = er.stoerungsnummer;
@@ -99,80 +101,87 @@ class _EroeffnungsreinigungFormScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit
-            ? 'Eröffnungsreinigung bearbeiten'
-            : 'Neue Eröffnungsreinigung'),
+            ? (_art == 'endreinigung' ? 'Endreinigung bearbeiten' : 'Eröffnungsreinigung bearbeiten')
+            : (_art == 'endreinigung' ? 'Neue Endreinigung' : 'Neue Eröffnungsreinigung')),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Art: Eröffnung / Endreinigung
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'eroeffnung',
+                  label: Text('Eröffnung'),
+                  icon: Icon(Icons.celebration),
+                ),
+                ButtonSegment(
+                  value: 'endreinigung',
+                  label: Text('Endreinigung'),
+                  icon: Icon(Icons.cleaning_services),
+                ),
+              ],
+              selected: {_art},
+              onSelectionChanged: (sel) =>
+                  setState(() => _art = sel.first),
+            ),
+            const SizedBox(height: 16),
+
             // Betrieb
             _buildBetriebField(),
             const SizedBox(height: 16),
 
-            // Störungsnummer
-            TextFormField(
-              controller: _stoerungsnummerController,
-              decoration: const InputDecoration(
-                labelText: 'Störungsnummer (Heineken) *',
-                prefixIcon: Icon(Icons.tag),
-              ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
-            ),
-            const SizedBox(height: 16),
-
-            // Datum
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Datum'),
-              subtitle: Text(_formatDate(_datum)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              onTap: _pickDate,
+            // Datum + Störungsnummer nebeneinander
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: InkWell(
+                    onTap: _pickDate,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Datum *',
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(_formatDate(_datum)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _stoerungsnummerController,
+                    decoration: const InputDecoration(
+                      labelText: 'Störungsnr. *',
+                      prefixIcon: Icon(Icons.tag),
+                      isDense: true,
+                    ),
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
             // Preis-Anzeige
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withAlpha(50)),
+            InputDecorator(
+              decoration: InputDecoration(
+                labelText: _istBergkunde ? 'Preis (Bergkunde)' : 'Preis',
+                prefixIcon: const Icon(Icons.payments_outlined),
+                suffixIcon: _istBergkunde
+                    ? const Icon(Icons.terrain, color: AppColors.warning)
+                    : null,
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.attach_money,
-                      color: AppColors.primary, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _istBergkunde ? 'Bergkunde' : 'Normal',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${preis.toStringAsFixed(2)} CHF',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 20,
-                              color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_istBergkunde)
-                    Icon(Icons.terrain,
-                        color: AppColors.warning, size: 28),
-                ],
+              child: Text(
+                '${preis.toStringAsFixed(2)} CHF',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary),
               ),
             ),
             const SizedBox(height: 24),
@@ -186,8 +195,9 @@ class _EroeffnungsreinigungFormScreenState
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.save),
-              label: Text(
-                  isEdit ? 'Speichern' : 'Eröffnungsreinigung erfassen'),
+              label: Text(isEdit
+                  ? 'Speichern'
+                  : (_art == 'endreinigung' ? 'Endreinigung erfassen' : 'Eröffnungsreinigung erfassen')),
             ),
             const SizedBox(height: 80),
           ],
@@ -303,6 +313,7 @@ class _EroeffnungsreinigungFormScreenState
     try {
       final er = _existing ?? EroeffnungsreinigungLocal();
       er.betriebId = _betriebId;
+      er.art = _art;
       er.stoerungsnummer = _stoerungsnummerController.text.trim();
       er.datum = _datum;
       er.istBergkunde = _istBergkunde;

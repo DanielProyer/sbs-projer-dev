@@ -5,10 +5,12 @@ import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
+import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class ReinigungBuchungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
+  static double _mwstFaktor = 0.081;
 
   /// Schweizer Rappenrundung: auf 5 Rappen (0.05 CHF) runden.
   static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
@@ -17,7 +19,29 @@ class ReinigungBuchungService {
     'rechnung_tresen',
     'rechnung_mail',
     'rechnung_post',
+    'jahresrechnung',
   };
+
+  /// Berechnet den tatsächlichen Netto-Betrag aus allen Komponenten.
+  /// preis_netto in der DB kann unvollständig sein (nur Grundtarif).
+  static double _calcNetto(ReinigungLocal reinigung) {
+    final hatGrundtarif =
+        reinigung.preisGrundtarif != null && reinigung.preisGrundtarif! > 0;
+    if (!hatGrundtarif &&
+        reinigung.preisBrutto != null &&
+        reinigung.preisBrutto! > 0) {
+      return _round2(reinigung.preisBrutto! / (1 + _mwstFaktor));
+    }
+    double netto = 0;
+    if (hatGrundtarif) netto += reinigung.preisGrundtarif!;
+    netto += reinigung.anzahlHaehneEigen * 18.0;
+    netto += reinigung.anzahlHaehneOrion * 18.0;
+    netto += reinigung.anzahlHaehneFremd * 23.0;
+    netto += reinigung.anzahlHaehneWein * 23.0;
+    netto += reinigung.anzahlHaehneAndererStandort * 30.0;
+    // Bergkundenzuschlag wird Heineken verrechnet, NICHT dem Kunden
+    return _round2(netto);
+  }
 
   /// Erstellt Buchungen aus einer abgeschlossenen Reinigung:
   /// - Barzahlung (GF 1): Soll 1000 (Kasse) / Haben 3400 (Erlöse)
@@ -28,6 +52,10 @@ class ReinigungBuchungService {
     ReinigungLocal reinigung,
     BetriebLocal betrieb,
   ) async {
+    // MwSt-Satz laden
+    final preis = await PreisRepository.getAktuell(datum: reinigung.datum);
+    if (preis != null) _mwstFaktor = preis.mwstFaktor;
+
     final rs = betrieb.rechnungsstellung;
     final istBar = rs == 'barzahlung';
     final istRechnung = _rechnungsTypen.contains(rs);
@@ -38,10 +66,9 @@ class ReinigungBuchungService {
     // Guard: Keine Kulanz, kein Heineken-Monteur
     if (reinigung.istKulanz || reinigung.istHeinekenMonteur) return null;
 
-    // Guard: Preis > 0
-    final nettoRaw = reinigung.preisNetto;
-    if (nettoRaw == null || nettoRaw <= 0) return null;
-    final netto = _round2(nettoRaw);
+    // Guard: Preis > 0 — Netto aus Komponenten berechnen (preisNetto kann unvollständig sein)
+    final netto = _calcNetto(reinigung);
+    if (netto <= 0) return null;
 
     // Duplikat-Check via belegId
     final existing = await BuchungRepository.getByBeleg(reinigung.serverId!);

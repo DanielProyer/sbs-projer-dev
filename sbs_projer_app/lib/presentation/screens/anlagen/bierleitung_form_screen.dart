@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/bierleitung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/biersorte_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class BierleitungFormScreen extends ConsumerStatefulWidget {
@@ -33,8 +34,9 @@ class _BierleitungFormScreenState
   int _leitungsNummer = 1;
   bool _hatFobStop = false;
   bool _istGekoppelt = false;
+  bool _istAktiv = true;
   String? _selectedHahnTyp;
-  List<String> _biersortenVorschlaege = [];
+  List<String> _biersortenVorschlaege = [..._fallbackBiersorten];
 
   static const _hahnTypen = [
     'Adimat',
@@ -47,12 +49,17 @@ class _BierleitungFormScreenState
     'Eurostar (silber)',
     'Eurostar (gold)',
     'Higenie',
+    'Cornelius (SK 083-079)',
+    'Inox 316L',
+    'Siporex',
+    'SK 240-014 Gold',
+    'SL 492010',
+    'Smartschank',
     'Anderer',
   ];
 
-  static const _defaultBiersorten = [
+  static const _fallbackBiersorten = [
     'Heineken',
-    'Eichhof',
     'Feldschlösschen',
     'Appenzeller',
     'Chopfab',
@@ -77,19 +84,25 @@ class _BierleitungFormScreenState
 
   Future<void> _loadBiersorten() async {
     try {
+      // Biersorten aus DB-Tabelle laden
+      final biersorten = await BiersorteRepository.getAll();
+      final dbNamen = biersorten.map((b) => b.name).toSet();
+
+      // Zusätzlich: bestehende Biersorten aus Bierleitungen (für ältere Daten)
       final rows = await SupabaseService.client
           .from('bierleitungen')
           .select('biersorte')
           .eq('user_id', SupabaseService.dataUserId)
           .not('biersorte', 'is', null);
-      final dbSorten = rows
+      final leitungsSorten = rows
           .map<String>((r) => r['biersorte'] as String)
           .where((s) => s.trim().isNotEmpty)
           .toSet();
-      final alle = {..._defaultBiersorten, ...dbSorten}.toList()..sort();
+
+      final alle = {...dbNamen, ...leitungsSorten}.toList()..sort();
       if (mounted) setState(() => _biersortenVorschlaege = alle);
     } catch (_) {
-      if (mounted) setState(() => _biersortenVorschlaege = [..._defaultBiersorten]);
+      if (mounted) setState(() => _biersortenVorschlaege = [..._fallbackBiersorten]);
     }
   }
 
@@ -128,6 +141,7 @@ class _BierleitungFormScreenState
           leitung.niederdruckBar?.toString() ?? '';
       _hatFobStop = leitung.hatFobStop;
       _istGekoppelt = leitung.istGekoppelt;
+      _istAktiv = leitung.istAktiv;
     });
   }
 
@@ -148,6 +162,7 @@ class _BierleitungFormScreenState
           double.tryParse(_niederdruckBarController.text.trim());
       leitung.hatFobStop = _hatFobStop;
       leitung.istGekoppelt = _istGekoppelt;
+      leitung.istAktiv = _istAktiv;
 
       await BierleitungRepository.save(leitung);
 
@@ -246,7 +261,7 @@ class _BierleitungFormScreenState
                   decoration: const InputDecoration(
                     labelText: 'Biersorte',
                     prefixIcon: Icon(Icons.local_drink),
-                    hintText: 'z.B. Heineken, Eichhof',
+                    hintText: 'z.B. Heineken, Feldschlösschen',
                   ),
                   textInputAction: TextInputAction.next,
                   onFieldSubmitted: (_) => onSubmitted(),
@@ -312,6 +327,15 @@ class _BierleitungFormScreenState
               value: _istGekoppelt,
               contentPadding: EdgeInsets.zero,
               onChanged: (v) => setState(() => _istGekoppelt = v),
+            ),
+
+            // === Aktiv ===
+            SwitchListTile(
+              title: const Text('Aktiv'),
+              subtitle: const Text('Leitung ist in Betrieb'),
+              value: _istAktiv,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _istAktiv = v),
             ),
             const SizedBox(height: 24),
 

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -29,9 +31,8 @@ class HeinekenPdfService {
   static const _heinekenAbt = 'Finanz- und Rechnungswesen';
   static const _heinekenStrasse = 'Obergrundstrasse 110';
   static const _heinekenOrt = '6005 Luzern';
-  static const _heinekenPo = 'PO 6100259429';
+  static String _heinekenPo = 'PO 6100259429';
   static const _heinekenTel1 = 'Telefon 081 / 256 03 66 Lynn Meier';
-  static const _heinekenTel2 = 'Telefon 081 / 256 02 55 Erika Genelin';
   static const _heinekenEmail = 'kreditoren.ch@heineken.com';
 
   static final _dateFormat = DateFormat('dd.MM.yyyy');
@@ -42,17 +43,30 @@ class HeinekenPdfService {
     required HeinekenMonatsDaten daten,
     String? rechnungsnummer,
   }) async {
+    // Logo laden
+    Uint8List? logoBytes;
+    try {
+      final data = await rootBundle.load('assets/images/heineken_logo.png');
+      logoBytes = data.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('Heineken Logo laden fehlgeschlagen: $e');
+    }
+
     final pdf = pw.Document();
 
     // Seite 1: Übersicht
-    pdf.addPage(buildUebersichtPage(daten, rechnungsnummer));
+    pdf.addPage(buildUebersichtPage(daten, rechnungsnummer, logoBytes: logoBytes));
 
-    // Seite 2+: Details
+    // Seite 2+: Details (Spalten-Header wiederholt sich auf jeder Seite)
     final detailWidgets = buildDetailWidgets(daten);
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 40),
+        header: (context) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          child: buildDetailHeader(),
+        ),
         build: (context) => detailWidgets,
       ),
     );
@@ -65,7 +79,9 @@ class HeinekenPdfService {
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Page buildUebersichtPage(
-      HeinekenMonatsDaten daten, String? rechnungsnummer) {
+      HeinekenMonatsDaten daten, String? rechnungsnummer,
+      {Uint8List? logoBytes, String? poNummer, String? mwstLabel}) {
+    if (poNummer != null) _heinekenPo = 'PO $poNummer';
     final rechnungsDatum = DateTime(daten.monat.year, daten.monat.month + 1, 0);
     final monatsName = _capitalize(_monatFormat.format(daten.monat));
 
@@ -76,8 +92,8 @@ class HeinekenPdfService {
         return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Heineken Logo (Text-basiert)
-            _buildHeinekenLogo(),
+            // Heineken Logo
+            _buildHeinekenLogo(logoBytes),
             pw.SizedBox(height: 20),
 
             // Absender + Datum/RG-Nr Block
@@ -144,8 +160,6 @@ class HeinekenPdfService {
                       pw.SizedBox(height: 8),
                       pw.Text(_heinekenTel1,
                           style: const pw.TextStyle(fontSize: 9)),
-                      pw.Text(_heinekenTel2,
-                          style: const pw.TextStyle(fontSize: 9)),
                       pw.Text(_heinekenEmail,
                           style: const pw.TextStyle(fontSize: 9)),
                     ],
@@ -181,7 +195,7 @@ class HeinekenPdfService {
             // Total
             _uebersichtRow('Total', daten.totalNetto, bold: false),
             pw.SizedBox(height: 4),
-            _uebersichtRow('Mehrwertsteur (8.1%)', daten.mwstBetrag,
+            _uebersichtRow('Mehrwertsteuer (${mwstLabel ?? '8.1%'})', daten.mwstBetrag,
                 bold: false),
             pw.SizedBox(height: 6),
             _uebersichtRow(
@@ -198,23 +212,27 @@ class HeinekenPdfService {
     );
   }
 
-  static pw.Widget _buildHeinekenLogo() {
-    return pw.Container(
-      child: pw.Row(
-        children: [
-          pw.Text('★',
-              style: pw.TextStyle(
-                  fontSize: 18, color: _heinekenRed)),
-          pw.SizedBox(width: 4),
-          pw.Text('HEINEKEN',
-              style: pw.TextStyle(
-                fontSize: 24,
-                fontWeight: pw.FontWeight.bold,
-                color: _heinekenGreen,
-                letterSpacing: 2,
-              )),
-        ],
-      ),
+  static pw.Widget _buildHeinekenLogo(Uint8List? logoBytes) {
+    if (logoBytes != null) {
+      return pw.Image(
+        pw.MemoryImage(logoBytes),
+        height: 40,
+      );
+    }
+    // Fallback: Text-Logo
+    return pw.Row(
+      children: [
+        pw.Text('★',
+            style: pw.TextStyle(fontSize: 18, color: _heinekenRed)),
+        pw.SizedBox(width: 4),
+        pw.Text('HEINEKEN',
+            style: pw.TextStyle(
+              fontSize: 24,
+              fontWeight: pw.FontWeight.bold,
+              color: _heinekenGreen,
+              letterSpacing: 2,
+            )),
+      ],
     );
   }
 
@@ -309,44 +327,40 @@ class HeinekenPdfService {
   static List<pw.Widget> buildDetailWidgets(HeinekenMonatsDaten daten) {
     final widgets = <pw.Widget>[];
 
-    // Tabellen-Header
-    widgets.add(_buildDetailHeader());
-    widgets.add(pw.SizedBox(height: 4));
-
     // Pro Kategorie
     for (final (name, positionen, total) in daten.kategorien) {
       widgets.add(_buildKategorieBlock(name, positionen, total));
-      widgets.add(pw.SizedBox(height: 8));
     }
 
     return widgets;
   }
 
-  static pw.Widget _buildDetailHeader() {
-    return pw.Row(
-      children: [
-        _headerCell('DATUM', 80),
-        _headerCell('STÖR. NR.', 70),
-        _headerCell('BEREICH', 80),
-        pw.Expanded(child: _headerText('KUNDE')),
-        _headerCell('BETRAG', 70, align: pw.TextAlign.right),
-      ],
+  static pw.Widget buildDetailHeader() {
+    final headerStyle = pw.TextStyle(
+        fontSize: 9,
+        fontWeight: pw.FontWeight.bold,
+        color: PdfColors.white);
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      decoration: const pw.BoxDecoration(
+        color: _heinekenGreen,
+      ),
+      child: pw.Row(
+        children: [
+          pw.SizedBox(
+              width: 80, child: pw.Text('DATUM', style: headerStyle)),
+          pw.SizedBox(
+              width: 70, child: pw.Text('STÖR. NR.', style: headerStyle)),
+          pw.SizedBox(
+              width: 80, child: pw.Text('BEREICH', style: headerStyle)),
+          pw.Expanded(child: pw.Text('KUNDE', style: headerStyle)),
+          pw.SizedBox(
+              width: 70,
+              child: pw.Text('BETRAG',
+                  style: headerStyle, textAlign: pw.TextAlign.right)),
+        ],
+      ),
     );
-  }
-
-  static pw.Widget _headerCell(String text, double width,
-      {pw.TextAlign align = pw.TextAlign.left}) {
-    return pw.SizedBox(
-      width: width,
-      child: _headerText(text, align: align),
-    );
-  }
-
-  static pw.Widget _headerText(String text,
-      {pw.TextAlign align = pw.TextAlign.left}) {
-    return pw.Text(text,
-        style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
-        textAlign: align);
   }
 
   static pw.Widget _buildKategorieBlock(
@@ -354,30 +368,43 @@ class HeinekenPdfService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // Kategorie-Überschrift (kursiv, fett)
-        pw.Text(name,
-            style: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-              fontStyle: pw.FontStyle.italic,
-            )),
+        pw.SizedBox(height: 10),
+        // Kategorie-Überschrift: grüner Hintergrund, weisse Schrift
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: pw.BoxDecoration(
+            color: _heinekenGreen,
+            border: pw.Border.all(color: _heinekenGreen, width: 0.5),
+          ),
+          child: pw.Text(name,
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              )),
+        ),
         pw.SizedBox(height: 2),
 
-        // Zeilen
+        // Zeilen (nach Datum sortiert)
         if (positionen.isNotEmpty)
-          ...positionen.map((p) => _buildDetailRow(p)),
+          ...(List<HeinekenPosition>.from(positionen)
+                ..sort((a, b) => a.datum.compareTo(b.datum)))
+              .map((p) => _buildDetailRow(p)),
 
-        // Zwischensumme (rechtsbündig)
+        // Zwischensumme: rechtsbündig mit Linie darüber
         pw.Align(
           alignment: pw.Alignment.centerRight,
           child: pw.Container(
             width: 70,
-            padding: const pw.EdgeInsets.only(top: 2),
+            padding: const pw.EdgeInsets.only(top: 3),
+            margin: const pw.EdgeInsets.only(top: 2),
             decoration: const pw.BoxDecoration(
               border: pw.Border(top: pw.BorderSide(width: 0.5)),
             ),
             child: pw.Text(_chf(total),
-                style: const pw.TextStyle(fontSize: 10),
+                style: pw.TextStyle(
+                    fontSize: 10, fontWeight: pw.FontWeight.bold),
                 textAlign: pw.TextAlign.right),
           ),
         ),
@@ -387,7 +414,7 @@ class HeinekenPdfService {
 
   static pw.Widget _buildDetailRow(HeinekenPosition p) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 1),
+      padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
       child: pw.Row(
         children: [
           pw.SizedBox(

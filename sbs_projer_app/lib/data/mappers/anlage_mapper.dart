@@ -21,10 +21,6 @@ class AnlageMapper {
     local.gasTyp2 = dto.gasTyp2;
     local.hauptdruckBar = dto.hauptdruckBar;
     local.hatNiederdruck = dto.hatNiederdruck;
-    local.servicezeitMorgenAb = dto.servicezeitMorgenAb;
-    local.servicezeitMorgenBis = dto.servicezeitMorgenBis;
-    local.servicezeitNachmittagAb = dto.servicezeitNachmittagAb;
-    local.servicezeitNachmittagBis = dto.servicezeitNachmittagBis;
     local.reinigungRhythmus = dto.reinigungRhythmus;
     local.letzteReinigung = dto.letzteReinigung;
     local.naechsteReinigung = dto.naechsteReinigung;

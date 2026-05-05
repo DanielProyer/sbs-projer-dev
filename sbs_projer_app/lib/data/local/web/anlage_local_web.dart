@@ -25,10 +25,6 @@ class AnlageLocal {
   String? gasTyp2;
   double? hauptdruckBar;
   bool hatNiederdruck = false;
-  String? servicezeitMorgenAb;
-  String? servicezeitMorgenBis;
-  String? servicezeitNachmittagAb;
-  String? servicezeitNachmittagBis;
   String reinigungRhythmus = '4-Wochen';
   DateTime? letzteReinigung;
   DateTime? naechsteReinigung;

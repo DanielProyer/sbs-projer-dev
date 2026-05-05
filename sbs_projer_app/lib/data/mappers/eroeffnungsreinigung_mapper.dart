@@ -8,6 +8,7 @@ class EroeffnungsreinigungMapper {
     local.userId = dto.userId;
     local.betriebId = dto.betriebId;
     local.stoerungsnummer = dto.stoerungsnummer;
+    local.art = dto.art;
     local.datum = dto.datum;
     local.istBergkunde = dto.istBergkunde;
     local.preis = dto.preis;
@@ -25,6 +26,7 @@ class EroeffnungsreinigungMapper {
       'user_id': local.userId,
       'betrieb_id': local.betriebId,
       'stoerungsnummer': local.stoerungsnummer,
+      'art': local.art,
       'datum': local.datum.toIso8601String().split('T').first,
       'ist_bergkunde': local.istBergkunde,
       'preis': local.preis,

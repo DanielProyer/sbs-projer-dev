@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:barcode/barcode.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -26,15 +27,20 @@ class RechnungPdfService {
   static const _firmaLand = 'CH';
 
   /// Generiert eine professionelle A4-Kundenrechnung mit QR-Zahlteil.
+  /// [mitteilung] überschreibt den Standard-Buchungstext im QR-Zahlteil (Ustrd).
   static Future<Uint8List> generate({
     required Rechnung rechnung,
     required List<RechnungsPosition> positionen,
     required BetriebLocal betrieb,
     BetriebRechnungsadresse? rechnungsadresse,
+    String? mitteilung,
   }) async {
     final pdf = pw.Document();
     final dateFormat = DateFormat('dd.MM.yyyy');
     final brutto = _roundTo5Rappen(rechnung.betragBrutto);
+
+    // Positionen aufsteigend nach Position sortieren
+    positionen = List.of(positionen)..sort((a, b) => a.position.compareTo(b.position));
 
     // Kundenadresse für QR-Bill
     final kundeAddr = _getKundenAdressDaten(betrieb, rechnungsadresse);
@@ -71,7 +77,8 @@ class RechnungPdfService {
               pw.Spacer(),
 
               // === QR-ZAHLTEIL (untere 105mm) ===
-              _buildQrZahlteil(brutto, kundeAddr),
+              _buildQrZahlteil(brutto, kundeAddr,
+                  mitteilung: mitteilung ?? '${betrieb.ort ?? ''} - ${betrieb.name} - ${dateFormat.format(rechnung.rechnungsdatum)}'),
             ],
           );
         },
@@ -101,7 +108,7 @@ class RechnungPdfService {
         pw.Text('$_firmaPlz $_firmaOrt',
             style: const pw.TextStyle(fontSize: 9, color: _grey)),
         pw.SizedBox(height: 4),
-        pw.Text('Tel 076 566 58 06',
+        pw.Text('Tel 076 566 58 06 | sbs.projer@gmail.com',
             style: const pw.TextStyle(fontSize: 9, color: _grey)),
         pw.Text('CHE-413.083.919 MWST',
             style: const pw.TextStyle(fontSize: 9, color: _grey)),
@@ -273,7 +280,9 @@ class RechnungPdfService {
           children: [
             _summenRow('Netto', _chf(rechnung.betragNetto)),
             pw.SizedBox(height: 3),
-            _summenRow('MwSt 8.1%', _chf(rechnung.mwstBetrag)),
+            _summenRow(
+              'MwSt ${rechnung.betragNetto > 0 ? (rechnung.mwstBetrag / rechnung.betragNetto * 100).toStringAsFixed(1) : '8.1'}%',
+              _chf(rechnung.mwstBetrag)),
             pw.SizedBox(height: 4),
             pw.Container(height: 1, color: _lineGrey),
             pw.SizedBox(height: 4),
@@ -328,12 +337,12 @@ class RechnungPdfService {
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Widget _buildQrZahlteil(
-      double betrag, _KundeAdresse kunde) {
+      double betrag, _KundeAdresse kunde, {String? mitteilung}) {
     const mm = PdfPageFormat.mm;
     final betragStr = betrag.toStringAsFixed(2);
 
     // QR-Code Daten (Swiss Payment Standards v2.3)
-    final qrData = _buildQrData(betrag, kunde);
+    final qrData = _buildQrData(betrag, kunde, mitteilung: mitteilung);
 
     return pw.Container(
       height: 105 * mm,
@@ -478,6 +487,11 @@ class RechnungPdfService {
                     if (kunde.strasse.isNotEmpty) _qrText(kunde.strasse),
                     if (kunde.plzOrt.isNotEmpty) _qrText(kunde.plzOrt),
                   ],
+                  if (mitteilung != null && mitteilung.isNotEmpty) ...[
+                    pw.SizedBox(height: 6),
+                    _qrSectionTitle('Zusätzliche Informationen'),
+                    _qrText(mitteilung),
+                  ],
                 ],
               ),
             ),
@@ -497,7 +511,12 @@ class RechnungPdfService {
   }
 
   /// Baut den QR-Code Datenstring gemäss Swiss Payment Standards.
-  static String _buildQrData(double betrag, _KundeAdresse kunde) {
+  static String _buildQrData(double betrag, _KundeAdresse kunde,
+      {String? mitteilung}) {
+    // Additional Information: max 140 Zeichen (Swiss QR-Bill Standard)
+    final info = mitteilung != null && mitteilung.isNotEmpty
+        ? (mitteilung.length > 140 ? mitteilung.substring(0, 140) : mitteilung)
+        : '';
     final lines = <String>[
       'SPC', // QR Type
       '0200', // Version
@@ -529,7 +548,7 @@ class RechnungPdfService {
       kunde.name.isNotEmpty ? _firmaLand : '', // Debtor Country
       'NON', // Reference Type
       '', // Reference
-      '', // Additional Information
+      info, // Unstructured Message (Ustrd) → Buchungstext in PostFinance
       'EPD', // Trailer
     ];
     return lines.join('\n');

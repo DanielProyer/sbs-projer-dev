@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/pikett_dienst_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/utils/schweizer_feiertage.dart';
 
 class PikettDienstFormScreen extends ConsumerStatefulWidget {
   final String? pikettId; // null = neu
@@ -32,6 +33,7 @@ class _PikettDienstFormScreenState
   double _pauschale = 80.0;
   int _anzahlFeiertage = 0;
   double _feiertagZuschlagProTag = 80.0;
+  List<Feiertag> _erkanneFeiertage = []; // automatisch erkannte Feiertage
 
   bool get _isEdit => widget.pikettId != null;
 
@@ -43,7 +45,22 @@ class _PikettDienstFormScreenState
     _kw = _isoKw(now);
 
     _loadPauschale();
-    if (_isEdit) _loadPikett();
+    if (_isEdit) {
+      _loadPikett();
+    } else {
+      _berechneFeiertage();
+    }
+  }
+
+  /// Prüft ob Freitag oder Samstag der gewählten KW ein Feiertag ist
+  void _berechneFeiertage() {
+    final freitag = _freitagOfKw(_jahr, _kw);
+    final samstag = _samstagOfKw(_jahr, _kw);
+    final feiertage = SchweizerFeiertage.feiertageImZeitraum(freitag, samstag);
+    setState(() {
+      _erkanneFeiertage = feiertage;
+      _anzahlFeiertage = feiertage.length;
+    });
   }
 
   Future<void> _loadPauschale() async {
@@ -77,16 +94,23 @@ class _PikettDienstFormScreenState
       _pauschale = p.pauschale ?? 80.0;
       _anzahlFeiertage = p.anzahlFeiertage;
     });
+    // Feiertage-Info aktualisieren (Namen anzeigen)
+    final freitag = _freitagOfKw(_jahr, _kw);
+    final samstag = _samstagOfKw(_jahr, _kw);
+    final feiertage = SchweizerFeiertage.feiertageImZeitraum(freitag, samstag);
+    setState(() => _erkanneFeiertage = feiertage);
   }
 
   /// Freitag der gewählten KW berechnen
   DateTime _freitagOfKw(int year, int kw) {
     // ISO 8601: KW 1 enthält den 4. Januar
-    final jan4 = DateTime(year, 1, 4);
+    // UTC verwenden um DST-Probleme bei Duration-Berechnungen zu vermeiden
+    final jan4 = DateTime.utc(year, 1, 4);
     final daysSinceMonday = jan4.weekday - 1;
     final mondayKw1 = jan4.subtract(Duration(days: daysSinceMonday));
     final mondayKw = mondayKw1.add(Duration(days: (kw - 1) * 7));
-    return mondayKw.add(const Duration(days: 4)); // Freitag = +4
+    final freitag = mondayKw.add(const Duration(days: 4)); // Freitag = +4
+    return DateTime(freitag.year, freitag.month, freitag.day);
   }
 
   /// Samstag der gewählten KW berechnen
@@ -174,7 +198,10 @@ class _PikettDienstFormScreenState
                       return DropdownMenuItem(value: y, child: Text('$y'));
                     }),
                     onChanged: (v) {
-                      if (v != null) setState(() => _jahr = v);
+                      if (v != null) {
+                        setState(() => _jahr = v);
+                        _berechneFeiertage();
+                      }
                     },
                   ),
                 ),
@@ -191,7 +218,10 @@ class _PikettDienstFormScreenState
                       return DropdownMenuItem(value: w, child: Text('KW $w'));
                     }),
                     onChanged: (v) {
-                      if (v != null) setState(() => _kw = v);
+                      if (v != null) {
+                        setState(() => _kw = v);
+                        _berechneFeiertage();
+                      }
                     },
                   ),
                 ),
@@ -266,6 +296,29 @@ class _PikettDienstFormScreenState
                 ),
               ],
             ),
+            if (_erkanneFeiertage.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withAlpha(20),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.warning.withAlpha(60)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.celebration, size: 16, color: AppColors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _erkanneFeiertage.map((f) => f.name).join(', '),
+                        style: const TextStyle(fontSize: 12, color: AppColors.warning),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             _buildKostenPreview(),
             const SizedBox(height: 24),
@@ -376,8 +429,11 @@ class _PikettDienstFormScreenState
   }
 
   static int _isoKw(DateTime date) {
-    final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays;
-    final wday = date.weekday;
-    return ((dayOfYear - wday + 10) / 7).floor();
+    // ISO 8601: KW wird über den Donnerstag der Woche bestimmt
+    // UTC verwenden um DST-Probleme bei Duration.inDays zu vermeiden
+    final d = DateTime.utc(date.year, date.month, date.day);
+    final thursday = d.add(Duration(days: DateTime.thursday - d.weekday));
+    final jan1 = DateTime.utc(thursday.year, 1, 1);
+    return (thursday.difference(jan1).inDays / 7).floor() + 1;
   }
 }

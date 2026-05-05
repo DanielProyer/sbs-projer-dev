@@ -34,9 +34,18 @@ dart run build_runner build
 
 ## Deployment (GitHub Pages)
 
-Branch `gh-pages`, Source: Root (`/`), NICHT `docs/`. Dateien aus `sbs_projer_app/build/web/` direkt in Root kopieren:
+Branch `gh-pages`, Source: Root (`/`), NICHT `docs/`. Dateien aus `sbs_projer_app/build/web/` direkt in Root kopieren.
+
+**WICHTIG: Nach dem Build `main.dart.js` in `flutter_bootstrap.js` cache-busten!**
 
 ```bash
+# 1. Build
+cd sbs_projer_app && export MSYS_NO_PATHCONV=1 && flutter build web --base-href "/sbs-projer-dev/"
+
+# 2. Cache-Bust: main.dart.js?v=VERSION in flutter_bootstrap.js einfügen
+cd .. && VER=$(grep -o '"version":"[^"]*"' sbs_projer_app/build/web/version.json | cut -d'"' -f4) && sed -i "s/\"mainJsPath\":\"main.dart.js\"/\"mainJsPath\":\"main.dart.js?v=$VER\"/g" sbs_projer_app/build/web/flutter_bootstrap.js
+
+# 3. Deploy
 git stash && git checkout gh-pages && rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html manifest.json favicon.png version.json && cp -r sbs_projer_app/build/web/* . && touch .nojekyll && git add index.html main.dart.js* flutter*.js manifest.json favicon.png version.json .nojekyll assets/ canvaskit/ icons/ && git commit -m "deploy" && git push origin gh-pages && git checkout main && git stash pop
 ```
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_beleg.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
@@ -214,20 +215,13 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
   Future<void> _openBeleg(BuchungsBeleg beleg) async {
     try {
       final url = await BuchungsBelegRepository.getSignedUrl(beleg.storagePfad);
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(beleg.dateiname),
-            content: SelectableText(url),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Schliessen'),
-              ),
-            ],
-          ),
-        );
+      final uri = Uri.parse(url);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Beleg konnte nicht geöffnet werden')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -292,6 +286,8 @@ class _BelegTile extends StatelessWidget {
         return 'Auto-Bankbeleg';
       case 'rechnung':
         return 'Rechnung';
+      case 'spesen_scan':
+        return 'Spesen-Scanner';
       default:
         return 'Manuell hochgeladen';
     }

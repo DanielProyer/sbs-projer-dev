@@ -57,6 +57,7 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
               _filterItem('aktiv', 'Aktiv'),
               _filterItem('inaktiv', 'Inaktiv'),
               _filterItem('stillgelegt', 'Stillgelegt'),
+              _filterItem('demontiert', 'Demontiert'),
             ],
           ),
         ],
@@ -190,8 +191,24 @@ class _AnlageListItem extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _statusColor.withAlpha(25),
-          child: Icon(Icons.precision_manufacturing,
-              color: _statusColor, size: 20),
+          child: anlage.status == 'demontiert'
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(Icons.precision_manufacturing,
+                        color: _statusColor.withAlpha(80), size: 20),
+                    Transform.rotate(
+                      angle: -0.55,
+                      child: Container(width: 26, height: 2.5,
+                          decoration: BoxDecoration(
+                            color: _statusColor,
+                            borderRadius: BorderRadius.circular(2),
+                          )),
+                    ),
+                  ],
+                )
+              : Icon(Icons.precision_manufacturing,
+                  color: _statusColor, size: 20),
         ),
         title: Text(
           titleParts.isNotEmpty ? titleParts.join(', ') : (anlage.bezeichnung ?? anlage.typAnlage),
@@ -234,6 +251,8 @@ class _AnlageListItem extends StatelessWidget {
         return AppColors.warning;
       case 'stillgelegt':
         return AppColors.error;
+      case 'demontiert':
+        return AppColors.demontiert;
       default:
         return AppColors.textSecondary;
     }

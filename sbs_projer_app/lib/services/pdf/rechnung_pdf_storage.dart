@@ -42,6 +42,14 @@ class RechnungPdfStorage {
         );
   }
 
+  /// Signed URL für das Protokolle-PDF (1 Stunde gültig)
+  static Future<String> getProtokollSignedUrl(String rechnungId) async {
+    final path = '$_userId/$rechnungId/protokolle.pdf';
+    return await SupabaseService.client.storage
+        .from(_bucket)
+        .createSignedUrl(path, 3600);
+  }
+
   /// PDF aus Storage löschen
   static Future<void> deletePdf(String rechnungId) async {
     final path = '$_userId/$rechnungId/rechnung.pdf';

@@ -24,9 +24,11 @@ class AppColors {
   static const offline = Color(0xFFEF4444);
   static const syncing = Color(0xFF3B82F6);
 
-  // Betrieb-Status
+  // Betrieb-/Anlagen-Status
   static const aktiv = Color(0xFF16A34A);
   static const inaktiv = Color(0xFF9CA3AF);
+  static const geschlossen = Color(0xFFDC2626);
+  static const demontiert = Color(0xFF7C2D12);
   static const saisonpause = Color(0xFFF59E0B);
 }
 

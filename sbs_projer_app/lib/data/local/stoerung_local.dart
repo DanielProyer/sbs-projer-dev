@@ -21,7 +21,7 @@ class StoerungLocal {
   late String userId;
   String? anlageId;
   String? betriebId;
-  late String stoerungsnummer;
+  String? stoerungsnummer;
   String? referenzNr;
   late DateTime datum;
   String? uhrzeitStart;
@@ -30,8 +30,8 @@ class StoerungLocal {
   late String problemBeschreibung;
   String? loesungBeschreibung;
   bool istPikettEinsatz = false;
-  String status = 'offen';
-  int? stoerungBereich;
+  String status = 'behoben';
+  List<int>? stoerungBereiche;
 
   // Preis
   String? preislisteId;
@@ -61,6 +61,7 @@ class StoerungLocal {
 
   DateTime? abrechnungsMonat;
   bool abgerechnet = false;
+  bool istKilometerabrechnung = false;
   String? notizen;
   DateTime? createdAt;
   DateTime? updatedAt;

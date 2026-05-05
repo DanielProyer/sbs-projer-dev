@@ -138,28 +138,38 @@ class _EigenauftragFormScreenState
             _buildBetriebField(),
             const SizedBox(height: 16),
 
-            // Störungsnummer
-            TextFormField(
-              controller: _stoerungsnummerController,
-              decoration: const InputDecoration(
-                labelText: 'Störungsnummer (Heineken) *',
-                prefixIcon: Icon(Icons.tag),
-              ),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
-            ),
-            const SizedBox(height: 16),
-
-            // Datum
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Datum'),
-              subtitle: Text(_formatDate(_datum)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              onTap: _pickDate,
+            // Datum + Störungsnummer nebeneinander
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: InkWell(
+                    onTap: _pickDate,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Datum *',
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(_formatDate(_datum)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _stoerungsnummerController,
+                    decoration: const InputDecoration(
+                      labelText: 'Störungsnr. *',
+                      prefixIcon: Icon(Icons.tag),
+                      isDense: true,
+                    ),
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -334,24 +344,16 @@ class _EigenauftragFormScreenState
   Widget _buildPreisPreview() {
     final anzahl = int.tryParse(_anzahlController.text) ?? 0;
     final total = anzahl * 30.0;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withAlpha(50)),
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Preis',
+        prefixIcon: Icon(Icons.payments_outlined),
       ),
-      child: Column(
-        children: [
-          Text('$anzahl × 30 CHF',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-          const SizedBox(height: 4),
-          Text('${total.toStringAsFixed(2)} CHF',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: AppColors.primary)),
-        ],
+      child: Text(
+        '${total.toStringAsFixed(2)} CHF',
+        style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: AppColors.primary),
       ),
     );
   }

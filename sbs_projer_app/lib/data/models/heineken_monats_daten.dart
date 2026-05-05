@@ -34,8 +34,10 @@ class HeinekenMonatsDaten {
   final List<Map<String, dynamic>> montageRows;
   final List<Map<String, dynamic>> pikettRows;
   final List<Map<String, dynamic>> bergkundenRows;
+  final List<Map<String, dynamic>> gratisreinigungRows;
   final Map<String, Map<String, dynamic>> betriebMap;
   final Map<String, String> materialNames;
+  final double mwstFaktor;
 
   HeinekenMonatsDaten({
     required this.monat,
@@ -53,8 +55,10 @@ class HeinekenMonatsDaten {
     this.montageRows = const [],
     this.pikettRows = const [],
     this.bergkundenRows = const [],
+    this.gratisreinigungRows = const [],
     this.betriebMap = const {},
     this.materialNames = const {},
+    this.mwstFaktor = 0.081,
   });
 
   double get totalStoerungen =>
@@ -84,7 +88,7 @@ class HeinekenMonatsDaten {
       totalDiverses +
       totalGratisreinigungen;
 
-  double get mwstBetrag => _round2(totalNetto * 0.081);
+  double get mwstBetrag => _round2(totalNetto * mwstFaktor);
   double get totalBrutto => _round2(totalNetto + mwstBetrag);
 
   /// Alle 8 Kategorien als geordnete Liste.

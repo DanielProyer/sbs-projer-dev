@@ -23,6 +23,71 @@ final mwstAbrechnungProvider =
   return List<Map<String, dynamic>>.from(rows);
 });
 
+/// MwSt-Quartaldetails mit Umsatz + ESTV-Ziffern.
+final mwstQuartalDetailProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, int>((ref, jahr) async {
+  // Alle Buchungen des Geschäftsjahres laden
+  final rows = await SupabaseService.client
+      .from('buchungen')
+      .select('quartal, soll_konto, haben_konto, betrag_brutto, mwst_betrag')
+      .eq('geschaeftsjahr', jahr);
+
+  final buchungen = List<Map<String, dynamic>>.from(rows);
+
+  // Pro Quartal berechnen
+  final result = <Map<String, dynamic>>[];
+  for (int q = 1; q <= 4; q++) {
+    final qBuchungen = buchungen.where((b) => b['quartal'] == q).toList();
+
+    // Umsatz = Konto 3000 Saldo (Ertragskonto: Haben - Soll, sign reversed → positiv)
+    double umsatz = 0;
+    for (final b in qBuchungen) {
+      final betrag = _toDouble(b['betrag_brutto']);
+      if (b['haben_konto'] == 3000) umsatz += betrag;
+      if (b['soll_konto'] == 3000) umsatz -= betrag;
+    }
+
+    // Umsatzsteuer = Summe mwst_betrag wo haben_konto = 3000
+    double umsatzsteuer = 0;
+    for (final b in qBuchungen) {
+      if (b['haben_konto'] == 3000) {
+        umsatzsteuer += _toDouble(b['mwst_betrag']);
+      }
+    }
+
+    // Vorsteuer Material = Konto 1170 Saldo (Aktivkonto: Soll - Haben)
+    double vorsteuerMaterial = 0;
+    for (final b in qBuchungen) {
+      final betrag = _toDouble(b['betrag_brutto']);
+      if (b['soll_konto'] == 1170) vorsteuerMaterial += betrag;
+      if (b['haben_konto'] == 1170) vorsteuerMaterial -= betrag;
+    }
+
+    // Vorsteuer Betrieb = Konto 1171 Saldo (Aktivkonto: Soll - Haben)
+    double vorsteuerBetrieb = 0;
+    for (final b in qBuchungen) {
+      final betrag = _toDouble(b['betrag_brutto']);
+      if (b['soll_konto'] == 1171) vorsteuerBetrieb += betrag;
+      if (b['haben_konto'] == 1171) vorsteuerBetrieb -= betrag;
+    }
+
+    final nettoSchuld = umsatzsteuer - vorsteuerMaterial - vorsteuerBetrieb;
+
+    result.add({
+      'quartal': q,
+      'umsatz': umsatz,
+      'umsatzsteuer': umsatzsteuer,
+      'vorsteuer_material': vorsteuerMaterial,
+      'vorsteuer_betrieb': vorsteuerBetrieb,
+      'netto_mwst_schuld': nettoSchuld,
+    });
+  }
+
+  return result;
+});
+
+double _toDouble(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
+
 /// Offene Rechnungen aus DB-View.
 final offeneRechnungenViewProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {

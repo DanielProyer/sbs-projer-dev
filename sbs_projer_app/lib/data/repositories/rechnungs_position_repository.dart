@@ -15,6 +15,17 @@ class RechnungsPositionRepository {
     return rows.map((r) => RechnungsPosition.fromJson(r)).toList();
   }
 
+  /// Findet die Rechnung-ID über eine Position mit service_id.
+  static Future<String?> getRechnungIdByServiceId(String serviceId) async {
+    final rows = await SupabaseService.client
+        .from('rechnungs_positionen')
+        .select('rechnung_id')
+        .eq('service_id', serviceId)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    return rows.first['rechnung_id'] as String;
+  }
+
   /// Erstellt mehrere Positionen auf einmal.
   static Future<List<RechnungsPosition>> createAll(
       List<Map<String, dynamic>> positionen) async {

@@ -770,7 +770,7 @@ class _StoerungRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    stoerung.stoerungsnummer,
+                    stoerung.stoerungsnummer ?? 'Störung',
                     style: const TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 14,

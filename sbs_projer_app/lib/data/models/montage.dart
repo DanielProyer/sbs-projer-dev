@@ -31,6 +31,9 @@ class Montage {
   final double? material6Menge;
   final String? material7Id;
   final double? material7Menge;
+  final int? anzahlHaehne;
+  final String? protokollFotoPfad;
+  final bool istBergkunde;
   final String? notizen;
   final bool istSynced;
   final DateTime? createdAt;
@@ -69,6 +72,9 @@ class Montage {
     this.material6Menge,
     this.material7Id,
     this.material7Menge,
+    this.anzahlHaehne,
+    this.protokollFotoPfad,
+    this.istBergkunde = false,
     this.notizen,
     this.istSynced = false,
     this.createdAt,
@@ -111,6 +117,9 @@ class Montage {
       material6Menge: _toDouble(json['material_6_menge']),
       material7Id: json['material_7_id'],
       material7Menge: _toDouble(json['material_7_menge']),
+      anzahlHaehne: json['anzahl_haehne'] as int?,
+      protokollFotoPfad: json['protokoll_foto_pfad'] as String?,
+      istBergkunde: json['ist_bergkunde'] ?? false,
       notizen: json['notizen'],
       istSynced: json['ist_synced'] ?? false,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
@@ -151,6 +160,9 @@ class Montage {
       'material_6_menge': material6Menge,
       'material_7_id': material7Id,
       'material_7_menge': material7Menge,
+      'anzahl_haehne': anzahlHaehne,
+      'protokoll_foto_pfad': protokollFotoPfad,
+      'ist_bergkunde': istBergkunde,
       'notizen': notizen,
     };
   }

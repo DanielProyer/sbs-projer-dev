@@ -163,11 +163,13 @@ class _MontageDetailContentState
                     padding: const EdgeInsets.only(top: 4),
                     child: Row(
                       children: [
-                        const SizedBox(
+                        SizedBox(
                           width: 130,
                           child: Text(
-                            'Arbeitskosten',
-                            style: TextStyle(
+                            montage.montageTyp == 'heigenie_service'
+                                ? 'Total inkl. MwSt'
+                                : 'Arbeitskosten',
+                            style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
                             ),
@@ -188,11 +190,11 @@ class _MontageDetailContentState
               ],
             ),
 
-          // Material
+          // Material / Anlass-Tage
           if (_hasMaterial)
             _SectionCard(
-              title: 'Material',
-              icon: Icons.inventory_2,
+              title: montage.montageTyp == 'anlass' ? 'Tage & Spesen' : 'Material',
+              icon: montage.montageTyp == 'anlass' ? Icons.event_note : Icons.inventory_2,
               children: _buildMaterialRows(),
             ),
 
@@ -251,11 +253,18 @@ class _MontageDetailContentState
       montage.material1Menge, montage.material2Menge, montage.material3Menge,
       montage.material4Menge, montage.material5Menge,
     ];
+    final isAnlass = montage.montageTyp == 'anlass';
     for (int i = 0; i < 5; i++) {
       if (ids[i] != null) {
-        final name = _materialNames[ids[i]!] ?? 'Laden...';
-        final menge = (mengen[i] ?? 1).toStringAsFixed(0);
-        rows.add(_InfoRow('Position ${i + 1}', '$name (${menge}x)'));
+        if (isAnlass) {
+          // Bei Anlass: Freitext + Stunden
+          final stunden = (mengen[i] ?? 0).toStringAsFixed(2);
+          rows.add(_InfoRow(ids[i]!, '${stunden} h'));
+        } else {
+          final name = _materialNames[ids[i]!] ?? 'Laden...';
+          final menge = (mengen[i] ?? 1).toStringAsFixed(0);
+          rows.add(_InfoRow('Position ${i + 1}', '$name (${menge}x)'));
+        }
       }
     }
     return rows;
@@ -373,24 +382,25 @@ class _MontageDetailContentState
 
 String _montageTypLabel(String typ) {
   switch (typ) {
-    case 'neu_installation':
-      return 'Neu-Installation';
-    case 'umbau':
-      return 'Umbau';
-    case 'erweiterung':
-      return 'Erweiterung';
-    case 'abbau':
-      return 'Abbau';
+    case 'neumontage':
+      return 'Neumontage';
+    case 'demontage':
+      return 'Demontage';
+    case 'abaenderung':
+      return 'Abänderung';
     case 'heigenie_service':
       return 'HeiGenie Service';
-    case 'anlass_mitarbeit':
-      return 'Anlass-Mitarbeit';
-    case 'mehraufwand':
-      return 'Mehraufwand';
+    case 'anlass':
+      return 'Anlass';
     case 'spesen':
       return 'Spesen';
-    case 'sonstiges':
-      return 'Sonstiges';
+    case 'aufwandsentschaedigung':
+      return 'Aufwandsentsch.';
+    // Legacy
+    case 'neu_installation': case 'montage': return 'Neumontage';
+    case 'umbau': case 'erweiterung': return 'Abänderung';
+    case 'abbau': return 'Demontage';
+    case 'anlass_mitarbeit': return 'Anlass';
     default:
       return typ;
   }

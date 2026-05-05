@@ -94,19 +94,4 @@ class StoerungRepository {
     await IsarService.stoerungDelete(int.parse(id));
   }
 
-  static Future<String> generateStoerungsnummer() async {
-    final now = DateTime.now();
-    final prefix =
-        'STR-${now.year}${now.month.toString().padLeft(2, '0')}-';
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('stoerungen').select('stoerungsnummer')
-          .eq('user_id', _userId).like('stoerungsnummer', '$prefix%');
-      final nextNum = rows.length + 1;
-      return '$prefix${nextNum.toString().padLeft(3, '0')}';
-    }
-    final all = await IsarService.stoerungFilterByNummer(prefix);
-    final nextNum = all.length + 1;
-    return '$prefix${nextNum.toString().padLeft(3, '0')}';
-  }
 }

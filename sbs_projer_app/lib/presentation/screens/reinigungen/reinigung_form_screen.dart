@@ -946,9 +946,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.edit, size: 20, color: AppColors.primary),
-            tooltip: 'Betrieb bearbeiten',
+            tooltip: 'Betrieb anzeigen',
             onPressed: () {
-              context.push('/betriebe/${_betrieb!.serverId ?? _betrieb!.routeId}/bearbeiten');
+              context.push('/betriebe/${_betrieb!.serverId ?? _betrieb!.routeId}');
             },
           ),
         ],
@@ -1116,11 +1116,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
-                  tooltip: 'Anlage bearbeiten',
+                  tooltip: 'Anlage anzeigen',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   onPressed: () {
-                    context.push('/anlagen/$anlageId/bearbeiten');
+                    context.push('/anlagen/$anlageId');
                   },
                 ),
               ],

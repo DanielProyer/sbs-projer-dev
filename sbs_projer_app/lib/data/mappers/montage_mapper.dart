@@ -36,6 +36,9 @@ class MontageMapper {
     local.material6Menge = dto.material6Menge;
     local.material7Id = dto.material7Id;
     local.material7Menge = dto.material7Menge;
+    local.anzahlHaehne = dto.anzahlHaehne;
+    local.protokollFotoPfad = dto.protokollFotoPfad;
+    local.istBergkunde = dto.istBergkunde;
     local.notizen = dto.notizen;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
@@ -77,6 +80,9 @@ class MontageMapper {
       'material_6_menge': local.material6Menge,
       'material_7_id': local.material7Id,
       'material_7_menge': local.material7Menge,
+      'anzahl_haehne': local.anzahlHaehne,
+      'protokoll_foto_pfad': local.protokollFotoPfad,
+      'ist_bergkunde': local.istBergkunde,
       'notizen': local.notizen,
     };
     if (local.serverId != null) json['id'] = local.serverId;

@@ -2,7 +2,7 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 18.03.2026
+**Stand**: 21.04.2026
 **Tech-Stack**: Flutter + Supabase
 
 ---
@@ -17,7 +17,8 @@
 | **Phase 1: Setup & Grundlagen** | ✅ Abgeschlossen | 100% | 20.02.2026 |
 | **Phase 2: Core Features (MVP)** | ✅ Abgeschlossen | 100% | 14.03.2026 |
 | **Phase 3: Administration** | ✅ Abgeschlossen | 100% | 15.03.2026 |
-| **Phase 4: Polish & Testing** | 📅 Nächste Phase | 0% | - |
+| **Phase 3b: Buchhaltung-Erweiterung** | ✅ Abgeschlossen | 100% | 31.03.2026 |
+| **Phase 4: Polish & Testing** | 🔄 In Arbeit | 30% | - |
 | **Phase 5: Deployment & Launch** | 🔄 Vorgezogen | 20% | - |
 
 ---
@@ -195,15 +196,28 @@
 | ✅ Mahnwesen (Überfällige Rechnungen, Mahnstufen 0-3) | Abgeschlossen | 🟡 Mittel | 15.03.2026 |
 | ✅ Buchhaltung komplett (Dashboard, Kontenplan, Journal, Buchungen, Berichte) | Abgeschlossen | 🔴 Hoch | 15.03.2026 |
 
+### Phase 3b: Buchhaltung-Erweiterung (KW 13-14)
+
+| Feature | Status | Priorität | Zeitschätzung |
+|---------|--------|-----------|---------------|
+| ✅ Spesen-Scanner OCR (Claude Haiku, Edge Function, Kamera-direkt) | Abgeschlossen | 🔴 Hoch | 31.03.2026 |
+| ✅ Vorsteuer-Buchungen (separate MwSt auf Konto 1171) | Abgeschlossen | 🔴 Hoch | 31.03.2026 |
+| ✅ Mischkauf-Handling (Essen + Benzin auf einem Beleg) | Abgeschlossen | 🔴 Hoch | 31.03.2026 |
+| ✅ TWINT/Karte Zahlungsweg-Erkennung (auto aus Beleg) | Abgeschlossen | 🟡 Mittel | 31.03.2026 |
+| ✅ camt.053 Bankimport (XML-Parser, Duplikat-Erkennung) | Abgeschlossen | 🔴 Hoch | 31.03.2026 |
+| ✅ Beleg-Viewer (url_launcher, Signed URL) | Abgeschlossen | 🟡 Mittel | 31.03.2026 |
+| ✅ Provider-Invalidation (Kontenplan/Journal live-update) | Abgeschlossen | 🔴 Hoch | 31.03.2026 |
+| ✅ Termine CRUD (Kalender, Betrieb-Zuordnung) | Abgeschlossen | 🟡 Mittel | 31.03.2026 |
+
 ### Phase 4: Polish & Testing (Woche 13-16)
 
 | Aufgabe | Status | Priorität | Zeitschätzung |
 |---------|--------|-----------|---------------|
-| 📅 UI/UX Verbesserungen | Ausstehend | 🟡 Mittel | 5 Tage |
+| 🔄 UI/UX Verbesserungen | In Arbeit | 🟡 Mittel | 5 Tage |
 | 📅 Offline-Sync Testing | Ausstehend | 🔴 Hoch | 3 Tage |
 | 📅 Performance-Optimierung | Ausstehend | 🟡 Mittel | 3 Tage |
-| 📅 Beta-Testing mit Daniel | Ausstehend | 🔴 Hoch | 5 Tage |
-| 📅 Bug-Fixes | Ausstehend | 🔴 Hoch | 5 Tage |
+| 🔄 Beta-Testing mit Daniel | In Arbeit | 🔴 Hoch | 5 Tage |
+| 🔄 Bug-Fixes | In Arbeit | 🔴 Hoch | 5 Tage |
 
 ### Phase 5: Deployment & Launch (Woche 17-18)
 
@@ -235,6 +249,10 @@
 | **Pikett** | Pauschale 80 CHF, Datum | ✅ Erledigt |
 | **Eigenaufträge** | 30 CHF Pauschale, Material | ✅ Erledigt |
 | **Eröffnungsreinigungen** | Bergkunde auto-detect, 60/135 CHF | ✅ Erledigt |
+| **Spesen-Scanner (OCR)** | Beleg fotografieren → automatische Buchung | ✅ Erledigt |
+| **Bankimport (camt.053)** | XML-Import, Duplikat-Erkennung | ✅ Erledigt |
+| **Vorsteuer-Buchungen** | Separate MwSt-Einträge auf Konto 1171 | ✅ Erledigt |
+| **Termine** | Kalender, CRUD, Betrieb-Zuordnung | ✅ Erledigt |
 
 **Geschätzte MVP-Entwicklungszeit**: 12-16 Wochen
 
@@ -513,6 +531,52 @@
 115. ✅ Viewport Meta-Tag in web/index.html hinzugefügt
 116. ✅ Kontakt-Formular: Handykontakte importieren + auf Handy speichern (PhoneContactService)
 
+### Erledigt am 31.03.2026
+117. ✅ camt.053 Bankimport komplett:
+    - XML-Parser (UTF-8, Hierarchie-Fix)
+    - Web File Picker (dart:html statt file_picker)
+    - Duplikat-Erkennung (Referenz-basiert)
+    - Auto-Betrieb-Matching
+118. ✅ Spesen-Scanner mit OCR komplett:
+    - Supabase Edge Function `parse-beleg` (Claude Haiku 4.5 API)
+    - BelegScanResult Model (Geschäft, Datum, Positionen, Konfidenz, Zahlungsmethode)
+    - BelegScanService (Base64-Encode → Edge Function → JSON-Parse)
+    - SpesenImportService (Aufwand-Buchung + Vorsteuer-Buchung pro Position)
+    - SpesenScannerScreen (Kamera-direkt, OCR-Ergebnis, Zahlungsweg, Buchen)
+    - Mischkauf-Handling (Essen 2.6% + Benzin 8.1% als separate Buchungen)
+    - TWINT/Karte/Bar-Erkennung (automatische Zahlungsweg-Vorauswahl)
+    - Konten-Mapping: Essen→5820, Benzin→6200, Bar→1000, Bank→1020, Privat→2260, Vorsteuer→1171
+119. ✅ Vorsteuer-Buchungen:
+    - Separate Buchung pro Position: Soll 1171 (Vorsteuer) / Haben Zahlungskonto
+    - MwSt-Betrag als eigene Buchungszeile im Journal
+120. ✅ Beleg-Viewer:
+    - Belege in Buchungs-Detail direkt öffnen (url_launcher, Signed URL)
+    - Beleg-Quelle "Spesen-Scanner" Label
+121. ✅ Provider-Invalidation:
+    - SpesenScannerScreen → ConsumerStatefulWidget (ref.invalidate)
+    - kontoSaldiProvider watched buchungenStreamProvider (live-update Kontenplan)
+122. ✅ Termine CRUD komplett:
+    - DB Migration 037, Model, Local, Mapper, Repository, Providers
+    - IsarService + Web-Stubs, Sync, Router, Screens
+123. ✅ DB-Migrationen 031-038 (Gas-Typ, Durchlaufkühler, Biersorten, Bierleitung aktiv, Termine, Beleg-Quelle)
+
+### Erledigt am 21.04.2026
+124. ✅ Störungsliste: Anlagentyp-Icons → Anfangsbuchstaben → Störungsnummer im Avatar (Format 001)
+125. ✅ Störungsliste: 2-Zeilen-Subtitle (Ort·Datum / Anlagentyp·Bereich·Preis)
+126. ✅ Störungsliste: Anlagentyp-Filter (PopupMenuButton mit Chip-Anzeige)
+127. ✅ Störungsliste: Monatsgruppierung mit Preissummen (Header pro Monat + Gesamtsumme)
+128. ✅ Störungs-Formular: Anlagentyp-Auswahl (FilterChips, Betrieb-Vorauswahl aus Zapfsystemen)
+129. ✅ Störungs-Formular: "Heineken-Nr" → "Störungsnummer" umbenannt
+130. ✅ Störungs-Formular: Notizen-Feld entfernt (Beschreibung reicht)
+131. ✅ Störungs-Formular: Material-Dropdown öffnet nach oben (Tastatur-Fix für Mobile)
+132. ✅ Störungs-Detail: Anlagentyp-Icon + Label, Icon build statt warning
+133. ✅ Uhrzeiten überall HH:mm statt HH:mm:ss (Störung, Reinigung, PDF-Rapport)
+134. ✅ Betrieb-Formular: "Mein Kunde" auto-false wenn nur David/Heigenie
+135. ✅ Betrieb-Detail: Saison anzeigen auch ohne Datumswerte
+136. ✅ 5-Rappen-Rundung für alle CHF-Beträge + zahlungsweg CHECK Constraint
+137. ✅ Reinigung-Buchung: Automatische Buchung mit korrekter MwSt bei Tresen/Mail/Post
+138. ✅ camt.053 Import: XML-Parser Hierarchie + Web File Picker Fix
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
 2. ☐ Heineken Rapport-PDFs Layout-Fehler beheben
@@ -526,9 +590,6 @@
 ### Offene DB-Migrationen (im Supabase SQL Editor ausführen)
 - `Datenbank/migrations/026_bierleitung_gekoppelt.sql`
 - `Datenbank/migrations/027_kontakt_du_anrede.sql`
-- `Datenbank/migrations/028_durchlaufkuehler_orion.sql`
-- `Datenbank/migrations/029_durchlaufkuehler_v100.sql`
-- `Datenbank/migrations/030_typ_saeule_cola.sql`
 
 ---
 
@@ -547,5 +608,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 18.03.2026 – Tourenplanung Fällig-Tab überarbeitet (dynamische Fälligkeit, neue Anlagen sichtbar), Dropdown-Erweiterungen (Higenie, Orion, V100, Cola Säule), Rechnungsadresse-Verbesserung, Kontakt-Handysync.
-**Nächstes Update**: Nach Phase 4 (Polish & Testing)
+**Zuletzt aktualisiert**: 21.04.2026 – Phase 4 in Arbeit: Störungen UI/UX komplett überarbeitet (Anlagentyp-Filter, Monatsgruppierung mit Preissummen, Störungsnummer-Avatar, Material-Dropdown-Fix), Betrieb-Verbesserungen (Saison, Mein-Kunde-Logik), Uhrzeiten HH:mm, 5-Rappen-Rundung. App-Version 0.4.67+109.
+**Nächstes Update**: Laufend (Phase 4 Polish & Testing)

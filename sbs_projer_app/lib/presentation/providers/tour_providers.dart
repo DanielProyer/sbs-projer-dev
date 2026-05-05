@@ -137,10 +137,36 @@ bool _isBetriebAktiv(BetriebLocal b, DateTime datum) {
       }
     }
 
-    if (!inAktiverSaison) return false;
+    if (!inAktiverSaison) {
+      // Saisonpause: Trotzdem als aktiv behandeln wenn nächste Saison
+      // innerhalb von 4 Wochen startet (Eröffnungsreinigung nötig)
+      if (_naechsterSaisonStartBald(b, datum, 28)) return true;
+      return false;
+    }
   }
 
   return true;
+}
+
+/// Prüft ob die nächste Saison innerhalb von [tage] Tagen ab [datum] startet.
+bool _naechsterSaisonStartBald(BetriebLocal b, DateTime datum, int tage) {
+  final grenze = datum.add(Duration(days: tage));
+
+  if (b.sommerSaisonAktiv && b.sommerStartDatum != null) {
+    if (!b.sommerStartDatum!.isBefore(datum) &&
+        !b.sommerStartDatum!.isAfter(grenze)) {
+      return true;
+    }
+  }
+
+  if (b.winterSaisonAktiv && b.winterStartDatum != null) {
+    if (!b.winterStartDatum!.isBefore(datum) &&
+        !b.winterStartDatum!.isAfter(grenze)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // ─── Fällige Anlagen Provider ───

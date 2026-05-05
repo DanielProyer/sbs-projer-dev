@@ -3,7 +3,7 @@ class Stoerung {
   final String userId;
   final String? anlageId;
   final String? betriebId;
-  final String stoerungsnummer;
+  final String? stoerungsnummer;
   final String? referenzNr;
   final DateTime datum;
   final String? uhrzeitStart;
@@ -14,7 +14,7 @@ class Stoerung {
   final String? loesungBeschreibung;
   final bool istPikettEinsatz;
   final String status;
-  final int? stoerungBereich;
+  final List<int>? stoerungBereiche;
   final String? preislisteId;
   final bool istBergkunde;
   final int anfahrtKm;
@@ -39,6 +39,7 @@ class Stoerung {
   final double? material5Menge;
   final DateTime? abrechnungsMonat;
   final bool abgerechnet;
+  final bool istKilometerabrechnung;
   final String? notizen;
   final bool istSynced;
   final DateTime? createdAt;
@@ -49,7 +50,7 @@ class Stoerung {
     required this.userId,
     this.anlageId,
     this.betriebId,
-    required this.stoerungsnummer,
+    this.stoerungsnummer,
     this.referenzNr,
     required this.datum,
     this.uhrzeitStart,
@@ -59,8 +60,8 @@ class Stoerung {
     required this.problemBeschreibung,
     this.loesungBeschreibung,
     this.istPikettEinsatz = false,
-    this.status = 'offen',
-    this.stoerungBereich,
+    this.status = 'behoben',
+    this.stoerungBereiche,
     this.preislisteId,
     this.istBergkunde = false,
     this.anfahrtKm = 0,
@@ -85,6 +86,7 @@ class Stoerung {
     this.material5Menge,
     this.abrechnungsMonat,
     this.abgerechnet = false,
+    this.istKilometerabrechnung = false,
     this.notizen,
     this.istSynced = false,
     this.createdAt,
@@ -107,8 +109,8 @@ class Stoerung {
       problemBeschreibung: json['problem_beschreibung'],
       loesungBeschreibung: json['loesung_beschreibung'],
       istPikettEinsatz: json['ist_pikett_einsatz'] ?? false,
-      status: json['status'] ?? 'offen',
-      stoerungBereich: json['stoerung_bereich'],
+      status: json['status'] ?? 'behoben',
+      stoerungBereiche: (json['stoerung_bereiche'] as List?)?.cast<int>(),
       preislisteId: json['preisliste_id'],
       istBergkunde: json['ist_bergkunde'] ?? false,
       anfahrtKm: json['anfahrt_km'] ?? 0,
@@ -135,6 +137,7 @@ class Stoerung {
           ? DateTime.parse(json['abrechnungs_monat'])
           : null,
       abgerechnet: json['abgerechnet'] ?? false,
+      istKilometerabrechnung: json['ist_kilometerabrechnung'] ?? false,
       notizen: json['notizen'],
       istSynced: json['ist_synced'] ?? false,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
@@ -158,7 +161,7 @@ class Stoerung {
       'loesung_beschreibung': loesungBeschreibung,
       'ist_pikett_einsatz': istPikettEinsatz,
       'status': status,
-      'stoerung_bereich': stoerungBereich,
+      'stoerung_bereiche': stoerungBereiche,
       'preisliste_id': preislisteId,
       'ist_bergkunde': istBergkunde,
       'anfahrt_km': anfahrtKm,
@@ -183,6 +186,7 @@ class Stoerung {
       'material_5_menge': material5Menge,
       'abrechnungs_monat': abrechnungsMonat?.toIso8601String().split('T').first,
       'abgerechnet': abgerechnet,
+      'ist_kilometerabrechnung': istKilometerabrechnung,
       'notizen': notizen,
     };
   }

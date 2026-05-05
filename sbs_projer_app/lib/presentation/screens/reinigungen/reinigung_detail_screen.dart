@@ -3,16 +3,20 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:sbs_projer_app/services/pdf/reinigung_pdf_service.dart';
-import 'package:sbs_projer_app/services/pdf/heineken_rapport_service.dart';
+import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
+import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 
 class ReinigungDetailScreen extends ConsumerWidget {
   final String reinigungId;
@@ -55,20 +59,7 @@ class _ReinigungDetailContent extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Reinigung ${_formatDate(reinigung.datum)}'),
         actions: [
-          if (reinigung.status == 'abgeschlossen')
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf),
-              tooltip: 'PDF drucken / teilen',
-              onPressed: () => _showPdf(context, reinigung),
-            ),
-          if (reinigung.istBergkunde)
-            IconButton(
-              icon: const Icon(Icons.terrain),
-              tooltip: 'Anfahrtspauschale PDF',
-              onPressed: () => _showAnfahrtspauschale(context, reinigung),
-            ),
           if (!SupabaseService.isGuest) ...[
-            if (reinigung.status == 'offen')
               IconButton(
                 icon: const Icon(Icons.edit),
                 tooltip: 'Bearbeiten',
@@ -100,14 +91,35 @@ class _ReinigungDetailContent extends ConsumerWidget {
             children: [
               _InfoRow('Datum', _formatDate(reinigung.datum)),
               if (reinigung.uhrzeitStart != null)
-                _InfoRow('Start', reinigung.uhrzeitStart!),
+                _InfoRow('Start', _kurzZeit(reinigung.uhrzeitStart!)),
               if (reinigung.uhrzeitEnde != null)
-                _InfoRow('Ende', reinigung.uhrzeitEnde!),
+                _InfoRow('Ende', _kurzZeit(reinigung.uhrzeitEnde!)),
+              if (reinigung.uhrzeitStart != null &&
+                  reinigung.uhrzeitEnde != null)
+                Builder(builder: (_) {
+                  final dauer = _berechneDauer(
+                      reinigung.uhrzeitStart!, reinigung.uhrzeitEnde!);
+                  if (dauer != null) {
+                    return _InfoRow('Dauer', '$dauer Min.');
+                  }
+                  return const SizedBox.shrink();
+                }),
+              if (reinigung.serviceArt != 'standardservice')
+                _InfoRow('Service-Art', _serviceArtLabel(reinigung.serviceArt ?? 'standardservice')),
             ],
           ),
 
-          // Checkliste
-          _ChecklisteCard(reinigung: reinigung),
+          // Protokoll-Foto
+          if (reinigung.protokollFotoPfad != null)
+            _ProtokollFotoCard(fotoPfad: reinigung.protokollFotoPfad!),
+
+          // Alte Checkliste (Rückwärtskompatibilität für bestehende Reinigungen)
+          if (_hasChecklisteData(reinigung))
+            _ChecklisteCard(reinigung: reinigung),
+
+          // Hahn-Temperaturen
+          if (reinigung.hahnTemperaturenJson != null)
+            _buildTemperaturenCard(reinigung),
 
           // Preis
           if (reinigung.preisNetto != null || reinigung.preisBrutto != null)
@@ -117,7 +129,8 @@ class _ReinigungDetailContent extends ConsumerWidget {
               children: [
                 if (reinigung.serviceTyp != null)
                   _InfoRow('Service-Typ', reinigung.serviceTyp!),
-                _InfoRow('Hähne Eigen', '${reinigung.anzahlHaehneEigen}'),
+                if (reinigung.anzahlHaehneEigen > 0)
+                  _InfoRow('Hähne Eigen', '${reinigung.anzahlHaehneEigen}'),
                 if (reinigung.anzahlHaehneOrion > 0)
                   _InfoRow('Hähne Orion', '${reinigung.anzahlHaehneOrion}'),
                 if (reinigung.anzahlHaehneFremd > 0)
@@ -128,7 +141,7 @@ class _ReinigungDetailContent extends ConsumerWidget {
                   _InfoRow('Anderer Standort',
                       '${reinigung.anzahlHaehneAndererStandort}'),
                 if (reinigung.istBergkunde)
-                  _InfoRow('Bergkunde', 'Ja (+100 CHF)'),
+                  _InfoRow('Bergkunde', 'Ja (Heineken)'),
                 const Divider(),
                 if (reinigung.preisGrundtarif != null)
                   _InfoRow('Grundtarif',
@@ -137,10 +150,6 @@ class _ReinigungDetailContent extends ConsumerWidget {
                     reinigung.preisZusatzHaehne! > 0)
                   _InfoRow('Zusatz Hähne',
                       '${reinigung.preisZusatzHaehne!.toStringAsFixed(2)} CHF'),
-                if (reinigung.bergkundenZuschlag != null &&
-                    reinigung.bergkundenZuschlag! > 0)
-                  _InfoRow('Bergkunden-Zuschlag',
-                      '${reinigung.bergkundenZuschlag!.toStringAsFixed(2)} CHF'),
                 if (reinigung.preisNetto != null) ...[
                   _InfoRow('Netto',
                       '${reinigung.preisNetto!.toStringAsFixed(2)} CHF'),
@@ -185,11 +194,11 @@ class _ReinigungDetailContent extends ConsumerWidget {
               ],
             ),
 
-          // Unterschriften
+          // Alte Unterschriften (Rückwärtskompatibilität)
           if (reinigung.unterschriftTechniker != null ||
               reinigung.unterschriftKunde != null)
             _SectionCard(
-              title: 'Unterschriften',
+              title: 'Unterschriften (alt)',
               icon: Icons.draw,
               children: [
                 if (reinigung.unterschriftTechniker != null) ...[
@@ -281,82 +290,86 @@ class _ReinigungDetailContent extends ConsumerWidget {
     );
   }
 
+  Widget _buildTemperaturenCard(ReinigungLocal r) {
+    List<Map<String, dynamic>> temperaturen;
+    try {
+      temperaturen = List<Map<String, dynamic>>.from(
+          (jsonDecode(r.hahnTemperaturenJson!) as List)
+              .map((e) => Map<String, dynamic>.from(e)));
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+
+    if (temperaturen.isEmpty) return const SizedBox.shrink();
+
+    // Nur anzeigen wenn mindestens eine Temperatur erfasst
+    if (!temperaturen.any((t) => t['temperatur'] != null)) {
+      return const SizedBox.shrink();
+    }
+
+    return _SectionCard(
+      title: 'Temperaturen',
+      icon: Icons.thermostat,
+      children: temperaturen
+          .where((t) => t['temperatur'] != null)
+          .map((t) {
+        final nr = t['leitungs_nummer'] ?? '';
+        final sorte = t['biersorte'] ?? '';
+        final temp = t['temperatur'];
+        final label = sorte.isNotEmpty ? 'Hahn $nr ($sorte)' : 'Hahn $nr';
+        return _InfoRow(label, '${temp}°C');
+      }).toList(),
+    );
+  }
+
+  /// Prüft ob die Reinigung alte Checkliste-Daten hat (vor der Umstellung).
+  static bool _hasChecklisteData(ReinigungLocal r) {
+    return r.begleitkuehlungKontrolliert ||
+        r.installationAllgemeinKontrolliert ||
+        r.aligalAnschluesseKontrolliert ||
+        r.durchlaufkuehlerAusgeblasen ||
+        r.wasserstandKontrolliert ||
+        r.wasserGewechselt ||
+        r.leitungWasserVorgespuelt ||
+        r.leitungsreinigungReinigungsmittel ||
+        r.foerderdruckKontrolliert ||
+        r.zapfhahnZerlegtGereinigt ||
+        r.zapfkopfZerlegtGereinigt ||
+        r.servicekarteAusgefuellt;
+  }
+
   static double _roundTo5Rappen(double value) {
     return (value * 20).roundToDouble() / 20;
+  }
+
+  static String _serviceArtLabel(String serviceArt) {
+    return switch (serviceArt) {
+      'endreinigung' => 'Endreinigung',
+      'eroeffnungsservice' => 'Eröffnungsservice',
+      _ => 'Standardservice',
+    };
   }
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
-  Future<void> _showPdf(
-      BuildContext context, ReinigungLocal reinigung) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final pdfBytes = await ReinigungPdfService.generate(reinigung);
-      if (context.mounted) {
-        Navigator.of(context).pop(); // Dialog schliessen
-        await Printing.layoutPdf(
-          onLayout: (_) => pdfBytes,
-          name:
-              'Reinigungsprotokoll_${_formatDate(reinigung.datum).replaceAll('.', '_')}',
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
-      }
-    }
+  static String _kurzZeit(String zeit) {
+    if (zeit.length >= 5) return zeit.substring(0, 5);
+    return zeit;
   }
 
-  Future<void> _showAnfahrtspauschale(
-      BuildContext context, ReinigungLocal reinigung) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
+  static int? _berechneDauer(String start, String ende) {
     try {
-      String kunde = '';
-      String ort = '';
-      final betrieb =
-          await BetriebRepository.getByServerId(reinigung.betriebId);
-      if (betrieb != null) {
-        kunde = betrieb.name;
-        ort = '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim();
-      }
-
-      final pdfBytes = await HeinekenRapportService.generateAnfahrtspauschale(
-        referenzNr: _formatDate(reinigung.datum).replaceAll('.', '_'),
-        datum: reinigung.datum,
-        kunde: kunde,
-        ort: ort,
-      );
-
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        await Printing.layoutPdf(
-          onLayout: (_) => pdfBytes,
-          name:
-              'Rapport_Anfahrtspauschale_${_formatDate(reinigung.datum).replaceAll('.', '_')}',
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
-      }
+      final sParts = start.split(':');
+      final eParts = ende.split(':');
+      if (sParts.length < 2 || eParts.length < 2) return null;
+      final startMin = int.parse(sParts[0]) * 60 + int.parse(sParts[1]);
+      final endeMin = int.parse(eParts[0]) * 60 + int.parse(eParts[1]);
+      final diff = endeMin - startMin;
+      return diff > 0 ? diff : null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -384,17 +397,206 @@ class _ReinigungDetailContent extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       try {
+        // Buchhaltung aufräumen (Rechnung + Buchungen) falls vorhanden
+        if (reinigung.serverId != null &&
+            reinigung.status == 'abgeschlossen') {
+          await ReinigungKorrekturService.cleanupBuchhaltung(
+              reinigung.serverId!);
+        }
+
+        // Bergkundenpauschale löschen falls vorhanden
+        if (reinigung.serverId != null && reinigung.istBergkunde) {
+          await BergkundenpauschaleRepository.deleteByReinigungId(
+              reinigung.serverId!);
+          ref.invalidate(bergkundenpauschaleStreamProvider);
+        }
+
         await ReinigungRepository.delete(reinigung.routeId);
         ref.invalidate(reinigungenStreamProvider);
+        ref.invalidate(rechnungenStreamProvider);
+        ref.invalidate(buchungenStreamProvider);
         if (context.mounted) context.pop();
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Löschen nur mit Internetverbindung möglich')),
+            SnackBar(content: Text('Löschen fehlgeschlagen: $e')),
           );
         }
       }
     }
+  }
+}
+
+class _ProtokollFotoCard extends StatelessWidget {
+  final String fotoPfad;
+
+  const _ProtokollFotoCard({required this.fotoPfad});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPdf = ProtokollFotoStorage.isPdf(fotoPfad);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(isPdf ? Icons.picture_as_pdf : Icons.photo_camera,
+                    size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  isPdf ? 'Protokoll (PDF)' : 'Protokoll-Foto',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                if (!isPdf) ...[
+                  const Spacer(),
+                  const Text('Tippen zum Vergrössern',
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.zoom_in,
+                      size: 16, color: AppColors.textSecondary),
+                ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (isPdf)
+              _buildPdfPreview()
+            else
+              _buildImagePreview(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPdfPreview() {
+    return FutureBuilder<String>(
+      future: ProtokollFotoStorage.getSignedUrl(fotoPfad),
+      builder: (context, snapshot) {
+        return Container(
+          height: 120,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.picture_as_pdf,
+                    size: 40, color: AppColors.error),
+                const SizedBox(height: 8),
+                if (snapshot.hasData)
+                  FilledButton.icon(
+                    onPressed: () {
+                      launchUrl(Uri.parse(snapshot.data!),
+                          mode: LaunchMode.externalApplication);
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('PDF öffnen'),
+                  )
+                else if (snapshot.hasError)
+                  const Text('PDF nicht verfügbar',
+                      style: TextStyle(color: AppColors.textSecondary))
+                else
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildImagePreview() {
+    return FutureBuilder<String>(
+      future: ProtokollFotoStorage.getSignedUrl(fotoPfad),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return GestureDetector(
+            onTap: () => _showFullscreenFoto(context, snapshot.data!),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                snapshot.data!,
+                width: double.infinity,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text('Foto konnte nicht geladen werden',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: Text('Foto nicht verfügbar',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+          );
+        }
+        return const SizedBox(
+          height: 200,
+          child: Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+  }
+
+  void _showFullscreenFoto(BuildContext context, String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+            title: const Text('Protokoll'),
+          ),
+          body: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Center(
+                  child: Text('Foto konnte nicht geladen werden',
+                      style: TextStyle(color: Colors.white70)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -405,29 +607,23 @@ class _BetriebAnlageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<String?>>(
-      future: Future.wait([
-        _getBetriebName(),
-        _getAnlageBezeichnung(),
-      ]),
+    return FutureBuilder<_BetriebAnlagenData>(
+      future: _loadData(),
       builder: (context, snapshot) {
-        final names = snapshot.data ?? [null, null];
-        final betriebName = names[0];
-        final anlageBezeichnung = names[1];
+        final data = snapshot.data;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: Column(
             children: [
-              if (betriebName != null)
+              if (data?.betriebName != null)
                 ListTile(
                   leading:
                       const Icon(Icons.store, color: AppColors.primary),
-                  title: Text(betriebName),
+                  title: Text(data!.betriebName!),
                   subtitle: const Text('Betrieb'),
                   dense: true,
-                  trailing:
-                      const Icon(Icons.chevron_right, size: 18),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () async {
                     final b = await BetriebRepository.getByServerId(
                         reinigung.betriebId);
@@ -436,23 +632,21 @@ class _BetriebAnlageCard extends StatelessWidget {
                     }
                   },
                 ),
-              if (anlageBezeichnung != null)
-                ListTile(
+              if (data != null)
+                ...data.anlagen.map((anlage) => ListTile(
                   leading: const Icon(Icons.precision_manufacturing,
                       color: AppColors.info),
-                  title: Text(anlageBezeichnung),
+                  title: Text(anlage.label),
                   subtitle: const Text('Anlage'),
                   dense: true,
-                  trailing:
-                      const Icon(Icons.chevron_right, size: 18),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () async {
-                    final a = await AnlageRepository.getByServerId(
-                        reinigung.anlageId);
+                    final a = await AnlageRepository.getByServerId(anlage.serverId);
                     if (a != null && context.mounted) {
                       context.push('/anlagen/${a.routeId}');
                     }
                   },
-                ),
+                )),
             ],
           ),
         );
@@ -460,17 +654,51 @@ class _BetriebAnlageCard extends StatelessWidget {
     );
   }
 
-  Future<String?> _getBetriebName() async {
-    final b = await BetriebRepository.getByServerId(reinigung.betriebId);
-    return b?.name;
-  }
+  Future<_BetriebAnlagenData> _loadData() async {
+    final betrieb = await BetriebRepository.getByServerId(reinigung.betriebId);
+    final anlagen = <_AnlageInfo>[];
 
-  Future<String?> _getAnlageBezeichnung() async {
-    final a = await AnlageRepository.getByServerId(reinigung.anlageId);
-    return a?.bezeichnung ?? a?.typAnlage;
+    // anlageIdsJson hat Priorität (Multi-Anlagen)
+    if (reinigung.anlageIdsJson != null) {
+      final ids = (jsonDecode(reinigung.anlageIdsJson!) as List)
+          .map((e) => e.toString()).toList();
+      for (final id in ids) {
+        final a = await AnlageRepository.getByServerId(id);
+        if (a != null) {
+          anlagen.add(_AnlageInfo(
+            serverId: id,
+            label: a.bezeichnung ?? a.typAnlage,
+          ));
+        }
+      }
+    } else if (reinigung.anlageId != null) {
+      // Fallback: einzelne anlageId
+      final a = await AnlageRepository.getByServerId(reinigung.anlageId!);
+      if (a != null) {
+        anlagen.add(_AnlageInfo(
+          serverId: reinigung.anlageId!,
+          label: a.bezeichnung ?? a.typAnlage,
+        ));
+      }
+    }
+
+    return _BetriebAnlagenData(betriebName: betrieb?.name, anlagen: anlagen);
   }
 }
 
+class _BetriebAnlagenData {
+  final String? betriebName;
+  final List<_AnlageInfo> anlagen;
+  _BetriebAnlagenData({this.betriebName, this.anlagen = const []});
+}
+
+class _AnlageInfo {
+  final String serverId;
+  final String label;
+  _AnlageInfo({required this.serverId, required this.label});
+}
+
+/// Rückwärtskompatibilität: Zeigt Checkliste für alte Reinigungen (vor Foto-Umstellung).
 class _ChecklisteCard extends StatelessWidget {
   final ReinigungLocal reinigung;
 
@@ -479,12 +707,12 @@ class _ChecklisteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final notizen = reinigung.checklisteNotizenJson != null
-        ? Map<String, String>.from(jsonDecode(reinigung.checklisteNotizenJson!))
+        ? Map<String, String>.from(
+            jsonDecode(reinigung.checklisteNotizenJson!))
         : <String, String>{};
 
     final items = [
-      ('Begleitkühlung kontrolliert',
-          reinigung.begleitkuehlungKontrolliert,
+      ('Begleitkühlung kontrolliert', reinigung.begleitkuehlungKontrolliert,
           'begleitkuehlung_kontrolliert'),
       ('Installation allgemein kontrolliert',
           reinigung.installationAllgemeinKontrolliert,
@@ -492,26 +720,22 @@ class _ChecklisteCard extends StatelessWidget {
       ('Aligal-Anschlüsse kontrolliert',
           reinigung.aligalAnschluesseKontrolliert,
           'aligal_anschluesse_kontrolliert'),
-      ('Durchlaufkühler ausgeblasen',
-          reinigung.durchlaufkuehlerAusgeblasen,
+      ('Durchlaufkühler ausgeblasen', reinigung.durchlaufkuehlerAusgeblasen,
           'durchlaufkuehler_ausgeblasen'),
       ('Wasserstand kontrolliert', reinigung.wasserstandKontrolliert,
           'wasserstand_kontrolliert'),
       ('Wasser gewechselt', reinigung.wasserGewechselt,
           'wasser_gewechselt'),
-      ('Leitung mit Wasser vorgespült',
-          reinigung.leitungWasserVorgespuelt,
+      ('Leitung mit Wasser vorgespült', reinigung.leitungWasserVorgespuelt,
           'leitung_wasser_vorgespuelt'),
       ('Leitungsreinigung mit Reinigungsmittel',
           reinigung.leitungsreinigungReinigungsmittel,
           'leitungsreinigung_reinigungsmittel'),
       ('Förderdruck kontrolliert', reinigung.foerderdruckKontrolliert,
           'foerderdruck_kontrolliert'),
-      ('Zapfhahn zerlegt & gereinigt',
-          reinigung.zapfhahnZerlegtGereinigt,
+      ('Zapfhahn zerlegt & gereinigt', reinigung.zapfhahnZerlegtGereinigt,
           'zapfhahn_zerlegt_gereinigt'),
-      ('Zapfkopf zerlegt & gereinigt',
-          reinigung.zapfkopfZerlegtGereinigt,
+      ('Zapfkopf zerlegt & gereinigt', reinigung.zapfkopfZerlegtGereinigt,
           'zapfkopf_zerlegt_gereinigt'),
       ('Servicekarte ausgefüllt', reinigung.servicekarteAusgefuellt,
           'servicekarte_ausgefuellt'),
@@ -520,16 +744,12 @@ class _ChecklisteCard extends StatelessWidget {
     final anlagenItems = [
       ('Durchlaufkühler', reinigung.hatDurchlaufkuehler,
           'hat_durchlaufkuehler'),
-      ('Buffetanstich', reinigung.hatBuffetanstich,
-          'hat_buffetanstich'),
-      ('Kühlkeller', reinigung.hatKuehlkeller,
-          'hat_kuehlkeller'),
-      ('Fasskühler', reinigung.hatFasskuehler,
-          'hat_fasskuehler'),
+      ('Buffetanstich', reinigung.hatBuffetanstich, 'hat_buffetanstich'),
+      ('Kühlkeller', reinigung.hatKuehlkeller, 'hat_kuehlkeller'),
+      ('Fasskühler', reinigung.hatFasskuehler, 'hat_fasskuehler'),
     ];
 
-    final checkedCount =
-        items.where((i) => i.$2).length +
+    final checkedCount = items.where((i) => i.$2).length +
         anlagenItems.where((i) => i.$2).length;
 
     return Card(
@@ -620,7 +840,8 @@ class _CheckItem extends StatelessWidget {
   final bool checked;
   final String? note;
 
-  const _CheckItem({required this.label, required this.checked, this.note});
+  const _CheckItem(
+      {required this.label, required this.checked, this.note});
 
   @override
   Widget build(BuildContext context) {
@@ -682,11 +903,35 @@ class _StatusRow extends StatelessWidget {
           color: _statusColor(reinigung.status),
           icon: _statusIcon(reinigung.status),
         ),
+        if (reinigung.istKulanz)
+          const _StatusChip(
+            label: 'Kulanz',
+            color: AppColors.warning,
+            icon: Icons.volunteer_activism,
+          ),
+        if (reinigung.istHeinekenMonteur)
+          const _StatusChip(
+            label: 'Heineken-Monteur',
+            color: AppColors.info,
+            icon: Icons.engineering,
+          ),
         if (reinigung.istBergkunde)
           const _StatusChip(
             label: 'Bergkunde',
             color: AppColors.info,
             icon: Icons.terrain,
+          ),
+        if (reinigung.wasserKuehlerGewechselt)
+          const _StatusChip(
+            label: 'Wasser gewechselt',
+            color: AppColors.info,
+            icon: Icons.water_drop,
+          ),
+        if (reinigung.protokollFotoPfad != null)
+          const _StatusChip(
+            label: 'Foto',
+            color: AppColors.success,
+            icon: Icons.photo_camera,
           ),
       ],
     );

@@ -112,6 +112,7 @@ class _DetailContent extends ConsumerWidget {
             title: 'Details',
             icon: Icons.cleaning_services_outlined,
             children: [
+              _InfoRow('Art', item.art == 'endreinigung' ? 'Endreinigung' : 'Eröffnungsreinigung'),
               _InfoRow('Störungsnummer', item.stoerungsnummer),
               _InfoRow('Datum', _formatDate(item.datum)),
               if (item.preis != null)

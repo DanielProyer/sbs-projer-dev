@@ -15,6 +15,13 @@ final reinigungCountProvider = FutureProvider<int>((ref) {
   return ReinigungRepository.count();
 });
 
+/// Anzahl Reinigungen im aktuellen Jahr
+final reinigungCountAktuellesJahrProvider = Provider<int>((ref) {
+  final all = ref.watch(reinigungenProvider);
+  final jahr = DateTime.now().year;
+  return all.where((r) => r.datum.year == jahr).length;
+});
+
 final reinigungenByAnlageProvider =
     StreamProvider.family<List<ReinigungLocal>, String>((ref, anlageId) {
   return ReinigungRepository.watchByAnlage(anlageId);

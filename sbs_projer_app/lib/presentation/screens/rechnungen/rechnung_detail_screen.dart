@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
@@ -12,6 +13,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
+import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 
 class RechnungDetailScreen extends ConsumerWidget {
   final String rechnungId;
@@ -99,6 +101,12 @@ class _RechnungDetailContentState
       appBar: AppBar(
         title: Text(_rechnung.rechnungsnummer ?? 'Rechnung'),
         actions: [
+          if (_rechnung.rechnungstyp == 'jahresrechnung')
+            IconButton(
+              icon: const Icon(Icons.photo_library),
+              tooltip: 'Reinigungsprotokolle',
+              onPressed: () => _showProtokollePdf(context),
+            ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             tooltip: 'PDF drucken / teilen',
@@ -210,7 +218,9 @@ class _RechnungDetailContentState
           _SectionCard(
             children: [
               _SummenRow('Netto', _rechnung.betragNetto),
-              _SummenRow('MwSt 8.1%', _rechnung.mwstBetrag),
+              _SummenRow(
+                'MwSt ${_rechnung.betragNetto > 0 ? (_rechnung.mwstBetrag / _rechnung.betragNetto * 100).toStringAsFixed(1) : '8.1'}%',
+                _rechnung.mwstBetrag),
               const Divider(),
               _SummenRow(
                 'Total CHF',
@@ -309,6 +319,31 @@ class _RechnungDetailContentState
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('PDF-Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showProtokollePdf(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final url =
+          await RechnungPdfStorage.getProtokollSignedUrl(_rechnung.id);
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Keine Protokolle vorhanden oder Fehler: $e')),
         );
       }
     }
