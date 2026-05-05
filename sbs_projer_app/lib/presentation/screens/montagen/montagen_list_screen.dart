@@ -341,24 +341,25 @@ class _TagesGruppe {
 
 String _montageTypLabel(String typ) {
   switch (typ) {
-    case 'neu_installation':
-      return 'Neu-Installation';
-    case 'umbau':
-      return 'Umbau';
-    case 'erweiterung':
-      return 'Erweiterung';
-    case 'abbau':
-      return 'Abbau';
+    case 'neumontage':
+      return 'Neumontage';
+    case 'demontage':
+      return 'Demontage';
+    case 'abaenderung':
+      return 'Abänderung';
     case 'heigenie_service':
       return 'HeiGenie Service';
-    case 'anlass_mitarbeit':
-      return 'Anlass-Mitarbeit';
-    case 'mehraufwand':
-      return 'Mehraufwand';
+    case 'anlass':
+      return 'Anlass';
     case 'spesen':
       return 'Spesen';
-    case 'sonstiges':
-      return 'Sonstiges';
+    case 'aufwandsentschaedigung':
+      return 'Aufwandsentsch.';
+    // Legacy
+    case 'neu_installation': case 'montage': return 'Neumontage';
+    case 'umbau': case 'erweiterung': return 'Abänderung';
+    case 'abbau': return 'Demontage';
+    case 'anlass_mitarbeit': return 'Anlass';
     default:
       return typ;
   }
@@ -366,24 +367,20 @@ String _montageTypLabel(String typ) {
 
 IconData _montageTypIcon(String typ) {
   switch (typ) {
-    case 'neu_installation':
+    case 'neumontage': case 'neu_installation': case 'montage':
       return Icons.add_circle;
-    case 'umbau':
-      return Icons.swap_horiz;
-    case 'erweiterung':
-      return Icons.expand;
-    case 'abbau':
+    case 'demontage': case 'abbau':
       return Icons.remove_circle;
+    case 'abaenderung': case 'umbau': case 'erweiterung':
+      return Icons.swap_horiz;
     case 'heigenie_service':
       return Icons.cleaning_services;
-    case 'anlass_mitarbeit':
+    case 'anlass': case 'anlass_mitarbeit':
       return Icons.festival;
-    case 'mehraufwand':
-      return Icons.add_task;
     case 'spesen':
       return Icons.receipt;
-    case 'sonstiges':
-      return Icons.build;
+    case 'aufwandsentschaedigung':
+      return Icons.add_task;
     default:
       return Icons.build;
   }
@@ -441,7 +438,6 @@ class _MontageListItem extends StatelessWidget {
   String _buildSubtitle() {
     final parts = <String>[];
     parts.add(_montageTypLabel(montage.montageTyp));
-    parts.add(_formatDate(montage.datum));
     if (montage.dauerStunden != null) {
       parts.add('${montage.dauerStunden!.toStringAsFixed(1)} h');
     }
@@ -449,9 +445,5 @@ class _MontageListItem extends StatelessWidget {
       parts.add(_chf(montage.kostenArbeit!));
     }
     return parts.join(' · ');
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 }
