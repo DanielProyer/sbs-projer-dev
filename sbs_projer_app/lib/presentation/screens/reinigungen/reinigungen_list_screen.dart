@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
+import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 final _nf = NumberFormat('#,##0', 'de_CH');
@@ -27,7 +29,7 @@ class ReinigungenListScreen extends ConsumerStatefulWidget {
 class _ReinigungenListScreenState
     extends ConsumerState<ReinigungenListScreen> {
   String _searchQuery = '';
-  String _statusFilter = 'alle';
+  Set<String> _selectedRegionIds = {};
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
 
@@ -35,13 +37,16 @@ class _ReinigungenListScreenState
   Widget build(BuildContext context) {
     final reinigungen = ref.watch(reinigungenProvider);
     final betriebe = ref.watch(betriebeProvider);
+    final regionen = ref.watch(regionenProvider);
 
     final betriebNames = <String, String>{};
     final betriebOrte = <String, String>{};
+    final betriebRegionIds = <String, String?>{};
     for (final b in betriebe) {
       if (b.serverId != null) {
         betriebNames[b.serverId!] = b.name;
         if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
+        betriebRegionIds[b.serverId!] = b.regionId;
       }
     }
 
@@ -66,7 +71,10 @@ class _ReinigungenListScreenState
     final filtered = sorted.where((r) {
       if (r.datum.year != _selectedYear) return false;
       if (_selectedMonth != 0 && r.datum.month != _selectedMonth) return false;
-      if (_statusFilter != 'alle' && r.status != _statusFilter) return false;
+      if (_selectedRegionIds.isNotEmpty) {
+        final regionId = betriebRegionIds[r.betriebId];
+        if (regionId == null || !_selectedRegionIds.contains(regionId)) return false;
+      }
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final betriebName = betriebNames[r.betriebId]?.toLowerCase() ?? '';
@@ -100,16 +108,10 @@ class _ReinigungenListScreenState
       appBar: AppBar(
         title: const Text('Reinigungen'),
         actions: [
-          PopupMenuButton<String>(
+          IconButton(
             icon: const Icon(Icons.filter_list),
-            tooltip: 'Filter',
-            onSelected: (value) => setState(() => _statusFilter = value),
-            itemBuilder: (context) => [
-              _filterItem('alle', 'Alle'),
-              _filterItem('offen', 'Offen'),
-              _filterItem('abgeschlossen', 'Abgeschlossen'),
-              _filterItem('abgebrochen', 'Abgebrochen'),
-            ],
+            tooltip: 'Regionen',
+            onPressed: () => _showRegionFilter(regionen),
           ),
         ],
       ),
@@ -177,18 +179,25 @@ class _ReinigungenListScreenState
               ],
             ),
           ),
-          if (_statusFilter != 'alle')
+          if (_selectedRegionIds.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Chip(
-                    label: Text(_statusFilter),
-                    onDeleted: () =>
-                        setState(() => _statusFilter = 'alle'),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: _selectedRegionIds.map((id) {
+                  final name = regionen
+                      .where((r) => r.serverId == id)
+                      .map((r) => r.name)
+                      .firstOrNull ?? id;
+                  return Chip(
+                    label: Text(name),
+                    onDeleted: () => setState(() {
+                      _selectedRegionIds = {..._selectedRegionIds}..remove(id);
+                    }),
                     deleteIcon: const Icon(Icons.close, size: 16),
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
             ),
           Expanded(
@@ -329,18 +338,88 @@ class _ReinigungenListScreenState
     );
   }
 
-  PopupMenuItem<String> _filterItem(String value, String label) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          if (_statusFilter == value)
-            const Icon(Icons.check, size: 18)
-          else
-            const SizedBox(width: 18),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
+  void _showRegionFilter(List<RegionLocal> regionen) {
+    var tempIds = {..._selectedRegionIds};
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondary.withAlpha(50),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final colWidth = constraints.maxWidth / 2;
+                    return Wrap(
+                      children: regionen.map((r) {
+                        final selected = tempIds.contains(r.serverId);
+                        return SizedBox(
+                          width: colWidth, height: 32,
+                          child: InkWell(
+                            onTap: () => setSheetState(() {
+                              if (selected) {
+                                tempIds.remove(r.serverId);
+                              } else if (r.serverId != null) {
+                                tempIds.add(r.serverId!);
+                              }
+                            }),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 24, height: 24,
+                                  child: Checkbox(
+                                    value: selected,
+                                    onChanged: (v) => setSheetState(() {
+                                      if (v == true && r.serverId != null) {
+                                        tempIds.add(r.serverId!);
+                                      } else {
+                                        tempIds.remove(r.serverId);
+                                      }
+                                    }),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(r.name,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      setState(() => _selectedRegionIds = tempIds);
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Filter anwenden'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
