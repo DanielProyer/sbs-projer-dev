@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HeinekenRechnungDetailScreen extends ConsumerStatefulWidget {
@@ -76,6 +79,56 @@ class _HeinekenRechnungDetailScreenState
     }
     await launchUrl(Uri.parse(_rechnung!.pdfUrl!),
         mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _sendMail() async {
+    if (_rechnung == null) return;
+    setState(() => _loading = true);
+    try {
+      final kontakt =
+          await KontaktRepository.getHeinekenZuweisung('monatsrechnung');
+      final empfaenger =
+          MailConfig.empfaenger(kontakt?.email, bereich: 'heineken');
+      final monatLabel = _monatFormat.format(_rechnung!.heinekenMonat!);
+
+      await SupabaseService.client.functions.invoke('send-rechnung-mail',
+          body: {
+            'to': empfaenger,
+            'subject': 'Monatsrechnung $monatLabel SBS Projer GmbH',
+            'bodyText':
+                'Hallo${kontakt?.vorname != null ? ' ${kontakt!.vorname}' : ''}\n\n'
+                'Im Anhang sende ich Dir die Monatsrechnung für den $monatLabel.\n\n'
+                'Gruass Dani',
+            'rechnungId': _rechnung!.id,
+            'userId': SupabaseService.dataUserId,
+          });
+
+      await RechnungRepository.update(widget.rechnungId, {
+        'zahlungsstatus': 'versendet',
+        'versendet_am': DateTime.now().toIso8601String().split('T').first,
+      });
+
+      ref.invalidate(heinekenRechnungenProvider);
+      _load();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mail versendet')),
+        );
+      }
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text('Mail-Versand fehlgeschlagen: $e',
+                style: const TextStyle(color: Colors.white)),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _updateStatus(String newStatus) async {
@@ -214,9 +267,6 @@ class _HeinekenRechnungDetailScreenState
             },
             itemBuilder: (context) => [
               // Status-Flow: offen → versendet → freigegeben → bezahlt
-              if (r.zahlungsstatus == 'offen')
-                const PopupMenuItem(
-                    value: 'versendet', child: Text('Als versendet markieren')),
               if (r.zahlungsstatus == 'versendet') ...[
                 const PopupMenuItem(
                     value: 'freigegeben',
@@ -323,6 +373,19 @@ class _HeinekenRechnungDetailScreenState
               label: const Text('PDF anzeigen'),
             ),
           ),
+
+          // Mail-Button (nur bei Status offen)
+          if (r.zahlungsstatus == 'offen') ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _sendMail,
+                icon: const Icon(Icons.send),
+                label: const Text('Mail an Heineken senden'),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -359,7 +422,7 @@ class _StatusBanner extends StatelessWidget {
       case 'freigegeben':
         color = const Color(0xFF4CAF50);
         icon = Icons.verified;
-        text = 'Freigegeben — bereit zur Buchung';
+        text = 'Freigegeben — in Buchhaltung übernommen';
         break;
       case 'versendet':
         color = AppColors.info;
