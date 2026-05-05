@@ -440,10 +440,9 @@ class _ReinigungListItem extends StatelessWidget {
     final parts = <String>[];
     parts.add(_formatDate(reinigung.datum));
     if (reinigung.uhrzeitStart != null) {
-      parts.add(reinigung.uhrzeitStart!);
+      final zeit = reinigung.uhrzeitStart!;
+      parts.add(zeit.length >= 5 ? zeit.substring(0, 5) : zeit);
     }
-    final checked = _checkedCount;
-    parts.add('$checked/16 Punkte');
     if (reinigung.preisBrutto != null) {
       final brutto = (reinigung.preisBrutto! * 20).roundToDouble() / 20;
       parts.add('${brutto.toStringAsFixed(2)} CHF');
