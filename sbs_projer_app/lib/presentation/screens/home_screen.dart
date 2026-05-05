@@ -39,6 +39,8 @@ class HomeScreen extends ConsumerWidget {
     final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
     final heinekenCount = ref.watch(heinekenRechnungCountProvider);
     final buchungenCount = ref.watch(buchungenCountProvider);
+    final montageJahrCount = ref.watch(montagenProvider)
+        .where((m) => m.datum.year == DateTime.now().year).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -119,6 +121,7 @@ class HomeScreen extends ConsumerWidget {
               _DashboardTile(
                 icon: Icons.build,
                 label: 'Montagen',
+                count: montageJahrCount > 0 ? '$montageJahrCount' : null,
                 color: AppColors.info,
                 onTap: () => context.push('/montagen'),
               ),
