@@ -1089,27 +1089,41 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           ...(_anlagenDesBetrieb.map((anlage) {
             final anlageId = anlage.serverId ?? anlage.routeId;
             final isSelected = _selectedAnlageIds.contains(anlageId);
-            return CheckboxListTile(
-              value: isSelected,
-              onChanged: (v) {
-                setState(() {
-                  if (v == true) {
-                    _selectedAnlageIds.add(anlageId);
-                  } else {
-                    _selectedAnlageIds.remove(anlageId);
-                  }
-                });
-                // Hähne neu berechnen bei neuer Reinigung
-                if (!_isEdit) _recalculateHaehne();
-              },
-              title: Text(anlage.bezeichnung ?? anlage.typAnlage,
-                  style: const TextStyle(fontSize: 14)),
-              subtitle: anlage.bezeichnung != null
-                  ? Text(anlage.typAnlage, style: const TextStyle(fontSize: 12))
-                  : null,
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
+            return Row(
+              children: [
+                Expanded(
+                  child: CheckboxListTile(
+                    value: isSelected,
+                    onChanged: (v) {
+                      setState(() {
+                        if (v == true) {
+                          _selectedAnlageIds.add(anlageId);
+                        } else {
+                          _selectedAnlageIds.remove(anlageId);
+                        }
+                      });
+                      if (!_isEdit) _recalculateHaehne();
+                    },
+                    title: Text(anlage.bezeichnung ?? anlage.typAnlage,
+                        style: const TextStyle(fontSize: 14)),
+                    subtitle: anlage.bezeichnung != null
+                        ? Text(anlage.typAnlage, style: const TextStyle(fontSize: 12))
+                        : null,
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
+                  tooltip: 'Anlage bearbeiten',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  onPressed: () {
+                    context.push('/anlagen/$anlageId/bearbeiten');
+                  },
+                ),
+              ],
             );
           })),
         ],
