@@ -12,8 +12,10 @@ import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/models/preis.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
+import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
+import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/image/document_enhancer.dart';
@@ -138,10 +140,14 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     try {
       final preis = await PreisRepository.getAktuell(datum: _datum);
       if (preis != null && mounted) {
-        setState(() {
-          _preisliste = preis;
-          // heinekenMailRsl wird über KontaktRepository geladen
-        });
+        setState(() => _preisliste = preis);
+      }
+      // RSL-Kontakt für HeiGenie Mail laden
+      final rslKontakt =
+          await KontaktRepository.getHeinekenZuweisung('heigenie_service');
+      if (rslKontakt != null && mounted) {
+        setState(() => _heinekenMailRsl =
+            MailConfig.empfaenger(rslKontakt.email, bereich: 'montage'));
       }
     } catch (_) {}
   }

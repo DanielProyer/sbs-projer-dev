@@ -182,32 +182,35 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!rechnungId || !userId) {
+    if (!userId) {
       return new Response(
-        JSON.stringify({ error: "rechnungId, userId are required" }),
+        JSON.stringify({ error: "userId is required" }),
         { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
 
-    console.log(`Sending mail to ${to}, rechnungId=${rechnungId}, protokoll=${protokollFotoPfad ?? "none"}`);
+    console.log(`Sending mail to ${to}, rechnungId=${rechnungId ?? "none"}, protokoll=${protokollFotoPfad ?? "none"}`);
 
-    // 1. PDFs aus Supabase Storage laden
-    const rechnungPdf = await downloadFromStorage(
-      "rechnung-pdfs",
-      `${userId}/${rechnungId}/rechnung.pdf`,
-    );
+    const attachments: Array<{ filename: string; contentType: string; data: Uint8Array }> = [];
 
-    if (!rechnungPdf) {
-      return new Response(
-        JSON.stringify({ error: "Rechnung-PDF nicht in Storage gefunden" }),
-        { status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+    // 1. Rechnung-PDF laden (optional — nicht bei HeiGenie-Protokollen)
+    if (rechnungId) {
+      const rechnungPdf = await downloadFromStorage(
+        "rechnung-pdfs",
+        `${userId}/${rechnungId}/rechnung.pdf`,
       );
+
+      if (!rechnungPdf) {
+        return new Response(
+          JSON.stringify({ error: "Rechnung-PDF nicht in Storage gefunden" }),
+          { status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+        );
+      }
+
+      attachments.push({ filename: "Rechnung.pdf", contentType: "application/pdf", data: rechnungPdf });
     }
 
-    const attachments: Array<{ filename: string; contentType: string; data: Uint8Array }> = [
-      { filename: "Rechnung.pdf", contentType: "application/pdf", data: rechnungPdf },
-    ];
-
+    // 2. Protokoll-Foto laden (optional)
     if (protokollFotoPfad) {
       const protokollData = await downloadFromStorage("reinigung-fotos", protokollFotoPfad);
       if (protokollData) {
