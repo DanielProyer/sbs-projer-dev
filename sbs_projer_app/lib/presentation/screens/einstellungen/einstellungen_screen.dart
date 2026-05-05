@@ -125,7 +125,7 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                   const Text('Keine Preise hinterlegt.'),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: () => context.push('/einstellungen/neu'),
+                    onPressed: () => context.push('/einstellungen/preise/neu'),
                     icon: const Icon(Icons.add),
                     label: const Text('Erste Preisversion erstellen'),
                   ),
@@ -297,7 +297,7 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: () => context.push('/einstellungen/neu'),
+                  onPressed: () => context.push('/einstellungen/preise/neu'),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Neue Preise erfassen'),
                 ),
