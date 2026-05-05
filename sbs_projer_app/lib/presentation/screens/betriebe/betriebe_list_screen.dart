@@ -416,13 +416,11 @@ class _BetriebListItem extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: _statusColor.withAlpha(25),
-          child: Icon(Icons.store, color: _statusColor, size: 20),
+          backgroundColor: _zapfSystemColor.withAlpha(25),
+          child: Icon(Icons.store, color: _zapfSystemColor, size: 20),
         ),
         title: Text(
-          betrieb.ort != null
-              ? '${betrieb.ort} – ${betrieb.name}'
-              : betrieb.name,
+          betrieb.name,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: _buildSubtitle(),
@@ -453,19 +451,25 @@ class _BetriebListItem extends StatelessWidget {
 
   Widget? _buildSubtitle() {
     final parts = <String>[];
+    if (betrieb.ort != null) parts.add(betrieb.ort!);
     if (betrieb.betriebNr != null) parts.add('Nr: ${betrieb.betriebNr}');
     if (parts.isEmpty) return null;
     return Text(parts.join(' · '));
   }
 
-  Color get _statusColor {
-    switch (betrieb.status) {
-      case 'aktiv':
-        return AppColors.aktiv;
-      case 'inaktiv':
-        return AppColors.inaktiv;
-      case 'geschlossen':
-        return AppColors.geschlossen;
+  Color get _zapfSystemColor {
+    final sys = betrieb.zapfsysteme.isNotEmpty ? betrieb.zapfsysteme.first : '';
+    switch (sys) {
+      case 'konventionell':
+        return AppColors.success;
+      case 'orion':
+        return Colors.orange;
+      case 'heigenie':
+        return AppColors.info;
+      case 'david':
+        return AppColors.textSecondary;
+      case 'veranstaltung':
+        return AppColors.error;
       default:
         return AppColors.textSecondary;
     }
