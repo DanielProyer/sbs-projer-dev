@@ -414,8 +414,14 @@ class _EigenauftragListItem extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _statusColor.withAlpha(25),
-          child:
-              Icon(Icons.build_circle_outlined, color: _statusColor, size: 20),
+          child: Text(
+            eigenauftrag.stoerungsnummer.padLeft(3, '0'),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: _statusColor,
+            ),
+          ),
         ),
         title: Text(
           betriebOrt != null

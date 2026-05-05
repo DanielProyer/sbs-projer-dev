@@ -368,8 +368,14 @@ class _ListItem extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: AppColors.primary.withAlpha(25),
-          child: Icon(Icons.cleaning_services_outlined,
-              color: AppColors.primary, size: 20),
+          child: Text(
+            item.stoerungsnummer.padLeft(3, '0'),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
         ),
         title: Text(
           betriebOrt != null

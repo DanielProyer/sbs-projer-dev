@@ -415,7 +415,16 @@ class _StoerungListItem extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _statusColor.withAlpha(25),
-          child: Icon(Icons.warning_amber, color: _statusColor, size: 20),
+          child: stoerung.referenzNr != null
+              ? Text(
+                  stoerung.referenzNr!.padLeft(3, '0'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _statusColor,
+                  ),
+                )
+              : Icon(Icons.warning_amber, color: _statusColor, size: 20),
         ),
         title: Text(
           betriebOrt != null
