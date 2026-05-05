@@ -415,24 +415,30 @@ class _StoerungListItem extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _statusColor.withAlpha(25),
-          child: stoerung.referenzNr != null
-              ? Text(
-                  stoerung.referenzNr!.padLeft(3, '0'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _statusColor,
-                  ),
-                )
-              : Icon(Icons.warning_amber, color: _statusColor, size: 20),
+          child: stoerung.istKilometerabrechnung
+              ? Icon(Icons.directions_car, color: _statusColor, size: 20)
+              : stoerung.referenzNr != null
+                  ? Text(
+                      stoerung.referenzNr!.padLeft(3, '0'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _statusColor,
+                      ),
+                    )
+                  : Icon(Icons.warning_amber, color: _statusColor, size: 20),
         ),
         title: Text(
-          betriebOrt != null
-              ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
-              : betriebName ?? stoerung.stoerungsnummer ?? 'Störung',
+          stoerung.istKilometerabrechnung
+              ? stoerung.problemBeschreibung
+              : betriebOrt != null
+                  ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+                  : betriebName ?? stoerung.stoerungsnummer ?? 'Störung',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(_buildSubtitle()),
+        subtitle: Text(stoerung.istKilometerabrechnung
+            ? _buildKmSubtitle()
+            : _buildSubtitle()),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -461,6 +467,17 @@ class _StoerungListItem extends StatelessWidget {
         onTap: onTap,
       ),
     );
+  }
+
+  String _buildKmSubtitle() {
+    final parts = <String>[];
+    if (stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty) {
+      parts.add('Bereich ${stoerung.stoerungBereiche!.join(', ')}');
+    }
+    if (stoerung.preisNetto != null) {
+      parts.add(_chf(stoerung.preisNetto!));
+    }
+    return parts.join(' · ');
   }
 
   String _buildSubtitle() {
