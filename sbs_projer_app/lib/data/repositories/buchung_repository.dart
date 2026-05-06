@@ -1,3 +1,4 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -69,11 +70,12 @@ class BuchungRepository {
   }
 
   static Future<int> count() async {
-    final rows = await SupabaseService.client
+    final res = await SupabaseService.client
         .from('buchungen')
         .select('id')
-        .eq('user_id', _userId);
-    return rows.length;
+        .eq('user_id', _userId)
+        .count(CountOption.exact);
+    return res.count;
   }
 
   static Future<int> countByPeriode(int jahr, int monat) async {
