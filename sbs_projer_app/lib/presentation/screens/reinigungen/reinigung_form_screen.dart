@@ -43,6 +43,14 @@ class ReinigungFormScreen extends ConsumerStatefulWidget {
       _ReinigungFormScreenState();
 }
 
+String _monatName(int monat) {
+  const namen = [
+    '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+  ];
+  return namen[monat];
+}
+
 class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -504,15 +512,24 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             if (rechnung != null && betrieb.rechnungsstellung == 'rechnung_mail') {
               try {
                 final empfaenger = MailConfig.empfaenger(null, bereich: 'reinigung');
+                final datumStr = '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
+                final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
+                    ? '${betrieb.name} ${betrieb.ort}'
+                    : betrieb.name;
+                final betragStr = rechnung.betragBrutto.toStringAsFixed(2);
                 final response = await SupabaseService.client.functions.invoke(
                   'send-rechnung-mail',
                   body: {
                     'to': empfaenger,
-                    'subject': 'Rechnung ${rechnung.rechnungsnummer} – SBS Projer GmbH',
+                    'subject': 'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
                     'bodyText': 'Guten Tag\n\n'
-                        'Im Anhang finden Sie die Rechnung für den Service '
-                        'vom ${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}.\n\n'
-                        'Freundliche Grüsse\nDaniel Proyer\nSBS Projer GmbH',
+                        'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
+                        'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
+                        'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
+                        'mit dem beiliegenden Einzahlungsschein zu begleichen.\n\n'
+                        'Mit freundlichen Grüssen\n\n'
+                        'Daniel Projer\n\n'
+                        'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
                     'rechnungId': rechnung.id,
                     'userId': SupabaseService.dataUserId,
                     if (r.protokollFotoPfad != null)
