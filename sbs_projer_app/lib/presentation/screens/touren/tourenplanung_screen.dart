@@ -299,6 +299,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       context: context,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setModalState) {
+          final current = ref.read(selectedRegionenProvider);
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -310,7 +311,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    if (selectedRegionen.isNotEmpty)
+                    if (current.isNotEmpty)
                       TextButton(
                         onPressed: () {
                           ref.read(selectedRegionenProvider.notifier).state =
@@ -329,12 +330,12 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                   itemCount: regionen.length,
                   itemBuilder: (_, i) {
                     final r = regionen[i];
-                    final isChecked = selectedRegionen.contains(r.routeId);
+                    final isChecked = current.contains(r.routeId);
                     return CheckboxListTile(
                       title: Text(r.name),
                       value: isChecked,
                       onChanged: (checked) {
-                        final updated = Set<String>.from(selectedRegionen);
+                        final updated = Set<String>.from(current);
                         if (checked == true) {
                           updated.add(r.routeId);
                         } else {
