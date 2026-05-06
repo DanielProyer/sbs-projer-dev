@@ -24,7 +24,8 @@ build/
 .claude/settings.local.json
 
 # Build Output (Web)
-web/
+/web/
+sbs_projer_app/build/web/
 
 # OS
 .DS_Store

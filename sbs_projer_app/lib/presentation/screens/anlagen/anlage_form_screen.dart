@@ -201,7 +201,15 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
                 DropdownMenuItem(value: 'Orion', child: Text('Orion')),
               ],
               onChanged: (v) {
-                if (v != null) setState(() => _typAnlage = v);
+                if (v != null) {
+                  setState(() {
+                    _typAnlage = v;
+                    if (v == 'Buffetanstich') {
+                      _vorkuehler = 'Buffet';
+                      _durchlaufkuehler = 'keiner';
+                    }
+                  });
+                }
               },
             ),
             const SizedBox(height: 12),
