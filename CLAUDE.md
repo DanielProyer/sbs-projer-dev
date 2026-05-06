@@ -53,7 +53,7 @@ cd .. && VER=$(grep -o '"version":"[^"]*"' sbs_projer_app/build/web/version.json
 # 3. Deploy auf gh-pages
 git stash
 git checkout gh-pages
-rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html manifest.json favicon.png version.json
+rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html manifest.json favicon.png version.json docs
 cp -r sbs_projer_app/build/web/* .
 touch .nojekyll
 git add index.html main.dart.js* flutter*.js manifest.json favicon.png version.json .nojekyll assets/ canvaskit/ icons/
