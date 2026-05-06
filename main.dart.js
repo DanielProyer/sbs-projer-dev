@@ -149306,7 +149306,10 @@ if(a!=null){s=this.a
 s.A(new A.b2m(s,a))}},
 $S:10}
 A.b2m.prototype={
-$0(){return this.a.ax=this.b},
+$0(){var s=this.a,r=this.b
+s.ax=r
+if(r==="Buffetanstich"){s.cy="Buffet"
+s.db="keiner"}},
 $S:0}
 A.b2w.prototype={
 $1(a){var s=this.a
