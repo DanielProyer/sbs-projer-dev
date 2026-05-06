@@ -10,7 +10,8 @@ class BuchungRepository {
         .from('buchungen')
         .select()
         .eq('user_id', _userId)
-        .order('datum', ascending: false);
+        .order('datum', ascending: false)
+        .range(0, 4999);
     return rows.map((r) => Buchung.fromJson(r)).toList();
   }
 
