@@ -297,6 +297,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                       } else {
                         _zapfsysteme.remove(system);
                       }
+                      // Auto: Mein Kunde = false wenn nur David/Higenie/Veranstaltungen
+                      const nichtMeinKunde = {'David', 'Higenie', 'Veranstaltungen'};
+                      if (_zapfsysteme.isNotEmpty &&
+                          _zapfsysteme.every((s) => nichtMeinKunde.contains(s))) {
+                        _istMeinKunde = false;
+                      }
                     });
                   },
                 );
