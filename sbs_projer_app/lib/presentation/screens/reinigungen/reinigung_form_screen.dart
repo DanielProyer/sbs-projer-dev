@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
@@ -451,7 +452,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           final betrieb = _betrieb ??
               await BetriebRepository.getByServerId(r.betriebId);
           if (betrieb != null) {
-            final empfaenger = MailConfig.empfaenger(null, bereich: 'heigenie');
+            final kontakt = await KontaktRepository.getHeinekenZuweisung('heigenie_service');
+            final empfaenger = MailConfig.empfaenger(kontakt?.email, bereich: 'heigenie');
             final datumStr =
                 '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}';
             final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
