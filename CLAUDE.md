@@ -36,17 +36,31 @@ dart run build_runner build
 
 Branch `gh-pages`, Source: Root (`/`), NICHT `docs/`. Dateien aus `sbs_projer_app/build/web/` direkt in Root kopieren.
 
-**WICHTIG: Nach dem Build `main.dart.js` in `flutter_bootstrap.js` cache-busten!**
+**WICHTIG:**
+- Vor dem Deploy IMMER alle Änderungen committen (`git stash` beim Deploy kann sonst Code verlieren)
+- In `pubspec.yaml` die Version bumpen
+- Nach dem Build `main.dart.js` in `flutter_bootstrap.js` cache-busten
 
 ```bash
 # 1. Build
 cd sbs_projer_app && export MSYS_NO_PATHCONV=1 && flutter build web --base-href "/sbs-projer-dev/"
 
 # 2. Cache-Bust: main.dart.js?v=VERSION in flutter_bootstrap.js einfügen
-cd .. && VER=$(grep -o '"version":"[^"]*"' sbs_projer_app/build/web/version.json | cut -d'"' -f4) && sed -i "s/\"mainJsPath\":\"main.dart.js\"/\"mainJsPath\":\"main.dart.js?v=$VER\"/g" sbs_projer_app/build/web/flutter_bootstrap.js
+cd .. && VER=$(grep -o '"version":"[^"]*"' sbs_projer_app/build/web/version.json | cut -d'"' -f4) \
+  && sed -i "s/\"mainJsPath\":\"main.dart.js\"/\"mainJsPath\":\"main.dart.js?v=$VER\"/g" \
+       sbs_projer_app/build/web/flutter_bootstrap.js
 
-# 3. Deploy
-git stash && git checkout gh-pages && rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html manifest.json favicon.png version.json && cp -r sbs_projer_app/build/web/* . && touch .nojekyll && git add index.html main.dart.js* flutter*.js manifest.json favicon.png version.json .nojekyll assets/ canvaskit/ icons/ && git commit -m "deploy" && git push origin gh-pages && git checkout main && git stash pop
+# 3. Deploy auf gh-pages
+git stash
+git checkout gh-pages
+rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html manifest.json favicon.png version.json
+cp -r sbs_projer_app/build/web/* .
+touch .nojekyll
+git add index.html main.dart.js* flutter*.js manifest.json favicon.png version.json .nojekyll assets/ canvaskit/ icons/
+git commit -m "deploy"
+git push origin gh-pages
+git checkout main
+git stash pop
 ```
 
 Live: `https://danielproyer.github.io/sbs-projer-dev/`
@@ -55,18 +69,18 @@ Live: `https://danielproyer.github.io/sbs-projer-dev/`
 
 ```
 Architektur/          # Datenmodell, Roadmap, Tech-Stack-Analyse
-Datenbank/            # db_query.py (psycopg2), migrations/ (35 SQL-Dateien)
+Datenbank/            # db_query.py (psycopg2), migrations/ (SQL-Dateien)
 sbs_projer_app/       # Flutter-App
   lib/
-    core/config/      # router.dart (40+ Routen mit Auth-Guard)
+    core/config/      # router.dart (Routen mit Auth-Guard)
     core/theme/       # Material 3, Heineken-Grün (#008200)
-    data/models/      # Supabase-DTOs (24 Models, fromJson/toJson)
-    data/local/       # Isar-Models (13 Collections) + web/ Stubs + *_export.dart
-    data/mappers/     # Local ↔ DTO Konverter (13 Mapper)
-    data/repositories/# Datenzugriff (19 Repos, kIsWeb-Branching)
+    data/models/      # Supabase-DTOs (fromJson/toJson)
+    data/local/       # Isar-Models + web/ Stubs + *_export.dart
+    data/mappers/     # Local ↔ DTO Konverter
+    data/repositories/# Datenzugriff (kIsWeb-Branching)
     presentation/
       screens/        # UI pro Feature (betriebe/, anlagen/, reinigungen/, ...)
-      providers/      # Riverpod-Provider (19 Dateien)
+      providers/      # Riverpod-Provider
       widgets/        # Wiederverwendbare UI-Komponenten
     services/
       storage/        # isar_service.dart (typed Queries) + Web-Stubs
@@ -125,10 +139,9 @@ static Future<List<BetriebLocal>> getAll() async {
 
 ## Datenbank
 
-- 24 Tabellen, 24 RLS Policies, 20 Triggers/Functions, 7 Views
 - Connection-String in `.env` (Root), Supabase API-Keys in `sbs_projer_app/.env`
-- Direktzugriff: `python Datenbank/db_query.py`
-- Migrationen: `Datenbank/migrations/001_initial_schema.sql` bis `032_...`
+- **Zugriff**: `npx supabase db query --linked "SQL"` (psycopg2-Direktzugriff via `db_query.py` schlägt seit 31.03.2026 mit DNS-Fehler fehl)
+- Migrationen: `Datenbank/migrations/` (durchnummeriert)
 
 ## Sync-Architektur (Offline-First, nur Native)
 
@@ -140,7 +153,7 @@ static Future<List<BetriebLocal>> getAll() async {
 
 ## Bekannte Einschränkungen
 
-- `intl` Version wird von Flutter SDK gepinnt (0.20.2) → `any` in pubspec
-- `.env` muss in `pubspec.yaml` unter `assets:` stehen für flutter_dotenv
+- `intl`-Version wird von Flutter SDK gepinnt (0.20.2) → `any` in `pubspec.yaml`
+- `.env` muss in `pubspec.yaml` unter `assets:` stehen (für flutter_dotenv)
 - `flutter doctor --android-licenses` braucht PowerShell (nicht Bash)
-- CHROME_EXECUTABLE: Edge (`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`)
+- `CHROME_EXECUTABLE` zeigt auf Edge: `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
