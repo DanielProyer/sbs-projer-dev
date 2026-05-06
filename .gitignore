@@ -1,0 +1,5 @@
+# Dev-Files die nicht zum gh-pages Build gehören
+.claude/
+.env
+sbs_projer_app/
+supabase/
