@@ -21,6 +21,7 @@ import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
@@ -454,6 +455,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
 
       await ReinigungRepository.save(r);
 
+      // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
+      bool buchungKorrigiert = false;
+      String? korrekturTypLabel;
+      if (_isEdit && !abschliessen && kIsWeb &&
+          r.status == 'abgeschlossen' && r.serverId != null &&
+          !_istKulanz && !_istHeinekenMonteur) {
+        try {
+          await ReinigungKorrekturService.cleanupBuchhaltung(r.serverId!);
+          final result = await ReinigungKorrekturService.recreateBuchhaltung(
+            r,
+            _betrieb ?? await BetriebRepository.getByServerId(r.betriebId) ?? _betrieb!,
+          );
+          buchungKorrigiert = result.buchungVerbucht;
+          korrekturTypLabel = result.buchungTypLabel;
+          debugPrint('[Korrektur] Buchhaltung neu erstellt');
+        } catch (e) {
+          debugPrint('[Korrektur] Fehler: $e');
+        }
+      }
+
       // HeiGenie-Mail an Heineken senden
       if (abschliessen && kIsWeb && _serviceArt == 'heigenie') {
         try {
@@ -577,14 +598,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 ? (buchungVerbucht
                     ? 'Reinigung abgeschlossen – $buchungTypLabel verbucht'
                     : 'Reinigung abgeschlossen')
-                : _isEdit
-                    ? 'Reinigung aktualisiert'
-                    : 'Reinigung gestartet'),
+                : buchungKorrigiert
+                    ? 'Reinigung aktualisiert – Buchhaltung korrigiert ($korrekturTypLabel)'
+                    : _isEdit
+                        ? 'Reinigung aktualisiert'
+                        : 'Reinigung gestartet'),
           ),
         );
         if (kIsWeb) {
           ref.invalidate(reinigungenStreamProvider);
-          if (abschliessen) {
+          if (abschliessen || buchungKorrigiert) {
             ref.invalidate(rechnungenStreamProvider);
             ref.invalidate(buchungenStreamProvider);
           }
