@@ -1,0 +1,113 @@
+# =============================================================================
+# .gitattributes für SBS Projer DEV
+# Verhindert CRLF/LF-Phantom-Diffs zwischen Windows / Linux / macOS
+# =============================================================================
+
+# Standard: Git erkennt Text automatisch, normalisiert auf LF im Repo,
+# checked auf Windows mit CRLF aus (wenn core.autocrlf=true) oder LF (false).
+* text=auto eol=lf
+
+# -----------------------------------------------------------------------------
+# Quellcode — explizit LF (auch unter Windows im Working-Tree)
+# -----------------------------------------------------------------------------
+*.dart      text eol=lf
+*.py        text eol=lf
+*.sh        text eol=lf
+*.ts        text eol=lf
+*.js        text eol=lf
+*.json      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.toml      text eol=lf
+*.sql       text eol=lf
+*.md        text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.xml       text eol=lf
+*.svg       text eol=lf
+*.gradle    text eol=lf
+*.kt        text eol=lf
+*.kts       text eol=lf
+*.swift     text eol=lf
+*.h         text eol=lf
+*.cpp       text eol=lf
+*.cc        text eol=lf
+*.cmake     text eol=lf
+CMakeLists.txt text eol=lf
+
+# -----------------------------------------------------------------------------
+# Windows-spezifische Dateien — CRLF behalten
+# -----------------------------------------------------------------------------
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+*.rc        text eol=crlf
+*.manifest  text eol=crlf
+
+# -----------------------------------------------------------------------------
+# Binärdateien — niemals anfassen
+# -----------------------------------------------------------------------------
+# Bilder
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.webp      binary
+*.bmp       binary
+
+# Office / PDF
+*.pdf       binary
+*.docx      binary
+*.xlsx      binary
+*.xls       binary
+*.pptx      binary
+*.ppt       binary
+*.doc       binary
+
+# Schriften
+*.ttf       binary
+*.otf       binary
+*.woff      binary
+*.woff2     binary
+*.eot       binary
+
+# Archive & Native
+*.zip       binary
+*.tar       binary
+*.gz        binary
+*.7z        binary
+*.jar       binary
+*.so        binary
+*.dll       binary
+*.exe       binary
+*.dylib     binary
+*.a         binary
+*.lib       binary
+*.framework binary
+
+# Android / iOS Signaturen
+*.keystore  binary
+*.jks       binary
+*.p12       binary
+*.mobileprovision binary
+
+# Audio / Video
+*.mp3       binary
+*.mp4       binary
+*.wav       binary
+*.mov       binary
+
+# Flutter / Dart spezifische generierte Binaries
+*.g.dart    text eol=lf
+*.freezed.dart text eol=lf
+
+# -----------------------------------------------------------------------------
+# pubspec.lock NICHT als binary, aber LF
+# -----------------------------------------------------------------------------
+pubspec.lock text eol=lf
+
+# -----------------------------------------------------------------------------
+# Diff-Hints
+# -----------------------------------------------------------------------------
+*.dart  diff=dart
