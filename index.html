@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/sbs-projer-dev/">
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="sbs_projer_app">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>SBS Projer</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <script>
+    // Service Workers killen (Flutter SW ist deprecated)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+      });
+    }
+
+    function clearAllCaches() {
+      if ('caches' in window) {
+        return caches.keys().then(function(names) {
+          return Promise.all(names.map(function(n) { return caches.delete(n); }));
+        });
+      }
+      return Promise.resolve();
+    }
+
+    function redirectToVersion(ver) {
+      clearAllCaches().then(function() {
+        window.location.replace(window.location.pathname + '?v=' + ver);
+      });
+    }
+
+    // URL-Param ?v= als Cache-Buster (Source of Truth)
+    var urlVersion = new URLSearchParams(window.location.search).get('v');
+
+    // Server-Version holen (cache: no-store + unique param = bypassed überall)
+    fetch('version.json?_=' + Date.now(), { cache: 'no-store' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var serverVer = data.version || '0';
+
+        // Wenn URL-Version fehlt oder nicht zur Server-Version passt → Redirect
+        if (urlVersion !== serverVer) {
+          redirectToVersion(serverVer);
+          return;
+        }
+
+        // Version stimmt → Flutter laden (alle JS-Dateien cache-gebusted)
+        var s = document.createElement('script');
+        s.src = 'flutter_bootstrap.js?v=' + serverVer;
+        s.async = true;
+        document.body.appendChild(s);
+
+        // Im Hintergrund alle 60s auf neue Version prüfen
+        setInterval(function() {
+          fetch('version.json?_=' + Date.now(), { cache: 'no-store' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              if (d.version && d.version !== serverVer) {
+                redirectToVersion(d.version);
+              }
+            }).catch(function() {});
+        }, 60000);
+      })
+      .catch(function() {
+        // Fallback: Flutter ohne Version-Check laden
+        var s = document.createElement('script');
+        s.src = 'flutter_bootstrap.js';
+        s.async = true;
+        document.body.appendChild(s);
+      });
+  </script>
+</body>
+</html>
