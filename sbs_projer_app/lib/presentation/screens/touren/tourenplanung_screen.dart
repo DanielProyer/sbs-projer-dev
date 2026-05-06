@@ -13,8 +13,10 @@ class TourenplanungScreen extends ConsumerStatefulWidget {
       _TourenplanungScreenState();
 }
 
-class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
+class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
+    with SingleTickerProviderStateMixin {
   late DateTime _selectedDate;
+  late TabController _tabController;
   bool _initialVorschlagLoaded = false;
 
   @override
@@ -22,6 +24,13 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   DateTime get _weekStart {
@@ -53,9 +62,10 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
   Widget build(BuildContext context) {
     final regionen = ref.watch(regionenProvider);
     final selectedRegionen = ref.watch(selectedRegionenProvider);
-    final selectedFaelligkeit = ref.watch(selectedFaelligkeitProvider);
     final tagesplan = ref.watch(tagesplanProvider);
     final dayCounts = ref.watch(tagesCountsProvider(_weekStart));
+    final faelligeEintraege =
+        ref.watch(faelligeEintraegeProvider(_selectedDate));
 
     // Auto-load Vorschlag beim ersten Mal
     if (!_initialVorschlagLoaded) {
@@ -67,21 +77,65 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
       });
     }
 
-    // Filter anwenden
-    var angezeigt = tagesplan.where((e) {
+    // Region-Filter auf Tagesplan anwenden
+    final angezeigtTagesplan = tagesplan.where((e) {
       if (selectedRegionen.isNotEmpty &&
           e.regionId != null &&
           !selectedRegionen.contains(e.regionId)) {
         return false;
       }
-      if (selectedFaelligkeit != null && e.faelligkeit != selectedFaelligkeit) {
+      return true;
+    }).toList();
+
+    // Region-Filter auf Fällig anwenden
+    final angezeigtFaellig = faelligeEintraege.where((e) {
+      if (selectedRegionen.isNotEmpty &&
+          e.regionId != null &&
+          !selectedRegionen.contains(e.regionId)) {
         return false;
       }
       return true;
     }).toList();
 
+    final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Tourenplanung')),
+      appBar: AppBar(
+        title: const Text('Tourenplanung'),
+        actions: [
+          // Regionen-Filter Button
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                tooltip: 'Regionen filtern',
+                onPressed: () => _showRegionenPicker(context, regionen,
+                    selectedRegionen),
+              ),
+              if (selectedRegionen.isNotEmpty)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${selectedRegionen.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Wochen-Navigation
@@ -102,53 +156,88 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
 
           const Divider(height: 1),
 
-          // Filter-Zeile
-          _FilterBar(
-            regionen: regionen,
-            selectedRegionen: selectedRegionen,
-            selectedFaelligkeit: selectedFaelligkeit,
-            onRegionenChanged: (regSet) =>
-                ref.read(selectedRegionenProvider.notifier).state = regSet,
-            onFaelligkeitChanged: (f) =>
-                ref.read(selectedFaelligkeitProvider.notifier).state = f,
+          // TabBar
+          TabBar(
+            controller: _tabController,
+            tabs: [
+              Tab(text: 'Tagesplan (${angezeigtTagesplan.length})'),
+              Tab(text: 'Fällig (${angezeigtFaellig.length})'),
+            ],
           ),
 
-          // Tagesplan-Header
-          _TagesplanHeader(
-            datum: _selectedDate,
-            onLeeren: () =>
-                ref.read(tagesplanProvider.notifier).leeren(),
-            onAusFaelligBefuellen: () {
-              final faellige =
-                  ref.read(faelligeEintraegeProvider(_selectedDate));
-              ref.read(tagesplanProvider.notifier).befuellenAusFaellig(faellige);
-            },
-          ),
-
-          // Tagesplan-Liste
+          // Tab Content
           Expanded(
-            child: angezeigt.isEmpty
-                ? _buildEmpty()
-                : _TagesplanListe(
-                    eintraege: angezeigt,
-                    onReorder: (old, neu) =>
-                        ref.read(tagesplanProvider.notifier).reorder(old, neu),
-                    onDismiss: (id) =>
-                        ref.read(tagesplanProvider.notifier).entfernen(id),
-                    onTap: _navigateToDetail,
-                  ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // === Tab 1: Tagesplan ===
+                Column(
+                  children: [
+                    _TagesplanHeader(
+                      datum: _selectedDate,
+                      onLeeren: () =>
+                          ref.read(tagesplanProvider.notifier).leeren(),
+                      onAusFaelligBefuellen: () {
+                        final faellige = ref
+                            .read(faelligeEintraegeProvider(_selectedDate));
+                        ref
+                            .read(tagesplanProvider.notifier)
+                            .befuellenAusFaellig(faellige);
+                      },
+                    ),
+                    Expanded(
+                      child: angezeigtTagesplan.isEmpty
+                          ? _buildEmpty(
+                              'Kein Tagesplan',
+                              'Wechsle zum Tab "Fällig" um Einträge\nzum Tagesplan hinzuzufügen.',
+                            )
+                          : _TagesplanListe(
+                              eintraege: angezeigtTagesplan,
+                              onReorder: (old, neu) => ref
+                                  .read(tagesplanProvider.notifier)
+                                  .reorder(old, neu),
+                              onDismiss: (id) => ref
+                                  .read(tagesplanProvider.notifier)
+                                  .entfernen(id),
+                              onTap: _navigateToDetail,
+                            ),
+                    ),
+                  ],
+                ),
+
+                // === Tab 2: Fällig ===
+                angezeigtFaellig.isEmpty
+                    ? _buildEmpty(
+                        'Keine fälligen Einträge',
+                        'Zum ${_formatDate(_selectedDate)} sind keine\nReinigungen, Störungen oder Montagen fällig.',
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        itemCount: angezeigtFaellig.length,
+                        itemBuilder: (_, i) {
+                          final e = angezeigtFaellig[i];
+                          final imPlan = bereitsImPlan.contains(e.id);
+                          return _FaelligEintragKarte(
+                            eintrag: e,
+                            imPlan: imPlan,
+                            onAdd: () {
+                              ref
+                                  .read(tagesplanProvider.notifier)
+                                  .hinzufuegen(e);
+                            },
+                            onTap: () => _navigateToDetail(e),
+                          );
+                        },
+                      ),
+              ],
+            ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showFaelligBottomSheet(context),
-        tooltip: 'Fällige Einträge',
-        child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(String title, String subtitle) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -159,14 +248,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
                 size: 64, color: AppColors.textSecondary.withAlpha(100)),
             const SizedBox(height: 16),
             Text(
-              'Kein Tagesplan',
+              title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Drücke + um fällige Einträge hinzuzufügen,\noder "Aus Fällig befüllen".',
+              subtitle,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
@@ -178,6 +267,10 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
     );
   }
 
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
   void _navigateToDetail(TourEintrag eintrag) {
     switch (eintrag.typ) {
       case TourEintragTyp.reinigung:
@@ -186,7 +279,6 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
         }
         break;
       case TourEintragTyp.stoerung:
-        // ID: 's_<routeId>'
         final id = eintrag.id.substring(2);
         context.push('/stoerungen/$id');
         break;
@@ -198,17 +290,69 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen> {
     }
   }
 
-  void _showFaelligBottomSheet(BuildContext context) {
+  void _showRegionenPicker(
+    BuildContext context,
+    List<dynamic> regionen,
+    Set<String> selectedRegionen,
+  ) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _FaelligBottomSheet(
-        datum: _selectedDate,
-        onHinzufuegen: (eintrag) {
-          ref.read(tagesplanProvider.notifier).hinzufuegen(eintrag);
-        },
-      ),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setModalState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Text('Regionen filtern',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    if (selectedRegionen.isNotEmpty)
+                      TextButton(
+                        onPressed: () {
+                          ref.read(selectedRegionenProvider.notifier).state =
+                              {};
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Zurücksetzen'),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: regionen.length,
+                  itemBuilder: (_, i) {
+                    final r = regionen[i];
+                    final isChecked = selectedRegionen.contains(r.routeId);
+                    return CheckboxListTile(
+                      title: Text(r.name),
+                      value: isChecked,
+                      onChanged: (checked) {
+                        final updated = Set<String>.from(selectedRegionen);
+                        if (checked == true) {
+                          updated.add(r.routeId);
+                        } else {
+                          updated.remove(r.routeId);
+                        }
+                        ref.read(selectedRegionenProvider.notifier).state =
+                            updated;
+                        setModalState(() {});
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          );
+        });
+      },
     );
   }
 }
@@ -370,164 +514,6 @@ class _DayChips extends StatelessWidget {
   }
 }
 
-// ─── Filter-Zeile (Multi-Select Region + Fälligkeits-Dropdown) ───
-
-class _FilterBar extends StatelessWidget {
-  final List<dynamic> regionen;
-  final Set<String> selectedRegionen;
-  final FaelligkeitsStatus? selectedFaelligkeit;
-  final void Function(Set<String>) onRegionenChanged;
-  final void Function(FaelligkeitsStatus?) onFaelligkeitChanged;
-
-  const _FilterBar({
-    required this.regionen,
-    required this.selectedRegionen,
-    required this.selectedFaelligkeit,
-    required this.onRegionenChanged,
-    required this.onFaelligkeitChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-      child: Row(
-        children: [
-          // Region Chips
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ...selectedRegionen.map((id) {
-                    final region = regionen.firstWhere(
-                      (r) => r.routeId == id,
-                      orElse: () => null,
-                    );
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: FilterChip(
-                        label: Text(region?.name ?? id,
-                            style: const TextStyle(fontSize: 12)),
-                        selected: true,
-                        onSelected: (_) {
-                          final updated = Set<String>.from(selectedRegionen)
-                            ..remove(id);
-                          onRegionenChanged(updated);
-                        },
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    );
-                  }),
-                  ActionChip(
-                    avatar: const Icon(Icons.add, size: 16),
-                    label: Text(
-                      selectedRegionen.isEmpty ? 'Regionen' : '+',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () => _showRegionenPicker(context),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Fälligkeits-Filter
-          SizedBox(
-            width: 130,
-            child: DropdownButtonFormField<FaelligkeitsStatus?>(
-              value: selectedFaelligkeit,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Fälligkeit',
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Alle')),
-                DropdownMenuItem(
-                    value: FaelligkeitsStatus.ueberfaellig,
-                    child: Text('Überfällig')),
-                DropdownMenuItem(
-                    value: FaelligkeitsStatus.faellig,
-                    child: Text('Fällig')),
-                DropdownMenuItem(
-                    value: FaelligkeitsStatus.baldFaellig,
-                    child: Text('Bald fällig')),
-              ],
-              onChanged: (v) => onFaelligkeitChanged(v),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showRegionenPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setModalState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Text('Regionen auswählen',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    if (selectedRegionen.isNotEmpty)
-                      TextButton(
-                        onPressed: () {
-                          onRegionenChanged({});
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text('Alle zurücksetzen'),
-                      ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: regionen.length,
-                  itemBuilder: (_, i) {
-                    final r = regionen[i];
-                    final isChecked = selectedRegionen.contains(r.routeId);
-                    return CheckboxListTile(
-                      title: Text(r.name),
-                      value: isChecked,
-                      onChanged: (checked) {
-                        final updated = Set<String>.from(selectedRegionen);
-                        if (checked == true) {
-                          updated.add(r.routeId);
-                        } else {
-                          updated.remove(r.routeId);
-                        }
-                        onRegionenChanged(updated);
-                        setModalState(() {});
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-          );
-        });
-      },
-    );
-  }
-}
-
 // ─── Tagesplan-Header ───
 
 class _TagesplanHeader extends StatelessWidget {
@@ -546,21 +532,22 @@ class _TagesplanHeader extends StatelessWidget {
     final df = DateFormat('EE, d. MMM', 'de_CH');
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 2),
       child: Row(
         children: [
           Text(
-            'Tagesplan ${df.format(datum)}',
+            df.format(datum),
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
             ),
           ),
           const Spacer(),
           TextButton.icon(
             onPressed: onAusFaelligBefuellen,
             icon: const Icon(Icons.playlist_add, size: 18),
-            label: const Text('Fällig', style: TextStyle(fontSize: 12)),
+            label: const Text('Alle Fälligen', style: TextStyle(fontSize: 12)),
             style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -582,7 +569,7 @@ class _TagesplanHeader extends StatelessWidget {
   }
 }
 
-// ─── Tagesplan-Liste (ReorderableListView mit Zeitachse) ───
+// ─── Tagesplan-Liste (ReorderableListView) ───
 
 class _TagesplanListe extends StatelessWidget {
   final List<TourEintrag> eintraege;
@@ -597,14 +584,10 @@ class _TagesplanListe extends StatelessWidget {
     required this.onTap,
   });
 
-  // Dekorative Zeitmarken je nach Position
-  static const _zeitmarken = ['08:00', '09:00', '10:00', '11:00', '12:00',
-      '13:00', '14:00', '15:00', '16:00', '17:00'];
-
   @override
   Widget build(BuildContext context) {
     return ReorderableListView.builder(
-      padding: const EdgeInsets.only(top: 4, bottom: 80),
+      padding: const EdgeInsets.only(top: 4, bottom: 16),
       itemCount: eintraege.length,
       onReorder: onReorder,
       proxyDecorator: (child, index, animation) {
@@ -616,8 +599,6 @@ class _TagesplanListe extends StatelessWidget {
       },
       itemBuilder: (context, index) {
         final eintrag = eintraege[index];
-        final zeitmarke =
-            index < _zeitmarken.length ? _zeitmarken[index] : null;
 
         return Dismissible(
           key: ValueKey(eintrag.id),
@@ -629,28 +610,10 @@ class _TagesplanListe extends StatelessWidget {
             child: const Icon(Icons.delete_outline, color: AppColors.error),
           ),
           onDismissed: (_) => onDismiss(eintrag.id),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Zeitmarke (dekorativ)
-              if (zeitmarke != null && (index % 2 == 0 || index < 4))
-                Padding(
-                  padding: const EdgeInsets.only(left: 16, top: 4, bottom: 2),
-                  child: Text(
-                    zeitmarke,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary.withAlpha(150),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              _TourEintragKarte(
-                eintrag: eintrag,
-                position: index + 1,
-                onTap: () => onTap(eintrag),
-              ),
-            ],
+          child: _TourEintragKarte(
+            eintrag: eintrag,
+            position: index + 1,
+            onTap: () => onTap(eintrag),
           ),
         );
       },
@@ -692,12 +655,24 @@ class _TourEintragKarte extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(
                     children: [
+                      // Position
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '$position',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
+                        ),
+                      ),
                       // Icon
                       CircleAvatar(
-                        radius: 18,
+                        radius: 16,
                         backgroundColor: color.withAlpha(25),
                         child: Icon(_typIcon(eintrag.typ),
-                            color: color, size: 18),
+                            color: color, size: 16),
                       ),
                       const SizedBox(width: 10),
                       // Text
@@ -844,146 +819,19 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-// ─── Fällig-BottomSheet ───
-
-class _FaelligBottomSheet extends ConsumerStatefulWidget {
-  final DateTime datum;
-  final void Function(TourEintrag) onHinzufuegen;
-
-  const _FaelligBottomSheet({
-    required this.datum,
-    required this.onHinzufuegen,
-  });
-
-  @override
-  ConsumerState<_FaelligBottomSheet> createState() =>
-      _FaelligBottomSheetState();
-}
-
-class _FaelligBottomSheetState extends ConsumerState<_FaelligBottomSheet> {
-  TourEintragTyp? _typFilter;
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedRegionen = ref.watch(selectedRegionenProvider);
-    final alleEintraege =
-        ref.watch(faelligeEintraegeProvider(widget.datum));
-    final tagesplan = ref.watch(tagesplanProvider);
-    final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
-
-    // Filter anwenden
-    var eintraege = alleEintraege.where((e) {
-      if (_typFilter != null && e.typ != _typFilter) return false;
-      if (selectedRegionen.isNotEmpty &&
-          e.regionId != null &&
-          !selectedRegionen.contains(e.regionId)) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.6,
-      minChildSize: 0.3,
-      maxChildSize: 0.9,
-      builder: (context, scrollController) => Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-            child: Row(
-              children: [
-                Text(
-                  'Fällige Einträge (${eintraege.length})',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-          // Typ-Filter Chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildTypChip(null, 'Alle'),
-                  _buildTypChip(TourEintragTyp.reinigung, 'Reinigung'),
-                  _buildTypChip(TourEintragTyp.stoerung, 'Störung'),
-                  _buildTypChip(TourEintragTyp.montage, 'Montage'),
-                  _buildTypChip(TourEintragTyp.heigenie, 'HeiGenie'),
-                ],
-              ),
-            ),
-          ),
-          const Divider(height: 1),
-          // Liste
-          Expanded(
-            child: eintraege.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'Keine fälligen Einträge',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: eintraege.length,
-                    itemBuilder: (_, i) {
-                      final e = eintraege[i];
-                      final imPlan = bereitsImPlan.contains(e.id);
-                      return _FaelligEintragKarte(
-                        eintrag: e,
-                        imPlan: imPlan,
-                        onAdd: () {
-                          widget.onHinzufuegen(e);
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypChip(TourEintragTyp? typ, String label) {
-    final isSelected = _typFilter == typ;
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: FilterChip(
-        label: Text(label, style: const TextStyle(fontSize: 12)),
-        selected: isSelected,
-        onSelected: (_) => setState(() => _typFilter = typ),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-}
-
-// ─── Fällig-Eintrag Karte (im BottomSheet) ───
+// ─── Fällig-Eintrag Karte (im Fällig-Tab) ───
 
 class _FaelligEintragKarte extends StatelessWidget {
   final TourEintrag eintrag;
   final bool imPlan;
   final VoidCallback onAdd;
+  final VoidCallback onTap;
 
   const _FaelligEintragKarte({
     required this.eintrag,
     required this.imPlan,
     required this.onAdd,
+    required this.onTap,
   });
 
   @override
@@ -992,38 +840,85 @@ class _FaelligEintragKarte extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: ListTile(
-        dense: true,
-        leading: CircleAvatar(
-          radius: 16,
-          backgroundColor: color.withAlpha(25),
-          child:
-              Icon(_TourEintragKarte._typIcon(eintrag.typ), color: color, size: 16),
-        ),
-        title: Text(
-          eintrag.betriebName,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-        ),
-        subtitle: Text(
-          eintrag.beschreibung,
-          style: const TextStyle(fontSize: 11),
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _StatusBadge(eintrag: eintrag),
-            const SizedBox(width: 4),
-            IconButton(
-              icon: Icon(
-                imPlan ? Icons.check : Icons.add_circle_outline,
-                color: imPlan ? AppColors.success : AppColors.primary,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(width: 4, color: color),
+              Expanded(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: color.withAlpha(25),
+                        child: Icon(_TourEintragKarte._typIcon(eintrag.typ),
+                            color: color, size: 16),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    eintrag.betriebName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (eintrag.betriebOrt != null)
+                                  Text(
+                                    eintrag.betriebOrt!,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              eintrag.beschreibung,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      _StatusBadge(eintrag: eintrag),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: Icon(
+                          imPlan
+                              ? Icons.check_circle
+                              : Icons.add_circle_outline,
+                          color:
+                              imPlan ? AppColors.success : AppColors.primary,
+                        ),
+                        onPressed: imPlan ? null : onAdd,
+                        tooltip:
+                            imPlan ? 'Bereits im Plan' : 'Zum Tagesplan',
+                        iconSize: 24,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              onPressed: imPlan ? null : onAdd,
-              tooltip: imPlan ? 'Bereits im Plan' : 'Zum Tagesplan',
-              iconSize: 22,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
