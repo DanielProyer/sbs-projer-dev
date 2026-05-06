@@ -445,6 +445,49 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
 
       await ReinigungRepository.save(r);
 
+      // HeiGenie-Mail an Heineken senden
+      if (abschliessen && kIsWeb && _serviceArt == 'heigenie') {
+        try {
+          final betrieb = _betrieb ??
+              await BetriebRepository.getByServerId(r.betriebId);
+          if (betrieb != null) {
+            final empfaenger = MailConfig.empfaenger(null, bereich: 'heigenie');
+            final datumStr =
+                '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}';
+            final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
+                ? '${betrieb.name} ${betrieb.ort}'
+                : betrieb.name;
+
+            await SupabaseService.client.functions.invoke(
+              'send-rechnung-mail',
+              body: {
+                'to': empfaenger,
+                'subject': 'Higenie Service - $betriebLabel - $datumStr',
+                'bodyText': 'Hallo Beat\n\n'
+                    'Beiliegend das Reinigungsprotokoll für den Higenie Service im $betriebLabel vom $datumStr.\n\n'
+                    'Gruass Dani',
+                'userId': SupabaseService.dataUserId,
+                if (r.protokollFotoPfad != null)
+                  'protokollFotoPfad': r.protokollFotoPfad,
+              },
+            );
+            debugPrint('[HeiGenie-Mail] Versendet an $empfaenger');
+          }
+        } catch (e) {
+          debugPrint('[HeiGenie-Mail] Fehler: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.error,
+                content: Text('HeiGenie-Mail fehlgeschlagen: $e',
+                    style: const TextStyle(color: Colors.white)),
+                duration: const Duration(seconds: 8),
+              ),
+            );
+          }
+        }
+      }
+
       // Kundenrechnung + Buchung erstellen bei Abschluss (nicht bei Kulanz/Heineken)
       bool buchungVerbucht = false;
       String? buchungTypLabel;
