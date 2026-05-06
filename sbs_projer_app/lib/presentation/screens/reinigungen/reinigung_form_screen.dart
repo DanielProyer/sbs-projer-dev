@@ -562,6 +562,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   'zahlungsstatus': 'versendet',
                   'versendet_am': DateTime.now().toIso8601String().split('T').first,
                 });
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Rechnung per Mail versendet')),
+                  );
+                }
               } catch (e) {
                 debugPrint('[ServiceMail] Fehler: $e');
                 if (mounted) {
