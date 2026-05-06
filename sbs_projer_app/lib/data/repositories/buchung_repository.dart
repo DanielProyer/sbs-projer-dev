@@ -6,13 +6,21 @@ class BuchungRepository {
   static String get _userId => SupabaseService.dataUserId;
 
   static Future<List<Buchung>> getAll() async {
-    final rows = await SupabaseService.client
-        .from('buchungen')
-        .select()
-        .eq('user_id', _userId)
-        .order('datum', ascending: false)
-        .range(0, 9999);
-    return rows.map((r) => Buchung.fromJson(r)).toList();
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('buchungen')
+          .select()
+          .eq('user_id', _userId)
+          .order('datum', ascending: false)
+          .range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all.map((r) => Buchung.fromJson(r)).toList();
   }
 
   static Stream<List<Buchung>> watchAll() {
