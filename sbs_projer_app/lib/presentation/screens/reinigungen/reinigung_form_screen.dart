@@ -537,7 +537,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
                     ? '${betrieb.name} ${betrieb.ort}'
                     : betrieb.name;
-                final betragStr = rechnung.betragBrutto.toStringAsFixed(2);
+                final betragRounded = (rechnung.betragBrutto * 20).roundToDouble() / 20;
+                final betragStr = betragRounded.toStringAsFixed(2);
                 final response = await SupabaseService.client.functions.invoke(
                   'send-rechnung-mail',
                   body: {
