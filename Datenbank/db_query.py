@@ -1,5 +1,16 @@
 """
-Supabase DB Helper – SQL direkt aus der Kommandozeile ausführen.
+Supabase DB Helper – SQL via Supabase Management API ausführen.
+
+Hintergrund: Die direkte Postgres-Verbindung (db.<ref>.supabase.co:5432) ist
+seit 31.03.2026 wegen DNS-Problemen unzuverlässig. Stattdessen nutzen wir
+den Management-API-Endpoint POST /v1/projects/{ref}/database/query.
+
+Setup:
+  1. Personal Access Token (PAT) erstellen:
+     https://supabase.com/dashboard/account/tokens
+  2. In .env (Repo-Root) eintragen:
+       SUPABASE_PAT=sbp_xxx...
+       SUPABASE_PROJECT_REF=pltbaqqwpnmdajwgnhpd
 
 Usage:
   python db_query.py "SELECT * FROM regionen LIMIT 5;"
@@ -8,35 +19,77 @@ Usage:
 
 import sys
 import os
-import psycopg2
+import json
+import urllib.request
+import urllib.error
 
-def get_connection_string():
+
+def load_env():
     env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
-    with open(env_path) as f:
+    values = {}
+    with open(env_path, encoding='utf-8') as f:
         for line in f:
-            if line.startswith('SUPABASE_DB_URL='):
-                return line.strip().split('=', 1)[1]
-    raise RuntimeError('.env not found or SUPABASE_DB_URL not set')
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, _, val = line.partition('=')
+            values[key.strip()] = val.strip().strip('"').strip("'")
+    return values
+
 
 def run_query(sql):
-    conn = psycopg2.connect(get_connection_string())
-    conn.autocommit = True
-    cur = conn.cursor()
+    env = load_env()
+    pat = env.get('SUPABASE_PAT')
+    ref = env.get('SUPABASE_PROJECT_REF')
+    if not pat:
+        raise RuntimeError(
+            'SUPABASE_PAT fehlt in .env. PAT erstellen unter '
+            'https://supabase.com/dashboard/account/tokens'
+        )
+    if not ref:
+        raise RuntimeError('SUPABASE_PROJECT_REF fehlt in .env')
+
+    url = f'https://api.supabase.com/v1/projects/{ref}/database/query'
+    body = json.dumps({'query': sql}).encode('utf-8')
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method='POST',
+        headers={
+            'Authorization': f'Bearer {pat}',
+            'Content-Type': 'application/json',
+        },
+    )
+
     try:
-        cur.execute(sql)
-        if cur.description:
-            cols = [d[0] for d in cur.description]
-            rows = cur.fetchall()
-            print('\t'.join(cols))
-            print('-' * 40)
-            for row in rows:
-                print('\t'.join(str(v) for v in row))
-            print(f'\n({len(rows)} rows)')
-        else:
-            print(f'OK ({cur.rowcount} rows affected)')
-    finally:
-        cur.close()
-        conn.close()
+        with urllib.request.urlopen(req) as resp:
+            payload = resp.read().decode('utf-8')
+    except urllib.error.HTTPError as e:
+        err = e.read().decode('utf-8', errors='replace')
+        print(f'HTTP {e.code}: {err}', file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        rows = json.loads(payload)
+    except json.JSONDecodeError:
+        print(payload)
+        return
+
+    if not isinstance(rows, list):
+        print(json.dumps(rows, indent=2, ensure_ascii=False))
+        return
+
+    if not rows:
+        print('OK (keine Zeilen)')
+        return
+
+    cols = list(rows[0].keys())
+    print('\t'.join(cols))
+    print('-' * 40)
+    for row in rows:
+        print('\t'.join(str(row.get(c, '')) for c in cols))
+    print(f'\n({len(rows)} rows)')
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -44,7 +97,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if sys.argv[1] == '-f':
-        with open(sys.argv[2]) as f:
+        with open(sys.argv[2], encoding='utf-8') as f:
             sql = f.read()
     else:
         sql = ' '.join(sys.argv[1:])
