@@ -152,7 +152,15 @@
 - [x] Betrieb: Saison ohne Datum anzeigen, Mein-Kunde-Logik bei Zapfsystemen
 - [x] 5-Rappen-Rundung für alle CHF-Beträge
 - [x] Reinigung-Buchung: Automatische Buchung bei Tresen/Mail/Post
+- [x] Performance: Shared Betrieb-Provider (8 Screens refactored)
+- [x] Performance: Home Screen Sub-ConsumerWidgets (weniger Rebuilds)
+- [x] Home Screen: 2x5 Kachel-Grid optimiert für Pixel 9
+- [x] Montage: HeiGenie Protokoll-Anzeige full width
+- [x] Belegscanner: Rundungsdifferenzen ≤0.05 CHF automatisch mergen
+- [x] Buchungsvorlage Parkgebühren Privat/Twint
+- [x] Heineken Monatsrechnung: km-Abrechnungen ohne Bereich
+- [x] Kontakt-Rolle «Vertreter» für Heineken
 
 ---
 
-**Zuletzt aktualisiert**: 23.04.2026
+**Zuletzt aktualisiert**: 07.05.2026

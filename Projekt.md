@@ -2,8 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 21.04.2026
+**Stand**: 07.05.2026
 **Tech-Stack**: Flutter + Supabase
+**Version**: 0.10.10+292
 
 ---
 
@@ -577,6 +578,17 @@
 137. ✅ Reinigung-Buchung: Automatische Buchung mit korrekter MwSt bei Tresen/Mail/Post
 138. ✅ camt.053 Import: XML-Parser Hierarchie + Web File Picker Fix
 
+### Erledigt am 07.05.2026
+139. ✅ Performance: Shared Betrieb-Provider (betriebNameMap, betriebOrtMap, betriebRegionIdMap) — 8 Screens refactored
+140. ✅ Performance: Home Screen in Sub-ConsumerWidgets aufgeteilt (_SyncIndicator, _KachelGrid, _WeitereSection, _TagesUebersicht)
+141. ✅ Performance: TagesUebersicht-Logik in eigenen Provider extrahiert
+142. ✅ Home Screen: 2x5 Kachel-Grid (Betriebe, Reinigungen, Störungen, Montagen, Eigenaufträge, Eröffnungen, Kontakte, Termine, Tourenplanung, Spesen) — optimiert für Pixel 9
+143. ✅ Montage-Formular: HeiGenie Service Protokoll-Anzeige wie bei Reinigungen (full width statt 200px)
+144. ✅ Belegscanner: Rundungsdifferenzen (≤0.05 CHF) werden in grösste Position gemergt
+145. ✅ Buchungsvorlage Parkgebühren Privat/Twint (GF 5.2, Soll 6270, Haben 2260, 0% MwSt)
+146. ✅ Heineken Monatsrechnung: Kilometerabrechnungen zeigen keinen Bereich mehr (statt "Konventionell")
+147. ✅ Kontakt-Rolle «Vertreter» für Heineken hinzugefügt
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
 2. ☐ Heineken Rapport-PDFs Layout-Fehler beheben
@@ -586,10 +598,10 @@
 6. ☐ Beta-Testing mit Daniel (reale Umgebung)
 7. ☐ Bug-Fixes
 8. ☐ App Store Submissions (iOS + Android)
+9. ☐ Performance: Lazy Route Loading, Image Compression, Pagination, select() Columns
 
 ### Offene DB-Migrationen (im Supabase SQL Editor ausführen)
-- `Datenbank/migrations/026_bierleitung_gekoppelt.sql`
-- `Datenbank/migrations/027_kontakt_du_anrede.sql`
+- `Datenbank/migrations/075_kontakt_rolle_vertreter.sql`
 
 ---
 
@@ -608,5 +620,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 21.04.2026 – Phase 4 in Arbeit: Störungen UI/UX komplett überarbeitet (Anlagentyp-Filter, Monatsgruppierung mit Preissummen, Störungsnummer-Avatar, Material-Dropdown-Fix), Betrieb-Verbesserungen (Saison, Mein-Kunde-Logik), Uhrzeiten HH:mm, 5-Rappen-Rundung. App-Version 0.4.67+109.
+**Zuletzt aktualisiert**: 07.05.2026 – Performance-Optimierungen (Shared Providers, Sub-Widgets), Home Screen 2x5 Grid für Pixel 9, Belegscanner Rundungs-Fix, Parkgebühren-Vorlage, Heineken km-Bereich-Fix, Kontakt-Rolle Vertreter. App-Version 0.10.10+292.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing)
