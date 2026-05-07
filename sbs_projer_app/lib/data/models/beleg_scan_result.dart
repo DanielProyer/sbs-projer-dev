@@ -25,11 +25,37 @@ class BelegScanResult {
     return BelegScanResult(
       geschaeft: json['geschaeft'] as String? ?? 'Unbekannt',
       datum: DateTime.parse(json['datum'] as String),
-      positionen: positionen,
+      positionen: _mergeRundung(positionen),
       totalBrutto: _d(json['total_brutto']),
       konfidenz: _d(json['konfidenz']),
       zahlungsmethode: json['zahlungsmethode'] as String?,
     );
+  }
+
+  /// Rundungsdifferenzen (≤ 0.05 CHF) in die grösste Position mergen.
+  static List<BelegPosition> _mergeRundung(List<BelegPosition> positionen) {
+    if (positionen.length < 2) return positionen;
+
+    final rundungen = positionen.where((p) => p.betragBrutto.abs() <= 0.05).toList();
+    if (rundungen.isEmpty) return positionen;
+
+    final rest = positionen.where((p) => p.betragBrutto.abs() > 0.05).toList();
+    if (rest.isEmpty) return positionen;
+
+    rest.sort((a, b) => b.betragBrutto.compareTo(a.betragBrutto));
+    final target = rest.first;
+    double extra = 0;
+    for (final r in rundungen) {
+      extra += r.betragBrutto;
+    }
+
+    rest[0] = BelegPosition(
+      mwstSatz: target.mwstSatz,
+      betragBrutto: target.betragBrutto + extra,
+      beschreibung: target.beschreibung,
+      kategorie: target.kategorie,
+    );
+    return rest;
   }
 
   static double _d(dynamic value) {
