@@ -165263,7 +165263,7 @@ $1(a){var s,r,q,p=null,o=J.a1(a),n=J.i(o.h(a,"ist_kilometerabrechnung"),!0),m=t.
 m=A.bd(o.h(a,"datum"))
 if(n)s="0"
 else{s=o.h(a,"referenz_nr")
-s=s==null?p:J.bf(s)}if(n)r="Konventionell"
+s=s==null?p:J.bf(s)}if(n)r=p
 else r=l!=null&&!l.gZ(l)?l.b4(l,", "):p
 if(n){q=o.h(a,"problem_beschreibung")
 q=q==null?p:J.bf(q)
