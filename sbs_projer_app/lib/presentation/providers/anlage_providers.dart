@@ -10,9 +10,8 @@ final anlagenProvider = Provider<List<AnlageLocal>>((ref) {
   return ref.watch(anlagenStreamProvider).valueOrNull ?? [];
 });
 
-final anlageCountProvider = FutureProvider<int>((ref) {
-  ref.watch(anlagenStreamProvider);
-  return AnlageRepository.count();
+final anlageCountProvider = Provider<int>((ref) {
+  return ref.watch(anlagenProvider).length;
 });
 
 final anlagenByBetriebProvider =

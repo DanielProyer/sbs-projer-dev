@@ -10,9 +10,8 @@ final eigenauftraegeProvider = Provider<List<EigenauftragLocal>>((ref) {
   return ref.watch(eigenauftraegeStreamProvider).value ?? [];
 });
 
-final eigenauftragCountProvider = FutureProvider<int>((ref) {
-  ref.watch(eigenauftraegeStreamProvider);
-  return EigenauftragRepository.count();
+final eigenauftragCountProvider = Provider<int>((ref) {
+  return ref.watch(eigenauftraegeProvider).length;
 });
 
 /// Anzahl Eigenaufträge im aktuellen Jahr

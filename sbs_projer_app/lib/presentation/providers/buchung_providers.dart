@@ -11,9 +11,8 @@ final buchungenProvider = Provider<List<Buchung>>((ref) {
   return ref.watch(buchungenStreamProvider).valueOrNull ?? [];
 });
 
-final buchungenCountProvider = FutureProvider<int>((ref) {
-  ref.watch(buchungenStreamProvider);
-  return BuchungRepository.count();
+final buchungenCountProvider = Provider<int>((ref) {
+  return ref.watch(buchungenProvider).length;
 });
 
 final buchungenByPeriodeProvider =

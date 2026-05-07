@@ -39,8 +39,7 @@ class HomeScreen extends ConsumerWidget {
     final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
     final heinekenCount = ref.watch(heinekenRechnungCountProvider);
     final buchungenCount = ref.watch(buchungenCountProvider);
-    final montageJahrCount = ref.watch(montagenProvider)
-        .where((m) => m.datum.year == DateTime.now().year).length;
+    final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -100,21 +99,21 @@ class HomeScreen extends ConsumerWidget {
               _DashboardTile(
                 icon: Icons.store,
                 label: 'Betriebe',
-                count: betriebCount.valueOrNull?.toString(),
+                count: betriebCount > 0 ? '$betriebCount' : null,
                 color: AppColors.primary,
                 onTap: () => context.push('/betriebe'),
               ),
               _DashboardTile(
                 icon: Icons.cleaning_services,
                 label: 'Reinigungen',
-                count: reinigungCount.valueOrNull?.toString(),
+                count: reinigungCount > 0 ? '$reinigungCount' : null,
                 color: AppColors.success,
                 onTap: () => context.push('/reinigungen'),
               ),
               _DashboardTile(
                 icon: Icons.warning_amber,
                 label: 'Störungen',
-                count: stoerungCount.valueOrNull?.toString(),
+                count: stoerungCount > 0 ? '$stoerungCount' : null,
                 color: AppColors.warning,
                 onTap: () => context.push('/stoerungen'),
               ),
@@ -128,14 +127,14 @@ class HomeScreen extends ConsumerWidget {
               _DashboardTile(
                 icon: Icons.build_circle_outlined,
                 label: 'Eigenaufträge',
-                count: eigenauftragCount.valueOrNull?.toString(),
+                count: eigenauftragCount > 0 ? '$eigenauftragCount' : null,
                 color: const Color(0xFF7C3AED),
                 onTap: () => context.push('/eigenauftraege'),
               ),
               _DashboardTile(
                 icon: Icons.cleaning_services_outlined,
                 label: 'Eröffnungen',
-                count: eroeffnungsreinigungCount.valueOrNull?.toString(),
+                count: eroeffnungsreinigungCount > 0 ? '$eroeffnungsreinigungCount' : null,
                 color: AppColors.primary,
                 onTap: () => context.push('/eroeffnungsreinigungen'),
               ),
@@ -154,16 +153,13 @@ class HomeScreen extends ConsumerWidget {
           _MenuListTile(
             icon: Icons.precision_manufacturing,
             label: 'Anlagen',
-            count: anlageCount.valueOrNull?.toString(),
+            count: anlageCount > 0 ? '$anlageCount' : null,
             onTap: () => context.push('/anlagen'),
           ),
           _MenuListTile(
             icon: Icons.receipt_long,
             label: 'Rechnungen',
-            count: offeneRechnungen.valueOrNull != null &&
-                    offeneRechnungen.valueOrNull! > 0
-                ? '${offeneRechnungen.valueOrNull} offen'
-                : null,
+            count: offeneRechnungen > 0 ? '$offeneRechnungen offen' : null,
             onTap: () => context.push('/rechnungen'),
           ),
           _MenuListTile(
@@ -175,16 +171,13 @@ class HomeScreen extends ConsumerWidget {
           _MenuListTile(
             icon: Icons.account_balance,
             label: 'Buchhaltung',
-            count: buchungenCount.valueOrNull?.toString(),
+            count: buchungenCount > 0 ? '$buchungenCount' : null,
             onTap: () => context.push('/buchhaltung'),
           ),
           _MenuListTile(
             icon: Icons.inventory_2,
             label: 'Material',
-            count: niedrigCount.valueOrNull != null &&
-                    niedrigCount.valueOrNull! > 0
-                ? '${niedrigCount.valueOrNull} niedrig'
-                : null,
+            count: niedrigCount > 0 ? '$niedrigCount niedrig' : null,
             onTap: () => context.push('/materialien'),
           ),
           _MenuListTile(

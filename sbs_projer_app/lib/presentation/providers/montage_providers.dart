@@ -10,9 +10,14 @@ final montagenProvider = Provider<List<MontageLocal>>((ref) {
   return ref.watch(montagenStreamProvider).valueOrNull ?? [];
 });
 
-final montageCountProvider = FutureProvider<int>((ref) {
-  ref.watch(montagenStreamProvider);
-  return MontageRepository.count();
+final montageCountProvider = Provider<int>((ref) {
+  return ref.watch(montagenProvider).length;
+});
+
+final montageCountAktuellesJahrProvider = Provider<int>((ref) {
+  final all = ref.watch(montagenProvider);
+  final jahr = DateTime.now().year;
+  return all.where((m) => m.datum.year == jahr).length;
 });
 
 final montagenByAnlageProvider =

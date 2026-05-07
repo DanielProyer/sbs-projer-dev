@@ -65,7 +65,7 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
               Expanded(
                 child: _KennzahlCard(
                   label: 'Offene Rechnungen',
-                  value: offeneCount.valueOrNull?.toString() ?? '–',
+                  value: '$offeneCount',
                   icon: Icons.receipt_long,
                   color: AppColors.warning,
                 ),

@@ -11,7 +11,6 @@ final betriebeProvider = Provider<List<BetriebLocal>>((ref) {
   return [...list]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 });
 
-final betriebCountProvider = FutureProvider<int>((ref) {
-  ref.watch(betriebeStreamProvider);
-  return BetriebRepository.count();
+final betriebCountProvider = Provider<int>((ref) {
+  return ref.watch(betriebeProvider).length;
 });

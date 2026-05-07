@@ -10,14 +10,14 @@ final rechnungenProvider = Provider<List<Rechnung>>((ref) {
   return ref.watch(rechnungenStreamProvider).valueOrNull ?? [];
 });
 
-final rechnungCountProvider = FutureProvider<int>((ref) {
-  ref.watch(rechnungenStreamProvider);
-  return RechnungRepository.count();
+final rechnungCountProvider = Provider<int>((ref) {
+  return ref.watch(rechnungenProvider).length;
 });
 
-final offeneRechnungenCountProvider = FutureProvider<int>((ref) {
-  ref.watch(rechnungenStreamProvider);
-  return RechnungRepository.countOffene();
+final offeneRechnungenCountProvider = Provider<int>((ref) {
+  return ref.watch(rechnungenProvider)
+      .where((r) => r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'ueberfaellig')
+      .length;
 });
 
 final rechnungenByBetriebProvider =

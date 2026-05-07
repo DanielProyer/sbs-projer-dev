@@ -14,14 +14,12 @@ final materialienProvider = Provider<List<Lager>>((ref) {
   return ref.watch(materialienStreamProvider).valueOrNull ?? [];
 });
 
-final materialCountProvider = FutureProvider<int>((ref) {
-  ref.watch(materialienStreamProvider);
-  return LagerRepository.count();
+final materialCountProvider = Provider<int>((ref) {
+  return ref.watch(materialienProvider).length;
 });
 
-final niedrigCountProvider = FutureProvider<int>((ref) {
-  ref.watch(materialienStreamProvider);
-  return LagerRepository.countNiedrig();
+final niedrigCountProvider = Provider<int>((ref) {
+  return ref.watch(materialienProvider).where((m) => m.bestandNiedrig == true).length;
 });
 
 // --- Kategorien ---

@@ -12,9 +12,8 @@ final bergkundenpauschaleProvider =
   return ref.watch(bergkundenpauschaleStreamProvider).value ?? [];
 });
 
-final bergkundenpauschaleCountProvider = FutureProvider<int>((ref) {
-  ref.watch(bergkundenpauschaleStreamProvider);
-  return BergkundenpauschaleRepository.count();
+final bergkundenpauschaleCountProvider = Provider<int>((ref) {
+  return ref.watch(bergkundenpauschaleProvider).length;
 });
 
 /// Anzahl Bergkundenpauschalen im aktuellen Jahr

@@ -10,9 +10,8 @@ final eroeffnungsreinigungenProvider = Provider<List<EroeffnungsreinigungLocal>>
   return ref.watch(eroeffnungsreinigungenStreamProvider).valueOrNull ?? [];
 });
 
-final eroeffnungsreinigungCountProvider = FutureProvider<int>((ref) {
-  ref.watch(eroeffnungsreinigungenStreamProvider);
-  return EroeffnungsreinigungRepository.count();
+final eroeffnungsreinigungCountProvider = Provider<int>((ref) {
+  return ref.watch(eroeffnungsreinigungenProvider).length;
 });
 
 /// Anzahl Eröffnungsreinigungen im aktuellen Jahr

@@ -10,9 +10,8 @@ final reinigungenProvider = Provider<List<ReinigungLocal>>((ref) {
   return ref.watch(reinigungenStreamProvider).valueOrNull ?? [];
 });
 
-final reinigungCountProvider = FutureProvider<int>((ref) {
-  ref.watch(reinigungenStreamProvider);
-  return ReinigungRepository.count();
+final reinigungCountProvider = Provider<int>((ref) {
+  return ref.watch(reinigungenProvider).length;
 });
 
 /// Anzahl Reinigungen im aktuellen Jahr

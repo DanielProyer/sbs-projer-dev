@@ -10,9 +10,8 @@ final stoerungenProvider = Provider<List<StoerungLocal>>((ref) {
   return ref.watch(stoerungenStreamProvider).valueOrNull ?? [];
 });
 
-final stoerungCountProvider = FutureProvider<int>((ref) {
-  ref.watch(stoerungenStreamProvider);
-  return StoerungRepository.count();
+final stoerungCountProvider = Provider<int>((ref) {
+  return ref.watch(stoerungenProvider).length;
 });
 
 /// Anzahl Störungen im aktuellen Jahr

@@ -10,7 +10,6 @@ final pikettDiensteProvider = Provider<List<PikettDienstLocal>>((ref) {
   return ref.watch(pikettDiensteStreamProvider).valueOrNull ?? [];
 });
 
-final pikettDienstCountProvider = FutureProvider<int>((ref) {
-  ref.watch(pikettDiensteStreamProvider);
-  return PikettDienstRepository.count();
+final pikettDienstCountProvider = Provider<int>((ref) {
+  return ref.watch(pikettDiensteProvider).length;
 });
