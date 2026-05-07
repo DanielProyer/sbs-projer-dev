@@ -399,7 +399,7 @@ class HeinekenRechnungService {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
         stoerNr: isKm ? '0' : r['referenz_nr']?.toString(),
-        bereich: isKm ? 'Konventionell' : (bereiche != null && bereiche.isNotEmpty ? bereiche.join(', ') : null),
+        bereich: isKm ? null : (bereiche != null && bereiche.isNotEmpty ? bereiche.join(', ') : null),
         kunde: isKm ? (r['problem_beschreibung']?.toString() ?? '') : _betriebLabel(r['betrieb_id'], betriebe),
         betrag: _toDouble(r['preis_netto']),
       );
