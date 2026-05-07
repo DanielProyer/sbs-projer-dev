@@ -113,6 +113,7 @@ class Kontakt {
     'monteur' => 'Monteur',
     'event_heineken' => 'Event Heineken',
     'pikett' => 'Pikett',
+    'vertreter' => 'Vertreter',
     'ok' => 'OK',
     'bau' => 'Bau',
     'stand' => 'Stand',
@@ -121,7 +122,7 @@ class Kontakt {
 
   static List<String> rollenFuerKategorie(String kategorie) => switch (kategorie) {
     'betrieb' => ['geschaeftsfuehrer', 'fb_manager', 'mitarbeiter', 'hauswart', 'sonstige'],
-    'heineken' => ['rsl', 'buero', 'monteur', 'event_heineken', 'pikett'],
+    'heineken' => ['rsl', 'vertreter', 'buero', 'monteur', 'event_heineken', 'pikett'],
     'event' => ['ok', 'bau', 'stand'],
     _ => [],
   };
@@ -137,6 +138,7 @@ class Kontakt {
     'monteur' => 'Monteur',
     'event_heineken' => 'Event Heineken',
     'pikett' => 'Pikett',
+    'vertreter' => 'Vertreter',
     'ok' => 'OK',
     'bau' => 'Bau',
     'stand' => 'Stand',
