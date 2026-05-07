@@ -20,6 +20,7 @@ import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/image/document_enhancer.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
@@ -624,8 +625,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                               onPressed:
                                   _fotoUploading ? null : _takePhoto,
                               icon:
-                                  const Icon(Icons.camera_alt, size: 24),
-                              label: const Text('Fotografieren',
+                                  const Icon(Icons.document_scanner, size: 24),
+                              label: const Text('Digitalisieren',
                                   style: TextStyle(fontSize: 15)),
                             ),
                           ),
@@ -637,19 +638,17 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                             child: OutlinedButton.icon(
                               onPressed:
                                   _fotoUploading ? null : _pickPhoto,
-                              icon: const Icon(Icons.document_scanner,
+                              icon: const Icon(Icons.upload_file,
                                   size: 24),
-                              label: const Text('Scan importieren',
+                              label: const Text('Hochladen',
                                   style: TextStyle(fontSize: 15)),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  if (_fotoBytes != null)
-                    _buildFotoPreview(),
-                  if (_existingFotoPfad != null && _fotoBytes == null)
-                    _buildExistingFotoPreview(),
+                  if (_fotoBytes != null || _existingFotoPfad != null)
+                    _buildFotoSection(),
                   const SizedBox(height: 24),
                 ],
 
@@ -879,84 +878,132 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
   // ── Foto-Vorschau (neues Foto) ────────────────────────────────────
 
-  Widget _buildFotoPreview() {
+  Widget _buildFotoSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.memory(
-            _fotoBytes!,
-            height: 200,
-            fit: BoxFit.contain,
+        if (_fotoBytes != null) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              _fotoBytes!,
+              width: double.infinity,
+              fit: BoxFit.contain,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton.icon(
-              onPressed: _takePhoto,
-              icon: const Icon(Icons.camera_alt, size: 18),
-              label: const Text('Neu aufnehmen'),
+          const SizedBox(height: 8),
+        ] else if (_existingFotoPfad != null) ...[
+          if (ProtokollFotoStorage.isPdf(_existingFotoPfad!))
+            FutureBuilder<String>(
+              future: ProtokollFotoStorage.getSignedUrl(_existingFotoPfad!),
+              builder: (context, snapshot) {
+                return Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.picture_as_pdf,
+                            size: 40, color: AppColors.error),
+                        const SizedBox(height: 8),
+                        if (snapshot.hasData)
+                          FilledButton.icon(
+                            onPressed: () => launchUrl(
+                                Uri.parse(snapshot.data!),
+                                mode: LaunchMode.externalApplication),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('PDF öffnen'),
+                          )
+                        else
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            )
+          else
+            FutureBuilder<String>(
+              future: ProtokollFotoStorage.getSignedUrl(_existingFotoPfad!),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      snapshot.data!,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.broken_image,
+                                  color: AppColors.textSecondary),
+                              SizedBox(height: 4),
+                              Text('Foto konnte nicht geladen werden',
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return Container(
+                  height: 250,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              },
             ),
-            TextButton.icon(
-              onPressed: () => setState(() {
-                _fotoBytes = null;
-                _existingFotoPfad = null;
-              }),
-              icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('Entfernen'),
+          const SizedBox(height: 8),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _fotoUploading ? null : _takePhoto,
+                icon: const Icon(Icons.camera_alt),
+                label: Text(_fotoBytes != null || _existingFotoPfad != null
+                    ? 'Neues Foto'
+                    : 'Protokoll fotografieren'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _fotoUploading ? null : _pickPhoto,
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Galerie'),
             ),
           ],
         ),
-      ],
-    );
-  }
-
-  // ── Foto-Vorschau (bestehendes Foto) ──────────────────────────────
-
-  Widget _buildExistingFotoPreview() {
-    return Column(
-      children: [
-        const SizedBox(height: 8),
-        FutureBuilder<String>(
-          future: ProtokollFotoStorage.getSignedUrl(_existingFotoPfad!),
-          builder: (context, snap) {
-            if (snap.hasData) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  snap.data!,
-                  height: 200,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.broken_image, size: 48),
-                ),
-              );
-            }
-            return const SizedBox(
-              height: 100,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton.icon(
-              onPressed: _takePhoto,
-              icon: const Icon(Icons.camera_alt, size: 18),
-              label: const Text('Neu aufnehmen'),
-            ),
-            TextButton.icon(
-              onPressed: () => setState(() => _existingFotoPfad = null),
-              icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('Entfernen'),
-            ),
-          ],
-        ),
+        if (_fotoUploading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LinearProgressIndicator(),
+          ),
       ],
     );
   }
