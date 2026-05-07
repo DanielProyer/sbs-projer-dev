@@ -46,26 +46,12 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         children: [
           const _TagesUebersicht(),
-          const SizedBox(height: 24),
-          Text(
-            'Schnellzugriff',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 12),
-          const _SchnellzugriffSection(),
-          const SizedBox(height: 24),
-          Text(
-            'Weitere',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          const _KachelGrid(),
+          const SizedBox(height: 16),
           const _WeitereSection(),
         ],
       ),
@@ -73,8 +59,8 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _SchnellzugriffSection extends ConsumerWidget {
-  const _SchnellzugriffSection();
+class _KachelGrid extends ConsumerWidget {
+  const _KachelGrid();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -86,8 +72,68 @@ class _SchnellzugriffSection extends ConsumerWidget {
     final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
     final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
 
-    return Column(
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
+      childAspectRatio: 1.75,
       children: [
+        _DashboardTile(
+          icon: Icons.store,
+          label: 'Betriebe',
+          count: betriebCount > 0 ? '$betriebCount' : null,
+          color: AppColors.primary,
+          onTap: () => context.push('/betriebe'),
+        ),
+        _DashboardTile(
+          icon: Icons.cleaning_services,
+          label: 'Reinigungen',
+          count: reinigungCount > 0 ? '$reinigungCount' : null,
+          color: AppColors.success,
+          onTap: () => context.push('/reinigungen'),
+        ),
+        _DashboardTile(
+          icon: Icons.warning_amber,
+          label: 'Störungen',
+          count: stoerungCount > 0 ? '$stoerungCount' : null,
+          color: AppColors.warning,
+          onTap: () => context.push('/stoerungen'),
+        ),
+        _DashboardTile(
+          icon: Icons.build,
+          label: 'Montagen',
+          count: montageJahrCount > 0 ? '$montageJahrCount' : null,
+          color: AppColors.info,
+          onTap: () => context.push('/montagen'),
+        ),
+        _DashboardTile(
+          icon: Icons.build_circle_outlined,
+          label: 'Eigenaufträge',
+          count: eigenauftragCount > 0 ? '$eigenauftragCount' : null,
+          color: const Color(0xFF7C3AED),
+          onTap: () => context.push('/eigenauftraege'),
+        ),
+        _DashboardTile(
+          icon: Icons.cleaning_services_outlined,
+          label: 'Eröffnungen',
+          count: eroeffnungsreinigungCount > 0 ? '$eroeffnungsreinigungCount' : null,
+          color: AppColors.primary,
+          onTap: () => context.push('/eroeffnungsreinigungen'),
+        ),
+        _DashboardTile(
+          icon: Icons.contacts,
+          label: 'Kontakte',
+          color: Colors.teal,
+          onTap: () => context.push('/kontakte'),
+        ),
+        _DashboardTile(
+          icon: Icons.calendar_month,
+          label: 'Termine',
+          color: Colors.deepOrange,
+          onTap: () => context.push('/termine'),
+        ),
         _DashboardTile(
           icon: Icons.route,
           label: 'Tourenplanung',
@@ -95,58 +141,11 @@ class _SchnellzugriffSection extends ConsumerWidget {
           color: AppColors.primary,
           onTap: () => context.push('/touren'),
         ),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.4,
-          children: [
-            _DashboardTile(
-              icon: Icons.store,
-              label: 'Betriebe',
-              count: betriebCount > 0 ? '$betriebCount' : null,
-              color: AppColors.primary,
-              onTap: () => context.push('/betriebe'),
-            ),
-            _DashboardTile(
-              icon: Icons.cleaning_services,
-              label: 'Reinigungen',
-              count: reinigungCount > 0 ? '$reinigungCount' : null,
-              color: AppColors.success,
-              onTap: () => context.push('/reinigungen'),
-            ),
-            _DashboardTile(
-              icon: Icons.warning_amber,
-              label: 'Störungen',
-              count: stoerungCount > 0 ? '$stoerungCount' : null,
-              color: AppColors.warning,
-              onTap: () => context.push('/stoerungen'),
-            ),
-            _DashboardTile(
-              icon: Icons.build,
-              label: 'Montagen',
-              count: montageJahrCount > 0 ? '$montageJahrCount' : null,
-              color: AppColors.info,
-              onTap: () => context.push('/montagen'),
-            ),
-            _DashboardTile(
-              icon: Icons.build_circle_outlined,
-              label: 'Eigenaufträge',
-              count: eigenauftragCount > 0 ? '$eigenauftragCount' : null,
-              color: const Color(0xFF7C3AED),
-              onTap: () => context.push('/eigenauftraege'),
-            ),
-            _DashboardTile(
-              icon: Icons.cleaning_services_outlined,
-              label: 'Eröffnungen',
-              count: eroeffnungsreinigungCount > 0 ? '$eroeffnungsreinigungCount' : null,
-              color: AppColors.primary,
-              onTap: () => context.push('/eroeffnungsreinigungen'),
-            ),
-          ],
+        _DashboardTile(
+          icon: Icons.receipt_long,
+          label: 'Spesen',
+          color: Colors.brown,
+          onTap: () => context.push('/spesen'),
         ),
       ],
     );
@@ -202,29 +201,14 @@ class _WeitereSection extends ConsumerWidget {
           onTap: () => context.push('/pikett'),
         ),
         _MenuListTile(
-          icon: Icons.contacts,
-          label: 'Kontakte',
-          onTap: () => context.push('/kontakte'),
-        ),
-        _MenuListTile(
           icon: Icons.landscape,
           label: 'Bergkundenpauschalen',
           onTap: () => context.push('/bergkundenpauschalen'),
         ),
         _MenuListTile(
-          icon: Icons.calendar_month,
-          label: 'Termine',
-          onTap: () => context.push('/termine'),
-        ),
-        _MenuListTile(
           icon: Icons.receipt,
           label: 'Jahresrechnung',
           onTap: () => context.push('/jahresrechnung'),
-        ),
-        _MenuListTile(
-          icon: Icons.receipt_long,
-          label: 'Spesen erfassen',
-          onTap: () => context.push('/spesen'),
         ),
         _MenuListTile(
           icon: Icons.search,
@@ -402,41 +386,46 @@ class _DashboardTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 28),
+              Icon(icon, color: color, size: 22),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (count != null)
+                  if (count != null) ...[
+                    const SizedBox(width: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+                        horizontal: 6,
+                        vertical: 1,
                       ),
                       decoration: BoxDecoration(
                         color: color.withAlpha(25),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         count!,
                         style: TextStyle(
                           color: color,
                           fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                          fontSize: 11,
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ],
