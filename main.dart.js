@@ -38255,7 +38255,7 @@ g=c.h(a2,e)!=null?A.bd(c.h(a2,e)):null
 return new A.aIP(b,a,a0,a1,s,r,q,p,o,n,m,l,k,j,i,h,g,c.h(a2,d)!=null?A.bd(c.h(a2,d)):null)},
 c6D(a){var s
 A:{if("betrieb"===a){s=A.b(["geschaeftsfuehrer","fb_manager","mitarbeiter","hauswart","sonstige"],t.s)
-break A}if("heineken"===a){s=A.b(["rsl","buero","monteur","event_heineken","pikett"],t.s)
+break A}if("heineken"===a){s=A.b(["rsl","vertreter","buero","monteur","event_heineken","pikett"],t.s)
 break A}if("event"===a){s=A.b(["ok","bau","stand"],t.s)
 break A}s=A.b([],t.s)
 break A}return s},
@@ -38270,6 +38270,7 @@ break A}if("buero"===a){s="B\xfcro"
 break A}if("monteur"===a){s="Monteur"
 break A}if("event_heineken"===a){s="Event Heineken"
 break A}if("pikett"===a){s="Pikett"
+break A}if("vertreter"===a){s="Vertreter"
 break A}if("ok"===a){s="OK"
 break A}if("bau"===a){s="Bau"
 break A}if("stand"===a){s="Stand"
