@@ -22,34 +22,18 @@ import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isOnline = ref.watch(isOnlineProvider);
-    final isSyncing = ref.watch(isSyncingProvider);
-    final betriebCount = ref.watch(betriebCountProvider);
-    final anlageCount = ref.watch(anlageCountProvider);
-    final reinigungCount = ref.watch(reinigungCountProvider);
-    final stoerungCount = ref.watch(stoerungCountProvider);
-    final faelligeCount = ref.watch(faelligeAnlagenCountProvider);
-    final offeneRechnungen = ref.watch(offeneRechnungenCountProvider);
-    final niedrigCount = ref.watch(niedrigCountProvider);
-    final eigenauftragCount = ref.watch(eigenauftragCountProvider);
-    final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
-    final heinekenCount = ref.watch(heinekenRechnungCountProvider);
-    final buchungenCount = ref.watch(buchungenCountProvider);
-    final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
-
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('SBS Projer'),
         actions: [
-          // Sync-Status Indicator
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _SyncIndicator(isOnline: isOnline, isSyncing: isSyncing),
+          const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: _SyncIndicator(),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -57,7 +41,6 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () async {
               if (!kIsWeb) SyncService.stopListening();
               await SupabaseService.client.auth.signOut();
-              // GoRouter redirected automatisch via refreshListenable
             },
           ),
         ],
@@ -65,11 +48,8 @@ class HomeScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Tagesübersicht
-          _TagesUebersicht(),
+          const _TagesUebersicht(),
           const SizedBox(height: 24),
-
-          // Schnellzugriff
           Text(
             'Schnellzugriff',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -77,71 +57,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
           ),
           const SizedBox(height: 12),
-
-          // Tourenplanung Kachel (volle Breite)
-          _DashboardTile(
-            icon: Icons.route,
-            label: 'Tourenplanung',
-            count: faelligeCount > 0 ? '$faelligeCount fällig' : null,
-            color: AppColors.primary,
-            onTap: () => context.push('/touren'),
-          ),
-          const SizedBox(height: 12),
-
-          // Dashboard-Kacheln
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.4,
-            children: [
-              _DashboardTile(
-                icon: Icons.store,
-                label: 'Betriebe',
-                count: betriebCount > 0 ? '$betriebCount' : null,
-                color: AppColors.primary,
-                onTap: () => context.push('/betriebe'),
-              ),
-              _DashboardTile(
-                icon: Icons.cleaning_services,
-                label: 'Reinigungen',
-                count: reinigungCount > 0 ? '$reinigungCount' : null,
-                color: AppColors.success,
-                onTap: () => context.push('/reinigungen'),
-              ),
-              _DashboardTile(
-                icon: Icons.warning_amber,
-                label: 'Störungen',
-                count: stoerungCount > 0 ? '$stoerungCount' : null,
-                color: AppColors.warning,
-                onTap: () => context.push('/stoerungen'),
-              ),
-              _DashboardTile(
-                icon: Icons.build,
-                label: 'Montagen',
-                count: montageJahrCount > 0 ? '$montageJahrCount' : null,
-                color: AppColors.info,
-                onTap: () => context.push('/montagen'),
-              ),
-              _DashboardTile(
-                icon: Icons.build_circle_outlined,
-                label: 'Eigenaufträge',
-                count: eigenauftragCount > 0 ? '$eigenauftragCount' : null,
-                color: const Color(0xFF7C3AED),
-                onTap: () => context.push('/eigenauftraege'),
-              ),
-              _DashboardTile(
-                icon: Icons.cleaning_services_outlined,
-                label: 'Eröffnungen',
-                count: eroeffnungsreinigungCount > 0 ? '$eroeffnungsreinigungCount' : null,
-                color: AppColors.primary,
-                onTap: () => context.push('/eroeffnungsreinigungen'),
-              ),
-            ],
-          ),
-
+          const _SchnellzugriffSection(),
           const SizedBox(height: 24),
           Text(
             'Weitere',
@@ -150,102 +66,200 @@ class HomeScreen extends ConsumerWidget {
                 ),
           ),
           const SizedBox(height: 12),
-
-          _MenuListTile(
-            icon: Icons.precision_manufacturing,
-            label: 'Anlagen',
-            count: anlageCount > 0 ? '$anlageCount' : null,
-            onTap: () => context.push('/anlagen'),
-          ),
-          _MenuListTile(
-            icon: Icons.receipt_long,
-            label: 'Rechnungen',
-            count: offeneRechnungen > 0 ? '$offeneRechnungen offen' : null,
-            onTap: () => context.push('/rechnungen'),
-          ),
-          _MenuListTile(
-            icon: Icons.receipt_long_outlined,
-            label: 'Heineken Rechnungen',
-            count: heinekenCount.valueOrNull?.toString(),
-            onTap: () => context.push('/heineken'),
-          ),
-          _MenuListTile(
-            icon: Icons.account_balance,
-            label: 'Buchhaltung',
-            count: buchungenCount > 0 ? '$buchungenCount' : null,
-            onTap: () => context.push('/buchhaltung'),
-          ),
-          _MenuListTile(
-            icon: Icons.inventory_2,
-            label: 'Material',
-            count: niedrigCount > 0 ? '$niedrigCount niedrig' : null,
-            onTap: () => context.push('/materialien'),
-          ),
-          _MenuListTile(
-            icon: Icons.nightlight_round,
-            label: 'Pikett-Dienste',
-            onTap: () => context.push('/pikett'),
-          ),
-          _MenuListTile(
-            icon: Icons.contacts,
-            label: 'Kontakte',
-            onTap: () => context.push('/kontakte'),
-          ),
-          _MenuListTile(
-            icon: Icons.landscape,
-            label: 'Bergkundenpauschalen',
-            onTap: () => context.push('/bergkundenpauschalen'),
-          ),
-          _MenuListTile(
-            icon: Icons.calendar_month,
-            label: 'Termine',
-            onTap: () => context.push('/termine'),
-          ),
-          _MenuListTile(
-            icon: Icons.receipt,
-            label: 'Jahresrechnung',
-            onTap: () => context.push('/jahresrechnung'),
-          ),
-          _MenuListTile(
-            icon: Icons.receipt_long,
-            label: 'Spesen erfassen',
-            onTap: () => context.push('/spesen'),
-          ),
-          _MenuListTile(
-            icon: Icons.search,
-            label: 'Fehlersuche',
-            onTap: () => context.push('/fehlersuche'),
-          ),
-          _MenuListTile(
-            icon: Icons.settings,
-            label: 'Einstellungen',
-            onTap: () => context.push('/einstellungen'),
-          ),
-          if (!kIsWeb)
-            _MenuListTile(
-              icon: Icons.sync,
-              label: 'Sync erzwingen',
-              onTap: () {
-                SyncService.syncAll();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Synchronisierung gestartet...')),
-                );
-              },
-            ),
+          const _WeitereSection(),
         ],
       ),
     );
   }
 }
 
-class _SyncIndicator extends StatelessWidget {
-  final bool isOnline;
-  final bool isSyncing;
-
-  const _SyncIndicator({required this.isOnline, required this.isSyncing});
+class _SchnellzugriffSection extends ConsumerWidget {
+  const _SchnellzugriffSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final betriebCount = ref.watch(betriebCountProvider);
+    final reinigungCount = ref.watch(reinigungCountProvider);
+    final stoerungCount = ref.watch(stoerungCountProvider);
+    final faelligeCount = ref.watch(faelligeAnlagenCountProvider);
+    final eigenauftragCount = ref.watch(eigenauftragCountProvider);
+    final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
+    final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
+
+    return Column(
+      children: [
+        _DashboardTile(
+          icon: Icons.route,
+          label: 'Tourenplanung',
+          count: faelligeCount > 0 ? '$faelligeCount fällig' : null,
+          color: AppColors.primary,
+          onTap: () => context.push('/touren'),
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.4,
+          children: [
+            _DashboardTile(
+              icon: Icons.store,
+              label: 'Betriebe',
+              count: betriebCount > 0 ? '$betriebCount' : null,
+              color: AppColors.primary,
+              onTap: () => context.push('/betriebe'),
+            ),
+            _DashboardTile(
+              icon: Icons.cleaning_services,
+              label: 'Reinigungen',
+              count: reinigungCount > 0 ? '$reinigungCount' : null,
+              color: AppColors.success,
+              onTap: () => context.push('/reinigungen'),
+            ),
+            _DashboardTile(
+              icon: Icons.warning_amber,
+              label: 'Störungen',
+              count: stoerungCount > 0 ? '$stoerungCount' : null,
+              color: AppColors.warning,
+              onTap: () => context.push('/stoerungen'),
+            ),
+            _DashboardTile(
+              icon: Icons.build,
+              label: 'Montagen',
+              count: montageJahrCount > 0 ? '$montageJahrCount' : null,
+              color: AppColors.info,
+              onTap: () => context.push('/montagen'),
+            ),
+            _DashboardTile(
+              icon: Icons.build_circle_outlined,
+              label: 'Eigenaufträge',
+              count: eigenauftragCount > 0 ? '$eigenauftragCount' : null,
+              color: const Color(0xFF7C3AED),
+              onTap: () => context.push('/eigenauftraege'),
+            ),
+            _DashboardTile(
+              icon: Icons.cleaning_services_outlined,
+              label: 'Eröffnungen',
+              count: eroeffnungsreinigungCount > 0 ? '$eroeffnungsreinigungCount' : null,
+              color: AppColors.primary,
+              onTap: () => context.push('/eroeffnungsreinigungen'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _WeitereSection extends ConsumerWidget {
+  const _WeitereSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final anlageCount = ref.watch(anlageCountProvider);
+    final offeneRechnungen = ref.watch(offeneRechnungenCountProvider);
+    final heinekenCount = ref.watch(heinekenRechnungCountProvider);
+    final buchungenCount = ref.watch(buchungenCountProvider);
+    final niedrigCount = ref.watch(niedrigCountProvider);
+
+    return Column(
+      children: [
+        _MenuListTile(
+          icon: Icons.precision_manufacturing,
+          label: 'Anlagen',
+          count: anlageCount > 0 ? '$anlageCount' : null,
+          onTap: () => context.push('/anlagen'),
+        ),
+        _MenuListTile(
+          icon: Icons.receipt_long,
+          label: 'Rechnungen',
+          count: offeneRechnungen > 0 ? '$offeneRechnungen offen' : null,
+          onTap: () => context.push('/rechnungen'),
+        ),
+        _MenuListTile(
+          icon: Icons.receipt_long_outlined,
+          label: 'Heineken Rechnungen',
+          count: heinekenCount.valueOrNull?.toString(),
+          onTap: () => context.push('/heineken'),
+        ),
+        _MenuListTile(
+          icon: Icons.account_balance,
+          label: 'Buchhaltung',
+          count: buchungenCount > 0 ? '$buchungenCount' : null,
+          onTap: () => context.push('/buchhaltung'),
+        ),
+        _MenuListTile(
+          icon: Icons.inventory_2,
+          label: 'Material',
+          count: niedrigCount > 0 ? '$niedrigCount niedrig' : null,
+          onTap: () => context.push('/materialien'),
+        ),
+        _MenuListTile(
+          icon: Icons.nightlight_round,
+          label: 'Pikett-Dienste',
+          onTap: () => context.push('/pikett'),
+        ),
+        _MenuListTile(
+          icon: Icons.contacts,
+          label: 'Kontakte',
+          onTap: () => context.push('/kontakte'),
+        ),
+        _MenuListTile(
+          icon: Icons.landscape,
+          label: 'Bergkundenpauschalen',
+          onTap: () => context.push('/bergkundenpauschalen'),
+        ),
+        _MenuListTile(
+          icon: Icons.calendar_month,
+          label: 'Termine',
+          onTap: () => context.push('/termine'),
+        ),
+        _MenuListTile(
+          icon: Icons.receipt,
+          label: 'Jahresrechnung',
+          onTap: () => context.push('/jahresrechnung'),
+        ),
+        _MenuListTile(
+          icon: Icons.receipt_long,
+          label: 'Spesen erfassen',
+          onTap: () => context.push('/spesen'),
+        ),
+        _MenuListTile(
+          icon: Icons.search,
+          label: 'Fehlersuche',
+          onTap: () => context.push('/fehlersuche'),
+        ),
+        _MenuListTile(
+          icon: Icons.settings,
+          label: 'Einstellungen',
+          onTap: () => context.push('/einstellungen'),
+        ),
+        if (!kIsWeb)
+          _MenuListTile(
+            icon: Icons.sync,
+            label: 'Sync erzwingen',
+            onTap: () {
+              SyncService.syncAll();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Synchronisierung gestartet...')),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _SyncIndicator extends ConsumerWidget {
+  const _SyncIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOnline = ref.watch(isOnlineProvider);
+    final isSyncing = ref.watch(isSyncingProvider);
+
     if (isSyncing) {
       return const SizedBox(
         width: 20,
