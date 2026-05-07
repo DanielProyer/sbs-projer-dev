@@ -170,13 +170,7 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),
         data: (alleKontakte) {
-          // Betrieb-Namen-Map aufbauen
-          final betriebe = ref.watch(betriebeProvider);
-          final betriebNamen = <String, String>{};
-          for (final b in betriebe) {
-            final key = b.serverId ?? b.id.toString();
-            betriebNamen[key] = b.name;
-          }
+          final betriebNamen = ref.watch(betriebNameMapProvider);
 
           final kontakte = _filterAndSearch(alleKontakte, betriebNamen);
 

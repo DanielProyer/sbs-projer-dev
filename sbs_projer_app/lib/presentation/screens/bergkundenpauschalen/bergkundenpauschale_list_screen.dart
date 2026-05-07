@@ -32,17 +32,8 @@ class _BergkundenpauschaleListScreenState
   @override
   Widget build(BuildContext context) {
     final pauschalen = ref.watch(bergkundenpauschaleProvider);
-    final betriebe = ref.watch(betriebeProvider);
-
-    // Betrieb-Name + Ort Lookup
-    final betriebNames = <String, String>{};
-    final betriebOrte = <String, String>{};
-    for (final b in betriebe) {
-      if (b.serverId != null) {
-        betriebNames[b.serverId!] = b.name;
-        if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
-      }
-    }
+    final betriebNames = ref.watch(betriebNameMapProvider);
+    final betriebOrte = ref.watch(betriebOrtMapProvider);
 
     // Verfügbare Jahre
     final jahreSet = <int>{};

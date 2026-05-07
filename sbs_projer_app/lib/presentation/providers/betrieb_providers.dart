@@ -14,3 +14,21 @@ final betriebeProvider = Provider<List<BetriebLocal>>((ref) {
 final betriebCountProvider = Provider<int>((ref) {
   return ref.watch(betriebeProvider).length;
 });
+
+final betriebNameMapProvider = Provider<Map<String, String>>((ref) {
+  final list = ref.watch(betriebeProvider);
+  return {for (final b in list) if (b.serverId != null) b.serverId!: b.name};
+});
+
+final betriebOrtMapProvider = Provider<Map<String, String>>((ref) {
+  final list = ref.watch(betriebeProvider);
+  return {
+    for (final b in list)
+      if (b.serverId != null && b.ort != null) b.serverId!: b.ort!,
+  };
+});
+
+final betriebRegionIdMapProvider = Provider<Map<String, String?>>((ref) {
+  final list = ref.watch(betriebeProvider);
+  return {for (final b in list) if (b.serverId != null) b.serverId!: b.regionId};
+});

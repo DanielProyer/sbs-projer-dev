@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -28,14 +28,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   @override
   Widget build(BuildContext context) {
     final rechnungen = ref.watch(rechnungenProvider);
-    final betriebe = ref.watch(betriebeProvider);
-
-    final betriebNames = <String, String>{};
-    for (final b in betriebe) {
-      if (b.serverId != null) {
-        betriebNames[b.serverId!] = b.name;
-      }
-    }
+    final betriebNames = ref.watch(betriebNameMapProvider);
 
     // Verfügbare Jahre
     final jahreSet = <int>{};

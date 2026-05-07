@@ -36,19 +36,10 @@ class _ReinigungenListScreenState
   @override
   Widget build(BuildContext context) {
     final reinigungen = ref.watch(reinigungenProvider);
-    final betriebe = ref.watch(betriebeProvider);
+    final betriebNames = ref.watch(betriebNameMapProvider);
+    final betriebOrte = ref.watch(betriebOrtMapProvider);
+    final betriebRegionIds = ref.watch(betriebRegionIdMapProvider);
     final regionen = ref.watch(regionenProvider);
-
-    final betriebNames = <String, String>{};
-    final betriebOrte = <String, String>{};
-    final betriebRegionIds = <String, String?>{};
-    for (final b in betriebe) {
-      if (b.serverId != null) {
-        betriebNames[b.serverId!] = b.name;
-        if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
-        betriebRegionIds[b.serverId!] = b.regionId;
-      }
-    }
 
     // Verfügbare Jahre
     final jahreSet = <int>{};

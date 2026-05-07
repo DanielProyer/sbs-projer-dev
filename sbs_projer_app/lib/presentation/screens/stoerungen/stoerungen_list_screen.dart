@@ -34,16 +34,8 @@ class _StoerungenListScreenState
   @override
   Widget build(BuildContext context) {
     final stoerungen = ref.watch(stoerungenProvider);
-    final betriebe = ref.watch(betriebeProvider);
-
-    final betriebNames = <String, String>{};
-    final betriebOrte = <String, String>{};
-    for (final b in betriebe) {
-      if (b.serverId != null) {
-        betriebNames[b.serverId!] = b.name;
-        if (b.ort != null) betriebOrte[b.serverId!] = b.ort!;
-      }
-    }
+    final betriebNames = ref.watch(betriebNameMapProvider);
+    final betriebOrte = ref.watch(betriebOrtMapProvider);
 
     // Verfügbare Jahre
     final jahreSet = <int>{};

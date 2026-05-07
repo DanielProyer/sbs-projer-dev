@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
@@ -271,29 +272,14 @@ class _TagesUebersicht extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-
-    final reinigungen = ref.watch(reinigungenProvider);
-    final stoerungen = ref.watch(stoerungenProvider);
-    final montagen = ref.watch(montagenProvider);
-    final eigenauftraege = ref.watch(eigenauftraegeProvider);
-    final eroeffnungen = ref.watch(eroeffnungsreinigungenProvider);
-
-    bool _isToday(DateTime d) =>
-        DateTime(d.year, d.month, d.day) == todayDate;
-
-    final hR = reinigungen.where((r) => _isToday(r.datum)).toList();
-    final hS = stoerungen.where((s) => _isToday(s.datum)).toList();
-    final hM = montagen.where((m) => _isToday(m.datum)).toList();
-    final hE = eigenauftraege.where((e) => _isToday(e.datum)).toList();
-    final hER = eroeffnungen.where((e) => _isToday(e.datum)).toList();
-
-    final total = hR.length + hS.length + hM.length + hE.length + hER.length;
-    final totalCHF = hR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
-        hS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
-        hM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
-        hE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +
-        hER.fold(0.0, (s, r) => s + (r.preis ?? 0));
+    final data = ref.watch(tagesUebersichtProvider);
+    final hR = data.reinigungen;
+    final hS = data.stoerungen;
+    final hM = data.montagen;
+    final hE = data.eigenauftraege;
+    final hER = data.eroeffnungen;
+    final total = data.total;
+    final totalCHF = data.totalCHF;
 
     final datumStr =
         '${_wochentage[today.weekday - 1]}, ${today.day.toString().padLeft(2, '0')}.${today.month.toString().padLeft(2, '0')}.${today.year}';
