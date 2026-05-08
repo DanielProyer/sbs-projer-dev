@@ -781,7 +781,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     final bergkundenZuschlag = _istBergkunde
         ? ((p['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100.0)
         : 0.0;
-    final netto = grundtarif + zusatz + bergkundenZuschlag;
+    // Bergkunden-Zuschlag NICHT in Netto/Brutto — wird Heineken separat verrechnet
+    final netto = grundtarif + zusatz;
     final mwstSatz = (p['mwst_satz'] as num?)?.toDouble() ?? 8.1;
     final brutto = _roundTo5Rappen(netto * (1 + mwstSatz / 100));
     final mwst = brutto - netto;
@@ -1521,13 +1522,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           _haehneRow('Anderer Standort', _anzahlHaehneAndererStandort, _hahnPreis('zusatz_hahn_anderer_standort'),
               (v) => _updatePositionAndPreis(() => _anzahlHaehneAndererStandort = v)),
 
-          // Bergkunden-Zuschlag
-          if (_istBergkunde) ...[
-            const SizedBox(height: 4),
-            _preisRow('Bergkunden-Zuschlag (exkl. MwSt)',
-                _istKulanz ? 0 : ((_preisliste?['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100.0)),
-          ],
-
           // Kalkulation
           const Divider(height: 16),
           if (_istKulanz)
@@ -1646,7 +1640,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         _preislisteRow('Zusätzl. Hahn anderer Standort',
             (p['zusatz_hahn_anderer_standort'] as num?)?.toDouble() ?? 30),
         const Divider(height: 8),
-        _preislisteRow('Bergkunden-Zuschlag',
+        _preislisteRow('Bergkunden-Zuschlag (→ Heineken)',
             (p['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100),
       ],
     );
