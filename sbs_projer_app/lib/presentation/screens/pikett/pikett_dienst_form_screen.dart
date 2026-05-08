@@ -52,11 +52,11 @@ class _PikettDienstFormScreenState
     }
   }
 
-  /// Prüft ob Freitag oder Samstag der gewählten KW ein Feiertag ist
+  /// Prüft die gesamte KW (Mo–So) auf Feiertage
   void _berechneFeiertage() {
-    final freitag = _freitagOfKw(_jahr, _kw);
-    final samstag = _samstagOfKw(_jahr, _kw);
-    final feiertage = SchweizerFeiertage.feiertageImZeitraum(freitag, samstag);
+    final montag = _montagOfKw(_jahr, _kw);
+    final sonntag = montag.add(const Duration(days: 6));
+    final feiertage = SchweizerFeiertage.feiertageImZeitraum(montag, sonntag);
     setState(() {
       _erkanneFeiertage = feiertage;
       _anzahlFeiertage = feiertage.length;
@@ -94,29 +94,23 @@ class _PikettDienstFormScreenState
       _pauschale = p.pauschale ?? 80.0;
       _anzahlFeiertage = p.anzahlFeiertage;
     });
-    // Feiertage-Info aktualisieren (Namen anzeigen)
-    final freitag = _freitagOfKw(_jahr, _kw);
-    final samstag = _samstagOfKw(_jahr, _kw);
-    final feiertage = SchweizerFeiertage.feiertageImZeitraum(freitag, samstag);
-    setState(() => _erkanneFeiertage = feiertage);
+    _berechneFeiertage();
   }
 
-  /// Freitag der gewählten KW berechnen
-  DateTime _freitagOfKw(int year, int kw) {
-    // ISO 8601: KW 1 enthält den 4. Januar
-    // UTC verwenden um DST-Probleme bei Duration-Berechnungen zu vermeiden
+  /// Montag der gewählten KW berechnen (ISO 8601)
+  DateTime _montagOfKw(int year, int kw) {
     final jan4 = DateTime.utc(year, 1, 4);
     final daysSinceMonday = jan4.weekday - 1;
     final mondayKw1 = jan4.subtract(Duration(days: daysSinceMonday));
-    final mondayKw = mondayKw1.add(Duration(days: (kw - 1) * 7));
-    final freitag = mondayKw.add(const Duration(days: 4)); // Freitag = +4
-    return DateTime(freitag.year, freitag.month, freitag.day);
+    final montag = mondayKw1.add(Duration(days: (kw - 1) * 7));
+    return DateTime(montag.year, montag.month, montag.day);
   }
 
-  /// Samstag der gewählten KW berechnen
-  DateTime _samstagOfKw(int year, int kw) {
-    return _freitagOfKw(year, kw).add(const Duration(days: 1));
-  }
+  DateTime _freitagOfKw(int year, int kw) =>
+      _montagOfKw(year, kw).add(const Duration(days: 4));
+
+  DateTime _samstagOfKw(int year, int kw) =>
+      _montagOfKw(year, kw).add(const Duration(days: 5));
 
   double get _pauschaleGesamt =>
       _pauschale + (_anzahlFeiertage * _feiertagZuschlagProTag);
@@ -255,6 +249,15 @@ class _PikettDienstFormScreenState
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // Feiertage unter der Woche (Mo–Do) als zusätzliche Einsatztage
+                  for (final f in _erkanneFeiertage.where(
+                      (f) => f.datum.weekday >= DateTime.monday &&
+                             f.datum.weekday <= DateTime.thursday))
+                    _zeitRow(
+                      '${_wochentagName(f.datum.weekday)} (${f.name})',
+                      _formatDate(f.datum),
+                      '08:00 – 22:00',
+                    ),
                   _zeitRow('Freitag', _formatDate(freitag), '17:00 – 22:00'),
                   _zeitRow('Samstag', _formatDate(samstag), '08:00 – 22:00'),
                 ],
@@ -311,7 +314,9 @@ class _PikettDienstFormScreenState
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _erkanneFeiertage.map((f) => f.name).join(', '),
+                        _erkanneFeiertage.map((f) =>
+                          '${_wochentagName(f.datum.weekday)} ${_formatDate(f.datum)} – ${f.name}'
+                        ).join('\n'),
                         style: const TextStyle(fontSize: 12, color: AppColors.warning),
                       ),
                     ),
@@ -426,6 +431,11 @@ class _PikettDienstFormScreenState
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  static String _wochentagName(int weekday) {
+    const namen = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    return namen[weekday - 1];
   }
 
   static int _isoKw(DateTime date) {
