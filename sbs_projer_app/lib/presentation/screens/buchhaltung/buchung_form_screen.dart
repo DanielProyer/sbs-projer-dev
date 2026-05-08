@@ -1,9 +1,13 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchungs_vorlage_providers.dart';
 
@@ -29,6 +33,11 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
   final _mwstKontoController = TextEditingController();
   final _mwstSatzController = TextEditingController();
   String? _zahlungsweg;
+
+  // Beleg (wird nach Buchungs-Erstellung hochgeladen)
+  Uint8List? _belegBytes;
+  String? _belegDateiname;
+  String? _belegDateityp;
 
   @override
   void dispose() {
@@ -291,6 +300,83 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                 ),
               ),
 
+            // Beleg
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Beleg',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_belegDateiname != null)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: (_belegDateityp == 'pdf'
+                                  ? AppColors.error
+                                  : AppColors.info)
+                              .withAlpha(25),
+                          radius: 16,
+                          child: Icon(
+                            _belegDateityp == 'pdf'
+                                ? Icons.picture_as_pdf
+                                : Icons.image,
+                            size: 16,
+                            color: _belegDateityp == 'pdf'
+                                ? AppColors.error
+                                : AppColors.info,
+                          ),
+                        ),
+                        title: Text(
+                          _belegDateiname!,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          tooltip: 'Entfernen',
+                          onPressed: () => setState(() {
+                            _belegBytes = null;
+                            _belegDateiname = null;
+                            _belegDateityp = null;
+                          }),
+                        ),
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.camera_alt, size: 18),
+                              label: const Text('Digitalisieren'),
+                              onPressed: () => _pickBeleg('kamera'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.upload_file, size: 18),
+                              label: const Text('Hochladen'),
+                              onPressed: () => _showUploadOptions(),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
             // MwSt Vorschau
             if (_betragController.text.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -312,6 +398,92 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                       ),
                     )
                   : const Text('Buchung speichern'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickBeleg(String option) async {
+    try {
+      Uint8List? bytes;
+      String? filename;
+      String? dateityp;
+
+      if (option == 'pdf') {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
+          withData: true,
+        );
+        if (result != null && result.files.single.bytes != null) {
+          bytes = result.files.single.bytes!;
+          filename = result.files.single.name;
+          dateityp = 'pdf';
+        }
+      } else if (option == 'kamera' || option == 'foto') {
+        final picker = ImagePicker();
+        final image = await picker.pickImage(
+          source:
+              option == 'kamera' ? ImageSource.camera : ImageSource.gallery,
+          imageQuality: 85,
+          maxWidth: 2000,
+        );
+        if (image != null) {
+          bytes = await image.readAsBytes();
+          filename = image.name;
+          dateityp =
+              image.name.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+        }
+      }
+
+      if (bytes != null && filename != null && dateityp != null) {
+        setState(() {
+          _belegBytes = bytes;
+          _belegDateiname = filename;
+          _belegDateityp = dateityp;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  void _showUploadOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf),
+              title: const Text('PDF-Datei'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickBeleg('pdf');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Foto aus Galerie'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickBeleg('foto');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Foto aufnehmen'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickBeleg('kamera');
+              },
             ),
           ],
         ),
@@ -373,8 +545,6 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
           double.tryParse(_mwstSatzController.text) ?? 0;
       final mwstBetrag =
           (netto * mwstSatz / 100 * 100).roundToDouble() / 100;
-      final brutto =
-          (netto + mwstBetrag * 100).roundToDouble() / 100;
 
       final sollKonto = int.parse(_sollKontoController.text);
       final habenKonto = int.parse(_habenKontoController.text);
@@ -382,7 +552,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
           ? int.tryParse(_mwstKontoController.text)
           : null;
 
-      await BuchungRepository.create({
+      final buchung = await BuchungRepository.create({
         'datum': _datum.toIso8601String().split('T').first,
         'belegnummer': _belegnummerController.text.isNotEmpty
             ? _belegnummerController.text
@@ -401,6 +571,18 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
         'beleg_typ': 'sonstiges',
         'geschaeftsjahr': _datum.year,
       });
+
+      // Beleg hochladen falls vorhanden
+      if (_belegBytes != null &&
+          _belegDateiname != null &&
+          _belegDateityp != null) {
+        await BuchungsBelegRepository.upload(
+          buchungId: buchung.id,
+          dateiname: _belegDateiname!,
+          dateityp: _belegDateityp!,
+          bytes: _belegBytes!,
+        );
+      }
 
       ref.invalidate(buchungenStreamProvider);
 

@@ -39,6 +39,23 @@
   - Offline-Modus testen (Bergkunden ohne Netz)
   - Feedback an Entwickler
 
+### Beleg-Digitalisierung verbessern
+
+- [ ] **Beleg-Foto Ausrichtung/Zuschnitt optimieren**
+  - Automatische Ausrichtung (Deskew) des fotografierten Belegs
+  - Zuschnitt auf Beleg-Bereich (Crop)
+  - Kontrast/Helligkeit optimieren für bessere Lesbarkeit
+
+### Telefon-Kontakte Sync
+
+- [ ] **Bulk-Sync Handy-Kontakte ↔ App-Kontakte**
+  - App-Kontakte haben Priorität (alte Telefonbuch-Einträge können ungültig sein)
+  - Alle Kategorien: betrieb, heineken, event
+  - Telefonbuch-Labels: „SBS Kunden", „SBS Heineken", „SBS Event"
+  - Matching über normalisierte Telefonnummer
+  - Ergebnisse zur Bestätigung anzeigen bevor Änderungen übernommen werden
+  - Basis: bestehende `PhoneContactService` + `flutter_contacts`
+
 ### Daten-Migration
 
 - [ ] **Excel-Daten vorbereiten**
