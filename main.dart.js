@@ -157074,8 +157074,10 @@ s=q.w
 if(s.length!==0){s=J.cD(r,new A.bid(b,s.toLowerCase()))
 r=A.M(s,s.$ti.i("u.E"))}J.a2m(r,new A.bie(b))
 return r},
-B(a){var s=this,r=null,q=s.gbj().aD($.bGU(),t.cN),p=A.bP(r,!0,r,r,r,r,A.f(s.avG(),r,r,r,r,r,r,r,r)),o=A.nV(B.ef,new A.biy(s,a),r)
-return A.bS(p,r,A.oU(q,new A.biz(s,a),new A.biA(),new A.biB(),t.Rx,t.jK),o)},
+B(a){var s,r=this,q=null,p=r.gbj().aD($.bGU(),t.cN),o=A.f(r.avG(),q,q,q,q,q,q,q,q)
+o=A.bP(A.b([],t.p),!0,q,q,q,q,o)
+s=A.nV(B.ef,new A.biy(r,a),q)
+return A.bS(o,q,A.oU(p,new A.biz(r,a),new A.biA(),new A.biB(),t.Rx,t.jK),s)},
 aJI(a){var s
 A:{if("betrieb"===a){s="BETRIEB-KONTAKTE"
 break A}if("heineken"===a){s="HEINEKEN-KONTAKTE"
