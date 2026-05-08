@@ -103,15 +103,20 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
             kontakt.telefon!.replaceAll(RegExp(r'[^\d+]'), '');
       }
 
-      // Auf Handy speichern (nur Android/iOS, nur Betrieb)
-      if (!kIsWeb && _kategorie == 'betrieb' && _betriebId != null) {
+      // Auf Handy speichern (nur Android/iOS, alle Kategorien)
+      if (!kIsWeb) {
         try {
-          final betrieb = await BetriebRepository.getById(_betriebId!);
-          final betriebName = betrieb?.name ?? '';
-          final newPhoneId = await PhoneContactService.saveToPhone(
+          String? betriebName;
+          if (_kategorie == 'betrieb' && _betriebId != null) {
+            final betrieb = await BetriebRepository.getById(_betriebId!);
+            betriebName = betrieb?.name;
+          }
+          final newPhoneId = await PhoneContactService.syncToPhone(
             vorname: kontakt.vorname,
             nachname: kontakt.nachname,
             telefon: kontakt.telefon,
+            email: kontakt.email,
+            kategorie: _kategorie,
             betriebName: betriebName,
             existingPhoneContactId: _phoneContactId,
           );

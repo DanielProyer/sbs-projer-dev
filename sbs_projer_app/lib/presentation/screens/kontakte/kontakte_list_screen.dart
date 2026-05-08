@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anruf_log_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/services/phone_contact_service.dart';
 
 class KontakteListScreen extends ConsumerStatefulWidget {
   final String? kategorie;
@@ -29,6 +31,92 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
     super.initState();
     if (widget.kategorie != null) {
       _filterKategorie = widget.kategorie!;
+    }
+  }
+
+  Future<void> _syncAlleAufsHandy(List<KontaktLocal> kontakte, Map<String, String> betriebNamen) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kontakte synchronisieren'),
+        content: Text(
+          '${kontakte.length} Kontakte aufs Handy übertragen?\n\n'
+          'Gruppen: SBS Kunden, SBS Heineken, SBS Event',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Synchronisieren'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    int synced = 0, failed = 0, skipped = 0;
+    final total = kontakte.length;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _SyncProgressDialog(total: total),
+    );
+
+    await PhoneContactService.prepareGroups();
+
+    for (var i = 0; i < kontakte.length; i++) {
+      final k = kontakte[i];
+
+      _SyncProgressDialog._updateProgress(i + 1, k.vorname);
+
+      if ((k.telefon == null || k.telefon!.isEmpty) &&
+          (k.email == null || k.email!.isEmpty)) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        final phoneId = await PhoneContactService.syncToPhone(
+          vorname: k.vorname,
+          nachname: k.nachname,
+          telefon: k.telefon,
+          email: k.email,
+          kategorie: k.kategorie,
+          betriebName: betriebNamen[k.betriebId],
+          existingPhoneContactId: k.phoneContactId,
+        );
+
+        if (phoneId != null && phoneId != k.phoneContactId) {
+          k.phoneContactId = phoneId;
+          await KontaktRepository.save(k);
+          synced++;
+        } else if (phoneId != null) {
+          synced++;
+        } else {
+          failed++;
+        }
+      } catch (_) {
+        failed++;
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop(); // Progress-Dialog schliessen
+      ref.invalidate(kontakteProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Sync fertig: $synced übertragen'
+            '${skipped > 0 ? ', $skipped übersprungen (keine Nr/Mail)' : ''}'
+            '${failed > 0 ? ', $failed fehlgeschlagen' : ''}',
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -155,7 +243,28 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
     final kontakteAsync = ref.watch(kontakteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_appBarTitle())),
+      appBar: AppBar(
+        title: Text(_appBarTitle()),
+        actions: [
+          if (!kIsWeb)
+            Builder(
+              builder: (ctx) {
+                final data = ref.watch(kontakteProvider);
+                final betriebNamen = ref.watch(betriebNameMapProvider);
+                return IconButton(
+                  icon: const Icon(Icons.sync),
+                  tooltip: 'Alle aufs Handy synchronisieren',
+                  onPressed: data.valueOrNull != null
+                      ? () => _syncAlleAufsHandy(
+                            data.valueOrNull!,
+                            betriebNamen,
+                          )
+                      : null,
+                );
+              },
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           final params = <String, String>{};
@@ -481,4 +590,57 @@ class _KontaktCard extends StatelessWidget {
     'event' => Colors.orange.shade700,
     _ => AppColors.textSecondary,
   };
+}
+
+class _SyncProgressDialog extends StatefulWidget {
+  final int total;
+  const _SyncProgressDialog({required this.total});
+
+  static void Function(int current, String name)? _listener;
+  static void _updateProgress(int current, String name) =>
+      _listener?.call(current, name);
+
+  @override
+  State<_SyncProgressDialog> createState() => _SyncProgressDialogState();
+}
+
+class _SyncProgressDialogState extends State<_SyncProgressDialog> {
+  int _current = 0;
+  String _currentName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _SyncProgressDialog._listener = (current, name) {
+      if (mounted) setState(() { _current = current; _currentName = name; });
+    };
+  }
+
+  @override
+  void dispose() {
+    _SyncProgressDialog._listener = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = widget.total > 0 ? _current / widget.total : 0.0;
+    return AlertDialog(
+      title: const Text('Synchronisiere...'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LinearProgressIndicator(value: progress),
+          const SizedBox(height: 12),
+          Text(
+            '$_current / ${widget.total}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          if (_currentName.isNotEmpty)
+            Text(_currentName,
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
 }
