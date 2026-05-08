@@ -58,6 +58,8 @@ import 'package:sbs_projer_app/presentation/screens/jahresrechnung/jahresrechnun
 import 'package:sbs_projer_app/presentation/screens/fehlersuche/fehlersuche_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/fehlersuche/symptom_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/fehlersuche/ursachen_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohnlauf_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohn_einstellungen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/spesen/spesen_scanner_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/termine/termine_kalender_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/termine/termin_form_screen.dart';
@@ -430,6 +432,14 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/camt-import',
       builder: (context, state) => const CamtImportScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/lohn',
+      builder: (context, state) => const LohnlaufScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/lohn/einstellungen',
+      builder: (context, state) => const LohnEinstellungenScreen(),
     ),
 
     // Materialien

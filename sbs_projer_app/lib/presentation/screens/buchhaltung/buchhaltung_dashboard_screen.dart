@@ -142,6 +142,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/camt-import'),
           ),
           _NavTile(
+            icon: Icons.payments,
+            title: 'Lohnbuchhaltung',
+            subtitle: 'Lohnlauf, Abzüge & Lohnausweis',
+            onTap: () => context.push('/buchhaltung/lohn'),
+          ),
+          _NavTile(
             icon: Icons.document_scanner,
             title: 'Spesen Scanner',
             subtitle: 'Kassenzettel scannen & automatisch buchen',
