@@ -276,6 +276,7 @@ class _TagesUebersicht extends ConsumerWidget {
     final hM = data.montagen;
     final hE = data.eigenauftraege;
     final hER = data.eroeffnungen;
+    final hBP = data.bergkundenpauschalen;
     final total = data.total;
     final totalCHF = data.totalCHF;
 
@@ -326,6 +327,10 @@ class _TagesUebersicht extends ConsumerWidget {
                     _CountChip(
                         '${hER.length} Eröffnung${hER.length > 1 ? 'en' : ''}',
                         AppColors.primary),
+                  if (hBP.isNotEmpty)
+                    _CountChip(
+                        '${hBP.length} Bergkunde${hBP.length > 1 ? 'n' : ''}',
+                        Colors.brown),
                 ],
               ),
               if (totalCHF > 0) ...[

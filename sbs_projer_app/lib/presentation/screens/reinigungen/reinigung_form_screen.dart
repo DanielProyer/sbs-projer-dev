@@ -24,6 +24,8 @@ import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
 
@@ -594,6 +596,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           }
         } catch (e) {
           debugPrint('Rechnungs-/Buchungserstellung fehlgeschlagen: $e');
+        }
+      }
+
+      // Bergkundenpauschale erstellen (wird Heineken verrechnet, nicht dem Kunden)
+      if (abschliessen && kIsWeb && _istBergkunde && !_istHeinekenMonteur) {
+        try {
+          final reinigungId = r.serverId;
+          if (reinigungId != null) {
+            final betrag = (_preisliste?['bergkunden_zuschlag'] as num?)?.toDouble() ?? 180.0;
+            await BergkundenpauschaleRepository.create({
+              'betrieb_id': r.betriebId,
+              'reinigung_id': reinigungId,
+              'datum': r.datum.toIso8601String().split('T').first,
+              'betrag': betrag,
+            });
+            ref.invalidate(bergkundenpauschaleStreamProvider);
+            debugPrint('[Bergkundenpauschale] Erstellt: $betrag CHF für ${r.betriebId}');
+          }
+        } catch (e) {
+          debugPrint('[Bergkundenpauschale] Fehler: $e');
         }
       }
 

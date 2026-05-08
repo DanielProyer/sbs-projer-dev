@@ -9,6 +9,8 @@ import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
+import 'package:sbs_projer_app/data/local/bergkundenpauschale_local_export.dart';
+import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 
 class TagesUebersichtData {
   final List<ReinigungLocal> reinigungen;
@@ -16,6 +18,7 @@ class TagesUebersichtData {
   final List<MontageLocal> montagen;
   final List<EigenauftragLocal> eigenauftraege;
   final List<EroeffnungsreinigungLocal> eroeffnungen;
+  final List<BergkundenpauschaleLocal> bergkundenpauschalen;
   final double totalCHF;
 
   const TagesUebersichtData({
@@ -24,6 +27,7 @@ class TagesUebersichtData {
     required this.montagen,
     required this.eigenauftraege,
     required this.eroeffnungen,
+    required this.bergkundenpauschalen,
     required this.totalCHF,
   });
 
@@ -45,12 +49,14 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
   final hM = ref.watch(montagenProvider).where((m) => isToday(m.datum)).toList();
   final hE = ref.watch(eigenauftraegeProvider).where((e) => isToday(e.datum)).toList();
   final hER = ref.watch(eroeffnungsreinigungenProvider).where((e) => isToday(e.datum)).toList();
+  final hBP = ref.watch(bergkundenpauschaleProvider).where((b) => isToday(b.datum)).toList();
 
   final totalCHF = hR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
       hS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
       hM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
       hE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +
-      hER.fold(0.0, (s, r) => s + (r.preis ?? 0));
+      hER.fold(0.0, (s, r) => s + (r.preis ?? 0)) +
+      hBP.fold(0.0, (s, b) => s + b.betrag);
 
   return TagesUebersichtData(
     reinigungen: hR,
@@ -58,6 +64,7 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
     montagen: hM,
     eigenauftraege: hE,
     eroeffnungen: hER,
+    bergkundenpauschalen: hBP,
     totalCHF: totalCHF,
   );
 });
