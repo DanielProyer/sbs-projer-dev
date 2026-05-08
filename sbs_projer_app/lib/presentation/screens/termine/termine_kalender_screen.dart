@@ -466,10 +466,10 @@ class _PikettCard extends StatelessWidget {
   const _PikettCard({required this.pikett, required this.onTap});
 
   static int _isoKw(DateTime date) {
-    // +1 weil difference() 0-basiert ist, ISO-Formel aber 1-basiert (Jan 1 = Tag 1)
-    final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays + 1;
-    final wday = date.weekday;
-    return ((dayOfYear - wday + 10) / 7).floor();
+    final d = DateTime.utc(date.year, date.month, date.day);
+    final thursday = d.add(Duration(days: DateTime.thursday - d.weekday));
+    final jan1 = DateTime.utc(thursday.year, 1, 1);
+    return (thursday.difference(jan1).inDays / 7).floor() + 1;
   }
 
   @override
