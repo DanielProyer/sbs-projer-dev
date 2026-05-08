@@ -293,9 +293,20 @@ class _TagesUebersicht extends ConsumerWidget {
               children: [
                 const Icon(Icons.today, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(datumStr,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 15)),
+                Expanded(
+                  child: Text(datumStr,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15)),
+                ),
+                if (data.monatsUmsatzCHF > 0)
+                  Text(
+                    '${data.monatsUmsatzCHF.toStringAsFixed(0)} CHF / Monat',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),

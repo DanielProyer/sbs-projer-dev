@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dar
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/data/local/bergkundenpauschale_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 
 class TagesUebersichtData {
   final List<ReinigungLocal> reinigungen;
@@ -20,6 +21,7 @@ class TagesUebersichtData {
   final List<EroeffnungsreinigungLocal> eroeffnungen;
   final List<BergkundenpauschaleLocal> bergkundenpauschalen;
   final double totalCHF;
+  final double monatsUmsatzCHF;
 
   const TagesUebersichtData({
     required this.reinigungen,
@@ -29,6 +31,7 @@ class TagesUebersichtData {
     required this.eroeffnungen,
     required this.bergkundenpauschalen,
     required this.totalCHF,
+    required this.monatsUmsatzCHF,
   });
 
   int get total =>
@@ -58,6 +61,26 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
       hER.fold(0.0, (s, r) => s + (r.preis ?? 0)) +
       hBP.fold(0.0, (s, b) => s + b.betrag);
 
+  // Monatsumsatz: alle Einnahmen im aktuellen Monat
+  bool isThisMonth(DateTime d) => d.year == today.year && d.month == today.month;
+
+  final mR = ref.watch(reinigungenProvider).where((r) => isThisMonth(r.datum));
+  final mS = ref.watch(stoerungenProvider).where((s) => isThisMonth(s.datum));
+  final mM = ref.watch(montagenProvider).where((m) => isThisMonth(m.datum));
+  final mE = ref.watch(eigenauftraegeProvider).where((e) => isThisMonth(e.datum));
+  final mER = ref.watch(eroeffnungsreinigungenProvider).where((e) => isThisMonth(e.datum));
+  final mBP = ref.watch(bergkundenpauschaleProvider).where((b) => isThisMonth(b.datum));
+  final mP = ref.watch(pikettDiensteProvider).where((p) => isThisMonth(p.datumStart));
+
+  final monatsUmsatzCHF =
+      mR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
+      mS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
+      mM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
+      mE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +
+      mER.fold(0.0, (s, r) => s + (r.preis ?? 0)) +
+      mBP.fold(0.0, (s, b) => s + b.betrag) +
+      mP.fold(0.0, (s, p) => s + (p.pauschaleGesamt ?? p.pauschale ?? 0));
+
   return TagesUebersichtData(
     reinigungen: hR,
     stoerungen: hS,
@@ -66,5 +89,6 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
     eroeffnungen: hER,
     bergkundenpauschalen: hBP,
     totalCHF: totalCHF,
+    monatsUmsatzCHF: monatsUmsatzCHF,
   );
 });
