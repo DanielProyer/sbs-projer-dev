@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 07.05.2026
+**Stand**: 08.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.10+292
+**Version**: 0.10.18+300
 
 ---
 
@@ -589,10 +589,24 @@
 146. ✅ Heineken Monatsrechnung: Kilometerabrechnungen zeigen keinen Bereich mehr (statt "Konventionell")
 147. ✅ Kontakt-Rolle «Vertreter» für Heineken hinzugefügt
 
+### Erledigt am 08.05.2026
+148. ✅ Kontakt-Sync Stufe 1: App-Kontakte aufs Handy pushen (Bulk-Push mit Labels „SBS Kunden"/„SBS Heineken"/„SBS Event")
+149. ✅ Buchungsvorlagen: 37 Duplikate bereinigt (GF-Nummern dedupliziert)
+150. ✅ Beleg-Erfassung im Buchungsformular (PDF/Foto/Kamera Upload, BelegUploadWidget)
+151. ✅ Lohnbuchhaltung komplett:
+    - DB Migration 076 (lohn_einstellungen + lohn_abrechnungen + 4 neue Konten: 5710 FAK, 5720 BVG AG, 5730 UVG AG, 5740 KTG AG)
+    - LohnEinstellungen Model (Versicherungs-Sätze pro User/Jahr, Lohnausweis-Daten)
+    - LohnAbrechnung Model (flexible Auszahlungen, Datum-basiert, mehrere pro Monat möglich)
+    - LohnRepository (berechnen mit 5-Rappen-Rundung, buchen mit 7-11 Buchungen via beleg_id, stornieren)
+    - LohnlaufScreen (Jahresübersicht, Neuer Lohnlauf mit Live-Berechnung, Detail, Storno)
+    - LohnEinstellungenScreen (Sozialversicherungs-Sätze, BVG-Fixbeträge, Lohnausweis-Daten)
+    - LohnausweisPdfService (Schweizer Lohnausweis Formular 11 als PDF)
+    - Buchhaltung-Dashboard: NavTile „Lohnbuchhaltung"
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
-1. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
-2. ☐ Heineken Rapport-PDFs Layout-Fehler beheben
-3. ☐ Buchhaltung Screens testen und Fehler beheben
+1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
+2. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
+3. ☐ Heineken Rapport-PDFs Layout-Fehler beheben
 4. ☐ Materialbestellung / Materialliste kontrollieren
 5. ☐ UI/UX Verbesserungen (alle Screens durchgehen)
 6. ☐ Beta-Testing mit Daniel (reale Umgebung)
@@ -601,7 +615,7 @@
 9. ☐ Performance: Lazy Route Loading, Image Compression, Pagination, select() Columns
 
 ### Offene DB-Migrationen (im Supabase SQL Editor ausführen)
-- `Datenbank/migrations/075_kontakt_rolle_vertreter.sql`
+- Keine — alle Migrationen bis 076 sind ausgeführt
 
 ---
 
@@ -620,5 +634,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 07.05.2026 – Performance-Optimierungen (Shared Providers, Sub-Widgets), Home Screen 2x5 Grid für Pixel 9, Belegscanner Rundungs-Fix, Parkgebühren-Vorlage, Heineken km-Bereich-Fix, Kontakt-Rolle Vertreter. App-Version 0.10.10+292.
-**Nächstes Update**: Laufend (Phase 4 Polish & Testing)
+**Zuletzt aktualisiert**: 08.05.2026 – Lohnbuchhaltung komplett (flexible Auszahlungen, Versicherungs-Sätze, Lohnausweis-PDF), Kontakt-Sync Stufe 1, Beleg-Erfassung im Buchungsformular, Buchungsvorlagen bereinigt. App-Version 0.10.18+300.
+**Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)

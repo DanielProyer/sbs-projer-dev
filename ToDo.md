@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 23.04.2026
+**Stand**: 08.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -96,6 +96,7 @@
 - [ ] **A6: Kontenplan pruefen & ergaenzen** (KRITISCH)
   - Konto 9100 (Eroeffnungsbilanz) hinzufuegen
   - Pruefen ob alle Konten fuer Vollbetrieb vorhanden (Loehne, Sozialversicherungen, etc.)
+  - ✅ 4 Lohn-Konten hinzugefuegt: 5710 FAK, 5720 BVG AG, 5730 UVG AG, 5740 KTG AG
 
 ### Umstellung (25.-30. Juni 2026)
 
@@ -177,7 +178,11 @@
 - [x] Buchungsvorlage Parkgebühren Privat/Twint
 - [x] Heineken Monatsrechnung: km-Abrechnungen ohne Bereich
 - [x] Kontakt-Rolle «Vertreter» für Heineken
+- [x] Kontakt-Sync Stufe 1: App-Kontakte aufs Handy pushen (Bulk-Push mit Labels)
+- [x] Buchungsvorlagen: 37 Duplikate bereinigt
+- [x] Beleg-Erfassung im Buchungsformular (PDF/Foto/Kamera Upload)
+- [x] Lohnbuchhaltung komplett (flexible Auszahlungen, Versicherungs-Sätze konfigurierbar, Lohnausweis-PDF)
 
 ---
 
-**Zuletzt aktualisiert**: 07.05.2026
+**Zuletzt aktualisiert**: 08.05.2026
