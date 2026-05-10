@@ -171,6 +171,19 @@ class _BetriebDetailContent extends ConsumerWidget {
               children: _buildOeffnungszeiten(betrieb),
             ),
 
+          // Servicezeiten
+          if (betrieb.servicezeitMorgenAb != null || betrieb.servicezeitNachmittagAb != null)
+            _SectionCard(
+              title: 'Servicezeiten',
+              icon: Icons.schedule,
+              children: [
+                if (betrieb.servicezeitMorgenAb != null)
+                  _InfoRow('Morgen', '${betrieb.servicezeitMorgenAb} – ${betrieb.servicezeitMorgenBis ?? '?'}'),
+                if (betrieb.servicezeitNachmittagAb != null)
+                  _InfoRow('Nachmittag', '${betrieb.servicezeitNachmittagAb} – ${betrieb.servicezeitNachmittagBis ?? '?'}'),
+              ],
+            ),
+
           // Zugang & Notizen
           if (betrieb.zugangNotizen != null || betrieb.notizen != null)
             _SectionCard(

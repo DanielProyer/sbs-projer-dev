@@ -62,6 +62,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   List<String> _ruhetage = [];
   List<String> _zapfsysteme = [];
 
+  // Servicezeiten
+  final _servicezeitMorgenAbCtrl = TextEditingController();
+  final _servicezeitMorgenBisCtrl = TextEditingController();
+  final _servicezeitNachmittagAbCtrl = TextEditingController();
+  final _servicezeitNachmittagBisCtrl = TextEditingController();
+
   // Öffnungszeiten pro Wochentag: {"Mo": [{"von":"HH:mm","bis":"HH:mm"}, ...], ...}
   Map<String, List<Map<String, String>>> _oeffnungszeiten = {
     for (final t in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) t: [],
@@ -100,6 +106,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _betriebNrController.text = betrieb.betriebNr ?? '';
       _zugangController.text = betrieb.zugangNotizen ?? '';
       _notizenController.text = betrieb.notizen ?? '';
+      _servicezeitMorgenAbCtrl.text = betrieb.servicezeitMorgenAb ?? '';
+      _servicezeitMorgenBisCtrl.text = betrieb.servicezeitMorgenBis ?? '';
+      _servicezeitNachmittagAbCtrl.text = betrieb.servicezeitNachmittagAb ?? '';
+      _servicezeitNachmittagBisCtrl.text = betrieb.servicezeitNachmittagBis ?? '';
       _status = betrieb.status;
       _istMeinKunde = betrieb.istMeinKunde;
       _istBergkunde = betrieb.istBergkunde;
@@ -177,6 +187,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.ruhetage = _ruhetage;
       betrieb.zapfsysteme = _zapfsysteme;
       betrieb.oeffnungszeitenJson = jsonEncode(_oeffnungszeiten);
+      betrieb.servicezeitMorgenAb = _emptyToNull(_servicezeitMorgenAbCtrl.text);
+      betrieb.servicezeitMorgenBis = _emptyToNull(_servicezeitMorgenBisCtrl.text);
+      betrieb.servicezeitNachmittagAb = _emptyToNull(_servicezeitNachmittagAbCtrl.text);
+      betrieb.servicezeitNachmittagBis = _emptyToNull(_servicezeitNachmittagBisCtrl.text);
 
       await BetriebRepository.save(betrieb);
 
@@ -251,6 +265,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     _betriebNrController.dispose();
     _zugangController.dispose();
     _notizenController.dispose();
+    _servicezeitMorgenAbCtrl.dispose();
+    _servicezeitMorgenBisCtrl.dispose();
+    _servicezeitNachmittagAbCtrl.dispose();
+    _servicezeitNachmittagBisCtrl.dispose();
     super.dispose();
   }
 
@@ -718,6 +736,59 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             ),
             const SizedBox(height: 8),
             ..._buildOeffnungszeitenForm(),
+
+            // === Servicezeiten (nur für "meine Kunden") ===
+            if (_istMeinKunde) ...[
+              const SizedBox(height: 16),
+              Text('Servicezeiten',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      )),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TimePickerField(
+                      label: 'Morgen von',
+                      value: _parseTime(_servicezeitMorgenAbCtrl.text),
+                      onChanged: (t) => setState(() =>
+                          _servicezeitMorgenAbCtrl.text = _formatTime(t) ?? ''),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _TimePickerField(
+                      label: 'Morgen bis',
+                      value: _parseTime(_servicezeitMorgenBisCtrl.text),
+                      onChanged: (t) => setState(() =>
+                          _servicezeitMorgenBisCtrl.text = _formatTime(t) ?? ''),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TimePickerField(
+                      label: 'Nachmittag von',
+                      value: _parseTime(_servicezeitNachmittagAbCtrl.text),
+                      onChanged: (t) => setState(() =>
+                          _servicezeitNachmittagAbCtrl.text = _formatTime(t) ?? ''),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _TimePickerField(
+                      label: 'Nachmittag bis',
+                      value: _parseTime(_servicezeitNachmittagBisCtrl.text),
+                      onChanged: (t) => setState(() =>
+                          _servicezeitNachmittagBisCtrl.text = _formatTime(t) ?? ''),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
 
             // === Notizen ===

@@ -43,6 +43,10 @@ class BetriebMapper {
     local.oeffnungszeitenJson = dto.oeffnungszeiten != null
         ? jsonEncode(dto.oeffnungszeiten)
         : null;
+    local.servicezeitMorgenAb = dto.servicezeitMorgenAb;
+    local.servicezeitMorgenBis = dto.servicezeitMorgenBis;
+    local.servicezeitNachmittagAb = dto.servicezeitNachmittagAb;
+    local.servicezeitNachmittagBis = dto.servicezeitNachmittagBis;
     local.notizen = dto.notizen;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
@@ -90,6 +94,10 @@ class BetriebMapper {
       'oeffnungszeiten': local.oeffnungszeitenJson != null
           ? jsonDecode(local.oeffnungszeitenJson!)
           : {},
+      'servicezeit_morgen_ab': local.servicezeitMorgenAb,
+      'servicezeit_morgen_bis': local.servicezeitMorgenBis,
+      'servicezeit_nachmittag_ab': local.servicezeitNachmittagAb,
+      'servicezeit_nachmittag_bis': local.servicezeitNachmittagBis,
       'notizen': local.notizen,
     };
     if (local.serverId != null) json['id'] = local.serverId;

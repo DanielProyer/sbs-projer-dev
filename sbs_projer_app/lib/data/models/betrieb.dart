@@ -35,6 +35,10 @@ class Betrieb {
   final DateTime? ferien3Ende;
   final bool keineBetriebsferien;
   final Map<String, dynamic>? oeffnungszeiten;
+  final String? servicezeitMorgenAb;
+  final String? servicezeitMorgenBis;
+  final String? servicezeitNachmittagAb;
+  final String? servicezeitNachmittagBis;
   final String? notizen;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -76,6 +80,10 @@ class Betrieb {
     this.ferien3Ende,
     this.keineBetriebsferien = false,
     this.oeffnungszeiten,
+    this.servicezeitMorgenAb,
+    this.servicezeitMorgenBis,
+    this.servicezeitNachmittagAb,
+    this.servicezeitNachmittagBis,
     this.notizen,
     this.createdAt,
     this.updatedAt,
@@ -125,6 +133,10 @@ class Betrieb {
       oeffnungszeiten: json['oeffnungszeiten'] is Map
           ? Map<String, dynamic>.from(json['oeffnungszeiten'])
           : null,
+      servicezeitMorgenAb: json['servicezeit_morgen_ab'],
+      servicezeitMorgenBis: json['servicezeit_morgen_bis'],
+      servicezeitNachmittagAb: json['servicezeit_nachmittag_ab'],
+      servicezeitNachmittagBis: json['servicezeit_nachmittag_bis'],
       notizen: json['notizen'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -169,6 +181,10 @@ class Betrieb {
       'ferien3_ende': ferien3Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': keineBetriebsferien,
       'oeffnungszeiten': oeffnungszeiten ?? {},
+      'servicezeit_morgen_ab': servicezeitMorgenAb,
+      'servicezeit_morgen_bis': servicezeitMorgenBis,
+      'servicezeit_nachmittag_ab': servicezeitNachmittagAb,
+      'servicezeit_nachmittag_bis': servicezeitNachmittagBis,
       'notizen': notizen,
     };
   }
