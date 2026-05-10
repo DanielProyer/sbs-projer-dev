@@ -42,13 +42,14 @@ Branch `gh-pages`, Source: Root (`/`), NICHT `docs/`. Dateien aus `sbs_projer_ap
 - Nach dem Build `main.dart.js` in `flutter_bootstrap.js` cache-busten
 
 ```bash
-# 1. Build
-cd sbs_projer_app && export MSYS_NO_PATHCONV=1 && flutter build web --base-href "/sbs-projer-dev/"
+# 1. Build (--pwa-strategy=none = kein Service Worker, sofort aktuell nach Refresh)
+cd sbs_projer_app && export MSYS_NO_PATHCONV=1 && flutter build web --base-href "/sbs-projer-dev/" --pwa-strategy=none
 
-# 2. Cache-Bust: main.dart.js?v=VERSION in flutter_bootstrap.js einfügen
+# 2. Cache-Bust + Service Worker löschen
 cd .. && VER=$(grep -o '"version":"[^"]*"' sbs_projer_app/build/web/version.json | cut -d'"' -f4) \
   && sed -i "s/\"mainJsPath\":\"main.dart.js\"/\"mainJsPath\":\"main.dart.js?v=$VER\"/g" \
-       sbs_projer_app/build/web/flutter_bootstrap.js
+       sbs_projer_app/build/web/flutter_bootstrap.js \
+  && rm -f sbs_projer_app/build/web/flutter_service_worker.js
 
 # 3. Deploy auf gh-pages
 git stash
