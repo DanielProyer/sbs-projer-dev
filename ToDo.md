@@ -128,6 +128,15 @@
 
 ---
 
+## ⚠️ FREISCHALTUNG AUSSTEHEND
+
+- [ ] **Raster-Mail an Heineken freischalten**
+  - Aktuell geht Raster-PDF an `sbs.projer@gmail.com`
+  - Zum Scharfstellen: `MailConfig.rasterScharf = true` setzen in `lib/core/config/mail_config.dart`
+  - Dann wird der Heineken-Kontakt aus Zuweisungen (Bereich 'raster') als Empfänger genutzt
+
+---
+
 ## 📝 NOTIZEN
 
 ### GIS / Regionen-Polygone
@@ -182,7 +191,12 @@
 - [x] Buchungsvorlagen: 37 Duplikate bereinigt
 - [x] Beleg-Erfassung im Buchungsformular (PDF/Foto/Kamera Upload)
 - [x] Lohnbuchhaltung komplett (flexible Auszahlungen, Versicherungs-Sätze konfigurierbar, Lohnausweis-PDF)
+- [x] Betrieb: WE-Nummer + AG-Nummer Felder (Nummern-Kategorie in Form/Detail)
+- [x] Betrieb: Region in Detail-Ansicht anzeigen
+- [x] Heineken Monatsraster: PDF-Generierung (Querformat, gruppiert nach Regionen)
+- [x] Heineken Monatsraster: Mail-Versand via Edge Function (send-raster-mail)
+- [x] Heineken Monatsraster: Storage Bucket + Upload
 
 ---
 
-**Zuletzt aktualisiert**: 08.05.2026
+**Zuletzt aktualisiert**: 10.05.2026
