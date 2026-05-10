@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/kontakt.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
@@ -178,6 +179,78 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
     super.dispose();
   }
 
+  Widget _buildBetriebAutocomplete(List<BetriebLocal> betriebe) {
+    final filtered = betriebe.where((b) => b.serverId != null).toList();
+    final currentName = _betriebId != null
+        ? filtered
+            .where((b) => b.serverId == _betriebId)
+            .map((b) => b.name)
+            .firstOrNull
+        : null;
+
+    return Autocomplete<BetriebLocal>(
+      initialValue: currentName != null
+          ? TextEditingValue(text: currentName)
+          : TextEditingValue.empty,
+      displayStringForOption: (b) => b.name,
+      optionsBuilder: (textEditingValue) {
+        if (textEditingValue.text.isEmpty) return filtered.take(20);
+        final query = textEditingValue.text.toLowerCase();
+        return filtered.where((b) =>
+            b.name.toLowerCase().contains(query) ||
+            (b.ort?.toLowerCase().contains(query) ?? false));
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: 'Betrieb suchen',
+            prefixIcon: const Icon(Icons.store),
+            suffixIcon: _betriebId != null
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      controller.clear();
+                      setState(() => _betriebId = null);
+                    },
+                  )
+                : null,
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 250, maxWidth: 400),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final b = options.elementAt(index);
+                  return ListTile(
+                    dense: true,
+                    title: Text(b.name),
+                    subtitle: b.ort != null
+                        ? Text(b.ort!, style: const TextStyle(fontSize: 12))
+                        : null,
+                    onTap: () => onSelected(b),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+      onSelected: (b) => setState(() => _betriebId = b.serverId),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isEdit && _existing == null) {
@@ -230,24 +303,10 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
             const SizedBox(height: 12),
 
             // Betrieb (nur bei Kategorie betrieb)
-            if (_kategorie == 'betrieb')
-              DropdownButtonFormField<String>(
-                value: _betriebId,
-                decoration: const InputDecoration(
-                  labelText: 'Betrieb',
-                  prefixIcon: Icon(Icons.store),
-                ),
-                items: betriebe
-                    .map((b) => DropdownMenuItem(
-                          value: b.serverId ?? b.id.toString(),
-                          child: Text(b.name,
-                              overflow: TextOverflow.ellipsis),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _betriebId = v),
-                isExpanded: true,
-              ),
-            if (_kategorie == 'betrieb') const SizedBox(height: 12),
+            if (_kategorie == 'betrieb') ...[
+              _buildBetriebAutocomplete(betriebe),
+              const SizedBox(height: 12),
+            ],
 
             // Rolle
             if (rollen.isNotEmpty)
