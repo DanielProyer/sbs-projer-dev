@@ -12,6 +12,8 @@ class Betrieb {
   final String? website;
   final String? zugangNotizen;
   final String? betriebNr;
+  final String? weNummer;
+  final String? agNummer;
   final String status;
   final bool istMeinKunde;
   final bool istBergkunde;
@@ -57,6 +59,8 @@ class Betrieb {
     this.website,
     this.zugangNotizen,
     this.betriebNr,
+    this.weNummer,
+    this.agNummer,
     this.status = 'aktiv',
     this.istMeinKunde = true,
     this.istBergkunde = false,
@@ -104,6 +108,8 @@ class Betrieb {
       website: json['website'],
       zugangNotizen: json['zugang_notizen'],
       betriebNr: json['heineken_nr'],
+      weNummer: json['we_nummer'],
+      agNummer: json['ag_nummer'],
       status: json['status'] ?? 'aktiv',
       istMeinKunde: json['ist_mein_kunde'] ?? true,
       istBergkunde: json['ist_bergkunde'] ?? false,
@@ -158,6 +164,8 @@ class Betrieb {
       'website': website,
       'zugang_notizen': zugangNotizen,
       'heineken_nr': betriebNr,
+      'we_nummer': weNummer,
+      'ag_nummer': agNummer,
       'status': status,
       'ist_mein_kunde': istMeinKunde,
       'ist_bergkunde': istBergkunde,

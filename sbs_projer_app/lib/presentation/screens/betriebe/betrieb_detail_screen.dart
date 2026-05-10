@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
@@ -116,16 +117,34 @@ class _BetriebDetailContent extends ConsumerWidget {
             title: 'Details',
             icon: Icons.info_outline,
             children: [
-              if (betrieb.betriebNr != null)
-                _InfoRow('Betrieb Nr.', betrieb.betriebNr!),
               _InfoRow('Status', betrieb.status),
               _InfoRow('Zapfsysteme', betrieb.zapfsysteme.isEmpty ? '–' : betrieb.zapfsysteme.join(', ')),
               _InfoRow('Mein Kunde', betrieb.istMeinKunde ? 'Ja' : 'Nein'),
               _InfoRow('Bergkunde', betrieb.istBergkunde ? 'Ja' : 'Nein'),
               _InfoRow('Saisonbetrieb', betrieb.istSaisonbetrieb ? 'Ja' : 'Nein'),
               _InfoRow('Rechnungsstellung', _rechnungsstellungLabel(betrieb.rechnungsstellung)),
+              if (betrieb.regionId != null)
+                FutureBuilder(
+                  future: RegionRepository.getByServerId(betrieb.regionId!),
+                  builder: (context, snap) => _InfoRow('Region', snap.data?.name ?? '–'),
+                ),
             ],
           ),
+
+          // Nummern (nur wenn mindestens eine gesetzt)
+          if (betrieb.betriebNr != null || betrieb.weNummer != null || betrieb.agNummer != null)
+            _SectionCard(
+              title: 'Nummern',
+              icon: Icons.tag,
+              children: [
+                if (betrieb.betriebNr != null)
+                  _InfoRow('Betrieb Nr.', betrieb.betriebNr!),
+                if (betrieb.weNummer != null)
+                  _InfoRow('WE-Nummer', betrieb.weNummer!),
+                if (betrieb.agNummer != null)
+                  _InfoRow('AG-Nummer', betrieb.agNummer!),
+              ],
+            ),
 
           // Saison (nur bei Saisonbetrieb)
           if (betrieb.istSaisonbetrieb)

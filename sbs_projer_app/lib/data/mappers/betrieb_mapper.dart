@@ -18,6 +18,8 @@ class BetriebMapper {
     local.website = dto.website;
     local.zugangNotizen = dto.zugangNotizen;
     local.betriebNr = dto.betriebNr;
+    local.weNummer = dto.weNummer;
+    local.agNummer = dto.agNummer;
     local.status = dto.status;
     local.istMeinKunde = dto.istMeinKunde;
     local.istBergkunde = dto.istBergkunde;
@@ -69,6 +71,8 @@ class BetriebMapper {
       'website': local.website,
       'zugang_notizen': local.zugangNotizen,
       'heineken_nr': local.betriebNr,
+      'we_nummer': local.weNummer,
+      'ag_nummer': local.agNummer,
       'status': local.status,
       'ist_mein_kunde': local.istMeinKunde,
       'ist_bergkunde': local.istBergkunde,

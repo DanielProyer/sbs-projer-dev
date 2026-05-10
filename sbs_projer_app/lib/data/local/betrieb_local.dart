@@ -30,6 +30,8 @@ class BetriebLocal {
   String? website;
   String? zugangNotizen;
   String? betriebNr;
+  String? weNummer;
+  String? agNummer;
   String status = 'aktiv';
   bool istMeinKunde = true;
   bool istBergkunde = false;

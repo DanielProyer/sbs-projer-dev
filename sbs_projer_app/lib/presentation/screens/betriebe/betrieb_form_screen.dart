@@ -35,6 +35,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   late final _emailController = TextEditingController();
   late final _websiteController = TextEditingController();
   late final _betriebNrController = TextEditingController();
+  late final _weNummerController = TextEditingController();
+  late final _agNummerController = TextEditingController();
   late final _zugangController = TextEditingController();
   late final _notizenController = TextEditingController();
 
@@ -104,6 +106,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _emailController.text = betrieb.email ?? '';
       _websiteController.text = betrieb.website ?? '';
       _betriebNrController.text = betrieb.betriebNr ?? '';
+      _weNummerController.text = betrieb.weNummer ?? '';
+      _agNummerController.text = betrieb.agNummer ?? '';
       _zugangController.text = betrieb.zugangNotizen ?? '';
       _notizenController.text = betrieb.notizen ?? '';
       _servicezeitMorgenAbCtrl.text = betrieb.servicezeitMorgenAb ?? '';
@@ -163,6 +167,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.email = _emptyToNull(_emailController.text);
       betrieb.website = _emptyToNull(_websiteController.text);
       betrieb.betriebNr = _emptyToNull(_betriebNrController.text);
+      betrieb.weNummer = _emptyToNull(_weNummerController.text);
+      betrieb.agNummer = _emptyToNull(_agNummerController.text);
       betrieb.zugangNotizen = _emptyToNull(_zugangController.text);
       betrieb.notizen = _emptyToNull(_notizenController.text);
       betrieb.status = _status;
@@ -263,6 +269,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     _emailController.dispose();
     _websiteController.dispose();
     _betriebNrController.dispose();
+    _weNummerController.dispose();
+    _agNummerController.dispose();
     _zugangController.dispose();
     _notizenController.dispose();
     _servicezeitMorgenAbCtrl.dispose();
@@ -462,15 +470,42 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.next,
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _betriebNrController,
-              decoration: const InputDecoration(
-                labelText: 'Betrieb Nr.',
-                prefixIcon: Icon(Icons.tag),
+
+            // === Nummern (nur für "meine Kunden") ===
+            if (_istMeinKunde) ...[
+              const SizedBox(height: 16),
+              Text('Nummern',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      )),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _betriebNrController,
+                decoration: const InputDecoration(
+                  labelText: 'Betrieb Nr.',
+                  prefixIcon: Icon(Icons.tag),
+                ),
+                textInputAction: TextInputAction.next,
               ),
-              textInputAction: TextInputAction.next,
-            ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _weNummerController,
+                decoration: const InputDecoration(
+                  labelText: 'WE-Nummer',
+                  prefixIcon: Icon(Icons.tag),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _agNummerController,
+                decoration: const InputDecoration(
+                  labelText: 'AG-Nummer',
+                  prefixIcon: Icon(Icons.tag),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+            ],
             const SizedBox(height: 16),
 
             // === Einstellungen ===
