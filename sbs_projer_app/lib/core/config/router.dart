@@ -4,7 +4,6 @@ import 'package:sbs_projer_app/presentation/screens/login_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_form_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_kontakt_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_rechnungsadresse_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlagen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_detail_screen.dart';
@@ -121,16 +120,15 @@ final router = GoRouter(
       path: '/betriebe/:id/kontakte/neu',
       builder: (context, state) {
         final betriebId = state.pathParameters['id']!;
-        return BetriebKontaktFormScreen(betriebId: betriebId);
+        return KontaktFormScreen(
+            initialKategorie: 'betrieb', initialBetriebId: betriebId);
       },
     ),
     GoRoute(
       path: '/betriebe/:id/kontakte/:kid/bearbeiten',
       builder: (context, state) {
-        final betriebId = state.pathParameters['id']!;
         final kontaktId = state.pathParameters['kid']!;
-        return BetriebKontaktFormScreen(
-            betriebId: betriebId, kontaktId: kontaktId);
+        return KontaktFormScreen(kontaktId: kontaktId);
       },
     ),
     GoRoute(
