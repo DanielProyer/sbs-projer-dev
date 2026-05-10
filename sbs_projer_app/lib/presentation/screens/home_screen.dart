@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.d
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
@@ -71,6 +72,7 @@ class _KachelGrid extends ConsumerWidget {
     final eigenauftragCount = ref.watch(eigenauftragCountProvider);
     final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
     final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
+    final kontaktCount = ref.watch(kontakteProvider).valueOrNull?.length ?? 0;
 
     return GridView.count(
       crossAxisCount: 2,
@@ -125,6 +127,7 @@ class _KachelGrid extends ConsumerWidget {
         _DashboardTile(
           icon: Icons.contacts,
           label: 'Kontakte',
+          count: kontaktCount > 0 ? '$kontaktCount' : null,
           color: Colors.teal,
           onTap: () => context.push('/kontakte'),
         ),
