@@ -16,7 +16,21 @@ class HeinekenRechnungenListScreen extends ConsumerWidget {
     final rechnungen = ref.watch(heinekenRechnungenProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Heineken Rechnungen')),
+      appBar: AppBar(
+        title: const Text('Heineken Rechnungen'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.grid_on),
+            tooltip: 'Monatsraster',
+            onPressed: () => context.push('/heineken/raster'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.people),
+            tooltip: 'Zuweisungen',
+            onPressed: () => context.push('/heineken/zuweisungen'),
+          ),
+        ],
+      ),
       body: rechnungen.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),

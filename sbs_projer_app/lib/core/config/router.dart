@@ -37,6 +37,7 @@ import 'package:sbs_projer_app/presentation/screens/eroeffnungsreinigungen/eroef
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnungen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_generate_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_detail_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/heineken/heineken_raster_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_import_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart';
@@ -370,6 +371,10 @@ final router = GoRouter(
     GoRoute(
       path: '/heineken/zuweisungen',
       builder: (context, state) => const HeinekenZuweisungenScreen(),
+    ),
+    GoRoute(
+      path: '/heineken/raster',
+      builder: (context, state) => const HeinekenRasterScreen(),
     ),
     GoRoute(
       path: '/heineken/:id',
