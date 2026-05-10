@@ -338,13 +338,16 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
                           }
                         },
                 ),
-                const SizedBox(width: 24),
-                FilledButton.icon(
-                  onPressed: _loading ? null : _generateRaster,
-                  icon: const Icon(Icons.grid_on),
-                  label: const Text('Raster generieren'),
-                ),
               ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _loading ? null : _generateRaster,
+                icon: const Icon(Icons.grid_on),
+                label: const Text('Raster generieren'),
+              ),
             ),
             const SizedBox(height: 16),
             if (_loading)
@@ -355,14 +358,15 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
             ],
             const SizedBox(height: 24),
             if (_pdfBytes != null) ...[
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
                 children: [
                   FilledButton.icon(
                     onPressed: _loading ? null : _download,
                     icon: const Icon(Icons.download),
                     label: const Text('PDF herunterladen'),
                   ),
-                  const SizedBox(width: 16),
                   FilledButton.icon(
                     onPressed: _loading ? null : _sendMail,
                     icon: const Icon(Icons.send),
