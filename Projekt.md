@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 08.05.2026
+**Stand**: 10.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.18+300
+**Version**: 0.10.24+306
 
 ---
 
@@ -603,6 +603,27 @@
     - LohnausweisPdfService (Schweizer Lohnausweis Formular 11 als PDF)
     - Buchhaltung-Dashboard: NavTile „Lohnbuchhaltung"
 
+### Erledigt am 09.-10.05.2026
+152. ✅ Betrieb: Servicezeiten (Morgen/Nachmittag) für Betriebe hinzugefügt
+153. ✅ Betrieb: WE-Nummer + AG-Nummer Felder (Nummern-Kategorie in Form/Detail, Zahlentastatur)
+154. ✅ Betrieb: Region in Detail-Ansicht anzeigen
+155. ✅ Heineken Monatsraster komplett:
+    - RasterPdfService (Querformat A4, gruppiert nach Regionen, jede Region auf eigener Seite)
+    - HeinekenRasterScreen (Datensammlung: Betriebe, Anlagen, Bierleitungen, Reinigungen, Kontakte)
+    - Rotpunkt-Logik (kleinstes Reinigungsintervall > 6 Wochen)
+    - Bierleitungen-Zählung über alle Anlagen
+    - Bemerkungen: Servicezeiten + Kontakt-Telefon
+    - Zahlung: BZ/RG/HS aus Rechnungsstellung
+    - Monatswerte: Tag, (E) bei Eröffnung/Endreinigung, F=Ferien, A=Inaktiv, G=Geschlossen
+    - PDF-Cache pro Jahr (Jahreswechsel behält generiertes PDF)
+    - Mail-Versand via Edge Function (send-raster-mail, Storage Bucket raster-pdfs)
+    - Mobilfreundliches Layout (Button + Wrap)
+156. ✅ Service Worker deaktiviert (--pwa-strategy=none):
+    - Webapp nach Deploy sofort aktuell nach einfachem Refresh
+    - Kein Löschen von Browserdaten mehr nötig
+    - Deploy-Workflow in CLAUDE.md aktualisiert
+157. ✅ 3 neue Regionen: Sempach, Küssnacht, Cham (DB: 15 Regionen total)
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
 2. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
@@ -634,5 +655,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 08.05.2026 – Lohnbuchhaltung komplett (flexible Auszahlungen, Versicherungs-Sätze, Lohnausweis-PDF), Kontakt-Sync Stufe 1, Beleg-Erfassung im Buchungsformular, Buchungsvorlagen bereinigt. App-Version 0.10.18+300.
+**Zuletzt aktualisiert**: 10.05.2026 – Heineken Monatsraster komplett (PDF, Mail, Cache), Service Worker deaktiviert (sofort aktuell nach Refresh), Servicezeiten + WE/AG-Nummern für Betriebe, 3 neue Regionen (Sempach, Küssnacht, Cham). App-Version 0.10.24+306.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)

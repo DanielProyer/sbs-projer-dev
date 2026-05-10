@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 08.05.2026
+**Stand**: 10.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -10,7 +10,7 @@
 ### Daten-Vorbereitung
 
 - [ ] **Regionen-Polygone erstellen (GIS)**
-  - KML-Dateien für alle 11 Regionen erstellen:
+  - KML-Dateien für alle 15 Regionen erstellen:
     - Arosa
     - Chur
     - Davos
@@ -22,6 +22,10 @@
     - Rheintal
     - Rheinwald
     - Innerschweiz
+    - Sempach
+    - Küssnacht
+    - Cham
+    - Engadin
   - Format: KML oder GeoJSON
   - Koordinatensystem: WGS84 (EPSG:4326)
   - **Notiz**: Evtl. ergeben sich andere Gebietsaufteilungen beim Erstellen
@@ -187,6 +191,14 @@
 - [x] Heineken Monatsraster: PDF-Generierung (Querformat, gruppiert nach Regionen)
 - [x] Heineken Monatsraster: Mail-Versand via Edge Function (send-raster-mail)
 - [x] Heineken Monatsraster: Storage Bucket + Upload
+- [x] Heineken Monatsraster: Jede Region auf eigener Seite
+- [x] Heineken Monatsraster: PDF-Cache pro Jahr (Jahreswechsel behält PDF)
+- [x] Heineken Monatsraster: Servicezeiten-Bindestrich fix (Sonderzeichen → normaler Bindestrich)
+- [x] Heineken Monatsraster: Layout mobilfreundlich (Button + Wrap)
+- [x] Betrieb: WE/AG-Nummern mit Zahlentastatur
+- [x] Betrieb: Servicezeiten (Morgen/Nachmittag) hinzugefügt
+- [x] Service Worker deaktiviert — Webapp sofort aktuell nach Refresh
+- [x] 3 neue Regionen: Sempach, Küssnacht, Cham
 
 ---
 
