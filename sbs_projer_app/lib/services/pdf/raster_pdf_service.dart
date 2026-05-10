@@ -165,33 +165,41 @@ class RasterPdfService {
       }).join(', ');
     }
 
-    // Alle Regionen sammeln, Zeilen bauen
-    final allRows = <pw.TableRow>[];
-
     final sortedRegions = betriebeProRegion.keys.toList()..sort();
 
+    final pageFormat = PdfPageFormat.a4.landscape.copyWith(
+      marginLeft: 14,
+      marginRight: 14,
+      marginTop: 14,
+      marginBottom: 14,
+    );
+
+    final columnWidthMap = {
+      for (int i = 0; i < allWidths.length; i++)
+        i: pw.FixedColumnWidth(allWidths[i]),
+    };
+
+    // Jede Region auf eigener Seite
     for (final region in sortedRegions) {
       final betriebe = betriebeProRegion[region]!;
+      final regionRows = <pw.TableRow>[];
 
       // Jahr-Header-Zeile
-      allRows.add(pw.TableRow(
+      regionRows.add(pw.TableRow(
         children: [
-          // Erste 4 Spalten: Jahr
           pw.Container(
             padding: const pw.EdgeInsets.all(2),
             color: _grau,
             child: pw.Text('$jahr', style: jahrStyle),
           ),
           ...List.generate(3, (_) => pw.Container(color: _grau)),
-          // Spalten 4-12: leer (grau)
           ...List.generate(9, (_) => pw.Container(color: _grau)),
-          // Monats-Header
           ...List.generate(12, (i) => headerCell(_monate[i])),
         ],
       ));
 
       // Spalten-Header-Zeile
-      allRows.add(pw.TableRow(
+      regionRows.add(pw.TableRow(
         children: [
           headerCell('WE'),
           headerCell('AG'),
@@ -211,7 +219,7 @@ class RasterPdfService {
       ));
 
       // Region-Header-Zeile (gelb)
-      allRows.add(pw.TableRow(
+      regionRows.add(pw.TableRow(
         children: [
           ...List.generate(4, (_) => pw.Container(color: _gelb)),
           pw.Container(
@@ -229,7 +237,7 @@ class RasterPdfService {
         final zahlRg = b.zahlung == 'RG' ? 'X' : '';
         final zahlHs = b.zahlung == 'HS' ? 'X' : '';
 
-        allRows.add(pw.TableRow(
+        regionRows.add(pw.TableRow(
           children: [
             cell(b.weNummer ?? '', align: pw.Alignment.center),
             cell(b.agNummer ?? '', align: pw.Alignment.center),
@@ -253,34 +261,19 @@ class RasterPdfService {
         ));
       }
 
-      // Leere Trennzeile zwischen Regionen
-      allRows.add(pw.TableRow(
-        children: List.generate(allWidths.length,
-            (_) => pw.Container(height: 6, color: _weiss)),
-      ));
-    }
-
-    // Seiten erstellen (Querformat)
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4.landscape.copyWith(
-          marginLeft: 14,
-          marginRight: 14,
-          marginTop: 14,
-          marginBottom: 14,
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: pageFormat,
+          build: (context) => [
+            pw.Table(
+              border: pw.TableBorder.all(color: _schwarz, width: 0.3),
+              columnWidths: columnWidthMap,
+              children: regionRows,
+            ),
+          ],
         ),
-        build: (context) => [
-          pw.Table(
-            border: pw.TableBorder.all(color: _schwarz, width: 0.3),
-            columnWidths: {
-              for (int i = 0; i < allWidths.length; i++)
-                i: pw.FixedColumnWidth(allWidths[i]),
-            },
-            children: allRows,
-          ),
-        ],
-      ),
-    );
+      );
+    }
 
     return pdf.save();
   }

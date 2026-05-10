@@ -27,6 +27,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
   bool _loading = false;
   String? _status;
   Uint8List? _pdfBytes;
+  final Map<int, Uint8List> _pdfCache = {};
 
   Future<void> _generateRaster() async {
     setState(() {
@@ -74,10 +75,10 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
         final bemTeile = <String>[];
         if (b.servicezeitMorgenAb != null || b.servicezeitNachmittagAb != null) {
           if (b.servicezeitMorgenAb != null) {
-            bemTeile.add('${b.servicezeitMorgenAb}–${b.servicezeitMorgenBis ?? '?'}');
+            bemTeile.add('${b.servicezeitMorgenAb}-${b.servicezeitMorgenBis ?? '?'}');
           }
           if (b.servicezeitNachmittagAb != null) {
-            bemTeile.add('${b.servicezeitNachmittagAb}–${b.servicezeitNachmittagBis ?? '?'}');
+            bemTeile.add('${b.servicezeitNachmittagAb}-${b.servicezeitNachmittagBis ?? '?'}');
           }
         }
         final kontakte = await BetriebKontaktRepository.getByBetrieb(b.serverId ?? b.id.toString());
@@ -164,6 +165,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
         betriebeProRegion: betriebeProRegion,
       );
 
+      _pdfCache[_jahr] = pdfBytes;
       setState(() {
         _pdfBytes = pdfBytes;
         _loading = false;
@@ -332,8 +334,10 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
                           if (v != null) {
                             setState(() {
                               _jahr = v;
-                              _pdfBytes = null;
-                              _status = null;
+                              _pdfBytes = _pdfCache[v];
+                              _status = _pdfBytes != null
+                                  ? 'Raster geladen (${(_pdfBytes!.length / 1024).toStringAsFixed(0)} KB)'
+                                  : null;
                             });
                           }
                         },
