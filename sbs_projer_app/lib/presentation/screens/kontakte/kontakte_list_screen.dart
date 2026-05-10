@@ -571,13 +571,23 @@ class _KontaktCard extends StatelessWidget {
                 ),
             ],
           ),
-          trailing: onCall != null
-              ? IconButton(
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onCall != null)
+                IconButton(
                   icon: const Icon(Icons.phone, color: AppColors.success),
                   tooltip: 'Anrufen',
                   onPressed: onCall,
-                )
-              : null,
+                ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                color: AppColors.textSecondary,
+                tooltip: 'Löschen',
+                onPressed: onDelete,
+              ),
+            ],
+          ),
           onTap: onTap,
         ),
       ),
