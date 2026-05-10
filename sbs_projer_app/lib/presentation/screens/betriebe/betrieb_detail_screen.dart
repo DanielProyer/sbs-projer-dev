@@ -413,6 +413,7 @@ class _KontaktRow extends StatelessWidget {
     final name = kontakt.nachname != null && kontakt.nachname!.isNotEmpty
         ? '${kontakt.vorname} ${kontakt.nachname}'
         : kontakt.vorname;
+    final isGuest = SupabaseService.isGuest;
 
     return InkWell(
       onTap: () {
@@ -485,12 +486,58 @@ class _KontaktRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (!isGuest)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 18),
+                color: AppColors.textSecondary,
+                tooltip: 'Löschen',
+                onPressed: () => _confirmDelete(context, name),
+              ),
             const Icon(Icons.chevron_right,
                 size: 18, color: AppColors.textSecondary),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kontakt löschen?'),
+        content: Text('«$name» wird unwiderruflich gelöscht.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final id = kontakt.serverId ?? kontakt.id.toString();
+        await BetriebKontaktRepository.delete(id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Kontakt gelöscht')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: $e')),
+          );
+        }
+      }
+    }
   }
 }
 

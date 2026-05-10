@@ -876,7 +876,7 @@ class _BierleitungenSectionState extends State<_BierleitungenSection> {
                       ),
                     ),
                     const Spacer(),
-                    if (leitungen.length < 4)
+                    if (leitungen.length < 5)
                       TextButton.icon(
                         icon: const Icon(Icons.add, size: 18),
                         label: const Text('Neue Leitung'),

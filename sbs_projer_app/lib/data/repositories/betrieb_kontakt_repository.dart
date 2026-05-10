@@ -11,7 +11,7 @@ class BetriebKontaktRepository {
   static Future<List<BetriebKontaktLocal>> getByBetrieb(String betriebId) async {
     if (kIsWeb) {
       final rows = await SupabaseService.client
-          .from('betrieb_kontakte').select()
+          .from('kontakte').select()
           .eq('user_id', _userId).eq('betrieb_id', betriebId);
       return rows.map((r) => BetriebKontaktMapper.fromDto(BetriebKontakt.fromJson(r))).toList();
     }
@@ -26,7 +26,7 @@ class BetriebKontaktRepository {
   static Future<BetriebKontaktLocal?> getById(String id) async {
     if (kIsWeb) {
       final rows = await SupabaseService.client
-          .from('betrieb_kontakte').select().eq('id', id).limit(1);
+          .from('kontakte').select().eq('id', id).limit(1);
       if (rows.isEmpty) return null;
       return BetriebKontaktMapper.fromDto(BetriebKontakt.fromJson(rows.first));
     }
@@ -37,7 +37,7 @@ class BetriebKontaktRepository {
     kontakt.userId = _userId;
     if (kIsWeb) {
       final json = BetriebKontaktMapper.toJson(kontakt);
-      await SupabaseService.client.from('betrieb_kontakte').upsert(json);
+      await SupabaseService.client.from('kontakte').upsert(json);
       return;
     }
     kontakt.isSynced = false;
@@ -47,7 +47,7 @@ class BetriebKontaktRepository {
 
   static Future<void> delete(String id) async {
     if (kIsWeb) {
-      await SupabaseService.client.from('betrieb_kontakte').delete().eq('id', id);
+      await SupabaseService.client.from('kontakte').delete().eq('id', id);
       return;
     }
     await IsarService.betriebKontaktDelete(int.parse(id));

@@ -228,6 +228,7 @@ class _BierleitungFormScreenState
                 DropdownMenuItem(value: 2, child: Text('Leitung 2')),
                 DropdownMenuItem(value: 3, child: Text('Leitung 3')),
                 DropdownMenuItem(value: 4, child: Text('Leitung 4')),
+                DropdownMenuItem(value: 5, child: Text('Leitung 5')),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _leitungsNummer = v);

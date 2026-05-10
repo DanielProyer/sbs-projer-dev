@@ -394,14 +394,14 @@ class SyncService {
     final unsynced =
         await _isar.betriebKontaktLocals.filter().isSyncedEqualTo(false).findAll();
     final pushed = await _pushToSupabase<BetriebKontaktLocal>(
-      'betrieb_kontakte', unsynced, BetriebKontaktMapper.toJson,
+      'kontakte', unsynced, BetriebKontaktMapper.toJson,
       (l, id) { l.serverId ??= id; l.isSynced = true; },
     );
     if (pushed.isNotEmpty) {
       await _isar.writeTxn(() => _isar.betriebKontaktLocals.putAll(pushed));
     }
 
-    final rows = await _pullRows('betrieb_kontakte', 'betrieb_kontakte', uid);
+    final rows = await _pullRows('kontakte', 'betrieb_kontakte', uid);
     final toSave = <BetriebKontaktLocal>[];
     for (final row in rows) {
       final dto = BetriebKontakt.fromJson(row);
