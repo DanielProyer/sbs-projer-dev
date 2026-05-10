@@ -207,7 +207,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
 
     try {
       final kontakt = await KontaktRepository.getHeinekenZuweisung('raster');
-      final empfaenger = MailConfig.empfaenger(kontakt?.email, bereich: 'raster');
+      final empfaenger = MailConfig.empfaenger(kontakt?.email, bereich: 'heineken');
 
       // PDF in Storage hochladen
       setState(() => _status = 'Lade PDF hoch...');

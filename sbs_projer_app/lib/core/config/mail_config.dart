@@ -14,13 +14,9 @@ class MailConfig {
   /// Test-Empfänger für alle Bereiche
   static const testEmpfaenger = 'dani.proyer@gmail.com';
 
-  /// Raster-Empfänger (bis Freischaltung immer an sbs.projer@gmail.com)
-  static const rasterEmpfaenger = 'sbs.projer@gmail.com';
-
   /// Einzelne Bereiche scharfstellen (nur relevant wenn [testModus] = false)
   static const reinigungScharf = false;
   static const heinekenScharf = false;
-  static const rasterScharf = false;
   static const montageScharf = false;
   static const heigenieScharf = true;
 
@@ -35,8 +31,6 @@ class MailConfig {
         if (!reinigungScharf) return testEmpfaenger;
       case 'heineken':
         if (!heinekenScharf) return testEmpfaenger;
-      case 'raster':
-        if (!rasterScharf) return rasterEmpfaenger;
       case 'montage':
         if (!montageScharf) return testEmpfaenger;
       case 'heigenie':

@@ -128,15 +128,6 @@
 
 ---
 
-## ⚠️ FREISCHALTUNG AUSSTEHEND
-
-- [ ] **Raster-Mail an Heineken freischalten**
-  - Aktuell geht Raster-PDF an `sbs.projer@gmail.com`
-  - Zum Scharfstellen: `MailConfig.rasterScharf = true` setzen in `lib/core/config/mail_config.dart`
-  - Dann wird der Heineken-Kontakt aus Zuweisungen (Bereich 'raster') als Empfänger genutzt
-
----
-
 ## 📝 NOTIZEN
 
 ### GIS / Regionen-Polygone
