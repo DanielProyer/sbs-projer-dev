@@ -1,5 +1,7 @@
 import 'dart:typed_data';
-import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show FileOptions, TransformOptions;
 import 'package:sbs_projer_app/data/models/material_artikel.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -71,10 +73,31 @@ class MaterialArtikelRepository {
         .eq('id', materialId);
   }
 
-  /// Signed URL generieren (1h gültig)
+  /// Signed URL für volle Auflösung generieren (1h gültig)
   static Future<String> getSignedUrl(String storagePath) async {
     return await SupabaseService.client.storage
         .from('material-fotos')
         .createSignedUrl(storagePath, 3600);
+  }
+
+  /// Signed URL für Thumbnail (400×400, Qualität 60%) — via Supabase Image Transform.
+  /// Gibt null zurück wenn Image Transformations nicht aktiviert sind.
+  static Future<String?> getSignedUrlThumb(String storagePath) async {
+    try {
+      return await SupabaseService.client.storage
+          .from('material-fotos')
+          .createSignedUrl(
+            storagePath,
+            3600,
+            transform: const TransformOptions(
+              width: 400,
+              height: 400,
+              quality: 60,
+            ),
+          );
+    } catch (e) {
+      debugPrint('Thumbnail-Transform nicht verfügbar: $e');
+      return null;
+    }
   }
 }

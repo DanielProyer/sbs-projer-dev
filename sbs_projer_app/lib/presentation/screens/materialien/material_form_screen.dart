@@ -156,7 +156,10 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
             // Name
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Name *'),
+              decoration: const InputDecoration(
+                labelText: 'Name *',
+                helperText: 'Kurz & prägnant, z.B. "Bierhahn Celli"',
+              ),
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Name eingeben' : null,
             ),
@@ -296,6 +299,21 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
     );
   }
 
+  /// Erzeugt einen kurzen, prägnanten Namen aus dem vollen Artikelnamen.
+  /// Nimmt die ersten 2 signifikanten Wörter (überspringt reine Zahlen/Masse).
+  String _kurzName(String fullName) {
+    final words = fullName.split(RegExp(r'[\s,/]+'));
+    final short = <String>[];
+    for (final w in words) {
+      if (w.isEmpty) continue;
+      // Reine Zahlen, Masse (z.B. "35x10", "5/8") überspringen
+      if (RegExp(r"^[\d.x'°]+$").hasMatch(w)) continue;
+      short.add(w);
+      if (short.length >= 2) break;
+    }
+    return short.join(' ');
+  }
+
   Future<void> _showArtikelPicker() async {
     final result = await showDialog<MaterialArtikel>(
       context: context,
@@ -306,8 +324,11 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
         _materialId = result.id;
         _dboNr = result.dboNr;
         _linkedArtikelName = result.name;
+        // Volle Heineken-Bezeichnung → Beschreibung
+        _beschreibungController.text = result.name;
+        // Kurzname als Vorschlag → Name (nur wenn leer)
         if (_nameController.text.isEmpty) {
-          _nameController.text = result.name;
+          _nameController.text = _kurzName(result.name);
         }
         if (_kategorieId == null && result.kategorieId != null) {
           _kategorieId = result.kategorieId;

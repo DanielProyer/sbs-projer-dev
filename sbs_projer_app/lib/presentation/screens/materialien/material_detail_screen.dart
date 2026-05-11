@@ -57,7 +57,8 @@ class _MaterialDetailContentState
   List<MaterialVerbrauch>? _verbrauch;
   bool _loadingVerbrauch = true;
   MaterialArtikel? _artikel;
-  String? _fotoUrl;
+  String? _fotoUrl;      // Volle Auflösung (für Vollbild-Ansicht)
+  String? _thumbUrl;     // Thumbnail (für Vorschau-Karte)
   bool _uploadingFoto = false;
 
   @override
@@ -76,18 +77,24 @@ class _MaterialDetailContentState
             .map((k) => k.name)
             .firstOrNull;
       }
-      // Artikel-Foto laden
+      // Artikel-Foto laden (Thumbnail + Full-Res parallel)
       if (_lager.materialId != null) {
         final artikel =
             await MaterialArtikelRepository.getById(_lager.materialId!);
         if (artikel != null && artikel.fotoStoragePath != null && mounted) {
           try {
-            final url = await MaterialArtikelRepository.getSignedUrl(
-                artikel.fotoStoragePath!);
+            // Thumbnail und Full-Res parallel laden
+            final results = await Future.wait([
+              MaterialArtikelRepository.getSignedUrl(
+                  artikel.fotoStoragePath!),
+              MaterialArtikelRepository.getSignedUrlThumb(
+                  artikel.fotoStoragePath!),
+            ]);
             if (mounted) {
               setState(() {
                 _artikel = artikel;
-                _fotoUrl = url;
+                _fotoUrl = results[0]!;
+                _thumbUrl = results[1];
               });
             }
           } catch (_) {
@@ -289,8 +296,20 @@ class _MaterialDetailContentState
                 width: double.infinity,
                 height: 200,
                 child: Image.network(
-                  _fotoUrl!,
+                  _thumbUrl ?? _fotoUrl!,
                   fit: BoxFit.cover,
+                  cacheWidth: 400,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
                   errorBuilder: (_, __, ___) => const Center(
                     child: Icon(Icons.broken_image, size: 48),
                   ),
@@ -373,11 +392,13 @@ class _MaterialDetailContentState
     if (source == null) return;
 
     final picker = ImagePicker();
+    // Für Pixel 9 optimiert: 1600px reicht für Vollbild-Ansicht,
+    // Vorschau wird server-seitig auf 400px skaliert (Supabase Transform)
     final file = await picker.pickImage(
       source: source,
-      maxWidth: 1200,
-      maxHeight: 1200,
-      imageQuality: 80,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 85,
     );
     if (file == null || !mounted) return;
 
@@ -389,16 +410,23 @@ class _MaterialDetailContentState
       final updated =
           await MaterialArtikelRepository.getById(_artikel!.id);
       if (updated != null && updated.fotoStoragePath != null && mounted) {
-        final url = await MaterialArtikelRepository.getSignedUrl(
-            updated.fotoStoragePath!);
+        final urls = await Future.wait([
+          MaterialArtikelRepository.getSignedUrl(
+              updated.fotoStoragePath!),
+          MaterialArtikelRepository.getSignedUrlThumb(
+              updated.fotoStoragePath!),
+        ]);
         setState(() {
           _artikel = updated;
-          _fotoUrl = url;
+          _fotoUrl = urls[0]!;
+          _thumbUrl = urls[1];
           _uploadingFoto = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Foto hochgeladen')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Foto hochgeladen')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -433,7 +461,10 @@ class _MaterialDetailContentState
       await MaterialArtikelRepository.deleteFoto(
           _artikel!.id, _artikel!.fotoStoragePath!);
       if (mounted) {
-        setState(() => _fotoUrl = null);
+        setState(() {
+          _fotoUrl = null;
+          _thumbUrl = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto gelöscht')),
         );
@@ -460,9 +491,32 @@ class _MaterialDetailContentState
             ),
           ),
           body: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
             child: Center(
               child: Image.network(
                 url,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        Text('Volle Auflösung laden...',
+                            style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13)),
+                      ],
+                    ),
+                  );
+                },
                 errorBuilder: (_, __, ___) =>
                     const Icon(Icons.broken_image, size: 64),
               ),
