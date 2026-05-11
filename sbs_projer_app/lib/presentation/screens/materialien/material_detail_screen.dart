@@ -60,8 +60,7 @@ class _MaterialDetailContentState
   List<MaterialVerbrauch>? _verbrauch;
   bool _loadingVerbrauch = true;
   MaterialArtikel? _artikel;
-  String? _fotoUrl;      // Original (volle Auflösung, für Vollbild)
-  String? _previewUrl;      // Crop-Vorschau (für Karte)
+  String? _previewUrl;   // Geringe Auflösung (für Vorschaukarte)
   bool _uploadingFoto = false;
 
   @override
@@ -80,23 +79,20 @@ class _MaterialDetailContentState
             .map((k) => k.name)
             .firstOrNull;
       }
-      // Artikel-Foto laden (Original + Crop parallel)
+      // Artikel-Foto laden (nur Preview für schnelles Laden)
       if (_lager.materialId != null) {
         final artikel =
             await MaterialArtikelRepository.getById(_lager.materialId!);
         if (artikel != null && artikel.fotoStoragePath != null && mounted) {
           try {
-            final urls = await Future.wait([
-              MaterialArtikelRepository.getSignedUrl(
-                  artikel.fotoStoragePath!),
-              MaterialArtikelRepository.getSignedUrlPreview(
-                  artikel.fotoStoragePath!),
-            ]);
+            // Nur Preview laden — HighRes erst bei Tap auf Vollbild
+            final previewUrl =
+                await MaterialArtikelRepository.getSignedUrlPreview(
+                    artikel.fotoStoragePath!);
             if (mounted) {
               setState(() {
                 _artikel = artikel;
-                _fotoUrl = urls[0];
-                _previewUrl = urls[1];
+                _previewUrl = previewUrl;
               });
             }
           } catch (_) {
@@ -291,21 +287,21 @@ class _MaterialDetailContentState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_fotoUrl != null)
+          if (_previewUrl != null)
             GestureDetector(
-              onTap: () => _showFullImage(_fotoUrl!),
+              onTap: () => _showFullImage(),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  maxHeight: 400,
+                  maxHeight: 300,
                 ),
                 child: Image.network(
-                  _previewUrl ?? _fotoUrl!,
+                  _previewUrl!,
                   width: double.infinity,
                   fit: BoxFit.contain,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return SizedBox(
-                      height: 200,
+                      height: 150,
                       child: Center(
                         child: CircularProgressIndicator(
                           value: loadingProgress.expectedTotalBytes != null
@@ -317,17 +313,9 @@ class _MaterialDetailContentState
                     );
                   },
                   errorBuilder: (_, __, ___) => const SizedBox(
-                    height: 120,
+                    height: 100,
                     child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.broken_image, size: 48),
-                          SizedBox(height: 8),
-                          Text('Foto konnte nicht geladen werden',
-                              style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
+                      child: Icon(Icons.broken_image, size: 40),
                     ),
                   ),
                 ),
@@ -358,7 +346,7 @@ class _MaterialDetailContentState
                 ),
               ),
             ),
-          if (_fotoUrl != null && !SupabaseService.isGuest)
+          if (_previewUrl != null && !SupabaseService.isGuest)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
@@ -445,12 +433,12 @@ class _MaterialDetailContentState
       final highResBytes =
           Uint8List.fromList(img.encodeJpg(decoded, quality: 88));
 
-      // Preview: auf 600px verkleinert
-      final previewImage = decoded.width > 600
-          ? img.copyResize(decoded, width: 600)
+      // Preview: auf 400px verkleinert, niedrige Qualität
+      final previewImage = decoded.width > 400
+          ? img.copyResize(decoded, width: 400)
           : decoded;
       final previewBytes =
-          Uint8List.fromList(img.encodeJpg(previewImage, quality: 75));
+          Uint8List.fromList(img.encodeJpg(previewImage, quality: 60));
 
       debugPrint(
           'Foto: HighRes ${highResBytes.length} bytes, '
@@ -464,16 +452,13 @@ class _MaterialDetailContentState
       final updated =
           await MaterialArtikelRepository.getById(_artikel!.id);
       if (updated != null && updated.fotoStoragePath != null && mounted) {
-        final urls = await Future.wait([
-          MaterialArtikelRepository.getSignedUrl(
-              updated.fotoStoragePath!),
-          MaterialArtikelRepository.getSignedUrlPreview(
-              updated.fotoStoragePath!),
-        ]);
+        // Nur Preview-URL laden (HighRes erst bei Tap)
+        final previewUrl =
+            await MaterialArtikelRepository.getSignedUrlPreview(
+                updated.fotoStoragePath!);
         setState(() {
           _artikel = updated;
-          _fotoUrl = urls[0];
-          _previewUrl = urls[1];
+          _previewUrl = previewUrl;
           _uploadingFoto = false;
         });
         if (mounted) {
@@ -515,10 +500,7 @@ class _MaterialDetailContentState
       await MaterialArtikelRepository.deleteFoto(
           _artikel!.id, _artikel!.fotoStoragePath!);
       if (mounted) {
-        setState(() {
-          _fotoUrl = null;
-          _previewUrl = null;
-        });
+        setState(() => _previewUrl = null);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto gelöscht')),
         );
@@ -532,7 +514,21 @@ class _MaterialDetailContentState
     }
   }
 
-  void _showFullImage(String url) {
+  /// Vollbild-Ansicht — lädt HighRes-URL erst bei Bedarf.
+  Future<void> _showFullImage() async {
+    if (_artikel?.fotoStoragePath == null) return;
+
+    // HighRes-URL on-demand laden
+    String? highResUrl;
+    try {
+      highResUrl = await MaterialArtikelRepository.getSignedUrl(
+          _artikel!.fotoStoragePath!);
+    } catch (_) {
+      // Fallback auf Preview
+      highResUrl = _previewUrl;
+    }
+    if (highResUrl == null || !mounted) return;
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog.fullscreen(
@@ -549,7 +545,7 @@ class _MaterialDetailContentState
             maxScale: 4.0,
             child: Center(
               child: Image.network(
-                url,
+                highResUrl!,
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
                   return Center(
