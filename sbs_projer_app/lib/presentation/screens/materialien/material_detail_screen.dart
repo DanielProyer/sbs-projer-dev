@@ -406,7 +406,11 @@ class _MaterialDetailContentState
     );
     if (file == null || !mounted) return;
 
+    // Spinner anzeigen während Bild geladen wird
+    setState(() => _uploadingFoto = true);
     final imageBytes = await file.readAsBytes();
+    if (!mounted) return;
+    setState(() => _uploadingFoto = false);
 
     // Crop/Rotate-Dialog — gibt zugeschnittene Bytes zurück
     if (!mounted) return;
