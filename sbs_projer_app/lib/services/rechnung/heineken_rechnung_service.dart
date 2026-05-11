@@ -52,7 +52,7 @@ class HeinekenRechnungService {
       _queryTable('eigenauftraege', 'datum', startStr, endStr),
       _queryTable('eroeffnungsreinigungen', 'datum', startStr, endStr),
       _queryTable('montagen', 'datum', startStr, endStr),
-      _queryTable('pikett_dienste', 'datum_start', startStr, endStr),
+      _queryPikettFuerMonat(start, end),
       _queryReinigungen(startStr, endStr),
       _queryTable('bergkundenpauschalen', 'datum', startStr, endStr),
     ]);
@@ -269,6 +269,40 @@ class HeinekenRechnungService {
       return List<Map<String, dynamic>>.from(rows);
     } catch (e) {
       debugPrint('Heineken: Fehler beim Laden von $table: $e');
+      return [];
+    }
+  }
+
+  /// Lädt Pikett-Dienste für einen Monat.
+  /// Massgebend ist der Montag der KW, nicht datum_start.
+  /// Lädt breitere Range (±6 Tage) und filtert nach Montag im Zielmonat.
+  static Future<List<Map<String, dynamic>>> _queryPikettFuerMonat(
+    DateTime monthStart,
+    DateTime monthEnd,
+  ) async {
+    try {
+      // Breitere Range laden, da datum_start (z.B. Freitag) in einem
+      // anderen Monat liegen kann als der Montag der KW
+      final rangeStart =
+          monthStart.subtract(const Duration(days: 6));
+      final rangeEnd =
+          monthEnd.add(const Duration(days: 6));
+      final rows = await SupabaseService.client
+          .from('pikett_dienste')
+          .select()
+          .eq('user_id', _userId)
+          .gte('datum_start', rangeStart.toIso8601String().split('T').first)
+          .lt('datum_start', rangeEnd.toIso8601String().split('T').first)
+          .order('datum_start');
+      // Nur Einträge behalten, deren Montag im Zielmonat liegt
+      final filtered = List<Map<String, dynamic>>.from(rows).where((r) {
+        final datumStart = DateTime.parse(r['datum_start']);
+        final montag = _montagDerWoche(datumStart);
+        return !montag.isBefore(monthStart) && montag.isBefore(monthEnd);
+      }).toList();
+      return filtered;
+    } catch (e) {
+      debugPrint('Heineken: Fehler beim Laden von pikett_dienste: $e');
       return [];
     }
   }
@@ -548,16 +582,21 @@ class HeinekenRechnungService {
           .lt('datum', endStr);
     }
 
-    // Pikett hat datum_start statt datum
-    await SupabaseService.client
-        .from('pikett_dienste')
-        .update({
-          'abgerechnet': true,
-          'abrechnungs_monat': monatStr,
-        })
-        .eq('user_id', _userId)
-        .gte('datum_start', startStr)
-        .lt('datum_start', endStr);
+    // Pikett: nach Montag der KW zuordnen (nicht datum_start)
+    final monthStart = DateTime.parse(startStr);
+    final monthEnd = DateTime.parse(endStr);
+    final pikettRows = await _queryPikettFuerMonat(monthStart, monthEnd);
+    final pikettIds = pikettRows.map((r) => r['id'] as String).toList();
+    if (pikettIds.isNotEmpty) {
+      await SupabaseService.client
+          .from('pikett_dienste')
+          .update({
+            'abgerechnet': true,
+            'abrechnungs_monat': monatStr,
+          })
+          .eq('user_id', _userId)
+          .inFilter('id', pikettIds);
+    }
 
     // Reinigungen: nur Heineken-Betriebe markieren
     try {
@@ -592,6 +631,13 @@ class HeinekenRechnungService {
         date.difference(DateTime(date.year, 1, 1)).inDays + 1;
     final wday = date.weekday;
     return ((dayOfYear - wday + 10) ~/ 7);
+  }
+
+  /// Montag der ISO-Woche für ein Datum berechnen.
+  /// Massgebend für die monatliche Pikett-Zuordnung.
+  static DateTime _montagDerWoche(DateTime date) {
+    return DateTime(date.year, date.month, date.day)
+        .subtract(Duration(days: date.weekday - 1));
   }
 
   static double _toDouble(dynamic value) {
