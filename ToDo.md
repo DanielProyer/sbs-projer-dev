@@ -199,6 +199,19 @@
 - [x] Betrieb: Servicezeiten (Morgen/Nachmittag) hinzugefügt
 - [x] Service Worker deaktiviert — Webapp sofort aktuell nach Refresh
 - [x] 3 neue Regionen: Sempach, Küssnacht, Cham
+- [x] Heineken Monatsraster: Cache-Buster auf PDF-Download-URL
+- [x] Heineken Monatsraster: PDF Layout-Verbesserungen
+- [x] Heineken Raster-Mail: Text mit aktuellem Datum
+- [x] Zahlungsdifferenz-Handling bei Rechnungen + Pikett-Formular anpassen
+- [x] Heineken Störungsformular: Pikett KW Sonderzeichen-Fix + Km-System
+- [x] Pikett-Monatszuordnung nach Montag der KW
+- [x] Eröffnung/Endreinigung: Störungsnummer + Art im Formular anzeigen
+- [x] Heineken Monatsrechnung: Gratisreinigungen fehlen nach Neuerstellen — Fix
+- [x] Heineken PDF: 5 Verbesserungen (Layout, Formatierung)
+- [x] Pikett-Dienste Kachel: Gruppierung nach Montag der KW
+- [x] DST-Bug in Kalenderwochen-Berechnung behoben (UTC statt lokale Zeit)
+- [x] Heineken PDF: Seitenumbruch-Fix + verbrauchtes Material anzeigen
+- [x] Material-Formular: Heineken-Beschreibung + Foto-Optimierung
 - [x] Material-Foto: Supabase INSERT-Policy erstellt (Upload funktionierte nicht)
 - [x] Material-Foto: Crop-Editor (crop_your_image, Rotation, fixCropRect, Dark Theme)
 - [x] Material-Foto: Zwei-Datei Upload (HighRes + Preview 400px/60%)

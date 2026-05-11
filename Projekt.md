@@ -624,15 +624,28 @@
     - Deploy-Workflow in CLAUDE.md aktualisiert
 157. ✅ 3 neue Regionen: Sempach, Küssnacht, Cham (DB: 15 Regionen total)
 
-### Erledigt am 11.05.2026
-158. ✅ Material-Foto komplett überarbeitet:
+### Erledigt am 10.–11.05.2026
+158. ✅ Heineken Monatsraster: Cache-Buster auf PDF-Download-URL
+159. ✅ Heineken Monatsraster: PDF Layout-Verbesserungen
+160. ✅ Heineken Raster-Mail: Text mit aktuellem Datum
+161. ✅ Zahlungsdifferenz-Handling bei Rechnungen + Pikett-Formular anpassen
+162. ✅ Heineken Störungsformular: Pikett KW Sonderzeichen-Fix + Km-System
+163. ✅ Pikett-Monatszuordnung: nach Montag der KW (statt Pikett-Datum)
+164. ✅ Eröffnung/Endreinigung: Störungsnummer + Art im Formular anzeigen
+165. ✅ Heineken Monatsrechnung: Gratisreinigungen fehlen nach Neuerstellen — Fix
+166. ✅ Heineken PDF: 5 Verbesserungen (Layout, Formatierung)
+167. ✅ Pikett-Dienste Kachel: Gruppierung nach Montag der KW
+168. ✅ DST-Bug in Kalenderwochen-Berechnung behoben (UTC statt lokale Zeit)
+169. ✅ Heineken PDF: Seitenumbruch-Fix + verbrauchtes Material anzeigen
+170. ✅ Material-Formular: Heineken-Beschreibung + Foto-Optimierung
+171. ✅ Material-Foto komplett überarbeitet:
     - Supabase Storage INSERT-Policy erstellt (Fotos konnten vorher nicht hochgeladen werden)
     - Foto-Crop-Editor (crop_your_image, fixCropRect, Rotation, Dark Theme)
     - Zwei-Datei Upload (HighRes + Preview 400px/60% JPEG)
     - Lazy HighRes Loading (Preview auf Detailseite, HighRes on-demand)
     - PopScope gegen Browser-Back-Verwechslung
     - Lade-Spinner beim Foto-Ändern
-159. ✅ Material-Liste: Subtitle neu DBO-Nummer + Kategorie (ohne Einheit), einzeilig
+172. ✅ Material-Liste: Subtitle neu DBO-Nummer + Kategorie (ohne Einheit), einzeilig
 
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
