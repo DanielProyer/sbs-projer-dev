@@ -307,6 +307,7 @@ class HeinekenRapportService {
     required String ort,
     required bool istBergkunde,
     required double preis,
+    String art = 'eroeffnung',
     List<(String name, double menge)> materialien = const [],
     Uint8List? logoBytes,
   }) {
@@ -329,7 +330,7 @@ class HeinekenRapportService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      _formField('Eröffnung/Endrein.', 'Eröffnung'),
+                      _formField('Eröffnung/Endrein.', art == 'endreinigung' ? 'Endreinigung' : 'Eröffnung'),
                       _formField('Kunde / Rest.', kunde),
                       _formField('Name', ''),
                       _formField('Vorname', ''),

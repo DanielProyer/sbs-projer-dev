@@ -749,6 +749,7 @@ class HeinekenRechnungService {
         ort: _plzOrt(b),
         istBergkunde: row['ist_bergkunde'] == true || b?['ist_bergkunde'] == true,
         preis: _toDouble(row['preis']),
+        art: row['art']?.toString() ?? 'eroeffnung',
         logoBytes: logoBytes,
       ));
     }
