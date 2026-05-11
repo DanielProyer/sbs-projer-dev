@@ -37,40 +37,61 @@ class MaterialArtikelRepository {
     return rows.map((r) => MaterialArtikel.fromJson(r)).toList();
   }
 
-  /// Foto hochladen und foto_storage_path setzen.
-  /// Pfad: {userId}/{materialId}.jpg
-  /// ImagePicker reduziert bereits auf 1600px / 85% Qualität.
-  static Future<void> uploadFoto(String materialId, Uint8List bytes) async {
+  /// Foto hochladen: Original (volle Auflösung) + Crop (Vorschau).
+  /// Original: {userId}/{materialId}.jpg
+  /// Crop:     {userId}/{materialId}_crop.jpg
+  static Future<void> uploadFoto(
+    String materialId, {
+    required Uint8List originalBytes,
+    required Uint8List croppedBytes,
+  }) async {
     final userId = SupabaseService.currentUser!.id;
     final fullPath = '$userId/$materialId.jpg';
+    final cropPath = '$userId/${materialId}_crop.jpg';
 
-    debugPrint('Foto-Upload: ${bytes.length} bytes → $fullPath');
+    debugPrint(
+        'Foto-Upload: Original ${originalBytes.length} bytes, '
+        'Crop ${croppedBytes.length} bytes');
 
-    await SupabaseService.client.storage
-        .from('material-fotos')
-        .uploadBinary(
-          fullPath,
-          bytes,
-          fileOptions: const FileOptions(
-            contentType: 'image/jpeg',
-            upsert: true,
+    // Beide parallel hochladen
+    await Future.wait([
+      SupabaseService.client.storage
+          .from('material-fotos')
+          .uploadBinary(
+            fullPath,
+            originalBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
           ),
-        );
+      SupabaseService.client.storage
+          .from('material-fotos')
+          .uploadBinary(
+            cropPath,
+            croppedBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
+          ),
+    ]);
 
     await SupabaseService.client
         .from('material')
         .update({'foto_storage_path': fullPath})
         .eq('id', materialId);
 
-    debugPrint('Foto-Upload erfolgreich: $fullPath');
+    debugPrint('Foto-Upload erfolgreich: $fullPath + $cropPath');
   }
 
-  /// Foto löschen
+  /// Foto löschen (Original + Crop)
   static Future<void> deleteFoto(
       String materialId, String storagePath) async {
+    final cropPath = storagePath.replaceAll('.jpg', '_crop.jpg');
     await SupabaseService.client.storage
         .from('material-fotos')
-        .remove([storagePath]);
+        .remove([storagePath, cropPath]);
 
     await SupabaseService.client
         .from('material')
@@ -78,10 +99,22 @@ class MaterialArtikelRepository {
         .eq('id', materialId);
   }
 
-  /// Signed URL generieren (1h gültig)
+  /// Signed URL für Original (volle Auflösung, 1h gültig)
   static Future<String> getSignedUrl(String storagePath) async {
     return await SupabaseService.client.storage
         .from('material-fotos')
         .createSignedUrl(storagePath, 3600);
+  }
+
+  /// Signed URL für Crop-Vorschau. Null wenn nicht vorhanden.
+  static Future<String?> getSignedUrlCrop(String storagePath) async {
+    try {
+      final cropPath = storagePath.replaceAll('.jpg', '_crop.jpg');
+      return await SupabaseService.client.storage
+          .from('material-fotos')
+          .createSignedUrl(cropPath, 3600);
+    } catch (_) {
+      return null;
+    }
   }
 }

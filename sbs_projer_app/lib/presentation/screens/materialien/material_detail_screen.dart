@@ -59,7 +59,8 @@ class _MaterialDetailContentState
   List<MaterialVerbrauch>? _verbrauch;
   bool _loadingVerbrauch = true;
   MaterialArtikel? _artikel;
-  String? _fotoUrl;
+  String? _fotoUrl;      // Original (volle Auflösung, für Vollbild)
+  String? _cropUrl;      // Crop-Vorschau (für Karte)
   bool _uploadingFoto = false;
 
   @override
@@ -78,18 +79,23 @@ class _MaterialDetailContentState
             .map((k) => k.name)
             .firstOrNull;
       }
-      // Artikel-Foto laden
+      // Artikel-Foto laden (Original + Crop parallel)
       if (_lager.materialId != null) {
         final artikel =
             await MaterialArtikelRepository.getById(_lager.materialId!);
         if (artikel != null && artikel.fotoStoragePath != null && mounted) {
           try {
-            final url = await MaterialArtikelRepository.getSignedUrl(
-                artikel.fotoStoragePath!);
+            final urls = await Future.wait([
+              MaterialArtikelRepository.getSignedUrl(
+                  artikel.fotoStoragePath!),
+              MaterialArtikelRepository.getSignedUrlCrop(
+                  artikel.fotoStoragePath!),
+            ]);
             if (mounted) {
               setState(() {
                 _artikel = artikel;
-                _fotoUrl = url;
+                _fotoUrl = urls[0];
+                _cropUrl = urls[1];
               });
             }
           } catch (_) {
@@ -292,7 +298,7 @@ class _MaterialDetailContentState
                   maxHeight: 400,
                 ),
                 child: Image.network(
-                  _fotoUrl!,
+                  _cropUrl ?? _fotoUrl!,
                   width: double.infinity,
                   fit: BoxFit.contain,
                   loadingBuilder: (context, child, loadingProgress) {
@@ -402,16 +408,14 @@ class _MaterialDetailContentState
     if (source == null) return;
 
     final picker = ImagePicker();
-    // Pixel 9 optimiert: 1600px / 85% Qualität
+    // Volle Auflösung für Original-Datei (Pixel 9: ~4032x3024)
     final file = await picker.pickImage(
       source: source,
-      maxWidth: 1600,
-      maxHeight: 1600,
-      imageQuality: 85,
+      imageQuality: 90,
     );
     if (file == null || !mounted) return;
 
-    final bytes = await file.readAsBytes();
+    final originalBytes = await file.readAsBytes();
 
     // Crop-Dialog anzeigen — Benutzer kann zuschneiden, erneut aufnehmen oder abbrechen
     if (!mounted) return;
@@ -419,7 +423,7 @@ class _MaterialDetailContentState
       context: context,
       barrierDismissible: false,
       builder: (ctx) => _FotoCropDialog(
-        imageBytes: bytes,
+        imageBytes: originalBytes,
         onRetake: () {
           Navigator.pop(ctx, null);
           Future.microtask(() => _pickAndUploadFoto());
@@ -428,18 +432,27 @@ class _MaterialDetailContentState
     );
     if (croppedBytes == null || !mounted) return;
 
-    // Upload starten
+    // Upload starten: Original + Crop parallel
     setState(() => _uploadingFoto = true);
     try {
-      await MaterialArtikelRepository.uploadFoto(_artikel!.id, croppedBytes);
+      await MaterialArtikelRepository.uploadFoto(
+        _artikel!.id,
+        originalBytes: originalBytes,
+        croppedBytes: croppedBytes,
+      );
       final updated =
           await MaterialArtikelRepository.getById(_artikel!.id);
       if (updated != null && updated.fotoStoragePath != null && mounted) {
-        final url = await MaterialArtikelRepository.getSignedUrl(
-            updated.fotoStoragePath!);
+        final urls = await Future.wait([
+          MaterialArtikelRepository.getSignedUrl(
+              updated.fotoStoragePath!),
+          MaterialArtikelRepository.getSignedUrlCrop(
+              updated.fotoStoragePath!),
+        ]);
         setState(() {
           _artikel = updated;
-          _fotoUrl = url;
+          _fotoUrl = urls[0];
+          _cropUrl = urls[1];
           _uploadingFoto = false;
         });
         if (mounted) {
@@ -481,7 +494,10 @@ class _MaterialDetailContentState
       await MaterialArtikelRepository.deleteFoto(
           _artikel!.id, _artikel!.fotoStoragePath!);
       if (mounted) {
-        setState(() => _fotoUrl = null);
+        setState(() {
+          _fotoUrl = null;
+          _cropUrl = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto gelöscht')),
         );
