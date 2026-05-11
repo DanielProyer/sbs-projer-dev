@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,8 +58,7 @@ class _MaterialDetailContentState
   List<MaterialVerbrauch>? _verbrauch;
   bool _loadingVerbrauch = true;
   MaterialArtikel? _artikel;
-  String? _fotoUrl;      // Volle Auflösung (für Vollbild-Ansicht)
-  String? _thumbUrl;     // Thumbnail (für Vorschau-Karte)
+  String? _fotoUrl;
   bool _uploadingFoto = false;
 
   @override
@@ -77,24 +77,18 @@ class _MaterialDetailContentState
             .map((k) => k.name)
             .firstOrNull;
       }
-      // Artikel-Foto laden (Thumbnail + Full-Res parallel)
+      // Artikel-Foto laden
       if (_lager.materialId != null) {
         final artikel =
             await MaterialArtikelRepository.getById(_lager.materialId!);
         if (artikel != null && artikel.fotoStoragePath != null && mounted) {
           try {
-            // Thumbnail und Full-Res parallel laden
-            final results = await Future.wait([
-              MaterialArtikelRepository.getSignedUrl(
-                  artikel.fotoStoragePath!),
-              MaterialArtikelRepository.getSignedUrlThumb(
-                  artikel.fotoStoragePath!),
-            ]);
+            final url = await MaterialArtikelRepository.getSignedUrl(
+                artikel.fotoStoragePath!);
             if (mounted) {
               setState(() {
                 _artikel = artikel;
-                _fotoUrl = results[0]!;
-                _thumbUrl = results[1];
+                _fotoUrl = url;
               });
             }
           } catch (_) {
@@ -296,9 +290,9 @@ class _MaterialDetailContentState
                 width: double.infinity,
                 height: 200,
                 child: Image.network(
-                  _thumbUrl ?? _fotoUrl!,
+                  _fotoUrl!,
                   fit: BoxFit.cover,
-                  cacheWidth: 400,
+                  cacheWidth: 600,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return Center(
@@ -392,8 +386,7 @@ class _MaterialDetailContentState
     if (source == null) return;
 
     final picker = ImagePicker();
-    // Für Pixel 9 optimiert: 1600px reicht für Vollbild-Ansicht,
-    // Vorschau wird server-seitig auf 400px skaliert (Supabase Transform)
+    // Pixel 9 optimiert: 1600px / 85% Qualität
     final file = await picker.pickImage(
       source: source,
       maxWidth: 1600,
@@ -402,24 +395,36 @@ class _MaterialDetailContentState
     );
     if (file == null || !mounted) return;
 
+    final bytes = await file.readAsBytes();
+
+    // Vorschau-Dialog anzeigen — Benutzer kann prüfen, erneut aufnehmen oder abbrechen
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _FotoPreviewDialog(
+        imageBytes: bytes,
+        onRetake: () {
+          Navigator.pop(ctx, null);
+          // Erneut aufnehmen nach Dialog-Schließung
+          Future.microtask(() => _pickAndUploadFoto());
+        },
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // Upload starten
     setState(() => _uploadingFoto = true);
     try {
-      final bytes = await file.readAsBytes();
       await MaterialArtikelRepository.uploadFoto(_artikel!.id, bytes);
-      // Reload article to get updated foto_storage_path
       final updated =
           await MaterialArtikelRepository.getById(_artikel!.id);
       if (updated != null && updated.fotoStoragePath != null && mounted) {
-        final urls = await Future.wait([
-          MaterialArtikelRepository.getSignedUrl(
-              updated.fotoStoragePath!),
-          MaterialArtikelRepository.getSignedUrlThumb(
-              updated.fotoStoragePath!),
-        ]);
+        final url = await MaterialArtikelRepository.getSignedUrl(
+            updated.fotoStoragePath!);
         setState(() {
           _artikel = updated;
-          _fotoUrl = urls[0]!;
-          _thumbUrl = urls[1];
+          _fotoUrl = url;
           _uploadingFoto = false;
         });
         if (mounted) {
@@ -432,7 +437,7 @@ class _MaterialDetailContentState
       if (mounted) {
         setState(() => _uploadingFoto = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler beim Upload: $e')),
         );
       }
     }
@@ -461,10 +466,7 @@ class _MaterialDetailContentState
       await MaterialArtikelRepository.deleteFoto(
           _artikel!.id, _artikel!.fotoStoragePath!);
       if (mounted) {
-        setState(() {
-          _fotoUrl = null;
-          _thumbUrl = null;
-        });
+        setState(() => _fotoUrl = null);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto gelöscht')),
         );
@@ -696,6 +698,92 @@ class _InfoRow extends StatelessWidget {
             child: Text(value, style: const TextStyle(fontSize: 13)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Foto-Vorschau vor dem Upload — Benutzer kann prüfen, drehen
+/// oder erneut aufnehmen.
+class _FotoPreviewDialog extends StatefulWidget {
+  final Uint8List imageBytes;
+  final VoidCallback onRetake;
+
+  const _FotoPreviewDialog({
+    required this.imageBytes,
+    required this.onRetake,
+  });
+
+  @override
+  State<_FotoPreviewDialog> createState() => _FotoPreviewDialogState();
+}
+
+class _FotoPreviewDialogState extends State<_FotoPreviewDialog> {
+  int _rotation = 0; // 0, 1, 2, 3 → 0°, 90°, 180°, 270°
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Foto-Vorschau'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.rotate_right),
+              tooltip: 'Drehen',
+              onPressed: () =>
+                  setState(() => _rotation = (_rotation + 1) % 4),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Center(
+                  child: RotatedBox(
+                    quarterTurns: _rotation,
+                    child: Image.memory(
+                      widget.imageBytes,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onRetake,
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Erneut aufnehmen'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.pop(context, true),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Verwenden'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
