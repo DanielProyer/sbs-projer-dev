@@ -655,7 +655,7 @@ class HeinekenRechnungService {
         kunde: isKm ? (row['problem_beschreibung']?.toString() ?? '') : (b?['name'] ?? 'UNBEKANNT'),
         adresse: isKm ? '' : _adresse(b),
         ort: isKm ? (row['notizen']?.toString() ?? '') : _plzOrt(b),
-        stoerungBereiche: isKm ? null : (row['stoerung_bereiche'] as List?)?.cast<int>(),
+        stoerungBereiche: isKm ? [1] : (row['stoerung_bereiche'] as List?)?.cast<int>(),
         serienNrKuehler: isKm ? null : row['serien_nr_kuehler']?.toString(),
         uhrzeitStart: isKm ? '00:00' : row['uhrzeit_start']?.toString(),
         istPikettEinsatz: isKm ? false : row['ist_pikett_einsatz'] == true,

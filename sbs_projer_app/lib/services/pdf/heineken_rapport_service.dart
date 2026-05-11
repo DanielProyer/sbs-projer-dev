@@ -1331,7 +1331,7 @@ class HeinekenRapportService {
             children: [
               pw.SizedBox(
                   width: 200,
-                  child: pw.Text('Pikettbereitschaft KW …',
+                  child: pw.Text('Pikettbereitschaft KW ...',
                       style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold))),
