@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 10.05.2026
+**Stand**: 11.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.24+306
+**Version**: 0.10.46+328
 
 ---
 
@@ -624,6 +624,16 @@
     - Deploy-Workflow in CLAUDE.md aktualisiert
 157. ✅ 3 neue Regionen: Sempach, Küssnacht, Cham (DB: 15 Regionen total)
 
+### Erledigt am 11.05.2026
+158. ✅ Material-Foto komplett überarbeitet:
+    - Supabase Storage INSERT-Policy erstellt (Fotos konnten vorher nicht hochgeladen werden)
+    - Foto-Crop-Editor (crop_your_image, fixCropRect, Rotation, Dark Theme)
+    - Zwei-Datei Upload (HighRes + Preview 400px/60% JPEG)
+    - Lazy HighRes Loading (Preview auf Detailseite, HighRes on-demand)
+    - PopScope gegen Browser-Back-Verwechslung
+    - Lade-Spinner beim Foto-Ändern
+159. ✅ Material-Liste: Subtitle neu DBO-Nummer + Kategorie (ohne Einheit), einzeilig
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
 2. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
@@ -655,5 +665,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 10.05.2026 – Heineken Monatsraster komplett (PDF, Mail, Cache), Service Worker deaktiviert (sofort aktuell nach Refresh), Servicezeiten + WE/AG-Nummern für Betriebe, 3 neue Regionen (Sempach, Küssnacht, Cham). App-Version 0.10.24+306.
+**Zuletzt aktualisiert**: 11.05.2026 – Material-Foto komplett (Crop, 2-Res Upload, Lazy Loading, Spinner), Material-Liste Subtitle überarbeitet. App-Version 0.10.46+328.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)

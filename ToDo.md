@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 10.05.2026
+**Stand**: 11.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -199,7 +199,13 @@
 - [x] Betrieb: Servicezeiten (Morgen/Nachmittag) hinzugefügt
 - [x] Service Worker deaktiviert — Webapp sofort aktuell nach Refresh
 - [x] 3 neue Regionen: Sempach, Küssnacht, Cham
+- [x] Material-Foto: Supabase INSERT-Policy erstellt (Upload funktionierte nicht)
+- [x] Material-Foto: Crop-Editor (crop_your_image, Rotation, fixCropRect, Dark Theme)
+- [x] Material-Foto: Zwei-Datei Upload (HighRes + Preview 400px/60%)
+- [x] Material-Foto: Lazy HighRes Loading (Preview auf Detailseite, HighRes on-demand)
+- [x] Material-Foto: Lade-Spinner beim Foto-Ändern
+- [x] Material-Liste: Subtitle DBO + Kategorie (ohne Einheit), einzeilig
 
 ---
 
-**Zuletzt aktualisiert**: 10.05.2026
+**Zuletzt aktualisiert**: 11.05.2026
