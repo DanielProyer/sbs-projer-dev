@@ -462,7 +462,7 @@ class HeinekenRechnungService {
     return rows.map((r) {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
-        stoerNr: r['referenz_nr']?.toString(),
+        stoerNr: r['stoerungsnummer']?.toString(),
         bereich: 'Eröffnung',
         kunde: _betriebLabel(r['betrieb_id'], betriebe),
         betrag: _toDouble(r['preis']),
@@ -741,8 +741,8 @@ class HeinekenRechnungService {
       final bid = row['betrieb_id'] as String?;
       final b = bid != null ? betriebe[bid] : null;
       pdf.addPage(HeinekenRapportService.buildEEReinigungPage(
-        referenzNr: row['referenz_nr']?.toString() ?? '',
-        stoerungsnummer: row['referenz_nr']?.toString() ?? '',
+        referenzNr: row['stoerungsnummer']?.toString() ?? '',
+        stoerungsnummer: row['stoerungsnummer']?.toString() ?? '',
         datum: DateTime.parse(row['datum']),
         kunde: b?['name'] ?? 'UNBEKANNT',
         adresse: _adresse(b),
