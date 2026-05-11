@@ -273,10 +273,11 @@ String _formatDate(DateTime date) {
   return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
 }
 
-/// Montag der ISO-Woche (massgebend für Monatszuordnung).
+/// Montag der ISO-Woche — UTC-Berechnung um DST-Fehler zu vermeiden.
 DateTime _montagDerWoche(DateTime date) {
-  return DateTime(date.year, date.month, date.day)
-      .subtract(Duration(days: date.weekday - 1));
+  final d = DateTime.utc(date.year, date.month, date.day);
+  final monday = d.subtract(Duration(days: d.weekday - 1));
+  return DateTime(monday.year, monday.month, monday.day);
 }
 
 int _kw(DateTime date) {

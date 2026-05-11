@@ -706,18 +706,24 @@ class HeinekenRechnungService {
 
   // ── Utils ──────────────────────────────────────────────────────
 
+  /// ISO-Kalenderwoche — UTC verwenden um DST-Fehler zu vermeiden!
+  /// Local DateTime.difference().inDays verliert bei Sommerzeitumstellung
+  /// eine Stunde, was nach dem DST-Übergang (Ende März) dayOfYear um 1
+  /// zu wenig ergibt und damit die falsche KW berechnet.
   static int _kalenderWoche(DateTime date) {
-    final dayOfYear =
-        date.difference(DateTime(date.year, 1, 1)).inDays + 1;
-    final wday = date.weekday;
+    final d = DateTime.utc(date.year, date.month, date.day);
+    final dayOfYear = d.difference(DateTime.utc(date.year, 1, 1)).inDays + 1;
+    final wday = d.weekday;
     return ((dayOfYear - wday + 10) ~/ 7);
   }
 
   /// Montag der ISO-Woche für ein Datum berechnen.
   /// Massgebend für die monatliche Pikett-Zuordnung.
+  /// Montag der ISO-Woche — UTC-Berechnung um DST-Fehler zu vermeiden.
   static DateTime _montagDerWoche(DateTime date) {
-    return DateTime(date.year, date.month, date.day)
-        .subtract(Duration(days: date.weekday - 1));
+    final d = DateTime.utc(date.year, date.month, date.day);
+    final monday = d.subtract(Duration(days: d.weekday - 1));
+    return DateTime(monday.year, monday.month, monday.day);
   }
 
   static double _toDouble(dynamic value) {
