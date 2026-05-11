@@ -45817,7 +45817,7 @@ k=A.an("0.72",h,B.b8,B.cF)
 j=A.ls()
 i=A.an(g,h,B.b8,h)
 return A.cT(A.b([q,new A.ek(B.kC,p),new A.ak(h,4,h),n,new A.ek(B.kC,A.cW(A.b([new A.ak(200,h,m),o,new A.ak(10,h,h),new A.ak(25,h,l),new A.ak(50,h,k),j,new A.ak(25,h,i),A.dL(h,A.an(f&&e&&b>0?B.h.H(b,2):"-",h,B.b8,B.cF),h,h,B.hT,h,h,h,55)],r),B.b1,B.a9)),A.cW(A.b([new A.ak(200,h,A.an("Fahrweg von-bis-nach",h,B.b8,h)),A.i0(A.tS("-",B.ow,h))],r),B.b1,B.a9)],r),B.aJ,B.a9)},
-bSH(a,b,c,d){var s,r=null,q="SFr.",p=A.an("Pikettbereitschaft KW \u2026",r,A.ca(r,r,r,r,r,r,r,r,r,B.ak,r,r,10,r,B.at,r,!0,r,r,r,r),r),o=A.tS(B.i.j(a),B.eL,55),n=A.an(q,r,B.b8,r),m=A.an("80.00",r,B.b8,B.cF),l=A.an("(FR-SA)",r,B.bEz,B.eL),k=A.an(q,r,B.b8,r),j=t.o
+bSH(a,b,c,d){var s,r=null,q="SFr.",p=A.an("Pikettbereitschaft KW ...",r,A.ca(r,r,r,r,r,r,r,r,r,B.ak,r,r,10,r,B.at,r,!0,r,r,r,r),r),o=A.tS(B.i.j(a),B.eL,55),n=A.an(q,r,B.b8,r),m=A.an("80.00",r,B.b8,B.cF),l=A.an("(FR-SA)",r,B.bEz,B.eL),k=A.an(q,r,B.b8,r),j=t.o
 k=A.cW(A.b([new A.ak(200,r,p),o,new A.ak(10,r,r),new A.ak(25,r,n),new A.ak(50,r,m),new A.ak(60,r,l),new A.ak(25,r,k),A.dL(r,A.an(a>0&&b!=null?B.h.H(b,2):"-",r,B.b8,B.cF),r,r,B.hT,r,r,r,55)],j),B.b1,B.a9)
 l=A.an("Pikett Feiertag",r,A.ca(r,r,r,r,r,r,r,r,r,B.ak,r,r,10,r,B.at,r,!0,r,r,r,r),r)
 m=A.tS(B.i.j(c),B.eL,55)
@@ -46624,99 +46624,99 @@ H1(a,b){var s=A.dj(a,!0,t.a)
 B.e.ce(s,new A.aGQ(b))
 return s},
 a7B(a,b,c){return A.c8Y(a,b,c)},
-c8Y(d5,d6,d7){var s=0,r=A.p(t.H),q=1,p=[],o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,d0,d1,d2,d3,d4
-var $async$a7B=A.l(function(d8,d9){if(d8===1){p.push(d9)
-s=q}for(;;)switch(s){case 0:d1=d6.CW
-d2=d6.ch
-for(b=A.H1(d6.y,"datum"),a=b.length,a0=d5.c,a1=t.S,a2=t.kc,a3=0;a3<b.length;b.length===a||(0,A.E)(b),++a3){a4=b[a3]
-a5=J.a1(a4)
-a6=J.j(a5.h(a4,"ist_kilometerabrechnung"),!0)
-a7=A.bX(a5.h(a4,"betrieb_id"))
-a8=a7!=null?d2.h(0,a7):null
-if(a6)a9="0"
-else{a9=a5.h(a4,"referenz_nr")
-a9=a9==null?null:J.bg(a9)
-if(a9==null)a9=""}if(a6)b0="0"
-else{b0=a5.h(a4,"referenz_nr")
+c8Y(d6,d7,d8){var s=0,r=A.p(t.H),q=1,p=[],o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,d0,d1,d2,d3,d4,d5
+var $async$a7B=A.l(function(d9,e0){if(d9===1){p.push(e0)
+s=q}for(;;)switch(s){case 0:d2=d7.CW
+d3=d7.ch
+for(b=A.H1(d7.y,"datum"),a=b.length,a0=d6.c,a1=t.S,a2=t.kc,a3=t.t,a4=0;a4<b.length;b.length===a||(0,A.E)(b),++a4){a5=b[a4]
+a6=J.a1(a5)
+a7=J.j(a6.h(a5,"ist_kilometerabrechnung"),!0)
+a8=A.bX(a6.h(a5,"betrieb_id"))
+a9=a8!=null?d3.h(0,a8):null
+if(a7)b0="0"
+else{b0=a6.h(a5,"referenz_nr")
 b0=b0==null?null:J.bg(b0)
-if(b0==null)b0=""}b1=A.b9(a5.h(a4,"datum"))
-if(a6){b2=a5.h(a4,"problem_beschreibung")
-b2=b2==null?null:J.bg(b2)
-if(b2==null)b2=""}else{b2=a8==null?null:a8.h(0,"name")
-if(b2==null)b2="UNBEKANNT"}b3=a6?"":A.a7C(a8)
-if(a6){b4=a5.h(a4,"notizen")
-b4=b4==null?null:J.bg(b4)
-if(b4==null)b4=""}else b4=A.a7D(a8)
-if(a6)b5=null
-else{b5=a2.a(a5.h(a4,"stoerung_bereiche"))
-b5=b5==null?null:J.t9(b5,a1)}if(a6)b6=null
-else{b6=a5.h(a4,"serien_nr_kuehler")
-b6=b6==null?null:J.bg(b6)}if(a6)b7="00:00"
-else{b7=a5.h(a4,"uhrzeit_start")
-b7=b7==null?null:J.bg(b7)}b8=a6?!1:J.j(a5.h(a4,"ist_pikett_einsatz"),!0)
-if(a6)b9=!1
-else b9=J.j(a8==null?null:a8.h(0,"ist_bergkunde"),!0)
-c0=A.bSR(a5.h(a4,"anfahrt_km"))
-c1=a6?null:A.pt(a5.h(a4,"preis_basis"))
-c2=A.pt(a5.h(a4,"preis_anfahrt"))
-c3=a6?null:A.pt(a5.h(a4,"preis_wochenende"))
-c4=A.pt(a5.h(a4,"komplexitaet_zuschlag"))
-a5=A.pt(a5.h(a4,"preis_netto"))
-a5=A.bSN(b3,c0,b1,b9,b8,c4,b2,d7,a6?B.zF:A.bLm(a4,d1,5),b4,c2,c1,a5,c3,a9,b6,b5,b0,b7)
-a5.nI(d5,null)
-a0.push(a5)}for(b=A.H1(d6.z,"datum"),a=b.length,a3=0;a3<b.length;b.length===a||(0,A.E)(b),++a3){a4=b[a3]
-a1=J.a1(a4)
-a7=A.bX(a1.h(a4,"betrieb_id"))
-a8=a7!=null?d2.h(0,a7):null
-a2=a1.h(a4,"referenz_nr")
+if(b0==null)b0=""}if(a7)b1="0"
+else{b1=a6.h(a5,"referenz_nr")
+b1=b1==null?null:J.bg(b1)
+if(b1==null)b1=""}b2=A.b9(a6.h(a5,"datum"))
+if(a7){b3=a6.h(a5,"problem_beschreibung")
+b3=b3==null?null:J.bg(b3)
+if(b3==null)b3=""}else{b3=a9==null?null:a9.h(0,"name")
+if(b3==null)b3="UNBEKANNT"}b4=a7?"":A.a7C(a9)
+if(a7){b5=a6.h(a5,"notizen")
+b5=b5==null?null:J.bg(b5)
+if(b5==null)b5=""}else b5=A.a7D(a9)
+if(a7)b6=A.b([1],a3)
+else{b6=a2.a(a6.h(a5,"stoerung_bereiche"))
+b6=b6==null?null:J.t9(b6,a1)}if(a7)b7=null
+else{b7=a6.h(a5,"serien_nr_kuehler")
+b7=b7==null?null:J.bg(b7)}if(a7)b8="00:00"
+else{b8=a6.h(a5,"uhrzeit_start")
+b8=b8==null?null:J.bg(b8)}b9=a7?!1:J.j(a6.h(a5,"ist_pikett_einsatz"),!0)
+if(a7)c0=!1
+else c0=J.j(a9==null?null:a9.h(0,"ist_bergkunde"),!0)
+c1=A.bSR(a6.h(a5,"anfahrt_km"))
+c2=a7?null:A.pt(a6.h(a5,"preis_basis"))
+c3=A.pt(a6.h(a5,"preis_anfahrt"))
+c4=a7?null:A.pt(a6.h(a5,"preis_wochenende"))
+c5=A.pt(a6.h(a5,"komplexitaet_zuschlag"))
+a6=A.pt(a6.h(a5,"preis_netto"))
+a6=A.bSN(b4,c1,b2,c0,b9,c5,b3,d8,a7?B.zF:A.bLm(a5,d2,5),b5,c3,c2,a6,c4,b0,b7,b6,b1,b8)
+a6.nI(d6,null)
+a0.push(a6)}for(b=A.H1(d7.z,"datum"),a=b.length,a4=0;a4<b.length;b.length===a||(0,A.E)(b),++a4){a5=b[a4]
+a1=J.a1(a5)
+a8=A.bX(a1.h(a5,"betrieb_id"))
+a9=a8!=null?d3.h(0,a8):null
+a2=a1.h(a5,"referenz_nr")
 a2=a2==null?null:J.bg(a2)
 if(a2==null)a2=""
-a5=a1.h(a4,"referenz_nr")
-a5=a5==null?null:J.bg(a5)
-if(a5==null)a5=""
-a9=A.b9(a1.h(a4,"datum"))
-b0=a8==null?null:a8.h(0,"name")
+a3=a1.h(a5,"referenz_nr")
+a3=a3==null?null:J.bg(a3)
+if(a3==null)a3=""
+a6=A.b9(a1.h(a5,"datum"))
+b0=a9==null?null:a9.h(0,"name")
 if(b0==null)b0="UNBEKANNT"
-b1=A.a7C(a8)
-b2=A.a7D(a8)
-b3=a1.h(a4,"problem_beschreibung")
+b1=A.a7C(a9)
+b2=A.a7D(a9)
+b3=a1.h(a5,"problem_beschreibung")
 b3=b3==null?null:J.bg(b3)
 if(b3==null)b3=""
-b4=a1.h(a4,"loesung_beschreibung")
+b4=a1.h(a5,"loesung_beschreibung")
 b4=b4==null?null:J.bg(b4)
-a1=A.pt(a1.h(a4,"pauschale"))
-a5=A.bSK(b1,a9,b0,b4,d7,A.bLm(a4,d1,3),b2,a1,b3,a2,a5)
-a5.nI(d5,null)
-a0.push(a5)}for(b=A.H1(d6.Q,"datum"),a=b.length,a3=0;a3<b.length;b.length===a||(0,A.E)(b),++a3){a4=b[a3]
-a1=J.a1(a4)
-a7=A.bX(a1.h(a4,"betrieb_id"))
-a8=a7!=null?d2.h(0,a7):null
-a2=a1.h(a4,"referenz_nr")
+a1=A.pt(a1.h(a5,"pauschale"))
+a3=A.bSK(b1,a6,b0,b4,d8,A.bLm(a5,d2,3),b2,a1,b3,a2,a3)
+a3.nI(d6,null)
+a0.push(a3)}for(b=A.H1(d7.Q,"datum"),a=b.length,a4=0;a4<b.length;b.length===a||(0,A.E)(b),++a4){a5=b[a4]
+a1=J.a1(a5)
+a8=A.bX(a1.h(a5,"betrieb_id"))
+a9=a8!=null?d3.h(0,a8):null
+a2=a1.h(a5,"referenz_nr")
 a2=a2==null?null:J.bg(a2)
 if(a2==null)a2=""
-a5=a1.h(a4,"referenz_nr")
-a5=a5==null?null:J.bg(a5)
-if(a5==null)a5=""
-a9=A.b9(a1.h(a4,"datum"))
-b0=a8==null
-b1=b0?null:a8.h(0,"name")
+a3=a1.h(a5,"referenz_nr")
+a3=a3==null?null:J.bg(a3)
+if(a3==null)a3=""
+a6=A.b9(a1.h(a5,"datum"))
+b0=a9==null
+b1=b0?null:a9.h(0,"name")
 if(b1==null)b1="UNBEKANNT"
-b2=A.a7C(a8)
-b3=A.a7D(a8)
-if(!J.j(a1.h(a4,"ist_bergkunde"),!0)){b4=J.j(b0?null:a8.h(0,"ist_bergkunde"),!0)
+b2=A.a7C(a9)
+b3=A.a7D(a9)
+if(!J.j(a1.h(a5,"ist_bergkunde"),!0)){b4=J.j(b0?null:a9.h(0,"ist_bergkunde"),!0)
 b0=b4}else b0=!0
-a5=A.bSJ(b2,a9,b0,b1,d7,B.zF,b3,A.tT(a1.h(a4,"preis")),a2,a5)
-a5.nI(d5,null)
-a0.push(a5)}b=A.H1(d6.as,"datum"),a=b.length,a3=0
-case 2:if(!(a3<b.length)){s=4
-break}o=b[a3]
+a3=A.bSJ(b2,a6,b0,b1,d8,B.zF,b3,A.tT(a1.h(a5,"preis")),a2,a3)
+a3.nI(d6,null)
+a0.push(a3)}b=A.H1(d7.as,"datum"),a=b.length,a4=0
+case 2:if(!(a4<b.length)){s=4
+break}o=b[a4]
 n=A.bX(J.r(o,"betrieb_id"))
-m=n!=null?d2.h(0,n):null
+m=n!=null?d3.h(0,n):null
 a1=J.r(o,"montage_typ")
-c5=a1==null?null:J.bg(a1)
-if(c5==null)c5="sonstiges"
+c6=a1==null?null:J.bg(a1)
+if(c6==null)c6="sonstiges"
 l=A.bX(J.r(o,"protokoll_foto_pfad"))
-s=c5==="heigenie_service"&&l!=null&&l.length!==0?5:7
+s=c6==="heigenie_service"&&l!=null&&l.length!==0?5:7
 break
 case 5:q=9
 k=A.d0(l,".pdf",".jpg")
@@ -46728,58 +46728,58 @@ a2=a1.c
 a2===$&&A.a()
 s=12
 return A.f(new A.Dz(a1.a,a1.b,"reinigung-fotos",a1.d,a2).un(0,k),$async$a7B)
-case 12:j=d9
+case 12:j=e0
 i=A.RI(j)
 a1=new A.Cf(B.df,B.o2,B.pF,null,!1,null)
 a1=new A.iX(a1,new A.aGC(i))
-a1.nI(d5,null)
+a1.nI(d6,null)
 a0.push(a1)
 q=1
 s=11
 break
 case 9:q=8
-d3=p.pop()
-h=A.a3(d3)
+d4=p.pop()
+h=A.a3(d4)
 A.cl().$1("[HEI] HeiGenie Protokoll-Foto nicht ladbar ("+l+"): "+A.i(h))
-A.bSO(d5,o,n,m,d1,d7)
+A.bSO(d6,o,n,m,d2,d8)
 s=11
 break
 case 8:s=1
 break
 case 11:s=6
 break
-case 7:A.bSO(d5,o,n,m,d1,d7)
-case 6:case 3:b.length===a||(0,A.E)(b),++a3
+case 7:A.bSO(d6,o,n,m,d2,d8)
+case 6:case 3:b.length===a||(0,A.E)(b),++a4
 s=2
 break
-case 4:for(b=A.H1(d6.at,"datum_start"),a=b.length,a3=0;a3<b.length;b.length===a||(0,A.E)(b),++a3){o=b[a3]
+case 4:for(b=A.H1(d7.at,"datum_start"),a=b.length,a4=0;a4<b.length;b.length===a||(0,A.E)(b),++a4){o=b[a4]
 a1=J.a1(o)
-c7=A.b9(a1.h(o,"datum_start"))
-c8=a1.h(o,"datum_ende")!=null?A.b9(a1.h(o,"datum_ende")):c7.cg(5184e8)
-c9=A.bSP(c7)
+c8=A.b9(a1.h(o,"datum_start"))
+c9=a1.h(o,"datum_ende")!=null?A.b9(a1.h(o,"datum_ende")):c8.cg(5184e8)
+d0=A.bSP(c8)
 a2=a1.h(o,"referenz_nr")
 a2=a2==null?null:J.bg(a2)
-if(a2==null)a2=""+A.Y(c7)+"_"+c9
-a5=A.pt(a1.h(o,"pauschale"))
-a2=A.bSM(A.bSR(a1.h(o,"anzahl_feiertage")),c8,c7,A.pt(a1.h(o,"feiertag_zuschlag")),c9,d7,a5,A.pt(a1.h(o,"pauschale_gesamt")),a2)
-a2.nI(d5,null)
-a0.push(a2)}for(b=A.H1(d6.ax,"datum"),a=b.length,a3=0;a3<b.length;b.length===a||(0,A.E)(b),++a3){o=b[a3]
+if(a2==null)a2=""+A.Y(c8)+"_"+d0
+a3=A.pt(a1.h(o,"pauschale"))
+a2=A.bSM(A.bSR(a1.h(o,"anzahl_feiertage")),c9,c8,A.pt(a1.h(o,"feiertag_zuschlag")),d0,d8,a3,A.pt(a1.h(o,"pauschale_gesamt")),a2)
+a2.nI(d6,null)
+a0.push(a2)}for(b=A.H1(d7.ax,"datum"),a=b.length,a4=0;a4<b.length;b.length===a||(0,A.E)(b),++a4){o=b[a4]
 a1=J.a1(o)
 n=A.bX(a1.h(o,"betrieb_id"))
-m=n!=null?d2.h(0,n):null
-d0=A.b9(a1.h(o,"datum"))
-a1=B.o.aq(B.i.j(A.aO(d0)),2,"0")
-a2=B.o.aq(B.i.j(A.ab(d0)),2,"0")
-a5=m==null?null:m.h(0,"name")
-if(a5==null)a5="UNBEKANNT"
-a2=A.c8X(A.a7C(m),d0,a5,d7,A.a7D(m),a1+"_"+a2+"_"+A.Y(d0))
-a2.nI(d5,null)
-a0.push(a2)}b=d6.ay
+m=n!=null?d3.h(0,n):null
+d1=A.b9(a1.h(o,"datum"))
+a1=B.o.aq(B.i.j(A.aO(d1)),2,"0")
+a2=B.o.aq(B.i.j(A.ab(d1)),2,"0")
+a3=m==null?null:m.h(0,"name")
+if(a3==null)a3="UNBEKANNT"
+a2=A.c8X(A.a7C(m),d1,a3,d8,A.a7D(m),a1+"_"+a2+"_"+A.Y(d1))
+a2.nI(d6,null)
+a0.push(a2)}b=d7.ay
 s=J.d1(b)?13:14
 break
-case 13:b=A.H1(b,"datum"),a=b.length,a3=0
-case 15:if(!(a3<b.length)){s=17
-break}g=A.bX(J.r(b[a3],"protokoll_foto_pfad"))
+case 13:b=A.H1(b,"datum"),a=b.length,a4=0
+case 15:if(!(a4<b.length)){s=17
+break}g=A.bX(J.r(b[a4],"protokoll_foto_pfad"))
 if(g==null||g.length===0){s=16
 break}q=19
 f=A.d0(g,".pdf",".jpg")
@@ -46791,24 +46791,24 @@ a2=a1.c
 a2===$&&A.a()
 s=22
 return A.f(new A.Dz(a1.a,a1.b,"reinigung-fotos",a1.d,a2).un(0,f),$async$a7B)
-case 22:e=d9
+case 22:e=e0
 d=A.RI(e)
 a1=new A.Cf(B.df,B.o2,B.pF,null,!1,null)
 a1=new A.iX(a1,new A.aGD(d))
-a1.nI(d5,null)
+a1.nI(d6,null)
 a0.push(a1)
 q=1
 s=21
 break
 case 19:q=18
-d4=p.pop()
-c=A.a3(d4)
+d5=p.pop()
+c=A.a3(d5)
 A.cl().$1("[HEI] Protokoll-Foto nicht ladbar ("+g+"): "+A.i(c))
 s=21
 break
 case 18:s=1
 break
-case 21:case 16:b.length===a||(0,A.E)(b),++a3
+case 21:case 16:b.length===a||(0,A.E)(b),++a4
 s=15
 break
 case 17:case 14:return A.n(null,r)
