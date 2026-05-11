@@ -385,12 +385,13 @@ class HeinekenRechnungService {
   }
 
   /// Lädt Material-Namen für alle Material-IDs in den Raw-Rows.
+  /// DB-Spalten: material_1_id, material_2_id, ... (mit Unterstrich!)
   static Future<Map<String, String>> _loadMaterialNames(
       List<Map<String, dynamic>> allRows) async {
     final ids = <String>{};
     for (final row in allRows) {
       for (int i = 1; i <= 5; i++) {
-        final id = row['material${i}_id'] as String?;
+        final id = row['material_${i}_id'] as String?;
         if (id != null) ids.add(id);
       }
     }
@@ -981,13 +982,14 @@ class HeinekenRechnungService {
   }
 
   /// Extrahiert Anlass-Einträge (Freitext + Stunden) aus einer Raw-Row.
+  /// DB-Spalten: material_1_id, material_1_menge, ... (mit Unterstrich!)
   static List<(String, double)> _extractAnlassEintraege(
       Map<String, dynamic> row, int max) {
     final result = <(String, double)>[];
     for (int i = 1; i <= max; i++) {
-      final text = row['material${i}_id'] as String?;
+      final text = row['material_${i}_id'] as String?;
       if (text != null && text.isNotEmpty) {
-        final stunden = _toDouble(row['material${i}_menge']);
+        final stunden = _toDouble(row['material_${i}_menge']);
         result.add((text, stunden));
       }
     }
@@ -995,14 +997,15 @@ class HeinekenRechnungService {
   }
 
   /// Extrahiert Material-Positionen aus einer Raw-Row.
+  /// DB-Spalten: material_1_id, material_1_menge, ... (mit Unterstrich!)
   static List<(String, double)> _extractMaterialien(
       Map<String, dynamic> row, Map<String, String> names, int max) {
     final result = <(String, double)>[];
     for (int i = 1; i <= max; i++) {
-      final id = row['material${i}_id'] as String?;
+      final id = row['material_${i}_id'] as String?;
       if (id != null) {
         final name = names[id] ?? id;
-        final menge = _toDouble(row['material${i}_menge']);
+        final menge = _toDouble(row['material_${i}_menge']);
         result.add((name, menge > 0 ? menge : 1));
       }
     }

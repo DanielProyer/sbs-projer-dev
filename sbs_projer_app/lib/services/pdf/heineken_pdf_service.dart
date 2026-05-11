@@ -327,8 +327,15 @@ class HeinekenPdfService {
   static List<pw.Widget> buildDetailWidgets(HeinekenMonatsDaten daten) {
     final widgets = <pw.Widget>[];
 
-    // Pro Kategorie
+    // Pro Kategorie — NewPage(freeSpace:) verhindert, dass ein Block
+    // auf der aktuellen Seite beginnt, wenn er nicht mehr komplett passt.
+    // pw.Container-Wrap funktioniert NICHT, weil Container ein SpanningWidget
+    // ist und MultiPage den Block trotzdem umbrechen darf.
     for (final (name, positionen, total) in daten.kategorien) {
+      if (positionen.isEmpty) continue;
+      // Header ~25 + Zeilen ~15 pro Stk + Total ~25 + Abstand
+      final estimatedHeight = 60.0 + positionen.length * 15.0;
+      widgets.add(pw.NewPage(freeSpace: estimatedHeight));
       widgets.add(_buildKategorieBlock(name, positionen, total));
     }
 
@@ -365,10 +372,7 @@ class HeinekenPdfService {
 
   static pw.Widget _buildKategorieBlock(
       String name, List<HeinekenPosition> positionen, double total) {
-    // Container (kein SpanningWidget) verhindert, dass MultiPage
-    // den Block mitten drin umbricht → Kategorie bleibt zusammen.
-    return pw.Container(
-      child: pw.Column(
+    return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.SizedBox(height: 10),
@@ -412,7 +416,6 @@ class HeinekenPdfService {
           ),
         ),
       ],
-    ),
     );
   }
 
