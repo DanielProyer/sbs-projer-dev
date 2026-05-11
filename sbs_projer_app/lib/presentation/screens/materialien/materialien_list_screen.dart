@@ -213,9 +213,15 @@ class _MaterialListItem extends StatelessWidget {
         ),
         title: Text(
           lager.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(_buildSubtitle()),
+        subtitle: Text(
+          _buildSubtitle(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -238,9 +244,8 @@ class _MaterialListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
-    if (kategorieName != null) parts.add(kategorieName!);
     if (lager.dboNr != null) parts.add('DBO ${lager.dboNr}');
-    parts.add(lager.einheit);
+    if (kategorieName != null) parts.add(kategorieName!);
     return parts.join(' · ');
   }
 }
