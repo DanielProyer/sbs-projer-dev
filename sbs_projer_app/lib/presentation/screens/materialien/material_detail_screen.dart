@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -286,26 +287,41 @@ class _MaterialDetailContentState
           if (_fotoUrl != null)
             GestureDetector(
               onTap: () => _showFullImage(_fotoUrl!),
-              child: SizedBox(
-                width: double.infinity,
-                height: 200,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxHeight: 400,
+                ),
                 child: Image.network(
                   _fotoUrl!,
-                  fit: BoxFit.cover,
-                  cacheWidth: 600,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
+                    return SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
                       ),
                     );
                   },
-                  errorBuilder: (_, __, ___) => const Center(
-                    child: Icon(Icons.broken_image, size: 48),
+                  errorBuilder: (_, __, ___) => const SizedBox(
+                    height: 120,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.broken_image, size: 48),
+                          SizedBox(height: 8),
+                          Text('Foto konnte nicht geladen werden',
+                              style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -397,26 +413,25 @@ class _MaterialDetailContentState
 
     final bytes = await file.readAsBytes();
 
-    // Vorschau-Dialog anzeigen — Benutzer kann prüfen, erneut aufnehmen oder abbrechen
+    // Crop-Dialog anzeigen — Benutzer kann zuschneiden, erneut aufnehmen oder abbrechen
     if (!mounted) return;
-    final confirmed = await showDialog<bool>(
+    final croppedBytes = await showDialog<Uint8List>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _FotoPreviewDialog(
+      builder: (ctx) => _FotoCropDialog(
         imageBytes: bytes,
         onRetake: () {
           Navigator.pop(ctx, null);
-          // Erneut aufnehmen nach Dialog-Schließung
           Future.microtask(() => _pickAndUploadFoto());
         },
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (croppedBytes == null || !mounted) return;
 
     // Upload starten
     setState(() => _uploadingFoto = true);
     try {
-      await MaterialArtikelRepository.uploadFoto(_artikel!.id, bytes);
+      await MaterialArtikelRepository.uploadFoto(_artikel!.id, croppedBytes);
       final updated =
           await MaterialArtikelRepository.getById(_artikel!.id);
       if (updated != null && updated.fotoStoragePath != null && mounted) {
@@ -703,60 +718,85 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// Foto-Vorschau vor dem Upload — Benutzer kann prüfen, drehen
-/// oder erneut aufnehmen.
-class _FotoPreviewDialog extends StatefulWidget {
+/// Foto-Editor vor dem Upload — Zuschneiden, Vorschau, erneut aufnehmen.
+/// Gibt die zugeschnittenen Bytes zurück oder null bei Abbruch.
+class _FotoCropDialog extends StatefulWidget {
   final Uint8List imageBytes;
   final VoidCallback onRetake;
 
-  const _FotoPreviewDialog({
+  const _FotoCropDialog({
     required this.imageBytes,
     required this.onRetake,
   });
 
   @override
-  State<_FotoPreviewDialog> createState() => _FotoPreviewDialogState();
+  State<_FotoCropDialog> createState() => _FotoCropDialogState();
 }
 
-class _FotoPreviewDialogState extends State<_FotoPreviewDialog> {
-  int _rotation = 0; // 0, 1, 2, 3 → 0°, 90°, 180°, 270°
+class _FotoCropDialogState extends State<_FotoCropDialog> {
+  final _cropController = CropController();
+  bool _cropping = false;
+  bool _isCircle = false;
 
   @override
   Widget build(BuildContext context) {
     return Dialog.fullscreen(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Foto-Vorschau'),
+          title: const Text('Foto bearbeiten'),
           leading: IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context, null),
           ),
           actions: [
+            // Kreis/Rechteck umschalten
             IconButton(
-              icon: const Icon(Icons.rotate_right),
-              tooltip: 'Drehen',
-              onPressed: () =>
-                  setState(() => _rotation = (_rotation + 1) % 4),
+              icon: Icon(_isCircle ? Icons.crop_square : Icons.circle_outlined),
+              tooltip: _isCircle ? 'Rechteck' : 'Kreis',
+              onPressed: () => setState(() => _isCircle = !_isCircle),
             ),
           ],
         ),
         body: Column(
           children: [
-            Expanded(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Center(
-                  child: RotatedBox(
-                    quarterTurns: _rotation,
-                    child: Image.memory(
-                      widget.imageBytes,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+            // Hinweis
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Bildausschnitt verschieben und zoomen',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
                 ),
               ),
             ),
+            // Crop-Widget
+            Expanded(
+              child: Crop(
+                image: widget.imageBytes,
+                controller: _cropController,
+                onCropped: (result) {
+                  if (!mounted) return;
+                  setState(() => _cropping = false);
+                  switch (result) {
+                    case CropSuccess(:final croppedImage):
+                      Navigator.pop(context, croppedImage);
+                    case CropFailure(:final cause):
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Fehler: $cause')),
+                      );
+                  }
+                },
+                withCircleUi: _isCircle,
+                interactive: true,
+                fixCropRect: false,
+                baseColor: Colors.black87,
+                maskColor: Colors.black54,
+                cornerDotBuilder: (size, edgeAlignment) =>
+                    const DotControl(color: Colors.white),
+              ),
+            ),
+            // Aktions-Buttons
             SafeArea(
               child: Padding(
                 padding:
@@ -765,17 +805,30 @@ class _FotoPreviewDialogState extends State<_FotoPreviewDialog> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: widget.onRetake,
+                        onPressed: _cropping ? null : widget.onRetake,
                         icon: const Icon(Icons.camera_alt),
-                        label: const Text('Erneut aufnehmen'),
+                        label: const Text('Neu aufnehmen'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: () => Navigator.pop(context, true),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Verwenden'),
+                        onPressed: _cropping
+                            ? null
+                            : () {
+                                setState(() => _cropping = true);
+                                _cropController.crop();
+                              },
+                        icon: _cropping
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.check),
+                        label:
+                            Text(_cropping ? 'Wird zugeschnitten...' : 'Verwenden'),
                       ),
                     ),
                   ],
