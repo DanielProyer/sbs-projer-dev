@@ -280,7 +280,9 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
           .from('raster-pdfs')
           .getPublicUrl(storagePath);
 
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      // Cache-Buster damit der Browser nicht das alte PDF zeigt
+      final cacheBustedUrl = '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+      await launchUrl(Uri.parse(cacheBustedUrl), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
