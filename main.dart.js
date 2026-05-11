@@ -46736,10 +46736,10 @@ a0.push(a3)}for(b=A.H1(d7.Q,"datum"),a=b.length,a4=0;a4<b.length;b.length===a||(
 a1=J.a1(a5)
 a8=A.bX(a1.h(a5,"betrieb_id"))
 a9=a8!=null?d3.h(0,a8):null
-a2=a1.h(a5,"referenz_nr")
+a2=a1.h(a5,"stoerungsnummer")
 a2=a2==null?null:J.bg(a2)
 if(a2==null)a2=""
-a3=a1.h(a5,"referenz_nr")
+a3=a1.h(a5,"stoerungsnummer")
 a3=a3==null?null:J.bg(a3)
 if(a3==null)a3=""
 a6=A.b5(a1.h(a5,"datum"))
@@ -168212,7 +168212,7 @@ q=q==null?null:J.bg(q)
 return new A.hg(r,q,"EA",A.QC(s.h(a,"betrieb_id"),this.a),A.tT(s.h(a,"pauschale")))},
 $S:81}
 A.aGK.prototype={
-$1(a){var s=J.a1(a),r=A.b5(s.h(a,"datum")),q=s.h(a,"referenz_nr")
+$1(a){var s=J.a1(a),r=A.b5(s.h(a,"datum")),q=s.h(a,"stoerungsnummer")
 q=q==null?null:J.bg(q)
 return new A.hg(r,q,"Er\xf6ffnung",A.QC(s.h(a,"betrieb_id"),this.a),A.tT(s.h(a,"preis")))},
 $S:81}
