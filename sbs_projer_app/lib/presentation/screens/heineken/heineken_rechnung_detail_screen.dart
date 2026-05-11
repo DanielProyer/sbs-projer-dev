@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.d
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -207,6 +208,14 @@ class _HeinekenRechnungDetailScreenState
       ),
     );
     if (confirmed == true) {
+      // Abgerechnet-Flags für den Monat zurücksetzen
+      if (_rechnung != null) {
+        try {
+          await HeinekenRechnungService.resetAbrechnung(
+              _rechnung!.rechnungsdatum);
+        } catch (_) {}
+      }
+
       // Zugehörige Buchungen löschen
       try {
         final buchungen =

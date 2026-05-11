@@ -319,7 +319,6 @@ class HeinekenRechnungService {
           .from('reinigungen')
           .select()
           .eq('user_id', _userId)
-          .eq('abgerechnet', false)
           .gte('datum', startStr)
           .lt('datum', endStr)
           .order('datum');
@@ -622,6 +621,84 @@ class HeinekenRechnungService {
     } catch (e) {
       debugPrint('Heineken: Reinigungen markieren fehlgeschlagen: $e');
     }
+  }
+
+  /// Setzt abgerechnet-Flags zurück für einen Monat.
+  /// Wird beim Löschen einer Heineken-Rechnung aufgerufen.
+  static Future<void> resetAbrechnung(DateTime monat) async {
+    final start = DateTime(monat.year, monat.month, 1);
+    final end = DateTime(monat.year, monat.month + 1, 1);
+    final startStr = start.toIso8601String().split('T').first;
+    final endStr = end.toIso8601String().split('T').first;
+
+    final tables = [
+      'stoerungen',
+      'eigenauftraege',
+      'eroeffnungsreinigungen',
+      'montagen',
+      'bergkundenpauschalen',
+    ];
+
+    for (final table in tables) {
+      try {
+        await SupabaseService.client
+            .from(table)
+            .update({
+              'abgerechnet': false,
+              'abrechnungs_monat': null,
+            })
+            .eq('user_id', _userId)
+            .gte('datum', startStr)
+            .lt('datum', endStr);
+      } catch (e) {
+        debugPrint('Heineken Reset: $table fehlgeschlagen: $e');
+      }
+    }
+
+    // Pikett: nach Montag der KW
+    try {
+      final pikettRows = await _queryPikettFuerMonat(start, end);
+      final pikettIds = pikettRows.map((r) => r['id'] as String).toList();
+      if (pikettIds.isNotEmpty) {
+        await SupabaseService.client
+            .from('pikett_dienste')
+            .update({
+              'abgerechnet': false,
+              'abrechnungs_monat': null,
+            })
+            .eq('user_id', _userId)
+            .inFilter('id', pikettIds);
+      }
+    } catch (e) {
+      debugPrint('Heineken Reset: pikett_dienste fehlgeschlagen: $e');
+    }
+
+    // Reinigungen: nur Heineken-Betriebe
+    try {
+      final bRows = await SupabaseService.client
+          .from('betriebe')
+          .select('id')
+          .eq('user_id', _userId)
+          .eq('rechnungsstellung', 'heineken');
+      final heinekenBetriebIds =
+          bRows.map((b) => b['id'] as String).toList();
+      if (heinekenBetriebIds.isNotEmpty) {
+        await SupabaseService.client
+            .from('reinigungen')
+            .update({
+              'abgerechnet': false,
+              'abrechnungs_monat': null,
+            })
+            .eq('user_id', _userId)
+            .inFilter('betrieb_id', heinekenBetriebIds)
+            .gte('datum', startStr)
+            .lt('datum', endStr);
+      }
+    } catch (e) {
+      debugPrint('Heineken Reset: reinigungen fehlgeschlagen: $e');
+    }
+
+    debugPrint('Heineken: Abrechnung für $startStr zurückgesetzt');
   }
 
   // ── Utils ──────────────────────────────────────────────────────
