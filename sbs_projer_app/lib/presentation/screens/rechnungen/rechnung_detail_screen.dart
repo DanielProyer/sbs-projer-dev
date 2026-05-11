@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
@@ -11,7 +12,9 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 
@@ -350,35 +353,137 @@ class _RechnungDetailContentState
   }
 
   Future<void> _markAsBezahlt(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final brutto = (_rechnung.betragBrutto * 20).roundToDouble() / 20;
+    final controller = TextEditingController(text: brutto.toStringAsFixed(2));
+
+    final result = await showDialog<double?>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Als bezahlt markieren?'),
-        content: Text(
-            'Rechnung ${_rechnung.rechnungsnummer ?? ''} als bezahlt markieren?'),
-        actions: [
-          TextButton(
-              onPressed: () => ctx.pop(false), child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () => ctx.pop(true), child: const Text('Bestätigen')),
-        ],
-      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final eingabe = double.tryParse(
+                    controller.text.replaceAll(',', '.')) ??
+                0;
+            final differenz =
+                ((eingabe - brutto) * 20).roundToDouble() / 20;
+
+            return AlertDialog(
+              title: const Text('Zahlungseingang'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Rechnung ${_rechnung.rechnungsnummer ?? ''}\n'
+                    'Rechnungsbetrag: CHF ${brutto.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: controller,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'[\d.,]')),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Eingegangener Betrag (CHF)',
+                      prefixText: 'CHF ',
+                      border: OutlineInputBorder(),
+                    ),
+                    autofocus: true,
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  if (differenz.abs() >= 0.01) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: differenz < 0
+                            ? AppColors.warning.withAlpha(25)
+                            : AppColors.success.withAlpha(25),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: differenz < 0
+                              ? AppColors.warning.withAlpha(80)
+                              : AppColors.success.withAlpha(80),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            differenz < 0
+                                ? Icons.trending_down
+                                : Icons.trending_up,
+                            size: 18,
+                            color: differenz < 0
+                                ? AppColors.warning
+                                : AppColors.success,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              differenz < 0
+                                  ? 'Unterzahlung: CHF ${differenz.abs().toStringAsFixed(2)}\n'
+                                    'Wird als Debitorenverlust (3805) gebucht'
+                                  : 'Mehrzahlung: CHF ${differenz.toStringAsFixed(2)}\n'
+                                    'Wird als a.o. Ertrag (8000) gebucht',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: differenz < 0
+                                    ? AppColors.warning
+                                    : AppColors.success,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  child: const Text('Abbrechen'),
+                ),
+                FilledButton(
+                  onPressed: eingabe > 0
+                      ? () => Navigator.pop(ctx, eingabe)
+                      : null,
+                  child: const Text('Bezahlt'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
-    if (confirmed != true) return;
+    if (result == null) return;
+
+    final zahlungBetrag = (result * 20).roundToDouble() / 20;
 
     try {
+      // 1. Rechnung als bezahlt markieren
       await RechnungRepository.update(_rechnung.id, {
         'zahlungsstatus': 'bezahlt',
         'zahlung_eingegangen_am':
             DateTime.now().toIso8601String().split('T').first,
-        'zahlung_betrag': _rechnung.betragBrutto,
+        'zahlung_betrag': zahlungBetrag,
       });
+
+      // 2. Buchungen erstellen (Zahlungseingang + ggf. Differenz)
+      final buchungen = await ZahlungsdifferenzService.verbuchen(
+        rechnung: _rechnung,
+        zahlungBetrag: zahlungBetrag,
+      );
 
       if (mounted) {
         ref.invalidate(rechnungenStreamProvider);
+        ref.invalidate(buchungenStreamProvider);
         setState(() {
-          // Refresh mit neuem Status
           _rechnung = Rechnung(
             id: _rechnung.id,
             userId: _rechnung.userId,
@@ -393,12 +498,24 @@ class _RechnungDetailContentState
             zahlungsstatus: 'bezahlt',
             versandart: _rechnung.versandart,
             zahlungEingegangenAm: DateTime.now(),
-            zahlungBetrag: _rechnung.betragBrutto,
+            zahlungBetrag: zahlungBetrag,
             pdfUrl: _rechnung.pdfUrl,
           );
         });
+
+        final differenz =
+            ((zahlungBetrag - brutto) * 20).roundToDouble() / 20;
+        String snackText = 'Rechnung als bezahlt markiert';
+        if (differenz.abs() >= 0.01) {
+          snackText += differenz < 0
+              ? ' (CHF ${differenz.abs().toStringAsFixed(2)} Debitorenverlust)'
+              : ' (CHF ${differenz.toStringAsFixed(2)} Mehrzahlung)';
+        }
+        if (buchungen.isNotEmpty) {
+          snackText += ' — ${buchungen.length} Buchung(en) erstellt';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rechnung als bezahlt markiert')),
+          SnackBar(content: Text(snackText)),
         );
       }
     } catch (e) {

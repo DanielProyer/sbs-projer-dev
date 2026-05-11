@@ -532,7 +532,7 @@ class HeinekenRapportService {
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.fromLTRB(40, 30, 40, 30),
       build: (context) {
-        final pauschalePro = pauschale ?? 160;
+        final pauschalePro = pauschale ?? 80;
         final feiertagPro = feiertagZuschlag != null && anzahlFeiertage > 0
             ? feiertagZuschlag / anzahlFeiertage
             : 80.0;
@@ -1344,12 +1344,12 @@ class HeinekenRapportService {
                       style: const pw.TextStyle(fontSize: 9))),
               pw.SizedBox(
                   width: 50,
-                  child: pw.Text('160.00',
+                  child: pw.Text('80.00',
                       style: const pw.TextStyle(fontSize: 9),
                       textAlign: pw.TextAlign.right)),
               pw.SizedBox(
                   width: 60,
-                  child: pw.Text('(pro Woche)',
+                  child: pw.Text('(FR-SA)',
                       style: const pw.TextStyle(fontSize: 7),
                       textAlign: pw.TextAlign.center)),
               pw.SizedBox(
