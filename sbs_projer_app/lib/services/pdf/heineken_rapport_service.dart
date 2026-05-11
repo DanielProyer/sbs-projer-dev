@@ -1332,7 +1332,7 @@ class HeinekenRapportService {
             children: [
               pw.SizedBox(
                   width: 200,
-                  child: pw.Text('Pikettbereitschaft KW ...',
+                  child: pw.Text('Pikettbereitschaft KW ... (FR-SA)',
                       style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold))),
@@ -1348,11 +1348,7 @@ class HeinekenRapportService {
                   child: pw.Text('80.00',
                       style: const pw.TextStyle(fontSize: 9),
                       textAlign: pw.TextAlign.right)),
-              pw.SizedBox(
-                  width: 60,
-                  child: pw.Text('(FR-SA)',
-                      style: const pw.TextStyle(fontSize: 7),
-                      textAlign: pw.TextAlign.center)),
+              pw.Spacer(),
               pw.SizedBox(
                   width: 25,
                   child: pw.Text('SFr.',

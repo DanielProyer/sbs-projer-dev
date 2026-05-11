@@ -462,7 +462,9 @@ class HeinekenRechnungService {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
         stoerNr: r['stoerungsnummer']?.toString(),
-        bereich: 'Eröffnung',
+        bereich: (r['art']?.toString() ?? 'eroeffnung') == 'endreinigung'
+            ? 'Endreinigung'
+            : 'Eröffnung',
         kunde: _betriebLabel(r['betrieb_id'], betriebe),
         betrag: _toDouble(r['preis']),
       );
@@ -514,10 +516,11 @@ class HeinekenRechnungService {
   ) {
     return rows.map((r) {
       final datumStart = DateTime.parse(r['datum_start']);
-      final kw = _kalenderWoche(datumStart);
+      final montag = _montagDerWoche(datumStart);
+      final kw = _kalenderWoche(montag);
       final feiertage = r['anzahl_feiertage'] ?? 0;
       return HeinekenPosition(
-        datum: datumStart,
+        datum: montag,
         stoerNr: 'KW $kw',
         bereich: 'Pikett',
         kunde: 'Feiertage: $feiertage',

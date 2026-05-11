@@ -365,7 +365,10 @@ class HeinekenPdfService {
 
   static pw.Widget _buildKategorieBlock(
       String name, List<HeinekenPosition> positionen, double total) {
-    return pw.Column(
+    // Container (kein SpanningWidget) verhindert, dass MultiPage
+    // den Block mitten drin umbricht → Kategorie bleibt zusammen.
+    return pw.Container(
+      child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.SizedBox(height: 10),
@@ -409,6 +412,7 @@ class HeinekenPdfService {
           ),
         ),
       ],
+    ),
     );
   }
 
