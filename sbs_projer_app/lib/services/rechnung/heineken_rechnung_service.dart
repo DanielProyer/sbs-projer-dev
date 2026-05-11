@@ -879,7 +879,7 @@ class HeinekenRechnungService {
       final datumEnde = row['datum_ende'] != null
           ? DateTime.parse(row['datum_ende'])
           : datumStart.add(const Duration(days: 6));
-      final kw = _kalenderWoche(datumStart);
+      final kw = _kalenderWoche(_montagDerWoche(datumStart));
       pdf.addPage(HeinekenRapportService.buildPikettPage(
         referenzNr: row['referenz_nr']?.toString() ??
             '${datumStart.year}_$kw',

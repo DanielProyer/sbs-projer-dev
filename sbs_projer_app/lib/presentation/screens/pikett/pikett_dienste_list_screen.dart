@@ -29,10 +29,10 @@ class _PikettDiensteListScreenState
   Widget build(BuildContext context) {
     final dienste = ref.watch(pikettDiensteProvider);
 
-    // Verfügbare Jahre
+    // Verfügbare Jahre (nach Montag der KW)
     final jahreSet = <int>{};
     for (final p in dienste) {
-      jahreSet.add(p.datumStart.year);
+      jahreSet.add(_montagDerWoche(p.datumStart).year);
     }
     final jahre = jahreSet.toList()..sort((a, b) => b.compareTo(a));
     if (jahre.isEmpty) jahre.add(DateTime.now().year);
@@ -42,8 +42,10 @@ class _PikettDiensteListScreenState
       ..sort((a, b) => b.datumStart.compareTo(a.datumStart));
 
     final filtered = sorted.where((p) {
-      if (p.datumStart.year != _selectedYear) return false;
-      if (_selectedMonth != 0 && p.datumStart.month != _selectedMonth) {
+      // Massgebend ist der Montag der KW, nicht datum_start (FR)
+      final montag = _montagDerWoche(p.datumStart);
+      if (montag.year != _selectedYear) return false;
+      if (_selectedMonth != 0 && montag.month != _selectedMonth) {
         return false;
       }
       if (_searchQuery.isNotEmpty) {
@@ -57,12 +59,13 @@ class _PikettDiensteListScreenState
       return true;
     }).toList();
 
-    // Monatsgruppierung
+    // Monatsgruppierung (nach Montag der KW)
     final groups = <_MonatsGruppe>[];
     for (final p in filtered) {
-      final m = p.datumStart.month;
+      final montag = _montagDerWoche(p.datumStart);
+      final m = montag.month;
       if (groups.isEmpty || groups.last.monat != m) {
-        groups.add(_MonatsGruppe(jahr: p.datumStart.year, monat: m));
+        groups.add(_MonatsGruppe(jahr: montag.year, monat: m));
       }
       groups.last.eintraege.add(p);
     }
@@ -268,6 +271,12 @@ class _MonatsGruppe {
 
 String _formatDate(DateTime date) {
   return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+}
+
+/// Montag der ISO-Woche (massgebend für Monatszuordnung).
+DateTime _montagDerWoche(DateTime date) {
+  return DateTime(date.year, date.month, date.day)
+      .subtract(Duration(days: date.weekday - 1));
 }
 
 int _kw(DateTime date) {
