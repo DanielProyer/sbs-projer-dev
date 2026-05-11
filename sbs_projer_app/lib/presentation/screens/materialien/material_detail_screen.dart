@@ -3,6 +3,7 @@ import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
@@ -60,7 +61,7 @@ class _MaterialDetailContentState
   bool _loadingVerbrauch = true;
   MaterialArtikel? _artikel;
   String? _fotoUrl;      // Original (volle Auflösung, für Vollbild)
-  String? _cropUrl;      // Crop-Vorschau (für Karte)
+  String? _previewUrl;      // Crop-Vorschau (für Karte)
   bool _uploadingFoto = false;
 
   @override
@@ -88,14 +89,14 @@ class _MaterialDetailContentState
             final urls = await Future.wait([
               MaterialArtikelRepository.getSignedUrl(
                   artikel.fotoStoragePath!),
-              MaterialArtikelRepository.getSignedUrlCrop(
+              MaterialArtikelRepository.getSignedUrlPreview(
                   artikel.fotoStoragePath!),
             ]);
             if (mounted) {
               setState(() {
                 _artikel = artikel;
                 _fotoUrl = urls[0];
-                _cropUrl = urls[1];
+                _previewUrl = urls[1];
               });
             }
           } catch (_) {
@@ -298,7 +299,7 @@ class _MaterialDetailContentState
                   maxHeight: 400,
                 ),
                 child: Image.network(
-                  _cropUrl ?? _fotoUrl!,
+                  _previewUrl ?? _fotoUrl!,
                   width: double.infinity,
                   fit: BoxFit.contain,
                   loadingBuilder: (context, child, loadingProgress) {
@@ -408,22 +409,24 @@ class _MaterialDetailContentState
     if (source == null) return;
 
     final picker = ImagePicker();
-    // Volle Auflösung für Original-Datei (Pixel 9: ~4032x3024)
+    // Auf 2400px begrenzen für flüssiges Crop-Erlebnis
     final file = await picker.pickImage(
       source: source,
-      imageQuality: 90,
+      maxWidth: 2400,
+      maxHeight: 2400,
+      imageQuality: 92,
     );
     if (file == null || !mounted) return;
 
-    final originalBytes = await file.readAsBytes();
+    final imageBytes = await file.readAsBytes();
 
-    // Crop-Dialog anzeigen — Benutzer kann zuschneiden, erneut aufnehmen oder abbrechen
+    // Crop/Rotate-Dialog — gibt zugeschnittene Bytes zurück
     if (!mounted) return;
     final croppedBytes = await showDialog<Uint8List>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => _FotoCropDialog(
-        imageBytes: originalBytes,
+        imageBytes: imageBytes,
         onRetake: () {
           Navigator.pop(ctx, null);
           Future.microtask(() => _pickAndUploadFoto());
@@ -432,13 +435,31 @@ class _MaterialDetailContentState
     );
     if (croppedBytes == null || !mounted) return;
 
-    // Upload starten: Original + Crop parallel
+    // Zwei Auflösungen aus dem Crop-Ergebnis erzeugen
     setState(() => _uploadingFoto = true);
     try {
+      final decoded = img.decodeImage(croppedBytes);
+      if (decoded == null) throw Exception('Bild konnte nicht dekodiert werden');
+
+      // High-Res: Crop-Ergebnis als JPEG (max ~2400px)
+      final highResBytes =
+          Uint8List.fromList(img.encodeJpg(decoded, quality: 88));
+
+      // Preview: auf 600px verkleinert
+      final previewImage = decoded.width > 600
+          ? img.copyResize(decoded, width: 600)
+          : decoded;
+      final previewBytes =
+          Uint8List.fromList(img.encodeJpg(previewImage, quality: 75));
+
+      debugPrint(
+          'Foto: HighRes ${highResBytes.length} bytes, '
+          'Preview ${previewBytes.length} bytes');
+
       await MaterialArtikelRepository.uploadFoto(
         _artikel!.id,
-        originalBytes: originalBytes,
-        croppedBytes: croppedBytes,
+        highResBytes: highResBytes,
+        previewBytes: previewBytes,
       );
       final updated =
           await MaterialArtikelRepository.getById(_artikel!.id);
@@ -446,13 +467,13 @@ class _MaterialDetailContentState
         final urls = await Future.wait([
           MaterialArtikelRepository.getSignedUrl(
               updated.fotoStoragePath!),
-          MaterialArtikelRepository.getSignedUrlCrop(
+          MaterialArtikelRepository.getSignedUrlPreview(
               updated.fotoStoragePath!),
         ]);
         setState(() {
           _artikel = updated;
           _fotoUrl = urls[0];
-          _cropUrl = urls[1];
+          _previewUrl = urls[1];
           _uploadingFoto = false;
         });
         if (mounted) {
@@ -496,7 +517,7 @@ class _MaterialDetailContentState
       if (mounted) {
         setState(() {
           _fotoUrl = null;
-          _cropUrl = null;
+          _previewUrl = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto gelöscht')),
@@ -734,8 +755,11 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// Foto-Editor vor dem Upload — Zuschneiden, Vorschau, erneut aufnehmen.
+/// Mobil-optimierter Foto-Editor: Zuschneiden + Drehen.
 /// Gibt die zugeschnittenen Bytes zurück oder null bei Abbruch.
+///
+/// UX-Prinzip: Fester Crop-Rahmen, Bild bewegen/zoomen (wie Instagram).
+/// PopScope verhindert versehentliches Browser-Back.
 class _FotoCropDialog extends StatefulWidget {
   final Uint8List imageBytes;
   final VoidCallback onRetake;
@@ -750,107 +774,198 @@ class _FotoCropDialog extends StatefulWidget {
 }
 
 class _FotoCropDialogState extends State<_FotoCropDialog> {
-  final _cropController = CropController();
+  late CropController _cropController;
+  late Uint8List _currentBytes;
   bool _cropping = false;
-  bool _isCircle = false;
+  bool _rotating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cropController = CropController();
+    _currentBytes = widget.imageBytes;
+  }
+
+  /// Bild 90° im Uhrzeigersinn drehen via image-Package.
+  Future<void> _rotate90() async {
+    if (_rotating || _cropping) return;
+    setState(() => _rotating = true);
+    // UI-Update abwarten bevor schwere Arbeit startet
+    await Future.delayed(const Duration(milliseconds: 50));
+    try {
+      final decoded = img.decodeImage(_currentBytes);
+      if (decoded == null) throw Exception('Bild nicht lesbar');
+      final rotated = img.copyRotate(decoded, angle: 90);
+      final rotatedBytes =
+          Uint8List.fromList(img.encodeJpg(rotated, quality: 90));
+      if (mounted) {
+        setState(() {
+          _currentBytes = rotatedBytes;
+          _cropController = CropController();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Drehen fehlgeschlagen: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _rotating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog.fullscreen(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Foto bearbeiten'),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context, null),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_cropping) {
+          Navigator.pop(context, null);
+        }
+      },
+      child: Dialog.fullscreen(
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+            title: const Text('Foto bearbeiten'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _cropping ? null : () => Navigator.pop(context, null),
+            ),
           ),
-          actions: [
-            // Kreis/Rechteck umschalten
-            IconButton(
-              icon: Icon(_isCircle ? Icons.crop_square : Icons.circle_outlined),
-              tooltip: _isCircle ? 'Rechteck' : 'Kreis',
-              onPressed: () => setState(() => _isCircle = !_isCircle),
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            // Hinweis
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Bildausschnitt verschieben und zoomen',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                ),
+          body: Column(
+            children: [
+              // Crop-Widget
+              Expanded(
+                child: _rotating
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: Colors.white),
+                            SizedBox(height: 12),
+                            Text('Wird gedreht...',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 13)),
+                          ],
+                        ),
+                      )
+                    : Crop(
+                        key: ValueKey(_currentBytes.length),
+                        image: _currentBytes,
+                        controller: _cropController,
+                        onCropped: (result) {
+                          if (!mounted) return;
+                          setState(() => _cropping = false);
+                          switch (result) {
+                            case CropSuccess(:final croppedImage):
+                              Navigator.pop(context, croppedImage);
+                            case CropFailure(:final cause):
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Fehler: $cause')),
+                              );
+                          }
+                        },
+                        interactive: true,
+                        fixCropRect: true,
+                        baseColor: Colors.black,
+                        maskColor: Colors.black54,
+                        cornerDotBuilder: (size, edgeAlignment) =>
+                            const SizedBox.shrink(),
+                      ),
               ),
-            ),
-            // Crop-Widget
-            Expanded(
-              child: Crop(
-                image: widget.imageBytes,
-                controller: _cropController,
-                onCropped: (result) {
-                  if (!mounted) return;
-                  setState(() => _cropping = false);
-                  switch (result) {
-                    case CropSuccess(:final croppedImage):
-                      Navigator.pop(context, croppedImage);
-                    case CropFailure(:final cause):
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Fehler: $cause')),
-                      );
-                  }
-                },
-                withCircleUi: _isCircle,
-                interactive: true,
-                fixCropRect: false,
-                baseColor: Colors.black87,
-                maskColor: Colors.black54,
-                cornerDotBuilder: (size, edgeAlignment) =>
-                    const DotControl(color: Colors.white),
-              ),
-            ),
-            // Aktions-Buttons
-            SafeArea(
-              child: Padding(
+              // Werkzeug-Leiste
+              Container(
+                color: Colors.black,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _cropping ? null : widget.onRetake,
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Neu aufnehmen'),
-                      ),
+                    _ToolButton(
+                      icon: Icons.rotate_right,
+                      label: 'Drehen',
+                      onTap: (_rotating || _cropping) ? null : _rotate90,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _cropping
-                            ? null
-                            : () {
-                                setState(() => _cropping = true);
-                                _cropController.crop();
-                              },
-                        icon: _cropping
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.check),
-                        label:
-                            Text(_cropping ? 'Wird zugeschnitten...' : 'Verwenden'),
-                      ),
+                    const SizedBox(width: 32),
+                    _ToolButton(
+                      icon: Icons.camera_alt,
+                      label: 'Neu aufnehmen',
+                      onTap: (_rotating || _cropping) ? null : widget.onRetake,
                     ),
                   ],
                 ),
               ),
-            ),
+              // Haupt-Button
+              SafeArea(
+                child: Container(
+                  color: Colors.black,
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: FilledButton(
+                    onPressed: (_cropping || _rotating)
+                        ? null
+                        : () {
+                            setState(() => _cropping = true);
+                            _cropController.crop();
+                          },
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                    child: _cropping
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Verwenden',
+                            style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kleiner Werkzeug-Button für die Foto-Bearbeitung.
+class _ToolButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _ToolButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                color: enabled ? Colors.white : Colors.white38, size: 26),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                  color: enabled ? Colors.white70 : Colors.white38,
+                  fontSize: 11,
+                )),
           ],
         ),
       ),
