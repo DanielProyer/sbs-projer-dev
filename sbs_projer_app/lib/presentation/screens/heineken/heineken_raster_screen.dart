@@ -71,20 +71,24 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
         // Rotpunkt: kleinstes Intervall > 6 Wochen
         final rotpunkt = kleinstesIntervallWochen > 6;
 
-        // Bemerkungen: Servicezeiten + Kontakt-Tel
-        final bemTeile = <String>[];
-        if (b.servicezeitMorgenAb != null || b.servicezeitNachmittagAb != null) {
-          if (b.servicezeitMorgenAb != null) {
-            bemTeile.add('${b.servicezeitMorgenAb}-${b.servicezeitMorgenBis ?? '?'}');
-          }
-          if (b.servicezeitNachmittagAb != null) {
-            bemTeile.add('${b.servicezeitNachmittagAb}-${b.servicezeitNachmittagBis ?? '?'}');
-          }
+        // Bemerkungen: Zeile 1 = Servicezeiten, Zeile 2 = Kontakt-Tel
+        final bemZeilen = <String>[];
+        // Zeile 1: Servicezeiten
+        final szTeile = <String>[];
+        if (b.servicezeitMorgenAb != null) {
+          szTeile.add('${b.servicezeitMorgenAb}-${b.servicezeitMorgenBis ?? '?'}');
         }
+        if (b.servicezeitNachmittagAb != null) {
+          szTeile.add('${b.servicezeitNachmittagAb}-${b.servicezeitNachmittagBis ?? '?'}');
+        }
+        if (szTeile.isNotEmpty) {
+          bemZeilen.add(szTeile.join(', '));
+        }
+        // Zeile 2: Kontakt-Telefon
         final kontakte = await BetriebKontaktRepository.getByBetrieb(b.serverId ?? b.id.toString());
         final kontaktMitTel = kontakte.where((k) => k.telefon != null && k.telefon!.isNotEmpty).toList();
         if (kontaktMitTel.isNotEmpty) {
-          bemTeile.add(kontaktMitTel.first.telefon!);
+          bemZeilen.add(kontaktMitTel.first.telefon!);
         }
 
         // Zahlung
@@ -144,7 +148,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
           ort: b.ort,
           hahnen: leitungenGesamt,
           telefon: b.telefon,
-          bemerkungen: bemTeile.join(', '),
+          bemerkungen: bemZeilen.join('\n'),
           zahlung: zahlung,
           regionName: regionName,
           status: b.status,

@@ -87,17 +87,17 @@ class RasterPdfService {
       fontWeight: pw.FontWeight.bold,
     );
 
-    // Spaltenbreiten
-    const colWe = 36.0;
-    const colAg = 36.0;
-    const colKunde = 85.0;
-    const colRot = 16.0;
-    const colStrasse = 68.0;
-    const colPlz = 26.0;
-    const colOrt = 48.0;
-    const colHahnen = 16.0;
-    const colTel = 52.0;
-    const colBem = 58.0;
+    // Spaltenbreiten (Querformat A4: ~785pt nutzbar)
+    const colWe = 32.0;
+    const colAg = 32.0;
+    const colKunde = 80.0;
+    const colRot = 14.0;
+    const colStrasse = 82.0;   // breiter für Regionsname (Flims/Laax/Falera)
+    const colPlz = 24.0;
+    const colOrt = 44.0;
+    const colHahnen = 14.0;
+    const colTel = 48.0;
+    const colBem = 72.0;       // breiter für 2 Zeilen (Servicezeiten + Telefon)
     const colBz = 12.0;
     const colRg = 12.0;
     const colHs = 12.0;
@@ -154,7 +154,7 @@ class RasterPdfService {
       }
 
       final reinigungen = b.reinigungenProMonat[monat] ?? [];
-      if (reinigungen.isEmpty) return '';
+      if (reinigungen.isEmpty) return 'X';
 
       return reinigungen.map((r) {
         final tag = r.tag.toString();
@@ -184,24 +184,15 @@ class RasterPdfService {
       final betriebe = betriebeProRegion[region]!;
       final regionRows = <pw.TableRow>[];
 
-      // Jahr-Header-Zeile
+      // Spalten-Header-Zeile (mit Jahr + Monate)
       regionRows.add(pw.TableRow(
         children: [
           pw.Container(
-            padding: const pw.EdgeInsets.all(2),
+            alignment: pw.Alignment.center,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 1, vertical: 2),
             color: _grau,
             child: pw.Text('$jahr', style: jahrStyle),
           ),
-          ...List.generate(3, (_) => pw.Container(color: _grau)),
-          ...List.generate(9, (_) => pw.Container(color: _grau)),
-          ...List.generate(12, (i) => headerCell(_monate[i])),
-        ],
-      ));
-
-      // Spalten-Header-Zeile
-      regionRows.add(pw.TableRow(
-        children: [
-          headerCell('WE'),
           headerCell('AG'),
           headerCell('Kunde', align: pw.Alignment.centerLeft),
           headerCell('RP'),
