@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/services/pdf/raster_pdf_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HeinekenRasterScreen extends ConsumerStatefulWidget {
@@ -236,7 +237,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
             'subject': 'Monatsraster $_jahr SBS Projer GmbH',
             'bodyText':
                 'Hallo${kontakt?.vorname != null ? ' ${kontakt!.vorname}' : ''}\n\n'
-                'Im Anhang sende ich Dir das Monatsraster $_jahr.\n\n'
+                'Im Anhang sende ich Dir den aktuellen Serviceraster vom ${DateFormat('d. MMMM yyyy', 'de_CH').format(DateTime.now())}.\n\n'
                 'Gruass Dani',
             'pdfBucket': 'raster-pdfs',
             'pdfPath': storagePath,
