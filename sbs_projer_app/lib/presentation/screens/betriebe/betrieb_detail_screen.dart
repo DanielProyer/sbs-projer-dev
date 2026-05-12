@@ -288,18 +288,19 @@ class _BetriebDetailContent extends ConsumerWidget {
       'Mo': 'Montag', 'Di': 'Dienstag', 'Mi': 'Mittwoch',
       'Do': 'Donnerstag', 'Fr': 'Freitag', 'Sa': 'Samstag', 'So': 'Sonntag',
     };
+    final ruhetage = b.ruhetage;
     try {
       final map = jsonDecode(b.oeffnungszeitenJson!) as Map<String, dynamic>;
       final widgets = <Widget>[];
       for (final tag in tage) {
+        // Ruhetage überspringen — werden bereits separat angezeigt
+        if (ruhetage.contains(tag)) continue;
         final slots = map[tag];
         if (slots is List && slots.isNotEmpty) {
           final slotsStr = slots
               .map((s) => '${s['von']} – ${s['bis']}')
               .join(', ');
           widgets.add(_InfoRow(tageLabel[tag]!, slotsStr));
-        } else {
-          widgets.add(_InfoRow(tageLabel[tag]!, 'Ruhetag'));
         }
       }
       return widgets;

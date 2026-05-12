@@ -879,14 +879,17 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   List<Widget> _buildOeffnungszeitenForm() {
     const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     return tage.map((tag) {
+      final istRuhetag = _ruhetage.contains(tag);
       final slots = _oeffnungszeiten[tag] ?? [];
-      final slotsText = slots.isNotEmpty
-          ? slots.map((s) => '${s['von']} – ${s['bis']}').join(', ')
-          : 'Ruhetag';
+      final slotsText = istRuhetag
+          ? 'Ruhetag'
+          : slots.isNotEmpty
+              ? slots.map((s) => '${s['von']} – ${s['bis']}').join(', ')
+              : '–';
       return Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: InkWell(
-          onTap: () => _editTagOeffnungszeiten(tag),
+          onTap: istRuhetag ? null : () => _editTagOeffnungszeiten(tag),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -894,16 +897,18 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               children: [
                 SizedBox(
                   width: 28,
-                  child: Text(tag, style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: Text(tag, style: TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13,
+                      color: istRuhetag ? Colors.grey : null)),
                 ),
                 Expanded(
                   child: Text(slotsText, style: TextStyle(
                     fontSize: 13,
-                    color: slots.isEmpty ? Colors.grey : null,
+                    color: istRuhetag || slots.isEmpty ? Colors.grey : null,
                   )),
                 ),
-                const Icon(Icons.edit, size: 16, color: Colors.grey),
+                if (!istRuhetag)
+                  const Icon(Icons.edit, size: 16, color: Colors.grey),
               ],
             ),
           ),
@@ -916,6 +921,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     final moSlots = _oeffnungszeiten['Mo'] ?? [];
     setState(() {
       for (final tag in ['Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) {
+        if (_ruhetage.contains(tag)) continue;
         _oeffnungszeiten[tag] = moSlots
             .map((s) => Map<String, String>.from(s))
             .toList();
