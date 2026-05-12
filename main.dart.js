@@ -41196,9 +41196,10 @@ c4=d4.y1
 c5=d4.y2
 c6=d4.aL
 c7=d4.aV
-c8=d4.D
-if(!(c8.length!==0)){c8=d4.V
-c8=c8!=null?B.b6.k_(0,c8,null):null}c9=d4.Z
+c8=d4.V
+if(c8!=null)c8=B.b6.k_(0,c8,null)
+else{c8=d4.D
+c8=c8.length!==0?c8:null}c9=d4.Z
 d0=d4.X
 d0=d0!=null?B.b6.k_(0,d0,null):null
 d1=A.aa(["user_id",d3,"anlage_id",p,"betrieb_id",o,"datum",n,"uhrzeit_start",m,"uhrzeit_ende",l,"hat_durchlaufkuehler",k,"hat_buffetanstich",j,"hat_kuehlkeller",i,"hat_fasskuehler",h,"begleitkuehlung_kontrolliert",g,"installation_allgemein_kontrolliert",f,"aligal_anschluesse_kontrolliert",e,"durchlaufkuehler_ausgeblasen",d,"wasserstand_kontrolliert",c,"wasser_gewechselt",b,"leitung_wasser_vorgespuelt",a,"leitungsreinigung_reinigungsmittel",a0,"foerderdruck_kontrolliert",a1,"zapfhahn_zerlegt_gereinigt",a2,"zapfkopf_zerlegt_gereinigt",a3,"servicekarte_ausgefuellt",a4,"checkliste_notizen",a5,"unterschrift_techniker",a6,"unterschrift_kunde",a7,"unterschrift_kunde_name",a8,"notizen",a9,"service_typ",b0,"anzahl_haehne_eigen",b1,"anzahl_haehne_orion",b2,"anzahl_haehne_fremd",b3,"anzahl_haehne_wein",b4,"anzahl_haehne_anderer_standort",b5,"ist_bergkunde",b6,"preis_grundtarif",b7,"preis_zusatz_haehne",b8,"bergkunden_zuschlag",b9,"preis_netto",c0,"mwst_satz",c1,"preis_mwst",c2,"preis_brutto",c3,"ist_kulanz",c4,"ist_heineken_monteur",c5,"protokoll_foto_pfad",c6,"service_art",c7,"anlage_ids",c8,"abgerechnet",c9,"hahn_temperaturen",d0,"wasser_kuehler_gewechselt",d4.a4,"status",d4.aq],t.N,t.z)
@@ -165904,6 +165905,9 @@ if(c3==null)c3=l.r
 l.r=c3
 c3=m.p3
 if(c3.a!==0){c3=A.K(c3,A.w(c3).c)
+l.D=c3
+c3=m.p3
+c3=A.K(c3,A.w(c3).c)
 l.V=B.b6.pI(c3,null)
 l.f=m.p3.gL(0)}else{c3=m.a
 if(c3.d==null){c3=c3.e
