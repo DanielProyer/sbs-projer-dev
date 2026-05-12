@@ -345,8 +345,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
 
       // Betrieb immer aktualisieren (auch bei Edit, falls gewechselt)
       r.betriebId = _betrieb?.serverId ?? widget.betriebId ?? r.betriebId;
-      // Multi-Anlagen: anlageIds setzen, anlageId = erste (Backward-Compat)
+      // Multi-Anlagen: anlageIds + anlageIdsJson + anlageId synchron setzen
       if (_selectedAnlageIds.isNotEmpty) {
+        r.anlageIds = _selectedAnlageIds.toList();
         r.anlageIdsJson = jsonEncode(_selectedAnlageIds.toList());
         r.anlageId = _selectedAnlageIds.first;
       } else if (!_isEdit) {
