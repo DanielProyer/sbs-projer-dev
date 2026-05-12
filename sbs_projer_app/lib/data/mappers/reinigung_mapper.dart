@@ -119,7 +119,11 @@ class ReinigungMapper {
       'ist_heineken_monteur': local.istHeinekenMonteur,
       'protokoll_foto_pfad': local.protokollFotoPfad,
       'service_art': local.serviceArt,
-      'anlage_ids': local.anlageIds.isNotEmpty ? local.anlageIds : null,
+      'anlage_ids': local.anlageIds.isNotEmpty
+          ? local.anlageIds
+          : local.anlageIdsJson != null
+              ? jsonDecode(local.anlageIdsJson!)
+              : null,
       'abgerechnet': local.istAbgerechnet,
       'hahn_temperaturen': local.hahnTemperaturenJson != null
           ? jsonDecode(local.hahnTemperaturenJson!)
