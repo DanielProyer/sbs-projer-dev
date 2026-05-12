@@ -791,6 +791,12 @@ class _StatusBadge extends StatelessWidget {
     } else if (eintrag.faelligkeit == FaelligkeitsStatus.baldFaellig) {
       label = 'bald fällig';
       color = AppColors.success;
+    } else if (eintrag.faelligkeit == FaelligkeitsStatus.endreinigungFaellig) {
+      label = 'Endreinigung';
+      color = const Color(0xFFEA580C); // deep orange
+    } else if (eintrag.faelligkeit == FaelligkeitsStatus.eroeffnungFaellig) {
+      label = 'Eröffnung';
+      color = AppColors.info;
     } else if (eintrag.typ == TourEintragTyp.stoerung) {
       label = 'offen';
       color = AppColors.error;

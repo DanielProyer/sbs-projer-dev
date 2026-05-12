@@ -24,7 +24,14 @@ final regionenProvider = Provider<List<RegionLocal>>((ref) {
 
 // ─── Fälligkeits-Status ───
 
-enum FaelligkeitsStatus { ueberfaellig, faellig, baldFaellig, nichtFaellig }
+enum FaelligkeitsStatus {
+  ueberfaellig,
+  faellig,
+  baldFaellig,
+  endreinigungFaellig,
+  eroeffnungFaellig,
+  nichtFaellig,
+}
 
 int? _rhythmusTage(String rhythmus) {
   switch (rhythmus) {
@@ -92,22 +99,147 @@ Map<String, String?> _buildLetzteServiceArtMap(
   return map;
 }
 
+// ─── Saisonale Fälligkeit ───
+
+const _saisonVorlaufTage = 14; // 2 Wochen
+
+/// Nächstes Schliessungsdatum (Saisonende oder Ferienstart)
+/// nur wenn der Betrieb JETZT offen ist.
+DateTime? _naechsteSchliessung(BetriebLocal betrieb, DateTime datum) {
+  DateTime? naechste;
+
+  // Saisonende: nur wenn aktuell IN dieser Saison
+  if (betrieb.istSaisonbetrieb) {
+    if (betrieb.sommerSaisonAktiv &&
+        betrieb.sommerStartDatum != null &&
+        betrieb.sommerEndeDatum != null) {
+      if (!datum.isBefore(betrieb.sommerStartDatum!) &&
+          !datum.isAfter(betrieb.sommerEndeDatum!)) {
+        final e = betrieb.sommerEndeDatum!;
+        if (naechste == null || e.isBefore(naechste)) naechste = e;
+      }
+    }
+    if (betrieb.winterSaisonAktiv &&
+        betrieb.winterStartDatum != null &&
+        betrieb.winterEndeDatum != null) {
+      if (!datum.isBefore(betrieb.winterStartDatum!) &&
+          !datum.isAfter(betrieb.winterEndeDatum!)) {
+        final e = betrieb.winterEndeDatum!;
+        if (naechste == null || e.isBefore(naechste)) naechste = e;
+      }
+    }
+  }
+
+  // Ferienstart: Ferien die noch kommen
+  for (final fs in [
+    betrieb.ferienStart,
+    betrieb.ferien2Start,
+    betrieb.ferien3Start,
+  ]) {
+    if (fs != null && fs.isAfter(datum)) {
+      if (naechste == null || fs.isBefore(naechste)) naechste = fs;
+    }
+  }
+
+  return naechste;
+}
+
+/// Nächstes Öffnungsdatum (Saisonstart oder Tag nach Ferienende).
+/// Gibt auch vergangene Öffnungen zurück wenn sie nach letzteReinigung liegen.
+DateTime? _naechsteOeffnung(
+    BetriebLocal betrieb, DateTime datum, DateTime? letzteReinigung) {
+  DateTime? naechste;
+
+  // Saisonstart
+  if (betrieb.istSaisonbetrieb) {
+    for (final s in [
+      if (betrieb.sommerSaisonAktiv) betrieb.sommerStartDatum,
+      if (betrieb.winterSaisonAktiv) betrieb.winterStartDatum,
+    ]) {
+      if (s != null &&
+          (letzteReinigung == null || s.isAfter(letzteReinigung))) {
+        if (naechste == null || s.isBefore(naechste)) naechste = s;
+      }
+    }
+  }
+
+  // Ferienende + 1 Tag
+  for (final fe in [
+    betrieb.ferienEnde,
+    betrieb.ferien2Ende,
+    betrieb.ferien3Ende,
+  ]) {
+    if (fe != null) {
+      final reopen = fe.add(const Duration(days: 1));
+      if (letzteReinigung == null || reopen.isAfter(letzteReinigung)) {
+        if (naechste == null || reopen.isBefore(naechste)) naechste = reopen;
+      }
+    }
+  }
+
+  return naechste;
+}
+
+/// Prüft ob eine saisonale Fälligkeit vorliegt (Endreinigung / Eröffnung).
+FaelligkeitsStatus? _getSaisonFaelligkeit(
+  AnlageLocal anlage,
+  DateTime datum,
+  BetriebLocal betrieb,
+  String? letzteServiceArt,
+) {
+  // --- Endreinigung: Schliessung innerhalb von 2 Wochen ---
+  if (letzteServiceArt != 'endreinigung') {
+    final schliessung = _naechsteSchliessung(betrieb, datum);
+    if (schliessung != null &&
+        schliessung.difference(datum).inDays <= _saisonVorlaufTage) {
+      return FaelligkeitsStatus.endreinigungFaellig;
+    }
+  }
+
+  // --- Eröffnungsservice: Öffnung bald oder gerade erst geöffnet ---
+  if (letzteServiceArt == 'endreinigung' || letzteServiceArt == null) {
+    final oeffnung =
+        _naechsteOeffnung(betrieb, datum, anlage.letzteReinigung);
+    if (oeffnung != null) {
+      final tage = oeffnung.difference(datum).inDays;
+      // Öffnung in ≤14 Tagen (Zukunft)
+      if (tage >= 0 && tage <= _saisonVorlaufTage) {
+        return FaelligkeitsStatus.eroeffnungFaellig;
+      }
+      // Öffnung bereits vorbei, Eröffnungsservice noch nicht gemacht
+      if (tage < 0 && letzteServiceArt == 'endreinigung') {
+        return FaelligkeitsStatus.eroeffnungFaellig;
+      }
+    }
+  }
+
+  return null;
+}
+
+// ─── Fälligkeit berechnen ───
+
 FaelligkeitsStatus getFaelligkeit(
   AnlageLocal anlage,
   DateTime datum, {
   BetriebLocal? betrieb,
   String? letzteServiceArt,
 }) {
+  // Saisonale Fälligkeit hat Vorrang
+  if (betrieb != null) {
+    final saison = _getSaisonFaelligkeit(
+        anlage, datum, betrieb, letzteServiceArt);
+    if (saison != null) return saison;
+  }
+
+  // Regulärer Rhythmus
   final tage = _rhythmusTage(anlage.reinigungRhythmus);
   if (tage == null) return FaelligkeitsStatus.nichtFaellig;
 
-  // naechsteReinigung bestimmen
   DateTime? naechste = anlage.naechsteReinigung;
   if (naechste == null && anlage.letzteReinigung != null) {
     naechste = anlage.letzteReinigung!.add(Duration(days: tage));
   }
   if (naechste == null) {
-    // Neue Anlage, nie gereinigt → überfällig
     return FaelligkeitsStatus.ueberfaellig;
   }
 
@@ -271,6 +403,12 @@ final faelligeAnlagenProvider =
     final faelligkeit = getFaelligkeit(a, datum,
         betrieb: betrieb, letzteServiceArt: serviceArt);
     if (faelligkeit == FaelligkeitsStatus.nichtFaellig) return false;
+
+    // Saisonale Einträge immer anzeigen (auch wenn Betrieb in Pause)
+    if (faelligkeit == FaelligkeitsStatus.endreinigungFaellig ||
+        faelligkeit == FaelligkeitsStatus.eroeffnungFaellig) {
+      return true;
+    }
 
     // Betrieb aktiv? (ohne Ruhetag-Check)
     if (betrieb != null && !_isBetriebAktiv(betrieb, datum)) return false;
