@@ -406,14 +406,12 @@ class _MaterialDetailContentState
     );
     if (file == null || !mounted) return;
 
-    // Spinner anzeigen während Bild geladen wird
+    // Spinner anzeigen: bleibt an von Fotoaufnahme bis Upload fertig
     setState(() => _uploadingFoto = true);
     final imageBytes = await file.readAsBytes();
     if (!mounted) return;
-    setState(() => _uploadingFoto = false);
 
     // Crop/Rotate-Dialog — gibt zugeschnittene Bytes zurück
-    if (!mounted) return;
     final croppedBytes = await showDialog<Uint8List>(
       context: context,
       barrierDismissible: false,
@@ -425,10 +423,12 @@ class _MaterialDetailContentState
         },
       ),
     );
-    if (croppedBytes == null || !mounted) return;
+    if (croppedBytes == null || !mounted) {
+      if (mounted) setState(() => _uploadingFoto = false);
+      return;
+    }
 
     // Zwei Auflösungen aus dem Crop-Ergebnis erzeugen
-    setState(() => _uploadingFoto = true);
     try {
       final decoded = img.decodeImage(croppedBytes);
       if (decoded == null) throw Exception('Bild konnte nicht dekodiert werden');
