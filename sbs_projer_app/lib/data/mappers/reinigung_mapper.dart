@@ -58,7 +58,6 @@ class ReinigungMapper {
     local.anlageIds = dto.anlageIds;
     local.istAbgerechnet = dto.istAbgerechnet;
     local.anlageIdsJson = dto.anlageIds.isNotEmpty ? jsonEncode(dto.anlageIds) : null;
-    local.hahnTemperaturenJson = dto.hahnTemperaturenJson;
     local.wasserKuehlerGewechselt = false; // not in DTO yet
     local.status = dto.status;
     // dto.istSynced is NOT mapped to local.isSynced (different purpose)
@@ -125,9 +124,6 @@ class ReinigungMapper {
               ? local.anlageIds
               : null,
       'abgerechnet': local.istAbgerechnet,
-      'hahn_temperaturen': local.hahnTemperaturenJson != null
-          ? jsonDecode(local.hahnTemperaturenJson!)
-          : null,
       'wasser_kuehler_gewechselt': local.wasserKuehlerGewechselt,
       'status': local.status,
     };

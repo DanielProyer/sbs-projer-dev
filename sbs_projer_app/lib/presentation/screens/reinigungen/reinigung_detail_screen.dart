@@ -118,10 +118,6 @@ class _ReinigungDetailContent extends ConsumerWidget {
           if (_hasChecklisteData(reinigung))
             _ChecklisteCard(reinigung: reinigung),
 
-          // Hahn-Temperaturen
-          if (reinigung.hahnTemperaturenJson != null)
-            _buildTemperaturenCard(reinigung),
-
           // Preis
           if (reinigung.preisNetto != null || reinigung.preisBrutto != null)
             _SectionCard(
@@ -288,38 +284,6 @@ class _ReinigungDetailContent extends ConsumerWidget {
           const SizedBox(height: 80),
         ],
       ),
-    );
-  }
-
-  Widget _buildTemperaturenCard(ReinigungLocal r) {
-    List<Map<String, dynamic>> temperaturen;
-    try {
-      temperaturen = List<Map<String, dynamic>>.from(
-          (jsonDecode(r.hahnTemperaturenJson!) as List)
-              .map((e) => Map<String, dynamic>.from(e)));
-    } catch (_) {
-      return const SizedBox.shrink();
-    }
-
-    if (temperaturen.isEmpty) return const SizedBox.shrink();
-
-    // Nur anzeigen wenn mindestens eine Temperatur erfasst
-    if (!temperaturen.any((t) => t['temperatur'] != null)) {
-      return const SizedBox.shrink();
-    }
-
-    return _SectionCard(
-      title: 'Temperaturen',
-      icon: Icons.thermostat,
-      children: temperaturen
-          .where((t) => t['temperatur'] != null)
-          .map((t) {
-        final nr = t['leitungs_nummer'] ?? '';
-        final sorte = t['biersorte'] ?? '';
-        final temp = t['temperatur'];
-        final label = sorte.isNotEmpty ? 'Hahn $nr ($sorte)' : 'Hahn $nr';
-        return _InfoRow(label, '${temp}°C');
-      }).toList(),
     );
   }
 
