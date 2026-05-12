@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
@@ -413,6 +414,7 @@ class _ReinigungDetailContent extends ConsumerWidget {
 
         await ReinigungRepository.delete(reinigung.routeId);
         ref.invalidate(reinigungenStreamProvider);
+        ref.invalidate(anlagenStreamProvider);
         ref.invalidate(rechnungenStreamProvider);
         ref.invalidate(buchungenStreamProvider);
         if (context.mounted) context.pop();

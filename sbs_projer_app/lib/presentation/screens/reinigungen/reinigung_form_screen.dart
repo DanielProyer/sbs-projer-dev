@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
@@ -636,6 +637,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         );
         if (kIsWeb) {
           ref.invalidate(reinigungenStreamProvider);
+          ref.invalidate(anlagenStreamProvider);
           if (abschliessen || buchungKorrigiert) {
             ref.invalidate(rechnungenStreamProvider);
             ref.invalidate(buchungenStreamProvider);
