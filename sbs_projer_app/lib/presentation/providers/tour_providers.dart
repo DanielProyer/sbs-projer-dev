@@ -38,7 +38,66 @@ int? _rhythmusTage(String rhythmus) {
   }
 }
 
-FaelligkeitsStatus getFaelligkeit(AnlageLocal anlage, DateTime datum) {
+/// Findet das Wiedereröffnungsdatum nach einer Endreinigung
+/// (nächster Saisonstart oder Tag nach Ferienende).
+DateTime? _wiederoeffnungNachEndreinigung(
+  BetriebLocal betrieb,
+  DateTime letzteReinigung,
+) {
+  DateTime? wiederoeffnung;
+
+  // Ferien: Tag nach Ferienende = Wiedereröffnung
+  for (final fe in [
+    betrieb.ferienEnde,
+    betrieb.ferien2Ende,
+    betrieb.ferien3Ende,
+  ]) {
+    if (fe != null && fe.isAfter(letzteReinigung)) {
+      final reopen = fe.add(const Duration(days: 1));
+      if (wiederoeffnung == null || reopen.isBefore(wiederoeffnung)) {
+        wiederoeffnung = reopen;
+      }
+    }
+  }
+
+  // Saison: nächster Saisonstart
+  if (betrieb.istSaisonbetrieb) {
+    for (final s in [
+      if (betrieb.sommerSaisonAktiv) betrieb.sommerStartDatum,
+      if (betrieb.winterSaisonAktiv) betrieb.winterStartDatum,
+    ]) {
+      if (s != null && s.isAfter(letzteReinigung)) {
+        if (wiederoeffnung == null || s.isBefore(wiederoeffnung)) {
+          wiederoeffnung = s;
+        }
+      }
+    }
+  }
+
+  return wiederoeffnung;
+}
+
+/// Baut eine Map: anlageId → serviceArt der letzten Reinigung
+Map<String, String?> _buildLetzteServiceArtMap(
+    List<ReinigungLocal> reinigungen) {
+  final sorted = List.of(reinigungen)
+    ..sort((a, b) => b.datum.compareTo(a.datum));
+  final map = <String, String?>{};
+  for (final r in sorted) {
+    map.putIfAbsent(r.anlageId, () => r.serviceArt);
+    for (final id in r.anlageIds) {
+      map.putIfAbsent(id, () => r.serviceArt);
+    }
+  }
+  return map;
+}
+
+FaelligkeitsStatus getFaelligkeit(
+  AnlageLocal anlage,
+  DateTime datum, {
+  BetriebLocal? betrieb,
+  String? letzteServiceArt,
+}) {
   final tage = _rhythmusTage(anlage.reinigungRhythmus);
   if (tage == null) return FaelligkeitsStatus.nichtFaellig;
 
@@ -50,6 +109,20 @@ FaelligkeitsStatus getFaelligkeit(AnlageLocal anlage, DateTime datum) {
   if (naechste == null) {
     // Neue Anlage, nie gereinigt → überfällig
     return FaelligkeitsStatus.ueberfaellig;
+  }
+
+  // Endreinigung + Ferien/Saison → Fälligkeit auf Wiedereröffnung + 4 Wochen
+  if (letzteServiceArt == 'endreinigung' &&
+      betrieb != null &&
+      anlage.letzteReinigung != null) {
+    final wiederoeffnung =
+        _wiederoeffnungNachEndreinigung(betrieb, anlage.letzteReinigung!);
+    if (wiederoeffnung != null) {
+      final adjusted = wiederoeffnung.add(const Duration(days: 28));
+      if (adjusted.isAfter(naechste)) {
+        naechste = adjusted;
+      }
+    }
   }
 
   final diff = datum.difference(naechste).inDays;
@@ -179,6 +252,7 @@ final faelligeAnlagenProvider =
     Provider.family<List<AnlageLocal>, DateTime>((ref, datum) {
   final anlagen = ref.watch(anlagenProvider);
   final betriebe = ref.watch(betriebeProvider);
+  final reinigungen = ref.watch(reinigungenProvider);
 
   // Betrieb-Lookup: serverId/routeId → BetriebLocal
   final betriebMap = <String, BetriebLocal>{};
@@ -187,21 +261,34 @@ final faelligeAnlagenProvider =
     if (b.serverId != null) betriebMap[b.serverId!] = b;
   }
 
+  final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
+
   return anlagen.where((a) {
     if (a.status != 'aktiv') return false;
-    final faelligkeit = getFaelligkeit(a, datum);
+    final betrieb = betriebMap[a.betriebId];
+    final serviceArt =
+        a.serverId != null ? serviceArtMap[a.serverId!] : null;
+    final faelligkeit = getFaelligkeit(a, datum,
+        betrieb: betrieb, letzteServiceArt: serviceArt);
     if (faelligkeit == FaelligkeitsStatus.nichtFaellig) return false;
 
     // Betrieb aktiv? (ohne Ruhetag-Check)
-    final betrieb = betriebMap[a.betriebId];
     if (betrieb != null && !_isBetriebAktiv(betrieb, datum)) return false;
 
     return true;
   }).toList()
     ..sort((a, b) {
       // Überfällig zuerst
-      final fa = getFaelligkeit(a, datum).index;
-      final fb = getFaelligkeit(b, datum).index;
+      final betriebA = betriebMap[a.betriebId];
+      final betriebB = betriebMap[b.betriebId];
+      final saA =
+          a.serverId != null ? serviceArtMap[a.serverId!] : null;
+      final saB =
+          b.serverId != null ? serviceArtMap[b.serverId!] : null;
+      final fa = getFaelligkeit(a, datum,
+          betrieb: betriebA, letzteServiceArt: saA).index;
+      final fb = getFaelligkeit(b, datum,
+          betrieb: betriebB, letzteServiceArt: saB).index;
       return fa.compareTo(fb);
     });
 });
@@ -282,12 +369,16 @@ final faelligeEintraegeProvider =
     Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
   final betriebe = ref.watch(betriebeProvider);
   final betriebMap = _buildBetriebMap(betriebe);
+  final reinigungen = ref.watch(reinigungenProvider);
+  final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
   final eintraege = <TourEintrag>[];
 
   // 1. Fällige Anlagen → Reinigungen
   final faelligeAnlagen = ref.watch(faelligeAnlagenProvider(datum));
   for (final a in faelligeAnlagen) {
     final betrieb = betriebMap[a.betriebId];
+    final serviceArt =
+        a.serverId != null ? serviceArtMap[a.serverId!] : null;
     eintraege.add(TourEintrag(
       typ: TourEintragTyp.reinigung,
       id: 'r_${a.routeId}',
@@ -298,7 +389,8 @@ final faelligeEintraegeProvider =
       regionId: betrieb?.regionId,
       beschreibung:
           '${a.typAnlage} · ${a.anzahlHaehne} Hähne',
-      faelligkeit: getFaelligkeit(a, datum),
+      faelligkeit: getFaelligkeit(a, datum,
+          betrieb: betrieb, letzteServiceArt: serviceArt),
       datum: a.naechsteReinigung,
     ));
   }
@@ -374,7 +466,9 @@ final tourVorschlagErweitertProvider =
     Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
   final betriebe = ref.watch(betriebeProvider);
   final anlagen = ref.watch(anlagenProvider);
+  final reinigungen = ref.watch(reinigungenProvider);
   final betriebMap = _buildBetriebMap(betriebe);
+  final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
   final eintraege = <TourEintrag>[];
 
   // Anlagen-Lookup
@@ -411,7 +505,13 @@ final tourVorschlagErweitertProvider =
       beschreibung: anlage != null
           ? '${anlage.typAnlage} · ${anlage.anzahlHaehne} Hähne'
           : 'Reinigung',
-      faelligkeit: anlage != null ? getFaelligkeit(anlage, datum) : null,
+      faelligkeit: anlage != null
+          ? getFaelligkeit(anlage, datum,
+              betrieb: betrieb,
+              letzteServiceArt: anlage.serverId != null
+                  ? serviceArtMap[anlage.serverId!]
+                  : null)
+          : null,
       datum: r.datum,
     ));
   }
