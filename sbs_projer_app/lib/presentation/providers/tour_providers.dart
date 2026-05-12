@@ -467,7 +467,7 @@ class TourEintrag {
 
 final selectedRegionenProvider = StateProvider<Set<String>>((ref) => {});
 final selectedFaelligkeitProvider =
-    StateProvider<FaelligkeitsStatus?>((ref) => null);
+    StateProvider<Set<FaelligkeitsStatus>>((ref) => {});
 
 // ─── Betrieb-Lookup Helper ───
 

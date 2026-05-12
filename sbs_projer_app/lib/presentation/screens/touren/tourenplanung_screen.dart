@@ -62,6 +62,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   Widget build(BuildContext context) {
     final regionen = ref.watch(regionenProvider);
     final selectedRegionen = ref.watch(selectedRegionenProvider);
+    final selectedFaelligkeit = ref.watch(selectedFaelligkeitProvider);
     final tagesplan = ref.watch(tagesplanProvider);
     final dayCounts = ref.watch(tagesCountsProvider(_weekStart));
     final faelligeEintraege =
@@ -77,25 +78,28 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       });
     }
 
-    // Region-Filter auf Tagesplan anwenden
-    final angezeigtTagesplan = tagesplan.where((e) {
+    // Filter-Funktion (Region + Fälligkeit)
+    bool passesFilter(TourEintrag e) {
+      // Region-Filter
       if (selectedRegionen.isNotEmpty &&
           e.regionId != null &&
           !selectedRegionen.contains(e.regionId)) {
         return false;
       }
+      // Fälligkeits-Filter (nur auf Reinigungen anwenden;
+      // Störungen/Montagen immer durchlassen)
+      if (selectedFaelligkeit.isNotEmpty &&
+          e.typ == TourEintragTyp.reinigung) {
+        if (e.faelligkeit == null ||
+            !selectedFaelligkeit.contains(e.faelligkeit)) {
+          return false;
+        }
+      }
       return true;
-    }).toList();
+    }
 
-    // Region-Filter auf Fällig anwenden
-    final angezeigtFaellig = faelligeEintraege.where((e) {
-      if (selectedRegionen.isNotEmpty &&
-          e.regionId != null &&
-          !selectedRegionen.contains(e.regionId)) {
-        return false;
-      }
-      return true;
-    }).toList();
+    final angezeigtTagesplan = tagesplan.where(passesFilter).toList();
+    final angezeigtFaellig = faelligeEintraege.where(passesFilter).toList();
 
     final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
 
@@ -108,11 +112,12 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             children: [
               IconButton(
                 icon: const Icon(Icons.filter_list),
-                tooltip: 'Regionen filtern',
-                onPressed: () => _showRegionenPicker(context, regionen,
-                    selectedRegionen),
+                tooltip: 'Filter',
+                onPressed: () => _showFilterPicker(context, regionen,
+                    selectedRegionen, selectedFaelligkeit),
               ),
-              if (selectedRegionen.isNotEmpty)
+              if (selectedRegionen.isNotEmpty ||
+                  selectedFaelligkeit.isNotEmpty)
                 Positioned(
                   right: 6,
                   top: 6,
@@ -123,7 +128,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                       shape: BoxShape.circle,
                     ),
                     child: Text(
-                      '${selectedRegionen.length}',
+                      '${selectedRegionen.length + selectedFaelligkeit.length}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -164,6 +169,16 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
               Tab(text: 'Fällig (${angezeigtFaellig.length})'),
             ],
           ),
+
+          // Fälligkeits-FilterChips
+          if (selectedFaelligkeit.isNotEmpty)
+            _FaelligkeitsChips(
+              selected: selectedFaelligkeit,
+              onChanged: (updated) {
+                ref.read(selectedFaelligkeitProvider.notifier).state =
+                    updated;
+              },
+            ),
 
           // Tab Content
           Expanded(
@@ -290,72 +305,183 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     }
   }
 
-  void _showRegionenPicker(
+  void _showFilterPicker(
     BuildContext context,
     List<dynamic> regionen,
     Set<String> selectedRegionen,
+    Set<FaelligkeitsStatus> selectedFaelligkeit,
   ) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setModalState) {
-          final current = ref.read(selectedRegionenProvider);
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Text('Regionen filtern',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    if (current.isNotEmpty)
-                      TextButton(
-                        onPressed: () {
-                          ref.read(selectedRegionenProvider.notifier).state =
-                              {};
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text('Zurücksetzen'),
-                      ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: regionen.length,
-                  itemBuilder: (_, i) {
-                    final r = regionen[i];
-                    final isChecked = current.contains(r.routeId);
-                    return CheckboxListTile(
-                      title: Text(r.name),
-                      value: isChecked,
-                      onChanged: (checked) {
-                        final updated = Set<String>.from(current);
-                        if (checked == true) {
-                          updated.add(r.routeId);
-                        } else {
-                          updated.remove(r.routeId);
-                        }
-                        ref.read(selectedRegionenProvider.notifier).state =
-                            updated;
-                        setModalState(() {});
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
+          final currentRegionen = ref.read(selectedRegionenProvider);
+          final currentFaelligkeit = ref.read(selectedFaelligkeitProvider);
+          final hasAnyFilter =
+              currentRegionen.isNotEmpty || currentFaelligkeit.isNotEmpty;
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.55,
+            minChildSize: 0.3,
+            maxChildSize: 0.85,
+            expand: false,
+            builder: (_, scrollController) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Text('Filter',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        if (hasAnyFilter)
+                          TextButton(
+                            onPressed: () {
+                              ref
+                                  .read(selectedRegionenProvider.notifier)
+                                  .state = {};
+                              ref
+                                  .read(
+                                      selectedFaelligkeitProvider.notifier)
+                                  .state = {};
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text('Alle zurücksetzen'),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      children: [
+                        // ─── Fälligkeit ───
+                        const Padding(
+                          padding:
+                              EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          child: Text('Fälligkeit',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary)),
+                        ),
+                        ..._faelligkeitsOptionen.map((opt) {
+                          final isChecked =
+                              currentFaelligkeit.contains(opt.status);
+                          return CheckboxListTile(
+                            title: Row(
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  margin:
+                                      const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: opt.color,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                Text(opt.label),
+                              ],
+                            ),
+                            value: isChecked,
+                            dense: true,
+                            onChanged: (checked) {
+                              final updated =
+                                  Set<FaelligkeitsStatus>.from(
+                                      currentFaelligkeit);
+                              if (checked == true) {
+                                updated.add(opt.status);
+                              } else {
+                                updated.remove(opt.status);
+                              }
+                              ref
+                                  .read(
+                                      selectedFaelligkeitProvider.notifier)
+                                  .state = updated;
+                              setModalState(() {});
+                            },
+                          );
+                        }),
+                        const Divider(height: 16),
+                        // ─── Regionen ───
+                        const Padding(
+                          padding:
+                              EdgeInsets.fromLTRB(16, 4, 16, 4),
+                          child: Text('Regionen',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary)),
+                        ),
+                        ...regionen.map((r) {
+                          final isChecked =
+                              currentRegionen.contains(r.routeId);
+                          return CheckboxListTile(
+                            title: Text(r.name),
+                            value: isChecked,
+                            dense: true,
+                            onChanged: (checked) {
+                              final updated =
+                                  Set<String>.from(currentRegionen);
+                              if (checked == true) {
+                                updated.add(r.routeId);
+                              } else {
+                                updated.remove(r.routeId);
+                              }
+                              ref
+                                  .read(selectedRegionenProvider.notifier)
+                                  .state = updated;
+                              setModalState(() {});
+                            },
+                          );
+                        }),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         });
       },
     );
   }
+
+  static const _faelligkeitsOptionen = [
+    _FaelligkeitsOption(
+      status: FaelligkeitsStatus.ueberfaellig,
+      label: 'Überfällig',
+      color: AppColors.error,
+    ),
+    _FaelligkeitsOption(
+      status: FaelligkeitsStatus.faellig,
+      label: 'Fällig',
+      color: AppColors.warning,
+    ),
+    _FaelligkeitsOption(
+      status: FaelligkeitsStatus.baldFaellig,
+      label: 'Bald fällig',
+      color: AppColors.success,
+    ),
+    _FaelligkeitsOption(
+      status: FaelligkeitsStatus.endreinigungFaellig,
+      label: 'Endreinigung',
+      color: Color(0xFFEA580C),
+    ),
+    _FaelligkeitsOption(
+      status: FaelligkeitsStatus.eroeffnungFaellig,
+      label: 'Eröffnung',
+      color: AppColors.info,
+    ),
+  ];
 }
 
 // ─── Wochen-Navigation ───
@@ -926,6 +1052,94 @@ class _FaelligEintragKarte extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Fälligkeits-Option (für Filter-Picker) ───
+
+class _FaelligkeitsOption {
+  final FaelligkeitsStatus status;
+  final String label;
+  final Color color;
+
+  const _FaelligkeitsOption({
+    required this.status,
+    required this.label,
+    required this.color,
+  });
+}
+
+// ─── Fälligkeits-FilterChips (aktive Filter anzeigen) ───
+
+class _FaelligkeitsChips extends StatelessWidget {
+  final Set<FaelligkeitsStatus> selected;
+  final void Function(Set<FaelligkeitsStatus>) onChanged;
+
+  const _FaelligkeitsChips({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  static const _labels = {
+    FaelligkeitsStatus.ueberfaellig: ('Überfällig', AppColors.error),
+    FaelligkeitsStatus.faellig: ('Fällig', AppColors.warning),
+    FaelligkeitsStatus.baldFaellig: ('Bald fällig', AppColors.success),
+    FaelligkeitsStatus.endreinigungFaellig:
+        ('Endreinigung', Color(0xFFEA580C)),
+    FaelligkeitsStatus.eroeffnungFaellig: ('Eröffnung', AppColors.info),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      color: AppColors.surface,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            // "Alle löschen" Chip
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ActionChip(
+                avatar: const Icon(Icons.close, size: 14),
+                label: const Text('Filter',
+                    style: TextStyle(fontSize: 12)),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize:
+                    MaterialTapTargetSize.shrinkWrap,
+                onPressed: () => onChanged({}),
+              ),
+            ),
+            ...selected.map((s) {
+              final (label, color) = _labels[s]!;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Chip(
+                  label: Text(label,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: color,
+                          fontWeight: FontWeight.w600)),
+                  backgroundColor: color.withAlpha(20),
+                  side: BorderSide(color: color.withAlpha(60)),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize:
+                      MaterialTapTargetSize.shrinkWrap,
+                  deleteIcon: Icon(Icons.close, size: 14, color: color),
+                  onDeleted: () {
+                    final updated = Set<FaelligkeitsStatus>.from(selected);
+                    updated.remove(s);
+                    onChanged(updated);
+                  },
+                ),
+              );
+            }),
+          ],
         ),
       ),
     );
