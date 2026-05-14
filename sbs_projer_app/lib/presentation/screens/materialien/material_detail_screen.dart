@@ -224,6 +224,8 @@ class _MaterialDetailContentState
             if (_kategorieName != null)
               _InfoRow('Kategorie', _kategorieName!),
             _InfoRow('Einheit', _lager.einheit),
+            if (_lager.einheit == 'Packung' && _lager.stueckProPackung != null)
+              _InfoRow('Stück/Packung', '${_lager.stueckProPackung}'),
             if (_lager.dboNr != null)
               _InfoRow('DBO-Nr.', _lager.dboNr!),
             if (_lager.beschreibung != null &&
@@ -287,7 +289,12 @@ class _MaterialDetailContentState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_previewUrl != null)
+          if (_uploadingFoto)
+            const SizedBox(
+              height: 120,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_previewUrl != null)
             GestureDetector(
               onTap: () => _showFullImage(),
               child: ConstrainedBox(
@@ -320,11 +327,6 @@ class _MaterialDetailContentState
                   ),
                 ),
               ),
-            )
-          else if (_uploadingFoto)
-            const SizedBox(
-              height: 120,
-              child: Center(child: CircularProgressIndicator()),
             )
           else if (!SupabaseService.isGuest)
             InkWell(
@@ -603,6 +605,21 @@ class _MaterialDetailContentState
               ),
               autofocus: true,
             ),
+            if (_lager.bestandAktuell < _lager.bestandOptimal) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    controller.text =
+                        _lager.bestandOptimal.toStringAsFixed(0);
+                  },
+                  icon: const Icon(Icons.arrow_upward, size: 18),
+                  label: Text(
+                      'Auf Optimal (${_lager.bestandOptimal.toStringAsFixed(0)}) auffüllen'),
+                ),
+              ),
+            ],
           ],
         ),
         actions: [

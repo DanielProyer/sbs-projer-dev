@@ -30,6 +30,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
   final _bestandMindestController = TextEditingController(text: '5');
   final _bestandOptimalController = TextEditingController(text: '10');
   final _notizenController = TextEditingController();
+  final _stueckProPackungController = TextEditingController();
 
   String _einheit = 'Stück';
   String? _kategorieId;
@@ -56,6 +57,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
     _bestandMindestController.dispose();
     _bestandOptimalController.dispose();
     _notizenController.dispose();
+    _stueckProPackungController.dispose();
     super.dispose();
   }
 
@@ -82,6 +84,8 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
       _bestandOptimalController.text =
           lager.bestandOptimal.toStringAsFixed(0);
       _notizenController.text = lager.notizen ?? '';
+      _stueckProPackungController.text =
+          lager.stueckProPackung?.toString() ?? '';
     });
   }
 
@@ -108,6 +112,9 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
         'bestand_optimal':
             double.tryParse(_bestandOptimalController.text) ?? 10,
         'notizen': _emptyToNull(_notizenController.text),
+        'stueck_pro_packung': _einheit == 'Packung'
+            ? int.tryParse(_stueckProPackungController.text)
+            : null,
       };
 
       if (_isEdit) {
@@ -208,6 +215,17 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
                 if (v != null) setState(() => _einheit = v);
               },
             ),
+            if (_einheit == 'Packung') ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _stueckProPackungController,
+                decoration: const InputDecoration(
+                  labelText: 'Stück pro Packung',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Bestand

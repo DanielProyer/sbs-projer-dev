@@ -11,6 +11,7 @@ class Lager {
   final double bestandMindest;
   final double bestandOptimal;
   final bool? bestandNiedrig;
+  final int? stueckProPackung;
   final String? lieferant;
   final String? lieferantenArtikelNr;
   final double? preisEinkauf;
@@ -32,6 +33,7 @@ class Lager {
     this.bestandMindest = 5,
     this.bestandOptimal = 10,
     this.bestandNiedrig,
+    this.stueckProPackung,
     this.lieferant,
     this.lieferantenArtikelNr,
     this.preisEinkauf,
@@ -55,6 +57,9 @@ class Lager {
       bestandMindest: _d(json['bestand_mindest'], 5),
       bestandOptimal: _d(json['bestand_optimal'], 10),
       bestandNiedrig: json['bestand_niedrig'],
+      stueckProPackung: json['stueck_pro_packung'] != null
+          ? int.tryParse(json['stueck_pro_packung'].toString())
+          : null,
       lieferant: json['lieferant'],
       lieferantenArtikelNr: json['lieferanten_artikel_nr'],
       preisEinkauf: _toDouble(json['preis_einkauf']),
@@ -78,6 +83,7 @@ class Lager {
       'bestand_aktuell': bestandAktuell,
       'bestand_mindest': bestandMindest,
       'bestand_optimal': bestandOptimal,
+      'stueck_pro_packung': stueckProPackung,
       'lieferant': lieferant,
       'lieferanten_artikel_nr': lieferantenArtikelNr,
       'preis_einkauf': preisEinkauf,

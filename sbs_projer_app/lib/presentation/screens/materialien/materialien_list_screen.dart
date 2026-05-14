@@ -45,7 +45,15 @@ class _MaterialienListScreenState
             (l.dboNr?.toLowerCase().contains(query) ?? false);
       }
       return true;
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        final aDbo = a.dboNr ?? '';
+        final bDbo = b.dboNr ?? '';
+        if (aDbo.isEmpty && bDbo.isEmpty) return a.name.compareTo(b.name);
+        if (aDbo.isEmpty) return 1;
+        if (bDbo.isEmpty) return -1;
+        return aDbo.compareTo(bDbo);
+      });
 
     return Scaffold(
       appBar: AppBar(
