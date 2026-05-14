@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 11.05.2026
+**Stand**: 14.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -218,7 +218,13 @@
 - [x] Material-Foto: Lazy HighRes Loading (Preview auf Detailseite, HighRes on-demand)
 - [x] Material-Foto: Lade-Spinner beim Foto-Ändern
 - [x] Material-Liste: Subtitle DBO + Kategorie (ohne Einheit), einzeilig
+- [x] Material: bestand_niedrig Fix (< statt <=) — Bestand = Mindest kein Warnsignal mehr
+- [x] Material: Foto-Spinner beim Ändern bestehender Fotos
+- [x] Material: "Auf Optimal auffüllen" Button im Bestand-Dialog
+- [x] Material-Liste: Sortierung nach DBO-Nummer
+- [x] Material: Stück pro Packung Feld (bei Einheit „Packung")
+- [x] Materialbestellung komplett (PDF, Mail, Vormerken, Sektionen, Bestellhistorie, Edge Function)
 
 ---
 
-**Zuletzt aktualisiert**: 11.05.2026
+**Zuletzt aktualisiert**: 14.05.2026

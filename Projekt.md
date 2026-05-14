@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 11.05.2026
+**Stand**: 14.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.46+328
+**Version**: 0.10.57+339
 
 ---
 
@@ -647,11 +647,33 @@
     - Lade-Spinner beim Foto-Ändern
 172. ✅ Material-Liste: Subtitle neu DBO-Nummer + Kategorie (ohne Einheit), einzeilig
 
+### Erledigt am 14.05.2026
+173. ✅ Material: bestand_niedrig Fix (< statt <=) — Bestand = Mindest zeigt kein Warnsignal mehr
+174. ✅ Material: Foto-Spinner Fix — Spinner wird jetzt beim Ändern bestehender Fotos angezeigt
+175. ✅ Material: "Auf Optimal auffüllen" Button im Bestand-Anpassen-Dialog
+176. ✅ Material-Liste: Sortierung nach DBO-Nummer (Artikel ohne DBO am Ende, alphabetisch)
+177. ✅ Material: Stück pro Packung Feld (bei Einheit „Packung" erscheint zusätzliches Eingabefeld)
+178. ✅ Materialbestellung komplett:
+    - MaterialBestellungScreen (Empfänger aus Heineken Kontaktzuweisung, Auto-Niedrig-Toggle)
+    - Drei Sektionen: Verbrauchsmaterial, Reinigungsmaterial, Weitere Artikel
+    - Checkbox + editierbare Mengen pro Artikel
+    - Artikel vormerken (Bookmark-Icon in Material-Detail + Liste)
+    - BestellungPdfService (PDF mit Heineken-Green Branding, DBO/Artikel/Menge/Einheit Tabelle)
+    - MaterialBestellungRepository (CRUD, Bestell-Nr MB-001, PDF-Upload, signierte URLs)
+    - DB: material_bestellungen + material_bestellpositionen Tabellen mit RLS
+    - Storage: bestellung-pdfs Bucket mit RLS-Policies
+    - Edge Function send-rechnung-mail erweitert (bestellungId + Materialbestellung.pdf Anhang)
+    - MailConfig: bestellung-Bereich für Test-/Scharfmodus
+    - Bestellhistorie in DB gespeichert (Status: entwurf → gesendet)
+    - vorgemerkt-Flag auf Lager-Tabelle + Toggle in Detail/Liste
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
 2. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
 3. ☐ Heineken Rapport-PDFs Layout-Fehler beheben
-4. ☐ Materialbestellung / Materialliste kontrollieren
+4. ☐ Materialbestellung testen (scharfstellen wenn bereit)
+   - Edge Function send-rechnung-mail redeployen (bestellungId-Support)
+   - MailConfig bestellungScharf auf true setzen
 5. ☐ UI/UX Verbesserungen (alle Screens durchgehen)
 6. ☐ Beta-Testing mit Daniel (reale Umgebung)
 7. ☐ Bug-Fixes
@@ -659,7 +681,7 @@
 9. ☐ Performance: Lazy Route Loading, Image Compression, Pagination, select() Columns
 
 ### Offene DB-Migrationen (im Supabase SQL Editor ausführen)
-- Keine — alle Migrationen bis 076 sind ausgeführt
+- Keine — alle Migrationen bis 080 sind ausgeführt
 
 ---
 
@@ -678,5 +700,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 11.05.2026 – Material-Foto komplett (Crop, 2-Res Upload, Lazy Loading, Spinner), Material-Liste Subtitle überarbeitet. App-Version 0.10.46+328.
+**Zuletzt aktualisiert**: 14.05.2026 – Materialbestellung komplett (PDF, Mail, Vormerken, Sektionen), bestand_niedrig Fix, Foto-Spinner Fix, DBO-Sortierung, Stück pro Packung. App-Version 0.10.57+339.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)
