@@ -60,6 +60,11 @@ class _MaterialienListScreenState
         title: const Text('Material'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.send),
+            tooltip: 'Materialbestellung',
+            onPressed: () => context.push('/materialien/bestellen'),
+          ),
+          IconButton(
             icon: const Icon(Icons.shopping_cart),
             tooltip: 'Bestellliste',
             onPressed: () => context.push('/materialien/bestellliste'),
@@ -233,6 +238,11 @@ class _MaterialListItem extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (lager.vorgemerkt)
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
+                child: Icon(Icons.bookmark, size: 16, color: Colors.orange),
+              ),
             Text(
               '${lager.bestandAktuell.toStringAsFixed(0)}/${lager.bestandOptimal.toStringAsFixed(0)}',
               style: TextStyle(

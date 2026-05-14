@@ -72,6 +72,21 @@ class LagerRepository {
         .eq('id', id);
   }
 
+  static Future<void> toggleVorgemerkt(String id, bool value) async {
+    await SupabaseService.client
+        .from('lager')
+        .update({'vorgemerkt': value})
+        .eq('id', id);
+  }
+
+  static Future<void> clearVorgemerkt() async {
+    await SupabaseService.client
+        .from('lager')
+        .update({'vorgemerkt': false})
+        .eq('user_id', _userId)
+        .eq('vorgemerkt', true);
+  }
+
   static Future<void> delete(String id) async {
     await SupabaseService.client
         .from('lager')

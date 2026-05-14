@@ -143,7 +143,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, subject, bodyText, rechnungId, protokollFotoPfad, userId, testMode } = await req.json();
+    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode } = await req.json();
 
     if (!to || !subject) {
       return new Response(
@@ -189,7 +189,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(`Sending mail to ${to}, rechnungId=${rechnungId ?? "none"}, protokoll=${protokollFotoPfad ?? "none"}`);
+    console.log(`Sending mail to ${to}, rechnungId=${rechnungId ?? "none"}, bestellungId=${bestellungId ?? "none"}, protokoll=${protokollFotoPfad ?? "none"}`);
 
     const attachments: Array<{ filename: string; contentType: string; data: Uint8Array }> = [];
 
@@ -208,6 +208,20 @@ Deno.serve(async (req: Request) => {
       }
 
       attachments.push({ filename: "Rechnung.pdf", contentType: "application/pdf", data: rechnungPdf });
+    }
+
+    // 1b. Bestellungs-PDF laden (optional)
+    if (bestellungId) {
+      const bestellungPdf = await downloadFromStorage(
+        "bestellung-pdfs",
+        `${userId}/${bestellungId}/bestellung.pdf`,
+      );
+
+      if (bestellungPdf) {
+        attachments.push({ filename: "Materialbestellung.pdf", contentType: "application/pdf", data: bestellungPdf });
+      } else {
+        console.warn(`Bestellungs-PDF nicht gefunden: ${userId}/${bestellungId}/bestellung.pdf`);
+      }
     }
 
     // 2. Protokoll-Foto laden (optional)

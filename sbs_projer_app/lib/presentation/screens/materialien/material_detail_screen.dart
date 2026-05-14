@@ -128,6 +128,16 @@ class _MaterialDetailContentState
         actions: [
           if (!SupabaseService.isGuest) ...[
             IconButton(
+              icon: Icon(
+                _lager.vorgemerkt ? Icons.bookmark : Icons.bookmark_border,
+                color: _lager.vorgemerkt ? Colors.orange : null,
+              ),
+              tooltip: _lager.vorgemerkt
+                  ? 'Vormerkung aufheben'
+                  : 'Für Bestellung vormerken',
+              onPressed: _toggleVorgemerkt,
+            ),
+            IconButton(
               icon: const Icon(Icons.add_circle_outline),
               tooltip: 'Bestand anpassen',
               onPressed: _showBestandDialog,
@@ -581,6 +591,31 @@ class _MaterialDetailContentState
         ),
       ),
     );
+  }
+
+  Future<void> _toggleVorgemerkt() async {
+    final newVal = !_lager.vorgemerkt;
+    try {
+      await LagerRepository.toggleVorgemerkt(_lager.id, newVal);
+      final updated = await LagerRepository.getById(_lager.id);
+      if (mounted && updated != null) {
+        ref.invalidate(materialienStreamProvider);
+        setState(() => _lager = updated);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newVal
+                ? 'Für Bestellung vorgemerkt'
+                : 'Vormerkung aufgehoben'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _showBestandDialog() async {

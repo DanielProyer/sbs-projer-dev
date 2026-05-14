@@ -19,6 +19,7 @@ class MailConfig {
   static const heinekenScharf = false;
   static const montageScharf = false;
   static const heigenieScharf = true;
+  static const bestellungScharf = false;
 
   /// Gibt den tatsächlichen Empfänger zurück.
   /// Im Testmodus immer [testEmpfaenger], sonst [echterEmpfaenger].
@@ -35,6 +36,8 @@ class MailConfig {
         if (!montageScharf) return testEmpfaenger;
       case 'heigenie':
         if (!heigenieScharf) return testEmpfaenger;
+      case 'bestellung':
+        if (!bestellungScharf) return testEmpfaenger;
     }
 
     return echterEmpfaenger ?? testEmpfaenger;

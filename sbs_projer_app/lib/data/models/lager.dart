@@ -15,6 +15,7 @@ class Lager {
   final String? lieferant;
   final String? lieferantenArtikelNr;
   final double? preisEinkauf;
+  final bool vorgemerkt;
   final bool istAktiv;
   final String? notizen;
   final DateTime? createdAt;
@@ -37,6 +38,7 @@ class Lager {
     this.lieferant,
     this.lieferantenArtikelNr,
     this.preisEinkauf,
+    this.vorgemerkt = false,
     this.istAktiv = true,
     this.notizen,
     this.createdAt,
@@ -63,6 +65,7 @@ class Lager {
       lieferant: json['lieferant'],
       lieferantenArtikelNr: json['lieferanten_artikel_nr'],
       preisEinkauf: _toDouble(json['preis_einkauf']),
+      vorgemerkt: json['vorgemerkt'] ?? false,
       istAktiv: json['ist_aktiv'] ?? true,
       notizen: json['notizen'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
@@ -87,6 +90,7 @@ class Lager {
       'lieferant': lieferant,
       'lieferanten_artikel_nr': lieferantenArtikelNr,
       'preis_einkauf': preisEinkauf,
+      'vorgemerkt': vorgemerkt,
       'ist_aktiv': istAktiv,
       'notizen': notizen,
     };

@@ -22,6 +22,10 @@ final niedrigCountProvider = Provider<int>((ref) {
   return ref.watch(materialienProvider).where((m) => m.bestandNiedrig == true).length;
 });
 
+final vorgemerktCountProvider = Provider<int>((ref) {
+  return ref.watch(materialienProvider).where((m) => m.vorgemerkt).length;
+});
+
 // --- Kategorien ---
 
 final kategorienProvider = FutureProvider<List<MaterialKategorie>>((ref) {
