@@ -42,7 +42,10 @@ class _MaterialienListScreenState
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         return l.name.toLowerCase().contains(query) ||
-            (l.dboNr?.toLowerCase().contains(query) ?? false);
+            (l.dboNr?.toLowerCase().contains(query) ?? false) ||
+            (l.beschreibung?.toLowerCase().contains(query) ?? false) ||
+            (l.notizen?.toLowerCase().contains(query) ?? false) ||
+            (l.lieferant?.toLowerCase().contains(query) ?? false);
       }
       return true;
     }).toList()
