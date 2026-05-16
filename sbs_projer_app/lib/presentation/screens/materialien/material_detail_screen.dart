@@ -57,6 +57,15 @@ class _MaterialDetailContent extends ConsumerStatefulWidget {
 
 class _MaterialDetailContentState
     extends ConsumerState<_MaterialDetailContent> {
+  static const _manualKategorieIds = {
+    '9a2b7805-b813-4cdf-8618-36707dbfc9cd', // Elektronik
+    'ff3b7043-6f52-4966-86ea-d452667173c7', // Thermostat/Regler
+    '06f6e60e-cd8f-4cb9-aa8d-a0a7ede71ccd', // Pumpe/Motor/Lüfter
+    '8951699a-f1fd-4c28-96d2-4c1b7454e357', // Fasskühler
+    'a8bf537f-d858-473f-8744-c470026567b9', // Bierkühler
+    '39fd2209-120c-4e27-b406-265f8a1b8929', // Säule
+  };
+
   late Lager _lager;
   String? _kategorieName;
   List<MaterialVerbrauch>? _verbrauch;
@@ -64,6 +73,10 @@ class _MaterialDetailContentState
   MaterialArtikel? _artikel;
   String? _previewUrl;   // Geringe Auflösung (für Vorschaukarte)
   bool _uploadingFoto = false;
+
+  bool get _hasManualKategorie =>
+      _lager.kategorieId != null &&
+      _manualKategorieIds.contains(_lager.kategorieId);
 
   @override
   void initState() {
@@ -261,9 +274,11 @@ class _MaterialDetailContentState
           ]),
           const SizedBox(height: 12),
 
-          // Manual-PDF
-          _buildManualCard(),
-          const SizedBox(height: 12),
+          // Manual-PDF (nur für bestimmte Kategorien)
+          if (_hasManualKategorie) ...[
+            _buildManualCard(),
+            const SizedBox(height: 12),
+          ],
 
           // Verbrauchshistorie
           _SectionCard(children: [
