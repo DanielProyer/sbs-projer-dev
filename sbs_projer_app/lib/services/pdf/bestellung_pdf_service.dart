@@ -26,17 +26,26 @@ class BestellungPdfService {
   }) async {
     final pdf = pw.Document();
 
+    int dboSort(MaterialBestellposition a, MaterialBestellposition b) {
+      final aDbo = a.dboNr ?? '';
+      final bDbo = b.dboNr ?? '';
+      if (aDbo.isEmpty && bDbo.isEmpty) return a.name.compareTo(b.name);
+      if (aDbo.isEmpty) return 1;
+      if (bDbo.isEmpty) return -1;
+      return aDbo.compareTo(bDbo);
+    }
+
     final verbrauch = positionen
         .where((p) => p.kategorieName == 'Verbrauchsmaterial')
-        .toList();
+        .toList()..sort(dboSort);
     final reinigung = positionen
         .where((p) => p.kategorieName == 'Reinigungsmaterial')
-        .toList();
+        .toList()..sort(dboSort);
     final sonstige = positionen
         .where((p) =>
             p.kategorieName != 'Verbrauchsmaterial' &&
             p.kategorieName != 'Reinigungsmaterial')
-        .toList();
+        .toList()..sort(dboSort);
 
     pdf.addPage(
       pw.Page(
