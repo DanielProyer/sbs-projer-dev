@@ -451,6 +451,21 @@ class _EigenauftragFormScreenState
       final anzahl = int.tryParse(_anzahlController.text) ?? 1;
       ea.pauschale = anzahl * 30.0;
 
+      // Fallback: Text-Matching wenn User getippt aber nicht aus Dropdown gewählt hat
+      for (int i = 0; i < 3; i++) {
+        if (_materialIds[i] == null) {
+          final text = _materialControllers[i].text.trim();
+          if (text.isNotEmpty && _lagerItems.isNotEmpty) {
+            final match = _lagerItems.where(
+              (l) => l.name.toLowerCase() == text.toLowerCase(),
+            ).firstOrNull;
+            if (match != null) {
+              _materialIds[i] = match.id;
+            }
+          }
+        }
+      }
+
       // Material
       final matIds = [null, null, null] as List<String?>;
       final matMengen = [null, null, null] as List<double?>;

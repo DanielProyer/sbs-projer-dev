@@ -57,6 +57,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       List.generate(5, (_) => TextEditingController());
   final List<TextEditingController> _materialMengenControllers =
       List.generate(5, (_) => TextEditingController(text: '1'));
+  final List<TextEditingController?> _autoCompleteControllers =
+      List.filled(5, null);
 
   // Kilometerabrechnung
   bool _istKilometerabrechnung = false;
@@ -236,6 +238,20 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.anlageTyp = _anlageTyp;
         s.referenzNr = _emptyToNull(_heinekennrController.text);
         s.stoerungBereiche = _stoerungBereiche.isEmpty ? null : _stoerungBereiche;
+        // Fallback: Text-Matching wenn User getippt aber nicht aus Dropdown gewählt hat
+        for (int i = 0; i < 5; i++) {
+          if (_materialIds[i] == null) {
+            final text = (_autoCompleteControllers[i] ?? _materialControllers[i]).text.trim();
+            if (text.isNotEmpty && _lagerItems.isNotEmpty) {
+              final match = _lagerItems.where(
+                (l) => l.name.toLowerCase() == text.toLowerCase(),
+              ).firstOrNull;
+              if (match != null) {
+                _materialIds[i] = match.id;
+              }
+            }
+          }
+        }
         // Material-Felder
         s.material1Id = _materialIds[0];
         s.material1Menge = _materialIds[0] != null ? _materialMengen[0] : null;
@@ -643,6 +659,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                       return _lagerItems.where((l) => l.name.toLowerCase().contains(q));
                     },
                     fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                      _autoCompleteControllers[i] = controller;
                       return TextFormField(
                         controller: controller,
                         focusNode: focusNode,

@@ -67,6 +67,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       List.generate(5, (_) => TextEditingController());
   final List<TextEditingController> _materialMengenControllers =
       List.generate(5, (_) => TextEditingController(text: '1'));
+  final List<TextEditingController?> _autoCompleteControllers =
+      List.filled(5, null);
 
   // Stundensatz (80 CHF/h default)
   double _stundensatz = 80.0;
@@ -366,6 +368,21 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           final text = _materialControllers[i].text.trim();
           _materialIds[i] = text.isNotEmpty ? text : null;
           if (text.isEmpty) _materialMengen[i] = 0;
+        }
+      } else {
+        // Fallback: Text-Matching wenn User getippt aber nicht aus Dropdown gewählt hat
+        for (int i = 0; i < 5; i++) {
+          if (_materialIds[i] == null) {
+            final text = (_autoCompleteControllers[i] ?? _materialControllers[i]).text.trim();
+            if (text.isNotEmpty && _lagerItems.isNotEmpty) {
+              final match = _lagerItems.where(
+                (l) => l.name.toLowerCase() == text.toLowerCase(),
+              ).firstOrNull;
+              if (match != null) {
+                _materialIds[i] = match.id;
+              }
+            }
+          }
         }
       }
       m.material1Id = _materialIds[0];
@@ -1138,6 +1155,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                       return _lagerItems.where((l) => l.name.toLowerCase().contains(q));
                     },
                     fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                      _autoCompleteControllers[i] = controller;
                       return TextFormField(
                         controller: controller,
                         focusNode: focusNode,
