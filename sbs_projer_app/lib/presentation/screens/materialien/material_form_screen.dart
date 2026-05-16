@@ -311,10 +311,62 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
                     )
                   : Text(_isEdit ? 'Speichern' : 'Erstellen'),
             ),
+
+            if (_isEdit) ...[
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _isLoading ? null : _confirmDelete,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Material löschen'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Material löschen?'),
+        content: Text('«${_nameController.text}» wirklich löschen?'),
+        actions: [
+          TextButton(
+              onPressed: () => ctx.pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => ctx.pop(true),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Löschen')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await LagerRepository.delete(_existing!.id);
+      if (mounted) {
+        ref.invalidate(materialienStreamProvider);
+        context.go('/materialien');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Material gelöscht')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
   }
 
   /// Erzeugt einen kurzen, prägnanten Namen aus dem vollen Artikelnamen.

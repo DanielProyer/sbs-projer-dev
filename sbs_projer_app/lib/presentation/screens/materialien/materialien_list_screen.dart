@@ -155,6 +155,14 @@ class _MaterialienListScreenState
                               lager.id, {'bestand_aktuell': neu});
                           ref.invalidate(materialienProvider);
                         },
+                        onDecrement: lager.bestandAktuell > 0
+                            ? () async {
+                                final neu = lager.bestandAktuell - 1;
+                                await LagerRepository.update(
+                                    lager.id, {'bestand_aktuell': neu});
+                                ref.invalidate(materialienProvider);
+                              }
+                            : null,
                       );
                     },
                   ),
@@ -213,12 +221,14 @@ class _MaterialListItem extends StatelessWidget {
   final String? kategorieName;
   final VoidCallback onTap;
   final VoidCallback? onIncrement;
+  final VoidCallback? onDecrement;
 
   const _MaterialListItem({
     required this.lager,
     this.kategorieName,
     required this.onTap,
     this.onIncrement,
+    this.onDecrement,
   });
 
   @override
@@ -263,18 +273,30 @@ class _MaterialListItem extends StatelessWidget {
                 fontSize: 13,
               ),
             ),
-            if (onIncrement != null)
+            if (onDecrement != null || onIncrement != null) ...[
               SizedBox(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.add_circle_outline, size: 22),
+                  icon: const Icon(Icons.remove_circle_outline, size: 20),
+                  color: onDecrement != null
+                      ? AppColors.error
+                      : AppColors.textSecondary.withAlpha(80),
+                  onPressed: onDecrement,
+                ),
+              ),
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add_circle_outline, size: 20),
                   color: AppColors.primary,
                   onPressed: onIncrement,
                 ),
               ),
-            if (onIncrement == null) const SizedBox(width: 4),
+            ],
             const Icon(Icons.chevron_right, size: 20),
           ],
         ),

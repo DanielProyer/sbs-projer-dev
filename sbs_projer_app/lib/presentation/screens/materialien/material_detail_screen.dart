@@ -124,7 +124,13 @@ class _MaterialDetailContentState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_lager.name),
+        title: Text(
+          _lager.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 16, height: 1.2),
+        ),
+        toolbarHeight: 64,
         actions: [
           if (!SupabaseService.isGuest) ...[
             IconButton(
@@ -138,7 +144,7 @@ class _MaterialDetailContentState
               onPressed: _toggleVorgemerkt,
             ),
             IconButton(
-              icon: const Icon(Icons.add_circle_outline),
+              icon: const Icon(Icons.tune),
               tooltip: 'Bestand anpassen',
               onPressed: _showBestandDialog,
             ),
@@ -147,11 +153,6 @@ class _MaterialDetailContentState
               tooltip: 'Bearbeiten',
               onPressed: () =>
                   context.push('/materialien/${_lager.id}/bearbeiten'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Löschen',
-              onPressed: () => _confirmDelete(context),
             ),
           ],
         ],
