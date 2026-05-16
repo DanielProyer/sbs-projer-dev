@@ -7,7 +7,6 @@ import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/models/material_bestellung.dart';
-import 'package:sbs_projer_app/data/models/material_kategorie.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/data/repositories/material_bestellung_repository.dart';
@@ -23,31 +22,29 @@ class MaterialBestellungScreen extends ConsumerStatefulWidget {
       _MaterialBestellungScreenState();
 }
 
-class _BestellItem {
-  final Lager lager;
+class _BestellPosition {
+  Lager? lager;
   double menge;
-  bool selected;
+  final TextEditingController mengeController;
 
-  _BestellItem({
-    required this.lager,
-    required this.menge,
-    this.selected = true,
-  });
+  _BestellPosition({this.lager, this.menge = 1})
+      : mengeController =
+            TextEditingController(text: menge.toStringAsFixed(0));
 }
 
 class _MaterialBestellungScreenState
     extends ConsumerState<MaterialBestellungScreen> {
   bool _loading = true;
   bool _sending = false;
-  bool _autoNiedrig = true;
   String? _empfaengerName;
   String? _empfaengerEmail;
 
-  List<_BestellItem> _verbrauchItems = [];
-  List<_BestellItem> _reinigungItems = [];
-  List<_BestellItem> _sonstigeItems = [];
+  List<Lager> _verbrauchLager = [];
+  List<Lager> _reinigungLager = [];
 
-  List<Lager> _alleLager = [];
+  List<_BestellPosition> _verbrauchPositionen = [];
+  List<_BestellPosition> _reinigungPositionen = [];
+
   Map<String, String> _kategorieNames = {};
 
   @override
@@ -56,56 +53,49 @@ class _MaterialBestellungScreenState
     _loadData();
   }
 
+  @override
+  void dispose() {
+    for (final p in [..._verbrauchPositionen, ..._reinigungPositionen]) {
+      p.mengeController.dispose();
+    }
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
     try {
       final kontakt =
           await KontaktRepository.getHeinekenZuweisung('materialbestellung');
       final alleLager = await LagerRepository.getAll();
-      final kategorien =
-          ref.read(kategorienProvider).valueOrNull ?? [];
-      final kategorieMap = <String, MaterialKategorie>{};
+      final kategorien = ref.read(kategorienProvider).valueOrNull ?? [];
       final kategorieNames = <String, String>{};
       for (final k in kategorien) {
-        kategorieMap[k.id] = k;
         kategorieNames[k.id] = k.name;
       }
 
-      final verbrauch = <_BestellItem>[];
-      final reinigung = <_BestellItem>[];
-      final sonstige = <_BestellItem>[];
+      final verbrauchLager = <Lager>[];
+      final reinigungLager = <Lager>[];
 
       for (final l in alleLager) {
         if (!l.istAktiv) continue;
-        final katName = l.kategorieId != null
-            ? kategorieNames[l.kategorieId]
-            : null;
-        final shouldInclude =
-            l.vorgemerkt || (_autoNiedrig && l.bestandNiedrig == true);
-        final fehlmenge = l.bestandOptimal - l.bestandAktuell;
-        if (fehlmenge <= 0 && !l.vorgemerkt) continue;
-
-        final item = _BestellItem(
-          lager: l,
-          menge: fehlmenge > 0 ? fehlmenge : 1,
-          selected: shouldInclude,
-        );
-
+        final katName =
+            l.kategorieId != null ? kategorieNames[l.kategorieId] : null;
         if (katName == 'Verbrauchsmaterial') {
-          verbrauch.add(item);
+          verbrauchLager.add(l);
         } else if (katName == 'Reinigungsmaterial') {
-          reinigung.add(item);
-        } else {
-          sonstige.add(item);
+          reinigungLager.add(l);
         }
       }
 
+      verbrauchLager.sort((a, b) => a.name.compareTo(b.name));
+      reinigungLager.sort((a, b) => a.name.compareTo(b.name));
+
       if (mounted) {
         setState(() {
-          _alleLager = alleLager;
+          _verbrauchLager = verbrauchLager;
+          _reinigungLager = reinigungLager;
           _kategorieNames = kategorieNames;
-          _verbrauchItems = verbrauch;
-          _reinigungItems = reinigung;
-          _sonstigeItems = sonstige;
+          _verbrauchPositionen = [_BestellPosition(), _BestellPosition()];
+          _reinigungPositionen = [_BestellPosition(), _BestellPosition()];
           _empfaengerName = kontakt != null
               ? '${kontakt.vorname} ${kontakt.nachname ?? ''}'.trim()
               : null;
@@ -123,15 +113,14 @@ class _MaterialBestellungScreenState
     }
   }
 
-  List<_BestellItem> get _selectedItems => [
-        ..._verbrauchItems.where((i) => i.selected),
-        ..._reinigungItems.where((i) => i.selected),
-        ..._sonstigeItems.where((i) => i.selected),
+  List<_BestellPosition> get _filledPositionen => [
+        ..._verbrauchPositionen.where((p) => p.lager != null),
+        ..._reinigungPositionen.where((p) => p.lager != null),
       ];
 
   Future<void> _sendBestellung() async {
-    final selected = _selectedItems;
-    if (selected.isEmpty) {
+    final filled = _filledPositionen;
+    if (filled.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Keine Artikel ausgewählt')),
       );
@@ -154,20 +143,21 @@ class _MaterialBestellungScreenState
       final empfaenger =
           MailConfig.empfaenger(_empfaengerEmail, bereich: 'bestellung');
 
-      final positionen = selected.map((item) {
-        final katName = item.lager.kategorieId != null
-            ? _kategorieNames[item.lager.kategorieId]
+      final positionen = filled.map((pos) {
+        final l = pos.lager!;
+        final katName = l.kategorieId != null
+            ? _kategorieNames[l.kategorieId]
             : null;
         return MaterialBestellposition(
           id: '',
           bestellungId: '',
-          lagerId: item.lager.id,
-          dboNr: item.lager.dboNr,
-          name: item.lager.name,
-          einheit: item.lager.einheit,
-          menge: item.menge,
-          bestandAktuell: item.lager.bestandAktuell,
-          bestandOptimal: item.lager.bestandOptimal,
+          lagerId: l.id,
+          dboNr: l.dboNr,
+          name: l.name,
+          einheit: l.einheit,
+          menge: pos.menge,
+          bestandAktuell: l.bestandAktuell,
+          bestandOptimal: l.bestandOptimal,
           kategorieName: katName,
           sortierung: 0,
         );
@@ -206,13 +196,8 @@ class _MaterialBestellungScreenState
         },
       );
 
-      await MaterialBestellungRepository.updateStatus(bestellung.id, 'gesendet');
-
-      for (final item in selected) {
-        if (item.lager.vorgemerkt) {
-          await LagerRepository.toggleVorgemerkt(item.lager.id, false);
-        }
-      }
+      await MaterialBestellungRepository.updateStatus(
+          bestellung.id, 'gesendet');
 
       if (mounted) {
         ref.invalidate(materialienStreamProvider);
@@ -236,24 +221,24 @@ class _MaterialBestellungScreenState
   }
 
   Future<void> _previewPdf() async {
-    final selected = _selectedItems;
-    if (selected.isEmpty) return;
+    final filled = _filledPositionen;
+    if (filled.isEmpty) return;
 
     final bestellNr = await MaterialBestellungRepository.nextBestellNr();
-    final positionen = selected.map((item) {
-      final katName = item.lager.kategorieId != null
-          ? _kategorieNames[item.lager.kategorieId]
-          : null;
+    final positionen = filled.map((pos) {
+      final l = pos.lager!;
+      final katName =
+          l.kategorieId != null ? _kategorieNames[l.kategorieId] : null;
       return MaterialBestellposition(
         id: '',
         bestellungId: '',
-        lagerId: item.lager.id,
-        dboNr: item.lager.dboNr,
-        name: item.lager.name,
-        einheit: item.lager.einheit,
-        menge: item.menge,
-        bestandAktuell: item.lager.bestandAktuell,
-        bestandOptimal: item.lager.bestandOptimal,
+        lagerId: l.id,
+        dboNr: l.dboNr,
+        name: l.name,
+        einheit: l.einheit,
+        menge: pos.menge,
+        bestandAktuell: l.bestandAktuell,
+        bestandOptimal: l.bestandOptimal,
         kategorieName: katName,
       );
     }).toList();
@@ -284,13 +269,13 @@ class _MaterialBestellungScreenState
       );
     }
 
-    final selectedCount = _selectedItems.length;
+    final filledCount = _filledPositionen.length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Materialbestellung'),
         actions: [
-          if (selectedCount > 0)
+          if (filledCount > 0)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf),
               tooltip: 'PDF-Vorschau',
@@ -301,79 +286,29 @@ class _MaterialBestellungScreenState
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Empfänger-Info
           _buildEmpfaengerCard(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          // Auto-Niedrig Toggle
-          Card(
-            child: SwitchListTile(
-              title: const Text('Niedrige Bestände automatisch bestellen'),
-              subtitle: Text(
-                'Alle Artikel unter Mindestbestand',
-                style: TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
-              ),
-              value: _autoNiedrig,
-              onChanged: (v) {
-                setState(() {
-                  _autoNiedrig = v;
-                  _updateAutoSelection();
-                });
-              },
-            ),
+          _buildSektion(
+            'Verbrauchsmaterial',
+            _verbrauchLager,
+            _verbrauchPositionen,
+            onAdd: () => setState(
+                () => _verbrauchPositionen.add(_BestellPosition())),
           ),
           const SizedBox(height: 16),
 
-          // Verbrauchsmaterial
-          if (_verbrauchItems.isNotEmpty) ...[
-            _buildSektionHeader(
-                'Verbrauchsmaterial', _verbrauchItems),
-            ..._verbrauchItems.map((item) => _buildItemTile(item)),
-            const SizedBox(height: 16),
-          ],
-
-          // Reinigungsmaterial
-          if (_reinigungItems.isNotEmpty) ...[
-            _buildSektionHeader(
-                'Reinigungsmaterial', _reinigungItems),
-            ..._reinigungItems.map((item) => _buildItemTile(item)),
-            const SizedBox(height: 16),
-          ],
-
-          // Sonstige
-          if (_sonstigeItems.isNotEmpty) ...[
-            _buildSektionHeader('Weitere Artikel', _sonstigeItems),
-            ..._sonstigeItems.map((item) => _buildItemTile(item)),
-            const SizedBox(height: 16),
-          ],
-
-          if (_verbrauchItems.isEmpty &&
-              _reinigungItems.isEmpty &&
-              _sonstigeItems.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  children: [
-                    Icon(Icons.check_circle,
-                        size: 64,
-                        color: AppColors.success.withAlpha(150)),
-                    const SizedBox(height: 16),
-                    Text('Alle Bestände OK',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(color: AppColors.success)),
-                  ],
-                ),
-              ),
-            ),
+          _buildSektion(
+            'Reinigungsmaterial',
+            _reinigungLager,
+            _reinigungPositionen,
+            onAdd: () => setState(
+                () => _reinigungPositionen.add(_BestellPosition())),
+          ),
 
           const SizedBox(height: 24),
 
-          // Senden-Button
-          if (selectedCount > 0)
+          if (filledCount > 0)
             FilledButton.icon(
               onPressed: _sending ? null : _sendBestellung,
               icon: _sending
@@ -386,7 +321,7 @@ class _MaterialBestellungScreenState
                   : const Icon(Icons.send),
               label: Text(_sending
                   ? 'Wird gesendet...'
-                  : 'Bestellung senden ($selectedCount Artikel)'),
+                  : 'Bestellung senden ($filledCount Artikel)'),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
               ),
@@ -397,7 +332,8 @@ class _MaterialBestellungScreenState
   }
 
   Widget _buildEmpfaengerCard() {
-    final hasContact = _empfaengerEmail != null && _empfaengerEmail!.isNotEmpty;
+    final hasContact =
+        _empfaengerEmail != null && _empfaengerEmail!.isNotEmpty;
     return Card(
       child: ListTile(
         leading: Icon(
@@ -426,124 +362,148 @@ class _MaterialBestellungScreenState
     );
   }
 
-  Widget _buildSektionHeader(String title, List<_BestellItem> items) {
-    final selectedCount = items.where((i) => i.selected).length;
-    final allSelected = selectedCount == items.length;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(4),
+  Widget _buildSektion(
+    String title,
+    List<Lager> verfuegbar,
+    List<_BestellPosition> positionen, {
+    required VoidCallback onAdd,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13)),
             ),
-            child: Text(title,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13)),
-          ),
-          const SizedBox(width: 8),
-          Text('$selectedCount/${items.length}',
-              style: TextStyle(
-                  fontSize: 12, color: AppColors.textSecondary)),
-          const Spacer(),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                for (final item in items) {
-                  item.selected = !allSelected;
-                }
-              });
-            },
-            child: Text(allSelected ? 'Keine' : 'Alle',
-                style: const TextStyle(fontSize: 12)),
-          ),
-        ],
-      ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Position', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...List.generate(positionen.length, (index) {
+          final already = positionen
+              .where((p) => p != positionen[index] && p.lager != null)
+              .map((p) => p.lager!.id)
+              .toSet();
+          return _buildPositionRow(
+            positionen[index],
+            verfuegbar.where((l) => !already.contains(l.id)).toList(),
+            onRemove: positionen.length > 2
+                ? () {
+                    positionen[index].mengeController.dispose();
+                    setState(() => positionen.removeAt(index));
+                  }
+                : null,
+          );
+        }),
+      ],
     );
   }
 
-  Widget _buildItemTile(_BestellItem item) {
-    final l = item.lager;
+  Widget _buildPositionRow(
+    _BestellPosition position,
+    List<Lager> verfuegbar, {
+    VoidCallback? onRemove,
+  }) {
+    final items = verfuegbar.toList();
+    if (position.lager != null &&
+        !items.any((l) => l.id == position.lager!.id)) {
+      items.insert(0, position.lager!);
+    }
+
     return Card(
-      child: CheckboxListTile(
-        value: item.selected,
-        onChanged: (v) => setState(() => item.selected = v ?? false),
-        secondary: l.vorgemerkt
-            ? const Icon(Icons.bookmark, color: Colors.orange, size: 20)
-            : (l.bestandNiedrig == true
-                ? Icon(Icons.warning, color: AppColors.error, size: 20)
-                : null),
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
           children: [
             Expanded(
-              child: Text(l.name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-            ),
-            if (l.dboNr != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text('DBO ${l.dboNr}',
-                    style: TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary)),
+              child: DropdownButtonFormField<String>(
+                value: position.lager?.id,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6)),
+                  isDense: true,
+                  hintText: 'Artikel wählen...',
+                  hintStyle:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                items: items.map((l) {
+                  final label = l.dboNr != null
+                      ? '${l.dboNr} – ${l.name}'
+                      : l.name;
+                  return DropdownMenuItem(value: l.id, child: Text(label));
+                }).toList(),
+                onChanged: (id) {
+                  setState(() {
+                    if (id == null) {
+                      position.lager = null;
+                    } else {
+                      final lager = items.firstWhere((l) => l.id == id);
+                      position.lager = lager;
+                      final fehlmenge =
+                          lager.bestandOptimal - lager.bestandAktuell;
+                      position.menge = fehlmenge > 0 ? fehlmenge : 1;
+                      position.mengeController.text =
+                          position.menge.toStringAsFixed(0);
+                    }
+                  });
+                },
               ),
-          ],
-        ),
-        subtitle: Row(
-          children: [
-            Text(
-              'Bestand: ${l.bestandAktuell.toStringAsFixed(0)}/${l.bestandOptimal.toStringAsFixed(0)}',
-              style: const TextStyle(fontSize: 12),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             SizedBox(
-              width: 60,
-              height: 36,
+              width: 56,
+              height: 40,
               child: TextFormField(
-                initialValue: item.menge.toStringAsFixed(0),
+                controller: position.mengeController,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 4),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6)),
                   isDense: true,
                 ),
                 onChanged: (v) {
                   final val = double.tryParse(v);
-                  if (val != null && val > 0) item.menge = val;
+                  if (val != null && val > 0) position.menge = val;
                 },
               ),
             ),
-            const SizedBox(width: 4),
-            Text(l.einheit,
-                style: const TextStyle(fontSize: 12)),
+            if (onRemove != null)
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline, size: 20),
+                color: AppColors.error,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: onRemove,
+              ),
+            if (onRemove == null) const SizedBox(width: 32),
           ],
         ),
       ),
     );
-  }
-
-  void _updateAutoSelection() {
-    for (final items in [_verbrauchItems, _reinigungItems, _sonstigeItems]) {
-      for (final item in items) {
-        if (item.lager.bestandNiedrig == true) {
-          item.selected = _autoNiedrig;
-        }
-        if (item.lager.vorgemerkt) {
-          item.selected = true;
-        }
-      }
-    }
   }
 }
