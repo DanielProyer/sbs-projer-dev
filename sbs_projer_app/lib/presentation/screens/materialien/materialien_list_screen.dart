@@ -153,14 +153,14 @@ class _MaterialienListScreenState
                           final neu = lager.bestandAktuell + 1;
                           await LagerRepository.update(
                               lager.id, {'bestand_aktuell': neu});
-                          ref.invalidate(materialienProvider);
+                          ref.invalidate(materialienStreamProvider);
                         },
                         onDecrement: lager.bestandAktuell > 0
                             ? () async {
                                 final neu = lager.bestandAktuell - 1;
                                 await LagerRepository.update(
                                     lager.id, {'bestand_aktuell': neu});
-                                ref.invalidate(materialienProvider);
+                                ref.invalidate(materialienStreamProvider);
                               }
                             : null,
                       );
