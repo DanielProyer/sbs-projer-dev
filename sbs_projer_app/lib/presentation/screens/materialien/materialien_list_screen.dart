@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/models/material_kategorie.dart';
+import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -148,6 +149,12 @@ class _MaterialienListScreenState
                             : null,
                         onTap: () =>
                             context.push('/materialien/${lager.id}'),
+                        onIncrement: () async {
+                          final neu = lager.bestandAktuell + 1;
+                          await LagerRepository.update(
+                              lager.id, {'bestand_aktuell': neu});
+                          ref.invalidate(materialienProvider);
+                        },
                       );
                     },
                   ),
@@ -205,11 +212,13 @@ class _MaterialListItem extends StatelessWidget {
   final Lager lager;
   final String? kategorieName;
   final VoidCallback onTap;
+  final VoidCallback? onIncrement;
 
   const _MaterialListItem({
     required this.lager,
     this.kategorieName,
     required this.onTap,
+    this.onIncrement,
   });
 
   @override
@@ -254,7 +263,18 @@ class _MaterialListItem extends StatelessWidget {
                 fontSize: 13,
               ),
             ),
-            const SizedBox(width: 4),
+            if (onIncrement != null)
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add_circle_outline, size: 22),
+                  color: AppColors.primary,
+                  onPressed: onIncrement,
+                ),
+              ),
+            if (onIncrement == null) const SizedBox(width: 4),
             const Icon(Icons.chevron_right, size: 20),
           ],
         ),
