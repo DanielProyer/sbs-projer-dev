@@ -18,6 +18,7 @@ class Lager {
   final bool vorgemerkt;
   final bool istAktiv;
   final String? notizen;
+  final String? manualStoragePath;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -41,6 +42,7 @@ class Lager {
     this.vorgemerkt = false,
     this.istAktiv = true,
     this.notizen,
+    this.manualStoragePath,
     this.createdAt,
     this.updatedAt,
   });
@@ -68,6 +70,7 @@ class Lager {
       vorgemerkt: json['vorgemerkt'] ?? false,
       istAktiv: json['ist_aktiv'] ?? true,
       notizen: json['notizen'],
+      manualStoragePath: json['manual_storage_path'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -93,6 +96,7 @@ class Lager {
       'vorgemerkt': vorgemerkt,
       'ist_aktiv': istAktiv,
       'notizen': notizen,
+      'manual_storage_path': manualStoragePath,
     };
   }
 

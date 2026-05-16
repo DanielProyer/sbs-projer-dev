@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 import 'package:crop_your_image/crop_your_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/models/material_artikel.dart';
@@ -247,6 +249,10 @@ class _MaterialDetailContentState
           ]),
           const SizedBox(height: 12),
 
+          // Manual-PDF
+          _buildManualCard(),
+          const SizedBox(height: 12),
+
           // Verbrauchshistorie
           _SectionCard(children: [
             const Text('Verbrauchshistorie',
@@ -291,6 +297,124 @@ class _MaterialDetailContentState
         ],
       ),
     );
+  }
+
+  Widget _buildManualCard() {
+    final hasManual = _lager.manualStoragePath != null;
+    return _SectionCard(children: [
+      Row(
+        children: [
+          const Icon(Icons.picture_as_pdf, size: 20),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Manual / Anleitung',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          ),
+          if (hasManual && !SupabaseService.isGuest)
+            IconButton(
+              icon: Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+              tooltip: 'Manual löschen',
+              onPressed: _deleteManual,
+            ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      if (hasManual)
+        OutlinedButton.icon(
+          onPressed: _openManual,
+          icon: const Icon(Icons.open_in_new, size: 18),
+          label: const Text('Manual öffnen'),
+        )
+      else if (!SupabaseService.isGuest)
+        OutlinedButton.icon(
+          onPressed: _uploadManual,
+          icon: const Icon(Icons.upload_file, size: 18),
+          label: const Text('PDF hochladen'),
+        )
+      else
+        Text('Kein Manual vorhanden',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+    ]);
+  }
+
+  Future<void> _uploadManual() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+
+    try {
+      await LagerRepository.uploadManual(_lager.id, file.bytes!);
+      final updated = await LagerRepository.getById(_lager.id);
+      if (mounted && updated != null) {
+        setState(() => _lager = updated);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Manual hochgeladen')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler beim Upload: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _openManual() async {
+    if (_lager.manualStoragePath == null) return;
+    try {
+      final url =
+          await LagerRepository.getManualSignedUrl(_lager.manualStoragePath!);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteManual() async {
+    if (_lager.manualStoragePath == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Manual löschen?'),
+        actions: [
+          TextButton(
+              onPressed: () => ctx.pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => ctx.pop(true),
+              child: const Text('Löschen')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await LagerRepository.deleteManual(
+          _lager.id, _lager.manualStoragePath!);
+      final updated = await LagerRepository.getById(_lager.id);
+      if (mounted && updated != null) {
+        setState(() => _lager = updated);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Manual gelöscht')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildFotoCard() {

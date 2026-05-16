@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -92,5 +95,30 @@ class LagerRepository {
         .from('lager')
         .delete()
         .eq('id', id);
+  }
+
+  // --- Manual PDF ---
+
+  static Future<void> uploadManual(String lagerId, Uint8List pdfBytes) async {
+    final uid = SupabaseService.currentUser!.id;
+    final path = '$uid/$lagerId/manual.pdf';
+    await SupabaseService.client.storage
+        .from('material-manuals')
+        .uploadBinary(path, pdfBytes,
+            fileOptions: const FileOptions(upsert: true, contentType: 'application/pdf'));
+    await update(lagerId, {'manual_storage_path': path});
+  }
+
+  static Future<String> getManualSignedUrl(String storagePath) async {
+    return SupabaseService.client.storage
+        .from('material-manuals')
+        .createSignedUrl(storagePath, 3600);
+  }
+
+  static Future<void> deleteManual(String lagerId, String storagePath) async {
+    await SupabaseService.client.storage
+        .from('material-manuals')
+        .remove([storagePath]);
+    await update(lagerId, {'manual_storage_path': null});
   }
 }
