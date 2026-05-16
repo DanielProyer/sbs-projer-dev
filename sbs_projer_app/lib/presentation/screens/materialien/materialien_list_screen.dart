@@ -72,11 +72,20 @@ class _MaterialienListScreenState
             tooltip: 'Kategorie',
             onSelected: (value) =>
                 setState(() => _kategorieFilter = value),
-            itemBuilder: (context) => [
-              _filterItem('alle', 'Alle Kategorien'),
-              const PopupMenuDivider(),
-              ...kategorien.map((k) => _filterItem(k.id, k.name)),
-            ],
+            itemBuilder: (context) {
+              final usedIds = materialien
+                  .map((m) => m.kategorieId)
+                  .whereType<String>()
+                  .toSet();
+              final used = kategorien
+                  .where((k) => usedIds.contains(k.id))
+                  .toList();
+              return [
+                _filterItem('alle', 'Alle Kategorien'),
+                const PopupMenuDivider(),
+                ...used.map((k) => _filterItem(k.id, k.name)),
+              ];
+            },
           ),
         ],
       ),
