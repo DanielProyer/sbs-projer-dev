@@ -46238,7 +46238,7 @@ p=A.J(l,l.$ti.i("v.E"))
 m=m.hS(b,new A.ay0())
 o=A.J(m,m.$ti.i("v.E"))
 m=A.ox(!1,B.G2,null,B.da,null,null)
-n.lB(new A.iH(m,new A.ay1(a,k,p,o,b)))
+n.lB(new A.iH(m,new A.ay1(a,p,k,o,b)))
 q=n.eB(0)
 s=1
 break
@@ -170752,9 +170752,9 @@ q=k.f
 if(q!=null)r.push(A.aj(q,o,B.Cl,o))
 k=A.b([h,new A.ah(o,24,o),A.dp(o,A.cK(A.b([new A.ah(60,o,s),A.cG(r,B.aI,B.a8)],j),B.aW,B.a8),o,o,i,o,o,B.FX,o),new A.ah(o,24,o),A.cK(A.b([A.bTv("Bestelldatum",$.c2K().bO(k.d)),new A.ah(40,o,o),A.bTv("Bestell-Nr.",g)],j),B.aW,B.a8),new A.ah(o,20,o)],j)
 i=p.b
-if(i.length!==0)B.e.C(k,A.b([A.bMS("Verbrauchsmaterial"),new A.ah(o,6,o),A.bMR(i),new A.ah(o,16,o)],j))
-i=p.c
 if(i.length!==0)B.e.C(k,A.b([A.bMS("Reinigungsmaterial"),new A.ah(o,6,o),A.bMR(i),new A.ah(o,16,o)],j))
+i=p.c
+if(i.length!==0)B.e.C(k,A.b([A.bMS("Verbrauchsmaterial"),new A.ah(o,6,o),A.bMR(i),new A.ah(o,16,o)],j))
 i=p.d
 if(i.length!==0)B.e.C(k,A.b([A.bMS("Weitere Artikel"),new A.ah(o,6,o),A.bMR(i),new A.ah(o,16,o)],j))
 k.push(new A.ah(o,8,o))
