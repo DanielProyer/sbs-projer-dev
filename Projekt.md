@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 14.05.2026
+**Stand**: 16.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.57+339
+**Version**: 0.10.69+351
 
 ---
 
@@ -667,6 +667,21 @@
     - Bestellhistorie in DB gespeichert (Status: entwurf → gesendet)
     - vorgemerkt-Flag auf Lager-Tabelle + Toggle in Detail/Liste
 
+### Erledigt am 15.–16.05.2026
+179. ✅ Material-Suche: durchsucht jetzt auch Beschreibung, Notizen und Lieferant
+180. ✅ Material-Liste: +1/-1 Buttons für Bestand direkt in der Liste (später in Detail verschoben)
+181. ✅ Materialbestellung: Dropdown-Auswahl, je 2 Positionen pro Kategorie
+182. ✅ Materialbestellung: Reihenfolge Reinigung → Verbrauch → Vorgemerkte → Niedrig-Switch
+183. ✅ Materialbestellung-PDF: Reinigungsmaterial vor Verbrauchsmaterial, DBO-Sortierung
+184. ✅ Material UI: Minus-Button, Löschen im Formular, Titel mehrzeilig
+185. ✅ Manual-PDF Upload/Anzeige für Material-Artikel (Anleitungen für Thermostaten etc.)
+186. ✅ Manual-PDF: nur für relevante Kategorien (Elektronik, Thermostat, Pumpe, Fasskühler, Bierkühler, Säule)
+187. ✅ +/- Buttons: von Materialliste in Detailscreen verschoben, Bestellliste-Screen entfernt
+188. ✅ +/- Buttons: aktualisieren Materialliste sofort (Provider-Invalidierung)
+189. ✅ Material-Auswahl: speichert jetzt auch ohne Dropdown-Klick (Text-Matching Fallback in Montage/Störung/Eigenauftrag)
+190. ✅ Material-Bestand: aktualisiert sich nach Service-Speicherung (materialienStreamProvider invalidiert in 3 Formularen)
+191. ✅ Material-Filter: zeigt nur Kategorien mit tatsächlichen Einträgen
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
 2. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
@@ -700,5 +715,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 14.05.2026 – Materialbestellung komplett (PDF, Mail, Vormerken, Sektionen), bestand_niedrig Fix, Foto-Spinner Fix, DBO-Sortierung, Stück pro Packung. App-Version 0.10.57+339.
+**Zuletzt aktualisiert**: 16.05.2026 – Material-Verbesserungen (Manual-PDF, +/- Buttons in Detail, Autocomplete-Fix, Bestand-Refresh, Filter nur genutzte Kategorien), Materialbestellung-Verbesserungen (Dropdown, Sortierung). App-Version 0.10.69+351.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)

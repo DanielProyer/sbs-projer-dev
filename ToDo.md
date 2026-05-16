@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 14.05.2026
+**Stand**: 16.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -224,7 +224,14 @@
 - [x] Material-Liste: Sortierung nach DBO-Nummer
 - [x] Material: Stück pro Packung Feld (bei Einheit „Packung")
 - [x] Materialbestellung komplett (PDF, Mail, Vormerken, Sektionen, Bestellhistorie, Edge Function)
+- [x] Material-Suche: durchsucht auch Beschreibung, Notizen, Lieferant
+- [x] Material +/- Buttons in Detailscreen (statt Liste), Bestellliste-Screen entfernt
+- [x] Materialbestellung: Dropdown-Auswahl, Reihenfolge/Sortierung verbessert
+- [x] Manual-PDF Upload/Anzeige für Material (nur relevante Kategorien)
+- [x] Material-Auswahl speichert auch ohne Dropdown-Klick (Montage/Störung/Eigenauftrag)
+- [x] Material-Bestand aktualisiert nach Service-Speicherung (Provider-Invalidierung)
+- [x] Material-Filter zeigt nur Kategorien mit Einträgen
 
 ---
 
-**Zuletzt aktualisiert**: 14.05.2026
+**Zuletzt aktualisiert**: 16.05.2026
