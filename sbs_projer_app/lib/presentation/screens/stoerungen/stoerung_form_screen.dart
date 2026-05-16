@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -288,6 +289,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       s.status = 'behoben';
 
       await StoerungRepository.save(s);
+      if (_materialIds.any((id) => id != null)) {
+        ref.invalidate(materialienStreamProvider);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

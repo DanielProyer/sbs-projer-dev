@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/image/document_enhancer.dart';
@@ -397,6 +398,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       m.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
 
       await MontageRepository.save(m);
+      if (_materialIds.any((id) => id != null)) {
+        ref.invalidate(materialienStreamProvider);
+      }
 
       // HeiGenie: RSL-Mail mit Protokoll
       if (_isHeigenie) {

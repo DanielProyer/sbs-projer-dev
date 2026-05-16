@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 
 class EigenauftragFormScreen extends ConsumerStatefulWidget {
   final String? eigenauftragId;
@@ -489,6 +490,9 @@ class _EigenauftragFormScreenState
 
       await EigenauftragRepository.save(ea);
       ref.invalidate(eigenauftraegeStreamProvider);
+      if (_materialIds.any((id) => id != null)) {
+        ref.invalidate(materialienStreamProvider);
+      }
 
       if (mounted) context.pop();
     } catch (e) {
