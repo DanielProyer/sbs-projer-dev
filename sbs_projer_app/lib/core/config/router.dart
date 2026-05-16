@@ -21,7 +21,6 @@ import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnung_detail_s
 import 'package:sbs_projer_app/presentation/screens/materialien/materialien_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/material_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/material_form_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/materialien/bestellliste_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/material_bestellung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/montagen/montagen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/montagen/montage_detail_screen.dart';
@@ -450,10 +449,6 @@ final router = GoRouter(
     GoRoute(
       path: '/materialien',
       builder: (context, state) => const MaterialienListScreen(),
-    ),
-    GoRoute(
-      path: '/materialien/bestellliste',
-      builder: (context, state) => const BestelllisteScreen(),
     ),
     GoRoute(
       path: '/materialien/bestellen',

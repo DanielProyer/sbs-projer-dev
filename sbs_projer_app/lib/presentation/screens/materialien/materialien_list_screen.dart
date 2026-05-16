@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/models/material_kategorie.dart';
-import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -64,14 +63,9 @@ class _MaterialienListScreenState
         title: const Text('Material'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.send),
+            icon: const Icon(Icons.shopping_cart),
             tooltip: 'Materialbestellung',
             onPressed: () => context.push('/materialien/bestellen'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            tooltip: 'Bestellliste',
-            onPressed: () => context.push('/materialien/bestellliste'),
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
@@ -149,20 +143,6 @@ class _MaterialienListScreenState
                             : null,
                         onTap: () =>
                             context.push('/materialien/${lager.id}'),
-                        onIncrement: () async {
-                          final neu = lager.bestandAktuell + 1;
-                          await LagerRepository.update(
-                              lager.id, {'bestand_aktuell': neu});
-                          ref.invalidate(materialienStreamProvider);
-                        },
-                        onDecrement: lager.bestandAktuell > 0
-                            ? () async {
-                                final neu = lager.bestandAktuell - 1;
-                                await LagerRepository.update(
-                                    lager.id, {'bestand_aktuell': neu});
-                                ref.invalidate(materialienStreamProvider);
-                              }
-                            : null,
                       );
                     },
                   ),
@@ -220,15 +200,11 @@ class _MaterialListItem extends StatelessWidget {
   final Lager lager;
   final String? kategorieName;
   final VoidCallback onTap;
-  final VoidCallback? onIncrement;
-  final VoidCallback? onDecrement;
 
   const _MaterialListItem({
     required this.lager,
     this.kategorieName,
     required this.onTap,
-    this.onIncrement,
-    this.onDecrement,
   });
 
   @override
@@ -273,30 +249,6 @@ class _MaterialListItem extends StatelessWidget {
                 fontSize: 13,
               ),
             ),
-            if (onDecrement != null || onIncrement != null) ...[
-              SizedBox(
-                width: 28,
-                height: 28,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.remove_circle_outline, size: 20),
-                  color: onDecrement != null
-                      ? AppColors.error
-                      : AppColors.textSecondary.withAlpha(80),
-                  onPressed: onDecrement,
-                ),
-              ),
-              SizedBox(
-                width: 28,
-                height: 28,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.add_circle_outline, size: 20),
-                  color: AppColors.primary,
-                  onPressed: onIncrement,
-                ),
-              ),
-            ],
             const Icon(Icons.chevron_right, size: 20),
           ],
         ),

@@ -146,9 +146,16 @@ class _MaterialDetailContentState
               onPressed: _toggleVorgemerkt,
             ),
             IconButton(
-              icon: const Icon(Icons.tune),
-              tooltip: 'Bestand anpassen',
-              onPressed: _showBestandDialog,
+              icon: const Icon(Icons.remove_circle_outline),
+              tooltip: 'Bestand −1',
+              color: _lager.bestandAktuell > 0 ? AppColors.error : AppColors.textSecondary.withAlpha(80),
+              onPressed: _lager.bestandAktuell > 0 ? _decrementBestand : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              tooltip: 'Bestand +1',
+              color: AppColors.primary,
+              onPressed: _incrementBestand,
             ),
             IconButton(
               icon: const Icon(Icons.edit),
@@ -184,12 +191,17 @@ class _MaterialDetailContentState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${_lager.bestandAktuell.toStringAsFixed(0)} ${_lager.einheit}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isNiedrig ? AppColors.error : AppColors.success,
+                GestureDetector(
+                  onTap: SupabaseService.isGuest ? null : _showBestandDialog,
+                  child: Text(
+                    '${_lager.bestandAktuell.toStringAsFixed(0)} ${_lager.einheit}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isNiedrig ? AppColors.error : AppColors.success,
+                      decoration: SupabaseService.isGuest ? null : TextDecoration.underline,
+                      decorationColor: isNiedrig ? AppColors.error : AppColors.success,
+                    ),
                   ),
                 ),
                 Text(
@@ -740,6 +752,27 @@ class _MaterialDetailContentState
           SnackBar(content: Text('Fehler: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _incrementBestand() async {
+    final neu = _lager.bestandAktuell + 1;
+    await LagerRepository.update(_lager.id, {'bestand_aktuell': neu});
+    final updated = await LagerRepository.getById(_lager.id);
+    if (mounted && updated != null) {
+      ref.invalidate(materialienStreamProvider);
+      setState(() => _lager = updated);
+    }
+  }
+
+  Future<void> _decrementBestand() async {
+    if (_lager.bestandAktuell <= 0) return;
+    final neu = _lager.bestandAktuell - 1;
+    await LagerRepository.update(_lager.id, {'bestand_aktuell': neu});
+    final updated = await LagerRepository.getById(_lager.id);
+    if (mounted && updated != null) {
+      ref.invalidate(materialienStreamProvider);
+      setState(() => _lager = updated);
     }
   }
 
