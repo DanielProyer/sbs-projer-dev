@@ -32,18 +32,29 @@ class _BestellPosition {
             TextEditingController(text: menge.toStringAsFixed(0));
 }
 
+class _BestellItem {
+  final Lager lager;
+  double menge;
+  bool selected;
+
+  _BestellItem({required this.lager, required this.menge, this.selected = true});
+}
+
 class _MaterialBestellungScreenState
     extends ConsumerState<MaterialBestellungScreen> {
   bool _loading = true;
   bool _sending = false;
+  bool _autoNiedrig = true;
   String? _empfaengerName;
   String? _empfaengerEmail;
 
   List<Lager> _verbrauchLager = [];
   List<Lager> _reinigungLager = [];
 
-  List<_BestellPosition> _verbrauchPositionen = [];
   List<_BestellPosition> _reinigungPositionen = [];
+  List<_BestellPosition> _verbrauchPositionen = [];
+  List<_BestellItem> _vorgemerktItems = [];
+  List<_BestellItem> _niedrigItems = [];
 
   Map<String, String> _kategorieNames = {};
 
@@ -55,7 +66,7 @@ class _MaterialBestellungScreenState
 
   @override
   void dispose() {
-    for (final p in [..._verbrauchPositionen, ..._reinigungPositionen]) {
+    for (final p in [..._reinigungPositionen, ..._verbrauchPositionen]) {
       p.mengeController.dispose();
     }
     super.dispose();
@@ -74,6 +85,8 @@ class _MaterialBestellungScreenState
 
       final verbrauchLager = <Lager>[];
       final reinigungLager = <Lager>[];
+      final vorgemerkt = <_BestellItem>[];
+      final niedrig = <_BestellItem>[];
 
       for (final l in alleLager) {
         if (!l.istAktiv) continue;
@@ -83,6 +96,20 @@ class _MaterialBestellungScreenState
           verbrauchLager.add(l);
         } else if (katName == 'Reinigungsmaterial') {
           reinigungLager.add(l);
+        }
+
+        if (l.vorgemerkt) {
+          final fehlmenge = l.bestandOptimal - l.bestandAktuell;
+          vorgemerkt.add(_BestellItem(
+            lager: l,
+            menge: fehlmenge > 0 ? fehlmenge : 1,
+          ));
+        } else if (l.bestandNiedrig == true) {
+          final fehlmenge = l.bestandOptimal - l.bestandAktuell;
+          niedrig.add(_BestellItem(
+            lager: l,
+            menge: fehlmenge > 0 ? fehlmenge : 1,
+          ));
         }
       }
 
@@ -94,8 +121,10 @@ class _MaterialBestellungScreenState
           _verbrauchLager = verbrauchLager;
           _reinigungLager = reinigungLager;
           _kategorieNames = kategorieNames;
-          _verbrauchPositionen = [_BestellPosition(), _BestellPosition()];
           _reinigungPositionen = [_BestellPosition(), _BestellPosition()];
+          _verbrauchPositionen = [_BestellPosition(), _BestellPosition()];
+          _vorgemerktItems = vorgemerkt;
+          _niedrigItems = niedrig;
           _empfaengerName = kontakt != null
               ? '${kontakt.vorname} ${kontakt.nachname ?? ''}'.trim()
               : null;
@@ -113,14 +142,42 @@ class _MaterialBestellungScreenState
     }
   }
 
-  List<_BestellPosition> get _filledPositionen => [
-        ..._verbrauchPositionen.where((p) => p.lager != null),
-        ..._reinigungPositionen.where((p) => p.lager != null),
-      ];
+  List<_SelectedEntry> get _allSelected {
+    final entries = <_SelectedEntry>[];
+    final usedIds = <String>{};
+
+    for (final p in _reinigungPositionen) {
+      if (p.lager != null) {
+        usedIds.add(p.lager!.id);
+        entries.add(_SelectedEntry(lager: p.lager!, menge: p.menge));
+      }
+    }
+    for (final p in _verbrauchPositionen) {
+      if (p.lager != null) {
+        usedIds.add(p.lager!.id);
+        entries.add(_SelectedEntry(lager: p.lager!, menge: p.menge));
+      }
+    }
+    for (final item in _vorgemerktItems) {
+      if (item.selected && !usedIds.contains(item.lager.id)) {
+        usedIds.add(item.lager.id);
+        entries.add(_SelectedEntry(lager: item.lager, menge: item.menge));
+      }
+    }
+    if (_autoNiedrig) {
+      for (final item in _niedrigItems) {
+        if (item.selected && !usedIds.contains(item.lager.id)) {
+          usedIds.add(item.lager.id);
+          entries.add(_SelectedEntry(lager: item.lager, menge: item.menge));
+        }
+      }
+    }
+    return entries;
+  }
 
   Future<void> _sendBestellung() async {
-    final filled = _filledPositionen;
-    if (filled.isEmpty) {
+    final selected = _allSelected;
+    if (selected.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Keine Artikel ausgewählt')),
       );
@@ -143,21 +200,20 @@ class _MaterialBestellungScreenState
       final empfaenger =
           MailConfig.empfaenger(_empfaengerEmail, bereich: 'bestellung');
 
-      final positionen = filled.map((pos) {
-        final l = pos.lager!;
-        final katName = l.kategorieId != null
-            ? _kategorieNames[l.kategorieId]
+      final positionen = selected.map((e) {
+        final katName = e.lager.kategorieId != null
+            ? _kategorieNames[e.lager.kategorieId]
             : null;
         return MaterialBestellposition(
           id: '',
           bestellungId: '',
-          lagerId: l.id,
-          dboNr: l.dboNr,
-          name: l.name,
-          einheit: l.einheit,
-          menge: pos.menge,
-          bestandAktuell: l.bestandAktuell,
-          bestandOptimal: l.bestandOptimal,
+          lagerId: e.lager.id,
+          dboNr: e.lager.dboNr,
+          name: e.lager.name,
+          einheit: e.lager.einheit,
+          menge: e.menge,
+          bestandAktuell: e.lager.bestandAktuell,
+          bestandOptimal: e.lager.bestandOptimal,
           kategorieName: katName,
           sortierung: 0,
         );
@@ -199,6 +255,12 @@ class _MaterialBestellungScreenState
       await MaterialBestellungRepository.updateStatus(
           bestellung.id, 'gesendet');
 
+      for (final item in _vorgemerktItems) {
+        if (item.selected) {
+          await LagerRepository.toggleVorgemerkt(item.lager.id, false);
+        }
+      }
+
       if (mounted) {
         ref.invalidate(materialienStreamProvider);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -221,24 +283,24 @@ class _MaterialBestellungScreenState
   }
 
   Future<void> _previewPdf() async {
-    final filled = _filledPositionen;
-    if (filled.isEmpty) return;
+    final selected = _allSelected;
+    if (selected.isEmpty) return;
 
     final bestellNr = await MaterialBestellungRepository.nextBestellNr();
-    final positionen = filled.map((pos) {
-      final l = pos.lager!;
-      final katName =
-          l.kategorieId != null ? _kategorieNames[l.kategorieId] : null;
+    final positionen = selected.map((e) {
+      final katName = e.lager.kategorieId != null
+          ? _kategorieNames[e.lager.kategorieId]
+          : null;
       return MaterialBestellposition(
         id: '',
         bestellungId: '',
-        lagerId: l.id,
-        dboNr: l.dboNr,
-        name: l.name,
-        einheit: l.einheit,
-        menge: pos.menge,
-        bestandAktuell: l.bestandAktuell,
-        bestandOptimal: l.bestandOptimal,
+        lagerId: e.lager.id,
+        dboNr: e.lager.dboNr,
+        name: e.lager.name,
+        einheit: e.lager.einheit,
+        menge: e.menge,
+        bestandAktuell: e.lager.bestandAktuell,
+        bestandOptimal: e.lager.bestandOptimal,
         kategorieName: katName,
       );
     }).toList();
@@ -269,13 +331,13 @@ class _MaterialBestellungScreenState
       );
     }
 
-    final filledCount = _filledPositionen.length;
+    final selectedCount = _allSelected.length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Materialbestellung'),
         actions: [
-          if (filledCount > 0)
+          if (selectedCount > 0)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf),
               tooltip: 'PDF-Vorschau',
@@ -289,26 +351,56 @@ class _MaterialBestellungScreenState
           _buildEmpfaengerCard(),
           const SizedBox(height: 16),
 
-          _buildSektion(
-            'Verbrauchsmaterial',
-            _verbrauchLager,
-            _verbrauchPositionen,
-            onAdd: () => setState(
-                () => _verbrauchPositionen.add(_BestellPosition())),
-          ),
-          const SizedBox(height: 16),
-
-          _buildSektion(
+          // 1. Reinigungsmaterial (Dropdown)
+          _buildDropdownSektion(
             'Reinigungsmaterial',
             _reinigungLager,
             _reinigungPositionen,
-            onAdd: () => setState(
-                () => _reinigungPositionen.add(_BestellPosition())),
+            onAdd: () =>
+                setState(() => _reinigungPositionen.add(_BestellPosition())),
           ),
+          const SizedBox(height: 16),
+
+          // 2. Verbrauchsmaterial (Dropdown)
+          _buildDropdownSektion(
+            'Verbrauchsmaterial',
+            _verbrauchLager,
+            _verbrauchPositionen,
+            onAdd: () =>
+                setState(() => _verbrauchPositionen.add(_BestellPosition())),
+          ),
+
+          // 3. Vorgemerkte Artikel
+          if (_vorgemerktItems.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildCheckboxSektion('Vorgemerkte Artikel', _vorgemerktItems,
+                icon: Icons.bookmark, iconColor: Colors.orange),
+          ],
+
+          // 4. Niedrige Bestände (mit Switch)
+          if (_niedrigItems.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Card(
+              child: SwitchListTile(
+                title: const Text('Niedrige Bestände bestellen'),
+                subtitle: Text(
+                  '${_niedrigItems.length} Artikel unter Mindestbestand',
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                value: _autoNiedrig,
+                onChanged: (v) => setState(() => _autoNiedrig = v),
+              ),
+            ),
+            if (_autoNiedrig) ...[
+              const SizedBox(height: 8),
+              ..._niedrigItems.map((item) => _buildCheckboxTile(item)),
+            ],
+          ],
 
           const SizedBox(height: 24),
 
-          if (filledCount > 0)
+          if (selectedCount > 0)
             FilledButton.icon(
               onPressed: _sending ? null : _sendBestellung,
               icon: _sending
@@ -321,7 +413,7 @@ class _MaterialBestellungScreenState
                   : const Icon(Icons.send),
               label: Text(_sending
                   ? 'Wird gesendet...'
-                  : 'Bestellung senden ($filledCount Artikel)'),
+                  : 'Bestellung senden ($selectedCount Artikel)'),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
               ),
@@ -362,7 +454,9 @@ class _MaterialBestellungScreenState
     );
   }
 
-  Widget _buildSektion(
+  // --- Dropdown-Sektion (Reinigung / Verbrauch) ---
+
+  Widget _buildDropdownSektion(
     String title,
     List<Lager> verfuegbar,
     List<_BestellPosition> positionen, {
@@ -447,9 +541,8 @@ class _MaterialBestellungScreenState
                 ),
                 style: const TextStyle(fontSize: 13, color: Colors.black87),
                 items: items.map((l) {
-                  final label = l.dboNr != null
-                      ? '${l.dboNr} – ${l.name}'
-                      : l.name;
+                  final label =
+                      l.dboNr != null ? '${l.dboNr} – ${l.name}' : l.name;
                   return DropdownMenuItem(value: l.id, child: Text(label));
                 }).toList(),
                 onChanged: (id) {
@@ -506,4 +599,126 @@ class _MaterialBestellungScreenState
       ),
     );
   }
+
+  // --- Checkbox-Sektion (Vorgemerkt / Niedrig) ---
+
+  Widget _buildCheckboxSektion(String title, List<_BestellItem> items,
+      {IconData? icon, Color? iconColor}) {
+    final selectedCount = items.where((i) => i.selected).length;
+    final allSelected = selectedCount == items.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 18, color: iconColor),
+              const SizedBox(width: 6),
+            ],
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: iconColor ?? AppColors.primary,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13)),
+            ),
+            const SizedBox(width: 8),
+            Text('$selectedCount/${items.length}',
+                style:
+                    TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            const Spacer(),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  for (final item in items) {
+                    item.selected = !allSelected;
+                  }
+                });
+              },
+              child: Text(allSelected ? 'Keine' : 'Alle',
+                  style: const TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ...items.map((item) => _buildCheckboxTile(item)),
+      ],
+    );
+  }
+
+  Widget _buildCheckboxTile(_BestellItem item) {
+    final l = item.lager;
+    return Card(
+      child: CheckboxListTile(
+        value: item.selected,
+        onChanged: (v) => setState(() => item.selected = v ?? false),
+        secondary: l.bestandNiedrig == true
+            ? Icon(Icons.warning, color: AppColors.error, size: 20)
+            : null,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(l.name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            ),
+            if (l.dboNr != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text('DBO ${l.dboNr}',
+                    style: TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary)),
+              ),
+          ],
+        ),
+        subtitle: Row(
+          children: [
+            Text(
+              'Bestand: ${l.bestandAktuell.toStringAsFixed(0)}/${l.bestandOptimal.toStringAsFixed(0)}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: 60,
+              height: 36,
+              child: TextFormField(
+                initialValue: item.menge.toStringAsFixed(0),
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6)),
+                  isDense: true,
+                ),
+                onChanged: (v) {
+                  final val = double.tryParse(v);
+                  if (val != null && val > 0) item.menge = val;
+                },
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(l.einheit, style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedEntry {
+  final Lager lager;
+  final double menge;
+  _SelectedEntry({required this.lager, required this.menge});
 }
