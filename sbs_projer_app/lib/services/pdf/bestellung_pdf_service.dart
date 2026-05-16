@@ -52,16 +52,16 @@ class BestellungPdfService {
               pw.SizedBox(height: 24),
               _buildBestellInfo(bestellung),
               pw.SizedBox(height: 20),
-              if (verbrauch.isNotEmpty) ...[
-                _buildSektionHeader('Verbrauchsmaterial'),
-                pw.SizedBox(height: 6),
-                _buildPositionenTabelle(verbrauch),
-                pw.SizedBox(height: 16),
-              ],
               if (reinigung.isNotEmpty) ...[
                 _buildSektionHeader('Reinigungsmaterial'),
                 pw.SizedBox(height: 6),
                 _buildPositionenTabelle(reinigung),
+                pw.SizedBox(height: 16),
+              ],
+              if (verbrauch.isNotEmpty) ...[
+                _buildSektionHeader('Verbrauchsmaterial'),
+                pw.SizedBox(height: 6),
+                _buildPositionenTabelle(verbrauch),
                 pw.SizedBox(height: 16),
               ],
               if (sonstige.isNotEmpty) ...[
