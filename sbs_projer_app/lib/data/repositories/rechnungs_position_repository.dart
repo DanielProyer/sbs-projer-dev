@@ -11,7 +11,7 @@ class RechnungsPositionRepository {
         .from('rechnungs_positionen')
         .select()
         .eq('rechnung_id', rechnungId)
-        .order('position');
+        .order('position', ascending: true);
     return rows.map((r) => RechnungsPosition.fromJson(r)).toList();
   }
 
@@ -37,7 +37,7 @@ class RechnungsPositionRepository {
         .from('rechnungs_positionen')
         .insert(positionen)
         .select()
-        .order('position');
+        .order('position', ascending: true);
     return rows.map((r) => RechnungsPosition.fromJson(r)).toList();
   }
 }
