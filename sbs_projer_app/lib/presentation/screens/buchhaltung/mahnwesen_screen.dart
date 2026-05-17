@@ -1,21 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
-import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 
-class MahnwesenScreen extends ConsumerWidget {
+final _df = DateFormat('dd.MM.yyyy');
+
+String _aktionLabel(String aktion) {
+  switch (aktion) {
+    case 'erinnerung_faellig':
+      return 'Erinnerung fällig';
+    case 'mahnung_1_faellig':
+      return '1. Mahnung fällig';
+    case 'mahnung_2_faellig':
+      return '2. Mahnung fällig';
+    case 'eskalation':
+      return 'Eskalation';
+    default:
+      return 'Warten';
+  }
+}
+
+Color _aktionColor(String aktion) {
+  switch (aktion) {
+    case 'erinnerung_faellig':
+      return AppColors.warning;
+    case 'mahnung_1_faellig':
+      return AppColors.error;
+    case 'mahnung_2_faellig':
+      return const Color(0xFF8B0000);
+    case 'eskalation':
+      return const Color(0xFF8B0000);
+    default:
+      return AppColors.textSecondary;
+  }
+}
+
+int _mahnStufeAusAktion(String aktion) {
+  switch (aktion) {
+    case 'erinnerung_faellig':
+      return 0;
+    case 'mahnung_1_faellig':
+      return 1;
+    case 'mahnung_2_faellig':
+      return 2;
+    default:
+      return -1;
+  }
+}
+
+class MahnwesenScreen extends ConsumerStatefulWidget {
   const MahnwesenScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final offeneAsync = ref.watch(offeneRechnungenViewProvider);
+  ConsumerState<MahnwesenScreen> createState() => _MahnwesenScreenState();
+}
+
+class _MahnwesenScreenState extends ConsumerState<MahnwesenScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final dashboardAsync = ref.watch(mahnwesenDashboardProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mahnwesen')),
-      body: offeneAsync.when(
+      body: dashboardAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),
         data: (rechnungen) {
@@ -27,222 +79,292 @@ class MahnwesenScreen extends ConsumerWidget {
                   Icon(Icons.check_circle,
                       size: 64, color: AppColors.success.withAlpha(100)),
                   const SizedBox(height: 16),
-                  Text(
-                    'Keine offenen Rechnungen',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Alle Rechnungen sind bezahlt',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
+                  Text('Keine offenen Kundenrechnungen',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: AppColors.textSecondary)),
                 ],
               ),
             );
           }
 
-          // Sortieren: Überfällige zuerst (meiste Tage überfällig)
-          final sorted = List<Map<String, dynamic>>.from(rechnungen)
-            ..sort((a, b) {
-              final aTage = (a['ueberfaellig_seit_tagen'] as int?) ?? 0;
-              final bTage = (b['ueberfaellig_seit_tagen'] as int?) ?? 0;
-              return bTage.compareTo(aTage);
-            });
+          final aktionNoetig = rechnungen
+              .where((r) => r['empfohlene_aktion'] != 'warten')
+              .toList();
+          final wartend = rechnungen
+              .where((r) => r['empfohlene_aktion'] == 'warten')
+              .toList();
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Zusammenfassung
-              _SummaryCard(rechnungen: sorted),
-              const SizedBox(height: 16),
+          double totalBetrag = 0;
+          int ueberfaellig = 0;
+          for (final r in rechnungen) {
+            totalBetrag += _d(r['betrag_brutto']);
+            if (((r['ueberfaellig_seit_tagen'] as int?) ?? 0) > 0) {
+              ueberfaellig++;
+            }
+          }
 
-              Text(
-                '${sorted.length} offene Rechnungen',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(mahnwesenDashboardProvider);
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Summary Card
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${totalBetrag.toStringAsFixed(2)} CHF',
+                                style: const TextStyle(
+                                    fontSize: 22, fontWeight: FontWeight.w700),
+                              ),
+                              Text('Offener Gesamtbetrag',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: aktionNoetig.isNotEmpty
+                                ? AppColors.error.withAlpha(25)
+                                : AppColors.success.withAlpha(25),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                '${aktionNoetig.length}',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: aktionNoetig.isNotEmpty
+                                      ? AppColors.error
+                                      : AppColors.success,
+                                ),
+                              ),
+                              Text(
+                                'Aktion nötig',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: aktionNoetig.isNotEmpty
+                                      ? AppColors.error
+                                      : AppColors.success,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-              ...sorted.map((r) => _MahnungItem(
-                    rechnung: r,
-                    onMahnen: () => _mahnen(context, ref, r),
-                    onTap: () {
-                      // Navigation zur Rechnung
-                      final id = r['id'];
-                      if (id != null) context.push('/rechnungen/$id');
-                    },
-                  )),
-            ],
+                // Aktion erforderlich
+                if (aktionNoetig.isNotEmpty) ...[
+                  Text(
+                    'Aktion erforderlich (${aktionNoetig.length})',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.error),
+                  ),
+                  const SizedBox(height: 8),
+                  ...aktionNoetig.map((r) => _MahnItem(
+                        rechnung: r,
+                        onAktion: () => _eskalieren(r),
+                        onTap: () => context.push('/rechnungen/${r['id']}'),
+                      )),
+                  const SizedBox(height: 16),
+                ],
+
+                // Wartend
+                if (wartend.isNotEmpty) ...[
+                  Text(
+                    'Innerhalb Frist (${wartend.length})',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  ...wartend.map((r) => _MahnItem(
+                        rechnung: r,
+                        onTap: () => context.push('/rechnungen/${r['id']}'),
+                      )),
+                ],
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  Future<void> _mahnen(
-    BuildContext context,
-    WidgetRef ref,
-    Map<String, dynamic> rechnung,
-  ) async {
-    final stufe = (rechnung['mahnung_stufe'] as int?) ?? 0;
-    final neueStufe = stufe + 1;
-    final rechnungsnummer = rechnung['rechnungsnummer'] ?? '';
+  Future<void> _eskalieren(Map<String, dynamic> r) async {
+    final aktion = r['empfohlene_aktion'] as String? ?? '';
+    final mahnStufe = _mahnStufeAusAktion(aktion);
+    final rechnungId = r['id'] as String;
+    final rgNr = r['rechnungsnummer'] ?? '';
+    final versandart = r['versandart'] as String? ?? '';
+    final hatEmail = versandart == 'rechnung_mail';
 
-    if (neueStufe > 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Maximale Mahnstufe erreicht (3)')),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('$neueStufe. Mahnung erstellen?'),
-        content: Text(
-          'Rechnung $rechnungsnummer wird auf Mahnstufe $neueStufe gesetzt.',
+    if (aktion == 'eskalation') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Rechnung abschreiben?'),
+          content: Text(
+            'Rechnung $rgNr wird als uneinbringlich abgeschrieben.\n'
+            'Eine Buchung auf Konto 3805 (Debitorenverlust) wird erstellt.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Abschreiben'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mahnung erstellen'),
-          ),
-        ],
-      ),
-    );
+      );
+      if (confirmed != true) return;
 
-    if (confirmed == true) {
       try {
-        final id = rechnung['id'] as String?;
-        if (id != null) {
-          await RechnungRepository.update(id, {
-            'mahnung_stufe': neueStufe,
-            'letzte_mahnung_am':
-                DateTime.now().toIso8601String().split('T').first,
-            'zahlungsstatus': 'ueberfaellig',
-          });
-          ref.invalidate(offeneRechnungenViewProvider);
-          ref.invalidate(rechnungenStreamProvider);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('$neueStufe. Mahnung für $rechnungsnummer erstellt'),
-              ),
-            );
-          }
+        final rechnung = await RechnungRepository.getById(rechnungId);
+        if (rechnung == null) return;
+        await MahnwesenService.abschreiben(rechnung);
+        ref.invalidate(mahnwesenDashboardProvider);
+        ref.invalidate(rechnungenStreamProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$rgNr abgeschrieben')),
+          );
         }
       } catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Fehler: $e')),
           );
         }
       }
-    }
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final List<Map<String, dynamic>> rechnungen;
-
-  const _SummaryCard({required this.rechnungen});
-
-  @override
-  Widget build(BuildContext context) {
-    double totalBetrag = 0;
-    int ueberfaellig = 0;
-    for (final r in rechnungen) {
-      totalBetrag += _d(r['betrag_brutto']);
-      final tage = (r['ueberfaellig_seit_tagen'] as int?) ?? 0;
-      if (tage > 0) ueberfaellig++;
+      return;
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${totalBetrag.toStringAsFixed(2)} CHF',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    'Offener Gesamtbetrag',
+    if (mahnStufe < 0) return;
+
+    final titel = MahnwesenService.titelFuerStufe(mahnStufe);
+
+    bool? mailSenden = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        bool mail = hatEmail;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: Text('$titel erstellen?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Rechnung $rgNr'),
+                const SizedBox(height: 12),
+                const Text('Ein PDF wird generiert und hochgeladen.'),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: mail,
+                  onChanged: (v) =>
+                      setDialogState(() => mail = v ?? false),
+                  title: Text(
+                    hatEmail ? 'Per E-Mail senden' : 'Per E-Mail senden (keine E-Mail hinterlegt)',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                      color: hatEmail ? null : AppColors.textSecondary,
                     ),
                   ),
-                ],
-              ),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: ueberfaellig > 0
-                    ? AppColors.error.withAlpha(25)
-                    : AppColors.warning.withAlpha(25),
-                borderRadius: BorderRadius.circular(8),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Abbrechen'),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    '$ueberfaellig',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: ueberfaellig > 0
-                          ? AppColors.error
-                          : AppColors.warning,
-                    ),
-                  ),
-                  Text(
-                    'Überfällig',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: ueberfaellig > 0
-                          ? AppColors.error
-                          : AppColors.warning,
-                    ),
-                  ),
-                ],
+              FilledButton(
+                onPressed: () {
+                  mailSenden = mail;
+                  Navigator.pop(ctx, true);
+                },
+                child: Text('$titel erstellen'),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
+
+    if (confirmed != true) return;
+
+    try {
+      final rechnung = await RechnungRepository.getById(rechnungId);
+      if (rechnung == null) return;
+      await MahnwesenService.eskalieren(
+        rechnung: rechnung,
+        mahnStufe: mahnStufe,
+        mailSenden: mailSenden ?? false,
+      );
+      ref.invalidate(mahnwesenDashboardProvider);
+      ref.invalidate(rechnungenStreamProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  '$titel für $rgNr erstellt${mailSenden == true ? ' & versendet' : ''}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
   }
 
   static double _d(dynamic v) =>
       double.tryParse(v?.toString() ?? '') ?? 0;
 }
 
-class _MahnungItem extends StatelessWidget {
+class _MahnItem extends StatelessWidget {
   final Map<String, dynamic> rechnung;
-  final VoidCallback onMahnen;
+  final VoidCallback? onAktion;
   final VoidCallback onTap;
 
-  const _MahnungItem({
+  const _MahnItem({
     required this.rechnung,
-    required this.onMahnen,
+    this.onAktion,
     required this.onTap,
   });
 
@@ -251,21 +373,24 @@ class _MahnungItem extends StatelessWidget {
     final nummer = rechnung['rechnungsnummer'] ?? '';
     final betriebName = rechnung['betrieb_name'] ?? '';
     final betrag = _d(rechnung['betrag_brutto']);
-    final tageUeberfaellig = (rechnung['ueberfaellig_seit_tagen'] as int?) ?? 0;
-    final stufe = (rechnung['mahnung_stufe'] as int?) ?? 0;
+    final tage = (rechnung['ueberfaellig_seit_tagen'] as int?) ?? 0;
     final status = rechnung['zahlungsstatus'] ?? 'offen';
+    final aktion = rechnung['empfohlene_aktion'] as String? ?? 'warten';
+    final hatAktion = aktion != 'warten';
 
-    final isUeberfaellig = tageUeberfaellig > 0;
+    final faellig = rechnung['faelligkeitsdatum'] != null
+        ? DateTime.tryParse(rechnung['faelligkeitsdatum'].toString())
+        : null;
 
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: isUeberfaellig
-              ? AppColors.error.withAlpha(25)
+          backgroundColor: hatAktion
+              ? _aktionColor(aktion).withAlpha(25)
               : AppColors.warning.withAlpha(25),
           child: Icon(
-            isUeberfaellig ? Icons.warning_amber : Icons.schedule,
-            color: isUeberfaellig ? AppColors.error : AppColors.warning,
+            hatAktion ? Icons.priority_high : Icons.schedule,
+            color: hatAktion ? _aktionColor(aktion) : AppColors.warning,
             size: 20,
           ),
         ),
@@ -277,48 +402,101 @@ class _MahnungItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (betriebName.toString().isNotEmpty)
-              Text(betriebName.toString(), style: const TextStyle(fontSize: 12)),
+              Text(betriebName.toString(),
+                  style: const TextStyle(fontSize: 12)),
             Row(
               children: [
-                Text(
-                  '${betrag.toStringAsFixed(2)} CHF',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                if (isUeberfaellig) ...[
+                Text('${betrag.toStringAsFixed(2)} CHF',
+                    style: const TextStyle(fontSize: 12)),
+                if (tage > 0) ...[
                   const Text(' · ', style: TextStyle(fontSize: 12)),
-                  Text(
-                    '$tageUeberfaellig Tage überfällig',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.error,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-                if (stufe > 0) ...[
+                  Text('$tage Tage überfällig',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600)),
+                ] else if (faellig != null) ...[
                   const Text(' · ', style: TextStyle(fontSize: 12)),
-                  Text(
-                    '$stufe. Mahnung',
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  Text('Fällig ${_df.format(faellig)}',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
                 ],
               ],
             ),
+            if (hatAktion)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _aktionColor(aktion).withAlpha(20),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    _aktionLabel(aktion),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _aktionColor(aktion),
+                    ),
+                  ),
+                ),
+              ),
+            if (!hatAktion) ...[
+              _statusChip(status),
+            ],
           ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isUeberfaellig && stufe < 3)
+            if (onAktion != null)
               IconButton(
-                icon: const Icon(Icons.mail_outline, size: 20),
-                tooltip: 'Mahnung erstellen',
-                onPressed: onMahnen,
+                icon: Icon(
+                  aktion == 'eskalation' ? Icons.block : Icons.send,
+                  size: 20,
+                ),
+                tooltip: aktion == 'eskalation'
+                    ? 'Abschreiben'
+                    : _aktionLabel(aktion),
+                onPressed: onAktion,
               ),
             const Icon(Icons.chevron_right, size: 20),
           ],
         ),
         onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _statusChip(String status) {
+    final label = {
+          'offen': 'Offen',
+          'erinnert': 'Erinnert',
+          'mahnung_1': 'Mahnung 1',
+          'mahnung_2': 'Mahnung 2',
+        }[status] ??
+        status;
+    final color = {
+          'offen': AppColors.warning,
+          'erinnert': const Color(0xFFE65100),
+          'mahnung_1': AppColors.error,
+          'mahnung_2': const Color(0xFF8B0000),
+        }[status] ??
+        AppColors.textSecondary;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withAlpha(20),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: color)),
       ),
     );
   }

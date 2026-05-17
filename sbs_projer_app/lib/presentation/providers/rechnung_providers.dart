@@ -24,3 +24,8 @@ final rechnungenByBetriebProvider =
     StreamProvider.family<List<Rechnung>, String>((ref, betriebId) {
   return RechnungRepository.watchByBetrieb(betriebId);
 });
+
+final mahnwesenDashboardProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  return RechnungRepository.getMahnwesenDashboard();
+});

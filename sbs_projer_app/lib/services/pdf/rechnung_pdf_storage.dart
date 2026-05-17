@@ -50,6 +50,29 @@ class RechnungPdfStorage {
         .createSignedUrl(path, 3600);
   }
 
+  /// Mahnungs-PDF hochladen (mahnung_0=Erinnerung, mahnung_1, mahnung_2)
+  static Future<void> uploadMahnungPdf(
+      String rechnungId, int stufe, Uint8List bytes) async {
+    final path = '$_userId/$rechnungId/mahnung_$stufe.pdf';
+    await SupabaseService.client.storage.from(_bucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'application/pdf',
+            upsert: true,
+          ),
+        );
+  }
+
+  /// Signed URL für Mahnungs-PDF
+  static Future<String> getMahnungSignedUrl(
+      String rechnungId, int stufe) async {
+    final path = '$_userId/$rechnungId/mahnung_$stufe.pdf';
+    return await SupabaseService.client.storage
+        .from(_bucket)
+        .createSignedUrl(path, 3600);
+  }
+
   /// PDF aus Storage löschen
   static Future<void> deletePdf(String rechnungId) async {
     final path = '$_userId/$rechnungId/rechnung.pdf';

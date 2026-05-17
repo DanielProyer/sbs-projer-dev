@@ -131,9 +131,15 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
           ),
           _NavTile(
             icon: Icons.receipt_long,
-            title: 'Rechnungen & Mahnwesen',
+            title: 'Rechnungen',
             subtitle: 'Rechnungen verwalten, Status ändern',
             onTap: () => context.push('/rechnungen'),
+          ),
+          _NavTile(
+            icon: Icons.warning_amber,
+            title: 'Mahnwesen',
+            subtitle: 'Erinnerungen & Mahnungen',
+            onTap: () => context.push('/buchhaltung/mahnwesen'),
           ),
           _NavTile(
             icon: Icons.account_balance,

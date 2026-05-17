@@ -18,6 +18,9 @@ class Rechnung {
   final double? zahlungBetrag;
   final int mahnungStufe;
   final DateTime? letzteMahnungAm;
+  final DateTime? erinnerungAm;
+  final DateTime? mahnung1Am;
+  final DateTime? mahnung2Am;
   final String? pdfUrl;
   final String? notizen;
   final DateTime? createdAt;
@@ -43,6 +46,9 @@ class Rechnung {
     this.zahlungBetrag,
     this.mahnungStufe = 0,
     this.letzteMahnungAm,
+    this.erinnerungAm,
+    this.mahnung1Am,
+    this.mahnung2Am,
     this.pdfUrl,
     this.notizen,
     this.createdAt,
@@ -78,6 +84,15 @@ class Rechnung {
       letzteMahnungAm: json['letzte_mahnung_am'] != null
           ? DateTime.parse(json['letzte_mahnung_am'])
           : null,
+      erinnerungAm: json['erinnerung_am'] != null
+          ? DateTime.parse(json['erinnerung_am'])
+          : null,
+      mahnung1Am: json['mahnung_1_am'] != null
+          ? DateTime.parse(json['mahnung_1_am'])
+          : null,
+      mahnung2Am: json['mahnung_2_am'] != null
+          ? DateTime.parse(json['mahnung_2_am'])
+          : null,
       pdfUrl: json['pdf_url'],
       notizen: json['notizen'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
@@ -106,6 +121,9 @@ class Rechnung {
       'zahlung_betrag': zahlungBetrag,
       'mahnung_stufe': mahnungStufe,
       'letzte_mahnung_am': letzteMahnungAm?.toIso8601String().split('T').first,
+      'erinnerung_am': erinnerungAm?.toIso8601String().split('T').first,
+      'mahnung_1_am': mahnung1Am?.toIso8601String().split('T').first,
+      'mahnung_2_am': mahnung2Am?.toIso8601String().split('T').first,
       'pdf_url': pdfUrl,
       'notizen': notizen,
     };

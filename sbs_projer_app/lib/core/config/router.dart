@@ -46,6 +46,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchungen_list_s
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/berichte_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/mahnwesen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakte_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakt_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_list_screen.dart';
@@ -429,7 +430,7 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/buchhaltung/mahnwesen',
-      redirect: (_, __) => '/rechnungen',
+      builder: (context, state) => const MahnwesenScreen(),
     ),
     GoRoute(
       path: '/buchhaltung/camt-import',

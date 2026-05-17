@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 
 const _monatNamen = [
@@ -327,6 +328,132 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     final naechster = _naechsterStatus(rechnung.zahlungsstatus);
     if (naechster == null) return;
 
+    // Für Mahnwesen-Eskalation (erinnert, mahnung_1, mahnung_2)
+    if (naechster == 'erinnert' || naechster == 'mahnung_1' || naechster == 'mahnung_2') {
+      final stufe = naechster == 'erinnert' ? 0 : naechster == 'mahnung_1' ? 1 : 2;
+      final titel = MahnwesenService.titelFuerStufe(stufe);
+      final hatEmail = rechnung.versandart == 'rechnung_mail';
+      bool? mailSenden = false;
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          bool mail = hatEmail;
+          return StatefulBuilder(
+            builder: (ctx, setDialogState) => AlertDialog(
+              title: Text('$titel erstellen?'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(rechnung.rechnungsnummer ?? 'Rechnung'),
+                  const SizedBox(height: 12),
+                  const Text('Ein PDF wird generiert und hochgeladen.'),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    value: mail,
+                    onChanged: (v) => setDialogState(() => mail = v ?? false),
+                    title: Text(
+                      hatEmail ? 'Per E-Mail senden' : 'Per E-Mail senden (keine E-Mail)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: hatEmail ? null : AppColors.textSecondary,
+                      ),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Abbrechen'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    mailSenden = mail;
+                    Navigator.pop(ctx, true);
+                  },
+                  child: Text('$titel erstellen'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (confirmed != true) return;
+      try {
+        await MahnwesenService.eskalieren(
+          rechnung: rechnung,
+          mahnStufe: stufe,
+          mailSenden: mailSenden ?? false,
+        );
+        ref.invalidate(rechnungenStreamProvider);
+        ref.invalidate(mahnwesenDashboardProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(
+              '$titel für ${rechnung.rechnungsnummer} erstellt${mailSenden == true ? ' & versendet' : ''}',
+            )),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: $e')),
+          );
+        }
+      }
+      return;
+    }
+
+    // Für Abschreiben
+    if (naechster == 'abgeschrieben') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Rechnung abschreiben?'),
+          content: Text(
+            '${rechnung.rechnungsnummer ?? "Rechnung"}\n\n'
+            'Eine Buchung auf Konto 3805 (Debitorenverlust) wird erstellt.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Abschreiben'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      try {
+        await MahnwesenService.abschreiben(rechnung);
+        ref.invalidate(rechnungenStreamProvider);
+        ref.invalidate(mahnwesenDashboardProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${rechnung.rechnungsnummer} abgeschrieben')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: $e')),
+          );
+        }
+      }
+      return;
+    }
+
+    // Einfacher Status-Wechsel (fallback)
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -350,15 +477,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
 
     if (confirmed == true) {
       try {
-        final updates = <String, dynamic>{
+        await RechnungRepository.update(rechnung.id, {
           'zahlungsstatus': naechster,
-        };
-        if (naechster == 'erinnert' || naechster == 'mahnung_1' || naechster == 'mahnung_2') {
-          updates['letzte_mahnung_am'] = DateTime.now().toIso8601String().split('T').first;
-          final stufe = naechster == 'erinnert' ? 0 : naechster == 'mahnung_1' ? 1 : 2;
-          updates['mahnung_stufe'] = stufe;
-        }
-        await RechnungRepository.update(rechnung.id, updates);
+        });
         ref.invalidate(rechnungenStreamProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -571,7 +692,7 @@ class _RechnungListItem extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (naechster != null)
+            if (naechster != null && rechnung.rechnungstyp != 'heineken_monat')
               IconButton(
                 icon: Icon(
                   _statusUpIcon(rechnung.zahlungsstatus),
