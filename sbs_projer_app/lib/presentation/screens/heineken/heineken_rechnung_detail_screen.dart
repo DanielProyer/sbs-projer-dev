@@ -402,12 +402,13 @@ class _HeinekenRechnungDetailScreenState
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'entwurf': return 'Entwurf';
+      case 'gestellt': return 'Gestellt';
       case 'offen': return 'Offen';
-      case 'versendet': return 'Versendet';
-      case 'freigegeben': return 'Freigegeben';
       case 'bezahlt': return 'Bezahlt';
-      case 'ueberfaellig': return 'Überfällig';
+      case 'erinnert': return 'Erinnert';
+      case 'mahnung_1': return 'Mahnung 1';
+      case 'mahnung_2': return 'Mahnung 2';
+      case 'abgeschrieben': return 'Abgeschrieben';
       default: return status;
     }
   }
@@ -428,20 +429,30 @@ class _StatusBanner extends StatelessWidget {
         icon = Icons.check_circle;
         text = 'Bezahlt';
         break;
-      case 'freigegeben':
-        color = const Color(0xFF4CAF50);
-        icon = Icons.verified;
-        text = 'Freigegeben — in Buchhaltung übernommen';
+      case 'gestellt':
+        color = AppColors.textSecondary;
+        icon = Icons.edit_note;
+        text = 'Gestellt';
         break;
-      case 'versendet':
-        color = AppColors.info;
-        icon = Icons.send;
-        text = 'Versendet — warte auf Freigabe';
+      case 'erinnert':
+        color = const Color(0xFFE65100);
+        icon = Icons.notifications;
+        text = 'Erinnert';
         break;
-      case 'ueberfaellig':
+      case 'mahnung_1':
         color = AppColors.error;
         icon = Icons.warning;
-        text = 'Überfällig';
+        text = 'Mahnung 1';
+        break;
+      case 'mahnung_2':
+        color = const Color(0xFF8B0000);
+        icon = Icons.gavel;
+        text = 'Mahnung 2';
+        break;
+      case 'abgeschrieben':
+        color = AppColors.inaktiv;
+        icon = Icons.block;
+        text = 'Abgeschrieben';
         break;
       default:
         color = AppColors.warning;

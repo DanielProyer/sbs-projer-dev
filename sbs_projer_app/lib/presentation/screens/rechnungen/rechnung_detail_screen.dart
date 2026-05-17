@@ -248,7 +248,7 @@ class _RechnungDetailContentState
           const SizedBox(height: 16),
 
           // Aktionen
-          if (_rechnung.zahlungsstatus == 'offen')
+          if (_rechnung.zahlungsstatus != 'bezahlt' && _rechnung.zahlungsstatus != 'abgeschrieben')
             FilledButton.icon(
               onPressed: () => _markAsBezahlt(context),
               icon: const Icon(Icons.check),
@@ -639,37 +639,27 @@ class _StatusChip extends StatelessWidget {
 
   String get _label {
     switch (status) {
-      case 'offen':
-        return 'Offen';
-      case 'bezahlt':
-        return 'Bezahlt';
-      case 'ueberfaellig':
-        return 'Überfällig';
-      case 'storniert':
-        return 'Storniert';
-      case 'teilbezahlt':
-        return 'Teilbezahlt';
-      case 'entwurf':
-        return 'Entwurf';
-      default:
-        return status;
+      case 'gestellt': return 'Gestellt';
+      case 'offen': return 'Offen';
+      case 'bezahlt': return 'Bezahlt';
+      case 'erinnert': return 'Erinnert';
+      case 'mahnung_1': return 'Mahnung 1';
+      case 'mahnung_2': return 'Mahnung 2';
+      case 'abgeschrieben': return 'Abgeschrieben';
+      default: return status;
     }
   }
 
   Color get _color {
     switch (status) {
-      case 'offen':
-        return AppColors.warning;
-      case 'bezahlt':
-        return AppColors.success;
-      case 'ueberfaellig':
-        return AppColors.error;
-      case 'storniert':
-        return AppColors.inaktiv;
-      case 'teilbezahlt':
-        return AppColors.info;
-      default:
-        return AppColors.textSecondary;
+      case 'gestellt': return AppColors.textSecondary;
+      case 'offen': return AppColors.warning;
+      case 'bezahlt': return AppColors.success;
+      case 'erinnert': return const Color(0xFFE65100);
+      case 'mahnung_1': return AppColors.error;
+      case 'mahnung_2': return const Color(0xFF8B0000);
+      case 'abgeschrieben': return AppColors.inaktiv;
+      default: return AppColors.textSecondary;
     }
   }
 }

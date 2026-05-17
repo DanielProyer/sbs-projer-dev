@@ -36,7 +36,7 @@ class Rechnung {
     this.betragNetto = 0,
     this.mwstBetrag = 0,
     this.betragBrutto = 0,
-    this.zahlungsstatus = 'entwurf',
+    this.zahlungsstatus = 'gestellt',
     this.versandart,
     this.versendetAm,
     this.zahlungEingegangenAm,
@@ -65,7 +65,7 @@ class Rechnung {
       betragNetto: _d(json['betrag_netto'], 0),
       mwstBetrag: _d(json['mwst_betrag'], 0),
       betragBrutto: _d(json['betrag_brutto'], 0),
-      zahlungsstatus: json['zahlungsstatus'] ?? 'entwurf',
+      zahlungsstatus: json['zahlungsstatus'] ?? 'gestellt',
       versandart: json['versandart'],
       versendetAm: json['versendet_am'] != null
           ? DateTime.parse(json['versendet_am'])

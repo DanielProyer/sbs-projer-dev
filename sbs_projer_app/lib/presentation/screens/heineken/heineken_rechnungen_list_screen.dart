@@ -110,33 +110,39 @@ class HeinekenRechnungenListScreen extends ConsumerWidget {
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'entwurf': return 'Entwurf';
+      case 'gestellt': return 'Gestellt';
       case 'offen': return 'Offen';
-      case 'versendet': return 'Versendet';
       case 'bezahlt': return 'Bezahlt';
-      case 'ueberfaellig': return 'Überfällig';
+      case 'erinnert': return 'Erinnert';
+      case 'mahnung_1': return 'Mahnung 1';
+      case 'mahnung_2': return 'Mahnung 2';
+      case 'abgeschrieben': return 'Abgeschrieben';
       default: return status;
     }
   }
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'entwurf': return AppColors.textSecondary;
+      case 'gestellt': return AppColors.textSecondary;
       case 'offen': return AppColors.warning;
-      case 'versendet': return AppColors.info;
       case 'bezahlt': return AppColors.success;
-      case 'ueberfaellig': return AppColors.error;
+      case 'erinnert': return const Color(0xFFE65100);
+      case 'mahnung_1': return AppColors.error;
+      case 'mahnung_2': return const Color(0xFF8B0000);
+      case 'abgeschrieben': return AppColors.inaktiv;
       default: return AppColors.textSecondary;
     }
   }
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'entwurf': return Icons.edit_note;
+      case 'gestellt': return Icons.edit_note;
       case 'offen': return Icons.hourglass_empty;
-      case 'versendet': return Icons.send;
       case 'bezahlt': return Icons.check_circle;
-      case 'ueberfaellig': return Icons.warning;
+      case 'erinnert': return Icons.notifications;
+      case 'mahnung_1': return Icons.warning;
+      case 'mahnung_2': return Icons.gavel;
+      case 'abgeschrieben': return Icons.block;
       default: return Icons.receipt;
     }
   }

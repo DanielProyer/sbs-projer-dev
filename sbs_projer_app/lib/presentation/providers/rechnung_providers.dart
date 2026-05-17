@@ -16,7 +16,7 @@ final rechnungCountProvider = Provider<int>((ref) {
 
 final offeneRechnungenCountProvider = Provider<int>((ref) {
   return ref.watch(rechnungenProvider)
-      .where((r) => r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'ueberfaellig')
+      .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
       .length;
 });
 

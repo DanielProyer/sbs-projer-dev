@@ -55,7 +55,7 @@ class RechnungRepository {
         .from('rechnungen')
         .select('id')
         .eq('user_id', _userId)
-        .inFilter('zahlungsstatus', ['offen', 'ueberfaellig']);
+        .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")');
     return rows.length;
   }
 

@@ -76,7 +76,7 @@ class RechnungService {
         'betrag_netto': netto,
         'mwst_betrag': mwst,
         'betrag_brutto': brutto,
-        'zahlungsstatus': 'offen',
+        'zahlungsstatus': 'gestellt',
         'versandart': betrieb.rechnungsstellung,
       });
 
