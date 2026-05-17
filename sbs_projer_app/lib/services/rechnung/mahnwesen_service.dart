@@ -154,7 +154,7 @@ class MahnwesenService {
         return 'Guten Tag\n\n'
             'Bei der Überprüfung unserer Buchhaltung haben wir festgestellt, '
             'dass die Rechnung $rgNr noch nicht beglichen wurde.\n\n'
-            'Möglicherweise haben Sie die Zahlung bereits veranlasst — '
+            'Möglicherweise haben Sie die Zahlung bereits veranlasst - '
             'in diesem Fall betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\n'
             'Wir bitten Sie, den offenen Betrag innert 20 Tagen zu überweisen.\n\n'
             'Freundliche Grüsse\nSBS Projer GmbH';

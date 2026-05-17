@@ -161,7 +161,7 @@ class MahnungPdfService {
           pw.Text(
             'Bei der Überprüfung unserer Buchhaltung haben wir festgestellt, '
             'dass unsere Rechnung Nr. $rgNr vom $rgDatum noch nicht beglichen wurde. '
-            'Möglicherweise haben Sie die Zahlung bereits veranlasst — '
+            'Möglicherweise haben Sie die Zahlung bereits veranlasst - '
             'in diesem Fall betrachten Sie dieses Schreiben bitte als gegenstandslos.',
             style: const pw.TextStyle(fontSize: 10),
           ),
