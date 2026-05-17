@@ -143,7 +143,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode } = await req.json();
+    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode, pdfPath } = await req.json();
 
     if (!to || !subject) {
       return new Response(
@@ -193,21 +193,23 @@ Deno.serve(async (req: Request) => {
 
     const attachments: Array<{ filename: string; contentType: string; data: Uint8Array }> = [];
 
-    // 1. Rechnung-PDF laden (optional — nicht bei HeiGenie-Protokollen)
+    // 1. Rechnung-/Mahnungs-PDF laden (optional — nicht bei HeiGenie-Protokollen)
     if (rechnungId) {
+      const pdfFile = pdfPath ?? "rechnung.pdf";
       const rechnungPdf = await downloadFromStorage(
         "rechnung-pdfs",
-        `${userId}/${rechnungId}/rechnung.pdf`,
+        `${userId}/${rechnungId}/${pdfFile}`,
       );
 
       if (!rechnungPdf) {
         return new Response(
-          JSON.stringify({ error: "Rechnung-PDF nicht in Storage gefunden" }),
+          JSON.stringify({ error: "PDF nicht in Storage gefunden" }),
           { status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
         );
       }
 
-      attachments.push({ filename: "Rechnung.pdf", contentType: "application/pdf", data: rechnungPdf });
+      const displayName = pdfPath?.startsWith("mahnung_") ? subject.split(" - ")[0] + ".pdf" : "Rechnung.pdf";
+      attachments.push({ filename: displayName, contentType: "application/pdf", data: rechnungPdf });
     }
 
     // 1b. Bestellungs-PDF laden (optional)
