@@ -46925,7 +46925,7 @@ default:return"MAHNUNG"}},
 ceC(a,b,c){var s,r,q,p,o,n=null,m="Sehr geehrte Damen und Herren",l=b.c
 switch(a){case 0:if(l==null)l=""
 s=c.bD(b.w)
-return A.b([A.a0(m,n,B.bg,n),new A.aa(n,8,n),A.a0("Bei der \xdcberpr\xfcfung unserer Buchhaltung haben wir festgestellt, dass unsere Rechnung Nr. "+l+" vom "+s+" noch nicht beglichen wurde. M\xf6glicherweise haben Sie die Zahlung bereits veranlasst \u2014 in diesem Fall betrachten Sie dieses Schreiben bitte als gegenstandslos.",n,B.bg,n),new A.aa(n,8,n),A.a0("Wir bitten Sie, den offenen Betrag bis zum angegebenen Datum zu \xfcberweisen.",n,B.bg,n)],t.o)
+return A.b([A.a0(m,n,B.bg,n),new A.aa(n,8,n),A.a0("Bei der \xdcberpr\xfcfung unserer Buchhaltung haben wir festgestellt, dass unsere Rechnung Nr. "+l+" vom "+s+" noch nicht beglichen wurde. M\xf6glicherweise haben Sie die Zahlung bereits veranlasst - in diesem Fall betrachten Sie dieses Schreiben bitte als gegenstandslos.",n,B.bg,n),new A.aa(n,8,n),A.a0("Wir bitten Sie, den offenen Betrag bis zum angegebenen Datum zu \xfcberweisen.",n,B.bg,n)],t.o)
 case 1:r=l==null?"":l
 q=c.bD(b.w)
 return A.b([A.a0(m,n,B.bg,n),new A.aa(n,8,n),A.a0("Trotz unserer Zahlungserinnerung ist der Betrag der Rechnung Nr. "+r+" vom "+q+" bisher nicht auf unserem Konto eingegangen. Wir fordern Sie hiermit auf, die ausstehende Zahlung bis zum angegebenen Datum vorzunehmen.",n,B.bg,n),new A.aa(n,8,n),A.a0("Sollte die Zahlung bereits erfolgt sein, bitten wir um eine kurze R\xfcckmeldung.",n,B.bg,n)],t.o)
@@ -52331,7 +52331,7 @@ return A.e(A.jk(A.a8(["datum",p,"belegnummer",m,"soll_konto",3805,"haben_konto",
 case 3:A.c2().$1("[Mahnwesen] Rechnung "+A.i(o)+" abgeschrieben")
 return A.n(null,r)}})
 return A.o($async$Sd,r)},
-ceF(a,b){switch(a){case 0:return"Guten Tag\n\nBei der \xdcberpr\xfcfung unserer Buchhaltung haben wir festgestellt, dass die Rechnung "+b+" noch nicht beglichen wurde.\n\nM\xf6glicherweise haben Sie die Zahlung bereits veranlasst \u2014 in diesem Fall betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nWir bitten Sie, den offenen Betrag innert 20 Tagen zu \xfcberweisen.\n\nFreundliche Gr\xfcsse\nSBS Projer GmbH"
+ceF(a,b){switch(a){case 0:return"Guten Tag\n\nBei der \xdcberpr\xfcfung unserer Buchhaltung haben wir festgestellt, dass die Rechnung "+b+" noch nicht beglichen wurde.\n\nM\xf6glicherweise haben Sie die Zahlung bereits veranlasst - in diesem Fall betrachten Sie dieses Schreiben bitte als gegenstandslos.\n\nWir bitten Sie, den offenen Betrag innert 20 Tagen zu \xfcberweisen.\n\nFreundliche Gr\xfcsse\nSBS Projer GmbH"
 case 1:return"Guten Tag\n\nTrotz unserer Zahlungserinnerung ist der Betrag der Rechnung "+b+" bisher nicht auf unserem Konto eingegangen.\n\nWir fordern Sie hiermit auf, die ausstehende Zahlung innert 20 Tagen vorzunehmen.\n\nFreundliche Gr\xfcsse\nSBS Projer GmbH"
 default:return"Guten Tag\n\nWir haben Sie bereits mehrfach an die ausstehende Zahlung der Rechnung "+b+" erinnert. Leider ist der Betrag bis heute nicht eingegangen.\n\nWir fordern Sie letztmalig auf, den offenen Betrag innert 30 Tagen zu begleichen. Andernfalls behalten wir uns weitere Schritte vor.\n\nFreundliche Gr\xfcsse\nSBS Projer GmbH"}},
 aU7(a){var s=0,r=A.p(t.H),q,p
