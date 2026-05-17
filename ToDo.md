@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 16.05.2026
+**Stand**: 17.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---

@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 16.05.2026
+**Stand**: 17.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.69+351
+**Version**: 0.10.74+356
 
 ---
 
@@ -715,5 +715,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 16.05.2026 – Material-Verbesserungen (Manual-PDF, +/- Buttons in Detail, Autocomplete-Fix, Bestand-Refresh, Filter nur genutzte Kategorien), Materialbestellung-Verbesserungen (Dropdown, Sortierung). App-Version 0.10.69+351.
+**Zuletzt aktualisiert**: 17.05.2026 – Mahnwesen komplett implementiert (Erinnerung/Mahnung 1+2/Abschreibung mit PDF, Mail, Debitorenverlust), Status 'gestellt' entfernt, Edge Function pdfPath-Fix, Mahnverlauf im Rechnungs-Detail. App-Version 0.10.74+356.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)
