@@ -53,6 +53,8 @@ int _mahnStufeAusAktion(String aktion) {
   }
 }
 
+double _r5(double v) => (v * 20).roundToDouble() / 20;
+
 class MahnwesenScreen extends ConsumerStatefulWidget {
   const MahnwesenScreen({super.key});
 
@@ -99,7 +101,7 @@ class _MahnwesenScreenState extends ConsumerState<MahnwesenScreen> {
           double totalBetrag = 0;
           int ueberfaellig = 0;
           for (final r in rechnungen) {
-            totalBetrag += _d(r['betrag_brutto']);
+            totalBetrag += _r5(_d(r['betrag_brutto']));
             if (((r['ueberfaellig_seit_tagen'] as int?) ?? 0) > 0) {
               ueberfaellig++;
             }
@@ -372,7 +374,7 @@ class _MahnItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final nummer = rechnung['rechnungsnummer'] ?? '';
     final betriebName = rechnung['betrieb_name'] ?? '';
-    final betrag = _d(rechnung['betrag_brutto']);
+    final betrag = _r5(_d(rechnung['betrag_brutto']));
     final tage = (rechnung['ueberfaellig_seit_tagen'] as int?) ?? 0;
     final status = rechnung['zahlungsstatus'] ?? 'offen';
     final aktion = rechnung['empfohlene_aktion'] as String? ?? 'warten';
