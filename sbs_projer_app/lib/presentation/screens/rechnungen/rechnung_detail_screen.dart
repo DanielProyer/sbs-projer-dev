@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_reposi
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
+import 'package:sbs_projer_app/services/pdf/mahnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 
@@ -247,6 +248,36 @@ class _RechnungDetailContentState
           ),
           const SizedBox(height: 16),
 
+          // Mahnverlauf
+          if (_hasMahnungen()) ...[
+            _SectionCard(
+              children: [
+                const Text('Mahnverlauf',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                const SizedBox(height: 8),
+                if (_rechnung.erinnerungAm != null)
+                  _MahnungPdfRow(
+                    label: 'Zahlungserinnerung',
+                    datum: _rechnung.erinnerungAm!,
+                    onTap: () => _showMahnungPdf(context, 0),
+                  ),
+                if (_rechnung.mahnung1Am != null)
+                  _MahnungPdfRow(
+                    label: '1. Mahnung',
+                    datum: _rechnung.mahnung1Am!,
+                    onTap: () => _showMahnungPdf(context, 1),
+                  ),
+                if (_rechnung.mahnung2Am != null)
+                  _MahnungPdfRow(
+                    label: '2. Mahnung',
+                    datum: _rechnung.mahnung2Am!,
+                    onTap: () => _showMahnungPdf(context, 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
           // Aktionen
           if (_rechnung.zahlungsstatus != 'bezahlt' && _rechnung.zahlungsstatus != 'abgeschrieben')
             FilledButton.icon(
@@ -315,6 +346,79 @@ class _RechnungDetailContentState
           onLayout: (_) => pdfBytes,
           name:
               'Rechnung_${_rechnung.rechnungsnummer ?? _rechnung.id}'.replaceAll('/', '_'),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  bool _hasMahnungen() =>
+      _rechnung.erinnerungAm != null ||
+      _rechnung.mahnung1Am != null ||
+      _rechnung.mahnung2Am != null;
+
+  Future<void> _showMahnungPdf(BuildContext context, int stufe) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final betrieb = _rechnung.betriebId != null
+          ? await BetriebRepository.getByServerId(_rechnung.betriebId!)
+          : null;
+
+      BetriebRechnungsadresse? ra;
+      if (_rechnung.betriebId != null) {
+        final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
+            _rechnung.betriebId!);
+        if (raLocal != null) {
+          ra = BetriebRechnungsadresse(
+            id: raLocal.serverId ?? '',
+            userId: raLocal.userId,
+            betriebId: _rechnung.betriebId!,
+            firma: raLocal.firma,
+            vorname: raLocal.vorname,
+            nachname: raLocal.nachname,
+            strasse: raLocal.strasse,
+            nr: raLocal.nr,
+            plz: raLocal.plz,
+            ort: raLocal.ort,
+            email: raLocal.email,
+          );
+        }
+      }
+
+      if (betrieb == null) {
+        if (context.mounted) Navigator.of(context).pop();
+        return;
+      }
+
+      final pdfBytes = await MahnungPdfService.generate(
+        rechnung: _rechnung,
+        betrieb: betrieb,
+        rechnungsadresse: ra,
+        mahnStufe: stufe,
+      );
+
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        final titel = stufe == 0
+            ? 'Zahlungserinnerung'
+            : stufe == 1
+                ? '1_Mahnung'
+                : '2_Mahnung';
+        await Printing.layoutPdf(
+          onLayout: (_) => pdfBytes,
+          name: '${titel}_${_rechnung.rechnungsnummer ?? _rechnung.id}'
+              .replaceAll('/', '_'),
         );
       }
     } catch (e) {
@@ -608,6 +712,43 @@ class _SummenRow extends StatelessWidget {
           Text(label, style: style),
           Text('CHF ${value.toStringAsFixed(2)}', style: style),
         ],
+      ),
+    );
+  }
+}
+
+class _MahnungPdfRow extends StatelessWidget {
+  final String label;
+  final DateTime datum;
+  final VoidCallback onTap;
+
+  const _MahnungPdfRow({
+    required this.label,
+    required this.datum,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final datumStr =
+        '${datum.day.toString().padLeft(2, '0')}.${datum.month.toString().padLeft(2, '0')}.${datum.year}';
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            const Icon(Icons.picture_as_pdf, size: 18, color: AppColors.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(label, style: const TextStyle(fontSize: 13)),
+            ),
+            Text(datumStr,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 18),
+          ],
+        ),
       ),
     );
   }
