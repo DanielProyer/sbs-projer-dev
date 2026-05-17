@@ -60,7 +60,15 @@ class MahnungPdfService {
                         color: mahnStufe == 0 ? _darkBlue : _darkRed,
                       ),
                     ),
-                    pw.SizedBox(height: 10),
+                    pw.SizedBox(height: 6),
+                    pw.Text(
+                      'Rechnung Nr. ${rechnung.rechnungsnummer ?? ''} vom ${df.format(rechnung.rechnungsdatum)}',
+                      style: pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 14),
                     pw.Row(
                       children: [
                         pw.SizedBox(
@@ -68,7 +76,7 @@ class MahnungPdfService {
                           child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
-                              _label('Bezug Rechnung:'),
+                              _label('Rechnungs-Nr.:'),
                               pw.SizedBox(height: 4),
                               _label('Rechnungsdatum:'),
                               pw.SizedBox(height: 4),
@@ -142,6 +150,8 @@ class MahnungPdfService {
       int stufe, Rechnung rechnung, DateFormat df) {
     switch (stufe) {
       case 0:
+        final rgNr = rechnung.rechnungsnummer ?? '';
+        final rgDatum = df.format(rechnung.rechnungsdatum);
         return [
           pw.Text(
             'Sehr geehrte Damen und Herren',
@@ -150,7 +160,7 @@ class MahnungPdfService {
           pw.SizedBox(height: 8),
           pw.Text(
             'Bei der Überprüfung unserer Buchhaltung haben wir festgestellt, '
-            'dass die oben genannte Rechnung noch nicht beglichen wurde. '
+            'dass unsere Rechnung Nr. $rgNr vom $rgDatum noch nicht beglichen wurde. '
             'Möglicherweise haben Sie die Zahlung bereits veranlasst — '
             'in diesem Fall betrachten Sie dieses Schreiben bitte als gegenstandslos.',
             style: const pw.TextStyle(fontSize: 10),
@@ -162,6 +172,8 @@ class MahnungPdfService {
           ),
         ];
       case 1:
+        final rgNr1 = rechnung.rechnungsnummer ?? '';
+        final rgDatum1 = df.format(rechnung.rechnungsdatum);
         return [
           pw.Text(
             'Sehr geehrte Damen und Herren',
@@ -169,7 +181,8 @@ class MahnungPdfService {
           ),
           pw.SizedBox(height: 8),
           pw.Text(
-            'Trotz unserer Zahlungserinnerung ist der oben genannte Betrag '
+            'Trotz unserer Zahlungserinnerung ist der Betrag der '
+            'Rechnung Nr. $rgNr1 vom $rgDatum1 '
             'bisher nicht auf unserem Konto eingegangen. '
             'Wir fordern Sie hiermit auf, die ausstehende Zahlung '
             'bis zum angegebenen Datum vorzunehmen.',
@@ -183,6 +196,8 @@ class MahnungPdfService {
           ),
         ];
       default:
+        final rgNr2 = rechnung.rechnungsnummer ?? '';
+        final rgDatum2 = df.format(rechnung.rechnungsdatum);
         return [
           pw.Text(
             'Sehr geehrte Damen und Herren',
@@ -191,6 +206,7 @@ class MahnungPdfService {
           pw.SizedBox(height: 8),
           pw.Text(
             'Wir haben Sie bereits mehrfach an die ausstehende Zahlung '
+            'der Rechnung Nr. $rgNr2 vom $rgDatum2 '
             'erinnert. Leider ist der Betrag bis heute nicht eingegangen.',
             style: pw.TextStyle(
                 fontSize: 10, fontWeight: pw.FontWeight.bold),
