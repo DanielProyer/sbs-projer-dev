@@ -402,7 +402,6 @@ class _HeinekenRechnungDetailScreenState
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'gestellt': return 'Gestellt';
       case 'offen': return 'Offen';
       case 'bezahlt': return 'Bezahlt';
       case 'erinnert': return 'Erinnert';
@@ -428,11 +427,6 @@ class _StatusBanner extends StatelessWidget {
         color = AppColors.success;
         icon = Icons.check_circle;
         text = 'Bezahlt';
-        break;
-      case 'gestellt':
-        color = AppColors.textSecondary;
-        icon = Icons.edit_note;
-        text = 'Gestellt';
         break;
       case 'erinnert':
         color = const Color(0xFFE65100);

@@ -110,7 +110,6 @@ class HeinekenRechnungenListScreen extends ConsumerWidget {
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'gestellt': return 'Gestellt';
       case 'offen': return 'Offen';
       case 'bezahlt': return 'Bezahlt';
       case 'erinnert': return 'Erinnert';
@@ -123,7 +122,6 @@ class HeinekenRechnungenListScreen extends ConsumerWidget {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'gestellt': return AppColors.textSecondary;
       case 'offen': return AppColors.warning;
       case 'bezahlt': return AppColors.success;
       case 'erinnert': return const Color(0xFFE65100);
@@ -136,7 +134,6 @@ class HeinekenRechnungenListScreen extends ConsumerWidget {
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'gestellt': return Icons.edit_note;
       case 'offen': return Icons.hourglass_empty;
       case 'bezahlt': return Icons.check_circle;
       case 'erinnert': return Icons.notifications;

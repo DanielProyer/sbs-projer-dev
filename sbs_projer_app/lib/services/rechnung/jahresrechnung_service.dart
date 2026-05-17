@@ -177,7 +177,7 @@ class JahresrechnungService {
       'betrag_netto': totalNetto,
       'mwst_betrag': mwstTotal,
       'betrag_brutto': bruttoTotal,
-      'zahlungsstatus': 'gestellt',
+      'zahlungsstatus': 'offen',
       'versandart': 'jahresrechnung',
     });
 

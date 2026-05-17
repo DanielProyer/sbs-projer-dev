@@ -14,7 +14,6 @@ const _monatNamen = [
 
 String _statusLabel(String status) {
   switch (status) {
-    case 'gestellt': return 'Gestellt';
     case 'offen': return 'Offen';
     case 'bezahlt': return 'Bezahlt';
     case 'erinnert': return 'Erinnert';
@@ -27,7 +26,6 @@ String _statusLabel(String status) {
 
 Color _statusColor(String status) {
   switch (status) {
-    case 'gestellt': return AppColors.textSecondary;
     case 'offen': return AppColors.warning;
     case 'bezahlt': return AppColors.success;
     case 'erinnert': return const Color(0xFFE65100);
@@ -39,12 +37,11 @@ Color _statusColor(String status) {
 }
 
 const _statusReihenfolge = [
-  'mahnung_2', 'mahnung_1', 'erinnert', 'offen', 'gestellt', 'bezahlt', 'abgeschrieben',
+  'mahnung_2', 'mahnung_1', 'erinnert', 'offen', 'bezahlt', 'abgeschrieben',
 ];
 
 String? _naechsterStatus(String current) {
   switch (current) {
-    case 'gestellt': return 'offen';
     case 'offen': return 'erinnert';
     case 'erinnert': return 'mahnung_1';
     case 'mahnung_1': return 'mahnung_2';
@@ -141,7 +138,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
             itemBuilder: (context) => [
               _filterItem('alle', 'Alle'),
               const PopupMenuDivider(),
-              _filterItem('gestellt', 'Gestellt'),
               _filterItem('offen', 'Offen'),
               _filterItem('erinnert', 'Erinnert'),
               _filterItem('mahnung_1', 'Mahnung 1'),
@@ -169,7 +165,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           // Summary Card
           if (_statusFilter == 'alle' || _statusFilter == 'offen' ||
               _statusFilter == 'erinnert' || _statusFilter == 'mahnung_1' ||
-              _statusFilter == 'mahnung_2' || _statusFilter == 'gestellt')
+              _statusFilter == 'mahnung_2')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Card(
@@ -599,7 +595,6 @@ class _RechnungListItem extends StatelessWidget {
 
   IconData _statusUpIcon(String status) {
     switch (status) {
-      case 'gestellt': return Icons.mark_email_read;
       case 'offen': return Icons.notifications;
       case 'erinnert': return Icons.warning_amber;
       case 'mahnung_1': return Icons.gavel;

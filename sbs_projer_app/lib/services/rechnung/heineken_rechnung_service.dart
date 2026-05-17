@@ -160,7 +160,7 @@ class HeinekenRechnungService {
       'betrag_netto': daten.totalNetto,
       'mwst_betrag': daten.mwstBetrag,
       'betrag_brutto': daten.totalBrutto,
-      'zahlungsstatus': 'gestellt',
+      'zahlungsstatus': 'offen',
     });
 
     // 2. Rechnungspositionen (eine pro Kategorie)

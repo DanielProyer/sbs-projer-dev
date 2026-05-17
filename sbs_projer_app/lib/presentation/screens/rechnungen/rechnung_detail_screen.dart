@@ -639,7 +639,6 @@ class _StatusChip extends StatelessWidget {
 
   String get _label {
     switch (status) {
-      case 'gestellt': return 'Gestellt';
       case 'offen': return 'Offen';
       case 'bezahlt': return 'Bezahlt';
       case 'erinnert': return 'Erinnert';
@@ -652,7 +651,6 @@ class _StatusChip extends StatelessWidget {
 
   Color get _color {
     switch (status) {
-      case 'gestellt': return AppColors.textSecondary;
       case 'offen': return AppColors.warning;
       case 'bezahlt': return AppColors.success;
       case 'erinnert': return const Color(0xFFE65100);
