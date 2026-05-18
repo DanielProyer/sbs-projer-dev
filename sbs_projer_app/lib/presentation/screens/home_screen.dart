@@ -6,16 +6,13 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
-import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
@@ -160,32 +157,11 @@ class _WeitereSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final anlageCount = ref.watch(anlageCountProvider);
-    final offeneRechnungen = ref.watch(offeneRechnungenCountProvider);
-    final heinekenCount = ref.watch(heinekenRechnungCountProvider);
     final buchungenCount = ref.watch(buchungenCountProvider);
     final niedrigCount = ref.watch(niedrigCountProvider);
 
     return Column(
       children: [
-        _MenuListTile(
-          icon: Icons.precision_manufacturing,
-          label: 'Anlagen',
-          count: anlageCount > 0 ? '$anlageCount' : null,
-          onTap: () => context.push('/anlagen'),
-        ),
-        _MenuListTile(
-          icon: Icons.receipt_long,
-          label: 'Rechnungen',
-          count: offeneRechnungen > 0 ? '$offeneRechnungen offen' : null,
-          onTap: () => context.push('/rechnungen'),
-        ),
-        _MenuListTile(
-          icon: Icons.receipt_long_outlined,
-          label: 'Heineken Rechnungen',
-          count: heinekenCount.valueOrNull?.toString(),
-          onTap: () => context.push('/heineken'),
-        ),
         _MenuListTile(
           icon: Icons.account_balance,
           label: 'Buchhaltung',
@@ -207,16 +183,6 @@ class _WeitereSection extends ConsumerWidget {
           icon: Icons.landscape,
           label: 'Bergkundenpauschalen',
           onTap: () => context.push('/bergkundenpauschalen'),
-        ),
-        _MenuListTile(
-          icon: Icons.receipt,
-          label: 'Jahresrechnung',
-          onTap: () => context.push('/jahresrechnung'),
-        ),
-        _MenuListTile(
-          icon: Icons.search,
-          label: 'Fehlersuche',
-          onTap: () => context.push('/fehlersuche'),
         ),
         _MenuListTile(
           icon: Icons.settings,

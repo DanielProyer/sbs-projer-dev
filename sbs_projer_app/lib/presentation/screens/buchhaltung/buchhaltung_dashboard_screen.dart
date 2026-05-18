@@ -154,16 +154,16 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/lohn'),
           ),
           _NavTile(
-            icon: Icons.document_scanner,
-            title: 'Spesen Scanner',
-            subtitle: 'Kassenzettel scannen & automatisch buchen',
-            onTap: () => context.push('/spesen-scanner'),
+            icon: Icons.receipt_long_outlined,
+            title: 'Heineken Rechnungen',
+            subtitle: 'Heineken-Monatsrechnungen erstellen',
+            onTap: () => context.push('/heineken'),
           ),
           _NavTile(
             icon: Icons.calendar_month,
             title: 'Jahresrechnungen',
             subtitle: 'Sammelrechnungen pro Betrieb erstellen',
-            onTap: () => context.push('/jahresrechnungen'),
+            onTap: () => context.push('/jahresrechnung'),
           ),
 
           const SizedBox(height: 24),

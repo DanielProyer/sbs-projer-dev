@@ -55,9 +55,6 @@ import 'package:sbs_projer_app/presentation/screens/einstellungen/einstellungen_
 import 'package:sbs_projer_app/presentation/screens/einstellungen/preis_version_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/biersorten_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/jahresrechnung/jahresrechnung_generate_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/fehlersuche/fehlersuche_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/fehlersuche/symptom_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/fehlersuche/ursachen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohnlauf_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohn_einstellungen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/spesen/spesen_scanner_screen.dart';
@@ -533,27 +530,6 @@ final router = GoRouter(
     GoRoute(
       path: '/jahresrechnung',
       builder: (context, state) => const JahresrechnungGenerateScreen(),
-    ),
-
-    // Fehlersuche
-    GoRoute(
-      path: '/fehlersuche',
-      builder: (context, state) => const FehlerSucheScreen(),
-    ),
-    GoRoute(
-      path: '/fehlersuche/:systemId',
-      builder: (context, state) {
-        final systemId = state.pathParameters['systemId']!;
-        return SymptomScreen(systemId: systemId);
-      },
-    ),
-    GoRoute(
-      path: '/fehlersuche/:systemId/:symptomId',
-      builder: (context, state) {
-        final systemId = state.pathParameters['systemId']!;
-        final symptomId = state.pathParameters['symptomId']!;
-        return UrsachenScreen(systemId: systemId, symptomId: symptomId);
-      },
     ),
 
     // Spesen
