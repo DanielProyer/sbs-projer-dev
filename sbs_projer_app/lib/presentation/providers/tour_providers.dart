@@ -813,13 +813,21 @@ final tagesCountsProvider =
     Provider.family<List<int>, DateTime>((ref, weekStart) {
   final counts = List<int>.filled(6, 0); // Mo-Sa
 
-  // Reinigungen-Basis
   final reinigungen = ref.watch(reinigungenProvider);
   final stoerungen = ref.watch(stoerungenProvider);
   final montagen = ref.watch(montagenProvider);
 
   for (int i = 0; i < 6; i++) {
     final day = weekStart.add(Duration(days: i));
+
+    // Gespeicherter Plan hat Vorrang
+    final gespeichert =
+        ref.watch(gespeicherterTagesplanProvider(day)).valueOrNull;
+    if (gespeichert != null) {
+      counts[i] = gespeichert.length;
+      continue;
+    }
+
     int count = 0;
 
     // Reinigungen von vor 28 Tagen
