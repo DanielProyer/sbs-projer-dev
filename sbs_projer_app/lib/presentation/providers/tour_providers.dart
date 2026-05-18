@@ -683,6 +683,8 @@ final tourVorschlagErweitertProvider =
 
 // ─── Tagesplan State ───
 
+final aktiverTagesplanTagProvider = StateProvider<DateTime?>((ref) => null);
+
 final tagesplanProvider =
     StateNotifierProvider<TagesplanNotifier, List<TourEintrag>>((ref) {
   return TagesplanNotifier();
@@ -813,12 +815,23 @@ final tagesCountsProvider =
     Provider.family<List<int>, DateTime>((ref, weekStart) {
   final counts = List<int>.filled(6, 0); // Mo-Sa
 
+  final aktiverTag = ref.watch(aktiverTagesplanTagProvider);
+  final aktiverPlan = ref.watch(tagesplanProvider);
   final reinigungen = ref.watch(reinigungenProvider);
   final stoerungen = ref.watch(stoerungenProvider);
   final montagen = ref.watch(montagenProvider);
 
   for (int i = 0; i < 6; i++) {
     final day = weekStart.add(Duration(days: i));
+
+    // Aktiver Tag: In-Memory-State hat Vorrang (Live-Updates)
+    if (aktiverTag != null &&
+        day.year == aktiverTag.year &&
+        day.month == aktiverTag.month &&
+        day.day == aktiverTag.day) {
+      counts[i] = aktiverPlan.length;
+      continue;
+    }
 
     // Gespeicherter Plan hat Vorrang
     final gespeichert =

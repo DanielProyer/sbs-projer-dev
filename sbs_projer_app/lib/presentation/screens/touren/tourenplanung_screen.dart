@@ -60,6 +60,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.read(aktiverTagesplanTagProvider.notifier).state = _selectedDate;
+
     final regionen = ref.watch(regionenProvider);
     final selectedRegionen = ref.watch(selectedRegionenProvider);
     final selectedFaelligkeit = ref.watch(selectedFaelligkeitProvider);
