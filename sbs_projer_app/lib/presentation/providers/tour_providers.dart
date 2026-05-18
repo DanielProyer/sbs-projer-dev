@@ -789,8 +789,10 @@ final gespeicherterTagesplanProvider =
 
 Future<void> tagesplanSpeichern(DateTime datum, List<TourEintrag> eintraege) async {
   final datumStr = '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+  final userId = SupabaseService.client.auth.currentUser!.id;
   final json = eintraege.map(_tourEintragToJson).toList();
   await SupabaseService.client.from('tagesplaene').upsert({
+    'user_id': userId,
     'datum': datumStr,
     'eintraege': json,
     'updated_at': DateTime.now().toIso8601String(),

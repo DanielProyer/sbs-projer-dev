@@ -17,7 +17,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     with SingleTickerProviderStateMixin {
   late DateTime _selectedDate;
   late TabController _tabController;
-  bool _initialVorschlagLoaded = false;
+  DateTime? _loadedForDate;
 
   @override
   void initState() {
@@ -41,14 +41,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   void _changeWeek(int delta) {
     setState(() {
       _selectedDate = _selectedDate.add(Duration(days: 7 * delta));
-      _initialVorschlagLoaded = false;
+      _loadedForDate = null;
     });
   }
 
   void _selectDay(DateTime day) {
     setState(() {
       _selectedDate = day;
-      _initialVorschlagLoaded = false;
+      _loadedForDate = null;
     });
   }
 
@@ -68,21 +68,41 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final faelligeEintraege =
         ref.watch(faelligeEintraegeProvider(_selectedDate));
 
-    // Auto-load: gespeicherter Plan hat Vorrang vor Vorschlag
-    if (!_initialVorschlagLoaded) {
-      _initialVorschlagLoaded = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final gespeichert = ref
-            .read(gespeicherterTagesplanProvider(_selectedDate))
-            .valueOrNull;
-        if (gespeichert != null && gespeichert.isNotEmpty) {
-          ref.read(tagesplanProvider.notifier).setFromGespeichert(gespeichert);
-        } else {
-          final vorschlag =
-              ref.read(tourVorschlagErweitertProvider(_selectedDate));
-          ref.read(tagesplanProvider.notifier).setFromVorschlag(vorschlag);
-        }
-      });
+    // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag
+    final gespeichertAsync =
+        ref.watch(gespeicherterTagesplanProvider(_selectedDate));
+    if (_loadedForDate != _selectedDate) {
+      gespeichertAsync.when(
+        data: (gespeichert) {
+          if (_loadedForDate != _selectedDate) {
+            _loadedForDate = _selectedDate;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              if (gespeichert != null && gespeichert.isNotEmpty) {
+                ref
+                    .read(tagesplanProvider.notifier)
+                    .setFromGespeichert(gespeichert);
+              } else {
+                final vorschlag =
+                    ref.read(tourVorschlagErweitertProvider(_selectedDate));
+                ref
+                    .read(tagesplanProvider.notifier)
+                    .setFromVorschlag(vorschlag);
+              }
+            });
+          }
+        },
+        loading: () {},
+        error: (_, __) {
+          _loadedForDate = _selectedDate;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final vorschlag =
+                ref.read(tourVorschlagErweitertProvider(_selectedDate));
+            ref.read(tagesplanProvider.notifier).setFromVorschlag(vorschlag);
+          });
+        },
+      );
     }
 
     // Filter-Funktion (Region + Fälligkeit)
