@@ -51,7 +51,7 @@ class RechnungService {
       final nr = (betrieb.betriebNr ?? '0000').padLeft(4, '0');
       final d = reinigung.datum;
       final rechnungsnummer =
-          '${nr}_${d.year}_${d.month.toString().padLeft(2, '0')}_${d.day.toString().padLeft(2, '0')}';
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}-$nr';
 
       // 2. Positionen aufbauen
       final positionen = _buildPositionen(reinigung);

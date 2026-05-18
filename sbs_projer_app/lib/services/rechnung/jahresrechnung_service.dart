@@ -135,7 +135,7 @@ class JahresrechnungService {
 
     final dateFormat = DateFormat('dd.MM.yyyy');
     final betriebNr = (betrieb.betriebNr ?? '0000').padLeft(4, '0');
-    final rechnungsnummer = '${betriebNr}_JR_$jahr';
+    final rechnungsnummer = '$jahr-JR-$betriebNr';
 
     // Positionen aufbauen: Eine pro Reinigung
     final positionen = <Map<String, dynamic>>[];
