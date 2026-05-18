@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 
 const _monatNamen = [
@@ -64,6 +67,8 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   String _statusFilter = 'alle';
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
+  bool _selectMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   Widget build(BuildContext context) {
@@ -130,24 +135,42 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rechnungen'),
+        title: Text(_selectMode
+            ? '${_selectedIds.length} ausgewählt'
+            : 'Rechnungen'),
+        leading: _selectMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() {
+                  _selectMode = false;
+                  _selectedIds.clear();
+                }),
+              )
+            : null,
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Status-Filter',
-            onSelected: (value) => setState(() => _statusFilter = value),
-            itemBuilder: (context) => [
-              _filterItem('alle', 'Alle'),
-              const PopupMenuDivider(),
-              _filterItem('offen', 'Offen'),
-              _filterItem('erinnert', 'Erinnert'),
-              _filterItem('mahnung_1', 'Mahnung 1'),
-              _filterItem('mahnung_2', 'Mahnung 2'),
-              const PopupMenuDivider(),
-              _filterItem('bezahlt', 'Bezahlt'),
-              _filterItem('abgeschrieben', 'Abgeschrieben'),
-            ],
-          ),
+          if (!_selectMode)
+            IconButton(
+              icon: const Icon(Icons.checklist),
+              tooltip: 'Sammelzahlung',
+              onPressed: () => setState(() => _selectMode = true),
+            ),
+          if (!_selectMode)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.filter_list),
+              tooltip: 'Status-Filter',
+              onSelected: (value) => setState(() => _statusFilter = value),
+              itemBuilder: (context) => [
+                _filterItem('alle', 'Alle'),
+                const PopupMenuDivider(),
+                _filterItem('offen', 'Offen'),
+                _filterItem('erinnert', 'Erinnert'),
+                _filterItem('mahnung_1', 'Mahnung 1'),
+                _filterItem('mahnung_2', 'Mahnung 2'),
+                const PopupMenuDivider(),
+                _filterItem('bezahlt', 'Bezahlt'),
+                _filterItem('abgeschrieben', 'Abgeschrieben'),
+              ],
+            ),
         ],
       ),
       body: Column(
@@ -307,6 +330,27 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                         return _buildTagesHeader(context, item);
                       }
                       final entry = item as Rechnung;
+                      final isOffen = entry.zahlungsstatus != 'bezahlt' &&
+                          entry.zahlungsstatus != 'abgeschrieben';
+                      if (_selectMode) {
+                        return _RechnungSelectItem(
+                          rechnung: entry,
+                          betriebName: entry.betriebId != null
+                              ? betriebNames[entry.betriebId]
+                              : null,
+                          enabled: isOffen,
+                          selected: _selectedIds.contains(entry.id),
+                          onChanged: isOffen
+                              ? (v) => setState(() {
+                                    if (v == true) {
+                                      _selectedIds.add(entry.id);
+                                    } else {
+                                      _selectedIds.remove(entry.id);
+                                    }
+                                  })
+                              : null,
+                        );
+                      }
                       return _RechnungListItem(
                         rechnung: entry,
                         betriebName: entry.betriebId != null
@@ -319,9 +363,251 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                     },
                   ),
           ),
+          if (_selectMode && _selectedIds.isNotEmpty)
+            _buildSammelzahlungBar(rechnungen),
         ],
       ),
     );
+  }
+
+  Widget _buildSammelzahlungBar(List<Rechnung> alleRechnungen) {
+    final selected = alleRechnungen
+        .where((r) => _selectedIds.contains(r.id))
+        .toList();
+    final summe = selected.fold(
+        0.0, (sum, r) => sum + ((r.betragBrutto * 20).roundToDouble() / 20));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(30),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${selected.length} Rechnungen',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  Text(
+                    'Total: CHF ${summe.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.payments, size: 18),
+              label: const Text('Sammelzahlung'),
+              onPressed: () => _showSammelzahlungDialog(selected, summe),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSammelzahlungDialog(
+      List<Rechnung> selected, double summe) async {
+    final controller =
+        TextEditingController(text: summe.toStringAsFixed(2));
+
+    final result = await showDialog<double?>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final eingabe =
+                double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
+            final differenz =
+                ((eingabe - summe) * 20).roundToDouble() / 20;
+
+            return AlertDialog(
+              title: const Text('Sammelzahlung'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${selected.length} Rechnungen ausgewählt',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ...selected.map((r) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  r.rechnungsnummer ?? 'Entwurf',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                              Text(
+                                'CHF ${((r.betragBrutto * 20).roundToDouble() / 20).toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        )),
+                    const Divider(height: 16),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text('Rechnungstotal',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        Text(
+                          'CHF ${summe.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: controller,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Eingegangener Betrag (CHF)',
+                        prefixText: 'CHF ',
+                        border: OutlineInputBorder(),
+                      ),
+                      autofocus: true,
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    if (differenz.abs() >= 0.01) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: differenz < 0
+                              ? AppColors.warning.withAlpha(25)
+                              : AppColors.success.withAlpha(25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: differenz < 0
+                                ? AppColors.warning.withAlpha(80)
+                                : AppColors.success.withAlpha(80),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              differenz < 0
+                                  ? Icons.trending_down
+                                  : Icons.trending_up,
+                              size: 18,
+                              color: differenz < 0
+                                  ? AppColors.warning
+                                  : AppColors.success,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                differenz < 0
+                                    ? 'Unterzahlung: CHF ${differenz.abs().toStringAsFixed(2)}\n'
+                                      'Wird als Debitorenverlust (3805) gebucht'
+                                    : 'Mehrzahlung: CHF ${differenz.toStringAsFixed(2)}\n'
+                                      'Wird als a.o. Ertrag (8000) gebucht',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: differenz < 0
+                                      ? AppColors.warning
+                                      : AppColors.success,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  child: const Text('Abbrechen'),
+                ),
+                FilledButton(
+                  onPressed:
+                      eingabe > 0 ? () => Navigator.pop(ctx, eingabe) : null,
+                  child: const Text('Alle bezahlt'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null) return;
+
+    final zahlungBetrag = (result * 20).roundToDouble() / 20;
+
+    try {
+      final datumStr = DateTime.now().toIso8601String().split('T').first;
+      for (final r in selected) {
+        final brutto = (r.betragBrutto * 20).roundToDouble() / 20;
+        await RechnungRepository.update(r.id, {
+          'zahlungsstatus': 'bezahlt',
+          'zahlung_eingegangen_am': datumStr,
+          'zahlung_betrag': brutto,
+        });
+      }
+
+      await ZahlungsdifferenzService.verbuchenSammel(
+        rechnungen: selected,
+        zahlungBetrag: zahlungBetrag,
+      );
+
+      if (mounted) {
+        ref.invalidate(rechnungenStreamProvider);
+        ref.invalidate(buchungenStreamProvider);
+        setState(() {
+          _selectMode = false;
+          _selectedIds.clear();
+        });
+
+        final differenz = ((zahlungBetrag - summe) * 20).roundToDouble() / 20;
+        String snackText =
+            '${selected.length} Rechnungen als bezahlt markiert';
+        if (differenz.abs() >= 0.01) {
+          snackText += differenz < 0
+              ? ' (CHF ${differenz.abs().toStringAsFixed(2)} Debitorenverlust)'
+              : ' (CHF ${differenz.toStringAsFixed(2)} Mehrzahlung)';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(snackText)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _showStatusDialog(Rechnung rechnung) async {
@@ -735,6 +1021,56 @@ class _RechnungListItem extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+}
+
+class _RechnungSelectItem extends StatelessWidget {
+  final Rechnung rechnung;
+  final String? betriebName;
+  final bool enabled;
+  final bool selected;
+  final ValueChanged<bool?>? onChanged;
+
+  const _RechnungSelectItem({
+    required this.rechnung,
+    this.betriebName,
+    required this.enabled,
+    required this.selected,
+    this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor(rechnung.zahlungsstatus);
+    final brutto = (rechnung.betragBrutto * 20).roundToDouble() / 20;
+    return Card(
+      child: CheckboxListTile(
+        value: selected,
+        onChanged: onChanged,
+        enabled: enabled,
+        secondary: CircleAvatar(
+          backgroundColor: color.withAlpha(25),
+          child: Icon(Icons.receipt_long, color: color, size: 20),
+        ),
+        title: Text(
+          rechnung.rechnungsnummer ?? 'Entwurf',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: enabled ? null : AppColors.textSecondary,
+          ),
+        ),
+        subtitle: Text(
+          [
+            if (betriebName != null) betriebName!,
+            'CHF ${brutto.toStringAsFixed(2)}',
+          ].join(' · '),
+          style: TextStyle(
+            color: enabled ? null : AppColors.textSecondary,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
   }
 }
 
