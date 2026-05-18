@@ -47996,7 +47996,7 @@ s=3
 return A.d(A.aK7(A.bc(b8,12,31,0,0,0,0)),$async$mg)
 case 3:i=A.fF("dd.MM.yyyy",null)
 h=b7.ay
-g=B.o.au(h==null?"0000":h,4,"0")+"_JR_"+b8
+g=""+b8+"-JR-"+B.o.au(h==null?"0000":h,4,"0")
 f=A.b([],t.H7)
 for(h=t.N,e=t.z,d=0,c=0;c<b5.gt(b9);){b=b5.h(b9,c)
 a=A.aK9(b)
@@ -52240,7 +52240,7 @@ return A.d(A.aTG(b0.w),$async$qa)
 case 7:a2=b1.ay
 n=B.o.au(a2==null?"0000":a2,4,"0")
 m=b0.w
-l=A.i(n)+"_"+A.Y(m)+"_"+B.o.au(B.i.j(A.ad(m)),2,"0")+"_"+B.o.au(B.i.j(A.aL(m)),2,"0")
+l=""+A.Y(m)+"-"+B.o.au(B.i.j(A.ad(m)),2,"0")+"-"+B.o.au(B.i.j(A.aL(m)),2,"0")+"-"+A.i(n)
 k=A.cfT(b0)
 j=0
 for(a2=k,a3=a2.length,a4=0;a4<a2.length;a2.length===a3||(0,A.E)(a2),++a4){i=a2[a4]
