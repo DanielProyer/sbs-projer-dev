@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -11,6 +12,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 // ─── Regionen ───
 
@@ -689,21 +691,33 @@ final tagesplanProvider =
 class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
   TagesplanNotifier() : super([]);
 
+  bool _gespeichert = false;
+  bool get gespeichert => _gespeichert;
+
   void setFromVorschlag(List<TourEintrag> eintraege) {
     state = List.of(eintraege);
+    _gespeichert = false;
+  }
+
+  void setFromGespeichert(List<TourEintrag> eintraege) {
+    state = List.of(eintraege);
+    _gespeichert = true;
   }
 
   void hinzufuegen(TourEintrag eintrag) {
     if (state.any((e) => e.id == eintrag.id)) return;
     state = [...state, eintrag];
+    _gespeichert = false;
   }
 
   void entfernen(String id) {
     state = state.where((e) => e.id != id).toList();
+    _gespeichert = false;
   }
 
   void leeren() {
     state = [];
+    _gespeichert = false;
   }
 
   void reorder(int oldIndex, int newIndex) {
@@ -712,13 +726,83 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
     final item = items.removeAt(oldIndex);
     items.insert(newIndex, item);
     state = items;
+    _gespeichert = false;
   }
 
   void befuellenAusFaellig(List<TourEintrag> faellige) {
     final existing = state.map((e) => e.id).toSet();
     final neue = faellige.where((e) => !existing.contains(e.id)).toList();
     state = [...state, ...neue];
+    _gespeichert = false;
   }
+
+  void markGespeichert() {
+    _gespeichert = true;
+  }
+}
+
+// ─── Tagesplan Persistierung (Supabase) ───
+
+Map<String, dynamic> _tourEintragToJson(TourEintrag e) => {
+      'typ': e.typ.name,
+      'id': e.id,
+      'betriebId': e.betriebId,
+      'anlageId': e.anlageId,
+      'betriebName': e.betriebName,
+      'betriebOrt': e.betriebOrt,
+      'regionId': e.regionId,
+      'beschreibung': e.beschreibung,
+    };
+
+TourEintrag _tourEintragFromJson(Map<String, dynamic> j) => TourEintrag(
+      typ: TourEintragTyp.values.firstWhere(
+          (t) => t.name == j['typ'],
+          orElse: () => TourEintragTyp.reinigung),
+      id: j['id'] as String,
+      betriebId: j['betriebId'] as String?,
+      anlageId: j['anlageId'] as String?,
+      betriebName: j['betriebName'] as String? ?? '',
+      betriebOrt: j['betriebOrt'] as String?,
+      regionId: j['regionId'] as String?,
+      beschreibung: j['beschreibung'] as String? ?? '',
+    );
+
+final gespeicherterTagesplanProvider =
+    FutureProvider.family<List<TourEintrag>?, DateTime>((ref, datum) async {
+  try {
+    final datumStr = '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+    final rows = await SupabaseService.client
+        .from('tagesplaene')
+        .select()
+        .eq('datum', datumStr)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    final eintraege = (rows.first['eintraege'] as List<dynamic>)
+        .map((e) => _tourEintragFromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    return eintraege;
+  } catch (e) {
+    debugPrint('[Tagesplan] Laden fehlgeschlagen: $e');
+    return null;
+  }
+});
+
+Future<void> tagesplanSpeichern(DateTime datum, List<TourEintrag> eintraege) async {
+  final datumStr = '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+  final json = eintraege.map(_tourEintragToJson).toList();
+  await SupabaseService.client.from('tagesplaene').upsert({
+    'datum': datumStr,
+    'eintraege': json,
+    'updated_at': DateTime.now().toIso8601String(),
+  }, onConflict: 'user_id,datum');
+}
+
+Future<void> tagesplanLoeschen(DateTime datum) async {
+  final datumStr = '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+  await SupabaseService.client
+      .from('tagesplaene')
+      .delete()
+      .eq('datum', datumStr);
 }
 
 // ─── Tages-Counts (für Day-Chips, alle Typen) ───

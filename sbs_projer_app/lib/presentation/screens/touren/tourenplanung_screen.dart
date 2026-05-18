@@ -68,13 +68,20 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final faelligeEintraege =
         ref.watch(faelligeEintraegeProvider(_selectedDate));
 
-    // Auto-load Vorschlag beim ersten Mal
+    // Auto-load: gespeicherter Plan hat Vorrang vor Vorschlag
     if (!_initialVorschlagLoaded) {
       _initialVorschlagLoaded = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final vorschlag =
-            ref.read(tourVorschlagErweitertProvider(_selectedDate));
-        ref.read(tagesplanProvider.notifier).setFromVorschlag(vorschlag);
+        final gespeichert = ref
+            .read(gespeicherterTagesplanProvider(_selectedDate))
+            .valueOrNull;
+        if (gespeichert != null && gespeichert.isNotEmpty) {
+          ref.read(tagesplanProvider.notifier).setFromGespeichert(gespeichert);
+        } else {
+          final vorschlag =
+              ref.read(tourVorschlagErweitertProvider(_selectedDate));
+          ref.read(tagesplanProvider.notifier).setFromVorschlag(vorschlag);
+        }
       });
     }
 
@@ -170,12 +177,18 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             ],
           ),
 
-          // Fälligkeits-FilterChips
-          if (selectedFaelligkeit.isNotEmpty)
-            _FaelligkeitsChips(
-              selected: selectedFaelligkeit,
-              onChanged: (updated) {
+          // Filter-Chips (Fälligkeit + Regionen)
+          if (selectedFaelligkeit.isNotEmpty || selectedRegionen.isNotEmpty)
+            _FilterChips(
+              selectedFaelligkeit: selectedFaelligkeit,
+              selectedRegionen: selectedRegionen,
+              regionen: regionen,
+              onFaelligkeitChanged: (updated) {
                 ref.read(selectedFaelligkeitProvider.notifier).state =
+                    updated;
+              },
+              onRegionenChanged: (updated) {
+                ref.read(selectedRegionenProvider.notifier).state =
                     updated;
               },
             ),
@@ -190,6 +203,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                   children: [
                     _TagesplanHeader(
                       datum: _selectedDate,
+                      istGespeichert: ref.read(tagesplanProvider.notifier).gespeichert,
                       onLeeren: () =>
                           ref.read(tagesplanProvider.notifier).leeren(),
                       onAusFaelligBefuellen: () {
@@ -198,6 +212,28 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                         ref
                             .read(tagesplanProvider.notifier)
                             .befuellenAusFaellig(faellige);
+                      },
+                      onSpeichern: () async {
+                        try {
+                          await tagesplanSpeichern(
+                              _selectedDate, tagesplan);
+                          ref.read(tagesplanProvider.notifier).markGespeichert();
+                          ref.invalidate(gespeicherterTagesplanProvider);
+                          if (mounted) {
+                            setState(() {});
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Tagesplan gespeichert')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Fehler: $e')),
+                            );
+                          }
+                        }
                       },
                     ),
                     Expanded(
@@ -645,13 +681,17 @@ class _DayChips extends StatelessWidget {
 
 class _TagesplanHeader extends StatelessWidget {
   final DateTime datum;
+  final bool istGespeichert;
   final VoidCallback onLeeren;
   final VoidCallback onAusFaelligBefuellen;
+  final VoidCallback onSpeichern;
 
   const _TagesplanHeader({
     required this.datum,
+    required this.istGespeichert,
     required this.onLeeren,
     required this.onAusFaelligBefuellen,
+    required this.onSpeichern,
   });
 
   @override
@@ -670,11 +710,26 @@ class _TagesplanHeader extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
+          if (istGespeichert)
+            const Padding(
+              padding: EdgeInsets.only(left: 6),
+              child: Icon(Icons.cloud_done, size: 16, color: AppColors.success),
+            ),
           const Spacer(),
+          IconButton(
+            onPressed: onSpeichern,
+            icon: Icon(
+              istGespeichert ? Icons.save : Icons.save_outlined,
+              size: 20,
+              color: istGespeichert ? AppColors.success : AppColors.primary,
+            ),
+            tooltip: 'Tagesplan speichern',
+            visualDensity: VisualDensity.compact,
+          ),
           TextButton.icon(
             onPressed: onAusFaelligBefuellen,
             icon: const Icon(Icons.playlist_add, size: 18),
-            label: const Text('Alle Fälligen', style: TextStyle(fontSize: 12)),
+            label: const Text('Fällige', style: TextStyle(fontSize: 12)),
             style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1072,15 +1127,21 @@ class _FaelligkeitsOption {
   });
 }
 
-// ─── Fälligkeits-FilterChips (aktive Filter anzeigen) ───
+// ─── Filter-Chips (Fälligkeit + Regionen) ───
 
-class _FaelligkeitsChips extends StatelessWidget {
-  final Set<FaelligkeitsStatus> selected;
-  final void Function(Set<FaelligkeitsStatus>) onChanged;
+class _FilterChips extends StatelessWidget {
+  final Set<FaelligkeitsStatus> selectedFaelligkeit;
+  final Set<String> selectedRegionen;
+  final List<dynamic> regionen;
+  final void Function(Set<FaelligkeitsStatus>) onFaelligkeitChanged;
+  final void Function(Set<String>) onRegionenChanged;
 
-  const _FaelligkeitsChips({
-    required this.selected,
-    required this.onChanged,
+  const _FilterChips({
+    required this.selectedFaelligkeit,
+    required this.selectedRegionen,
+    required this.regionen,
+    required this.onFaelligkeitChanged,
+    required this.onRegionenChanged,
   });
 
   static const _labels = {
@@ -1102,7 +1163,6 @@ class _FaelligkeitsChips extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            // "Alle löschen" Chip
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: ActionChip(
@@ -1112,10 +1172,13 @@ class _FaelligkeitsChips extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize:
                     MaterialTapTargetSize.shrinkWrap,
-                onPressed: () => onChanged({}),
+                onPressed: () {
+                  onFaelligkeitChanged({});
+                  onRegionenChanged({});
+                },
               ),
             ),
-            ...selected.map((s) {
+            ...selectedFaelligkeit.map((s) {
               final (label, color) = _labels[s]!;
               return Padding(
                 padding: const EdgeInsets.only(right: 6),
@@ -1132,9 +1195,38 @@ class _FaelligkeitsChips extends StatelessWidget {
                       MaterialTapTargetSize.shrinkWrap,
                   deleteIcon: Icon(Icons.close, size: 14, color: color),
                   onDeleted: () {
-                    final updated = Set<FaelligkeitsStatus>.from(selected);
+                    final updated =
+                        Set<FaelligkeitsStatus>.from(selectedFaelligkeit);
                     updated.remove(s);
-                    onChanged(updated);
+                    onFaelligkeitChanged(updated);
+                  },
+                ),
+              );
+            }),
+            ...selectedRegionen.map((regionId) {
+              final region = regionen.cast<dynamic>().where(
+                  (r) => r.routeId == regionId).toList();
+              final name = region.isNotEmpty ? region.first.name : regionId;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Chip(
+                  avatar: const Icon(Icons.map, size: 14, color: AppColors.primary),
+                  label: Text(name,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600)),
+                  backgroundColor: AppColors.primary.withAlpha(20),
+                  side: BorderSide(color: AppColors.primary.withAlpha(60)),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize:
+                      MaterialTapTargetSize.shrinkWrap,
+                  deleteIcon: const Icon(Icons.close, size: 14,
+                      color: AppColors.primary),
+                  onDeleted: () {
+                    final updated = Set<String>.from(selectedRegionen);
+                    updated.remove(regionId);
+                    onRegionenChanged(updated);
                   },
                 ),
               );
