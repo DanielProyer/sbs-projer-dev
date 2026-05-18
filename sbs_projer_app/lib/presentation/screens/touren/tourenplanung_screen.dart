@@ -78,7 +78,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             _loadedForDate = _selectedDate;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              if (gespeichert != null && gespeichert.isNotEmpty) {
+              if (gespeichert != null) {
                 ref
                     .read(tagesplanProvider.notifier)
                     .setFromGespeichert(gespeichert);
