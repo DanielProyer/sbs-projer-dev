@@ -9,14 +9,14 @@
 /// - Montage/HeiGenie Protokolle: [montageScharf]
 class MailConfig {
   /// Master-Schalter: wenn true, gehen ALLE Mails an [testEmpfaenger]
-  static const testModus = true;
+  static const testModus = false;
 
   /// Test-Empfänger für alle Bereiche
   static const testEmpfaenger = 'dani.proyer@gmail.com';
 
   /// Einzelne Bereiche scharfstellen (nur relevant wenn [testModus] = false)
   static const reinigungScharf = false;
-  static const heinekenScharf = false;
+  static const heinekenScharf = true;
   static const montageScharf = false;
   static const heigenieScharf = true;
   static const bestellungScharf = false;
