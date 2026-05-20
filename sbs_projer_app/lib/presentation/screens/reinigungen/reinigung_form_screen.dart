@@ -486,14 +486,24 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               await BetriebRepository.getByServerId(r.betriebId);
           if (betrieb != null) {
             final kontakt = await KontaktRepository.getHeinekenZuweisung('heigenie_service');
+            final empfaenger = MailConfig.empfaenger(kontakt?.email, bereich: 'heigenie');
             debugPrint('[HeiGenie-Mail] Kontakt: ${kontakt?.vorname} ${kontakt?.nachname}, Email: ${kontakt?.email}');
             debugPrint('[HeiGenie-Mail] testModus=${MailConfig.testModus}, heigenieScharf=${MailConfig.heigenieScharf}');
-            final empfaenger = MailConfig.empfaenger(kontakt?.email, bereich: 'heigenie');
+            debugPrint('[HeiGenie-Mail] Empfänger: $empfaenger');
             final datumStr =
                 '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}';
             final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
                 ? '${betrieb.name} ${betrieb.ort}'
                 : betrieb.name;
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('HeiGenie-Mail → $empfaenger (Kontakt: ${kontakt?.email ?? "KEIN KONTAKT"})'),
+                  duration: const Duration(seconds: 6),
+                ),
+              );
+            }
 
             await SupabaseService.client.functions.invoke(
               'send-rechnung-mail',

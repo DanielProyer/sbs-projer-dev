@@ -90,7 +90,17 @@ class _HeinekenRechnungDetailScreenState
           await KontaktRepository.getHeinekenZuweisung('monatsrechnung');
       final empfaenger =
           MailConfig.empfaenger(kontakt?.email, bereich: 'heineken');
+      debugPrint('[Heineken-Mail] Kontakt: ${kontakt?.email}, Empfänger: $empfaenger');
       final monatLabel = _monatFormat.format(_rechnung!.heinekenMonat!);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Heineken-Mail → $empfaenger (Kontakt: ${kontakt?.email ?? "KEIN KONTAKT"})'),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
 
       await SupabaseService.client.functions.invoke('send-rechnung-mail',
           body: {
