@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -119,14 +120,17 @@ class _RechnungenNachversandScreenState
   }
 
   Future<void> _openPdf(_NachversandItem item) async {
-    if (item.pdfUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Keine PDF-URL vorhanden')),
-      );
-      return;
+    try {
+      // Frische signed URL holen (gespeicherte pdf_url läuft nach 1h ab)
+      final url = await RechnungPdfStorage.getSignedUrl(item.id);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF konnte nicht geladen werden: $e')),
+        );
+      }
     }
-    await launchUrl(Uri.parse(item.pdfUrl!),
-        mode: LaunchMode.externalApplication);
   }
 
   Future<void> _sendMail(_NachversandItem item) async {
