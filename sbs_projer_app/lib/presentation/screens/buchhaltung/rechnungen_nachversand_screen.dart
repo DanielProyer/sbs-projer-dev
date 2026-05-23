@@ -281,7 +281,7 @@ class _RechnungenNachversandScreenState
                         style: const TextStyle(fontSize: 13),
                       ),
                       Text(
-                        '${_dateFormat.format(item.datum)} · ${item.betragBrutto.toStringAsFixed(2)} CHF',
+                        '${_dateFormat.format(item.datum)} · ${_round5Rp(item.betragBrutto).toStringAsFixed(2)} CHF',
                         style: TextStyle(
                             fontSize: 12, color: AppColors.textSecondary),
                       ),
@@ -343,6 +343,9 @@ class _RechnungenNachversandScreenState
       ),
     );
   }
+
+  /// Schweizer 5-Rappen-Rundung (0.05 CHF).
+  static double _round5Rp(double v) => (v * 20).roundToDouble() / 20;
 
   static String _monatName(int m) {
     const namen = [
