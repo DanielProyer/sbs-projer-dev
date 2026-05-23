@@ -43,43 +43,61 @@ class _RechnungenNachversandScreenState
       _loadError = null;
     });
     try {
-      // Direkte Supabase-Query: Rechnung + Betrieb + Rechnungsadresse
-      // Filter: rechnungstyp=kundenrechnung, rechnungsdatum>=Stichtag,
-      //         betrieb.rechnungsstellung='rechnung_mail'
-      final rows = await SupabaseService.client
+      // Query 1: Rechnungen + Betrieb-Stammdaten (Inner-Join via rechnungsstellung)
+      final rechnungRows = await SupabaseService.client
           .from('rechnungen')
           .select(
               'id, rechnungsnummer, rechnungsdatum, betrag_brutto, versendet_am, pdf_url, betrieb_id, '
-              'betriebe!inner(name, ort, rechnungsstellung, '
-              'betrieb_rechnungsadressen(email))')
+              'betriebe!inner(name, ort, rechnungsstellung)')
           .eq('rechnungstyp', 'kundenrechnung')
           .gte('rechnungsdatum', _stichtag)
           .eq('betriebe.rechnungsstellung', 'rechnung_mail')
           .order('rechnungsdatum', ascending: false);
 
-      final items = <_NachversandItem>[];
-      for (final row in rows as List) {
-        final m = row as Map<String, dynamic>;
-        final betrieb = (m['betriebe'] as Map<String, dynamic>?) ?? const {};
-        final adressen =
-            (betrieb['betrieb_rechnungsadressen'] as List?) ?? const <dynamic>[];
-        final email = adressen.isNotEmpty
-            ? (adressen.first as Map<String, dynamic>)['email'] as String?
-            : null;
+      // Betriebe-IDs sammeln
+      final betriebIds = <String>{};
+      for (final row in rechnungRows as List) {
+        final id = (row as Map)['betrieb_id'];
+        if (id is String) betriebIds.add(id);
+      }
 
+      // Query 2: Rechnungsadressen für diese Betriebe
+      final emailByBetrieb = <String, String>{};
+      if (betriebIds.isNotEmpty) {
+        final adrRows = await SupabaseService.client
+            .from('betrieb_rechnungsadressen')
+            .select('betrieb_id, email')
+            .inFilter('betrieb_id', betriebIds.toList());
+        for (final row in adrRows as List) {
+          final m = row as Map;
+          final bid = m['betrieb_id'];
+          final mail = m['email'];
+          if (bid is String && mail is String && mail.isNotEmpty) {
+            emailByBetrieb[bid] = mail;
+          }
+        }
+      }
+
+      // Items bauen — komplett defensiv via .toString()
+      final items = <_NachversandItem>[];
+      for (final row in rechnungRows) {
+        final m = row as Map;
+        final betrieb = (m['betriebe'] as Map?) ?? const {};
+        final betriebId = m['betrieb_id']?.toString() ?? '';
         items.add(_NachversandItem(
-          id: m['id'] as String,
-          rechnungsnummer: m['rechnungsnummer'] as String? ?? '-',
+          id: m['id'].toString(),
+          rechnungsnummer: m['rechnungsnummer']?.toString() ?? '-',
           datum: DateTime.parse(m['rechnungsdatum'].toString()),
           betragBrutto:
               double.tryParse(m['betrag_brutto']?.toString() ?? '') ?? 0,
           versendetAm: m['versendet_am'] != null
               ? DateTime.parse(m['versendet_am'].toString())
               : null,
-          pdfUrl: m['pdf_url'] as String?,
-          betriebName: (betrieb['name'] as String?) ?? '?',
-          betriebOrt: betrieb['ort'] as String?,
-          emailController: TextEditingController(text: email ?? ''),
+          pdfUrl: m['pdf_url']?.toString(),
+          betriebName: betrieb['name']?.toString() ?? '?',
+          betriebOrt: betrieb['ort']?.toString(),
+          emailController:
+              TextEditingController(text: emailByBetrieb[betriebId] ?? ''),
         ));
       }
 
@@ -89,10 +107,11 @@ class _RechnungenNachversandScreenState
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[Nachversand] Load-Fehler: $e\n$st');
       if (mounted) {
         setState(() {
-          _loadError = e.toString();
+          _loadError = '$e';
           _loading = false;
         });
       }
