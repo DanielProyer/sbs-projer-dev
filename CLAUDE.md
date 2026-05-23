@@ -37,8 +37,8 @@ dart run build_runner build
 Branch `gh-pages`, Source: Root (`/`), NICHT `docs/`. Dateien aus `sbs_projer_app/build/web/` direkt in Root kopieren.
 
 **WICHTIG:**
-- Vor dem Deploy IMMER alle Änderungen committen (`git stash` beim Deploy kann sonst Code verlieren)
-- In `pubspec.yaml` die Version bumpen
+- Vor dem Deploy IMMER alle Änderungen committen — NIEMALS `git stash` nutzen (Vorfall 03.05.2026: stash pop Konflikt → Code verloren)
+- In `pubspec.yaml` Zeile 4 die Version bumpen (`version: 0.X.Y+Z`, beide Teile erhöhen)
 - Nach dem Build `main.dart.js` in `flutter_bootstrap.js` cache-busten
 
 ```bash
@@ -51,17 +51,16 @@ cd .. && VER=$(grep -o '"version":"[^"]*"' sbs_projer_app/build/web/version.json
        sbs_projer_app/build/web/flutter_bootstrap.js \
   && rm -f sbs_projer_app/build/web/flutter_service_worker.js
 
-# 3. Deploy auf gh-pages
-git stash
+# 3. Deploy auf gh-pages (vorher alle main-Änderungen committen + pushen!)
 git checkout gh-pages
 rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html manifest.json favicon.png version.json docs
 cp -r sbs_projer_app/build/web/* .
 touch .nojekyll
 git add index.html main.dart.js* flutter*.js manifest.json favicon.png version.json .nojekyll assets/ canvaskit/ icons/
-git commit -m "deploy"
+git commit -m "deploy vX.Y.Z — Kurzbeschreibung"
 git push origin gh-pages
 git checkout main
-git stash pop
+git push origin main
 ```
 
 Live: `https://danielproyer.github.io/sbs-projer-dev/`
@@ -141,8 +140,23 @@ static Future<List<BetriebLocal>> getAll() async {
 ## Datenbank
 
 - Connection-String in `.env` (Root), Supabase API-Keys in `sbs_projer_app/.env`
-- **Zugriff**: `npx supabase db query --linked "SQL"` (psycopg2-Direktzugriff via `db_query.py` schlägt seit 31.03.2026 mit DNS-Fehler fehl)
+- **Zugriff (bevorzugt)**: Supabase MCP-Server — `mcp__supabase__execute_sql` für Queries, `mcp__supabase__apply_migration` für DDL. Project-ID: `pltbaqqwpnmdajwgnhpd` (sbs-projer-prod).
+- **Fallback**: `npx supabase db query --linked "SQL"` funktioniert nur, wenn lokal gelinkt (`supabase link --project-ref pltbaqqwpnmdajwgnhpd`).
+- psycopg2-Direktzugriff via `db_query.py` schlägt seit 31.03.2026 mit DNS-Fehler fehl.
 - Migrationen: `Datenbank/migrations/` (durchnummeriert)
+
+## Rechnungen — `zahlungsstatus` CHECK-Werte
+
+Aktuell erlaubt (Migration 083): `offen, gesendet, freigegeben, bezahlt, erinnert, mahnung_1, mahnung_2, abgeschrieben`
+
+**Heineken-Monatsrechnung Workflow**: `offen → gesendet → freigegeben → bezahlt`
+- `gesendet`: nach Mail-Versand (setzt zusätzlich `versendet_am`)
+- `freigegeben`: löst Debitoren/Ertrag-Buchung via `HeinekenBuchungService.createFromRechnung`
+- `bezahlt`: löst Zahlungseingangs-Buchung via `HeinekenBuchungService.createZahlungseingang`
+
+**Kundenrechnung Workflow**: `offen → bezahlt` (mit Mahnstufen `erinnert/mahnung_1/mahnung_2`, ggf. `abgeschrieben`)
+
+Frühere Werte (`entwurf`, `versendet`, `gestellt`, `teilbezahlt`, `ueberfaellig`, `storniert`) wurden in Migrationen 081–083 entfernt — Code-Stellen, die diese Werte schreiben, werfen PostgrestException.
 
 ## Sync-Architektur (Offline-First, nur Native)
 
