@@ -321,43 +321,53 @@ class _RechnungenNachversandScreenState
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            TextField(
+              controller: item.emailController,
+              decoration: const InputDecoration(
+                labelText: 'Empfänger E-Mail',
+                isDense: true,
+                prefixIcon: Icon(Icons.mail_outline, size: 20),
+              ),
+              keyboardType: TextInputType.emailAddress,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: item.emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Empfänger E-Mail',
-                      isDense: true,
-                      prefixIcon: Icon(Icons.mail_outline, size: 18),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf, size: 24),
+                    label: const Text('PDF anzeigen',
+                        style: TextStyle(fontSize: 15)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    keyboardType: TextInputType.emailAddress,
-                    onChanged: (_) => setState(() {}),
+                    onPressed:
+                        item.pdfUrl != null ? () => _openPdf(item) : null,
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.picture_as_pdf),
-                  tooltip: 'PDF anzeigen',
-                  onPressed: item.pdfUrl != null ? () => _openPdf(item) : null,
-                ),
-                const SizedBox(width: 4),
-                FilledButton.icon(
-                  icon: item.sending
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.send, size: 18),
-                  label: Text(versendet ? 'Erneut senden' : 'Senden'),
-                  onPressed: item.sending ||
-                          item.emailController.text.trim().isEmpty
-                      ? null
-                      : () => _sendMail(item),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    icon: item.sending
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.5, color: Colors.white),
+                          )
+                        : const Icon(Icons.send, size: 22),
+                    label: Text(versendet ? 'Erneut senden' : 'Mail senden',
+                        style: const TextStyle(fontSize: 15)),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: item.sending ||
+                            item.emailController.text.trim().isEmpty
+                        ? null
+                        : () => _sendMail(item),
+                  ),
                 ),
               ],
             ),
