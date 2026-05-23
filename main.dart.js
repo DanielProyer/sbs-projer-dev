@@ -158722,7 +158722,7 @@ s=q}for(;;)switch(s){case 0:o.t(new A.bvF(o))
 q=3
 f=$.ae().b
 f===$&&A.a()
-f=f.ab("rechnungen").iF(0,"id, rechnungsnummer, rechnungsdatum, betrag_brutto, versendet_am, pdf_url, betrieb_id, betriebe!inner(name, ort, rechnungsstellung), betrieb_rechnungsadressen(email)").aK("rechnungstyp","kundenrechnung")
+f=f.ab("rechnungen").iF(0,"id, rechnungsnummer, rechnungsdatum, betrag_brutto, versendet_am, pdf_url, betrieb_id, betriebe!inner(name, ort, rechnungsstellung, betrieb_rechnungsadressen(email))").aK("rechnungstyp","kundenrechnung")
 s=6
 return A.d(A.fK(f.fO(f.fk("rechnungsdatum","gte.2026-02-18")),f.$ti.c).aK("betriebe.rechnungsstellung","rechnung_mail").jc(0,"rechnungsdatum",!1),$async$Ei)
 case 6:n=b2
@@ -158731,7 +158731,7 @@ for(f=J.aV(n),e=t.kc,d=t.a,c=t.nA;f.v();){l=f.gM(f)
 k=d.a(l)
 b=c.a(J.r(k,"betriebe"))
 j=b==null?B.uq:b
-a=e.a(J.r(k,"betrieb_rechnungsadressen"))
+a=e.a(J.r(j,"betrieb_rechnungsadressen"))
 i=a==null?B.aM:a
 h=J.d0(i)?A.by(J.r(d.a(J.fv(i)),"email")):null
 a0=A.bV(J.r(k,"id"))
