@@ -393,44 +393,45 @@ class _HeinekenRechnungDetailScreenState
             ),
           ),
 
-          // Mail-Button (nur bei Status offen)
-          if (r.zahlungsstatus == 'offen') ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _sendMail,
-                icon: const Icon(Icons.send),
-                label: const Text('Mail an Heineken senden'),
-              ),
+          // Status-Workflow Buttons (immer sichtbar, nur aktueller Schritt aktiv)
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: r.zahlungsstatus == 'offen' ? _sendMail : null,
+              icon: const Icon(Icons.send),
+              label: Text(r.zahlungsstatus == 'offen'
+                  ? 'Mail an Heineken senden'
+                  : 'Mail versendet${r.versendetAm != null ? " am ${_dateFormat.format(r.versendetAm!)}" : ""}'),
             ),
-          ],
-
-          // Freigeben-Button (nur bei Status gesendet)
-          if (r.zahlungsstatus == 'gesendet') ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _updateStatus('freigegeben'),
-                icon: const Icon(Icons.task_alt),
-                label: const Text('Als freigegeben markieren'),
-              ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: r.zahlungsstatus == 'gesendet'
+                  ? () => _updateStatus('freigegeben')
+                  : null,
+              icon: const Icon(Icons.task_alt),
+              label: Text(r.zahlungsstatus == 'freigegeben' ||
+                      r.zahlungsstatus == 'bezahlt'
+                  ? 'Freigegeben'
+                  : 'Als freigegeben markieren'),
             ),
-          ],
-
-          // Bezahlt-Button (nur bei Status freigegeben)
-          if (r.zahlungsstatus == 'freigegeben') ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _updateStatus('bezahlt'),
-                icon: const Icon(Icons.check_circle),
-                label: const Text('Als bezahlt markieren'),
-              ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: r.zahlungsstatus == 'freigegeben'
+                  ? () => _updateStatus('bezahlt')
+                  : null,
+              icon: const Icon(Icons.check_circle),
+              label: Text(r.zahlungsstatus == 'bezahlt'
+                  ? 'Bezahlt'
+                  : 'Als bezahlt markieren'),
             ),
-          ],
+          ),
         ],
       ),
     );
