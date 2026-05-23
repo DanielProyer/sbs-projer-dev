@@ -50,8 +50,8 @@ class _RechnungenNachversandScreenState
           .from('rechnungen')
           .select(
               'id, rechnungsnummer, rechnungsdatum, betrag_brutto, versendet_am, pdf_url, betrieb_id, '
-              'betriebe!inner(name, ort, rechnungsstellung), '
-              'betrieb_rechnungsadressen(email)')
+              'betriebe!inner(name, ort, rechnungsstellung, '
+              'betrieb_rechnungsadressen(email))')
           .eq('rechnungstyp', 'kundenrechnung')
           .gte('rechnungsdatum', _stichtag)
           .eq('betriebe.rechnungsstellung', 'rechnung_mail')
@@ -62,7 +62,7 @@ class _RechnungenNachversandScreenState
         final m = row as Map<String, dynamic>;
         final betrieb = (m['betriebe'] as Map<String, dynamic>?) ?? const {};
         final adressen =
-            (m['betrieb_rechnungsadressen'] as List?) ?? const <dynamic>[];
+            (betrieb['betrieb_rechnungsadressen'] as List?) ?? const <dynamic>[];
         final email = adressen.isNotEmpty
             ? (adressen.first as Map<String, dynamic>)['email'] as String?
             : null;
