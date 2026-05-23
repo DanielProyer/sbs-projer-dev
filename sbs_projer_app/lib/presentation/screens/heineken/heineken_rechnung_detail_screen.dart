@@ -405,6 +405,32 @@ class _HeinekenRechnungDetailScreenState
               ),
             ),
           ],
+
+          // Freigeben-Button (nur bei Status gesendet)
+          if (r.zahlungsstatus == 'gesendet') ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _updateStatus('freigegeben'),
+                icon: const Icon(Icons.task_alt),
+                label: const Text('Als freigegeben markieren'),
+              ),
+            ),
+          ],
+
+          // Bezahlt-Button (nur bei Status freigegeben)
+          if (r.zahlungsstatus == 'freigegeben') ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _updateStatus('bezahlt'),
+                icon: const Icon(Icons.check_circle),
+                label: const Text('Als bezahlt markieren'),
+              ),
+            ),
+          ],
         ],
       ),
     );
