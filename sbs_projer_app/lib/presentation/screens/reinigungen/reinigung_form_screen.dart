@@ -480,7 +480,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       }
 
       // HeiGenie-Mail an Heineken senden
-      if (abschliessen && kIsWeb && _serviceArt == 'heigenie') {
+      if (abschliessen && kIsWeb && _serviceTyp == 'heigenie') {
         try {
           final betrieb = _betrieb ??
               await BetriebRepository.getByServerId(r.betriebId);

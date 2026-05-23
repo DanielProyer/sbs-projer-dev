@@ -115,7 +115,7 @@ class _HeinekenRechnungDetailScreenState
           });
 
       await RechnungRepository.update(widget.rechnungId, {
-        'zahlungsstatus': 'versendet',
+        'zahlungsstatus': 'gesendet',
         'versendet_am': DateTime.now().toIso8601String().split('T').first,
       });
 
@@ -150,7 +150,7 @@ class _HeinekenRechnungDetailScreenState
             DateTime.now().toIso8601String().split('T').first,
     });
 
-    // Buchung bei Freigabe erstellen
+    // Buchung (Debitoren/Ertrag) beim Wechsel auf 'freigegeben' erstellen
     if (newStatus == 'freigegeben' && _rechnung != null) {
       try {
         final buchung =
@@ -274,7 +274,7 @@ class _HeinekenRechnungDetailScreenState
             onSelected: (value) {
               switch (value) {
                 case 'offen':
-                case 'versendet':
+                case 'gesendet':
                 case 'freigegeben':
                 case 'bezahlt':
                   _updateStatus(value);
@@ -285,8 +285,8 @@ class _HeinekenRechnungDetailScreenState
               }
             },
             itemBuilder: (context) => [
-              // Status-Flow: offen → versendet → freigegeben → bezahlt
-              if (r.zahlungsstatus == 'versendet') ...[
+              // Status-Flow: offen → gesendet → freigegeben → bezahlt
+              if (r.zahlungsstatus == 'gesendet') ...[
                 const PopupMenuItem(
                     value: 'freigegeben',
                     child: Text('Als freigegeben markieren')),
@@ -297,8 +297,8 @@ class _HeinekenRechnungDetailScreenState
                 const PopupMenuItem(
                     value: 'bezahlt', child: Text('Als bezahlt markieren')),
                 const PopupMenuItem(
-                    value: 'versendet',
-                    child: Text('Auf versendet zurücksetzen')),
+                    value: 'gesendet',
+                    child: Text('Auf gesendet zurücksetzen')),
               ],
               if (r.zahlungsstatus == 'bezahlt')
                 const PopupMenuItem(
@@ -413,6 +413,8 @@ class _HeinekenRechnungDetailScreenState
   String _statusLabel(String status) {
     switch (status) {
       case 'offen': return 'Offen';
+      case 'gesendet': return 'Gesendet';
+      case 'freigegeben': return 'Freigegeben';
       case 'bezahlt': return 'Bezahlt';
       case 'erinnert': return 'Erinnert';
       case 'mahnung_1': return 'Mahnung 1';
@@ -437,6 +439,16 @@ class _StatusBanner extends StatelessWidget {
         color = AppColors.success;
         icon = Icons.check_circle;
         text = 'Bezahlt';
+        break;
+      case 'gesendet':
+        color = AppColors.info;
+        icon = Icons.send;
+        text = 'Gesendet';
+        break;
+      case 'freigegeben':
+        color = AppColors.primary;
+        icon = Icons.task_alt;
+        text = 'Freigegeben';
         break;
       case 'erinnert':
         color = const Color(0xFFE65100);
