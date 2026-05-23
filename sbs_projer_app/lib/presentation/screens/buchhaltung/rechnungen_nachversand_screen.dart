@@ -70,10 +70,11 @@ class _RechnungenNachversandScreenState
         items.add(_NachversandItem(
           id: m['id'] as String,
           rechnungsnummer: m['rechnungsnummer'] as String? ?? '-',
-          datum: DateTime.parse(m['rechnungsdatum'] as String),
-          betragBrutto: (m['betrag_brutto'] as num?)?.toDouble() ?? 0,
+          datum: DateTime.parse(m['rechnungsdatum'].toString()),
+          betragBrutto:
+              double.tryParse(m['betrag_brutto']?.toString() ?? '') ?? 0,
           versendetAm: m['versendet_am'] != null
-              ? DateTime.parse(m['versendet_am'] as String)
+              ? DateTime.parse(m['versendet_am'].toString())
               : null,
           pdfUrl: m['pdf_url'] as String?,
           betriebName: (betrieb['name'] as String?) ?? '?',
