@@ -49,7 +49,7 @@ class _RechnungenNachversandScreenState
           .from('rechnungen')
           .select(
               'id, rechnungsnummer, rechnungsdatum, betrag_brutto, versendet_am, pdf_url, betrieb_id, '
-              'betriebe!inner(name, ort, rechnungsstellung)')
+              'betriebe!inner(name, ort, rechnungsstellung, email)')
           .eq('rechnungstyp', 'kundenrechnung')
           .gte('rechnungsdatum', _stichtag)
           .eq('betriebe.rechnungsstellung', 'rechnung_mail')
@@ -80,25 +80,31 @@ class _RechnungenNachversandScreenState
       }
 
       // Items bauen — komplett defensiv via .toString()
+      // Email-Quelle: 1. betrieb_rechnungsadressen.email  2. fallback: betriebe.email
       final items = <_NachversandItem>[];
       for (final row in rechnungRows) {
         final m = row as Map;
         final betrieb = (m['betriebe'] as Map?) ?? const {};
         final betriebId = m['betrieb_id']?.toString() ?? '';
+        final fallbackEmail = betrieb['email']?.toString();
+        final email = emailByBetrieb[betriebId] ??
+            (fallbackEmail != null && fallbackEmail.isNotEmpty
+                ? fallbackEmail
+                : '');
         items.add(_NachversandItem(
           id: m['id'].toString(),
           rechnungsnummer: m['rechnungsnummer']?.toString() ?? '-',
           datum: DateTime.parse(m['rechnungsdatum'].toString()),
           betragBrutto:
               double.tryParse(m['betrag_brutto']?.toString() ?? '') ?? 0,
-          versendetAm: m['versendet_am'] != null
-              ? DateTime.parse(m['versendet_am'].toString())
-              : null,
+          // versendet_am aus DB bewusst ignoriert — alte Werte sind unzuverlässig
+          // (Mailversand ging wegen reinigungScharf=false nur an Test-Empfänger).
+          // Stattdessen nur Session-State (sentInThisSession).
+          versendetAm: null,
           pdfUrl: m['pdf_url']?.toString(),
           betriebName: betrieb['name']?.toString() ?? '?',
           betriebOrt: betrieb['ort']?.toString(),
-          emailController:
-              TextEditingController(text: emailByBetrieb[betriebId] ?? ''),
+          emailController: TextEditingController(text: email),
         ));
       }
 
