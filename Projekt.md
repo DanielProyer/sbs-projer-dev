@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 18.05.2026
+**Stand**: 29.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.83+365
+**Version**: 0.10.97+379
 
 ---
 
@@ -682,6 +682,23 @@
 190. ✅ Material-Bestand: aktualisiert sich nach Service-Speicherung (materialienStreamProvider invalidiert in 3 Formularen)
 191. ✅ Material-Filter: zeigt nur Kategorien mit tatsächlichen Einträgen
 
+### Erledigt am 19.–29.05.2026
+192. ✅ Heineken-Monatsrechnung: Status-Workflow gefixt (offen → gesendet → freigegeben → bezahlt) + HeiGenie-Mail-Bedingung
+193. ✅ Heineken-Rechnung: alle Status-Buttons immer im Body sichtbar
+194. ✅ Buchhaltung: Rechnungs-Nachversand-Screen
+     - Rechnungsadresse-Join via betriebe genestet (PostgREST-Fix)
+     - betrag_brutto als String → double.tryParse, 5-Rappen-Rundung in Anzeige
+     - 2 separate Queries + defensive .toString()-Casts (Type-Error-Fix)
+     - PDF-Link on-demand neu signieren (gecachte URL läuft nach 1h ab)
+     - betriebe.email als Fallback-Empfänger, versendet_am aus DB ignoriert
+195. ✅ CLAUDE.md: DB-MCP-Zugriff dokumentiert, Deploy ohne git stash, Zahlungsstatus-Section
+196. ✅ Projekt-Review mit Opus 4.8 (v0.10.97+379):
+     - Bugfix: Reinigung-Zahlungsstatus 'versendet' → 'gesendet' (PostgrestException nach Migration 083)
+     - Bugfix: Heineken Anfahrtspauschale-Fallback reaktiviert (_toDoubleN statt _toDouble lieferte stets 0)
+     - Kontakt-Entity voll in Isar integriert (8 IsarService-Methoden, KontaktLocal.routeId, Schema) → Native-Build kompiliert wieder
+     - Dead Code in PDF-Services entfernt, ~30 Lints bereinigt (initialValue, null-aware-Elements, debugPrint), barcode als direkte Dependency
+     - flutter analyze: 0 Errors (vorher 11 versteckte Compile-Fehler), nur noch akzeptierte Infos + generierter Isar-Code
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
 2. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
@@ -715,5 +732,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 18.05.2026 – Dashboard aufgeräumt, Rechnungsnummer YYYY-MM-DD-BBBB, Sammelzahlung, Tourenplanung (Region-Filter + Tagesplan-Persistierung), Mail scharfgestellt (Heineken Monatsrechnung + HeiGenie). App-Version 0.10.83+365.
+**Zuletzt aktualisiert**: 29.05.2026 – Heineken-Status-Workflow gefixt, Rechnungs-Nachversand-Screen, Projekt-Review mit Opus 4.8 (Reinigung-/Anfahrtspauschale-Bugfix, Kontakt-Isar-Integration → Native-Build wieder lauffähig, Lint-Cleanup). App-Version 0.10.97+379.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)

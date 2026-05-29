@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 18.05.2026
+**Stand**: 29.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -81,13 +81,12 @@
   - Gegenkonto 9100 "Eroeffnungsbilanz" anlegen
   - Soll/Haben-Buchungen automatisch erstellen
 
-- [ ] **A2: Heineken-Rechnung → automatische Buchung** (KRITISCH)
-  - Bei Erstellung Heineken-Monatsrechnung: Soll 1100 / Haben 3400 + MwSt
-  - Aktuell werden KEINE Buchungen erstellt
+- [x] **A2: Heineken-Rechnung → automatische Buchung** (KRITISCH) ✅ 29.05.2026
+  - Status 'freigegeben' → HeinekenBuchungService.createFromRechnung (Debitoren/Ertrag + MwSt)
+  - Status-Workflow: offen → gesendet → freigegeben → bezahlt
 
-- [ ] **A3: Zahlungseingang → automatische Buchung** (KRITISCH)
-  - "Als bezahlt markieren" → Soll 1020 (Bank) / Haben 1100 (Debitoren)
-  - Vorlage GF "2" existiert bereits
+- [x] **A3: Zahlungseingang → automatische Buchung** (KRITISCH) ✅ 29.05.2026
+  - Status 'bezahlt' → HeinekenBuchungService.createZahlungseingang (Soll Bank / Haben Debitoren)
 
 - [ ] **A4: Wiederkehrende Buchungen** (WICHTIG)
   - Monatliche Standard-Buchungen mit 1 Klick (Lohn, AHV, Miete, etc.)
@@ -156,6 +155,9 @@
 
 ## ✅ ERLEDIGT
 
+- [x] Heineken-Monatsrechnung: Status-Workflow (offen → gesendet → freigegeben → bezahlt) + automatische Buchungen (29.05.2026)
+- [x] Buchhaltung: Rechnungs-Nachversand-Screen (PDF on-demand neu signieren, betriebe.email-Fallback, 5-Rappen-Rundung) (29.05.2026)
+- [x] Projekt-Review Opus 4.8: Reinigung-/Anfahrtspauschale-Bugfix, Kontakt-Isar-Integration (Native-Build wieder lauffähig), Lint-Cleanup (0 Errors) (29.05.2026)
 - [x] Geschäftsabläufe dokumentiert (alle 9 Abschnitte)
 - [x] Excel-Daten analysiert
 - [x] Regionen-Liste erstellt (11 Regionen)
