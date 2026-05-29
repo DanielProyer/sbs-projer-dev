@@ -71,7 +71,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   final _servicezeitNachmittagBisCtrl = TextEditingController();
 
   // Öffnungszeiten pro Wochentag: {"Mo": [{"von":"HH:mm","bis":"HH:mm"}, ...], ...}
-  Map<String, List<Map<String, String>>> _oeffnungszeiten = {
+  final Map<String, List<Map<String, String>>> _oeffnungszeiten = {
     for (final t in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) t: [],
   };
 

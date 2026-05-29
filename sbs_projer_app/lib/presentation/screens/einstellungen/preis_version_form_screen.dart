@@ -462,28 +462,6 @@ class _PreisVersionFormScreenState
     );
   }
 
-  Widget _textRow(String label, TextEditingController ctrl) {
-    return _FieldRow(
-      label: label,
-      child: Expanded(
-        child: TextFormField(
-          controller: ctrl,
-          readOnly: _isReadOnly,
-          style: const TextStyle(fontSize: 15),
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8)),
-            filled: _isReadOnly,
-            fillColor: _isReadOnly ? Colors.grey.shade100 : null,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _mwstSatzCtrl.dispose();

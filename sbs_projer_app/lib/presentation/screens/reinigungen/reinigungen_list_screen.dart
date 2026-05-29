@@ -527,7 +527,7 @@ class _ReinigungListItem extends StatelessWidget {
     }
     if (start != null && ende != null) {
       final dauer = _berechneDauer(start, ende);
-      if (dauer != null) parts.add('${dauer} Min.');
+      if (dauer != null) parts.add('$dauer Min.');
     }
     if (reinigung.preisBrutto != null) {
       final brutto = (reinigung.preisBrutto! * 20).roundToDouble() / 20;
@@ -548,31 +548,6 @@ class _ReinigungListItem extends StatelessWidget {
     } catch (_) {
       return null;
     }
-  }
-
-  int get _checkedCount {
-    var count = 0;
-    if (reinigung.begleitkuehlungKontrolliert) count++;
-    if (reinigung.installationAllgemeinKontrolliert) count++;
-    if (reinigung.aligalAnschluesseKontrolliert) count++;
-    if (reinigung.durchlaufkuehlerAusgeblasen) count++;
-    if (reinigung.wasserstandKontrolliert) count++;
-    if (reinigung.wasserGewechselt) count++;
-    if (reinigung.leitungWasserVorgespuelt) count++;
-    if (reinigung.leitungsreinigungReinigungsmittel) count++;
-    if (reinigung.foerderdruckKontrolliert) count++;
-    if (reinigung.zapfhahnZerlegtGereinigt) count++;
-    if (reinigung.zapfkopfZerlegtGereinigt) count++;
-    if (reinigung.servicekarteAusgefuellt) count++;
-    if (reinigung.hatDurchlaufkuehler) count++;
-    if (reinigung.hatBuffetanstich) count++;
-    if (reinigung.hatKuehlkeller) count++;
-    if (reinigung.hatFasskuehler) count++;
-    return count;
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
   Color get _iconColor {

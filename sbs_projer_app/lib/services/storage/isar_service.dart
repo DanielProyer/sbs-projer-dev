@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/local/montage_local.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local.dart';
+import 'package:sbs_projer_app/data/local/kontakt_local.dart';
 import 'package:sbs_projer_app/data/local/bierleitung_local.dart';
 import 'package:sbs_projer_app/data/local/lager_local.dart';
 import 'package:sbs_projer_app/data/local/preis_local.dart';
@@ -42,6 +43,7 @@ class IsarService {
         EigenauftragLocalSchema,
         PikettDienstLocalSchema,
         BetriebKontaktLocalSchema,
+        KontaktLocalSchema,
         BetriebRechnungsadresseLocalSchema,
         BierleitungLocalSchema,
         LagerLocalSchema,
@@ -226,6 +228,24 @@ class IsarService {
       instance.writeTxn(() => instance.betriebKontaktLocals.delete(id));
   static Future<BetriebKontaktLocal?> betriebKontaktFindByServerId(String serverId) =>
       instance.betriebKontaktLocals.filter().serverIdEqualTo(serverId).findFirst();
+
+  // ─── Kontakt ───
+  static Future<List<KontaktLocal>> kontaktFindAll() =>
+      instance.kontaktLocals.where().findAll();
+  static Future<List<KontaktLocal>> kontaktFilterByBetrieb(String betriebId) =>
+      instance.kontaktLocals.filter().betriebIdEqualTo(betriebId).findAll();
+  static Stream<List<KontaktLocal>> kontaktWatchByBetrieb(String betriebId) =>
+      instance.kontaktLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+  static Future<List<KontaktLocal>> kontaktFilterByKategorie(String kategorie) =>
+      instance.kontaktLocals.filter().kategorieEqualTo(kategorie).findAll();
+  static Future<KontaktLocal?> kontaktGet(int id) =>
+      instance.kontaktLocals.get(id);
+  static Future<void> kontaktPut(KontaktLocal k) =>
+      instance.writeTxn(() => instance.kontaktLocals.put(k));
+  static Future<void> kontaktDelete(int id) =>
+      instance.writeTxn(() => instance.kontaktLocals.delete(id));
+  static Future<KontaktLocal?> kontaktFindByServerId(String serverId) =>
+      instance.kontaktLocals.filter().serverIdEqualTo(serverId).findFirst();
 
   // ─── BetriebRechnungsadresse ───
   static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByBetrieb(String betriebId) =>

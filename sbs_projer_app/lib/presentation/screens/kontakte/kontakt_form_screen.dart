@@ -282,7 +282,7 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
 
             // Kategorie
             DropdownButtonFormField<String>(
-              value: _kategorie,
+              initialValue: _kategorie,
               decoration: const InputDecoration(
                 labelText: 'Kategorie',
                 prefixIcon: Icon(Icons.category),
@@ -428,7 +428,7 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
             // Kontaktmethode (nur Betrieb)
             if (_kategorie == 'betrieb') ...[
               DropdownButtonFormField<String>(
-                value: _kontaktMethode,
+                initialValue: _kontaktMethode,
                 decoration: const InputDecoration(
                   labelText: 'Bevorzugte Kontaktmethode',
                   prefixIcon: Icon(Icons.contact_phone),

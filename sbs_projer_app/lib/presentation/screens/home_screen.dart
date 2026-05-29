@@ -16,7 +16,6 @@ import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.d
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 

@@ -27,7 +27,7 @@ class _BestellPosition {
   double menge;
   final TextEditingController mengeController;
 
-  _BestellPosition({this.lager, this.menge = 1})
+  _BestellPosition({this.menge = 1})
       : mengeController =
             TextEditingController(text: menge.toStringAsFixed(0));
 }
@@ -35,9 +35,9 @@ class _BestellPosition {
 class _BestellItem {
   final Lager lager;
   double menge;
-  bool selected;
+  bool selected = true;
 
-  _BestellItem({required this.lager, required this.menge, this.selected = true});
+  _BestellItem({required this.lager, required this.menge});
 }
 
 class _MaterialBestellungScreenState
@@ -527,7 +527,7 @@ class _MaterialBestellungScreenState
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: position.lager?.id,
+                initialValue: position.lager?.id,
                 isExpanded: true,
                 decoration: InputDecoration(
                   contentPadding:

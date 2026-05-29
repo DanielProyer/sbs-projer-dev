@@ -10,7 +10,6 @@ import 'package:pdf/widgets.dart' as pw;
 /// gelben Hintergründen, Umrandungen und strukturiertem Layout.
 class HeinekenRapportService {
   // ─── Farben (Original-Heineken-Design) ───
-  static const _yellowTitle = PdfColor(1.0, 0.78, 0.0);
   static const _yellowCell = PdfColor(1.0, 1.0, 0.76);
   static const _black = PdfColor.fromInt(0xFF000000);
 

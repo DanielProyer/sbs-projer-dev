@@ -55,7 +55,6 @@ class RasterReinigung {
 class RasterPdfService {
   static const _grau = PdfColor.fromInt(0xFFD9D9D9);
   static const _gelb = PdfColor.fromInt(0xFFFFFF00);
-  static const _weiss = PdfColor.fromInt(0xFFFFFFFF);
   static const _schwarz = PdfColor.fromInt(0xFF000000);
 
   static const _monate = [

@@ -260,7 +260,7 @@ class _MontageDetailContentState
         if (isAnlass) {
           // Bei Anlass: Freitext + Stunden
           final stunden = (mengen[i] ?? 0).toStringAsFixed(2);
-          rows.add(_InfoRow(ids[i]!, '${stunden} h'));
+          rows.add(_InfoRow(ids[i]!, '$stunden h'));
         } else {
           final name = _materialNames[ids[i]!] ?? 'Laden...';
           final menge = (mengen[i] ?? 1).toStringAsFixed(0);

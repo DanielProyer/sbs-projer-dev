@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
-import 'package:sbs_projer_app/data/models/preis.dart';
 import 'package:sbs_projer_app/presentation/providers/jahresrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/jahresrechnung_service.dart';

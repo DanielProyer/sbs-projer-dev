@@ -78,7 +78,7 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: kategorie,
+                initialValue: kategorie,
                 decoration: const InputDecoration(labelText: 'Kategorie'),
                 items: _kategorien
                     .map((k) => DropdownMenuItem(

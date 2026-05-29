@@ -273,7 +273,7 @@ class _BierleitungFormScreenState
 
             // === Hahn-Typ ===
             DropdownButtonFormField<String>(
-              value: _selectedHahnTyp,
+              initialValue: _selectedHahnTyp,
               decoration: const InputDecoration(
                 labelText: 'Hahn-Typ',
                 prefixIcon: Icon(Icons.plumbing),

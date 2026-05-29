@@ -138,6 +138,7 @@ class IsarService {
   static dynamic kontaktGet(int id) => throw UnsupportedError('Isar not available on web');
   static dynamic kontaktPut(dynamic k) => throw UnsupportedError('Isar not available on web');
   static dynamic kontaktDelete(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic kontaktFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
 
   // ─── Termin ───
   static dynamic terminFindAll() => throw UnsupportedError('Isar not available on web');

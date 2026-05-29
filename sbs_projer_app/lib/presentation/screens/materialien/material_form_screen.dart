@@ -183,7 +183,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
 
             // Kategorie
             DropdownButtonFormField<String>(
-              value: _kategorieId,
+              initialValue: _kategorieId,
               decoration: const InputDecoration(labelText: 'Kategorie'),
               items: [
                 const DropdownMenuItem(
@@ -199,7 +199,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
 
             // Einheit
             DropdownButtonFormField<String>(
-              value: _einheit,
+              initialValue: _einheit,
               decoration: const InputDecoration(labelText: 'Einheit'),
               items: const [
                 DropdownMenuItem(value: 'Stück', child: Text('Stück')),
@@ -273,7 +273,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.link),
                   title: Text(_linkedArtikelName ?? _dboNr!),
-                  subtitle: Text('DBO ${_dboNr}'),
+                  subtitle: Text('DBO $_dboNr'),
                   trailing: IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => setState(() {
@@ -416,7 +416,6 @@ class _ArtikelPickerDialog extends StatefulWidget {
 }
 
 class _ArtikelPickerDialogState extends State<_ArtikelPickerDialog> {
-  String _query = '';
   List<MaterialArtikel>? _results;
   bool _loading = false;
 
@@ -451,7 +450,6 @@ class _ArtikelPickerDialogState extends State<_ArtikelPickerDialog> {
                 border: OutlineInputBorder(),
               ),
               onChanged: (v) {
-                _query = v;
                 _search(v);
               },
             ),

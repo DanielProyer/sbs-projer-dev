@@ -218,7 +218,7 @@ class _EigenauftragFormScreenState
             // Status (nur bei Bearbeiten)
             if (isEdit) ...[
               DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(
                   labelText: 'Status',
                   prefixIcon: Icon(Icons.flag),

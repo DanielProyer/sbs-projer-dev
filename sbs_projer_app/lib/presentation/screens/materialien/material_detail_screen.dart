@@ -481,7 +481,7 @@ class _MaterialDetailContentState
                       ),
                     );
                   },
-                  errorBuilder: (_, __, ___) => const SizedBox(
+                  errorBuilder: (_, _, _) => const SizedBox(
                     height: 100,
                     child: Center(
                       child: Icon(Icons.broken_image, size: 40),
@@ -735,7 +735,7 @@ class _MaterialDetailContentState
                     ),
                   );
                 },
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (_, _, _) =>
                     const Icon(Icons.broken_image, size: 64),
               ),
             ),
@@ -862,42 +862,6 @@ class _MaterialDetailContentState
             SnackBar(content: Text('Fehler: $e')),
           );
         }
-      }
-    }
-  }
-
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Material löschen?'),
-        content: Text('«${_lager.name}» wirklich löschen?'),
-        actions: [
-          TextButton(
-              onPressed: () => ctx.pop(false),
-              child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () => ctx.pop(true),
-              child: const Text('Löschen')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    try {
-      await LagerRepository.delete(_lager.id);
-      if (mounted) {
-        ref.invalidate(materialienStreamProvider);
-        context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material gelöscht')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
       }
     }
   }

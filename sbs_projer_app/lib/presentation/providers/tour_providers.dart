@@ -2,10 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
-import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
-import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -117,8 +115,7 @@ DateTime? _naechsteSchliessung(BetriebLocal betrieb, DateTime datum) {
         betrieb.sommerEndeDatum != null) {
       if (!datum.isBefore(betrieb.sommerStartDatum!) &&
           !datum.isAfter(betrieb.sommerEndeDatum!)) {
-        final e = betrieb.sommerEndeDatum!;
-        if (naechste == null || e.isBefore(naechste)) naechste = e;
+        naechste = betrieb.sommerEndeDatum!;
       }
     }
     if (betrieb.winterSaisonAktiv &&

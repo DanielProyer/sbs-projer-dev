@@ -70,10 +70,10 @@ class _PikettDiensteListScreenState
       groups.last.eintraege.add(p);
     }
 
-    double _getPreis(PikettDienstLocal p) =>
+    double getPreis(PikettDienstLocal p) =>
         p.pauschaleGesamt ?? p.pauschale ?? 0;
 
-    final jahrSumme = filtered.fold(0.0, (sum, p) => sum + _getPreis(p));
+    final jahrSumme = filtered.fold(0.0, (sum, p) => sum + getPreis(p));
 
     return Scaffold(
       appBar: AppBar(

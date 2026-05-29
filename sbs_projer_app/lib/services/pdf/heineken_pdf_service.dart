@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
@@ -11,7 +9,6 @@ import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
 class HeinekenPdfService {
   // Farben
   static const _black = PdfColor.fromInt(0xFF000000);
-  static const _grey = PdfColor.fromInt(0xFF555555);
   static const _heinekenGreen = PdfColor.fromInt(0xFF00843D);
   static const _heinekenRed = PdfColor.fromInt(0xFFE4002B);
 

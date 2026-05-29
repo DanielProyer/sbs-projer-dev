@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -333,7 +332,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         if (_fotoBytes != null) {
           setState(() => _fotoUploading = true);
           final montageId = m.serverId ?? const Uuid().v4();
-          if (m.serverId == null) m.serverId = montageId;
+          m.serverId ??= montageId;
           final pfad =
               await ProtokollFotoStorage.uploadFoto(montageId, _fotoBytes!);
           m.protokollFotoPfad = pfad;
@@ -459,10 +458,12 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() {
-        _isLoading = false;
-        _fotoUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _fotoUploading = false;
+        });
+      }
     }
   }
 
@@ -508,7 +509,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                 _sectionTitle(context, 'Montage-Typ'),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _montageTyp,
+                  initialValue: _montageTyp,
                   decoration: const InputDecoration(
                     labelText: 'Typ *',
                     prefixIcon: Icon(Icons.build),

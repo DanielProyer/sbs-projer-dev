@@ -309,11 +309,6 @@ class _BetriebDetailContent extends ConsumerWidget {
     }
   }
 
-  String _formatTimeStr(String? time) {
-    if (time == null) return '–';
-    return time.length > 5 ? time.substring(0, 5) : time;
-  }
-
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }

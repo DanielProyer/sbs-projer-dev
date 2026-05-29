@@ -95,7 +95,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           }
         },
         loading: () {},
-        error: (_, __) {
+        error: (_, _) {
           _loadedForDate = _selectedDate;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;

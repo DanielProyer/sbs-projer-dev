@@ -101,7 +101,9 @@ class DocumentEnhancer {
     if (total == 0) return 128;
 
     double sumAll = 0;
-    for (int i = 0; i < 256; i++) sumAll += i * hist[i];
+    for (int i = 0; i < 256; i++) {
+      sumAll += i * hist[i];
+    }
 
     double sumBg = 0;
     int wBg = 0;
@@ -376,7 +378,7 @@ class DocumentEnhancer {
       final origArea = image.width * image.height;
       final cropArea = cw * ch;
       final pct = (cropArea * 100 / origArea).round();
-      dbg.write(' ${pct}%');
+      dbg.write(' $pct%');
 
       if (cropArea < origArea * 0.95 &&
           cropArea > origArea * 0.15 &&

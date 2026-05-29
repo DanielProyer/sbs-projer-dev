@@ -483,10 +483,6 @@ class _StoerungListItem extends StatelessWidget {
     return parts.join(' · ');
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
   Color get _statusColor {
     switch (stoerung.status) {
       case 'offen':

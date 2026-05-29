@@ -322,7 +322,7 @@ class _BuchungListItem extends StatelessWidget {
           style: const TextStyle(fontSize: 12),
         ),
         trailing: Text(
-          '${buchung.betragBrutto.toStringAsFixed(2)}',
+          buchung.betragBrutto.toStringAsFixed(2),
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,

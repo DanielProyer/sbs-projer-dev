@@ -182,7 +182,7 @@ class _PikettDienstFormScreenState
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _jahr,
+                    initialValue: _jahr,
                     decoration: const InputDecoration(
                       labelText: 'Jahr',
                       prefixIcon: Icon(Icons.calendar_today),
@@ -202,7 +202,7 @@ class _PikettDienstFormScreenState
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _kw,
+                    initialValue: _kw,
                     decoration: const InputDecoration(
                       labelText: 'KW',
                       prefixIcon: Icon(Icons.date_range),

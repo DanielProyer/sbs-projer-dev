@@ -208,7 +208,7 @@ class _BetriebKontaktFormScreenState
 
             // === Funktion ===
             DropdownButtonFormField<String>(
-              value: _selectedFunktion,
+              initialValue: _selectedFunktion,
               decoration: const InputDecoration(
                 labelText: 'Funktion',
                 prefixIcon: Icon(Icons.work_outline),

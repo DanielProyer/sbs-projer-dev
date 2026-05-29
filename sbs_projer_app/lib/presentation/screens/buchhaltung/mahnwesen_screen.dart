@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
@@ -99,12 +98,8 @@ class _MahnwesenScreenState extends ConsumerState<MahnwesenScreen> {
               .toList();
 
           double totalBetrag = 0;
-          int ueberfaellig = 0;
           for (final r in rechnungen) {
             totalBetrag += _r5(_d(r['betrag_brutto']));
-            if (((r['ueberfaellig_seit_tagen'] as int?) ?? 0) > 0) {
-              ueberfaellig++;
-            }
           }
 
           return RefreshIndicator(

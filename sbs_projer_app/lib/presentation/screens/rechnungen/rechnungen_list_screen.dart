@@ -40,10 +40,6 @@ Color _statusColor(String status) {
   }
 }
 
-const _statusReihenfolge = [
-  'mahnung_2', 'mahnung_1', 'erinnert', 'offen', 'bezahlt', 'abgeschrieben',
-];
-
 String? _naechsterStatus(String current) {
   switch (current) {
     case 'offen': return 'erinnert';
@@ -1061,7 +1057,7 @@ class _RechnungSelectItem extends StatelessWidget {
         ),
         subtitle: Text(
           [
-            if (betriebName != null) betriebName!,
+            ?betriebName,
             'CHF ${brutto.toStringAsFixed(2)}',
           ].join(' · '),
           style: TextStyle(

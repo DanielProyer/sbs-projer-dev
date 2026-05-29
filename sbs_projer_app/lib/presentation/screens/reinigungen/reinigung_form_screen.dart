@@ -157,8 +157,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       if (r.anlageIdsJson != null) {
         _selectedAnlageIds = Set<String>.from(
             (jsonDecode(r.anlageIdsJson!) as List).map((e) => e.toString()));
-      } else if (r.anlageId != null) {
-        _selectedAnlageIds = {r.anlageId!};
+      } else if (r.anlageId.isNotEmpty) {
+        _selectedAnlageIds = {r.anlageId};
       }
       // Betrieb sofort aus Provider laden (synchron, Fallback)
       if (r.betriebId.isNotEmpty) {
@@ -203,7 +203,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           });
         }
       } catch (e) {
-        print('[Reinigung] Betrieb laden fehlgeschlagen: $e');
+        debugPrint('[Reinigung] Betrieb laden fehlgeschlagen: $e');
       }
 
       try {
@@ -222,7 +222,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           });
         }
       } catch (e) {
-        print('[Reinigung] Anlagen laden fehlgeschlagen: $e');
+        debugPrint('[Reinigung] Anlagen laden fehlgeschlagen: $e');
         if (mounted) setState(() => _anlagenLoaded = true);
       }
 
@@ -576,7 +576,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 );
                 debugPrint('[ServiceMail] Response: ${response.status} ${response.data}');
                 await RechnungRepository.update(rechnung.id, {
-                  'zahlungsstatus': 'versendet',
+                  'zahlungsstatus': 'gesendet',
                   'versendet_am': DateTime.now().toIso8601String().split('T').first,
                 });
                 if (mounted) {
@@ -689,7 +689,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               const Text('Rechnungsart für diesen Service:'),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedRechnungsstellung,
+                initialValue: selectedRechnungsstellung,
                 decoration: const InputDecoration(
                   labelText: 'Rechnungsstellung',
                   prefixIcon: Icon(Icons.receipt),
@@ -910,7 +910,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               _sectionTitle(context, 'Service-Art'),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _serviceArt,
+                initialValue: _serviceArt,
                 decoration: const InputDecoration(
                   labelText: 'Service-Art',
                   prefixIcon: Icon(Icons.build),
@@ -1083,110 +1083,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _showBetriebWechselDialog() async {
-    final betriebe = ref
-        .read(betriebeProvider)
-        .where((b) => b.serverId != null && b.status != 'inaktiv')
-        .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-
-    String search = '';
-
-    final selected = await showModalBottomSheet<BetriebLocal>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            final filtered = search.isEmpty
-                ? betriebe
-                : betriebe.where((b) {
-                    final q = search.toLowerCase();
-                    return b.name.toLowerCase().contains(q) ||
-                        (b.ort?.toLowerCase().contains(q) ?? false);
-                  }).toList();
-
-            return DraggableScrollableSheet(
-              initialChildSize: 0.7,
-              minChildSize: 0.4,
-              maxChildSize: 0.9,
-              expand: false,
-              builder: (ctx, scrollController) {
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                      child: SearchBar(
-                        hintText: 'Betrieb suchen...',
-                        leading: const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Icon(Icons.search, size: 20),
-                        ),
-                        onChanged: (v) => setSheetState(() => search = v),
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        controller: scrollController,
-                        itemCount: filtered.length,
-                        itemBuilder: (ctx, i) {
-                          final b = filtered[i];
-                          final isCurrent =
-                              b.serverId == _betrieb?.serverId;
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: isCurrent
-                                  ? AppColors.primary.withAlpha(40)
-                                  : AppColors.primary.withAlpha(15),
-                              child: Icon(Icons.store,
-                                  color: AppColors.primary, size: 18),
-                            ),
-                            title: Text(b.name,
-                                style: TextStyle(
-                                    fontWeight: isCurrent
-                                        ? FontWeight.bold
-                                        : FontWeight.w500)),
-                            subtitle: b.ort != null ? Text(b.ort!) : null,
-                            trailing: isCurrent
-                                ? const Icon(Icons.check,
-                                    color: AppColors.primary, size: 20)
-                                : null,
-                            onTap: () => Navigator.pop(ctx, b),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-
-    if (selected != null && selected.serverId != _betrieb?.serverId && mounted) {
-      setState(() {
-        _betrieb = selected;
-        _rechnungsstellung = selected.rechnungsstellung;
-        _istBergkunde = selected.istBergkunde;
-        _anlagenDesBetrieb = [];
-        _selectedAnlageIds = {};
-      });
-      // Anlagen des neuen Betriebs laden
-      final anlagen =
-          await AnlageRepository.getByBetrieb(selected.serverId!);
-      if (mounted) {
-        setState(() {
-          _anlagenDesBetrieb = anlagen;
-          _selectedAnlageIds =
-              anlagen.map((a) => a.serverId ?? a.routeId).toSet();
-        });
-        if (!_isEdit) await _recalculateHaehne();
-      }
-    }
   }
 
   Widget _buildAnlagenAuswahl() {
@@ -1493,7 +1389,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         children: [
           // Service-Typ
           DropdownButtonFormField<String>(
-            value: _serviceTyp,
+            initialValue: _serviceTyp,
             decoration: const InputDecoration(
               labelText: 'Service-Typ',
               prefixIcon: Icon(Icons.cleaning_services),

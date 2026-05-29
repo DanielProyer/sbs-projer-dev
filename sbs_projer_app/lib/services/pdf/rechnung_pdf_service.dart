@@ -578,7 +578,7 @@ class RechnungPdfService {
           .join(' ');
       if (strasse.isNotEmpty) lines.add(strasse);
       final plzOrt =
-          [ra.plz, ra.ort].where((s) => s != null && s.isNotEmpty).join(' ');
+          [ra.plz, ra.ort].where((s) => s.isNotEmpty).join(' ');
       if (plzOrt.isNotEmpty) lines.add(plzOrt);
     } else {
       lines.add(betrieb.name);
@@ -602,11 +602,11 @@ class RechnungPdfService {
           .join(' ')
           .trim();
       return _KundeAdresse(
-        name: name.isNotEmpty ? name : (ra.nachname ?? ''),
-        strasseOnly: ra.strasse ?? '',
+        name: name.isNotEmpty ? name : ra.nachname,
+        strasseOnly: ra.strasse,
         nrOnly: ra.nr ?? '',
-        plzOnly: ra.plz ?? '',
-        ortOnly: ra.ort ?? '',
+        plzOnly: ra.plz,
+        ortOnly: ra.ort,
       );
     }
     return _KundeAdresse(

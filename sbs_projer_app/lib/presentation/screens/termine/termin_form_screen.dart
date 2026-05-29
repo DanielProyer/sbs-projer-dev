@@ -360,7 +360,7 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                   // Typ
                   _buildSectionHeader('Typ'),
                   DropdownButtonFormField<String>(
-                    value: _typ,
+                    initialValue: _typ,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.category),
                       border: OutlineInputBorder(),
@@ -389,7 +389,7 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                   // Anlass
                   _buildSectionHeader('Anlass'),
                   DropdownButtonFormField<String>(
-                    value: _anlass,
+                    initialValue: _anlass,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.info_outline),
                       border: OutlineInputBorder(),
@@ -447,7 +447,7 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                   // Status
                   _buildSectionHeader('Status'),
                   DropdownButtonFormField<String>(
-                    value: _status,
+                    initialValue: _status,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.flag),
                       border: OutlineInputBorder(),
@@ -473,7 +473,7 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                   // Erinnerung
                   _buildSectionHeader('Erinnerung (Tage vorher)'),
                   DropdownButtonFormField<int>(
-                    value: _erinnerungTage,
+                    initialValue: _erinnerungTage,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.notifications_active),
                       border: OutlineInputBorder(),

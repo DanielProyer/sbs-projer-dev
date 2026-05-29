@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
@@ -538,7 +536,7 @@ class HeinekenRechnungService {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
         kunde: _betriebLabel(r['betrieb_id'], betriebe),
-        betrag: _toDouble(r['betrag']) ?? _anfahrtPauschale,
+        betrag: _toDoubleN(r['betrag']) ?? _anfahrtPauschale,
       );
     }).toList();
   }

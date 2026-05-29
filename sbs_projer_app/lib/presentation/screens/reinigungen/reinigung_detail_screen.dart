@@ -637,12 +637,12 @@ class _BetriebAnlageCard extends StatelessWidget {
           ));
         }
       }
-    } else if (reinigung.anlageId != null) {
+    } else if (reinigung.anlageId.isNotEmpty) {
       // Fallback: einzelne anlageId
-      final a = await AnlageRepository.getByServerId(reinigung.anlageId!);
+      final a = await AnlageRepository.getByServerId(reinigung.anlageId);
       if (a != null) {
         anlagen.add(_AnlageInfo(
-          serverId: reinigung.anlageId!,
+          serverId: reinigung.anlageId,
           label: a.bezeichnung ?? a.typAnlage,
         ));
       }
