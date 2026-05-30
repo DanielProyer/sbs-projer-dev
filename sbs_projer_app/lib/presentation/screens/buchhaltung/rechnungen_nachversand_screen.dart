@@ -33,6 +33,13 @@ class _RechnungenNachversandScreenState
   static final _dateFormat = DateFormat('dd.MM.yyyy');
   static const _stichtag = '2026-02-18';
 
+  /// Rechnungen, die bereits manuell (ausserhalb dieses Screens) versendet wurden
+  /// und daher NICHT mehr in der Nachversand-Liste erscheinen sollen.
+  /// versandart bewusst NICHT geändert, da das Mahnwesen darauf basiert.
+  static const _bereitsManuellVersendet = <String>{
+    '7eb327d8-5698-42dd-b6e1-b2e12d455897', // Piaggio Dosch · 2026-05-0615 · 08.05.2026
+  };
+
   List<_NachversandItem> _items = [];
   bool _loading = true;
   String? _loadError;
@@ -140,9 +147,11 @@ class _RechnungenNachversandScreenState
       final items = <_NachversandItem>[];
       for (final row in rechnungRows) {
         final m = row as Map;
+        final rechnungId = m['id'].toString();
+        // Bereits manuell versendete Rechnungen ausblenden
+        if (_bereitsManuellVersendet.contains(rechnungId)) continue;
         final betrieb = (m['betriebe'] as Map?) ?? const {};
         final betriebId = m['betrieb_id']?.toString() ?? '';
-        final rechnungId = m['id'].toString();
         final fallbackEmail = betrieb['email']?.toString();
         final email = emailByBetrieb[betriebId] ??
             (fallbackEmail != null && fallbackEmail.isNotEmpty
