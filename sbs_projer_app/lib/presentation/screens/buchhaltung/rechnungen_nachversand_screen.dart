@@ -247,19 +247,32 @@ class _RechnungenNachversandScreenState
         },
       );
 
-      // Nur versendet_am + versandart setzen (kein Status-Wechsel).
+      // versendet_am NUR bei scharfem Versand setzen — sonst ging die Mail an
+      // den Test-Empfänger und darf nicht als "versendet" markiert werden.
+      final istScharf = MailConfig.istScharf('reinigung');
       try {
-        await RechnungRepository.update(item.id, {
-          'versendet_am': DateTime.now().toIso8601String().split('T').first,
-          'versandart': 'rechnung_mail',
-        });
+        if (istScharf) {
+          // Nur versendet_am + versandart setzen (kein Status-Wechsel).
+          await RechnungRepository.update(item.id, {
+            'versendet_am': DateTime.now().toIso8601String().split('T').first,
+            'versandart': 'rechnung_mail',
+          });
+        }
         if (mounted) {
           setState(() {
-            item.versendetAm = DateTime.now();
+            if (istScharf) item.versendetAm = DateTime.now();
             item.sending = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Mail versendet an $to')),
+            istScharf
+                ? SnackBar(content: Text('Mail versendet an $to'))
+                : SnackBar(
+                    backgroundColor: AppColors.warning,
+                    content: Text(
+                        'TEST: Mail ging an $to (nicht an Kunde) — NICHT als versendet markiert.',
+                        style: const TextStyle(color: Colors.white)),
+                    duration: const Duration(seconds: 6),
+                  ),
           );
         }
       } catch (dbErr) {

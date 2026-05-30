@@ -594,10 +594,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   },
                 );
                 debugPrint('[ServiceMail] Response: ${response.status} ${response.data}');
-                await RechnungRepository.update(rechnung.id, {
-                  'zahlungsstatus': 'gesendet',
-                  'versendet_am': DateTime.now().toIso8601String().split('T').first,
-                });
+                // Status/versendet_am NUR bei scharfem Versand setzen — im
+                // Testmodus ging die Mail an den Test-Empfänger, nicht an den Kunden.
+                if (MailConfig.istScharf('reinigung')) {
+                  await RechnungRepository.update(rechnung.id, {
+                    'zahlungsstatus': 'gesendet',
+                    'versendet_am': DateTime.now().toIso8601String().split('T').first,
+                  });
+                }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     keineKundenadresse

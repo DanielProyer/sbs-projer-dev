@@ -55,6 +55,28 @@ class MailConfig {
     return bereinige(echterEmpfaenger ?? testEmpfaenger);
   }
 
+  /// Ob der Versand für [bereich] tatsächlich an den echten Empfänger geht
+  /// (true = scharf) oder an den Test-Empfänger umgeleitet wird (false).
+  /// Verwenden, um `versendet_am` NUR bei echtem Versand zu setzen.
+  static bool istScharf(String bereich) {
+    if (testModus) return false;
+    switch (bereich) {
+      case 'reinigung':
+        return reinigungScharf;
+      case 'heineken':
+        return heinekenScharf;
+      case 'montage':
+        return montageScharf;
+      case 'heigenie':
+        return heigenieScharf;
+      case 'bestellung':
+        return bestellungScharf;
+      case 'mahnwesen':
+        return mahnwesenScharf;
+    }
+    return true;
+  }
+
   /// Entfernt unsichtbare Zeichen ([_unsichtbareCodes]) und umschliessende
   /// Leerzeichen aus einer E-Mail-Adresse. Umlaute u.ä. bleiben erhalten.
   static String bereinige(String email) {
