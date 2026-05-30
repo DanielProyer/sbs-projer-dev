@@ -15,7 +15,9 @@ class MailConfig {
   static const testEmpfaenger = 'dani.proyer@gmail.com';
 
   /// Einzelne Bereiche scharfstellen (nur relevant wenn [testModus] = false)
-  static const reinigungScharf = true;
+  // Vorübergehend false (30.05.2026): Testphase — Reinigungsrechnungen gehen
+  // beim Service-Abschluss an testEmpfaenger. Nach Test (ca. 06.06.2026) auf true.
+  static const reinigungScharf = false;
   static const heinekenScharf = true;
   static const montageScharf = true;
   static const heigenieScharf = true;

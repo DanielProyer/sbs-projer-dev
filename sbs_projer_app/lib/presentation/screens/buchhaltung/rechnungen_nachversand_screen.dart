@@ -1,7 +1,11 @@
 // TEMPORÄRER SCREEN
 // Zweck: Rechnungs-Backlog ab 18.02.2026 nachträglich per Mail an Kunden versenden.
-// Wird nach ca. 1 Woche entfernt — der reguläre Mail-Versand erfolgt dann direkt
-// beim Service-Abschluss.
+//
+// NICHT VOR SCHARFSTELLUNG ENTFERNEN (Stand 30.05.2026):
+// Während der Testphase (reinigungScharf=false) gehen automatische Versände nur
+// an den Test-Empfänger. Der Backlog hier muss erhalten bleiben, bis reinigungScharf
+// auf true steht und die Rechnungen von hier aus an die echten Kunden versendet wurden.
+// Frühestens entfernen ca. 06.06.2026, nach Scharfstellung + Abarbeitung des Backlogs.
 //
 // Zum Entfernen: diese Datei löschen, Route in router.dart entfernen,
 // Tile in buchhaltung_dashboard_screen.dart entfernen.
