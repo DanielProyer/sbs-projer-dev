@@ -13,6 +13,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
@@ -83,6 +84,57 @@ class _RechnungenNachversandScreenState
         }
       }
 
+      // Rechnung-IDs sammeln (für Protokoll-Lookup)
+      final rechnungIds = <String>[];
+      for (final row in rechnungRows) {
+        final id = (row as Map)['id'];
+        if (id != null) rechnungIds.add(id.toString());
+      }
+
+      // Query 3: Protokoll-Pfade über rechnungs_positionen (service_typ='reinigung')
+      // -> reinigungen.protokoll_foto_pfad. Damit das Reinigungsprotokoll mitgeschickt wird.
+      final protokollByRechnung = <String, String>{};
+      if (rechnungIds.isNotEmpty) {
+        final posRows = await SupabaseService.client
+            .from('rechnungs_positionen')
+            .select('rechnung_id, service_id')
+            .inFilter('rechnung_id', rechnungIds)
+            .eq('service_typ', 'reinigung');
+        final serviceIdByRechnung = <String, String>{};
+        final serviceIds = <String>[];
+        for (final row in posRows as List) {
+          final m = row as Map;
+          final rid = m['rechnung_id']?.toString();
+          final sid = m['service_id']?.toString();
+          if (rid != null &&
+              sid != null &&
+              sid.isNotEmpty &&
+              !serviceIdByRechnung.containsKey(rid)) {
+            serviceIdByRechnung[rid] = sid;
+            serviceIds.add(sid);
+          }
+        }
+        if (serviceIds.isNotEmpty) {
+          final reinRows = await SupabaseService.client
+              .from('reinigungen')
+              .select('id, protokoll_foto_pfad')
+              .inFilter('id', serviceIds);
+          final protokollByService = <String, String>{};
+          for (final row in reinRows as List) {
+            final m = row as Map;
+            final sid = m['id']?.toString();
+            final pfad = m['protokoll_foto_pfad']?.toString();
+            if (sid != null && pfad != null && pfad.isNotEmpty) {
+              protokollByService[sid] = pfad;
+            }
+          }
+          serviceIdByRechnung.forEach((rid, sid) {
+            final pfad = protokollByService[sid];
+            if (pfad != null) protokollByRechnung[rid] = pfad;
+          });
+        }
+      }
+
       // Items bauen — komplett defensiv via .toString()
       // Email-Quelle: 1. betrieb_rechnungsadressen.email  2. fallback: betriebe.email
       final items = <_NachversandItem>[];
@@ -90,13 +142,14 @@ class _RechnungenNachversandScreenState
         final m = row as Map;
         final betrieb = (m['betriebe'] as Map?) ?? const {};
         final betriebId = m['betrieb_id']?.toString() ?? '';
+        final rechnungId = m['id'].toString();
         final fallbackEmail = betrieb['email']?.toString();
         final email = emailByBetrieb[betriebId] ??
             (fallbackEmail != null && fallbackEmail.isNotEmpty
                 ? fallbackEmail
                 : '');
         items.add(_NachversandItem(
-          id: m['id'].toString(),
+          id: rechnungId,
           rechnungsnummer: m['rechnungsnummer']?.toString() ?? '-',
           datum: DateTime.parse(m['rechnungsdatum'].toString()),
           betragBrutto:
@@ -108,6 +161,7 @@ class _RechnungenNachversandScreenState
           pdfUrl: m['pdf_url']?.toString(),
           betriebName: betrieb['name']?.toString() ?? '?',
           betriebOrt: betrieb['ort']?.toString(),
+          protokollFotoPfad: protokollByRechnung[rechnungId],
           emailController: TextEditingController(text: email),
         ));
       }
@@ -147,6 +201,10 @@ class _RechnungenNachversandScreenState
     final empfaenger = item.emailController.text.trim();
     if (empfaenger.isEmpty) return;
 
+    // MailConfig respektieren: in der Testphase (reinigungScharf=false) geht die
+    // Mail an den Test-Empfänger, erst nach Scharfstellung an die Kundenadresse.
+    final to = MailConfig.empfaenger(empfaenger, bereich: 'reinigung');
+
     setState(() => item.sending = true);
     try {
       final datumStr =
@@ -157,11 +215,10 @@ class _RechnungenNachversandScreenState
       final betragRounded = (item.betragBrutto * 20).roundToDouble() / 20;
       final betragStr = betragRounded.toStringAsFixed(2);
 
-      // MailConfig bewusst umgangen — direkter Versand an eingegebene Adresse.
       await SupabaseService.client.functions.invoke(
         'send-rechnung-mail',
         body: {
-          'to': empfaenger,
+          'to': to,
           'subject':
               'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
           'bodyText': 'Guten Tag\n\n'
@@ -174,6 +231,8 @@ class _RechnungenNachversandScreenState
               'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
           'rechnungId': item.id,
           'userId': SupabaseService.dataUserId,
+          if (item.protokollFotoPfad != null)
+            'protokollFotoPfad': item.protokollFotoPfad,
         },
       );
 
@@ -189,7 +248,7 @@ class _RechnungenNachversandScreenState
             item.sending = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Mail versendet an $empfaenger')),
+            SnackBar(content: Text('Mail versendet an $to')),
           );
         }
       } catch (dbErr) {
@@ -254,27 +313,37 @@ class _RechnungenNachversandScreenState
                 )
               : Column(
                   children: [
-                    // Warn-Banner
-                    Container(
-                      width: double.infinity,
-                      color: AppColors.error.withAlpha(25),
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.warning_amber, color: AppColors.error),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Temporärer Nachversand. Mails gehen DIREKT an die eingegebenen Kunden-Adressen — kein Test-Modus. '
-                              '${_items.length} Rechnungen seit ${_dateFormat.format(DateTime.parse(_stichtag))}.',
-                              style: const TextStyle(
-                                  color: AppColors.error,
-                                  fontWeight: FontWeight.w500),
+                    // Modus-Banner: spiegelt MailConfig wider
+                    Builder(builder: (_) {
+                      final scharf = MailConfig.reinigungScharf &&
+                          !MailConfig.testModus;
+                      final farbe =
+                          scharf ? AppColors.error : AppColors.warning;
+                      final text = scharf
+                          ? 'SCHARF: Mails gehen DIREKT an die eingegebenen Kunden-Adressen. '
+                              '${_items.length} Rechnungen seit ${_dateFormat.format(DateTime.parse(_stichtag))}.'
+                          : 'TESTMODUS: Mails gehen an ${MailConfig.testEmpfaenger}, NICHT an die Kunden. '
+                              '${_items.length} Rechnungen seit ${_dateFormat.format(DateTime.parse(_stichtag))}.';
+                      return Container(
+                        width: double.infinity,
+                        color: farbe.withAlpha(25),
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber, color: farbe),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                text,
+                                style: TextStyle(
+                                    color: farbe,
+                                    fontWeight: FontWeight.w500),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    }),
                     Expanded(
                       child: _items.isEmpty
                           ? const Center(child: Text('Keine Rechnungen gefunden'))
@@ -419,6 +488,7 @@ class _NachversandItem {
   final String? pdfUrl;
   final String betriebName;
   final String? betriebOrt;
+  final String? protokollFotoPfad;
   final TextEditingController emailController;
   bool sending = false;
 
@@ -431,6 +501,7 @@ class _NachversandItem {
     required this.pdfUrl,
     required this.betriebName,
     required this.betriebOrt,
+    required this.protokollFotoPfad,
     required this.emailController,
   });
 }
