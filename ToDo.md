@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 29.05.2026
+**Stand**: 30.05.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -66,6 +66,14 @@
   - Aktuelle Excel-Datei sichern
   - Letzte Änderungen eintragen
   - Bereit für Import
+
+### Temporäres aufräumen
+
+- [ ] **Rechnungs-Nachversand-Screen entfernen** (wenn Backlog ab 18.02.2026 abgearbeitet)
+  - Datei `rechnungen_nachversand_screen.dart` löschen
+  - Route in `router.dart` entfernen
+  - Tile in `buchhaltung_dashboard_screen.dart` entfernen
+- [ ] **Restliche Mail-Bereiche scharfstellen**: `bestellungScharf` + `mahnwesenScharf` (in `mail_config.dart`) — aktuell noch Test-Empfänger
 
 ---
 
@@ -155,6 +163,10 @@
 
 ## ✅ ERLEDIGT
 
+- [x] Mail-Versand Reinigung + Montage/HeiGenie scharfgestellt (echte Kunden- bzw. RSL-Empfänger) (30.05.2026)
+- [x] Nachversand-Screen: Testmodus-Respekt, Reinigungsprotokoll-Anhang, versendet-Markierung aus DB, Piaggio Dosch ausgeblendet (30.05.2026)
+- [x] Mail-Adressen-Bereinigung: Zero-Width-Zeichen entfernen (MailConfig.bereinige + DB-Fix Padelta) + IDN-Punycode in Edge Function v7 (teehütte-klosters.ch) (30.05.2026)
+- [x] versendet_am nur bei scharfem Versand (MailConfig.istScharf); DB-Korrektur Mountain Plaza + Padelta (30.05.2026)
 - [x] Heineken-Monatsrechnung: Status-Workflow (offen → gesendet → freigegeben → bezahlt) + automatische Buchungen (29.05.2026)
 - [x] Buchhaltung: Rechnungs-Nachversand-Screen (PDF on-demand neu signieren, betriebe.email-Fallback, 5-Rappen-Rundung) (29.05.2026)
 - [x] Projekt-Review Opus 4.8: Reinigung-/Anfahrtspauschale-Bugfix, Kontakt-Isar-Integration (Native-Build wieder lauffähig), Lint-Cleanup (0 Errors) (29.05.2026)
@@ -236,4 +248,4 @@
 
 ---
 
-**Zuletzt aktualisiert**: 16.05.2026
+**Zuletzt aktualisiert**: 30.05.2026

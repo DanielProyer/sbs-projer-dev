@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 29.05.2026
+**Stand**: 30.05.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.97+379
+**Version**: 0.10.105+387
 
 ---
 
@@ -699,6 +699,29 @@
      - Dead Code in PDF-Services entfernt, ~30 Lints bereinigt (initialValue, null-aware-Elements, debugPrint), barcode als direkte Dependency
      - flutter analyze: 0 Errors (vorher 11 versteckte Compile-Fehler), nur noch akzeptierte Infos + generierter Isar-Code
 
+### Erledigt am 30.05.2026 (Mail-Versand scharfstellen + Bereinigung)
+197. ✅ Reinigungsrechnungen scharfgestellt (`reinigungScharf=true`):
+     - Beim Service-Abschluss echte Kunden-Email statt `null` ermitteln (betrieb_rechnungsadressen.email → Fallback betriebe.email)
+     - Fehlt eine Kundenadresse → Versand an Daniel + orange Warnung
+198. ✅ Montage scharfgestellt (`montageScharf=true`): HeiGenie-Service-Protokoll-Mail geht an echten RSL-Kontakt (mit PDF) statt Test-Empfänger
+199. ✅ Nachversand-Screen erweitert:
+     - Respektiert jetzt MailConfig (Testmodus) statt direktem Versand
+     - Reinigungsprotokoll wird angehängt (Pfad über rechnungs_positionen → reinigungen.protokoll_foto_pfad)
+     - Banner spiegelt tatsächlichen Modus (TESTMODUS/SCHARF)
+     - versendet-Markierung aus DB (`versendet_am`) statt nur Session-State → bleibt nach Reload erhalten
+     - Piaggio Dosch (2026-05-0615) aus Liste ausgeblendet (manuell versendet, Ausschlussliste statt versandart-Änderung)
+200. ✅ Mail-Adressen-Bereinigung (Fix "Invalid To header" / Gmail 400):
+     - `MailConfig.bereinige()`: entfernt Zero-Width-Spaces (U+200B–U+200D), BOM, NBSP + trim; `empfaenger()` gibt immer bereinigt zurück
+     - DB-Korrektur: Padelta-Email (chur@padelta.ch) hatte 2× U+200B
+     - Edge Function `send-rechnung-mail` v7: `encodeEmailDomain()` kodiert IDN-/Umlaut-Domains via Punycode (z.B. teehütte-klosters.ch → xn--…)
+201. ✅ `versendet_am` nur bei scharfem Versand setzen:
+     - `MailConfig.istScharf(bereich)`; Nachversand + Service-Abschluss markieren im Testmodus nicht mehr als versendet
+     - DB-Korrektur: Mountain Plaza (2026-05-0636) + Padelta (2026-05-0596) versendet_am zurückgesetzt (waren Testmodus/fehlgeschlagen)
+
+### Temporär aktiv (Stand 30.05.2026)
+- **Rechnungs-Nachversand-Screen** bleibt bis zur vollständigen Abarbeitung des Backlogs (ab 18.02.2026), dann entfernen (Datei + Route + Dashboard-Tile).
+- **Mail-Scharfstellung:** reinigung ✅ / heineken ✅ / montage ✅ / heigenie ✅ — bestellung & mahnwesen noch im Testmodus.
+
 ### Nächste Schritte (Phase 4: Polish & Testing)
 1. ☐ Buchhaltung scharfstellen bis 01.07.2026 (Eröffnungsbilanz, Heineken-Buchungen, Zahlungseingänge)
 2. ☐ Heineken Monatsrechnung testen (wenn mehr Aufträge erfasst sind)
@@ -732,5 +755,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 29.05.2026 – Heineken-Status-Workflow gefixt, Rechnungs-Nachversand-Screen, Projekt-Review mit Opus 4.8 (Reinigung-/Anfahrtspauschale-Bugfix, Kontakt-Isar-Integration → Native-Build wieder lauffähig, Lint-Cleanup). App-Version 0.10.97+379.
+**Zuletzt aktualisiert**: 30.05.2026 – Mail-Versand scharfgestellt (Reinigung + Montage/HeiGenie), Nachversand-Screen erweitert (Testmodus, Protokoll-Anhang, versendet-Markierung aus DB), Mail-Adressen-Bereinigung (Zero-Width-Zeichen + IDN-Punycode, Edge Function v7), versendet_am nur bei scharfem Versand. App-Version 0.10.105+387.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)
