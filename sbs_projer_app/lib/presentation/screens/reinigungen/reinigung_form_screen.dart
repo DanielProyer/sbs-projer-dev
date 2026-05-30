@@ -548,7 +548,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             // Mail versenden wenn rechnung_mail
             if (rechnung != null && betrieb.rechnungsstellung == 'rechnung_mail') {
               try {
-                final empfaenger = MailConfig.empfaenger(null, bereich: 'reinigung');
+                // Echte Kunden-Email: 1. betrieb_rechnungsadressen.email  2. Fallback betriebe.email
+                String? kundenEmail;
+                try {
+                  final adrRows = await SupabaseService.client
+                      .from('betrieb_rechnungsadressen')
+                      .select('email')
+                      .eq('betrieb_id', betrieb.serverId!)
+                      .limit(1);
+                  if (adrRows.isNotEmpty) {
+                    final mail = (adrRows.first as Map)['email'];
+                    if (mail is String && mail.isNotEmpty) kundenEmail = mail;
+                  }
+                } catch (e) {
+                  debugPrint('[ServiceMail] Rechnungsadresse-Query fehlgeschlagen: $e');
+                }
+                kundenEmail ??= (betrieb.email != null && betrieb.email!.isNotEmpty)
+                    ? betrieb.email
+                    : null;
+                final keineKundenadresse = kundenEmail == null;
+                final empfaenger = MailConfig.empfaenger(kundenEmail, bereich: 'reinigung');
                 final datumStr = '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
                 final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
                     ? '${betrieb.name} ${betrieb.ort}'
@@ -581,7 +600,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 });
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Rechnung per Mail versendet')),
+                    keineKundenadresse
+                        ? SnackBar(
+                            backgroundColor: AppColors.warning,
+                            content: Text(
+                                'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
+                                'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.',
+                                style: const TextStyle(color: Colors.white)),
+                            duration: const Duration(seconds: 8),
+                          )
+                        : SnackBar(content: Text('Rechnung per Mail versendet an $empfaenger')),
                   );
                 }
               } catch (e) {

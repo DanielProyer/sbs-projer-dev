@@ -15,7 +15,7 @@ class MailConfig {
   static const testEmpfaenger = 'dani.proyer@gmail.com';
 
   /// Einzelne Bereiche scharfstellen (nur relevant wenn [testModus] = false)
-  static const reinigungScharf = false;
+  static const reinigungScharf = true;
   static const heinekenScharf = true;
   static const montageScharf = false;
   static const heigenieScharf = true;
