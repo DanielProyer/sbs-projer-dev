@@ -163,10 +163,12 @@ class _RechnungenNachversandScreenState
           datum: DateTime.parse(m['rechnungsdatum'].toString()),
           betragBrutto:
               double.tryParse(m['betrag_brutto']?.toString() ?? '') ?? 0,
-          // versendet_am aus DB bewusst ignoriert — alte Werte sind unzuverlässig
-          // (Mailversand ging wegen reinigungScharf=false nur an Test-Empfänger).
-          // Stattdessen nur Session-State (sentInThisSession).
-          versendetAm: null,
+          // versendet_am aus DB übernehmen, damit die "versendet"-Markierung
+          // auch nach Reload/App-Neustart erhalten bleibt (seit Scharfstellung
+          // sind die Werte zuverlässig, da echt an Kunden versendet wurde).
+          versendetAm: m['versendet_am'] != null
+              ? DateTime.tryParse(m['versendet_am'].toString())
+              : null,
           pdfUrl: m['pdf_url']?.toString(),
           betriebName: betrieb['name']?.toString() ?? '?',
           betriebOrt: betrieb['ort']?.toString(),
