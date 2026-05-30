@@ -17,7 +17,7 @@ class MailConfig {
   /// Einzelne Bereiche scharfstellen (nur relevant wenn [testModus] = false)
   static const reinigungScharf = true;
   static const heinekenScharf = true;
-  static const montageScharf = false;
+  static const montageScharf = true;
   static const heigenieScharf = true;
   static const bestellungScharf = false;
   static const mahnwesenScharf = false;
