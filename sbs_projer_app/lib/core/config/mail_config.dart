@@ -24,27 +24,44 @@ class MailConfig {
   static const bestellungScharf = false;
   static const mahnwesenScharf = false;
 
+  /// Unsichtbare Zeichen, die beim Copy-Paste in E-Mail-Adressen geraten und
+  /// z.B. beim Gmail-Versand "Invalid To header" auslösen:
+  /// Zero-Width-Space/Non-Joiner/Joiner (U+200B–U+200D), BOM (U+FEFF),
+  /// Non-Breaking-Space (U+00A0).
+  static const _unsichtbareCodes = {0x200B, 0x200C, 0x200D, 0xFEFF, 0x00A0};
+
   /// Gibt den tatsächlichen Empfänger zurück.
   /// Im Testmodus immer [testEmpfaenger], sonst [echterEmpfaenger].
+  /// Die zurückgegebene Adresse wird immer via [bereinige] gesäubert.
   static String empfaenger(String? echterEmpfaenger, {String bereich = ''}) {
-    if (testModus) return testEmpfaenger;
+    if (testModus) return bereinige(testEmpfaenger);
 
     // Bereichsweise Steuerung
     switch (bereich) {
       case 'reinigung':
-        if (!reinigungScharf) return testEmpfaenger;
+        if (!reinigungScharf) return bereinige(testEmpfaenger);
       case 'heineken':
-        if (!heinekenScharf) return testEmpfaenger;
+        if (!heinekenScharf) return bereinige(testEmpfaenger);
       case 'montage':
-        if (!montageScharf) return testEmpfaenger;
+        if (!montageScharf) return bereinige(testEmpfaenger);
       case 'heigenie':
-        if (!heigenieScharf) return testEmpfaenger;
+        if (!heigenieScharf) return bereinige(testEmpfaenger);
       case 'bestellung':
-        if (!bestellungScharf) return testEmpfaenger;
+        if (!bestellungScharf) return bereinige(testEmpfaenger);
       case 'mahnwesen':
-        if (!mahnwesenScharf) return testEmpfaenger;
+        if (!mahnwesenScharf) return bereinige(testEmpfaenger);
     }
 
-    return echterEmpfaenger ?? testEmpfaenger;
+    return bereinige(echterEmpfaenger ?? testEmpfaenger);
+  }
+
+  /// Entfernt unsichtbare Zeichen ([_unsichtbareCodes]) und umschliessende
+  /// Leerzeichen aus einer E-Mail-Adresse. Umlaute u.ä. bleiben erhalten.
+  static String bereinige(String email) {
+    final buffer = StringBuffer();
+    for (final rune in email.runes) {
+      if (!_unsichtbareCodes.contains(rune)) buffer.writeCharCode(rune);
+    }
+    return buffer.toString().trim();
   }
 }
