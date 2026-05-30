@@ -91,6 +91,29 @@ async function downloadFromStorage(bucket: string, path: string): Promise<Uint8A
   return new Uint8Array(arrayBuffer);
 }
 
+/**
+ * Wandelt den Domain-Teil einer E-Mail-Adresse in Punycode/ASCII (IDNA) um,
+ * falls er Nicht-ASCII-Zeichen (z.B. Umlaute) enthält. Beispiel:
+ * "info@teehütte-klosters.ch" -> "info@xn--teehtte-klosters-mzb.ch".
+ * Ohne diese Umwandlung lehnt die Gmail API IDN-Adressen mit
+ * "Invalid To header" (400) ab. Der lokale Teil bleibt unverändert.
+ */
+function encodeEmailDomain(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return email;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  // Nur umwandeln, wenn die Domain Nicht-ASCII enthält
+  if (/^[\x00-\x7F]*$/.test(domain)) return email;
+  try {
+    // WHATWG-URL kodiert hostnames automatisch via IDNA ToASCII
+    const ascii = new URL(`http://${domain}`).hostname;
+    return `${local}@${ascii}`;
+  } catch {
+    return email;
+  }
+}
+
 /** Baut eine RFC 2822 MIME multipart/mixed E-Mail */
 function buildMimeMessage(
   to: string,
@@ -104,7 +127,7 @@ function buildMimeMessage(
   const subjectEncoded = `=?UTF-8?B?${btoa(new TextEncoder().encode(subject).reduce((s, b) => s + String.fromCharCode(b), ""))}?=`;
 
   let mime = `From: ${GMAIL_SENDER}\r\n`;
-  mime += `To: ${to}\r\n`;
+  mime += `To: ${encodeEmailDomain(to)}\r\n`;
   mime += `Subject: ${subjectEncoded}\r\n`;
   mime += `MIME-Version: 1.0\r\n`;
   mime += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n`;
