@@ -16,6 +16,8 @@ class TerminMapper {
     local.notizen = dto.notizen;
     local.status = dto.status;
     local.erinnerungTage = dto.erinnerungTage;
+    local.erinnerungAktiv = dto.erinnerungAktiv;
+    local.erinnerungVorlaufMinuten = dto.erinnerungVorlaufMinuten;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -36,6 +38,8 @@ class TerminMapper {
       'notizen': local.notizen,
       'status': local.status,
       'erinnerung_tage': local.erinnerungTage,
+      'erinnerung_aktiv': local.erinnerungAktiv,
+      'erinnerung_vorlauf_minuten': local.erinnerungVorlaufMinuten,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

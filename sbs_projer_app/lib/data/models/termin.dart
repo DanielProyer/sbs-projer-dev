@@ -11,6 +11,8 @@ class Termin {
   final String? notizen;
   final String status;
   final int erinnerungTage;
+  final bool erinnerungAktiv;
+  final int erinnerungVorlaufMinuten;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -27,6 +29,8 @@ class Termin {
     this.notizen,
     this.status = 'geplant',
     this.erinnerungTage = 3,
+    this.erinnerungAktiv = false,
+    this.erinnerungVorlaufMinuten = 1440,
     this.createdAt,
     this.updatedAt,
   });
@@ -45,6 +49,8 @@ class Termin {
       notizen: json['notizen'],
       status: json['status'] ?? 'geplant',
       erinnerungTage: json['erinnerung_tage'] ?? 3,
+      erinnerungAktiv: json['erinnerung_aktiv'] ?? false,
+      erinnerungVorlaufMinuten: json['erinnerung_vorlauf_minuten'] ?? 1440,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -64,6 +70,8 @@ class Termin {
       'notizen': notizen,
       'status': status,
       'erinnerung_tage': erinnerungTage,
+      'erinnerung_aktiv': erinnerungAktiv,
+      'erinnerung_vorlauf_minuten': erinnerungVorlaufMinuten,
     };
   }
 }

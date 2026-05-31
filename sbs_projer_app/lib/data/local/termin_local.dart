@@ -29,6 +29,8 @@ class TerminLocal {
   String? notizen;
   String status = 'geplant';
   int erinnerungTage = 3;
+  bool erinnerungAktiv = false;
+  int erinnerungVorlaufMinuten = 1440;
   DateTime? createdAt;
   DateTime? updatedAt;
 }
