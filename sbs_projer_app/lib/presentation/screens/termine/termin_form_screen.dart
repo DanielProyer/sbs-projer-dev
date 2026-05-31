@@ -7,6 +7,8 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
+import 'package:sbs_projer_app/services/notification/reminder_service_export.dart';
+import 'package:sbs_projer_app/services/notification/reminder_time.dart';
 
 class TerminFormScreen extends ConsumerStatefulWidget {
   final String? terminId;
@@ -40,6 +42,8 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
   late final _notizenController = TextEditingController();
   String _status = 'geplant';
   int _erinnerungTage = 3;
+  bool _erinnerungAktiv = false;
+  int _erinnerungVorlauf = 1440;
 
   bool get _isEditing => widget.terminId != null;
 
@@ -77,6 +81,8 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
       _notizenController.text = termin.notizen ?? '';
       _status = termin.status;
       _erinnerungTage = termin.erinnerungTage;
+      _erinnerungAktiv = termin.erinnerungAktiv;
+      _erinnerungVorlauf = termin.erinnerungVorlaufMinuten;
     });
   }
 
@@ -140,6 +146,8 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
           _notizenController.text.trim().isEmpty ? null : _notizenController.text.trim();
       termin.status = _status;
       termin.erinnerungTage = _erinnerungTage;
+      termin.erinnerungAktiv = _erinnerungAktiv;
+      termin.erinnerungVorlaufMinuten = _erinnerungVorlauf;
 
       await TerminRepository.save(termin);
       ref.invalidate(termineStreamProvider);
@@ -471,26 +479,46 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                   const SizedBox(height: 16),
 
                   // Erinnerung
-                  _buildSectionHeader('Erinnerung (Tage vorher)'),
-                  DropdownButtonFormField<int>(
-                    initialValue: _erinnerungTage,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.notifications_active),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 0, child: Text('Keine')),
-                      DropdownMenuItem(value: 1, child: Text('1 Tag')),
-                      DropdownMenuItem(value: 2, child: Text('2 Tage')),
-                      DropdownMenuItem(value: 3, child: Text('3 Tage')),
-                      DropdownMenuItem(value: 5, child: Text('5 Tage')),
-                      DropdownMenuItem(value: 7, child: Text('7 Tage')),
-                      DropdownMenuItem(value: 14, child: Text('14 Tage')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _erinnerungTage = v);
+                  _buildSectionHeader('Erinnerung'),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Erinnerung aktiv'),
+                    subtitle: const Text('Benachrichtigung vor dem Termin'),
+                    secondary: const Icon(Icons.notifications_active),
+                    value: _erinnerungAktiv,
+                    onChanged: (v) async {
+                      if (v) {
+                        final ok = await ReminderService.requestPermission();
+                        if (!ok && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Benachrichtigungen nicht erlaubt — Erinnerung wird gespeichert, aber evtl. nicht angezeigt.'),
+                            ),
+                          );
+                        }
+                      }
+                      setState(() => _erinnerungAktiv = v);
                     },
                   ),
+                  if (_erinnerungAktiv) ...[
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      initialValue: _erinnerungVorlauf,
+                      decoration: const InputDecoration(
+                        labelText: 'Vorlaufzeit',
+                        prefixIcon: Icon(Icons.schedule),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: erinnerungVorlaufOptionen.entries
+                          .map((e) => DropdownMenuItem(
+                              value: e.key, child: Text(e.value)))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _erinnerungVorlauf = v);
+                      },
+                    ),
+                  ],
 
                   const SizedBox(height: 32),
 
