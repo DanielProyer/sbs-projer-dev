@@ -1,8 +1,10 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/local/termin_local_export.dart';
 import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/services/notification/reminder_service_export.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -76,25 +78,44 @@ class TerminRepository {
   static Future<void> save(TerminLocal termin) async {
     termin.userId = _userId;
     if (kIsWeb) {
+      // Neue Termine bekommen client-seitig eine stabile UUID, damit der
+      // ReminderService eine eindeutige routeId hat.
+      if (termin.serverId == null || termin.serverId!.isEmpty) {
+        termin.serverId = const Uuid().v4();
+      }
       final json = TerminMapper.toJson(termin);
       await SupabaseService.client.from('termine').upsert(json);
-      return;
+    } else {
+      termin.isSynced = false;
+      termin.lastModifiedAt = DateTime.now().toUtc();
+      await IsarService.terminPut(termin);
     }
-    termin.isSynced = false;
-    termin.lastModifiedAt = DateTime.now().toUtc();
-    await IsarService.terminPut(termin);
+    // Erinnerung planen/aktualisieren (defensiv: darf das Speichern nie brechen).
+    try {
+      await ReminderService.schedule(termin);
+    } catch (e) {
+      debugPrint('[ReminderService] schedule fehlgeschlagen: $e');
+    }
   }
 
   static Future<void> delete(String id) async {
+    final toCancel = await getById(id);
     if (kIsWeb) {
       await SupabaseService.client.from('termine').delete().eq('id', id);
-      return;
+    } else {
+      final local = await IsarService.terminGet(int.parse(id));
+      if (local?.serverId != null) {
+        await SupabaseService.client.from('termine').delete().eq('id', local!.serverId!);
+      }
+      await IsarService.terminDelete(int.parse(id));
     }
-    final local = await IsarService.terminGet(int.parse(id));
-    if (local?.serverId != null) {
-      await SupabaseService.client.from('termine').delete().eq('id', local!.serverId!);
+    if (toCancel != null) {
+      try {
+        await ReminderService.cancel(toCancel.routeId);
+      } catch (e) {
+        debugPrint('[ReminderService] cancel fehlgeschlagen: $e');
+      }
     }
-    await IsarService.terminDelete(int.parse(id));
   }
 
   /// Generiert Termin-Vorschläge aus Betrieb Saison-/Ferien-Daten.
