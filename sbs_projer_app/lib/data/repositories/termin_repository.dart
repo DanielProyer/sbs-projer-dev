@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:uuid/uuid.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/termin_local_export.dart';
 import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
@@ -118,158 +119,149 @@ class TerminRepository {
     }
   }
 
-  /// Generiert Termin-Vorschläge aus Betrieb Saison-/Ferien-Daten.
-  /// Erstellt nur Vorschläge für Termine, die noch nicht existieren (Duplikat-Check).
-  static Future<List<TerminLocal>> generiereVorschlaege() async {
-    final betriebe = await BetriebRepository.getAll();
-    final existingTermine = await getAll();
-    final neuVorschlaege = <TerminLocal>[];
+  /// Generiert/synchronisiert Termin-Vorschläge aus Betrieb Saison-/Ferien-Daten
+  /// für ALLE Betriebe (Button "Termine vorschlagen").
+  static Future<List<TerminLocal>> generiereVorschlaege() =>
+      synchronisiereVorschlaege();
 
-    for (final betrieb in betriebe) {
-      if (betrieb.status != 'aktiv') continue;
+  /// Auto-Anlässe, die aus Saison-/Ferien-Daten generiert werden.
+  static bool _istSaisonFerienAnlass(String anlass) =>
+      anlass == 'saisonstart' || anlass == 'saisonende' || anlass == 'ferien';
 
-      final betriebServerId = kIsWeb ? betrieb.serverId! : (betrieb.serverId ?? betrieb.id.toString());
-      final betriebName = betrieb.name;
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-      // Winter-Saison
-      if (betrieb.winterSaisonAktiv) {
-        if (betrieb.winterStartDatum != null) {
-          _addVorschlag(
-            neuVorschlaege, existingTermine,
-            betriebId: betriebServerId,
-            betriebName: betriebName,
-            datum: betrieb.winterStartDatum!,
-            typ: 'eroeffnungsreinigung',
-            anlass: 'saisonstart',
-          );
-        }
-        if (betrieb.winterEndeDatum != null) {
-          _addVorschlag(
-            neuVorschlaege, existingTermine,
-            betriebId: betriebServerId,
-            betriebName: betriebName,
-            datum: betrieb.winterEndeDatum!,
-            typ: 'endreinigung',
-            anlass: 'saisonende',
-          );
-        }
-      }
+  /// Synchronisiert die automatisch generierten Saison-/Ferien-Vorschläge mit
+  /// den aktuellen Betriebsdaten:
+  /// - veraltete Auto-Vorschläge (Status 'vorgeschlagen', Anlass saisonstart/
+  ///   saisonende/ferien), die nicht mehr zu den Daten passen → werden entfernt
+  /// - fehlende Vorschläge aus den aktuellen Daten → werden erstellt
+  /// Bestätigte ('geplant') und manuell erstellte Termine bleiben unberührt.
+  /// [nurBetriebId] beschränkt die Synchronisation auf einen Betrieb (serverId).
+  static Future<List<TerminLocal>> synchronisiereVorschlaege(
+      {String? nurBetriebId}) async {
+    var betriebe = await BetriebRepository.getAll();
+    if (nurBetriebId != null) {
+      betriebe = betriebe
+          .where((b) => (b.serverId ?? b.routeId) == nurBetriebId)
+          .toList();
+    }
+    final alleTermine = await getAll();
 
-      // Sommer-Saison
-      if (betrieb.sommerSaisonAktiv) {
-        if (betrieb.sommerStartDatum != null) {
-          _addVorschlag(
-            neuVorschlaege, existingTermine,
-            betriebId: betriebServerId,
-            betriebName: betriebName,
-            datum: betrieb.sommerStartDatum!,
-            typ: 'eroeffnungsreinigung',
-            anlass: 'saisonstart',
-          );
-        }
-        if (betrieb.sommerEndeDatum != null) {
-          _addVorschlag(
-            neuVorschlaege, existingTermine,
-            betriebId: betriebServerId,
-            betriebName: betriebName,
-            datum: betrieb.sommerEndeDatum!,
-            typ: 'endreinigung',
-            anlass: 'saisonende',
-          );
-        }
-      }
+    // 1. SOLL-Vorschläge aus aktuellen Saison/Ferien-Daten berechnen
+    final soll = _berechneSoll(betriebe);
 
-      // Ferien (3 Perioden)
-      if (!betrieb.keineBetriebsferien) {
-        _addFerienVorschlaege(neuVorschlaege, existingTermine,
-            betriebServerId, betriebName,
-            betrieb.ferienStart, betrieb.ferienEnde);
-        _addFerienVorschlaege(neuVorschlaege, existingTermine,
-            betriebServerId, betriebName,
-            betrieb.ferien2Start, betrieb.ferien2Ende);
-        _addFerienVorschlaege(neuVorschlaege, existingTermine,
-            betriebServerId, betriebName,
-            betrieb.ferien3Start, betrieb.ferien3Ende);
+    String keyOf(String bId, DateTime d, String typ, String anlass) =>
+        '$bId|${d.year}-${d.month}-${d.day}|$typ|$anlass';
+    final sollKeys = {
+      for (final t in soll) keyOf(t.betriebId, t.datum, t.typ, t.anlass)
+    };
+
+    // 2. Veraltete Auto-Vorschläge entfernen (nur 'vorgeschlagen' + Auto-Anlass)
+    final geloescht = <String>{};
+    for (final t in alleTermine) {
+      if (t.status != 'vorgeschlagen') continue;
+      if (!_istSaisonFerienAnlass(t.anlass)) continue;
+      if (nurBetriebId != null && t.betriebId != nurBetriebId) continue;
+      if (!sollKeys.contains(keyOf(t.betriebId, t.datum, t.typ, t.anlass))) {
+        await delete(t.routeId);
+        geloescht.add(t.routeId);
       }
     }
 
-    // Alle Vorschläge speichern
-    for (final vorschlag in neuVorschlaege) {
-      await save(vorschlag);
+    // 3. Fehlende SOLL-Vorschläge erstellen. Duplikat-Check gegen behaltene
+    //    Termine (betriebId + Datum + Typ) — so wird kein Vorschlag doppelt
+    //    oder über einem bereits bestätigten 'geplant'-Termin angelegt.
+    final behaltene =
+        alleTermine.where((t) => !geloescht.contains(t.routeId)).toList();
+    final erstellt = <TerminLocal>[];
+    for (final v in soll) {
+      final schonVorhanden = behaltene.any((t) =>
+          t.betriebId == v.betriebId &&
+          _sameDay(t.datum, v.datum) &&
+          t.typ == v.typ);
+      if (schonVorhanden) continue;
+      final schonErstellt = erstellt.any((e) =>
+          e.betriebId == v.betriebId &&
+          _sameDay(e.datum, v.datum) &&
+          e.typ == v.typ);
+      if (schonErstellt) continue;
+      await save(v);
+      erstellt.add(v);
     }
-
-    return neuVorschlaege;
+    return erstellt;
   }
 
-  static void _addFerienVorschlaege(
-    List<TerminLocal> vorschlaege,
-    List<TerminLocal> existing,
-    String betriebId,
-    String betriebName,
-    DateTime? ferienStart,
-    DateTime? ferienEnde,
-  ) {
+  /// Berechnet die SOLL-Vorschläge (reine Liste, ohne Persistenz/Duplikat-Check).
+  static List<TerminLocal> _berechneSoll(List<BetriebLocal> betriebe) {
+    final soll = <TerminLocal>[];
+    for (final betrieb in betriebe) {
+      if (betrieb.status != 'aktiv') continue;
+      final bId = kIsWeb
+          ? betrieb.serverId!
+          : (betrieb.serverId ?? betrieb.id.toString());
+      final name = betrieb.name;
+
+      if (betrieb.winterSaisonAktiv) {
+        if (betrieb.winterStartDatum != null) {
+          _addSoll(soll, bId, name, betrieb.winterStartDatum!,
+              'eroeffnungsreinigung', 'saisonstart');
+        }
+        if (betrieb.winterEndeDatum != null) {
+          _addSoll(soll, bId, name, betrieb.winterEndeDatum!, 'endreinigung',
+              'saisonende');
+        }
+      }
+
+      if (betrieb.sommerSaisonAktiv) {
+        if (betrieb.sommerStartDatum != null) {
+          _addSoll(soll, bId, name, betrieb.sommerStartDatum!,
+              'eroeffnungsreinigung', 'saisonstart');
+        }
+        if (betrieb.sommerEndeDatum != null) {
+          _addSoll(soll, bId, name, betrieb.sommerEndeDatum!, 'endreinigung',
+              'saisonende');
+        }
+      }
+
+      if (!betrieb.keineBetriebsferien) {
+        _addFerienSoll(soll, bId, name, betrieb.ferienStart, betrieb.ferienEnde);
+        _addFerienSoll(
+            soll, bId, name, betrieb.ferien2Start, betrieb.ferien2Ende);
+        _addFerienSoll(
+            soll, bId, name, betrieb.ferien3Start, betrieb.ferien3Ende);
+      }
+    }
+    return soll;
+  }
+
+  static void _addFerienSoll(List<TerminLocal> soll, String betriebId,
+      String betriebName, DateTime? ferienStart, DateTime? ferienEnde) {
     if (ferienStart != null) {
       // Endreinigung 1 Tag vor Ferien-Start
-      final endDatum = ferienStart.subtract(const Duration(days: 1));
-      _addVorschlag(
-        vorschlaege, existing,
-        betriebId: betriebId,
-        betriebName: betriebName,
-        datum: endDatum,
-        typ: 'endreinigung',
-        anlass: 'ferien',
-      );
+      _addSoll(soll, betriebId, betriebName,
+          ferienStart.subtract(const Duration(days: 1)), 'endreinigung',
+          'ferien');
     }
     if (ferienEnde != null) {
       // Eröffnungsreinigung am Tag des Ferien-Endes
-      _addVorschlag(
-        vorschlaege, existing,
-        betriebId: betriebId,
-        betriebName: betriebName,
-        datum: ferienEnde,
-        typ: 'eroeffnungsreinigung',
-        anlass: 'ferien',
-      );
+      _addSoll(soll, betriebId, betriebName, ferienEnde, 'eroeffnungsreinigung',
+          'ferien');
     }
   }
 
-  static void _addVorschlag(
-    List<TerminLocal> vorschlaege,
-    List<TerminLocal> existing, {
-    required String betriebId,
-    required String betriebName,
-    required DateTime datum,
-    required String typ,
-    required String anlass,
-  }) {
+  static void _addSoll(List<TerminLocal> soll, String betriebId,
+      String betriebName, DateTime datum, String typ, String anlass) {
     final datumNorm = DateTime(datum.year, datum.month, datum.day);
-
-    // Duplikat-Check: gleicher Betrieb + Datum + Typ
-    final exists = existing.any((t) =>
-        t.betriebId == betriebId &&
-        DateTime(t.datum.year, t.datum.month, t.datum.day) == datumNorm &&
-        t.typ == typ);
-    if (exists) return;
-
-    // Auch in bereits generierten Vorschlägen prüfen
-    final alreadyAdded = vorschlaege.any((t) =>
-        t.betriebId == betriebId &&
-        DateTime(t.datum.year, t.datum.month, t.datum.day) == datumNorm &&
-        t.typ == typ);
-    if (alreadyAdded) return;
-
-    final typLabel = typ == 'eroeffnungsreinigung' ? 'Eröffnungsreinigung' : 'Endreinigung';
-
-    final termin = TerminLocal()
+    final typLabel =
+        typ == 'eroeffnungsreinigung' ? 'Eröffnungsreinigung' : 'Endreinigung';
+    soll.add(TerminLocal()
       ..betriebId = betriebId
       ..datum = datumNorm
       ..typ = typ
       ..anlass = anlass
       ..titel = '$typLabel — $betriebName'
       ..status = 'vorgeschlagen'
-      ..erinnerungTage = 3;
-
-    vorschlaege.add(termin);
+      ..erinnerungTage = 3);
   }
 }

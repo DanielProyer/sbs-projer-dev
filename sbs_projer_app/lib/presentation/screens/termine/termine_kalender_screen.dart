@@ -151,8 +151,8 @@ class _TermineKalenderScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(vorschlaege.isEmpty
-              ? 'Keine neuen Vorschläge — alle Termine bereits vorhanden'
-              : '${vorschlaege.length} Termin-Vorschläge erstellt'),
+              ? 'Kalender aktualisiert — keine neuen Termine'
+              : '${vorschlaege.length} neue Termin-Vorschläge erstellt'),
         ),
       );
     } catch (e) {

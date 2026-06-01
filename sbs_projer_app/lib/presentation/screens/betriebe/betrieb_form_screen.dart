@@ -9,7 +9,9 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
+import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 
 class BetriebFormScreen extends ConsumerStatefulWidget {
   final String? betriebId; // null = neu erstellen
@@ -200,13 +202,28 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
       await BetriebRepository.save(betrieb);
 
+      // Saison-/Ferien-Termine im Kalender für diesen Betrieb aktualisieren
+      // (veraltete Auto-Vorschläge entfernen, neue erstellen).
+      final betriebSid = betrieb.serverId;
+      if (betriebSid != null && betriebSid.isNotEmpty) {
+        try {
+          await TerminRepository.synchronisiereVorschlaege(
+              nurBetriebId: betriebSid);
+        } catch (e) {
+          debugPrint('[Termin-Sync] fehlgeschlagen: $e');
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_isEdit ? 'Betrieb aktualisiert' : 'Betrieb erstellt'),
           ),
         );
-        if (kIsWeb) ref.invalidate(betriebeStreamProvider);
+        if (kIsWeb) {
+          ref.invalidate(betriebeStreamProvider);
+          ref.invalidate(termineStreamProvider);
+        }
         context.pop();
       }
     } catch (e, stack) {
