@@ -256,10 +256,14 @@ FaelligkeitsStatus getFaelligkeit(
     }
   }
 
+  // Fälligkeitsstufen relativ zum Soll-Termin (naechste):
+  //   ab Soll        (z.B. 4 Wochen bei 4-Wochen-Rhythmus) → bald fällig
+  //   ab Soll + 1 W  (5 Wochen)                            → fällig
+  //   ab Soll + 2 W  (6 Wochen)                            → überfällig
   final diff = datum.difference(naechste).inDays;
-  if (diff > 7) return FaelligkeitsStatus.ueberfaellig;
-  if (diff >= 0) return FaelligkeitsStatus.faellig;
-  if (diff >= -7) return FaelligkeitsStatus.baldFaellig;
+  if (diff >= 14) return FaelligkeitsStatus.ueberfaellig;
+  if (diff >= 7) return FaelligkeitsStatus.faellig;
+  if (diff >= 0) return FaelligkeitsStatus.baldFaellig;
   return FaelligkeitsStatus.nichtFaellig;
 }
 
