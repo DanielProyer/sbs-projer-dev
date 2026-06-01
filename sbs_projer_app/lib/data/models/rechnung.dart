@@ -129,6 +129,43 @@ class Rechnung {
     };
   }
 
+  /// Erzeugt eine Kopie mit einzeln überschreibbaren Feldern.
+  /// Aktuell genutzt, um für die PDF-Generierung ein abweichendes
+  /// Fälligkeitsdatum zu setzen, ohne die DB-Rechnung zu verändern.
+  Rechnung copyWith({
+    DateTime? rechnungsdatum,
+    DateTime? faelligkeitsdatum,
+  }) {
+    return Rechnung(
+      id: id,
+      userId: userId,
+      rechnungsnummer: rechnungsnummer,
+      rechnungstyp: rechnungstyp,
+      betriebId: betriebId,
+      heinekenPoNummer: heinekenPoNummer,
+      heinekenMonat: heinekenMonat,
+      rechnungsdatum: rechnungsdatum ?? this.rechnungsdatum,
+      faelligkeitsdatum: faelligkeitsdatum ?? this.faelligkeitsdatum,
+      betragNetto: betragNetto,
+      mwstBetrag: mwstBetrag,
+      betragBrutto: betragBrutto,
+      zahlungsstatus: zahlungsstatus,
+      versandart: versandart,
+      versendetAm: versendetAm,
+      zahlungEingegangenAm: zahlungEingegangenAm,
+      zahlungBetrag: zahlungBetrag,
+      mahnungStufe: mahnungStufe,
+      letzteMahnungAm: letzteMahnungAm,
+      erinnerungAm: erinnerungAm,
+      mahnung1Am: mahnung1Am,
+      mahnung2Am: mahnung2Am,
+      pdfUrl: pdfUrl,
+      notizen: notizen,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
   static double _d(dynamic value, double defaultValue) {
     if (value == null) return defaultValue;
     return double.tryParse(value.toString()) ?? defaultValue;

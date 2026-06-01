@@ -15,7 +15,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
+import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -194,9 +199,60 @@ class _RechnungenNachversandScreenState
     }
   }
 
+  /// Generiert das Rechnungs-PDF live neu und lädt es in Storage hoch.
+  /// Das gespeicherte PDF enthält ein altes "Fällig bis"-Datum (= ursprüngliches
+  /// Rechnungsdatum + 30 Tage). Beim Nachversand muss die Zahlungsfrist ab dem
+  /// tatsächlichen Versand laufen → Fällig = heute + 30 Tage. Das Rechnungsdatum
+  /// bleibt original; die DB-Rechnung wird NICHT verändert (Rechnungskontrolle
+  /// läuft bis 01.07.2026 noch im alten System).
+  Future<void> _regeneratePdf(_NachversandItem item) async {
+    final rechnung = await RechnungRepository.getById(item.id);
+    if (rechnung == null || rechnung.betriebId == null) {
+      throw Exception('Rechnung oder Betrieb nicht gefunden');
+    }
+    final betrieb = await BetriebRepository.getByServerId(rechnung.betriebId!);
+    if (betrieb == null) throw Exception('Betrieb nicht gefunden');
+
+    BetriebRechnungsadresse? ra;
+    final raLocal =
+        await BetriebRechnungsadresseRepository.getByBetrieb(rechnung.betriebId!);
+    if (raLocal != null) {
+      ra = BetriebRechnungsadresse(
+        id: raLocal.serverId ?? '',
+        userId: raLocal.userId,
+        betriebId: rechnung.betriebId!,
+        firma: raLocal.firma,
+        vorname: raLocal.vorname,
+        nachname: raLocal.nachname,
+        strasse: raLocal.strasse,
+        nr: raLocal.nr,
+        plz: raLocal.plz,
+        ort: raLocal.ort,
+        email: raLocal.email,
+      );
+    }
+
+    final positionen =
+        await RechnungsPositionRepository.getByRechnung(item.id);
+
+    // Fällig = Versanddatum (heute) + 30 Tage; Rechnungsdatum bleibt original.
+    final neueFaelligkeit = DateTime.now().add(const Duration(days: 30));
+    final rechnungFuerPdf =
+        rechnung.copyWith(faelligkeitsdatum: neueFaelligkeit);
+
+    final bytes = await RechnungPdfService.generate(
+      rechnung: rechnungFuerPdf,
+      positionen: positionen,
+      betrieb: betrieb,
+      rechnungsadresse: ra,
+    );
+    await RechnungPdfStorage.uploadPdf(item.id, bytes);
+  }
+
   Future<void> _openPdf(_NachversandItem item) async {
     try {
-      // Frische signed URL holen (gespeicherte pdf_url läuft nach 1h ab)
+      // PDF live neu generieren (aktuelles Fällig-Datum), dann anzeigen.
+      await _regeneratePdf(item);
       final url = await RechnungPdfStorage.getSignedUrl(item.id);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
@@ -218,6 +274,10 @@ class _RechnungenNachversandScreenState
 
     setState(() => item.sending = true);
     try {
+      // PDF live neu generieren (aktuelles Fällig-Datum) + in Storage ablegen,
+      // damit die Edge Function das aktualisierte PDF versendet.
+      await _regeneratePdf(item);
+
       final datumStr =
           '${item.datum.day}. ${_monatName(item.datum.month)} ${item.datum.year}';
       final betriebLabel = item.betriebOrt != null && item.betriebOrt!.isNotEmpty
