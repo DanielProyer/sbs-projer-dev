@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 01.06.2026
+**Stand**: 02.06.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -167,6 +167,9 @@
 
 ## ✅ ERLEDIGT
 
+- [x] Nachversand: Rechnungs-PDF live neu generieren mit aktuellem Fälligkeitsdatum (Versand+30); Rechnungen Jatzmeder + Milez auf unversendet (neue Adresse) (02.06.2026)
+- [x] Tourenplanung: Fälligkeitsstufen bald fällig 4W / fällig 5W / überfällig 6W (relativ zum Rhythmus) (02.06.2026)
+- [x] Kalender: Saison-/Ferien-Vorschläge synchronisieren (veraltete entfernen) + keine Eröffnungsreinigung nach Endreinigung; 39 veraltete Vorschläge bereinigt (02.06.2026)
 - [x] Termin-Erinnerungen (Popup/Alarm): pro Termin aktivierbar + Vorlaufzeit; Android lokale Benachrichtigung, Web Browser-Notification + In-App, kein Push-Server (Migration 086, v0.10.106) (01.06.2026)
 - [x] Heineken WE/AG-Nummern für 155 Betriebe aus DBO-Kundenliste ergänzt (Name+Ort-Matching, eindeutige Treffer) (01.06.2026)
 - [x] Mail-Versand Reinigung + Montage/HeiGenie scharfgestellt (echte Kunden- bzw. RSL-Empfänger) (30.05.2026)
@@ -254,4 +257,4 @@
 
 ---
 
-**Zuletzt aktualisiert**: 01.06.2026
+**Zuletzt aktualisiert**: 02.06.2026

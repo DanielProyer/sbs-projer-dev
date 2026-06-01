@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 01.06.2026
+**Stand**: 02.06.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.106+388
+**Version**: 0.10.110+392
 
 ---
 
@@ -737,7 +737,24 @@
      - Design-Spec + Plan: `docs/superpowers/specs|plans/2026-05-31-termin-erinnerungen*`
      - OFFEN: Android-Funktion mangels Gerät nur via analyze/Build verifiziert (echter Test beim APK-Build)
 
-### Temporär aktiv (Stand 01.06.2026)
+### Erledigt am 02.06.2026 (Nachversand-PDF, Tourenplanung, Kalender-Saisonlogik)
+204. ✅ Nachversand: Rechnungs-PDF wird live neu generiert (Fällig = Versanddatum + 30 Tage,
+     Rechnungsdatum bleibt); DB unberührt (Rechnungskontrolle erst ab 01.07. in App).
+     `Rechnung.copyWith()` ergänzt (v0.10.107)
+205. ✅ Tourenplanung: neue Fälligkeitsstufen relativ zum Rhythmus — bald fällig ab Soll
+     (4W), fällig ab Soll+1W (5W), überfällig ab Soll+2W (6W) (v0.10.108)
+206. ✅ Kalender: Saison-/Ferien-Vorschläge werden synchronisiert statt nur hinzugefügt —
+     veraltete 'vorgeschlagene' Auto-Termine entfernt, neue erstellt; automatisch beim
+     Betrieb-Speichern + Button. Bestätigte/manuelle Termine bleiben (v0.10.109)
+207. ✅ Kalender: keine Eröffnungsreinigung am Saisonstart, wenn letzte Reinigung eine
+     Endreinigung war (service_art='endreinigung' → Anlagen sauber eingelagert). Tour-
+     Fälligkeit war bereits korrekt (Saisonstart+4W). 39 veraltete Eröffnungs-Vorschläge
+     einmalig bereinigt (v0.10.110)
+
+### Erledigt am 01.06.2026 (Datenkorrekturen)
+- ✅ Rechnungen Jatzmeder + Milez auf unversendet gesetzt (neue Rechnungsadresse/Mail in Betrieben erfasst; PDF wird beim Nachversand mit aktueller Adresse generiert)
+
+### Temporär aktiv (Stand 02.06.2026)
 - **Rechnungs-Nachversand-Screen** bleibt bis zur vollständigen Abarbeitung des Backlogs (ab 18.02.2026), dann entfernen (Datei + Route + Dashboard-Tile).
 - **Mail-Scharfstellung:** reinigung ✅ / heineken ✅ / montage ✅ / heigenie ✅ — bestellung & mahnwesen noch im Testmodus.
 
@@ -774,5 +791,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 01.06.2026 – Heineken WE/AG-Nummern für 155 Betriebe ergänzt (aus DBO-Kundenliste); neues Feature Termin-Erinnerungen (Popup/Alarm, Android lokal + Web Browser-Notification, kein Push-Server, Migration 086). App-Version 0.10.106+388.
-**Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)
+**Zuletzt aktualisiert**: 02.06.2026 – Nachversand-PDF live mit aktuellem Fälligkeitsdatum, Tourenplanung-Fälligkeitsstufen 4/5/6 Wochen, Kalender Saison-/Ferien-Vorschläge synchronisieren + keine Eröffnungsreinigung nach Endreinigung. App-Version 0.10.110+392.
+**Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung + Rechnungskontrolle scharfstellen bis 01.07.2026)
