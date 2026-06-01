@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/termin_local_export.dart';
 import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/services/notification/reminder_service_export.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -148,8 +150,26 @@ class TerminRepository {
     }
     final alleTermine = await getAll();
 
+    // Betriebe, deren letzte abgeschlossene Reinigung eine Endreinigung war:
+    // dann sind die Anlagen sauber eingelagert → KEINE Eröffnungsreinigung am
+    // nächsten Saisonstart (die reguläre Reinigung wird über die Tourenplanung
+    // erst Saisonstart + 4 Wochen fällig).
+    final reinigungen = await ReinigungRepository.getAll();
+    final letzteProBetrieb = <String, ReinigungLocal>{};
+    for (final r in reinigungen) {
+      if (r.status != 'abgeschlossen') continue;
+      final cur = letzteProBetrieb[r.betriebId];
+      if (cur == null || r.datum.isAfter(cur.datum)) {
+        letzteProBetrieb[r.betriebId] = r;
+      }
+    }
+    final keineEroeffnung = <String>{
+      for (final e in letzteProBetrieb.entries)
+        if (e.value.serviceArt == 'endreinigung') e.key,
+    };
+
     // 1. SOLL-Vorschläge aus aktuellen Saison/Ferien-Daten berechnen
-    final soll = _berechneSoll(betriebe);
+    final soll = _berechneSoll(betriebe, keineEroeffnung);
 
     String keyOf(String bId, DateTime d, String typ, String anlass) =>
         '$bId|${d.year}-${d.month}-${d.day}|$typ|$anlass';
@@ -193,7 +213,10 @@ class TerminRepository {
   }
 
   /// Berechnet die SOLL-Vorschläge (reine Liste, ohne Persistenz/Duplikat-Check).
-  static List<TerminLocal> _berechneSoll(List<BetriebLocal> betriebe) {
+  /// [keineEroeffnung] enthält Betriebe (bId), für die KEINE Eröffnungsreinigung
+  /// erzeugt wird (letzte Reinigung war eine Endreinigung → Anlagen sauber).
+  static List<TerminLocal> _berechneSoll(
+      List<BetriebLocal> betriebe, Set<String> keineEroeffnung) {
     final soll = <TerminLocal>[];
     for (final betrieb in betriebe) {
       if (betrieb.status != 'aktiv') continue;
@@ -201,9 +224,10 @@ class TerminRepository {
           ? betrieb.serverId!
           : (betrieb.serverId ?? betrieb.id.toString());
       final name = betrieb.name;
+      final skipEroeffnung = keineEroeffnung.contains(bId);
 
       if (betrieb.winterSaisonAktiv) {
-        if (betrieb.winterStartDatum != null) {
+        if (betrieb.winterStartDatum != null && !skipEroeffnung) {
           _addSoll(soll, bId, name, betrieb.winterStartDatum!,
               'eroeffnungsreinigung', 'saisonstart');
         }
@@ -214,7 +238,7 @@ class TerminRepository {
       }
 
       if (betrieb.sommerSaisonAktiv) {
-        if (betrieb.sommerStartDatum != null) {
+        if (betrieb.sommerStartDatum != null && !skipEroeffnung) {
           _addSoll(soll, bId, name, betrieb.sommerStartDatum!,
               'eroeffnungsreinigung', 'saisonstart');
         }
@@ -225,26 +249,28 @@ class TerminRepository {
       }
 
       if (!betrieb.keineBetriebsferien) {
-        _addFerienSoll(soll, bId, name, betrieb.ferienStart, betrieb.ferienEnde);
-        _addFerienSoll(
-            soll, bId, name, betrieb.ferien2Start, betrieb.ferien2Ende);
-        _addFerienSoll(
-            soll, bId, name, betrieb.ferien3Start, betrieb.ferien3Ende);
+        _addFerienSoll(soll, bId, name, betrieb.ferienStart, betrieb.ferienEnde,
+            skipEroeffnung);
+        _addFerienSoll(soll, bId, name, betrieb.ferien2Start,
+            betrieb.ferien2Ende, skipEroeffnung);
+        _addFerienSoll(soll, bId, name, betrieb.ferien3Start,
+            betrieb.ferien3Ende, skipEroeffnung);
       }
     }
     return soll;
   }
 
   static void _addFerienSoll(List<TerminLocal> soll, String betriebId,
-      String betriebName, DateTime? ferienStart, DateTime? ferienEnde) {
+      String betriebName, DateTime? ferienStart, DateTime? ferienEnde,
+      bool skipEroeffnung) {
     if (ferienStart != null) {
       // Endreinigung 1 Tag vor Ferien-Start
       _addSoll(soll, betriebId, betriebName,
           ferienStart.subtract(const Duration(days: 1)), 'endreinigung',
           'ferien');
     }
-    if (ferienEnde != null) {
-      // Eröffnungsreinigung am Tag des Ferien-Endes
+    if (ferienEnde != null && !skipEroeffnung) {
+      // Eröffnungsreinigung am Tag des Ferien-Endes (nur wenn nicht endgereinigt)
       _addSoll(soll, betriebId, betriebName, ferienEnde, 'eroeffnungsreinigung',
           'ferien');
     }
