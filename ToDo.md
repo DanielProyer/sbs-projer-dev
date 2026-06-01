@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 30.05.2026
+**Stand**: 01.06.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -66,6 +66,10 @@
   - Aktuelle Excel-Datei sichern
   - Letzte Änderungen eintragen
   - Bereit für Import
+
+### Termin-Erinnerungen — Folge-Tests
+- [ ] **Web-Test**: Termin mit Erinnerung (~2 Min Zukunft, „Pünktlich") → Browser-Notification + In-App-Hinweis prüfen
+- [ ] **Android-Test** beim nächsten APK-Build: lokale Benachrichtigung feuert (auch bei geschlossener App); Berechtigungen (Benachrichtigung, exakter Alarm) prüfen
 
 ### Temporäres aufräumen
 
@@ -163,6 +167,8 @@
 
 ## ✅ ERLEDIGT
 
+- [x] Termin-Erinnerungen (Popup/Alarm): pro Termin aktivierbar + Vorlaufzeit; Android lokale Benachrichtigung, Web Browser-Notification + In-App, kein Push-Server (Migration 086, v0.10.106) (01.06.2026)
+- [x] Heineken WE/AG-Nummern für 155 Betriebe aus DBO-Kundenliste ergänzt (Name+Ort-Matching, eindeutige Treffer) (01.06.2026)
 - [x] Mail-Versand Reinigung + Montage/HeiGenie scharfgestellt (echte Kunden- bzw. RSL-Empfänger) (30.05.2026)
 - [x] Nachversand-Screen: Testmodus-Respekt, Reinigungsprotokoll-Anhang, versendet-Markierung aus DB, Piaggio Dosch ausgeblendet (30.05.2026)
 - [x] Mail-Adressen-Bereinigung: Zero-Width-Zeichen entfernen (MailConfig.bereinige + DB-Fix Padelta) + IDN-Punycode in Edge Function v7 (teehütte-klosters.ch) (30.05.2026)
@@ -248,4 +254,4 @@
 
 ---
 
-**Zuletzt aktualisiert**: 30.05.2026
+**Zuletzt aktualisiert**: 01.06.2026

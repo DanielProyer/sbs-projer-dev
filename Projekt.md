@@ -2,9 +2,9 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 30.05.2026
+**Stand**: 01.06.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.105+387
+**Version**: 0.10.106+388
 
 ---
 
@@ -718,7 +718,26 @@
      - `MailConfig.istScharf(bereich)`; Nachversand + Service-Abschluss markieren im Testmodus nicht mehr als versendet
      - DB-Korrektur: Mountain Plaza (2026-05-0636) + Padelta (2026-05-0596) versendet_am zurückgesetzt (waren Testmodus/fehlgeschlagen)
 
-### Temporär aktiv (Stand 30.05.2026)
+### Erledigt am 31.05.–01.06.2026 (Heineken WE/AG + Termin-Erinnerungen)
+202. ✅ Heineken WE-/AG-Nummern aus Kundenliste (DBO-Export) zugeordnet:
+     - 205 eindeutige Outlets gegen 285 Betriebe gematcht (Name + Ort-Abgleich, pg_trgm)
+     - 155 Betriebe mit WE/AG ergänzt (vorher 10) — nur eindeutige Treffer automatisch
+     - Mehrdeutige/ortsabweichende Fälle bewusst ausgelassen + dem User vorgelegt
+     - 3 Spezialfälle manuell bestätigt (Cuntera/Curaglia, Bernina→Pizzeria, Bolgen Plaza)
+     - Reine DB-Änderung (keine Code-/App-Änderung)
+203. ✅ Termin-Erinnerungen (Popup/Alarm) — neues Feature (v0.10.106):
+     - DB-Migration 086: `erinnerung_aktiv` (bool) + `erinnerung_vorlauf_minuten` (int)
+     - Pro Termin aktivierbar (Standard aus) + frei wählbare Vorlaufzeit (0 Min–1 Woche)
+     - `ReminderService` (Conditional Export): Android = `flutter_local_notifications`
+       (echte System-Benachrichtigung, auch bei geschlossener App); Web = Timer-Scheduler
+       + Browser-Notification + In-App-Hinweis (kein Push-Server)
+     - Zeitpunkt-Berechnung mit Unit-Tests (mit Uhrzeit / 08:00-Bezug ohne Uhrzeit)
+     - UI: Toggle + Vorlauf-Dropdown im Termin-Formular, Glocken-Icon im Kalender
+     - Anbindung an Termin-save/delete + rescheduleAll beim App-Start
+     - Design-Spec + Plan: `docs/superpowers/specs|plans/2026-05-31-termin-erinnerungen*`
+     - OFFEN: Android-Funktion mangels Gerät nur via analyze/Build verifiziert (echter Test beim APK-Build)
+
+### Temporär aktiv (Stand 01.06.2026)
 - **Rechnungs-Nachversand-Screen** bleibt bis zur vollständigen Abarbeitung des Backlogs (ab 18.02.2026), dann entfernen (Datei + Route + Dashboard-Tile).
 - **Mail-Scharfstellung:** reinigung ✅ / heineken ✅ / montage ✅ / heigenie ✅ — bestellung & mahnwesen noch im Testmodus.
 
@@ -755,5 +774,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 30.05.2026 – Mail-Versand scharfgestellt (Reinigung + Montage/HeiGenie), Nachversand-Screen erweitert (Testmodus, Protokoll-Anhang, versendet-Markierung aus DB), Mail-Adressen-Bereinigung (Zero-Width-Zeichen + IDN-Punycode, Edge Function v7), versendet_am nur bei scharfem Versand. App-Version 0.10.105+387.
+**Zuletzt aktualisiert**: 01.06.2026 – Heineken WE/AG-Nummern für 155 Betriebe ergänzt (aus DBO-Kundenliste); neues Feature Termin-Erinnerungen (Popup/Alarm, Android lokal + Web Browser-Notification, kein Push-Server, Migration 086). App-Version 0.10.106+388.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung scharfstellen bis 01.07.2026)
