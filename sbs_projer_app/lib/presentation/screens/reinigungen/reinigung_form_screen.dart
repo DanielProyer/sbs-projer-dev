@@ -630,6 +630,54 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 }
               }
             }
+            // Bei "Per Post": Rechnung per Mail an Daniel selbst (zum Ausdrucken
+            // und Versand per Post). Geht immer an dani.proyer@gmail.com, kein
+            // Status-Wechsel (Rechnung gilt erst nach Postversand als versendet).
+            else if (rechnung != null &&
+                betrieb.rechnungsstellung == 'rechnung_post') {
+              try {
+                final datumStr =
+                    '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
+                final betriebLabel =
+                    betrieb.ort != null && betrieb.ort!.isNotEmpty
+                        ? '${betrieb.name} ${betrieb.ort}'
+                        : betrieb.name;
+                await SupabaseService.client.functions.invoke(
+                  'send-rechnung-mail',
+                  body: {
+                    'to': MailConfig.testEmpfaenger, // dani.proyer@gmail.com (intern)
+                    'subject':
+                        'Post-Rechnung zum Ausdrucken: $betriebLabel vom $datumStr',
+                    'bodyText':
+                        'Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr '
+                            'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
+                    'rechnungId': rechnung.id,
+                    'userId': SupabaseService.dataUserId,
+                    if (r.protokollFotoPfad != null)
+                      'protokollFotoPfad': r.protokollFotoPfad,
+                  },
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Rechnung zum Postversand an dich gemailt')),
+                  );
+                }
+              } catch (e) {
+                debugPrint('[Post-Mail] Fehler: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.error,
+                      content: Text('POST-MAIL FEHLGESCHLAGEN: $e',
+                          style: const TextStyle(color: Colors.white)),
+                      duration: const Duration(seconds: 8),
+                    ),
+                  );
+                }
+              }
+            }
 
             // Automatische Buchung (Barzahlung oder Rechnung)
             final buchung = await ReinigungBuchungService.createFromReinigung(r, betrieb);
