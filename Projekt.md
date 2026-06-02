@@ -4,7 +4,7 @@
 **Kunde**: Daniel Projer, SBS Projer GmbH
 **Stand**: 02.06.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.110+392
+**Version**: 0.10.112+394
 
 ---
 
@@ -751,6 +751,14 @@
      Fälligkeit war bereits korrekt (Saisonstart+4W). 39 veraltete Eröffnungs-Vorschläge
      einmalig bereinigt (v0.10.110)
 
+### Erledigt am 02.06.2026 (Post-Rechnungen)
+208. ✅ Bei Rechnungsart "Per Post" wird beim Reinigungs-Abschluss die Rechnung (+ Protokoll)
+     per Mail an Daniel (dani.proyer@gmail.com) gesendet — zum Ausdrucken/Postversand.
+     Bisher wurde nur bei "Per E-Mail" gemailt (v0.10.111)
+209. ✅ Post-Rechnung: versendet_am + zahlungsstatus='gesendet' beim Abschluss (Versandtag =
+     Abschlusstag, Zahlungsfrist läuft ab Service). 3 heutige Post-Rechnungen (Spiga,
+     Franziskaner, Fondue Beizli) nachträglich gemailt + Versanddatum gesetzt (v0.10.112)
+
 ### Erledigt am 01.06.2026 (Datenkorrekturen)
 - ✅ Rechnungen Jatzmeder + Milez auf unversendet gesetzt (neue Rechnungsadresse/Mail in Betrieben erfasst; PDF wird beim Nachversand mit aktueller Adresse generiert)
 
@@ -791,5 +799,5 @@
 
 ---
 
-**Zuletzt aktualisiert**: 02.06.2026 – Nachversand-PDF live mit aktuellem Fälligkeitsdatum, Tourenplanung-Fälligkeitsstufen 4/5/6 Wochen, Kalender Saison-/Ferien-Vorschläge synchronisieren + keine Eröffnungsreinigung nach Endreinigung. App-Version 0.10.110+392.
+**Zuletzt aktualisiert**: 02.06.2026 – Nachversand-PDF live; Tourenplanung-Fälligkeitsstufen 4/5/6 Wochen; Kalender Saison-/Ferien-Vorschläge synchronisieren + keine Eröffnungsreinigung nach Endreinigung; Post-Rechnungen werden zum Ausdrucken an Daniel gemailt (versendet_am = Abschlusstag). App-Version 0.10.112+394.
 **Nächstes Update**: Laufend (Phase 4 Polish & Testing, Buchhaltung + Rechnungskontrolle scharfstellen bis 01.07.2026)

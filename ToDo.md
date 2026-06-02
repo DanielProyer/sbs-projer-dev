@@ -167,6 +167,7 @@
 
 ## ✅ ERLEDIGT
 
+- [x] Post-Rechnungen: beim Abschluss Mail mit Rechnung+Protokoll an Daniel (zum Ausdrucken) + versendet_am = Abschlusstag; 3 heutige nachgemailt (02.06.2026)
 - [x] Nachversand: Rechnungs-PDF live neu generieren mit aktuellem Fälligkeitsdatum (Versand+30); Rechnungen Jatzmeder + Milez auf unversendet (neue Adresse) (02.06.2026)
 - [x] Tourenplanung: Fälligkeitsstufen bald fällig 4W / fällig 5W / überfällig 6W (relativ zum Rhythmus) (02.06.2026)
 - [x] Kalender: Saison-/Ferien-Vorschläge synchronisieren (veraltete entfernen) + keine Eröffnungsreinigung nach Endreinigung; 39 veraltete Vorschläge bereinigt (02.06.2026)
