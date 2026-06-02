@@ -631,8 +631,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               }
             }
             // Bei "Per Post": Rechnung per Mail an Daniel selbst (zum Ausdrucken
-            // und Versand per Post). Geht immer an dani.proyer@gmail.com, kein
-            // Status-Wechsel (Rechnung gilt erst nach Postversand als versendet).
+            // und Versand per Post). Geht immer an dani.proyer@gmail.com.
+            // Versanddatum = Abschlusstag (Annahme: Postversand erfolgt zeitnah).
             else if (rechnung != null &&
                 betrieb.rechnungsstellung == 'rechnung_post') {
               try {
@@ -657,6 +657,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                       'protokollFotoPfad': r.protokollFotoPfad,
                   },
                 );
+                // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
+                await RechnungRepository.update(rechnung.id, {
+                  'zahlungsstatus': 'gesendet',
+                  'versendet_am':
+                      DateTime.now().toIso8601String().split('T').first,
+                });
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
