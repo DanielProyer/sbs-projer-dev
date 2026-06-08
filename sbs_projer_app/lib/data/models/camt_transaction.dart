@@ -56,7 +56,7 @@ class CamtTransaction {
   String? selectedVorlageId;
 
   // camt-Pipeline (Phase 1)
-  final String txKey;                  // eindeutiger Dedup-Schlüssel
+  String txKey;                        // eindeutiger Dedup-Schlüssel
   final String? strukturierteReferenz; // ESR/QR/ISR aus Strd/CdtrRefInf/Ref
   final bool isBatchChild;             // Teil eines Sammelauftrags
   String? kategorie;                   // gesetzt vom Klassifizierer

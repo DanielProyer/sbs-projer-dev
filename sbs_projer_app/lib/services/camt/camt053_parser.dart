@@ -46,6 +46,7 @@ class Camt053Parser {
     for (final ntry in _findElements(stmt, 'Ntry')) {
       transactions.addAll(_parseEntries(ntry, ccy));
     }
+    _disambiguateKeys(transactions);
 
     return CamtStatement(
       statementId: _text(_findElement(stmt, 'Id')) ?? '',
@@ -145,6 +146,17 @@ class Camt053Parser {
       ));
     }
     return result;
+  }
+
+  /// Macht txKeys eindeutig: kollidierende (Fallback-)Schlüssel erhalten
+  /// in Parse-Reihenfolge ein Suffix #2, #3 …. Stabil über erneute Importe.
+  static void _disambiguateKeys(List<CamtTransaction> txs) {
+    final seen = <String, int>{};
+    for (final tx in txs) {
+      final count = (seen[tx.txKey] ?? 0) + 1;
+      seen[tx.txKey] = count;
+      if (count > 1) tx.txKey = '${tx.txKey}#$count';
+    }
   }
 
   /// Baut einen eindeutigen Dedup-Schlüssel für eine Transaktion.
