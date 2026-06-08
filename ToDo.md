@@ -1,7 +1,21 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 02.06.2026
+**Stand**: 08.06.2026
 **Für**: SBS Projer App Entwicklung
+
+---
+
+## 📥 camt-Auto-Buchung (Rechnungskontrolle)
+
+**Phase 1 fertig** (Branch `feature/camt-rechnungskontrolle`): Parser-Split, Stichtag 01.07.2026, Klassifizierer, Kundenzahlungs-/Heineken-Matching, Prüfliste, Auto-Booker. Spec/Plan unter `docs/superpowers/`.
+
+- [ ] **Phase 2: Ausgaben-Regelwerk** — Tabelle `camt_regel` (Empfänger→Buchungsvorlage), 4 neue Vorlagen anlegen (5700 AHV, 5720 BVG, 5730 Suva, 8900 kant. Steuern), „Regel anlegen"-UI, Bargeld-/Bank-Abschluss-Regeln. Siehe `docs/superpowers/specs/2026-06-08-camt-buchungsvorlagen-vorschlag.md`.
+- [ ] **Dashboard-Tile/Einstieg** zur Prüfliste-Route `/buchhaltung/camt-pruefliste` ergänzen.
+- [ ] Review-Follow-ups Phase 1 (dokumentiert, nicht kritisch):
+  - I2: Bei Netzfehler nach erfolgter Buchung aber vor Rechnung-Update entsteht ein verwirrender Prüflisten-Eintrag (kein Doppelbuchen). Reihenfolge/Transaktionalität verbessern.
+  - M4: `HeinekenBuchungService.createZahlungseingang` bucht mit `DateTime.now()` statt Bank-Buchungsdatum — optionalen `datum`-Parameter ergänzen (wie bei `ZahlungsdifferenzService`).
+  - Saldo-Parsing-Bug (vorbestehend): `OPBD/CLBD` werden als 0 gelesen (CdOrPrtry liegt unter `Tp`). Nicht von der Pipeline genutzt, aber falsch.
+  - M1: Heineken-Klassifizierung per Namens-Substring „heineken" — ggf. auf „heineken switzerland" verengen, falls Kunden mit „Heineken" im Namen existieren.
 
 ---
 
