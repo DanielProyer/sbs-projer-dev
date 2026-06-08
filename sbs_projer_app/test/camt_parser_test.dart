@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
+import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
 
 const _batchXml = '''<?xml version="1.0"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.04"><BkToCstmrStmt><Stmt>
@@ -33,5 +34,10 @@ void main() {
     final stmt = Camt053Parser.parse(_batchXml);
     final keys = stmt.transactions.map((t) => t.txKey).toSet();
     expect(keys.length, 2);
+  });
+
+  test('Stichtag: vor 01.07.2026 nicht automatisiert', () {
+    expect(CamtStichtag.istAutomatisierbar(DateTime(2026, 6, 30)), false);
+    expect(CamtStichtag.istAutomatisierbar(DateTime(2026, 7, 1)), true);
   });
 }
