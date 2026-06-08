@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_regeln_screen.dart';
 
 /// camt-Prüfliste — persistente Liste der Transaktionen, die der Auto-Booker
 /// nicht sicher verbuchen konnte.
@@ -94,10 +95,22 @@ class CamtPrueflisteScreen extends ConsumerWidget {
             itemCount: eintraege.length,
             itemBuilder: (context, index) {
               final e = eintraege[index];
+              const regelKategorien = {
+                'ausgabe',
+                'bargeldEinzahlung',
+                'unbekannt',
+              };
               return _PrueflisteCard(
                 eintrag: e,
                 onErledigt: () => _setStatus(context, ref, e, 'erledigt'),
                 onIgnorieren: () => _setStatus(context, ref, e, 'ignoriert'),
+                onRegelAnlegen: regelKategorien.contains(e.kategorie)
+                    ? () => showRegelDialog(
+                          context,
+                          ref,
+                          vorausgefuelltMatchName: e.parteiName,
+                        )
+                    : null,
               );
             },
           );
@@ -111,11 +124,13 @@ class _PrueflisteCard extends StatelessWidget {
   final CamtPrueflisteEintrag eintrag;
   final VoidCallback onErledigt;
   final VoidCallback onIgnorieren;
+  final VoidCallback? onRegelAnlegen;
 
   const _PrueflisteCard({
     required this.eintrag,
     required this.onErledigt,
     required this.onIgnorieren,
+    this.onRegelAnlegen,
   });
 
   @override
@@ -224,6 +239,17 @@ class _PrueflisteCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (onRegelAnlegen != null) ...[
+                  TextButton.icon(
+                    onPressed: onRegelAnlegen,
+                    icon: const Icon(Icons.rule, size: 16),
+                    label: const Text('Regel anlegen'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 TextButton.icon(
                   onPressed: onIgnorieren,
                   icon: const Icon(Icons.block, size: 16),
