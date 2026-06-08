@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
+import 'package:sbs_projer_app/data/repositories/camt_regel_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
@@ -291,6 +294,10 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         ...await BuchungRepository.getAlleCamtTxKeys(),
         ...await CamtPrueflisteRepository.getAlleTxKeys(),
       };
+      final regeln = await CamtRegelRepository.getAktive();
+      final vorlagen = (await BuchungsVorlageRepository.getAll())
+          .cast<BuchungsVorlage>();
+      final vorlagenById = {for (final v in vorlagen) v.id: v};
 
       final result = await CamtAutoBooker.run(
         transactions: _statement!.transactions,
@@ -298,6 +305,8 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         offeneRechnungen: offeneRechnungen,
         heinekenRechnungen: heinekenRechnungen,
         bereitsVerarbeitet: bereitsVerarbeitet,
+        regeln: regeln,
+        vorlagenById: vorlagenById,
       );
 
       ref.invalidate(buchungenStreamProvider);

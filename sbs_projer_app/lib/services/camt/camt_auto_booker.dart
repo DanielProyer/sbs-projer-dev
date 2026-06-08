@@ -1,16 +1,20 @@
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
+import 'package:sbs_projer_app/data/models/camt_regel.dart';
+import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
+import 'package:sbs_projer_app/services/camt/camt_ausgabe_booker.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
 import 'package:sbs_projer_app/services/camt/camt_klassifizierer.dart';
 import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
 import 'package:sbs_projer_app/services/camt/heineken_matcher.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
+import 'package:sbs_projer_app/services/camt/regel_matcher.dart';
 
 class AutoBookerResult {
   int gebucht = 0, pruefliste = 0, uebersprungen = 0;
@@ -26,6 +30,8 @@ class CamtAutoBooker {
     required List<Rechnung> offeneRechnungen,
     required List<Rechnung> heinekenRechnungen,
     required Set<String> bereitsVerarbeitet,
+    required List<CamtRegel> regeln,
+    required Map<String, BuchungsVorlage> vorlagenById,
   }) async {
     final res = AutoBookerResult();
 
@@ -110,8 +116,19 @@ class CamtAutoBooker {
 
           case TxKategorie.bargeldEinzahlung:
           case TxKategorie.ausgabe:
+            final vid = RegelMatcher.matchVorlageId(
+              partyName: tx.partyName, partyIban: tx.partyIban,
+              additionalInfo: tx.additionalInfo, regeln: regeln);
+            final vorlage = vid != null ? vorlagenById[vid] : null;
+            if (vorlage != null) {
+              await CamtAusgabeBooker.book(tx, vorlage);
+              res.gebucht++;
+            } else {
+              await _zurPruefliste(tx, kat, vorschlagBetrieb: match?['name']);
+              res.pruefliste++;
+            }
+            break;
           case TxKategorie.unbekannt:
-            // Phase 1: keine Auto-Regel → Prüfliste (Ausgaben-Regelwerk = Phase 2)
             await _zurPruefliste(tx, kat, vorschlagBetrieb: match?['name']);
             res.pruefliste++;
             break;
