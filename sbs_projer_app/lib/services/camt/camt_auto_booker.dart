@@ -61,17 +61,23 @@ class CamtAutoBooker {
                   rechnungen: m.rechnungen,
                   zahlungBetrag: tx.amount,
                   datum: tx.bookingDate);
-              for (final b in buchungen) {
-                await BuchungRepository.setCamtTxKey(b.id, tx.txKey);
+              if (buchungen.isEmpty) {
+                await _zurPrueflisteMitFehler(tx, kat,
+                    'Zugeordnete Rechnung(en) bereits verbucht — bitte manuell prüfen');
+                res.pruefliste++;
+              } else {
+                for (final b in buchungen) {
+                  await BuchungRepository.setCamtTxKey(b.id, tx.txKey);
+                }
+                for (final r in m.rechnungen) {
+                  await RechnungRepository.update(r.id, {
+                    'zahlungsstatus': 'bezahlt',
+                    'zahlung_eingegangen_am': datumStr,
+                    'zahlung_betrag': r.betragBrutto,
+                  });
+                }
+                res.gebucht++;
               }
-              for (final r in m.rechnungen) {
-                await RechnungRepository.update(r.id, {
-                  'zahlungsstatus': 'bezahlt',
-                  'zahlung_eingegangen_am': datumStr,
-                  'zahlung_betrag': r.betragBrutto,
-                });
-              }
-              res.gebucht++;
             } else {
               await _zurPruefliste(tx, kat, vorschlagBetrieb: match?['name']);
               res.pruefliste++;
@@ -83,13 +89,19 @@ class CamtAutoBooker {
                 zahlbetrag: tx.amount, heinekenRechnungen: heinekenRechnungen);
             if (hr != null) {
               final b = await HeinekenBuchungService.createZahlungseingang(hr);
-              if (b != null) await BuchungRepository.setCamtTxKey(b.id, tx.txKey);
-              await RechnungRepository.update(hr.id, {
-                'zahlungsstatus': 'bezahlt',
-                'zahlung_eingegangen_am': datumStr,
-                'zahlung_betrag': hr.betragBrutto,
-              });
-              res.gebucht++;
+              if (b == null) {
+                await _zurPrueflisteMitFehler(tx, kat,
+                    'Heineken-Rechnung bereits verbucht — bitte manuell prüfen');
+                res.pruefliste++;
+              } else {
+                await BuchungRepository.setCamtTxKey(b.id, tx.txKey);
+                await RechnungRepository.update(hr.id, {
+                  'zahlungsstatus': 'bezahlt',
+                  'zahlung_eingegangen_am': datumStr,
+                  'zahlung_betrag': hr.betragBrutto,
+                });
+                res.gebucht++;
+              }
             } else {
               await _zurPruefliste(tx, kat);
               res.pruefliste++;

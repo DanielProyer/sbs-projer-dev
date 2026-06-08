@@ -27,4 +27,8 @@ void main() {
     final r = RechnungMatcher.match(zahlbetrag: 55.00, offeneRechnungen: [_rg('a', 130.30)]);
     expect(r.eindeutig, false);
   });
+  test('Betrag weicht 2 Rappen ab → NICHT eindeutig (Prüfliste)', () {
+    final r = RechnungMatcher.match(zahlbetrag: 130.32, offeneRechnungen: [_rg('a', 130.30)]);
+    expect(r.eindeutig, false);
+  });
 }

@@ -23,7 +23,8 @@ class CamtPrueflisteRepository {
   static Future<void> insert(CamtPrueflisteEintrag e) async {
     await SupabaseService.client
         .from('camt_pruefliste')
-        .insert(e.toInsert(_userId));
+        .upsert(e.toInsert(_userId),
+            onConflict: 'user_id,tx_key', ignoreDuplicates: true);
   }
 
   static Future<void> setStatus(String id, String status) async {
