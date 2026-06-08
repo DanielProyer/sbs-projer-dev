@@ -109,6 +109,23 @@ class BuchungRepository {
     await SupabaseService.client.from('buchungen').delete().eq('id', id);
   }
 
+  /// Stempelt den camt-Dedup-Schlüssel auf eine Buchung (Idempotenz-Marker).
+  static Future<void> setCamtTxKey(String id, String txKey) async {
+    await SupabaseService.client
+        .from('buchungen')
+        .update({'camt_tx_key': txKey})
+        .eq('id', id);
+  }
+
+  /// Liefert alle bereits per camt verbuchten tx_keys (für Dedup).
+  static Future<Set<String>> getAlleCamtTxKeys() async {
+    final rows = await SupabaseService.client
+        .from('buchungen')
+        .select('camt_tx_key')
+        .not('camt_tx_key', 'is', null);
+    return (rows as List).map((r) => r['camt_tx_key'] as String).toSet();
+  }
+
   /// Löscht alle Buchungen die zu einem Beleg gehören.
   static Future<void> deleteByBeleg(String belegId) async {
     await SupabaseService.client
