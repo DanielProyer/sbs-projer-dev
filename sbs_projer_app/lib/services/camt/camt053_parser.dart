@@ -41,11 +41,10 @@ class Camt053Parser {
       if (code == 'CLBD') closingBalance = signed;
     }
 
-    // Transaktionen (Ntry)
+    // Transaktionen (Ntry) — Sammelaufträge werden in TxDtls-Einzeltransaktionen gesplittet
     final transactions = <CamtTransaction>[];
     for (final ntry in _findElements(stmt, 'Ntry')) {
-      final tx = _parseEntry(ntry, ccy);
-      if (tx != null) transactions.add(tx);
+      transactions.addAll(_parseEntries(ntry, ccy));
     }
 
     return CamtStatement(
@@ -61,56 +60,54 @@ class Camt053Parser {
     );
   }
 
-  static CamtTransaction? _parseEntry(XmlElement ntry, String defaultCcy) {
-    final amountStr = _attr(_findElement(ntry, 'Amt'));
-    final amount = double.tryParse(amountStr ?? '0') ?? 0;
-    final ccy = _findElement(ntry, 'Amt')?.getAttribute('Ccy') ?? defaultCcy;
+  /// Parst eine Ntry und gibt eine oder mehrere Transaktionen zurück.
+  /// Sammelaufträge (mehrere TxDtls-Einträge) werden in Einzeltransaktionen gesplittet.
+  static List<CamtTransaction> _parseEntries(XmlElement ntry, String defaultCcy) {
     final isCredit = _text(_findElement(ntry, 'CdtDbtInd')) == 'CRDT';
-
-    // Buchungsdatum
     final bookingDtStr = _text(_findElement(_findElement(ntry, 'BookgDt'), 'Dt'));
-    if (bookingDtStr == null) return null;
+    if (bookingDtStr == null) return [];
     final bookingDate = DateTime.parse(bookingDtStr);
-
     final valueDtStr = _text(_findElement(_findElement(ntry, 'ValDt'), 'Dt'));
     final valueDate = valueDtStr != null ? DateTime.parse(valueDtStr) : null;
+    final ntryRef = _text(_findElement(ntry, 'AcctSvcrRef'));
+    final ntryAddtlInfo = _text(_findElement(ntry, 'AddtlNtryInf'));
 
-    final acctSvcrRef = _text(_findElement(ntry, 'AcctSvcrRef'));
-
-    // Transaction Details (in NtryDtls/TxDtls)
     final ntryDtls = _findElement(ntry, 'NtryDtls');
-    final txDtls = _findElement(ntryDtls, 'TxDtls');
+    final txDtlsList = ntryDtls == null
+        ? const <XmlElement>[]
+        : _findElements(ntryDtls, 'TxDtls').toList();
+    final isBatch = txDtlsList.length > 1;
 
-    String? endToEndId;
-    String? txId;
-    String? partyName;
-    String? partyIban;
-    String? partyStreet;
-    String? partyBuildingNr;
-    String? partyPostCode;
-    String? partyCity;
-    String? partyCountry;
-    List<String> partyAddressLines = [];
-    String? remittanceInfo;
-    String? additionalInfo;
+    // Keine TxDtls: Saldovortrag, Bargeld o.ä. — eine Transaktion aus Ntry-Ebene
+    if (txDtlsList.isEmpty) {
+      final amount = double.tryParse(_attr(_findElement(ntry, 'Amt')) ?? '0') ?? 0;
+      final ccy = _findElement(ntry, 'Amt')?.getAttribute('Ccy') ?? defaultCcy;
+      return [CamtTransaction(
+        amount: amount, currency: ccy, isCredit: isCredit,
+        bookingDate: bookingDate, valueDate: valueDate,
+        accountServiceRef: ntryRef, partyAddressLines: const [],
+        additionalInfo: ntryAddtlInfo,
+        txKey: _buildTxKey(ntryRef, null, bookingDate, amount, isCredit, null, null),
+      )];
+    }
 
-    if (txDtls != null) {
-      // Referenzen
+    final result = <CamtTransaction>[];
+    for (final txDtls in txDtlsList) {
+      final amount = double.tryParse(_attr(_findElement(txDtls, 'Amt')) ?? '0') ?? 0;
+      final ccy = _findElement(txDtls, 'Amt')?.getAttribute('Ccy') ?? defaultCcy;
       final refs = _findElement(txDtls, 'Refs');
-      endToEndId = _text(_findElement(refs, 'EndToEndId'));
-      txId = _text(_findElement(refs, 'TxId'));
+      var endToEndId = _text(_findElement(refs, 'EndToEndId'));
       if (endToEndId == 'NOTPROVIDED') endToEndId = null;
+      final txSvcrRef = _text(_findElement(refs, 'AcctSvcrRef')) ?? ntryRef;
+      final txId = _text(_findElement(refs, 'TxId'));
 
-      // Gegenpartei (Dbtr bei Gutschrift, Cdtr bei Belastung)
+      String? partyName, partyIban, partyStreet, partyBuildingNr,
+          partyPostCode, partyCity, partyCountry;
+      List<String> partyAddressLines = [];
       final rltdPties = _findElement(txDtls, 'RltdPties');
       if (rltdPties != null) {
-        final party = isCredit
-            ? _findElement(rltdPties, 'Dbtr')
-            : _findElement(rltdPties, 'Cdtr');
-        final partyAcct = isCredit
-            ? _findElement(rltdPties, 'DbtrAcct')
-            : _findElement(rltdPties, 'CdtrAcct');
-
+        final party = isCredit ? _findElement(rltdPties, 'Dbtr') : _findElement(rltdPties, 'Cdtr');
+        final partyAcct = isCredit ? _findElement(rltdPties, 'DbtrAcct') : _findElement(rltdPties, 'CdtrAcct');
         if (party != null) {
           partyName = _text(_findElement(party, 'Nm'));
           final addr = _findElement(party, 'PstlAdr');
@@ -120,48 +117,44 @@ class Camt053Parser {
             partyPostCode = _text(_findElement(addr, 'PstCd'));
             partyCity = _text(_findElement(addr, 'TwnNm'));
             partyCountry = _text(_findElement(addr, 'Ctry'));
-            // AdrLine-Format (falls vorhanden)
             partyAddressLines = _findElements(addr, 'AdrLine')
-                .map((e) => e.innerText.trim())
-                .where((s) => s.isNotEmpty)
-                .toList();
+                .map((e) => e.innerText.trim()).where((s) => s.isNotEmpty).toList();
           }
         }
         if (partyAcct != null) {
           partyIban = _text(_findElement(_findElement(partyAcct, 'Id'), 'IBAN'));
         }
       }
-
-      // Zahlungsreferenz
       final rmtInf = _findElement(txDtls, 'RmtInf');
-      remittanceInfo = _text(_findElement(rmtInf, 'Ustrd'));
+      final remittanceInfo = _text(_findElement(rmtInf, 'Ustrd'));
+      final strd = _findElement(rmtInf, 'Strd');
+      final strdRef = _text(_findElement(_findElement(strd, 'CdtrRefInf'), 'Ref'));
+      final additionalInfo = _text(_findElement(txDtls, 'AddtlTxInf')) ?? ntryAddtlInfo;
 
-      additionalInfo = _text(_findElement(txDtls, 'AddtlTxInf'));
+      result.add(CamtTransaction(
+        amount: amount, currency: ccy, isCredit: isCredit,
+        bookingDate: bookingDate, valueDate: valueDate,
+        accountServiceRef: txSvcrRef, endToEndId: endToEndId, transactionId: txId,
+        partyName: partyName, partyIban: partyIban, partyStreet: partyStreet,
+        partyBuildingNr: partyBuildingNr, partyPostCode: partyPostCode,
+        partyCity: partyCity, partyCountry: partyCountry,
+        partyAddressLines: partyAddressLines, remittanceInfo: remittanceInfo,
+        additionalInfo: additionalInfo, strukturierteReferenz: strdRef,
+        isBatchChild: isBatch,
+        txKey: _buildTxKey(txSvcrRef, txId, bookingDate, amount, isCredit, partyName, endToEndId),
+      ));
     }
+    return result;
+  }
 
-    // Fallback: AddtlNtryInf auf Ntry-Ebene
-    additionalInfo ??= _text(_findElement(ntry, 'AddtlNtryInf'));
-
-    return CamtTransaction(
-      amount: amount,
-      currency: ccy,
-      isCredit: isCredit,
-      bookingDate: bookingDate,
-      valueDate: valueDate,
-      accountServiceRef: acctSvcrRef,
-      endToEndId: endToEndId,
-      transactionId: txId,
-      partyName: partyName,
-      partyIban: partyIban,
-      partyStreet: partyStreet,
-      partyBuildingNr: partyBuildingNr,
-      partyPostCode: partyPostCode,
-      partyCity: partyCity,
-      partyCountry: partyCountry,
-      partyAddressLines: partyAddressLines,
-      remittanceInfo: remittanceInfo,
-      additionalInfo: additionalInfo,
-    );
+  /// Baut einen eindeutigen Dedup-Schlüssel für eine Transaktion.
+  static String _buildTxKey(String? svcrRef, String? txId, DateTime date,
+      double amount, bool isCredit, String? party, String? e2e) {
+    if (svcrRef != null && svcrRef.isNotEmpty) return svcrRef;
+    if (txId != null && txId.isNotEmpty) return txId;
+    final d = date.toIso8601String().split('T').first;
+    return '$d|${amount.toStringAsFixed(2)}|${isCredit ? 'C' : 'D'}'
+        '|${party ?? ''}|${e2e ?? ''}';
   }
 
   // === Namespace-agnostische Helper ===
