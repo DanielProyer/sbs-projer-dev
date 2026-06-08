@@ -55,6 +55,12 @@ class CamtTransaction {
   String? matchedBetriebName;
   String? selectedVorlageId;
 
+  // camt-Pipeline (Phase 1)
+  final String txKey;                  // eindeutiger Dedup-Schlüssel
+  final String? strukturierteReferenz; // ESR/QR/ISR aus Strd/CdtrRefInf/Ref
+  final bool isBatchChild;             // Teil eines Sammelauftrags
+  String? kategorie;                   // gesetzt vom Klassifizierer
+
   CamtTransaction({
     required this.amount,
     required this.currency,
@@ -79,6 +85,10 @@ class CamtTransaction {
     this.matchedBetriebId,
     this.matchedBetriebName,
     this.selectedVorlageId,
+    required this.txKey,
+    this.strukturierteReferenz,
+    this.isBatchChild = false,
+    this.kategorie,
   });
 
   /// Formatierte Adresse der Gegenpartei.
