@@ -7,15 +7,18 @@
 
 ## 📥 camt-Auto-Buchung (Rechnungskontrolle)
 
-**Phase 1 fertig** (Branch `feature/camt-rechnungskontrolle`): Parser-Split, Stichtag 01.07.2026, Klassifizierer, Kundenzahlungs-/Heineken-Matching, Prüfliste, Auto-Booker. Spec/Plan unter `docs/superpowers/`.
+**Phase 1 + Phase 2 fertig** (Branch `feature/camt-rechnungskontrolle`): Parser-Split, Stichtag 01.07.2026, Klassifizierer, Kundenzahlungs-/Heineken-Matching, Prüfliste, Auto-Booker, Ausgaben-Regelwerk (`camt_regel` + 13 Startregeln + 4 neue Vorlagen 5700/5720/5730/8900), Regel-UI + Dashboard-Einstiege. Spec/Plan unter `docs/superpowers/`. **Produktiv aktiv ab Stichtag 01.07.2026.**
 
-- [ ] **Phase 2: Ausgaben-Regelwerk** — Tabelle `camt_regel` (Empfänger→Buchungsvorlage), 4 neue Vorlagen anlegen (5700 AHV, 5720 BVG, 5730 Suva, 8900 kant. Steuern), „Regel anlegen"-UI, Bargeld-/Bank-Abschluss-Regeln. Siehe `docs/superpowers/specs/2026-06-08-camt-buchungsvorlagen-vorschlag.md`.
-- [ ] **Dashboard-Tile/Einstieg** zur Prüfliste-Route `/buchhaltung/camt-pruefliste` ergänzen.
-- [ ] Review-Follow-ups Phase 1 (dokumentiert, nicht kritisch):
-  - I2: Bei Netzfehler nach erfolgter Buchung aber vor Rechnung-Update entsteht ein verwirrender Prüflisten-Eintrag (kein Doppelbuchen). Reihenfolge/Transaktionalität verbessern.
-  - M4: `HeinekenBuchungService.createZahlungseingang` bucht mit `DateTime.now()` statt Bank-Buchungsdatum — optionalen `datum`-Parameter ergänzen (wie bei `ZahlungsdifferenzService`).
-  - Saldo-Parsing-Bug (vorbestehend): `OPBD/CLBD` werden als 0 gelesen (CdOrPrtry liegt unter `Tp`). Nicht von der Pipeline genutzt, aber falsch.
-  - M1: Heineken-Klassifizierung per Namens-Substring „heineken" — ggf. auf „heineken switzerland" verengen, falls Kunden mit „Heineken" im Namen existieren.
+Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin jede Buchung):
+- [ ] Phase-1 I2: Bei Netzfehler nach erfolgter Buchung aber vor Rechnung-Update entsteht ein verwirrender Prüflisten-Eintrag (kein Doppelbuchen). Reihenfolge/Transaktionalität verbessern.
+- [ ] Phase-1 M4: `HeinekenBuchungService.createZahlungseingang` bucht mit `DateTime.now()` statt Bank-Buchungsdatum — optionalen `datum`-Parameter ergänzen.
+- [ ] Saldo-Parsing-Bug (vorbestehend): `OPBD/CLBD` werden als 0 gelesen (`CdOrPrtry` liegt unter `Tp`). Nicht von der Pipeline genutzt, aber falsch.
+- [ ] Phase-2: Regel `'abschluss'` ist breit (Substring) — beobachten; ggf. auf IBAN/spezifischeren Text verengen. Lohn-Regel „daniel proyer" ggf. auf IBAN (CH7909000000870500683) umstellen.
+- [ ] M1: Heineken-Klassifizierung per Substring „heineken" — ggf. auf „heineken switzerland" verengen.
+
+**Bewusste Design-Entscheidung (NICHT ändern):** Kein DB-Unique-Constraint auf `buchungen(camt_tx_key)` — der Kundenzahlungs-Pfad stempelt denselben `tx_key` absichtlich auf mehrere Buchungen (Sammelzahlung). Dedup läuft korrekt über den In-App-Set (Single-User-App).
+
+**Erster Echtlauf (Anfang August 2026):** Juli-camt hochladen, Ergebnis-Report + Prüfliste durchgehen. Bei neuen wiederkehrenden Empfängern „Regel anlegen" nutzen.
 
 ---
 
