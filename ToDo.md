@@ -1,7 +1,24 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 02.06.2026
+**Stand**: 08.06.2026
 **Für**: SBS Projer App Entwicklung
+
+---
+
+## 📥 camt-Auto-Buchung (Rechnungskontrolle)
+
+**Phase 1 + Phase 2 fertig** (Branch `feature/camt-rechnungskontrolle`): Parser-Split, Stichtag 01.07.2026, Klassifizierer, Kundenzahlungs-/Heineken-Matching, Prüfliste, Auto-Booker, Ausgaben-Regelwerk (`camt_regel` + 13 Startregeln + 4 neue Vorlagen 5700/5720/5730/8900), Regel-UI + Dashboard-Einstiege. Spec/Plan unter `docs/superpowers/`. **Produktiv aktiv ab Stichtag 01.07.2026.**
+
+Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin jede Buchung):
+- [ ] Phase-1 I2: Bei Netzfehler nach erfolgter Buchung aber vor Rechnung-Update entsteht ein verwirrender Prüflisten-Eintrag (kein Doppelbuchen). Reihenfolge/Transaktionalität verbessern.
+- [ ] Phase-1 M4: `HeinekenBuchungService.createZahlungseingang` bucht mit `DateTime.now()` statt Bank-Buchungsdatum — optionalen `datum`-Parameter ergänzen.
+- [ ] Saldo-Parsing-Bug (vorbestehend): `OPBD/CLBD` werden als 0 gelesen (`CdOrPrtry` liegt unter `Tp`). Nicht von der Pipeline genutzt, aber falsch.
+- [ ] Phase-2: Regel `'abschluss'` ist breit (Substring) — beobachten; ggf. auf IBAN/spezifischeren Text verengen. Lohn-Regel „daniel proyer" ggf. auf IBAN (CH7909000000870500683) umstellen.
+- [ ] M1: Heineken-Klassifizierung per Substring „heineken" — ggf. auf „heineken switzerland" verengen.
+
+**Bewusste Design-Entscheidung (NICHT ändern):** Kein DB-Unique-Constraint auf `buchungen(camt_tx_key)` — der Kundenzahlungs-Pfad stempelt denselben `tx_key` absichtlich auf mehrere Buchungen (Sammelzahlung). Dedup läuft korrekt über den In-App-Set (Single-User-App).
+
+**Erster Echtlauf (Anfang August 2026):** Juli-camt hochladen, Ergebnis-Report + Prüfliste durchgehen. Bei neuen wiederkehrenden Empfängern „Regel anlegen" nutzen.
 
 ---
 

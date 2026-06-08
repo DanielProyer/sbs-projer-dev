@@ -31,3 +31,7 @@ sbs_projer_app/build/web/
 .DS_Store
 Thumbs.db
 nul
+
+# Private GKB-Bankauszuege (camt.053) - niemals committen
+*camt.053*.xml
+MX53D_*.xml

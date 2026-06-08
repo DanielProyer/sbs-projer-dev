@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/buchungs_vorlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
+import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
+import 'package:sbs_projer_app/data/repositories/camt_regel_repository.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
-import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
-import 'package:sbs_projer_app/services/camt/camt_import_service.dart';
+import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
+import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 
 class CamtImportScreen extends ConsumerStatefulWidget {
@@ -22,12 +27,12 @@ class CamtImportScreen extends ConsumerStatefulWidget {
 
 class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   // State
-  int _step = 0; // 0=Datei wählen, 1=Prüfen, 2=Ergebnis
+  int _step = 0; // 0=Datei wählen, 1=Bestätigen, 2=Ergebnis
   CamtStatement? _statement;
-  CamtImportResult? _result;
+  AutoBookerResult? _result;
   bool _loading = false;
   String? _error;
-  int _duplicateCount = 0;
+  int _automatisierbarCount = 0;
 
   final _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -46,7 +51,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       case 0:
         return _buildFilePickerStep();
       case 1:
-        return _buildReviewStep();
+        return _buildConfirmStep();
       case 2:
         return _buildResultStep();
       default:
@@ -113,7 +118,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       schritt = 'XML parsen';
       var xmlString = picked.content;
       // BOM entfernen falls vorhanden
-      if (xmlString.startsWith('\uFEFF')) {
+      if (xmlString.startsWith('﻿')) {
         xmlString = xmlString.substring(1);
       }
 
@@ -128,58 +133,13 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         return;
       }
 
-      schritt = 'Duplikate prüfen';
-      List<String> existingRefs = [];
-      try {
-        final existingBuchungen = await BuchungRepository.getAll();
-        existingRefs = existingBuchungen
-            .where((b) => b.belegnummer != null)
-            .map((b) => b.belegnummer!)
-            .toList();
-      } catch (_) {
-        // Wenn Buchungen nicht geladen werden können, ohne Duplikat-Check weiter
-      }
-
-      int dupes = 0;
-      if (existingRefs.isNotEmpty) {
-        final refSet = existingRefs.toSet();
-        for (final tx in statement.transactions) {
-          if (tx.accountServiceRef != null && refSet.contains(tx.accountServiceRef)) {
-            tx.isDuplicate = true;
-            tx.selected = false;
-            dupes++;
-          }
-        }
-      }
-
-      schritt = 'Betriebe matchen';
-      final betriebe = ref.read(betriebeProvider);
-      final betriebMaps = betriebe
-          .where((b) => b.serverId != null)
-          .map((b) => {'id': b.serverId!, 'name': b.name})
-          .toList();
-      CamtBetriebMatcher.matchAll(statement.transactions, betriebMaps);
-
-      schritt = 'Vorlagen zuweisen';
-      final vorlagen = ref.read(buchungsVorlagenProvider);
-      BuchungsVorlage? zahlungsVorlage;
-      for (final v in vorlagen) {
-        if (v.autoTrigger == 'zahlungseingang') {
-          zahlungsVorlage = v;
-          break;
-        }
-      }
-      if (zahlungsVorlage != null) {
-        for (final tx in statement.transactions) {
-          if (tx.isCredit) {
-            tx.selectedVorlageId = zahlungsVorlage.id;
-          }
-        }
-      }
+      final automatisierbar = statement.transactions
+          .where((t) => CamtStichtag.istAutomatisierbar(t.bookingDate))
+          .length;
 
       setState(() {
         _statement = statement;
-        _duplicateCount = dupes;
+        _automatisierbarCount = automatisierbar;
         _step = 1;
         _loading = false;
       });
@@ -191,15 +151,10 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
     }
   }
 
-  // === Schritt 2: Transaktionen prüfen ===
-  Widget _buildReviewStep() {
+  // === Schritt 2: Bestätigen ===
+  Widget _buildConfirmStep() {
     final stmt = _statement!;
     final txs = stmt.transactions;
-    final vorlagen = ref.watch(buchungsVorlagenProvider);
-    final selectedCount = txs.where((t) => t.selected).length;
-    final totalAmount = txs
-        .where((t) => t.selected)
-        .fold<double>(0, (sum, t) => sum + t.signedAmount);
 
     return Column(
       children: [
@@ -219,44 +174,63 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                 '${stmt.ownerName} · IBAN ${stmt.iban} · ${txs.length} Transaktionen',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
-              if (_duplicateCount > 0) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withAlpha(30),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber, size: 16, color: AppColors.warning),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$_duplicateCount Transaktion${_duplicateCount == 1 ? '' : 'en'} bereits importiert (abgewählt)',
-                        style: const TextStyle(fontSize: 12, color: AppColors.warning),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
         ),
 
-        // Transaktions-Liste
         Expanded(
-          child: ListView.builder(
-            itemCount: txs.length,
-            itemBuilder: (context, index) {
-              final tx = txs[index];
-              return _TransactionTile(
-                tx: tx,
-                vorlagen: vorlagen,
-                dateFormat: _dateFormat,
-                onToggle: (val) => setState(() => tx.selected = val ?? false),
-                onVorlageChanged: (id) => setState(() => tx.selectedVorlageId = id),
-              );
-            },
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 56,
+                    color: AppColors.primary.withAlpha(120),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Automatische Verbuchung & Rechnungskontrolle',
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$_automatisierbarCount von ${txs.length} Transaktion${txs.length == 1 ? '' : 'en'} '
+                    'liegen am/nach dem Stichtag ${_dateFormat.format(CamtStichtag.stichtag)} '
+                    'und werden automatisch verarbeitet.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_automatisierbarCount == 0) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withAlpha(30),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.warning_amber, size: 16, color: AppColors.warning),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Alle Buchungen liegen vor dem Stichtag — '
+                              'es wird nichts automatisch verbucht.',
+                              style: TextStyle(fontSize: 12, color: AppColors.warning),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
 
@@ -274,32 +248,17 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
             ],
           ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$selectedCount von ${txs.length} ausgewählt',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      'Total: ${totalAmount.toStringAsFixed(2)} CHF',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               OutlinedButton(
-                onPressed: () => setState(() { _step = 0; _statement = null; }),
+                onPressed: _loading
+                    ? null
+                    : () => setState(() { _step = 0; _statement = null; }),
                 child: const Text('Zurück'),
               ),
               const SizedBox(width: 8),
               FilledButton(
-                onPressed: selectedCount > 0 && !_loading ? _doImport : null,
+                onPressed: !_loading ? _doImport : null,
                 child: _loading
                     ? const SizedBox(
                         width: 20,
@@ -309,7 +268,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Importieren'),
+                    : const Text('Verarbeiten'),
               ),
             ],
           ),
@@ -320,30 +279,44 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
   Future<void> _doImport() async {
     setState(() => _loading = true);
-
     try {
-      final vorlagen = ref.read(buchungsVorlagenProvider);
+      final betriebe = ref.read(betriebeProvider)
+          .where((b) => b.serverId != null)
+          .map((b) => {'id': b.serverId!, 'name': b.name})
+          .toList();
+      final alleRechnungen = await RechnungRepository.getAll();
+      final offeneRechnungen = alleRechnungen.where((r) =>
+          r.rechnungstyp == 'kundenrechnung' &&
+          (r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'gesendet')).toList();
+      final heinekenRechnungen = alleRechnungen.where((r) =>
+          r.rechnungstyp == 'heineken_monat' && r.zahlungsstatus != 'bezahlt').toList();
+      final bereitsVerarbeitet = <String>{
+        ...await BuchungRepository.getAlleCamtTxKeys(),
+        ...await CamtPrueflisteRepository.getAlleTxKeys(),
+      };
+      final regeln = await CamtRegelRepository.getAktive();
+      final vorlagen = (await BuchungsVorlageRepository.getAll())
+          .cast<BuchungsVorlage>();
       final vorlagenById = {for (final v in vorlagen) v.id: v};
 
-      final result = await CamtImportService.importTransactions(
+      final result = await CamtAutoBooker.run(
         transactions: _statement!.transactions,
+        betriebe: betriebe,
+        offeneRechnungen: offeneRechnungen,
+        heinekenRechnungen: heinekenRechnungen,
+        bereitsVerarbeitet: bereitsVerarbeitet,
+        regeln: regeln,
         vorlagenById: vorlagenById,
-        statement: _statement!,
       );
 
       ref.invalidate(buchungenStreamProvider);
+      ref.invalidate(camtPrueflisteProvider);
 
-      setState(() {
-        _result = result;
-        _step = 2;
-        _loading = false;
-      });
+      setState(() { _result = result; _step = 2; _loading = false; });
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import-Fehler: $e')));
       }
     }
   }
@@ -359,28 +332,32 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              r.errors.isEmpty ? Icons.check_circle : Icons.warning,
+              r.fehler.isEmpty ? Icons.check_circle : Icons.warning,
               size: 64,
-              color: r.errors.isEmpty ? AppColors.success : AppColors.warning,
+              color: r.fehler.isEmpty ? AppColors.success : AppColors.warning,
             ),
             const SizedBox(height: 24),
             Text(
-              'Import abgeschlossen',
+              'Verarbeitung abgeschlossen',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            _ResultRow(Icons.check, '${r.imported} Buchungen importiert', AppColors.success),
-            if (r.skipped > 0)
-              _ResultRow(Icons.skip_next, '${r.skipped} übersprungen', AppColors.textSecondary),
-            if (r.errors.isNotEmpty)
-              _ResultRow(Icons.error_outline, '${r.errors.length} Fehler', AppColors.error),
-            if (r.errors.isNotEmpty) ...[
+            _ResultRow(Icons.check, '${r.gebucht} verbucht', AppColors.success),
+            if (r.pruefliste > 0)
+              _ResultRow(Icons.info_outline, '${r.pruefliste} in Prüfliste', AppColors.warning),
+            if (r.uebersprungen > 0)
+              _ResultRow(Icons.skip_next,
+                  '${r.uebersprungen} übersprungen (vor Stichtag / bereits verarbeitet)',
+                  AppColors.textSecondary),
+            if (r.fehler.isNotEmpty)
+              _ResultRow(Icons.error_outline, '${r.fehler.length} Fehler', AppColors.error),
+            if (r.fehler.isNotEmpty) ...[
               const SizedBox(height: 16),
               Container(
                 constraints: const BoxConstraints(maxHeight: 200),
                 child: SingleChildScrollView(
                   child: Column(
-                    children: r.errors.map((e) => Padding(
+                    children: r.fehler.map((e) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Text(e, style: const TextStyle(fontSize: 12, color: AppColors.error)),
                     )).toList(),
@@ -388,7 +365,13 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/buchhaltung/camt-pruefliste'),
+              icon: const Icon(Icons.fact_check),
+              label: const Text('Zur Prüfliste'),
+            ),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -397,7 +380,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                     _step = 0;
                     _statement = null;
                     _result = null;
-                    _duplicateCount = 0;
+                    _automatisierbarCount = 0;
                   }),
                   child: const Text('Weiteren Auszug importieren'),
                 ),
@@ -417,192 +400,6 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
 // === Helper Widgets ===
 
-class _TransactionTile extends StatelessWidget {
-  final CamtTransaction tx;
-  final List<BuchungsVorlage> vorlagen;
-  final DateFormat dateFormat;
-  final ValueChanged<bool?> onToggle;
-  final ValueChanged<String?> onVorlageChanged;
-
-  const _TransactionTile({
-    required this.tx,
-    required this.vorlagen,
-    required this.dateFormat,
-    required this.onToggle,
-    required this.onVorlageChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: tx.isDuplicate ? 0.5 : 1.0,
-      child: Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Checkbox(
-                  value: tx.selected,
-                  onChanged: onToggle,
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              tx.partyName ?? 'Unbekannt',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (tx.isDuplicate)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.warning.withAlpha(30),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'Duplikat',
-                                style: TextStyle(fontSize: 10, color: AppColors.warning, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                        ],
-                      ),
-                      Text(
-                        '${dateFormat.format(tx.bookingDate)} · ${tx.partyAddress}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${tx.isCredit ? "+" : "-"} ${tx.amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: tx.isCredit ? AppColors.success : AppColors.error,
-                  ),
-                ),
-              ],
-            ),
-
-            // Referenz
-            if (tx.remittanceInfo != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 48, top: 4),
-                child: Text(
-                  tx.remittanceInfo!,
-                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-            // Match + Vorlage
-            Padding(
-              padding: const EdgeInsets.only(left: 48, top: 8),
-              child: Row(
-                children: [
-                  // Betrieb-Match
-                  if (tx.matchedBetriebName != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withAlpha(25),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.link, size: 12, color: AppColors.success),
-                          const SizedBox(width: 4),
-                          Text(
-                            tx.matchedBetriebName!,
-                            style: const TextStyle(fontSize: 11, color: AppColors.success),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withAlpha(25),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.help_outline, size: 12, color: AppColors.warning),
-                          SizedBox(width: 4),
-                          Text(
-                            'Kein Betrieb',
-                            style: TextStyle(fontSize: 11, color: AppColors.warning),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  const SizedBox(width: 8),
-
-                  // Vorlage-Dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<String?>(
-                      value: tx.selectedVorlageId,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        border: OutlineInputBorder(),
-                        labelText: 'Vorlage',
-                      ),
-                      style: const TextStyle(fontSize: 12, color: Colors.black87),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Keine Vorlage', style: TextStyle(fontSize: 12)),
-                        ),
-                        ...vorlagen.map((v) => DropdownMenuItem<String?>(
-                          value: v.id,
-                          child: Text(
-                            v.bezeichnung,
-                            style: const TextStyle(fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        )),
-                      ],
-                      onChanged: onVorlageChanged,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      ),
-    );
-  }
-}
-
 class _ResultRow extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -619,7 +416,7 @@ class _ResultRow extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: color),
           const SizedBox(width: 8),
-          Text(text, style: TextStyle(fontSize: 14, color: color)),
+          Flexible(child: Text(text, style: TextStyle(fontSize: 14, color: color))),
         ],
       ),
     );

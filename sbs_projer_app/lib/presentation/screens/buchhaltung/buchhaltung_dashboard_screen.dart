@@ -155,6 +155,18 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/camt-import'),
           ),
           _NavTile(
+            icon: Icons.fact_check,
+            title: 'camt-Prüfliste',
+            subtitle: 'Nicht verbuchte Transaktionen prüfen',
+            onTap: () => context.push('/buchhaltung/camt-pruefliste'),
+          ),
+          _NavTile(
+            icon: Icons.rule,
+            title: 'camt-Regeln',
+            subtitle: 'Automatische Zuordnungsregeln verwalten',
+            onTap: () => context.push('/buchhaltung/camt-regeln'),
+          ),
+          _NavTile(
             icon: Icons.payments,
             title: 'Lohnbuchhaltung',
             subtitle: 'Lohnlauf, Abzüge & Lohnausweis',

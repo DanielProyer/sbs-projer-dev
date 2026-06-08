@@ -40,6 +40,8 @@ import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_d
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_raster_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_import_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_pruefliste_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_regeln_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/kontenplan_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchungen_list_screen.dart';
@@ -438,6 +440,14 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/camt-import',
       builder: (context, state) => const CamtImportScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/camt-pruefliste',
+      builder: (context, state) => const CamtPrueflisteScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/camt-regeln',
+      builder: (context, state) => const CamtRegelnScreen(),
     ),
     GoRoute(
       path: '/buchhaltung/lohn',
