@@ -16,9 +16,10 @@ class ZahlungsdifferenzService {
   static Future<List<Buchung>> verbuchenSammel({
     required List<Rechnung> rechnungen,
     required double zahlungBetrag,
+    DateTime? datum,
   }) async {
     final erstellteBuchungen = <Buchung>[];
-    final datumStr = DateTime.now().toIso8601String().split('T').first;
+    final datumStr = (datum ?? DateTime.now()).toIso8601String().split('T').first;
 
     double gesamtBrutto = 0;
     for (final r in rechnungen) {
@@ -51,7 +52,7 @@ class ZahlungsdifferenzService {
         'zahlungsweg': 'bank',
         'beleg_typ': 'zahlung',
         'beleg_id': rechnung.id,
-        'geschaeftsjahr': DateTime.now().year,
+        'geschaeftsjahr': (datum ?? DateTime.now()).year,
       });
       erstellteBuchungen.add(buchung);
     }
@@ -74,7 +75,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'intern',
           'beleg_typ': 'zahlung',
           'beleg_id': letzte.id,
-          'geschaeftsjahr': DateTime.now().year,
+          'geschaeftsjahr': (datum ?? DateTime.now()).year,
         });
         erstellteBuchungen.add(buchung);
       } else {
@@ -91,7 +92,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'bank',
           'beleg_typ': 'zahlung',
           'beleg_id': letzte.id,
-          'geschaeftsjahr': DateTime.now().year,
+          'geschaeftsjahr': (datum ?? DateTime.now()).year,
         });
         erstellteBuchungen.add(buchung);
       }
@@ -109,11 +110,12 @@ class ZahlungsdifferenzService {
   static Future<List<Buchung>> verbuchen({
     required Rechnung rechnung,
     required double zahlungBetrag,
+    DateTime? datum,
   }) async {
     final rechnungBrutto = _round5Rappen(rechnung.betragBrutto);
     final zahlung = _round5Rappen(zahlungBetrag);
     final differenz = _round5Rappen(zahlung - rechnungBrutto);
-    final datumStr = DateTime.now().toIso8601String().split('T').first;
+    final datumStr = (datum ?? DateTime.now()).toIso8601String().split('T').first;
     final rgNr = rechnung.rechnungsnummer ?? '';
     final erstellteBuchungen = <Buchung>[];
 
@@ -143,7 +145,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'bank',
           'beleg_typ': 'zahlung',
           'beleg_id': rechnung.id,
-          'geschaeftsjahr': DateTime.now().year,
+          'geschaeftsjahr': (datum ?? DateTime.now()).year,
         });
         erstellteBuchungen.add(buchung);
         debugPrint('[ZahlDiff] Exakte Zahlung: $rechnungBrutto CHF');
@@ -163,7 +165,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'bank',
           'beleg_typ': 'zahlung',
           'beleg_id': rechnung.id,
-          'geschaeftsjahr': DateTime.now().year,
+          'geschaeftsjahr': (datum ?? DateTime.now()).year,
         });
         erstellteBuchungen.add(buchung1);
 
@@ -182,7 +184,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'intern',
           'beleg_typ': 'zahlung',
           'beleg_id': rechnung.id,
-          'geschaeftsjahr': DateTime.now().year,
+          'geschaeftsjahr': (datum ?? DateTime.now()).year,
         });
         erstellteBuchungen.add(buchung2);
         debugPrint(
@@ -203,7 +205,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'bank',
           'beleg_typ': 'zahlung',
           'beleg_id': rechnung.id,
-          'geschaeftsjahr': DateTime.now().year,
+          'geschaeftsjahr': (datum ?? DateTime.now()).year,
         });
         erstellteBuchungen.add(buchung1);
 
@@ -222,7 +224,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'bank',
           'beleg_typ': 'zahlung',
           'beleg_id': rechnung.id,
-          'geschaeftsjahr': DateTime.now().year,
+          'geschaeftsjahr': (datum ?? DateTime.now()).year,
         });
         erstellteBuchungen.add(buchung2);
         debugPrint(
