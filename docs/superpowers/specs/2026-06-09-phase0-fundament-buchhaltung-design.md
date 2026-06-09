@@ -57,7 +57,7 @@ Die `Buchung` speichert weiterhin das **aufgelöste** `sollKonto`/`habenKonto` �
 Basis: die 61 Excel-Konten 1:1 übernehmen. **Änderungen:**
 
 - **Vorlagen-Fehler korrigieren** (betrifft Geschäftsfälle, nicht den Kontenrahmen selbst): `8090 → 8900`, `9100 → 9010`, „Privat 1010" → `2260`, `1120` (existiert nicht) → korrektes Konto je Fall.
-- **Neu für Abschreibungen (Phase 2):** Wertberichtigung/Delkredere auf Debitoren + ein Debitorenverlust-Konto. Genaue Kontonummern/Methode (Einzel- vs. Pauschalwertberichtigung) **mit Treuhänder** festlegen — Platzhalter im Seed, finalisierbar.
+- **Neu für Abschreibungen (Phase 2), nach KMU-Standard:** **1109 Delkredere** (Wertberichtigung Forderungen, Aktiv-Korrektur) und **3805 Debitorenverluste** (Aufwand). Pauschal-Wertberichtigung **5 % auf inländische Debitoren** (alle Kunden inländisch) ist steuerlich anerkannt.
 - Ungenutzte Konten (z. B. 2206 Verrechnungssteuer) bleiben bestehen (schaden nicht), werden aber nicht aktiv bebucht.
 
 Der Seed bildet zusätzlich `kategorie`/`kontenklasse` ab (für die Auswertungs-Gliederung, wie in der Excel-Spalte „Kategorie").
@@ -68,7 +68,7 @@ Die 88 Excel-Vorlagen werden zu Geschäftsfällen verdichtet, indem die 3 Varian
 
 - **Ausgaben** (je 1 Geschäftsfall, `erlaubteZahlungswege = [Kasse, Bank, Privat, Kreditor]`): Spesen→5820, Tanken→6200, Parkgebühren→6270, Bussen→6280, Fahrbewilligung→6275, Autoreparatur/Selbstbehalt→6250, Büromaterial→6500, Werkzeug/Material→4004, Berufskleider→5850, Kaffee→5880, Kehricht→6460, Briefmarken→6510 (ohne MWST), Internet/Mobile→6510, Software→6560, Büromiete→6000 (ohne MWST), Buchführung→6530, Sachversicherung/Haftpflicht→6300, Entsorgung→6460.
 - **Einnahmen:** Reinigung→3400 (Zahlungsweg Kasse/Debitor), Heineken-Monatsrechnung→3400.
-- **Fixe Geschäftsfälle** (explizit Soll/Haben, kein Zahlungsweg): Franchise (6301/2000 + 1170 → 2-stufig), Lohnlauf (22.x: Brutto + AG-/AN-Anteile + Nettozahlung), MWST-Abrechnung (25.x), Steuern (8900 — Behandlung „direkt vs. Rückstellung 2208" mit Treuhänder), Corona-Kredit (2500), KAE/EO (5005/2276), Härtefall (8510), Bankgebühren (6940), Sozialversicherungs-Zahlungen (2271/2272/2273 → 1020), Gründung (2800/6550), Gewinn-/Verlustvortrag & Abschluss.
+- **Fixe Geschäftsfälle** (explizit Soll/Haben, kein Zahlungsweg): Franchise (6301/2000 + 1170 → 2-stufig), Lohnlauf (22.x: Brutto + AG-/AN-Anteile + Nettozahlung), MWST-Abrechnung (25.x), **Steuern: Rückstellung** (Jahresende 8900/2208; Zahlung 2208/1020; Rückerstattung 1020/2208), **Debitorenverlust endgültig** (1100 brutto = 3805 netto + 2200 MWST-Rückholung) und **Delkredere bilden/auflösen** (3805/1109 bzw. 1109/3805), Corona-Kredit (2500), KAE/EO (5005/2276), Härtefall (8510), Bankgebühren (6940), Sozialversicherungs-Zahlungen (2271/2272/2273 → 1020), Gründung (2800/6550), Gewinn-/Verlustvortrag & Abschluss.
 
 Jeder Geschäftsfall trägt seinen `belegordner` (für die Ablage-Zusammenführung in Phase 3).
 
@@ -107,8 +107,10 @@ MWST-Satz (Datum)     ─┘                                      │
 - Offene Posten (Debitoren/Kreditoren) sind als Liste sichtbar.
 - Bestehende Buchungen/Screens funktionieren weiter (keine Regression).
 
-## 9. Offen / mit Treuhänder
+## 9. Entschiedene Buchhaltungs-Fragen (ohne Treuhänder, nach KMU-Standard)
 
-- Genaue Konten & Methode für **Debitoren-Wertberichtigung/Abschreibung** (Phase 2).
-- **Steuern: direkt 8900 vs. Rückstellung 2208** — Entscheid mit Treuhänder (Default: wie Excel, direkt 8900).
-- Detail der Lohn-Geschäftsfälle (Bruttomethode-Abbildung) wird beim Import (Phase 1) an realen Buchungen verifiziert.
+- **Debitoren-Abschreibung:** Konten **1109 Delkredere** + **3805 Debitorenverluste**. Endgültig Uneinbringliches → abschreiben mit MWST-Rückholung (1100 = 3805 + 2200); unsicherer Rest → **Delkredere 5 %** (inländisch, steuerlich anerkannt). Verlust → Verlustvortrag (G6).
+- **Steuern:** **Rückstellungs-Methode** (periodengerecht): Jahresende 8900/2208, Zahlung 2208/1020, Rückerstattung 1020/2208 — Wechsel von der bisherigen Excel-Direktbuchung.
+- **Lohn-Geschäftsfälle** (Bruttomethode): werden beim Import (Phase 1) an realen Buchungen verifiziert.
+
+Quellen: kmu.admin.ch (Debitorenverluste/Delkredere), triana-treuhand.ch (Konten 1100/1109/3805, 5 %/10 %), TaxInfo Kanton Bern (Steuerrückstellung jur. Personen), runmyaccounts.ch.
