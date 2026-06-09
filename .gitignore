@@ -39,3 +39,6 @@ MX53D_*.xml
 # Private Finanzdokumente / eingescannte Rechnungen & Unterlagen - niemals committen
 # (Steuern, MWST, Bankkonto, SVA, SUVA, Loehne, IBAN etc. - Repo deployt auf oeffentliche GitHub-Pages)
 00_Rechnungen/
+
+# Buchhaltungs-Excel (Kopie zur Analyse) - private Finanzdaten, niemals committen
+00_Buchhaltung/
