@@ -161,12 +161,14 @@ class _WeitereSection extends ConsumerWidget {
 
     return Column(
       children: [
-        _MenuListTile(
-          icon: Icons.account_balance,
-          label: 'Buchhaltung',
-          count: buchungenCount > 0 ? '$buchungenCount' : null,
-          onTap: () => context.push('/buchhaltung'),
-        ),
+        // Buchhaltung für Gast (Heineken) ausgeblendet
+        if (!SupabaseService.isGuest)
+          _MenuListTile(
+            icon: Icons.account_balance,
+            label: 'Buchhaltung',
+            count: buchungenCount > 0 ? '$buchungenCount' : null,
+            onTap: () => context.push('/buchhaltung'),
+          ),
         _MenuListTile(
           icon: Icons.inventory_2,
           label: 'Material',
