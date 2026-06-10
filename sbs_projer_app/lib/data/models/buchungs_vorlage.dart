@@ -3,10 +3,14 @@ class BuchungsVorlage {
   final String userId;
   final String geschaeftsfallId;
   final String bezeichnung;
-  final int sollKonto;
-  final int habenKonto;
+  final String art; // 'ausgabe' | 'einnahme' | 'fix'
+  final int? hauptkonto; // bei ausgabe/einnahme
+  final bool mwstPflichtig;
+  final List<String> erlaubteZahlungswege;
+  final int? sollKonto; // nur bei art='fix'
+  final int? habenKonto; // nur bei art='fix'
   final int? mwstKonto;
-  final double? mwstSatz;
+  final double? mwstSatz; // bleibt für Altdaten; neu i.d.R. null (Datum entscheidet)
   final String? zahlungsweg;
   final String? belegordner;
   final String? autoTrigger;
@@ -19,8 +23,12 @@ class BuchungsVorlage {
     required this.userId,
     required this.geschaeftsfallId,
     required this.bezeichnung,
-    required this.sollKonto,
-    required this.habenKonto,
+    this.art = 'fix',
+    this.hauptkonto,
+    this.mwstPflichtig = false,
+    this.erlaubteZahlungswege = const [],
+    this.sollKonto,
+    this.habenKonto,
     this.mwstKonto,
     this.mwstSatz,
     this.zahlungsweg,
@@ -37,6 +45,11 @@ class BuchungsVorlage {
       userId: json['user_id'],
       geschaeftsfallId: json['geschaeftsfall_id'],
       bezeichnung: json['bezeichnung'],
+      art: json['art'] ?? 'fix',
+      hauptkonto: json['hauptkonto'],
+      mwstPflichtig: json['mwst_pflichtig'] ?? false,
+      erlaubteZahlungswege:
+          (json['erlaubte_zahlungswege'] as List?)?.cast<String>() ?? const [],
       sollKonto: json['soll_konto'],
       habenKonto: json['haben_konto'],
       mwstKonto: json['mwst_konto'],
@@ -48,7 +61,9 @@ class BuchungsVorlage {
       autoTrigger: json['auto_trigger'],
       istAktiv: json['ist_aktiv'] ?? true,
       notizen: json['notizen'],
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
     );
   }
 
@@ -58,6 +73,10 @@ class BuchungsVorlage {
       'user_id': userId,
       'geschaeftsfall_id': geschaeftsfallId,
       'bezeichnung': bezeichnung,
+      'art': art,
+      'hauptkonto': hauptkonto,
+      'mwst_pflichtig': mwstPflichtig,
+      'erlaubte_zahlungswege': erlaubteZahlungswege,
       'soll_konto': sollKonto,
       'haben_konto': habenKonto,
       'mwst_konto': mwstKonto,
