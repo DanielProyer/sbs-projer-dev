@@ -15,6 +15,7 @@ Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin 
 - [ ] Saldo-Parsing-Bug (vorbestehend): `OPBD/CLBD` werden als 0 gelesen (`CdOrPrtry` liegt unter `Tp`). Nicht von der Pipeline genutzt, aber falsch.
 - [ ] Phase-2: Regel `'abschluss'` ist breit (Substring) — beobachten; ggf. auf IBAN/spezifischeren Text verengen. Lohn-Regel „daniel proyer" ggf. auf IBAN (CH7909000000870500683) umstellen.
 - [ ] M1: Heineken-Klassifizierung per Substring „heineken" — ggf. auf „heineken switzerland" verengen.
+- [ ] **Phase 0a Follow-up:** 11 alte camt-referenzierte Vorlagen (15.1, 19.1, 2.1, 20.1, 22.7, 24.1, 25.4, 30.1–30.4) blieben bewusst `ist_aktiv=true` (FK-Schutz). Optional später: camt-Regeln auf die neuen Geschaeftsfaelle (A-sozvers/F-steuer-*/A-telekom/A-sachvers/F-bankgeb/F-fran-zg) umhaengen, dann Alt-Vorlagen deaktivieren. Tauchen aktuell zusaetzlich im manuellen Vorlagen-Dropdown auf.
 
 **Bewusste Design-Entscheidung (NICHT ändern):** Kein DB-Unique-Constraint auf `buchungen(camt_tx_key)` — der Kundenzahlungs-Pfad stempelt denselben `tx_key` absichtlich auf mehrere Buchungen (Sammelzahlung). Dedup läuft korrekt über den In-App-Set (Single-User-App).
 
@@ -129,6 +130,8 @@ Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin 
   - Konto 9100 (Eroeffnungsbilanz) hinzufuegen
   - Pruefen ob alle Konten fuer Vollbetrieb vorhanden (Loehne, Sozialversicherungen, etc.)
   - ✅ 4 Lohn-Konten hinzugefuegt: 5710 FAK, 5720 BVG AG, 5730 UVG AG, 5740 KTG AG
+  - ✅ 1109 Delkredere + 3805 Debitorenverluste (Migration 089)
+  - [ ] **9 von Phase-0a-Geschaeftsfaellen referenzierte Konten fehlen noch im Kontenplan** (Buchen geht, aber Reports zeigen keinen Namen): **2208** Steuerrueckstellung, **2276** KAE/EO-Klaerung, **2500** Corona-Kredit, **5880** Kaffee, **6460** Entsorgung, **6500** Bueromaterial, **6550** Gruendungskosten, **8510** Haertefall, **8900** Direkte Steuern. Hinweis: 8900 + 2500 werden bereits von bestehenden camt-Regeln genutzt (vorbestehendes Loch). Bezeichnung/Kategorie mit Daniel klaeren, dann INSERT.
 
 ### Umstellung (25.-30. Juni 2026)
 

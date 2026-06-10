@@ -6,10 +6,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchungs_vorlage_providers.dart';
+import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
+import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
+import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
 
 class BuchungFormScreen extends ConsumerStatefulWidget {
   const BuchungFormScreen({super.key});
@@ -34,6 +38,18 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
   final _mwstSatzController = TextEditingController();
   String? _zahlungsweg;
 
+  /// Datumsabhängiger MWST-Satz für die Vorschau im Vorlagen-Modus.
+  double _vorlageMwstSatz = 0;
+
+  // Anzeige-Labels für Zahlungswege.
+  static const Map<String, String> _zahlungswegLabels = {
+    'kasse': 'Bar (Kasse)',
+    'bank': 'Bank',
+    'privat': 'Privat bezahlt',
+    'kreditor': 'Kreditor (offene Rechnung)',
+    'debitor': 'Debitor (Kundenrechnung)',
+  };
+
   // Beleg (wird nach Buchungs-Erstellung hochgeladen)
   Uint8List? _belegBytes;
   String? _belegDateiname;
@@ -55,14 +71,24 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
     setState(() {
       _selectedVorlage = vorlage;
       if (vorlage != null) {
-        _sollKontoController.text = vorlage.sollKonto.toString();
-        _habenKontoController.text = vorlage.habenKonto.toString();
-        _mwstKontoController.text = vorlage.mwstKonto?.toString() ?? '';
-        _mwstSatzController.text = vorlage.mwstSatz?.toString() ?? '0';
-        _zahlungsweg = vorlage.zahlungsweg;
         _beschreibungController.text = vorlage.bezeichnung;
+        // Geschäftsfall + Zahlungsweg: bei art != 'fix' ersten erlaubten Weg vorbelegen.
+        _zahlungsweg = (vorlage.art != 'fix' &&
+                vorlage.erlaubteZahlungswege.isNotEmpty)
+            ? vorlage.erlaubteZahlungswege.first
+            : null;
+        _vorlageMwstSatz = 0;
       }
     });
+    if (vorlage != null) _ladeVorlageSatz();
+  }
+
+  /// Lädt den datumsabhängigen MWST-Satz für die Vorschau (nur Vorlagen-Modus).
+  Future<void> _ladeVorlageSatz() async {
+    final v = _selectedVorlage;
+    final satz =
+        (v != null && v.mwstPflichtig) ? await MwstSatzService.satzFuerDatum(_datum) : 0.0;
+    if (mounted) setState(() => _vorlageMwstSatz = satz);
   }
 
   @override
@@ -154,7 +180,10 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                     firstDate: DateTime(2020),
                     lastDate: DateTime.now().add(const Duration(days: 30)),
                   );
-                  if (picked != null) setState(() => _datum = picked);
+                  if (picked != null) {
+                    setState(() => _datum = picked);
+                    _ladeVorlageSatz();
+                  }
                 },
               ),
             ),
@@ -202,8 +231,8 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Konten (bei Frei buchen oder nach Vorlage-Auswahl)
-            if (_freiBuchen || _selectedVorlage != null)
+            // Konten – manuelle Eingabe nur im Frei-Buchen-Modus
+            if (_freiBuchen)
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -227,7 +256,6 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                                 labelText: 'Soll',
                               ),
                               keyboardType: TextInputType.number,
-                              enabled: _freiBuchen,
                               validator: (v) =>
                                   v == null || v.isEmpty ? 'Pflicht' : null,
                             ),
@@ -243,7 +271,6 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                                 labelText: 'Haben',
                               ),
                               keyboardType: TextInputType.number,
-                              enabled: _freiBuchen,
                               validator: (v) =>
                                   v == null || v.isEmpty ? 'Pflicht' : null,
                             ),
@@ -260,7 +287,6 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                                 labelText: 'MwSt-Konto',
                               ),
                               keyboardType: TextInputType.number,
-                              enabled: _freiBuchen,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -272,33 +298,32 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                               ),
                               keyboardType: const TextInputType.numberWithOptions(
                                   decimal: true),
-                              enabled: _freiBuchen,
                             ),
                           ),
                         ],
                       ),
-                      if (_freiBuchen) ...[
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: _zahlungsweg,
-                          decoration: const InputDecoration(
-                            labelText: 'Zahlungsweg',
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'kasse', child: Text('Kasse')),
-                            DropdownMenuItem(
-                                value: 'bank', child: Text('Bank')),
-                            DropdownMenuItem(
-                                value: 'privat', child: Text('Privat')),
-                          ],
-                          onChanged: (v) => setState(() => _zahlungsweg = v),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _zahlungsweg,
+                        decoration: const InputDecoration(
+                          labelText: 'Zahlungsweg',
                         ),
-                      ],
+                        items: const [
+                          DropdownMenuItem(value: 'kasse', child: Text('Kasse')),
+                          DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                          DropdownMenuItem(
+                              value: 'privat', child: Text('Privat')),
+                        ],
+                        onChanged: (v) => setState(() => _zahlungsweg = v),
+                      ),
                     ],
                   ),
                 ),
               ),
+
+            // Geschäftsfall-Modus: Zahlungsweg-Auswahl bzw. Fix-Buchungs-Info
+            if (!_freiBuchen && _selectedVorlage != null)
+              _buildVorlageBuchungCard(_selectedVorlage!),
 
             // Beleg
             const SizedBox(height: 8),
@@ -491,9 +516,68 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
     );
   }
 
+  /// Karte für den Geschäftsfall-Modus: Zahlungsweg-Auswahl (art != 'fix')
+  /// bzw. Fix-Buchungs-Info, jeweils mit Soll→Haben-Vorschau.
+  Widget _buildVorlageBuchungCard(BuchungsVorlage v) {
+    final istFix = v.art == 'fix';
+    AufgeloesteBuchung? aufgeloest;
+    try {
+      aufgeloest = GeschaeftsfallResolver.aufloesen(v, _zahlungsweg);
+    } catch (_) {
+      aufgeloest = null; // z.B. Zahlungsweg noch nicht gewählt
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              istFix ? 'Buchung' : 'Zahlungsweg',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            if (!istFix && v.erlaubteZahlungswege.isNotEmpty)
+              DropdownButtonFormField<String>(
+                value: _zahlungsweg,
+                decoration: const InputDecoration(labelText: 'Zahlungsweg'),
+                items: v.erlaubteZahlungswege
+                    .map((z) => DropdownMenuItem(
+                          value: z,
+                          child: Text(_zahlungswegLabels[z] ?? z),
+                        ))
+                    .toList(),
+                validator: (z) => z == null ? 'Bitte Zahlungsweg wählen' : null,
+                onChanged: (z) => setState(() => _zahlungsweg = z),
+              ),
+            if (aufgeloest != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.swap_horiz, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Soll ${aufgeloest.sollKonto} → Haben ${aufgeloest.habenKonto}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMwstPreview() {
     final netto = double.tryParse(_betragController.text) ?? 0;
-    final satz = double.tryParse(_mwstSatzController.text) ?? 0;
+    final satz = _freiBuchen
+        ? (double.tryParse(_mwstSatzController.text) ?? 0)
+        : _vorlageMwstSatz;
     final mwst = netto * satz / 100;
     final brutto = netto + mwst;
 
@@ -541,36 +625,52 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
 
     try {
       final netto = double.parse(_betragController.text);
-      final mwstSatz =
-          double.tryParse(_mwstSatzController.text) ?? 0;
-      final mwstBetrag =
-          (netto * mwstSatz / 100 * 100).roundToDouble() / 100;
-
-      final sollKonto = int.parse(_sollKontoController.text);
-      final habenKonto = int.parse(_habenKontoController.text);
-      final mwstKonto = _mwstKontoController.text.isNotEmpty
-          ? int.tryParse(_mwstKontoController.text)
+      final belegnummer = _belegnummerController.text.isNotEmpty
+          ? _belegnummerController.text
           : null;
 
-      final buchung = await BuchungRepository.create({
-        'datum': _datum.toIso8601String().split('T').first,
-        'belegnummer': _belegnummerController.text.isNotEmpty
-            ? _belegnummerController.text
-            : null,
-        'vorlage_id': _selectedVorlage?.id,
-        'soll_konto': sollKonto,
-        'haben_konto': habenKonto,
-        'mwst_konto': mwstKonto,
-        'betrag_netto': netto,
-        'mwst_satz': mwstSatz,
-        'mwst_betrag': mwstBetrag,
-        'betrag_brutto': netto + mwstBetrag,
-        'beschreibung': _beschreibungController.text,
-        'zahlungsweg': _zahlungsweg ?? _selectedVorlage?.zahlungsweg,
-        'belegordner': _selectedVorlage?.belegordner,
-        'beleg_typ': 'sonstiges',
-        'geschaeftsjahr': _datum.year,
-      });
+      final Buchung buchung;
+      if (_freiBuchen) {
+        // Frei buchen: Soll/Haben/MwSt manuell.
+        final mwstSatz = double.tryParse(_mwstSatzController.text) ?? 0;
+        final mwstBetrag =
+            (netto * mwstSatz / 100 * 100).roundToDouble() / 100;
+        final sollKonto = int.parse(_sollKontoController.text);
+        final habenKonto = int.parse(_habenKontoController.text);
+        final mwstKonto = _mwstKontoController.text.isNotEmpty
+            ? int.tryParse(_mwstKontoController.text)
+            : null;
+
+        buchung = await BuchungRepository.create({
+          'datum': _datum.toIso8601String().split('T').first,
+          'belegnummer': belegnummer,
+          'vorlage_id': null,
+          'soll_konto': sollKonto,
+          'haben_konto': habenKonto,
+          'mwst_konto': mwstKonto,
+          'betrag_netto': netto,
+          'mwst_satz': mwstSatz,
+          'mwst_betrag': mwstBetrag,
+          'betrag_brutto': netto + mwstBetrag,
+          'beschreibung': _beschreibungController.text,
+          'zahlungsweg': _zahlungsweg,
+          'belegordner': null,
+          'beleg_typ': 'sonstiges',
+          'geschaeftsjahr': _datum.year,
+        });
+      } else {
+        // Geschäftsfall + Zahlungsweg → Resolver + datumsabhängige MwSt.
+        buchung = await BuchungService.createFromVorlage(
+          _selectedVorlage!,
+          datum: _datum,
+          betragNetto: netto,
+          zahlungsweg: _zahlungsweg,
+          beschreibung: _beschreibungController.text.isEmpty
+              ? null
+              : _beschreibungController.text,
+          belegnummer: belegnummer,
+        );
+      }
 
       // Beleg hochladen falls vorhanden
       if (_belegBytes != null &&

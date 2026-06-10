@@ -1,36 +1,48 @@
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
+import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class BuchungService {
-  /// Erstellt eine manuelle Buchung basierend auf einer Vorlage.
+  /// Erstellt eine manuelle Buchung basierend auf einer Vorlage (Geschäftsfall).
+  ///
+  /// Soll/Haben werden über [GeschaeftsfallResolver] aus Geschäftsfall (was) +
+  /// [zahlungsweg] (wie) aufgelöst; bei `art='fix'` direkt aus der Vorlage.
+  /// Der MWST-Satz kommt datumsabhängig aus [MwstSatzService], wenn die Vorlage
+  /// `mwstPflichtig` ist.
   static Future<Buchung> createFromVorlage(
     BuchungsVorlage vorlage, {
     required DateTime datum,
     required double betragNetto,
+    String? zahlungsweg, // bei art ausgabe/einnahme erforderlich
     String? beschreibung,
     String? belegnummer,
     String? belegTyp,
     String? belegId,
   }) async {
-    final mwstSatz = vorlage.mwstSatz ?? 0;
-    final mwstBetrag = betragNetto * mwstSatz / 100;
-    final betragBrutto = betragNetto + mwstBetrag;
+    final aufgeloest = GeschaeftsfallResolver.aufloesen(vorlage, zahlungsweg);
+
+    // MWST: Satz aus Datum, nur wenn Vorlage steuerpflichtig
+    final double mwstSatz =
+        vorlage.mwstPflichtig ? await MwstSatzService.satzFuerDatum(datum) : 0;
+    final double mwstBetrag = betragNetto * mwstSatz / 100;
+    final double betragBrutto = betragNetto + mwstBetrag;
 
     return BuchungRepository.create({
       'datum': datum.toIso8601String().split('T').first,
       'belegnummer': belegnummer,
       'vorlage_id': vorlage.id,
-      'soll_konto': vorlage.sollKonto,
-      'haben_konto': vorlage.habenKonto,
-      'mwst_konto': vorlage.mwstKonto,
+      'soll_konto': aufgeloest.sollKonto,
+      'haben_konto': aufgeloest.habenKonto,
+      'mwst_konto': vorlage.mwstPflichtig ? aufgeloest.mwstKonto : null,
       'betrag_netto': betragNetto,
       'mwst_satz': mwstSatz,
       'mwst_betrag': (mwstBetrag * 100).roundToDouble() / 100,
       'betrag_brutto': (betragBrutto * 100).roundToDouble() / 100,
       'beschreibung': beschreibung ?? vorlage.bezeichnung,
-      'zahlungsweg': vorlage.zahlungsweg,
+      'zahlungsweg': zahlungsweg ?? vorlage.zahlungsweg,
       'belegordner': vorlage.belegordner,
       'beleg_typ': belegTyp ?? 'sonstiges',
       'beleg_id': belegId,
