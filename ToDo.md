@@ -5,6 +5,13 @@
 
 ---
 
+## 🧾 Forderungen-Hub (13.06.2026, gemergt + deployed v0.10.118)
+Debitoren/Rechnungen/Mahnwesen vereint: Rechnungsliste = Hub „Forderungen" (`/rechnungen`) mit Mahnfällig-Filter + einklappbarem Debitoren-Kopf (Salden + Sammel-Abschreibung + Delkredere). `ForderungService` (empfohlene Mahn-Aktion, TDD). Mahnwesen-/Debitoren-Screens entfernt (Routen→Redirect), Tiles zu einem „Forderungen". Kritischer Re-Audit: Bilanz geht auf (Diff −0.02 Rundung), keine Strukturfehler.
+- [ ] **Hub Follow-up (Minor, toter Code):** `forderungenProvider` ungenutzt; `mahnwesenDashboardProvider` nur noch invalidiert (kein watch mehr). Beide entfernen + invalidate-Aufrufe auf `rechnungenStreamProvider` umbiegen.
+- [ ] **Buchungsvorlagen aufräumen (in Arbeit):** Dubletten 20.1≡F-bankgeb, 19.1≡F-fran-zg, 24.1↔A-sachvers, 15.1↔A-telekom, 30.x↔A-sozvers; A-sozvers bucht generisch 5700 (BVG sollte 5720, SUVA 5730); Titel/IDs vereinheitlichen; camt-Regeln auf neue Vorlagen umhängen, dann alte deaktivieren.
+
+---
+
 ## 📥 camt-Auto-Buchung (Rechnungskontrolle)
 
 **Phase 1 + Phase 2 fertig** (Branch `feature/camt-rechnungskontrolle`): Parser-Split, Stichtag 01.07.2026, Klassifizierer, Kundenzahlungs-/Heineken-Matching, Prüfliste, Auto-Booker, Ausgaben-Regelwerk (`camt_regel` + 13 Startregeln + 4 neue Vorlagen 5700/5720/5730/8900), Regel-UI + Dashboard-Einstiege. Spec/Plan unter `docs/superpowers/`. **Produktiv aktiv ab Stichtag 01.07.2026.**
