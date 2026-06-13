@@ -50,4 +50,19 @@ void main() {
     );
     expect(er.nettoerloes, 0);
   });
+
+  test('Nebenerfolg: Klasse-7-Ertrag minus betriebsfremder Aufwand (8000–8899)',
+      () {
+    final er = ErfolgsrechnungService.berechne(
+      [
+        _b(1020, 7000, 200, '2025-03-01'), // Nebenertrag +200 (Haben)
+        _b(8000, 1020, 30, '2025-03-02'), // betriebsfremder Aufwand 30 (Soll)
+      ],
+      von: DateTime.parse('2025-01-01'),
+      bis: DateTime.parse('2025-12-31'),
+    );
+    expect(er.nebenerfolg, 170); // 200 − 30
+    expect(er.steuern, 0); // 8900er nicht betroffen
+    expect(er.jahresergebnis, 170);
+  });
 }
