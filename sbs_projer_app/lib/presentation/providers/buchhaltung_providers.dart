@@ -160,11 +160,13 @@ final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
 /// historischer Aggregat und Delkredere (1109).
 final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) async {
   final saldi = await BuchungService.getAllSaldi();
-  final offeneRg = await SupabaseService.client
+  // Offene native Rechnungen: in Dart filtern (robust gegen PostgREST-in-Syntax).
+  final rgRows = await SupabaseService.client
       .from('rechnungen')
-      .select('betrag_brutto')
-      .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")');
-  final nativeOffen = (offeneRg as List)
+      .select('betrag_brutto, zahlungsstatus');
+  const erledigt = {'bezahlt', 'abgeschrieben'};
+  final nativeOffen = (rgRows as List)
+      .where((r) => !erledigt.contains(r['zahlungsstatus']))
       .fold<double>(0, (s, r) => s + _toDouble(r['betrag_brutto']));
   final debitoren = saldi[1100] ?? 0;
   final delkredere = -(saldi[1109] ?? 0);
