@@ -111,9 +111,10 @@ def _sql_num(v):
 
 def write_batches(rows):
     os.makedirs(OUT_DIR, exist_ok=True)
+    # monat/quartal sind GENERATED (aus datum) -> nicht einfuegen.
     cols = ('user_id,datum,belegnummer,soll_konto,haben_konto,mwst_konto,betrag_netto,'
             'mwst_satz,mwst_betrag,betrag_brutto,beschreibung,belegordner,'
-            'geschaeftsjahr,monat,quartal,ist_storniert')
+            'geschaeftsjahr,ist_storniert')
     n = 0
     for i in range(0, len(rows), BATCH):
         chunk = rows[i:i + BATCH]
@@ -134,8 +135,6 @@ def write_batches(rows):
                     _sql_str(r['beschreibung']),
                     _sql_str(r['belegordner']),
                     _sql_int(r['geschaeftsjahr']),
-                    _sql_int(r['monat']),
-                    _sql_int(r['quartal']),
                     'false',
                 ]) + ')')
         sql = f"INSERT INTO buchungen ({cols}) VALUES\n" + ',\n'.join(vals) + ';\n'
