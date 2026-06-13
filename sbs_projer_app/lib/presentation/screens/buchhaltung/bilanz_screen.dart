@@ -34,7 +34,10 @@ class _BilanzScreenState extends ConsumerState<BilanzScreen> {
         data: (b) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Per 31.12.$_jahr',
+            Text(
+                _jahr >= DateTime.now().year
+                    ? 'Per 31.12.$_jahr (provisorisch)'
+                    : 'Per 31.12.$_jahr',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             _seite('Aktiven', b.aktiven, b.totalAktiven),
@@ -65,7 +68,8 @@ class _BilanzScreenState extends ConsumerState<BilanzScreen> {
                 child: Text(g.titel,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
-              for (final p in g.posten) _zeile(p.bezeichnung, p.summe),
+              for (final p in g.posten)
+                _zeile('${p.kontonummer} ${p.bezeichnung}', p.summe),
               _zeile('Total ${g.titel}', g.summe, fett: true),
             ],
             const Divider(),
