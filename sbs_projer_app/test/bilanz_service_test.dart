@@ -112,4 +112,49 @@ void main() {
     expect(bilanz.aktiven.single.summe, 94.05);
     expect(bilanz.passiven.single.summe, 7.05);
   });
+
+  test('kumuliertesErgebnis: Ertrag (Kl.3) minus Aufwand (Kl.4-8) = Gewinn', () {
+    final saldi = {3400: -1000.0, 5000: 300.0, 8900: 20.0, 1020: 680.0};
+    expect(BilanzService.kumuliertesErgebnis(saldi), 680.0); // -(-1000+300+20)
+  });
+
+  test('kumuliertesErgebnis ignoriert Klasse 1/2/9', () {
+    final saldi = {1020: 500.0, 2000: -200.0, 9000: 999.0};
+    expect(BilanzService.kumuliertesErgebnis(saldi), 0.0);
+  });
+
+  test('gruppiere mit Vortrag+Jahresergebnis hängt EK-Posten an und balanciert', () {
+    final saldi = {1020: 83118.0, 2800: -20000.0};
+    final bilanz = BilanzService.gruppiere(
+      saldi,
+      [
+        KontoInfo(kontonummer: 1020, bezeichnung: 'Bank', kategorie: 'Umlaufvermögen'),
+        KontoInfo(kontonummer: 2800, bezeichnung: 'Eigenkapital', kategorie: 'Eigenkapital'),
+      ],
+      gewinnvortrag: 35319.11,
+      jahresergebnis: 27798.89,
+    );
+    final ek = bilanz.passiven.firstWhere((g) => g.titel == 'Eigenkapital');
+    expect(
+        ek.posten.any((p) =>
+            p.bezeichnung == 'Gewinn-/Verlustvortrag' && p.summe == 35319.11),
+        isTrue);
+    expect(
+        ek.posten.any(
+            (p) => p.bezeichnung == 'Jahresergebnis' && p.summe == 27798.89),
+        isTrue);
+    expect(bilanz.totalAktiven, 83118.0);
+    expect(bilanz.totalPassiven, 83118.0);
+    expect(bilanz.differenz.abs() < 0.005, isTrue);
+  });
+
+  test('gruppiere ohne Split (Default 0) erzeugt keine Ergebnis-Posten', () {
+    final saldi = {1020: 100.0, 2800: -100.0};
+    final bilanz = BilanzService.gruppiere(saldi, [
+      KontoInfo(kontonummer: 1020, bezeichnung: 'Bank', kategorie: 'Umlaufvermögen'),
+      KontoInfo(kontonummer: 2800, bezeichnung: 'EK', kategorie: 'Eigenkapital'),
+    ]);
+    final ek = bilanz.passiven.firstWhere((g) => g.titel == 'Eigenkapital');
+    expect(ek.posten.length, 1);
+  });
 }

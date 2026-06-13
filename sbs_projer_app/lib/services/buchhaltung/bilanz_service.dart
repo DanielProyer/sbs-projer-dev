@@ -96,11 +96,28 @@ class BilanzService {
     return saldi;
   }
 
+  /// Kumuliertes Ergebnis = −Σ Roh-Saldo der Erfolgskonten (Klasse 3–8).
+  /// Gewinn positiv. (Die ER-Konten laufen durch; das Ergebnis wird hieraus
+  /// berechnet statt über Abschlussbuchungen.)
+  static double kumuliertesErgebnis(Map<int, double> saldi) {
+    double s = 0;
+    saldi.forEach((konto, v) {
+      final kl = konto ~/ 1000;
+      if (kl >= 3 && kl <= 8) s += v;
+    });
+    return -s;
+  }
+
   /// Gruppiert die Saldi nach Bilanz-Abschnitten. Aktiven nehmen den Saldo
   /// (Soll−Haben) direkt; Passiven invertieren ihn (Haben−Soll). Posten mit
-  /// Saldo 0 entfallen.
+  /// Saldo 0 entfallen. [gewinnvortrag]/[jahresergebnis] werden als berechnete
+  /// Eigenkapital-Posten angehängt (≠ 0).
   static BilanzDaten gruppiere(
-      Map<int, double> saldi, List<KontoInfo> konten) {
+    Map<int, double> saldi,
+    List<KontoInfo> konten, {
+    double gewinnvortrag = 0,
+    double jahresergebnis = 0,
+  }) {
     final byNr = {for (final k in konten) k.kontonummer: k};
 
     List<BilanzPosten> postenFuer(bool Function(String kat) match,
@@ -127,6 +144,14 @@ class BilanzService {
     _passivGruppen.forEach((titel, kategorien) {
       final posten =
           postenFuer((k) => kategorien.contains(k), invertieren: true);
+      if (titel == 'Eigenkapital') {
+        if (gewinnvortrag != 0) {
+          posten.add(BilanzPosten(2970, 'Gewinn-/Verlustvortrag', gewinnvortrag));
+        }
+        if (jahresergebnis != 0) {
+          posten.add(BilanzPosten(2980, 'Jahresergebnis', jahresergebnis));
+        }
+      }
       if (posten.isNotEmpty) passiven.add(BilanzGruppe(titel, posten));
     });
 
