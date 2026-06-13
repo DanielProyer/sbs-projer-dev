@@ -119,7 +119,7 @@ class _LohnEinstellungenScreenState
             itemBuilder: (ctx) {
               final now = DateTime.now().year;
               return [
-                for (int y = now + 1; y >= now - 2; y--)
+                for (int y = now + 1; y >= 2019; y--)
                   PopupMenuItem(value: y, child: Text('$y')),
               ];
             },
