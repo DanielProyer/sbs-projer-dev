@@ -138,7 +138,9 @@ Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin 
 
 Bilanz-Screen (neu, /buchhaltung/bilanz), Erfolgsrechnung auf KMU-Stufengliederung umgestellt, MWST-Vorschau-Bugfix (Umsatz 3400 statt 3000 → war immer 0). Reine Services BilanzService/ErfolgsrechnungService (TDD), Gliederung = Excel-Sheets. Plan: docs/superpowers/plans/2026-06-13-phase0b-auswertungen.md. 43 Tests gruen.
 
+- [ ] **MwSt-Vorschau Vorsteuer-Bug (`mwstQuartalDetailProvider`):** berechnet Vorsteuer aus `betrag_brutto` wo `soll/haben_konto==1170/1171` — falsch, da Vorsteuer real im `mwst_konto` steht. Korrekt: `mwst_betrag` summieren wo `mwst_konto IN (1170,1171)` (wie `view_mwst_abrechnung`). MwSt-Zahllast aktuell zu hoch. Kleiner eigener Fix.
 - [ ] **Phase 0c:** Offene-Posten-Sicht (Debitoren 1100 / Kreditoren 2000) — eigener Plan, dann Phase 1 (Excel-Import 2019–2025 + camt-Abgleich).
+- [ ] **Phase 1 Teil 1 erledigt** (MWST-korrekte Saldo-Expansion, gemergt) → als Nächstes **Phase 1 Teil 2** (Excel-Import 2019–Nov 2025 + Jahr-für-Jahr-Abgleich). Eigene Spec/Plan; Naht 30.11.2025, 1:1-Import, Python-ETL→SQL.
 - [ ] **Phase-1-Vorbereitung (aus 0b-Final-Review):** Jahres-Abschlussbuchungen (Gewinnvortrag→2850/2970) beim Excel-Import zwingend mitnehmen, sonst Bilanz-Differenz. betragBrutto=Bruttomethode (passt). Bei sehr vielen Buchungen ggf. jahresgefilterte DB-Query statt getAll().
 
 ### Umstellung (25.-30. Juni 2026)

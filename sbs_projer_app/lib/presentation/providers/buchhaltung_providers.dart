@@ -100,6 +100,9 @@ List<BuchungSaldo> _toSaldoInput(List<Buchung> buchungen) => buchungen
           betrag: b.betragBrutto,
           datum: b.datum,
           storniert: b.istStorniert,
+          mwstKonto: b.mwstKonto,
+          betragNetto: b.betragNetto,
+          mwstBetrag: b.mwstBetrag,
         ))
     .toList();
 

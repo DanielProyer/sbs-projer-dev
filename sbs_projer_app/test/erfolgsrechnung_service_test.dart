@@ -65,4 +65,24 @@ void main() {
     expect(er.steuern, 0); // 8900er nicht betroffen
     expect(er.jahresergebnis, 170);
   });
+
+  test('Erlös mit MWST: Nettoerlös = netto (nicht brutto)', () {
+    final er = ErfolgsrechnungService.berechne(
+      [
+        BuchungSaldo(
+          sollKonto: 1100,
+          habenKonto: 3400,
+          betrag: 94.05,
+          datum: DateTime.parse('2025-02-01'),
+          storniert: false,
+          mwstKonto: 2200,
+          betragNetto: 87.0,
+          mwstBetrag: 7.05,
+        ),
+      ],
+      von: DateTime.parse('2025-01-01'),
+      bis: DateTime.parse('2025-12-31'),
+    );
+    expect(er.nettoerloes, 87.0);
+  });
 }
