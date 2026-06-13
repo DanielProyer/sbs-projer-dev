@@ -1,4 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/konto_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Erfolgsrechnung aus DB-View (monatlich/jährlich).
@@ -87,6 +92,45 @@ final mwstQuartalDetailProvider =
 });
 
 double _toDouble(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
+
+List<BuchungSaldo> _toSaldoInput(List<Buchung> buchungen) => buchungen
+    .map((b) => BuchungSaldo(
+          sollKonto: b.sollKonto,
+          habenKonto: b.habenKonto,
+          betrag: b.betragBrutto,
+          datum: b.datum,
+          storniert: b.istStorniert,
+        ))
+    .toList();
+
+/// Bilanz per 31.12. des gewählten Geschäftsjahrs.
+final bilanzProvider = FutureProvider.family<BilanzDaten, int>((ref, jahr) async {
+  final buchungen = await BuchungRepository.getAll();
+  final konten = await KontoRepository.getAll();
+  final saldi = BilanzService.saldiPerStichtag(
+    _toSaldoInput(buchungen),
+    DateTime(jahr, 12, 31),
+  );
+  final kontoInfos = konten
+      .map((k) => KontoInfo(
+            kontonummer: k.kontonummer,
+            bezeichnung: k.bezeichnung,
+            kategorie: k.kategorie ?? '—',
+          ))
+      .toList();
+  return BilanzService.gruppiere(saldi, kontoInfos);
+});
+
+/// Erfolgsrechnung (Stufengliederung) für ein Geschäftsjahr.
+final erfolgsrechnungStufenProvider =
+    FutureProvider.family<ErfolgsrechnungDaten, int>((ref, jahr) async {
+  final buchungen = await BuchungRepository.getAll();
+  return ErfolgsrechnungService.berechne(
+    _toSaldoInput(buchungen),
+    von: DateTime(jahr, 1, 1),
+    bis: DateTime(jahr, 12, 31),
+  );
+});
 
 /// Offene Rechnungen aus DB-View.
 final offeneRechnungenViewProvider =
