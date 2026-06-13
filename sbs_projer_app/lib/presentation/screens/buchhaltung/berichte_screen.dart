@@ -92,38 +92,15 @@ class _ErfolgsrechnungTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dataAsync = ref.watch(erfolgsrechnungProvider(jahr));
+    final dataAsync = ref.watch(erfolgsrechnungStufenProvider(jahr));
 
     return dataAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Fehler: $e')),
-      data: (rows) {
-        if (rows.isEmpty) {
-          return Center(
-            child: Text(
-              'Keine Daten für $jahr',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          );
-        }
-
-        // Jahrestotale berechnen
-        double totalErtrag = 0;
-        double totalMaterial = 0;
-        double totalPersonal = 0;
-        double totalBetrieb = 0;
-        for (final row in rows) {
-          totalErtrag += _d(row['ertrag']);
-          totalMaterial += _d(row['materialaufwand']);
-          totalPersonal += _d(row['personalaufwand']);
-          totalBetrieb += _d(row['betriebsaufwand']);
-        }
-        final totalErgebnis = totalErtrag - totalMaterial - totalPersonal - totalBetrieb;
-
+      data: (er) {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Jahreszusammenfassung
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -131,78 +108,91 @@ class _ErfolgsrechnungTab extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Jahresübersicht $jahr',
+                      'Erfolgsrechnung $jahr (KMU-Stufengliederung)',
                       style: Theme.of(context)
                           .textTheme
                           .titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 12),
-                    _SummenZeile('Ertrag', totalErtrag, AppColors.success),
-                    _SummenZeile('Materialaufwand', -totalMaterial, AppColors.error),
-                    _SummenZeile('Personalaufwand', -totalPersonal, AppColors.error),
-                    _SummenZeile('Betriebsaufwand', -totalBetrieb, AppColors.error),
+
+                    // Stufe 1: Nettoerlös − Materialaufwand = Bruttoergebnis 1
+                    _SummenZeile('Nettoerlös (3)', er.nettoerloes, AppColors.success),
+                    _SummenZeile('− Materialaufwand (4)', -er.materialaufwand, AppColors.error),
                     const Divider(),
                     _SummenZeile(
-                      'Betriebsergebnis',
-                      totalErgebnis,
-                      totalErgebnis >= 0 ? AppColors.success : AppColors.error,
+                      'Bruttoergebnis 1',
+                      er.bruttoergebnis1,
+                      er.bruttoergebnis1 >= 0 ? AppColors.success : AppColors.error,
+                      bold: true,
+                    ),
+
+                    // Stufe 2: − Personalaufwand = Bruttoergebnis 2
+                    _SummenZeile('− Personalaufwand (5)', -er.personalaufwand, AppColors.error),
+                    const Divider(),
+                    _SummenZeile(
+                      'Bruttoergebnis 2',
+                      er.bruttoergebnis2,
+                      er.bruttoergebnis2 >= 0 ? AppColors.success : AppColors.error,
+                      bold: true,
+                    ),
+
+                    // Stufe 3: − Übriger Aufwand = EBITDA
+                    _SummenZeile('− Übriger Aufwand (6000–6700)', -er.uebrigerAufwand, AppColors.error),
+                    const Divider(),
+                    _SummenZeile(
+                      'EBITDA',
+                      er.ebitda,
+                      er.ebitda >= 0 ? AppColors.success : AppColors.error,
+                      bold: true,
+                    ),
+
+                    // Stufe 4: − Abschreibungen = EBIT
+                    _SummenZeile('− Abschreibungen (6800)', -er.abschreibungen, AppColors.error),
+                    const Divider(),
+                    _SummenZeile(
+                      'EBIT',
+                      er.ebit,
+                      er.ebit >= 0 ? AppColors.success : AppColors.error,
+                      bold: true,
+                    ),
+
+                    // Stufe 5: ± Finanzerfolg = EBT
+                    _SummenZeile(
+                      '± Finanzerfolg (6900)',
+                      er.finanzerfolg,
+                      er.finanzerfolg >= 0 ? AppColors.success : AppColors.error,
+                    ),
+                    const Divider(),
+                    _SummenZeile(
+                      'EBT (vor Steuern)',
+                      er.ebt,
+                      er.ebt >= 0 ? AppColors.success : AppColors.error,
+                      bold: true,
+                    ),
+
+                    // Stufe 6: ± Nebenerfolg − Steuern = Jahresergebnis
+                    _SummenZeile(
+                      '± Betriebsfremd/a.o. (7/8000–8800)',
+                      er.nebenerfolg,
+                      er.nebenerfolg >= 0 ? AppColors.success : AppColors.error,
+                    ),
+                    _SummenZeile('− Direkte Steuern (8900)', -er.steuern, AppColors.error),
+                    const Divider(thickness: 2),
+                    _SummenZeile(
+                      'Jahresergebnis',
+                      er.jahresergebnis,
+                      er.jahresergebnis >= 0 ? AppColors.success : AppColors.error,
                       bold: true,
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Monatliche Details
-            Text(
-              'Monatliche Übersicht',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            ...rows.map((row) {
-              final monat = row['monat'] as int;
-              final ertrag = _d(row['ertrag']);
-              final ergebnis = _d(row['betriebsergebnis']);
-              return Card(
-                child: ListTile(
-                  title: Text(
-                    _monatName(monat),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Ertrag: ${ertrag.toStringAsFixed(2)} CHF',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  trailing: Text(
-                    '${ergebnis.toStringAsFixed(2)} CHF',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: ergebnis >= 0 ? AppColors.success : AppColors.error,
-                    ),
-                  ),
-                ),
-              );
-            }),
           ],
         );
       },
     );
-  }
-
-  static double _d(dynamic v) =>
-      double.tryParse(v?.toString() ?? '') ?? 0;
-
-  static String _monatName(int m) {
-    const namen = [
-      '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
-    ];
-    return namen[m];
   }
 }
 
