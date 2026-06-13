@@ -132,7 +132,14 @@ Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin 
   - ✅ 4 Lohn-Konten hinzugefuegt: 5710 FAK, 5720 BVG AG, 5730 UVG AG, 5740 KTG AG
   - ✅ 1109 Delkredere + 3805 Debitorenverluste (Migration 089)
   - ✅ 9 fehlende Konten ergaenzt (Migration 091, Titel aus Excel-Kontenrahmen): 2208 Direkte Steuern (Rueckstellung), 2276 KAE-Kontokorrent, 2500 Coronakredit GKB, 5880 Sonstiger Personalaufwand, 6460 Entsorgungsaufwand, 6500 Bueromaterial, 6550 Gruendungskosten, 8510 Haertefallgelder, 8900 Direkte Steuern. Dublette 8500 deaktiviert (0 Buchungen).
-  - [ ] **0b-Vorbereitung:** DB-Kategorien weichen von der Excel-Gliederung ab (z.B. 'Verwaltungsaufwand' vs. 'Verwaltungs- und Informatikaufwand'). Fuer deckungsgleiche Bilanz/ER in 0b ggf. Kategorien auf Excel-Kontenrahmen normalisieren.
+  - ✅ 0b-Check: alle Klasse-1/2-Konten mappen in eine Bilanz-Gruppe (Final-Review bestaetigt). Kategorie-Feinnormalisierung auf Excel-Untergruppen optional/spaeter.
+
+## 📊 Phase 0b Auswertungen — FERTIG (13.06.2026, gemergt)
+
+Bilanz-Screen (neu, /buchhaltung/bilanz), Erfolgsrechnung auf KMU-Stufengliederung umgestellt, MWST-Vorschau-Bugfix (Umsatz 3400 statt 3000 → war immer 0). Reine Services BilanzService/ErfolgsrechnungService (TDD), Gliederung = Excel-Sheets. Plan: docs/superpowers/plans/2026-06-13-phase0b-auswertungen.md. 43 Tests gruen.
+
+- [ ] **Phase 0c:** Offene-Posten-Sicht (Debitoren 1100 / Kreditoren 2000) — eigener Plan, dann Phase 1 (Excel-Import 2019–2025 + camt-Abgleich).
+- [ ] **Phase-1-Vorbereitung (aus 0b-Final-Review):** Jahres-Abschlussbuchungen (Gewinnvortrag→2850/2970) beim Excel-Import zwingend mitnehmen, sonst Bilanz-Differenz. betragBrutto=Bruttomethode (passt). Bei sehr vielen Buchungen ggf. jahresgefilterte DB-Query statt getAll().
 
 ### Umstellung (25.-30. Juni 2026)
 
