@@ -3,6 +3,7 @@ import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
 import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/saldo_expansion.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class BuchungService {
@@ -50,38 +51,30 @@ class BuchungService {
     });
   }
 
-  /// Berechnet den Saldo eines Kontos (Soll - Haben für Aktiv/Aufwand, Haben - Soll für Passiv/Ertrag).
-  static Future<double> getKontoSaldo(int kontonummer) async {
-    final buchungen = await BuchungRepository.getByKonto(kontonummer);
-    double saldo = 0;
-    for (final b in buchungen) {
-      if (b.istStorniert) continue;
-      if (b.sollKonto == kontonummer) saldo += b.betragBrutto;
-      if (b.habenKonto == kontonummer) saldo -= b.betragBrutto;
-    }
-    // Passiv-/Ertragskonten: Saldo umkehren (Klasse 2, 3, 8, 9)
-    final klasse = kontonummer ~/ 1000;
-    if (klasse == 2 || klasse == 3 || klasse == 8 || klasse == 9) {
-      saldo = -saldo;
-    }
-    return saldo;
-  }
-
   /// Berechnet Saldi für alle Konten auf einmal (effizienter als einzeln).
   static Future<Map<int, double>> getAllSaldi() async {
     final rows = await SupabaseService.client
         .from('buchungen')
-        .select('soll_konto, haben_konto, betrag_brutto, ist_storniert')
+        .select('soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
         .eq('user_id', SupabaseService.dataUserId);
 
     final saldi = <int, double>{};
     for (final row in rows) {
       if (row['ist_storniert'] == true) continue;
-      final betrag = double.tryParse(row['betrag_brutto'].toString()) ?? 0;
-      final soll = row['soll_konto'] as int;
-      final haben = row['haben_konto'] as int;
-      saldi[soll] = (saldi[soll] ?? 0) + betrag;
-      saldi[haben] = (saldi[haben] ?? 0) - betrag;
+      final brutto = double.tryParse(row['betrag_brutto'].toString()) ?? 0;
+      final netto = row['betrag_netto'] != null
+          ? (double.tryParse(row['betrag_netto'].toString()) ?? brutto)
+          : brutto;
+      final mwst = double.tryParse(row['mwst_betrag']?.toString() ?? '0') ?? 0;
+      SaldoExpansion.apply(
+        saldi,
+        sollKonto: row['soll_konto'] as int,
+        habenKonto: row['haben_konto'] as int,
+        mwstKonto: row['mwst_konto'] as int?,
+        betragNetto: netto,
+        mwstBetrag: mwst,
+        betragBrutto: brutto,
+      );
     }
 
     // Passiv-/Ertragskonten: Saldo umkehren
@@ -93,5 +86,11 @@ class BuchungService {
     }
 
     return saldi;
+  }
+
+  /// Saldo eines Kontos (inkl. MWST-Anteil, falls das Konto ein Steuerkonto ist).
+  static Future<double> getKontoSaldo(int kontonummer) async {
+    final saldi = await getAllSaldi();
+    return saldi[kontonummer] ?? 0;
   }
 }
