@@ -140,7 +140,10 @@ Bilanz-Screen (neu, /buchhaltung/bilanz), Erfolgsrechnung auf KMU-Stufengliederu
 
 - [ ] **MwSt-Vorschau Vorsteuer-Bug (`mwstQuartalDetailProvider`):** berechnet Vorsteuer aus `betrag_brutto` wo `soll/haben_konto==1170/1171` — falsch, da Vorsteuer real im `mwst_konto` steht. Korrekt: `mwst_betrag` summieren wo `mwst_konto IN (1170,1171)` (wie `view_mwst_abrechnung`). MwSt-Zahllast aktuell zu hoch. Kleiner eigener Fix.
 - [ ] **Phase 0c:** Offene-Posten-Sicht (Debitoren 1100 / Kreditoren 2000) — eigener Plan, dann Phase 1 (Excel-Import 2019–2025 + camt-Abgleich).
-- [ ] **Phase 1 Teil 1 erledigt** (MWST-korrekte Saldo-Expansion, gemergt) → als Nächstes **Phase 1 Teil 2** (Excel-Import 2019–Nov 2025 + Jahr-für-Jahr-Abgleich). Eigene Spec/Plan; Naht 30.11.2025, 1:1-Import, Python-ETL→SQL.
+- [x] **Phase 1 Teil 1** (MWST-korrekte Saldo-Expansion) — gemergt.
+- [x] **Phase 1 Teil 2** (Excel-Import 14'552 Zeilen 2019–Nov 2025) — gemergt; Treue-Gate alle Jahre 0 Diff. Skripte: Datenbank/import/.
+- [ ] **Phase 2 (Aufräumen, als Nächstes):** bekannte Fehler korrigieren (8090→8900, 9100→9010, fehlende MWST-Rückbuchung bei Abschreibung GF 1.9), offene Forderungen abschreiben (Debitoren ~99k, mit MWST-Rückholung + Delkredere 5%), negative Salden prüfen (2273 NBU, 2202), Bilanz ausgleichen (Jahresergebnis/Verlustvortrag). Eigene Spec/Plan.
+- [ ] **Optional Excel-Gegencheck:** Daniel setzt Excel-Bilanz auf 31.12.2024, rechnet neu + speichert → bit-genauer externer Abgleich Kasse/Debitoren/Bank (Excel-Sheets sind sonst gecachte Werte, unzuverlässig).
 - [ ] **Phase-1-Vorbereitung (aus 0b-Final-Review):** Jahres-Abschlussbuchungen (Gewinnvortrag→2850/2970) beim Excel-Import zwingend mitnehmen, sonst Bilanz-Differenz. betragBrutto=Bruttomethode (passt). Bei sehr vielen Buchungen ggf. jahresgefilterte DB-Query statt getAll().
 
 ### Umstellung (25.-30. Juni 2026)
