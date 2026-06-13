@@ -190,7 +190,7 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
       builder: (ctx) => SimpleDialog(
         title: const Text('Jahr wählen'),
         children: [
-          for (int y = currentYear; y >= currentYear - 3; y--)
+          for (int y = currentYear; y >= 2019; y--)
             SimpleDialogOption(
               onPressed: () {
                 setState(() => _filterJahr = y);

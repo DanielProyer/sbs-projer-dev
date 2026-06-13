@@ -177,7 +177,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen> {
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: _datum,
-                    firstDate: DateTime(2020),
+                    firstDate: DateTime(2019),
                     lastDate: DateTime.now().add(const Duration(days: 30)),
                   );
                   if (picked != null) {
