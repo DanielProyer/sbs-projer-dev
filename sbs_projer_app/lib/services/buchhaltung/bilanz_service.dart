@@ -53,6 +53,9 @@ class BilanzDaten {
 }
 
 class BilanzService {
+  // Reihenfolge der Aktiv-Gruppen (Konto-Kategorie = Gruppentitel).
+  static const _aktivKategorien = ['Umlaufvermögen', 'Anlagevermögen'];
+
   // Reihenfolge der Passiv-Gruppen + welche Konto-Kategorien hineinfallen.
   static const _passivGruppen = <String, Set<String>>{
     'Kurzfristiges Fremdkapital': {
@@ -100,7 +103,7 @@ class BilanzService {
     }
 
     final aktiven = <BilanzGruppe>[];
-    for (final kat in const ['Umlaufvermögen', 'Anlagevermögen']) {
+    for (final kat in _aktivKategorien) {
       final posten = postenFuer((k) => k == kat, invertieren: false);
       if (posten.isNotEmpty) aktiven.add(BilanzGruppe(kat, posten));
     }

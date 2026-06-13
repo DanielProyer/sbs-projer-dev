@@ -59,6 +59,22 @@ void main() {
     expect(kfk.summe, 80);
   });
 
+  test('Passiv-Gruppen erscheinen in fester Reihenfolge', () {
+    final saldi = BilanzService.saldiPerStichtag(
+      [
+        _b(1020, 2800, 100, '2025-01-01'), // Eigenkapital
+        _b(1020, 2000, 50, '2025-01-02'), // Kurzfristiges Fremdkapital
+      ],
+      DateTime.parse('2025-12-31'),
+    );
+    final bilanz = BilanzService.gruppiere(saldi, [
+      _k(2800, 'Eigenkapital'),
+      _k(2000, 'Kurzfristiges Fremdkapital'),
+    ]);
+    expect(bilanz.passiven.map((g) => g.titel).toList(),
+        ['Kurzfristiges Fremdkapital', 'Eigenkapital']);
+  });
+
   test('Konten mit Saldo 0 werden nicht gelistet', () {
     final saldi = BilanzService.saldiPerStichtag(
       [_b(1020, 1000, 0, '2025-01-01')],
