@@ -185,6 +185,13 @@ class _ErfolgsrechnungTab extends ConsumerWidget {
                       er.jahresergebnis >= 0 ? AppColors.success : AppColors.error,
                       bold: true,
                     ),
+                    if (er.nettoerloes == 0 && er.jahresergebnis == 0) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Keine Buchungen für $jahr erfasst.',
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ],
                   ],
                 ),
               ),
