@@ -131,7 +131,8 @@ Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin 
   - Pruefen ob alle Konten fuer Vollbetrieb vorhanden (Loehne, Sozialversicherungen, etc.)
   - ✅ 4 Lohn-Konten hinzugefuegt: 5710 FAK, 5720 BVG AG, 5730 UVG AG, 5740 KTG AG
   - ✅ 1109 Delkredere + 3805 Debitorenverluste (Migration 089)
-  - [ ] **9 von Phase-0a-Geschaeftsfaellen referenzierte Konten fehlen noch im Kontenplan** (Buchen geht, aber Reports zeigen keinen Namen): **2208** Steuerrueckstellung, **2276** KAE/EO-Klaerung, **2500** Corona-Kredit, **5880** Kaffee, **6460** Entsorgung, **6500** Bueromaterial, **6550** Gruendungskosten, **8510** Haertefall, **8900** Direkte Steuern. Hinweis: 8900 + 2500 werden bereits von bestehenden camt-Regeln genutzt (vorbestehendes Loch). Bezeichnung/Kategorie mit Daniel klaeren, dann INSERT.
+  - ✅ 9 fehlende Konten ergaenzt (Migration 091, Titel aus Excel-Kontenrahmen): 2208 Direkte Steuern (Rueckstellung), 2276 KAE-Kontokorrent, 2500 Coronakredit GKB, 5880 Sonstiger Personalaufwand, 6460 Entsorgungsaufwand, 6500 Bueromaterial, 6550 Gruendungskosten, 8510 Haertefallgelder, 8900 Direkte Steuern. Dublette 8500 deaktiviert (0 Buchungen).
+  - [ ] **0b-Vorbereitung:** DB-Kategorien weichen von der Excel-Gliederung ab (z.B. 'Verwaltungsaufwand' vs. 'Verwaltungs- und Informatikaufwand'). Fuer deckungsgleiche Bilanz/ER in 0b ggf. Kategorien auf Excel-Kontenrahmen normalisieren.
 
 ### Umstellung (25.-30. Juni 2026)
 

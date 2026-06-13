@@ -48,6 +48,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchungen_list_s
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/berichte_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/bilanz_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/mahnwesen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/rechnungen_nachversand_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakte_list_screen.dart';
@@ -433,6 +434,10 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/berichte',
       builder: (context, state) => const BerichteScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/bilanz',
+      builder: (context, state) => const BilanzScreen(),
     ),
     GoRoute(
       path: '/buchhaltung/mahnwesen',
