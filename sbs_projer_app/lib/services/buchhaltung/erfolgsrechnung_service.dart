@@ -1,4 +1,5 @@
 import 'bilanz_service.dart' show BuchungSaldo;
+import 'saldo_expansion.dart';
 
 /// Ergebnis der KMU-Stufengliederung.
 class ErfolgsrechnungDaten {
@@ -48,8 +49,15 @@ class ErfolgsrechnungService {
     for (final b in buchungen) {
       if (b.storniert) continue;
       if (b.datum.isBefore(von) || b.datum.isAfter(bis)) continue;
-      shm[b.sollKonto] = (shm[b.sollKonto] ?? 0) + b.betrag;
-      shm[b.habenKonto] = (shm[b.habenKonto] ?? 0) - b.betrag;
+      SaldoExpansion.apply(
+        shm,
+        sollKonto: b.sollKonto,
+        habenKonto: b.habenKonto,
+        mwstKonto: b.mwstKonto,
+        betragNetto: b.betragNetto ?? b.betrag,
+        mwstBetrag: b.mwstBetrag,
+        betragBrutto: b.betrag,
+      );
     }
 
     final nettoerloes = -_aufwand(shm, 3000, 3999);
