@@ -143,7 +143,7 @@ Bilanz-Screen (neu, /buchhaltung/bilanz), Erfolgsrechnung auf KMU-Stufengliederu
 - [x] **Phase 1 Teil 1** (MWST-korrekte Saldo-Expansion) — gemergt.
 - [x] **Phase 1 Teil 2** (Excel-Import 14'552 Zeilen 2019–Nov 2025) — gemergt; Treue-Gate alle Jahre 0 Diff. Skripte: Datenbank/import/.
 - [x] **Phase 2a** (Audit-Screen + mechanische Korrekturen) — gemergt: Audit-Screen `/buchhaltung/audit` (4 Kategorien), 8090→8900 (6 Zeilen, rückdatiert), 2500-Restsaldo→0. Migration 093.
-- [ ] **Phase 2b (als Nächstes):** Jahres-Abschluss-Reconciliation — 9100→9010 + verschränkte Abschluss-Konten (9000=−76'289, 9100=+40'970, 2980, 2970-Vortrag), Ergebnis→Eigenkapital pro Jahr sauber buchen. Eigene Spec/Plan.
+- [x] **Phase 2b** (Jahresabschluss-Reconciliation, Modell 2) — gemergt: BilanzService rechnet kumuliertes Ergebnis → EK-Split (Gewinnvortrag + Jahresergebnis), Bilanz geht auf (Differenz 0 an allen Jahresenden); Abschlussbuchungen 2970/2980/9000/9100 storniert (Migration 094). ER unverändert.
 - [ ] **Phase 2c:** Debitoren-Abschreibung (1100 ≈ 116k/178k) — uneinbringliche Forderungen abschreiben (MWST-Rückholung + Delkredere 5%), **mit Treuhänder** (Höhe/welche Kunden). Negative Salden 2202/2273/8900 dabei prüfen.
 - [ ] **Optional Excel-Gegencheck:** Daniel setzt Excel-Bilanz auf 31.12.2024, rechnet neu + speichert → bit-genauer externer Abgleich Kasse/Debitoren/Bank (Excel-Sheets sind sonst gecachte Werte, unzuverlässig).
 - [ ] **Phase-1-Vorbereitung (aus 0b-Final-Review):** Jahres-Abschlussbuchungen (Gewinnvortrag→2850/2970) beim Excel-Import zwingend mitnehmen, sonst Bilanz-Differenz. betragBrutto=Bruttomethode (passt). Bei sehr vielen Buchungen ggf. jahresgefilterte DB-Query statt getAll().
