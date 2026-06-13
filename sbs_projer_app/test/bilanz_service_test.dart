@@ -84,4 +84,32 @@ void main() {
         saldi, [_k(1020, 'Umlaufvermögen'), _k(1000, 'Umlaufvermögen')]);
     expect(bilanz.aktiven, isEmpty);
   });
+
+  test('Einnahme mit MWST: Debitor=brutto (Aktiv), Umsatzsteuer 2200=mwst (Passiv)', () {
+    final saldi = BilanzService.saldiPerStichtag(
+      [
+        BuchungSaldo(
+          sollKonto: 1100,
+          habenKonto: 3400,
+          betrag: 94.05,
+          datum: DateTime.parse('2025-02-01'),
+          storniert: false,
+          mwstKonto: 2200,
+          betragNetto: 87.0,
+          mwstBetrag: 7.05,
+        ),
+      ],
+      DateTime.parse('2025-12-31'),
+    );
+    expect(saldi[1100], 94.05);
+    expect(saldi[2200], -7.05);
+    expect(saldi[3400], -87.0);
+
+    final bilanz = BilanzService.gruppiere(saldi, [
+      KontoInfo(kontonummer: 1100, bezeichnung: 'Debitoren', kategorie: 'Umlaufvermögen'),
+      KontoInfo(kontonummer: 2200, bezeichnung: 'Umsatzsteuer', kategorie: 'Kurzfristiges Fremdkapital'),
+    ]);
+    expect(bilanz.aktiven.single.summe, 94.05);
+    expect(bilanz.passiven.single.summe, 7.05);
+  });
 }

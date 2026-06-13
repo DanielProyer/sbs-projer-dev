@@ -1,3 +1,5 @@
+import 'saldo_expansion.dart';
+
 /// Leichtgewichtige Buchungs-Eingabe für die reine Saldo-Berechnung.
 class BuchungSaldo {
   final int sollKonto;
@@ -5,12 +7,18 @@ class BuchungSaldo {
   final double betrag; // betragBrutto
   final DateTime datum;
   final bool storniert;
+  final int? mwstKonto;
+  final double? betragNetto; // null → = betrag (brutto)
+  final double mwstBetrag;
   const BuchungSaldo({
     required this.sollKonto,
     required this.habenKonto,
     required this.betrag,
     required this.datum,
     required this.storniert,
+    this.mwstKonto,
+    this.betragNetto,
+    this.mwstBetrag = 0,
   });
 }
 
@@ -75,8 +83,15 @@ class BilanzService {
     for (final b in buchungen) {
       if (b.storniert) continue;
       if (b.datum.isAfter(stichtag)) continue;
-      saldi[b.sollKonto] = (saldi[b.sollKonto] ?? 0) + b.betrag;
-      saldi[b.habenKonto] = (saldi[b.habenKonto] ?? 0) - b.betrag;
+      SaldoExpansion.apply(
+        saldi,
+        sollKonto: b.sollKonto,
+        habenKonto: b.habenKonto,
+        mwstKonto: b.mwstKonto,
+        betragNetto: b.betragNetto ?? b.betrag,
+        mwstBetrag: b.mwstBetrag,
+        betragBrutto: b.betrag,
+      );
     }
     return saldi;
   }
