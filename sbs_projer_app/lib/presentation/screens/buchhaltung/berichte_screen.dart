@@ -66,7 +66,7 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
       builder: (ctx) => SimpleDialog(
         title: const Text('Jahr wählen'),
         children: [
-          for (int y = currentYear; y >= currentYear - 3; y--)
+          for (int y = currentYear; y >= 2019; y--)
             SimpleDialogOption(
               onPressed: () {
                 setState(() => _selectedJahr = y);
@@ -138,7 +138,7 @@ class _ErfolgsrechnungTab extends ConsumerWidget {
                     ),
 
                     // Stufe 3: − Übriger Aufwand = EBITDA
-                    _SummenZeile('− Übriger Aufwand (6000–6700)', -er.uebrigerAufwand, AppColors.error),
+                    _SummenZeile('− Übriger Aufwand (6000–6799)', -er.uebrigerAufwand, AppColors.error),
                     const Divider(),
                     _SummenZeile(
                       'EBITDA',
