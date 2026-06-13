@@ -109,13 +109,19 @@ List<BuchungSaldo> _toSaldoInput(List<Buchung> buchungen) => buchungen
     .toList();
 
 /// Bilanz per 31.12. des gewählten Geschäftsjahrs.
+/// Das Ergebnis wird berechnet (Klasse 3–8) und im Eigenkapital als
+/// Gewinnvortrag (Vorjahre) + Jahresergebnis (laufendes Jahr) gezeigt.
 final bilanzProvider = FutureProvider.family<BilanzDaten, int>((ref, jahr) async {
   final buchungen = await BuchungRepository.getAll();
   final konten = await KontoRepository.getAll();
-  final saldi = BilanzService.saldiPerStichtag(
-    _toSaldoInput(buchungen),
-    DateTime(jahr, 12, 31),
-  );
+  final input = _toSaldoInput(buchungen);
+
+  final saldiBis = BilanzService.saldiPerStichtag(input, DateTime(jahr, 12, 31));
+  final saldiVor =
+      BilanzService.saldiPerStichtag(input, DateTime(jahr - 1, 12, 31));
+  final resBis = BilanzService.kumuliertesErgebnis(saldiBis);
+  final resVor = BilanzService.kumuliertesErgebnis(saldiVor);
+
   final kontoInfos = konten
       .map((k) => KontoInfo(
             kontonummer: k.kontonummer,
@@ -123,7 +129,12 @@ final bilanzProvider = FutureProvider.family<BilanzDaten, int>((ref, jahr) async
             kategorie: k.kategorie ?? '—',
           ))
       .toList();
-  return BilanzService.gruppiere(saldi, kontoInfos);
+  return BilanzService.gruppiere(
+    saldiBis,
+    kontoInfos,
+    gewinnvortrag: resVor,
+    jahresergebnis: resBis - resVor,
+  );
 });
 
 /// Erfolgsrechnung (Stufengliederung) für ein Geschäftsjahr.
