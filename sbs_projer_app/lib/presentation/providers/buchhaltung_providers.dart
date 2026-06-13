@@ -132,16 +132,6 @@ final erfolgsrechnungStufenProvider =
   );
 });
 
-/// Offene Rechnungen aus DB-View.
-final offeneRechnungenViewProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final rows = await SupabaseService.client
-      .from('view_offene_rechnungen')
-      .select()
-      .order('faelligkeitsdatum');
-  return List<Map<String, dynamic>>.from(rows);
-});
-
 /// Audit-Befunde: verdächtige Salden / fehlende Buchungen.
 final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
   final saldi = await BuchungService.getAllSaldi();

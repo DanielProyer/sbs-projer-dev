@@ -142,22 +142,10 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/audit'),
           ),
           _NavTile(
-            icon: Icons.request_quote,
-            title: 'Debitoren',
-            subtitle: 'Offene Forderungen & Abschreibungen',
-            onTap: () => context.push('/buchhaltung/debitoren'),
-          ),
-          _NavTile(
             icon: Icons.receipt_long,
-            title: 'Rechnungen',
-            subtitle: 'Rechnungen verwalten, Status ändern',
+            title: 'Forderungen',
+            subtitle: 'Rechnungen, Mahnwesen & Debitoren',
             onTap: () => context.push('/rechnungen'),
-          ),
-          _NavTile(
-            icon: Icons.warning_amber,
-            title: 'Mahnwesen',
-            subtitle: 'Erinnerungen & Mahnungen',
-            onTap: () => context.push('/buchhaltung/mahnwesen'),
           ),
           // TEMPORÄR: entfernen nach Aufholen des Mail-Backlogs
           _NavTile(
