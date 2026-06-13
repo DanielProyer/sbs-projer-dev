@@ -130,6 +130,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/berichte'),
           ),
           _NavTile(
+            icon: Icons.balance,
+            title: 'Bilanz',
+            subtitle: 'Aktiven & Passiven per Stichtag',
+            onTap: () => context.push('/buchhaltung/bilanz'),
+          ),
+          _NavTile(
             icon: Icons.receipt_long,
             title: 'Rechnungen',
             subtitle: 'Rechnungen verwalten, Status ändern',
