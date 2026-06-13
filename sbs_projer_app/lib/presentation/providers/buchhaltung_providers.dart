@@ -155,3 +155,23 @@ final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
       .toList();
   return AuditService.befunde(saldi, infos);
 });
+
+/// Debitoren-Übersicht: Gesamtsaldo 1100, native offene Rechnungen,
+/// historischer Aggregat und Delkredere (1109).
+final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) async {
+  final saldi = await BuchungService.getAllSaldi();
+  final offeneRg = await SupabaseService.client
+      .from('rechnungen')
+      .select('betrag_brutto')
+      .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")');
+  final nativeOffen = (offeneRg as List)
+      .fold<double>(0, (s, r) => s + _toDouble(r['betrag_brutto']));
+  final debitoren = saldi[1100] ?? 0;
+  final delkredere = -(saldi[1109] ?? 0);
+  return {
+    'debitoren_total': (debitoren * 100).roundToDouble() / 100,
+    'native_offen': (nativeOffen * 100).roundToDouble() / 100,
+    'historisch_aggregat': ((debitoren - nativeOffen) * 100).roundToDouble() / 100,
+    'delkredere': (delkredere * 100).roundToDouble() / 100,
+  };
+});

@@ -52,6 +52,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/audit_screen.dar
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/bilanz_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/mahnwesen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/rechnungen_nachversand_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/debitoren_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakte_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakt_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_list_screen.dart';
@@ -447,6 +448,10 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/mahnwesen',
       builder: (context, state) => const MahnwesenScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/debitoren',
+      builder: (context, state) => const DebitorenScreen(),
     ),
     // TEMPORÄR: Nachversand-Screen — entfernen nach Aufholen des Backlogs
     GoRoute(
