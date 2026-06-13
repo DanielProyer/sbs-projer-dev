@@ -158643,7 +158643,7 @@ var $async$$0=A.k(function(a,b){if(a===1)return A.l(b,r)
 for(;;)switch(s){case 0:p=q.a
 o=p.Q
 s=2
-return A.d(A.oh(q.b,A.b7(2020,1,1,0,0,0,0),o,new A.ak(Date.now(),0,!1).bW(2592e9),null),$async$$0)
+return A.d(A.oh(q.b,A.b7(2019,1,1,0,0,0,0),o,new A.ak(Date.now(),0,!1).bW(2592e9),null),$async$$0)
 case 2:n=b
 if(n!=null){p.t(new A.bbH(p,n))
 p.DR()}return A.m(null,r)}})
@@ -158839,9 +158839,9 @@ A.bck.prototype={
 $0(){return A.ar(this.a).b0("/buchhaltung/buchungen/neu",null,t.X)},
 $S:0}
 A.bc_.prototype={
-$1(a){var s,r,q,p,o=null,n=A.b([],t.p)
-for(s=this.b,r=s-3,q=this.a;s>=r;--s){p=s===q.y?B.aJ:o
-n.push(new A.yK(new A.bbZ(q,s,a),A.e(""+s,o,o,o,o,new A.J(!0,o,o,o,o,o,o,p,o,o,o,o,o,o,o,o,o,o,o,o,o,o,o,o,o,o),o,o,o),o))}return A.b03(n,B.a5w)},
+$1(a){var s,r,q,p=null,o=A.b([],t.p)
+for(s=this.b,r=this.a;s>=2019;--s){q=s===r.y?B.aJ:p
+o.push(new A.yK(new A.bbZ(r,s,a),A.e(""+s,p,p,p,p,new A.J(!0,p,p,p,p,p,p,q,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p),p,p,p),p))}return A.b03(o,B.a5w)},
 $S:142}
 A.bbZ.prototype={
 $0(){var s=this.a
@@ -159795,9 +159795,9 @@ s.x=this.b
 s.z=!1},
 $S:0}
 A.bpg.prototype={
-$1(a){var s,r,q,p=null,o=A.U(new A.ak(Date.now(),0,!1)),n=A.b([],t.Zq)
-for(s=o+1,r=o-2,q=t.S;s>=r;--s)n.push(A.Jt(A.e(""+s,p,p,p,p,p,p,p,p),s,q))
-return n},
+$1(a){var s,r=null,q=Date.now(),p=A.b([],t.Zq)
+for(s=A.U(new A.ak(q,0,!1))+1,q=t.S;s>=2019;--s)p.push(A.Jt(A.e(""+s,r,r,r,r,r,r,r,r),s,q))
+return p},
 $S:271}
 A.bpk.prototype={
 $0(){return B.bf},
@@ -159985,9 +159985,9 @@ A.bpK.prototype={
 $0(){return this.a.w=this.b},
 $S:0}
 A.bpL.prototype={
-$1(a){var s,r,q,p=null,o=A.U(new A.ak(Date.now(),0,!1)),n=A.b([],t.Zq)
-for(s=o+1,r=o-2,q=t.S;s>=r;--s)n.push(A.Jt(A.e(""+s,p,p,p,p,p,p,p,p),s,q))
-return n},
+$1(a){var s,r=null,q=Date.now(),p=A.b([],t.Zq)
+for(s=A.U(new A.ak(q,0,!1))+1,q=t.S;s>=2019;--s)p.push(A.Jt(A.e(""+s,r,r,r,r,r,r,r,r),s,q))
+return p},
 $S:271}
 A.bpN.prototype={
 $0(){var s=this.b
