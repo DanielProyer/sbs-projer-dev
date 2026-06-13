@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/services/buchhaltung/audit_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/saldo_expansion.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Erfolgsrechnung aus DB-View (monatlich/jährlich).
@@ -33,63 +34,46 @@ final mwstAbrechnungProvider =
 /// MwSt-Quartaldetails mit Umsatz + ESTV-Ziffern.
 final mwstQuartalDetailProvider =
     FutureProvider.family<List<Map<String, dynamic>>, int>((ref, jahr) async {
-  // Alle Buchungen des Geschäftsjahres laden
   final rows = await SupabaseService.client
       .from('buchungen')
-      .select('quartal, soll_konto, haben_konto, betrag_brutto, mwst_betrag')
+      .select('quartal, soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
+      .eq('user_id', SupabaseService.dataUserId)
       .eq('geschaeftsjahr', jahr);
 
   final buchungen = List<Map<String, dynamic>>.from(rows);
-
-  // Pro Quartal berechnen
   final result = <Map<String, dynamic>>[];
+
   for (int q = 1; q <= 4; q++) {
-    final qBuchungen = buchungen.where((b) => b['quartal'] == q).toList();
-
-    // Umsatz = Konto 3400 Dienstleistungserlöse (Ertragskonto: Haben - Soll → positiv)
-    double umsatz = 0;
-    for (final b in qBuchungen) {
-      final betrag = _toDouble(b['betrag_brutto']);
-      if (b['haben_konto'] == 3400) umsatz += betrag;
-      if (b['soll_konto'] == 3400) umsatz -= betrag;
+    final saldi = <int, double>{};
+    for (final b in buchungen) {
+      if (b['quartal'] != q || b['ist_storniert'] == true) continue;
+      final brutto = _toDouble(b['betrag_brutto']);
+      final netto = b['betrag_netto'] != null ? _toDouble(b['betrag_netto']) : brutto;
+      final mwst = _toDouble(b['mwst_betrag']);
+      SaldoExpansion.apply(
+        saldi,
+        sollKonto: b['soll_konto'] as int,
+        habenKonto: b['haben_konto'] as int,
+        mwstKonto: b['mwst_konto'] as int?,
+        betragNetto: netto,
+        mwstBetrag: mwst,
+        betragBrutto: brutto,
+      );
     }
-
-    // Umsatzsteuer = Summe mwst_betrag wo haben_konto = 3400 (Erlös-Buchungen)
-    double umsatzsteuer = 0;
-    for (final b in qBuchungen) {
-      if (b['haben_konto'] == 3400) {
-        umsatzsteuer += _toDouble(b['mwst_betrag']);
-      }
-    }
-
-    // Vorsteuer Material = Konto 1170 Saldo (Aktivkonto: Soll - Haben)
-    double vorsteuerMaterial = 0;
-    for (final b in qBuchungen) {
-      final betrag = _toDouble(b['betrag_brutto']);
-      if (b['soll_konto'] == 1170) vorsteuerMaterial += betrag;
-      if (b['haben_konto'] == 1170) vorsteuerMaterial -= betrag;
-    }
-
-    // Vorsteuer Betrieb = Konto 1171 Saldo (Aktivkonto: Soll - Haben)
-    double vorsteuerBetrieb = 0;
-    for (final b in qBuchungen) {
-      final betrag = _toDouble(b['betrag_brutto']);
-      if (b['soll_konto'] == 1171) vorsteuerBetrieb += betrag;
-      if (b['haben_konto'] == 1171) vorsteuerBetrieb -= betrag;
-    }
-
+    final umsatz = -(saldi[3400] ?? 0);
+    final umsatzsteuer = -(saldi[2200] ?? 0);
+    final vorsteuerMaterial = (saldi[1170] ?? 0);
+    final vorsteuerBetrieb = (saldi[1171] ?? 0);
     final nettoSchuld = umsatzsteuer - vorsteuerMaterial - vorsteuerBetrieb;
-
     result.add({
       'quartal': q,
-      'umsatz': umsatz,
-      'umsatzsteuer': umsatzsteuer,
-      'vorsteuer_material': vorsteuerMaterial,
-      'vorsteuer_betrieb': vorsteuerBetrieb,
-      'netto_mwst_schuld': nettoSchuld,
+      'umsatz': (umsatz * 100).roundToDouble() / 100,
+      'umsatzsteuer': (umsatzsteuer * 100).roundToDouble() / 100,
+      'vorsteuer_material': (vorsteuerMaterial * 100).roundToDouble() / 100,
+      'vorsteuer_betrieb': (vorsteuerBetrieb * 100).roundToDouble() / 100,
+      'netto_mwst_schuld': (nettoSchuld * 100).roundToDouble() / 100,
     });
   }
-
   return result;
 });
 
@@ -170,4 +154,26 @@ final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
           ))
       .toList();
   return AuditService.befunde(saldi, infos);
+});
+
+/// Debitoren-Übersicht: Gesamtsaldo 1100, native offene Rechnungen,
+/// historischer Aggregat und Delkredere (1109).
+final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) async {
+  final saldi = await BuchungService.getAllSaldi();
+  // Offene native Rechnungen: in Dart filtern (robust gegen PostgREST-in-Syntax).
+  final rgRows = await SupabaseService.client
+      .from('rechnungen')
+      .select('betrag_brutto, zahlungsstatus');
+  const erledigt = {'bezahlt', 'abgeschrieben'};
+  final nativeOffen = (rgRows as List)
+      .where((r) => !erledigt.contains(r['zahlungsstatus']))
+      .fold<double>(0, (s, r) => s + _toDouble(r['betrag_brutto']));
+  final debitoren = saldi[1100] ?? 0;
+  final delkredere = -(saldi[1109] ?? 0);
+  return {
+    'debitoren_total': (debitoren * 100).roundToDouble() / 100,
+    'native_offen': (nativeOffen * 100).roundToDouble() / 100,
+    'historisch_aggregat': ((debitoren - nativeOffen) * 100).roundToDouble() / 100,
+    'delkredere': (delkredere * 100).roundToDouble() / 100,
+  };
 });
