@@ -4,8 +4,8 @@ import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
-import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
 import 'package:sbs_projer_app/services/pdf/mahnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -120,32 +120,18 @@ class MahnwesenService {
     debugPrint('[Mahnwesen] ${titelFuerStufe(mahnStufe)} für ${rechnung.rechnungsnummer} erstellt');
   }
 
-  /// Rechnung abschreiben + Debitorenverlust buchen
+  /// Rechnung abschreiben + Debitorenverlust korrekt buchen (netto + MWST-Rückholung).
   static Future<void> abschreiben(Rechnung rechnung) async {
-    await RechnungRepository.update(rechnung.id, {
-      'zahlungsstatus': 'abgeschrieben',
-    });
-
-    // Debitorenverlust buchen: Soll 3805 / Haben 1100
-    final brutto = (rechnung.betragBrutto * 20).roundToDouble() / 20;
-    await BuchungRepository.create({
-      'datum': DateTime.now().toIso8601String().split('T').first,
-      'belegnummer': rechnung.rechnungsnummer ?? '',
-      'soll_konto': 3805,
-      'haben_konto': 1100,
-      'betrag_netto': brutto,
-      'mwst_satz': 0,
-      'mwst_betrag': 0,
-      'betrag_brutto': brutto,
-      'beschreibung':
+    await RechnungRepository.update(rechnung.id, {'zahlungsstatus': 'abgeschrieben'});
+    await AbschreibungService.abschreiben(
+      brutto: (rechnung.betragBrutto * 20).roundToDouble() / 20,
+      datum: rechnung.rechnungsdatum,
+      beschreibung:
           'Debitorenverlust ${rechnung.rechnungsnummer ?? rechnung.id.substring(0, 8)} (abgeschrieben)',
-      'zahlungsweg': 'intern',
-      'beleg_typ': 'zahlung',
-      'beleg_id': rechnung.id,
-      'geschaeftsjahr': DateTime.now().year,
-    });
-
-    debugPrint('[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben');
+      belegnummer: rechnung.rechnungsnummer,
+      belegId: rechnung.id,
+    );
+    debugPrint('[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben (mit MWST-Rückholung)');
   }
 
   static String _mailText(int stufe, String rgNr) {
