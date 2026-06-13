@@ -3,42 +3,50 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
 
-class DebitorenScreen extends ConsumerStatefulWidget {
-  const DebitorenScreen({super.key});
+class DebitorenHeader extends ConsumerStatefulWidget {
+  const DebitorenHeader({super.key});
+
   @override
-  ConsumerState<DebitorenScreen> createState() => _DebitorenScreenState();
+  ConsumerState<DebitorenHeader> createState() => _DebitorenHeaderState();
 }
 
-class _DebitorenScreenState extends ConsumerState<DebitorenScreen> {
+class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(debitorenUebersichtProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Debitoren / Abschreibungen')),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Fehler: $e')),
-        data: (d) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _zeileCard('Debitoren gesamt (1100)', d['debitoren_total']!),
-            _zeileCard('davon native offene Rechnungen', d['native_offen']!),
-            _zeileCard('davon historischer Aggregat', d['historisch_aggregat']!),
-            _zeileCard('Delkredere (1109)', d['delkredere']!),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              icon: const Icon(Icons.remove_circle_outline),
-              label: const Text('Historische Sammel-Abschreibung'),
-              onPressed: () => _sammelDialog(d['historisch_aggregat']!),
+    return Card(
+      child: ExpansionTile(
+        title: const Text('Debitoren / Abschreibungen'),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          async.when(
+            loading: () => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator())),
+            error: (e, _) => Text('Fehler: $e'),
+            data: (d) => Column(
+              children: [
+                _zeileCard('Debitoren gesamt (1100)', d['debitoren_total']!),
+                _zeileCard('davon native offene Rechnungen', d['native_offen']!),
+                _zeileCard(
+                    'davon historischer Aggregat', d['historisch_aggregat']!),
+                _zeileCard('Delkredere (1109)', d['delkredere']!),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  label: const Text('Historische Sammel-Abschreibung'),
+                  onPressed: () => _sammelDialog(d['historisch_aggregat']!),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.percent),
+                  label: const Text('Delkredere auf 5 % setzen'),
+                  onPressed: () => _delkredere(d['debitoren_total']!),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.percent),
-              label: const Text('Delkredere auf 5 % setzen'),
-              onPressed: () => _delkredere(d['debitoren_total']!),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -54,7 +62,8 @@ class _DebitorenScreenState extends ConsumerState<DebitorenScreen> {
   Future<void> _delkredere(double debitorenTotal) async {
     try {
       await AbschreibungService.delkredereSetzen(
-        zielWertberichtigung: (debitorenTotal * 0.05 * 100).roundToDouble() / 100,
+        zielWertberichtigung:
+            (debitorenTotal * 0.05 * 100).roundToDouble() / 100,
         datum: DateTime.now(),
       );
       ref.invalidate(debitorenUebersichtProvider);
@@ -92,7 +101,8 @@ class _DebitorenScreenState extends ConsumerState<DebitorenScreen> {
               ),
               TextField(
                   controller: bezC,
-                  decoration: const InputDecoration(labelText: 'Bezeichnung')),
+                  decoration:
+                      const InputDecoration(labelText: 'Bezeichnung')),
               const SizedBox(height: 8),
               Row(children: [
                 Expanded(
@@ -135,7 +145,8 @@ class _DebitorenScreenState extends ConsumerState<DebitorenScreen> {
       ref.invalidate(debitorenUebersichtProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${brutto.toStringAsFixed(2)} CHF abgeschrieben')));
+            content:
+                Text('${brutto.toStringAsFixed(2)} CHF abgeschrieben')));
       }
     } catch (e) {
       if (mounted) {

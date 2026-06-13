@@ -10,6 +10,8 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
+import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
+import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -24,6 +26,7 @@ String _statusLabel(String status) {
     case 'mahnung_1': return 'Mahnung 1';
     case 'mahnung_2': return 'Mahnung 2';
     case 'abgeschrieben': return 'Abgeschrieben';
+    case 'mahnfaellig': return 'Mahnfällig';
     default: return status;
   }
 }
@@ -88,7 +91,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       if (_selectedMonth != 0 && r.rechnungsdatum.month != _selectedMonth) {
         return false;
       }
-      if (_statusFilter != 'alle' && r.zahlungsstatus != _statusFilter) {
+      if (_statusFilter == 'mahnfaellig') {
+        if (!ForderungService.istMahnfaellig(r)) return false;
+      } else if (_statusFilter != 'alle' && r.zahlungsstatus != _statusFilter) {
         return false;
       }
       if (_searchQuery.isNotEmpty) {
@@ -133,7 +138,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       appBar: AppBar(
         title: Text(_selectMode
             ? '${_selectedIds.length} ausgewählt'
-            : 'Rechnungen'),
+            : 'Forderungen'),
         leading: _selectMode
             ? IconButton(
                 icon: const Icon(Icons.close),
@@ -158,6 +163,8 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               itemBuilder: (context) => [
                 _filterItem('alle', 'Alle'),
                 const PopupMenuDivider(),
+                _filterItem('mahnfaellig', 'Mahnfällig'),
+                const PopupMenuDivider(),
                 _filterItem('offen', 'Offen'),
                 _filterItem('erinnert', 'Erinnert'),
                 _filterItem('mahnung_1', 'Mahnung 1'),
@@ -171,6 +178,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       ),
       body: Column(
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: DebitorenHeader(),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: SearchBar(
@@ -185,7 +196,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           // Summary Card
           if (_statusFilter == 'alle' || _statusFilter == 'offen' ||
               _statusFilter == 'erinnert' || _statusFilter == 'mahnung_1' ||
-              _statusFilter == 'mahnung_2')
+              _statusFilter == 'mahnung_2' || _statusFilter == 'mahnfaellig')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Card(
@@ -351,6 +362,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                         rechnung: entry,
                         betriebName: entry.betriebId != null
                             ? betriebNames[entry.betriebId]
+                            : null,
+                        aktionLabel: _statusFilter == 'mahnfaellig'
+                            ? ForderungService.empfohleneAktion(entry)
                             : null,
                         onTap: () =>
                             context.push('/rechnungen/${entry.id}'),
@@ -945,12 +959,14 @@ class _TagesGruppe {
 class _RechnungListItem extends StatelessWidget {
   final Rechnung rechnung;
   final String? betriebName;
+  final String? aktionLabel;
   final VoidCallback onTap;
   final VoidCallback onStatusChange;
 
   const _RechnungListItem({
     required this.rechnung,
     this.betriebName,
+    this.aktionLabel,
     required this.onTap,
     required this.onStatusChange,
   });
@@ -1012,7 +1028,20 @@ class _RechnungListItem extends StatelessWidget {
     parts.add(_formatDate(rechnung.rechnungsdatum));
     final brutto = (rechnung.betragBrutto * 20).roundToDouble() / 20;
     parts.add('CHF ${brutto.toStringAsFixed(2)}');
+    if (aktionLabel != null && aktionLabel != 'warten') {
+      parts.add(_aktionText(aktionLabel!));
+    }
     return parts.join(' · ');
+  }
+
+  String _aktionText(String aktion) {
+    switch (aktion) {
+      case 'erinnerung_faellig': return 'Erinnerung fällig';
+      case 'mahnung_1_faellig': return 'Mahnung 1 fällig';
+      case 'mahnung_2_faellig': return 'Mahnung 2 fällig';
+      case 'eskalation': return 'Eskalation';
+      default: return aktion;
+    }
   }
 
   String _formatDate(DateTime date) {
