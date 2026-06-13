@@ -15,6 +15,10 @@ class SaldoExpansion {
   }) {
     void add(int k, double v) => saldi[k] = (saldi[k] ?? 0) + v;
 
+    // Invariante: brutto = netto + mwst (sonst werden die Salden unausgeglichen).
+    assert((betragBrutto - betragNetto - mwstBetrag).abs() < 0.005,
+        'betragBrutto ($betragBrutto) != netto+mwst (${betragNetto + mwstBetrag})');
+
     if (mwstBetrag == 0 || mwstKonto == null) {
       add(sollKonto, betragBrutto);
       add(habenKonto, -betragBrutto);
