@@ -44,18 +44,18 @@ final mwstQuartalDetailProvider =
   for (int q = 1; q <= 4; q++) {
     final qBuchungen = buchungen.where((b) => b['quartal'] == q).toList();
 
-    // Umsatz = Konto 3000 Saldo (Ertragskonto: Haben - Soll, sign reversed → positiv)
+    // Umsatz = Konto 3400 Dienstleistungserlöse (Ertragskonto: Haben - Soll → positiv)
     double umsatz = 0;
     for (final b in qBuchungen) {
       final betrag = _toDouble(b['betrag_brutto']);
-      if (b['haben_konto'] == 3000) umsatz += betrag;
-      if (b['soll_konto'] == 3000) umsatz -= betrag;
+      if (b['haben_konto'] == 3400) umsatz += betrag;
+      if (b['soll_konto'] == 3400) umsatz -= betrag;
     }
 
-    // Umsatzsteuer = Summe mwst_betrag wo haben_konto = 3000
+    // Umsatzsteuer = Summe mwst_betrag wo haben_konto = 3400 (Erlös-Buchungen)
     double umsatzsteuer = 0;
     for (final b in qBuchungen) {
-      if (b['haben_konto'] == 3000) {
+      if (b['haben_konto'] == 3400) {
         umsatzsteuer += _toDouble(b['mwst_betrag']);
       }
     }
