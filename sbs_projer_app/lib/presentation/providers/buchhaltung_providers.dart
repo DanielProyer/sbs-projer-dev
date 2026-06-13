@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/konto_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/audit_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Erfolgsrechnung aus DB-View (monatlich/jährlich).
@@ -143,4 +145,18 @@ final offeneRechnungenViewProvider =
       .select()
       .order('faelligkeitsdatum');
   return List<Map<String, dynamic>>.from(rows);
+});
+
+/// Audit-Befunde: verdächtige Salden / fehlende Buchungen.
+final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
+  final saldi = await BuchungService.getAllSaldi();
+  final konten = await KontoRepository.getAll();
+  final infos = konten
+      .map((k) => KontoInfo(
+            kontonummer: k.kontonummer,
+            bezeichnung: k.bezeichnung,
+            kategorie: k.kategorie ?? '—',
+          ))
+      .toList();
+  return AuditService.befunde(saldi, infos);
 });
