@@ -136,6 +136,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/bilanz'),
           ),
           _NavTile(
+            icon: Icons.fact_check,
+            title: 'Audit',
+            subtitle: 'Verdächtige Buchungen & Salden',
+            onTap: () => context.push('/buchhaltung/audit'),
+          ),
+          _NavTile(
             icon: Icons.receipt_long,
             title: 'Rechnungen',
             subtitle: 'Rechnungen verwalten, Status ändern',
