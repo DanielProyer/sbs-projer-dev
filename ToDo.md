@@ -1,6 +1,6 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 08.06.2026
+**Stand**: 16.06.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
@@ -108,15 +108,14 @@ Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin 
 
 ## 🔵 BUCHHALTUNG SCHARFSTELLEN (01.07.2026)
 
-**Detailplan**: `.claude/plans/snuggly-frolicking-pine.md`
-**Strategie**: Sauberer Start — Test-Buchungen loeschen, Eroeffnungsbilanz erfassen
+**Strategie (aktuell): VOLL-ÜBERNAHME, nicht Clean-Start.**
+Die komplette Historie ist importiert + läuft live: Buchhaltung **lückenlos 27.03.2019 → heute** (2019: 1'456 … 2025: 2'604 … 2026: 1'290 Buchungen, Stand 12.06.2026), Bilanz geht an allen Jahresenden auf (Phase 2b). Die Bilanzkonten-Salden tragen sich fortlaufend weiter → **am 01.07. läuft die Buchhaltung einfach aus den laufenden Salden weiter.**
+
+~~Detailplan `.claude/plans/snuggly-frolicking-pine.md` (Clean-Start: Test-Buchungen löschen + Eröffnungsbilanz)~~ — **überholt durch die Voll-Übernahme.** „Scharfstellung" heißt jetzt nur noch: camt produktiv + restliche Mail-Bereiche scharf + Altjahr-Fachfragen klären.
 
 ### Features entwickeln (Mai/Juni)
 
-- [ ] **A1: Eroeffnungsbilanz-Screen** (KRITISCH)
-  - Anfangssalden aller Bilanzkonten (Klasse 1+2) per 01.07. erfassen
-  - Gegenkonto 9100 "Eroeffnungsbilanz" anlegen
-  - Soll/Haben-Buchungen automatisch erstellen
+- [x] ~~**A1: Eröffnungsbilanz-Screen**~~ — **HINFÄLLIG** (Voll-Übernahme: keine Anfangssalden zu seeden, Historie ist durchgehend im System). Konto 9100 nicht nötig.
 
 - [x] **A2: Heineken-Rechnung → automatische Buchung** (KRITISCH) ✅ 29.05.2026
   - Status 'freigegeben' → HeinekenBuchungService.createFromRechnung (Debitoren/Ertrag + MwSt)
@@ -125,15 +124,15 @@ Review-Follow-ups (dokumentiert, nicht kritisch — Daniel kontrolliert ohnehin 
 - [x] **A3: Zahlungseingang → automatische Buchung** (KRITISCH) ✅ 29.05.2026
   - Status 'bezahlt' → HeinekenBuchungService.createZahlungseingang (Soll Bank / Haben Debitoren)
 
-- [ ] **A4: Wiederkehrende Buchungen** (WICHTIG)
+- [ ] **A4: Wiederkehrende Buchungen** (NICE-TO-HAVE, nicht Blocker)
   - Monatliche Standard-Buchungen mit 1 Klick (Lohn, AHV, Miete, etc.)
-  - Konfigurierbare Liste, Duplikat-Check
+  - Konfigurierbare Liste, Duplikat-Check — teilweise via Buchungsvorlagen + camt-Regeln abgedeckt
 
 - [ ] **A5: Monatsabschluss-Checkliste** (NICE-TO-HAVE)
   - Automatisch berechnete Checkliste pro Monat
   - Alle Services gebucht? Heineken-Rechnung? Spesen? Bank-Import?
 
-- [ ] **A6: Kontenplan pruefen & ergaenzen** (KRITISCH)
+- [x] **A6: Kontenplan geprüft & ergänzt** ✅ (9100 nicht mehr nötig, da keine Eröffnungsbilanz)
   - Konto 9100 (Eroeffnungsbilanz) hinzufuegen
   - Pruefen ob alle Konten fuer Vollbetrieb vorhanden (Loehne, Sozialversicherungen, etc.)
   - ✅ 4 Lohn-Konten hinzugefuegt: 5710 FAK, 5720 BVG AG, 5730 UVG AG, 5740 KTG AG
@@ -160,11 +159,14 @@ Bilanz-Screen (neu, /buchhaltung/bilanz), Erfolgsrechnung auf KMU-Stufengliederu
 - [ ] **Optional Excel-Gegencheck:** Daniel setzt Excel-Bilanz auf 31.12.2024, rechnet neu + speichert → bit-genauer externer Abgleich Kasse/Debitoren/Bank (Excel-Sheets sind sonst gecachte Werte, unzuverlässig).
 - [ ] **Phase-1-Vorbereitung (aus 0b-Final-Review):** Jahres-Abschlussbuchungen (Gewinnvortrag→2850/2970) beim Excel-Import zwingend mitnehmen, sonst Bilanz-Differenz. betragBrutto=Bruttomethode (passt). Bei sehr vielen Buchungen ggf. jahresgefilterte DB-Query statt getAll().
 
-### Umstellung (25.-30. Juni 2026)
+### Restliste bis 01.07.2026 (statt Clean-Start-Umstellung)
 
-- [ ] **B1: Test-Buchungen loeschen** (nur buchungen + buchungs_belege, NICHT Servicedaten!)
-- [ ] **B2: Eroeffnungsbilanz erfassen** (Daniel: Bank-Saldo, Kasse, Debitoren, MwSt, Eigenkapital etc.)
-- [ ] **B3: Kontroll-Check** (Aktiven = Passiven, Saldi korrekt, Erfolgsrechnung = 0)
+- [x] ~~Test-Buchungen löschen / Eröffnungsbilanz erfassen / Aktiven=Passiven-Check~~ — **entfällt** (Voll-Übernahme, Daten sind echte Historie, NICHT löschen)
+- [ ] **camt-Auto-Buchung produktiv** ab Stichtag 01.07.2026 — bereits gebaut, geht automatisch scharf. Erster Echtlauf Anfang August (Juli-camt).
+- [ ] **Restliche Mail-Bereiche scharfstellen**: `bestellungScharf` + `mahnwesenScharf` in `mail_config.dart` (stehen noch auf Test-Empfänger)
+- [ ] **2026 auf echte Test-Buchungen durchsehen** — falls aus der Entwicklung vereinzelt Test-Einträge drinstecken (gezielt, NICHT pauschal). Echte Live-Buchungen (Heineken/Reinigung/Spesen/camt) bleiben.
+- [ ] **B1 (Fachfrage):** Lohnaufwand 5000 ~1–2k/Jahr über Lohnausweis-Brutto klären (siehe Phase-0b-Block oben)
+- [ ] **B3 (Fachfrage):** MWST-Zahllast 2023 +1'379 ggü. deklariert klären (siehe Phase-0b-Block oben)
 
 ---
 
