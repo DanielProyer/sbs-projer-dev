@@ -1,9 +1,13 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 16.06.2026
+**Stand**: 18.06.2026
 **Für**: SBS Projer App Entwicklung
 
 ---
+
+## 📑 Berichtswesen-Umbau (18.06.2026, gemergt + deployed v0.10.119)
+„Berichte" → **„Bilanz & Erfolgsrechnung"** (2 Tabs, Route `/buchhaltung/berichte`); **MwSt-Abrechnung** eigener Screen (`/buchhaltung/mwst`). Bilanz frei nach Stichtag, ER frei nach Zeitraum (Presets + Datumswahl). Professionelle Darstellung mit `chf()` (Tausender-Apostroph) + Bilanz-Check. ER-Scroll-Seite: Stufen + aufklappbar Kontenklassen + alle Konten. PDF (Bilanz 2-spaltig, ER 3 Ebenen) via `printing`; Mail-Versand via neue Edge Function `send-pdf-mail` (Inline-PDF). Reine Services getestet (chf/kontenAufstellung/bilanz-erstelle). Spec/Plan: docs/superpowers/.../2026-06-18-berichtswesen-umbau*. 77 Tests grün.
+- [ ] **Mail-Empfänger Berichte hardcoded** `dani.proyer@gmail.com` (`BerichtMailService.empfaenger`, `TODO(settings)`) → beim Settings-Umbau auf E-Mail des Geschäftsführers umstellen.
 
 ## 🧾 Forderungen-Hub (13.06.2026, gemergt + deployed v0.10.118)
 Debitoren/Rechnungen/Mahnwesen vereint: Rechnungsliste = Hub „Forderungen" (`/rechnungen`) mit Mahnfällig-Filter + einklappbarem Debitoren-Kopf (Salden + Sammel-Abschreibung + Delkredere). `ForderungService` (empfohlene Mahn-Aktion, TDD). Mahnwesen-/Debitoren-Screens entfernt (Routen→Redirect), Tiles zu einem „Forderungen". Kritischer Re-Audit: Bilanz geht auf (Diff −0.02 Rundung), keine Strukturfehler.
