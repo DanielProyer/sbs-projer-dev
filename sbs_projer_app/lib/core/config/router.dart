@@ -49,7 +49,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_detail_s
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/berichte_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/audit_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/buchhaltung/bilanz_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/mwst_abrechnung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/rechnungen_nachversand_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakte_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakt_form_screen.dart';
@@ -437,7 +437,11 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/buchhaltung/bilanz',
-      builder: (context, state) => const BilanzScreen(),
+      redirect: (context, state) => '/buchhaltung/berichte',
+    ),
+    GoRoute(
+      path: '/buchhaltung/mwst',
+      builder: (context, state) => const MwstAbrechnungScreen(),
     ),
     GoRoute(
       path: '/buchhaltung/audit',

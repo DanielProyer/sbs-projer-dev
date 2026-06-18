@@ -124,16 +124,16 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/buchungen/neu'),
           ),
           _NavTile(
-            icon: Icons.bar_chart,
-            title: 'Berichte',
-            subtitle: 'Erfolgsrechnung & MwSt-Abrechnung',
+            icon: Icons.assessment,
+            title: 'Bilanz & Erfolgsrechnung',
+            subtitle: 'Bilanz & Erfolgsrechnung per Datum',
             onTap: () => context.push('/buchhaltung/berichte'),
           ),
           _NavTile(
-            icon: Icons.balance,
-            title: 'Bilanz',
-            subtitle: 'Aktiven & Passiven per Stichtag',
-            onTap: () => context.push('/buchhaltung/bilanz'),
+            icon: Icons.account_balance,
+            title: 'MwSt-Abrechnung',
+            subtitle: 'Quartals-Abrechnung ESTV',
+            onTap: () => context.push('/buchhaltung/mwst'),
           ),
           _NavTile(
             icon: Icons.fact_check,
