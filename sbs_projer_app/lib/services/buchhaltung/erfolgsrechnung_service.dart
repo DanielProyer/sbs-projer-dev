@@ -1,7 +1,8 @@
 import 'bilanz_service.dart' show BuchungSaldo;
 import 'saldo_expansion.dart';
 
-/// Beschreibung der Haupt-Kontenklassen 3–8 (Schweizer KMU-Kontenrahmen).
+/// Kurzbeschreibung der Haupt-Kontenklassen 3–8 (Schweizer KMU-Kontenrahmen),
+/// für die kompakte Bildschirm-Darstellung.
 const kontenklasseBeschreibung = <int, String>{
   3: 'Betriebsertrag',
   4: 'Materialaufwand',
@@ -9,6 +10,17 @@ const kontenklasseBeschreibung = <int, String>{
   6: 'Übriger Aufwand, Abschreibungen & Finanzergebnis',
   7: 'Betrieblicher Nebenerfolg',
   8: 'Betriebsfremder & a.o. Erfolg, Steuern',
+};
+
+/// Ausführliche Beschreibung der Haupt-Kontenklassen 3–8 (offizielle
+/// Bezeichnungen des Schweizer KMU-Kontenrahmens), für PDF/Berichte.
+const kontenklasseBeschreibungDetail = <int, String>{
+  3: 'Betrieblicher Ertrag aus Lieferungen und Leistungen',
+  4: 'Aufwand für Material, Handelswaren, Dienstleistungen und Energie',
+  5: 'Personalaufwand',
+  6: 'Übriger betrieblicher Aufwand, Abschreibungen und Finanzergebnis',
+  7: 'Betrieblicher Nebenerfolg',
+  8: 'Betriebsfremder, ausserordentlicher und periodenfremder Aufwand und Ertrag sowie direkte Steuern',
 };
 
 /// Ergebnis der KMU-Stufengliederung.

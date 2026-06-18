@@ -32,22 +32,29 @@ class BerichtPdfCommon {
 
   /// Betrags-Zeile (Label links, CHF rechts), optional fett / Linie oben.
   static pw.Widget zeile(String label, double betrag,
-          {bool bold = false, bool linieOben = false, double indent = 0}) =>
+          {bool bold = false,
+          bool linieOben = false,
+          double indent = 0,
+          double fontSize = 9}) =>
       pw.Container(
         decoration: linieOben
             ? const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(width: 0.5)))
             : null,
-        padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
+        padding: pw.EdgeInsets.symmetric(vertical: fontSize * 0.28),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Padding(
-              padding: pw.EdgeInsets.only(left: indent),
-              child: pw.Text(label,
-                  style: pw.TextStyle(fontSize: 9, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+            pw.Expanded(
+              child: pw.Padding(
+                padding: pw.EdgeInsets.only(left: indent),
+                child: pw.Text(label,
+                    style: pw.TextStyle(
+                        fontSize: fontSize, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+              ),
             ),
             pw.Text(chf(betrag),
-                style: pw.TextStyle(fontSize: 9, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+                style: pw.TextStyle(
+                    fontSize: fontSize, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
           ],
         ),
       );
