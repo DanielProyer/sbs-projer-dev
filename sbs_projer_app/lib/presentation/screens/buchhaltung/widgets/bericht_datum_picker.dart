@@ -6,7 +6,8 @@ import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart
 final _df = DateFormat('dd.MM.yyyy');
 DateTime _d(DateTime x) => DateTime(x.year, x.month, x.day);
 
-/// Stichtag-Auswahl für die Bilanz: Presets + freie Datumswahl.
+/// Stichtag-Auswahl für die Bilanz: Geschäftsjahr-Dropdown (je 31.12.) +
+/// „Heute" + freie Datumswahl.
 class StichtagPicker extends StatelessWidget {
   final DateTime stichtag;
   final ValueChanged<DateTime> onChanged;
@@ -15,16 +16,27 @@ class StichtagPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final jetzt = DateTime.now();
+    // Dropdown zeigt das Jahr nur, wenn der Stichtag exakt auf den 31.12. fällt.
+    final jahr31 =
+        (stichtag.month == 12 && stichtag.day == 31) ? stichtag.year : null;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: Wrap(
-        spacing: 8,
+        spacing: 12,
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          ActionChip(
-            label: Text('Per 31.12.${jetzt.year - 1}'),
-            onPressed: () => onChanged(DateTime(jetzt.year - 1, 12, 31)),
+          DropdownButton<int>(
+            value: jahr31,
+            hint: const Text('Per 31.12.'),
+            items: [
+              for (int y = jetzt.year; y >= 2019; y--)
+                DropdownMenuItem(value: y, child: Text('Per 31.12.$y')),
+            ],
+            onChanged: (y) {
+              if (y != null) onChanged(DateTime(y, 12, 31));
+            },
           ),
           ActionChip(
             label: const Text('Heute'),
