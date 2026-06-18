@@ -29,10 +29,10 @@ class StichtagPicker extends StatelessWidget {
         children: [
           DropdownButton<int>(
             value: jahr31,
-            hint: const Text('Per 31.12.'),
+            hint: const Text('Geschäftsjahr'),
             items: [
               for (int y = jetzt.year; y >= 2019; y--)
-                DropdownMenuItem(value: y, child: Text('Per 31.12.$y')),
+                DropdownMenuItem(value: y, child: Text('Geschäftsjahr $y')),
             ],
             onChanged: (y) {
               if (y != null) onChanged(DateTime(y, 12, 31));
