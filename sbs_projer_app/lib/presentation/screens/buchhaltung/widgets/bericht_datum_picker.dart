@@ -5,7 +5,6 @@ import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart
 
 final _df = DateFormat('dd.MM.yyyy');
 DateTime _d(DateTime x) => DateTime(x.year, x.month, x.day);
-const _monatNamen = ['', 'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
 /// Stichtag-Auswahl für die Bilanz: Presets + freie Datumswahl.
 class StichtagPicker extends StatelessWidget {
@@ -50,47 +49,62 @@ class StichtagPicker extends StatelessWidget {
   }
 }
 
-/// Zeitraum-Auswahl für die Erfolgsrechnung: Presets + freie von/bis-Wahl.
+/// Zeitraum-Auswahl für die Erfolgsrechnung: Geschäftsjahr-Dropdown +
+/// Quartal-Dropdown (Q1–Q4, ohne Auswahl = ganzes Jahr) + freie von/bis-Wahl.
 class ZeitraumPicker extends StatelessWidget {
   final Zeitraum zeitraum;
   final ValueChanged<Zeitraum> onChanged;
   const ZeitraumPicker({super.key, required this.zeitraum, required this.onChanged});
 
+  Zeitraum _ganzesJahr(int j) => (von: DateTime(j, 1, 1), bis: DateTime(j, 12, 31));
+  Zeitraum _quartal(int j, int q) =>
+      (von: DateTime(j, (q - 1) * 3 + 1, 1), bis: DateTime(j, q * 3 + 1, 0));
+
   @override
   Widget build(BuildContext context) {
     final jetzt = DateTime.now();
-    final j = zeitraum.von.year;
-    final q = ((zeitraum.von.month - 1) ~/ 3) + 1;
+    final jahr = zeitraum.von.year;
+
+    // Aktives Quartal nur, wenn der Zeitraum exakt einem Quartal entspricht;
+    // sonst null → Dropdown zeigt „Ganzes Jahr".
+    int? aktivesQuartal;
+    for (int i = 1; i <= 4; i++) {
+      final qz = _quartal(jahr, i);
+      if (zeitraum.von == qz.von && zeitraum.bis == qz.bis) {
+        aktivesQuartal = i;
+        break;
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: Wrap(
-        spacing: 8,
+        spacing: 12,
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          ActionChip(
-            label: Text('Geschäftsjahr $j'),
-            onPressed: () => onChanged((von: DateTime(j, 1, 1), bis: DateTime(j, 12, 31))),
-          ),
-          ActionChip(
-            label: Text('Q$q $j'),
-            onPressed: () {
-              final start = DateTime(j, (q - 1) * 3 + 1, 1);
-              final end = DateTime(j, q * 3 + 1, 0);
-              onChanged((von: start, bis: end));
+          DropdownButton<int>(
+            value: jahr,
+            items: [
+              for (int y = jetzt.year; y >= 2019; y--)
+                DropdownMenuItem(value: y, child: Text('Geschäftsjahr $y')),
+            ],
+            onChanged: (y) {
+              if (y != null) onChanged(_ganzesJahr(y));
             },
           ),
-          ActionChip(
-            label: Text('${_monatNamen[zeitraum.von.month]} $j'),
-            onPressed: () {
-              final start = DateTime(j, zeitraum.von.month, 1);
-              final end = DateTime(j, zeitraum.von.month + 1, 0);
-              onChanged((von: start, bis: end));
+          DropdownButton<int>(
+            value: aktivesQuartal,
+            hint: const Text('Ganzes Jahr'),
+            items: const [
+              DropdownMenuItem(value: 1, child: Text('Q1')),
+              DropdownMenuItem(value: 2, child: Text('Q2')),
+              DropdownMenuItem(value: 3, child: Text('Q3')),
+              DropdownMenuItem(value: 4, child: Text('Q4')),
+            ],
+            onChanged: (q) {
+              if (q != null) onChanged(_quartal(jahr, q));
             },
-          ),
-          ActionChip(
-            label: const Text('YTD'),
-            onPressed: () => onChanged((von: DateTime(jetzt.year, 1, 1), bis: _d(jetzt))),
           ),
           OutlinedButton(
             onPressed: () async {
