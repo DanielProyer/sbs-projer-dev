@@ -11,6 +11,8 @@ class GeschaeftEinstellungen {
   final String? mailPrivat;
   final String? mwstNummer;
   final String? uidNummer;
+  final String? gfAhvNr;
+  final DateTime? gfGeburtsdatum;
 
   const GeschaeftEinstellungen({
     this.id = '',
@@ -25,6 +27,8 @@ class GeschaeftEinstellungen {
     this.mailPrivat,
     this.mwstNummer,
     this.uidNummer,
+    this.gfAhvNr,
+    this.gfGeburtsdatum,
   });
 
   // Fallback-Konstanten = heutige fix codierte Werte.
@@ -42,6 +46,7 @@ class GeschaeftEinstellungen {
   String get telefonOrFallback => _clean(telefon) ?? kTelefon;
   String get gfVollname => '${gfVorname ?? ''} ${gfName ?? ''}'.trim();
   String get mailEmpfaenger => _clean(mailGeschaeft) ?? _clean(mailPrivat) ?? kMail;
+  int get gfGeburtsjahr => gfGeburtsdatum?.year ?? 1990;
   String get mwstZeile {
     final m = _clean(mwstNummer);
     return m == null ? '' : '$m MWST';
@@ -60,6 +65,8 @@ class GeschaeftEinstellungen {
         mailPrivat: j['mail_privat'],
         mwstNummer: j['mwst_nummer'],
         uidNummer: j['uid_nummer'],
+        gfAhvNr: j['gf_ahv_nr'],
+        gfGeburtsdatum: j['gf_geburtsdatum'] != null ? DateTime.parse(j['gf_geburtsdatum']) : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -73,5 +80,7 @@ class GeschaeftEinstellungen {
         'mail_privat': mailPrivat,
         'mwst_nummer': mwstNummer,
         'uid_nummer': uidNummer,
+        'gf_ahv_nr': gfAhvNr,
+        'gf_geburtsdatum': gfGeburtsdatum?.toIso8601String().split('T').first,
       };
 }

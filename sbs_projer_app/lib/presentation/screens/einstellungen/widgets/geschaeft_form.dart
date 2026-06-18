@@ -1,6 +1,7 @@
 // lib/presentation/screens/einstellungen/widgets/geschaeft_form.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
@@ -17,6 +18,18 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
   late final Map<String, TextEditingController> _c;
   bool _saving = false;
 
+  static final _df = DateFormat('dd.MM.yyyy');
+
+  static DateTime? _parseDatum(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return null;
+    final p = t.split('.');
+    if (p.length != 3) return null;
+    final d = int.tryParse(p[0]), m = int.tryParse(p[1]), y = int.tryParse(p[2]);
+    if (d == null || m == null || y == null) return null;
+    return DateTime(y, m, d);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +42,9 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
       'uid_nummer': TextEditingController(text: g.uidNummer ?? ''),
       'gf_vorname': TextEditingController(text: g.gfVorname ?? ''),
       'gf_name': TextEditingController(text: g.gfName ?? ''),
+      'gf_ahv_nr': TextEditingController(text: g.gfAhvNr ?? ''),
+      'gf_geburtsdatum': TextEditingController(
+          text: g.gfGeburtsdatum != null ? _df.format(g.gfGeburtsdatum!) : ''),
       'telefon': TextEditingController(text: g.telefon ?? ''),
       'mail_geschaeft': TextEditingController(text: g.mailGeschaeft ?? ''),
       'mail_privat': TextEditingController(text: g.mailPrivat ?? ''),
@@ -46,8 +62,12 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await GeschaeftRepository.save(
-          {for (final e in _c.entries) e.key: e.value.text.trim()});
+      final fields = <String, dynamic>{
+        for (final e in _c.entries) e.key: e.value.text.trim()
+      };
+      fields['gf_geburtsdatum'] =
+          _parseDatum(_c['gf_geburtsdatum']!.text)?.toIso8601String().split('T').first;
+      await GeschaeftRepository.save(fields);
       ref.invalidate(geschaeftProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -92,6 +112,8 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
         _label('Geschäftsführer'),
         _field('gf_vorname', 'Vorname'),
         _field('gf_name', 'Name'),
+        _field('gf_ahv_nr', 'AHV-Nr. (756.xxxx.xxxx.xx)'),
+        _field('gf_geburtsdatum', 'Geburtsdatum (TT.MM.JJJJ)'),
         _label('Kontakt'),
         _field('telefon', 'Telefon', kb: TextInputType.phone),
         _field('mail_geschaeft', 'Mail Geschäft', kb: TextInputType.emailAddress),

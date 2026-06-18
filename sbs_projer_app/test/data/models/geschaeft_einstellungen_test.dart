@@ -24,4 +24,15 @@ void main() {
     expect(g.mwstZeile, 'CHE-123.456.789 MWST');
     expect(const GeschaeftEinstellungen().mwstZeile, '');
   });
+
+  test('gfGeburtsjahr aus Geburtsdatum, sonst 1990; AN-Felder via JSON', () {
+    final g = GeschaeftEinstellungen(gfGeburtsdatum: DateTime(1985, 4, 12), gfAhvNr: '756.1234.5678.90');
+    expect(g.gfGeburtsjahr, 1985);
+    expect(const GeschaeftEinstellungen().gfGeburtsjahr, 1990);
+    final json = g.toJson();
+    expect(json['gf_ahv_nr'], '756.1234.5678.90');
+    expect(json['gf_geburtsdatum'], '1985-04-12');
+    final back = GeschaeftEinstellungen.fromJson({'id': '1', 'user_id': 'u', 'gf_geburtsdatum': '1985-04-12'});
+    expect(back.gfGeburtsdatum, DateTime(1985, 4, 12));
+  });
 }

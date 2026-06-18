@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lohn_einstellungen.dart';
 import 'package:sbs_projer_app/data/models/lohn_abrechnung.dart';
@@ -104,10 +103,10 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => context.push('/buchhaltung/lohn/einstellungen'),
-              icon: const Icon(Icons.settings),
-              label: const Text('Einstellungen öffnen'),
+            const Text(
+              'Sätze unter Einstellungen → Lohn-Einstellungen erfassen.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -169,14 +168,8 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
                 ),
                 const Divider(),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('${abrechnungen.length} Auszahlungen'),
-                    TextButton(
-                      onPressed: () =>
-                          context.push('/buchhaltung/lohn/einstellungen'),
-                      child: const Text('Einstellungen'),
-                    ),
                   ],
                 ),
               ],
