@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/bericht_datum_picker.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/bilanz_view.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/erfolgsrechnung_view.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/mail/bericht_mail_service.dart';
 import 'package:sbs_projer_app/services/pdf/bilanz_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/erfolgsrechnung_pdf_service.dart';
@@ -37,14 +38,17 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
 
   Future<void> _pdf() async {
     try {
+      final g = ref.read(geschaeftProvider).valueOrNull;
       if (_tab.index == 0) {
         final b = await ref.read(bilanzStichtagProvider(_stichtag).future);
-        final bytes = await BilanzPdfService.generate(b, _stichtag);
+        final bytes = await BilanzPdfService.generate(b, _stichtag,
+            firmaName: g?.firma, firmaStrasse: g?.adresseStrasse, firmaOrt: g?.adressePlzOrt, mwstZeile: g?.mwstZeile);
         await Printing.layoutPdf(onLayout: (_) => bytes);
       } else {
         final er = await ref.read(erfolgsrechnungZeitraumProvider(_zeitraum).future);
         final konten = await ref.read(erKontenAufstellungProvider(_zeitraum).future);
-        final bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum);
+        final bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum,
+            firmaName: g?.firma, firmaStrasse: g?.adresseStrasse, firmaOrt: g?.adressePlzOrt, mwstZeile: g?.mwstZeile);
         await Printing.layoutPdf(onLayout: (_) => bytes);
       }
     } catch (e) {
@@ -55,13 +59,15 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
   }
 
   Future<void> _mail() async {
+    final geschaeft = ref.read(geschaeftProvider).valueOrNull;
+    final empfaenger = geschaeft?.mailEmpfaenger ?? BerichtMailService.fallbackEmpfaenger;
     final istBilanz = _tab.index == 0;
     final was = istBilanz ? 'Bilanz' : 'Erfolgsrechnung';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('$was senden'),
-        content: Text('$was als PDF an ${BerichtMailService.empfaenger} senden?'),
+        content: Text('$was als PDF an $empfaenger senden?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Senden')),
@@ -74,15 +80,18 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
       final String filename;
       if (istBilanz) {
         final b = await ref.read(bilanzStichtagProvider(_stichtag).future);
-        bytes = await BilanzPdfService.generate(b, _stichtag);
+        bytes = await BilanzPdfService.generate(b, _stichtag,
+            firmaName: geschaeft?.firma, firmaStrasse: geschaeft?.adresseStrasse, firmaOrt: geschaeft?.adressePlzOrt, mwstZeile: geschaeft?.mwstZeile);
         filename = 'Bilanz.pdf';
       } else {
         final er = await ref.read(erfolgsrechnungZeitraumProvider(_zeitraum).future);
         final konten = await ref.read(erKontenAufstellungProvider(_zeitraum).future);
-        bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum);
+        bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum,
+            firmaName: geschaeft?.firma, firmaStrasse: geschaeft?.adresseStrasse, firmaOrt: geschaeft?.adressePlzOrt, mwstZeile: geschaeft?.mwstZeile);
         filename = 'Erfolgsrechnung.pdf';
       }
       await BerichtMailService.send(
+        to: empfaenger,
         subject: '$was SBS Projer GmbH',
         bodyText: 'Im Anhang die $was.\n\nSBS Projer GmbH',
         filename: filename,
@@ -90,7 +99,7 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$was gesendet an ${BerichtMailService.empfaenger}')));
+          SnackBar(content: Text('$was gesendet an $empfaenger')));
       }
     } catch (e) {
       if (mounted) {

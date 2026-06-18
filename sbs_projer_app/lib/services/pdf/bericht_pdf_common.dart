@@ -9,16 +9,21 @@ class BerichtPdfCommon {
   static const ort = '7013 Domat/Ems';
   static const dunkel = PdfColor.fromInt(0xFF1A3A5C);
 
-  static pw.Widget kopf(String titel, String periode) => pw.Column(
+  static pw.Widget kopf(String titel, String periode,
+          {String? firmaName, String? firmaStrasse, String? firmaOrt, String? mwstZeile}) =>
+      pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                pw.Text(firma, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: dunkel)),
-                pw.Text(strasse, style: const pw.TextStyle(fontSize: 9)),
-                pw.Text(ort, style: const pw.TextStyle(fontSize: 9)),
+                pw.Text(firmaName ?? firma,
+                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: dunkel)),
+                pw.Text(firmaStrasse ?? strasse, style: const pw.TextStyle(fontSize: 9)),
+                pw.Text(firmaOrt ?? ort, style: const pw.TextStyle(fontSize: 9)),
+                if (mwstZeile != null && mwstZeile.isNotEmpty)
+                  pw.Text(mwstZeile, style: const pw.TextStyle(fontSize: 9)),
               ]),
               pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
                 pw.Text(titel, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),

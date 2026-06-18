@@ -28,12 +28,18 @@ class RechnungPdfService {
 
   /// Generiert eine professionelle A4-Kundenrechnung mit QR-Zahlteil.
   /// [mitteilung] überschreibt den Standard-Buchungstext im QR-Zahlteil (Ustrd).
+  /// [firmaName], [firmaStrasse], [firmaPlzOrt], [firmaMwst] überschreiben nur
+  /// den Briefkopf (Letterhead) — QR/IBAN-Daten bleiben immer auf den Konstanten.
   static Future<Uint8List> generate({
     required Rechnung rechnung,
     required List<RechnungsPosition> positionen,
     required BetriebLocal betrieb,
     BetriebRechnungsadresse? rechnungsadresse,
     String? mitteilung,
+    String? firmaName,
+    String? firmaStrasse,
+    String? firmaPlzOrt,
+    String? firmaMwst,
   }) async {
     final pdf = pw.Document();
     final dateFormat = DateFormat('dd.MM.yyyy');
@@ -59,7 +65,12 @@ class RechnungPdfService {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(),
+                    _buildHeader(
+                      firmaName: firmaName,
+                      firmaStrasse: firmaStrasse,
+                      firmaPlzOrt: firmaPlzOrt,
+                      firmaMwst: firmaMwst,
+                    ),
                     pw.SizedBox(height: 30),
                     _buildKundenAdresse(betrieb, rechnungsadresse),
                     pw.SizedBox(height: 30),
@@ -90,12 +101,23 @@ class RechnungPdfService {
 
   // ─── HEADER ───
 
-  static pw.Widget _buildHeader() {
+  static pw.Widget _buildHeader({
+    String? firmaName,
+    String? firmaStrasse,
+    String? firmaPlzOrt,
+    String? firmaMwst,
+  }) {
+    final displayName = firmaName ?? _firmaName;
+    final displayStrasse = firmaStrasse ?? '$_firmaStrasse $_firmaNr';
+    final displayPlzOrt = firmaPlzOrt ?? '$_firmaPlz $_firmaOrt';
+    final mwstLeer = firmaMwst == null || firmaMwst.isEmpty;
+    final displayMwst = mwstLeer ? 'CHE-413.083.919 MWST' : firmaMwst;
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          _firmaName,
+          displayName,
           style: pw.TextStyle(
             fontSize: 16,
             fontWeight: pw.FontWeight.bold,
@@ -103,14 +125,14 @@ class RechnungPdfService {
           ),
         ),
         pw.SizedBox(height: 4),
-        pw.Text('$_firmaStrasse $_firmaNr',
+        pw.Text(displayStrasse,
             style: const pw.TextStyle(fontSize: 9, color: _grey)),
-        pw.Text('$_firmaPlz $_firmaOrt',
+        pw.Text(displayPlzOrt,
             style: const pw.TextStyle(fontSize: 9, color: _grey)),
         pw.SizedBox(height: 4),
         pw.Text('Tel 076 566 58 06 | sbs.projer@gmail.com',
             style: const pw.TextStyle(fontSize: 9, color: _grey)),
-        pw.Text('CHE-413.083.919 MWST',
+        pw.Text(displayMwst,
             style: const pw.TextStyle(fontSize: 9, color: _grey)),
       ],
     );

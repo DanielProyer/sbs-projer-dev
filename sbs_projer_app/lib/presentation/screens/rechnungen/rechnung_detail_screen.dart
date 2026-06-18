@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.d
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/services/pdf/mahnung_pdf_service.dart';
@@ -333,11 +334,16 @@ class _RechnungDetailContentState
         return;
       }
 
+      final g = ref.read(geschaeftProvider).valueOrNull;
       final pdfBytes = await RechnungPdfService.generate(
         rechnung: _rechnung,
         positionen: positionen,
         betrieb: betrieb,
         rechnungsadresse: ra,
+        firmaName: g?.firma,
+        firmaStrasse: g?.adresseStrasse,
+        firmaPlzOrt: g?.adressePlzOrt,
+        firmaMwst: g?.mwstZeile,
       );
 
       if (context.mounted) {
