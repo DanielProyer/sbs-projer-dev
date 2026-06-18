@@ -65,14 +65,18 @@ class ZeitraumPicker extends StatelessWidget {
     final jetzt = DateTime.now();
     final jahr = zeitraum.von.year;
 
-    // Aktives Quartal nur, wenn der Zeitraum exakt einem Quartal entspricht;
-    // sonst null → Dropdown zeigt „Ganzes Jahr".
-    int? aktivesQuartal;
-    for (int i = 1; i <= 4; i++) {
-      final qz = _quartal(jahr, i);
-      if (zeitraum.von == qz.von && zeitraum.bis == qz.bis) {
-        aktivesQuartal = i;
-        break;
+    // Auswahl im Dropdown: 0 = Ganzes Jahr, 1–4 = Quartal, null = eigener
+    // Zeitraum (über die freie Datumswahl gesetzt).
+    int? auswahl;
+    if (zeitraum.von == _ganzesJahr(jahr).von && zeitraum.bis == _ganzesJahr(jahr).bis) {
+      auswahl = 0;
+    } else {
+      for (int i = 1; i <= 4; i++) {
+        final qz = _quartal(jahr, i);
+        if (zeitraum.von == qz.von && zeitraum.bis == qz.bis) {
+          auswahl = i;
+          break;
+        }
       }
     }
 
@@ -94,16 +98,18 @@ class ZeitraumPicker extends StatelessWidget {
             },
           ),
           DropdownButton<int>(
-            value: aktivesQuartal,
-            hint: const Text('Ganzes Jahr'),
+            value: auswahl,
+            hint: const Text('Eigener Zeitraum'),
             items: const [
+              DropdownMenuItem(value: 0, child: Text('Ganzes Jahr')),
               DropdownMenuItem(value: 1, child: Text('Q1')),
               DropdownMenuItem(value: 2, child: Text('Q2')),
               DropdownMenuItem(value: 3, child: Text('Q3')),
               DropdownMenuItem(value: 4, child: Text('Q4')),
             ],
             onChanged: (q) {
-              if (q != null) onChanged(_quartal(jahr, q));
+              if (q == null) return;
+              onChanged(q == 0 ? _ganzesJahr(jahr) : _quartal(jahr, q));
             },
           ),
           OutlinedButton(
