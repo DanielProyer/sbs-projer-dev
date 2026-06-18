@@ -44,7 +44,7 @@ class GeschaeftEinstellungen {
   String get mailEmpfaenger => _clean(mailGeschaeft) ?? _clean(mailPrivat) ?? kMail;
   String get mwstZeile {
     final m = _clean(mwstNummer);
-    return m == null ? '' : 'MWST $m';
+    return m == null ? '' : '$m MWST';
   }
 
   factory GeschaeftEinstellungen.fromJson(Map<String, dynamic> j) => GeschaeftEinstellungen(

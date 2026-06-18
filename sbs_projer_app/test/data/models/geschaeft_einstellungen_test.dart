@@ -21,7 +21,7 @@ void main() {
       firmaName: 'Meine AG', gfVorname: 'Max', gfName: 'Muster', mwstNummer: 'CHE-123.456.789');
     expect(g.firma, 'Meine AG');
     expect(g.gfVollname, 'Max Muster');
-    expect(g.mwstZeile, 'MWST CHE-123.456.789');
+    expect(g.mwstZeile, 'CHE-123.456.789 MWST');
     expect(const GeschaeftEinstellungen().mwstZeile, '');
   });
 }
