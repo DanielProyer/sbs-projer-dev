@@ -92,46 +92,6 @@ List<BuchungSaldo> _toSaldoInput(List<Buchung> buchungen) => buchungen
         ))
     .toList();
 
-/// Bilanz per 31.12. des gewählten Geschäftsjahrs.
-/// Das Ergebnis wird berechnet (Klasse 3–8) und im Eigenkapital als
-/// Gewinnvortrag (Vorjahre) + Jahresergebnis (laufendes Jahr) gezeigt.
-final bilanzProvider = FutureProvider.family<BilanzDaten, int>((ref, jahr) async {
-  final buchungen = await BuchungRepository.getAll();
-  final konten = await KontoRepository.getAll();
-  final input = _toSaldoInput(buchungen);
-
-  final saldiBis = BilanzService.saldiPerStichtag(input, DateTime(jahr, 12, 31));
-  final saldiVor =
-      BilanzService.saldiPerStichtag(input, DateTime(jahr - 1, 12, 31));
-  final resBis = BilanzService.kumuliertesErgebnis(saldiBis);
-  final resVor = BilanzService.kumuliertesErgebnis(saldiVor);
-
-  final kontoInfos = konten
-      .map((k) => KontoInfo(
-            kontonummer: k.kontonummer,
-            bezeichnung: k.bezeichnung,
-            kategorie: k.kategorie ?? '—',
-          ))
-      .toList();
-  return BilanzService.gruppiere(
-    saldiBis,
-    kontoInfos,
-    gewinnvortrag: resVor,
-    jahresergebnis: resBis - resVor,
-  );
-});
-
-/// Erfolgsrechnung (Stufengliederung) für ein Geschäftsjahr.
-final erfolgsrechnungStufenProvider =
-    FutureProvider.family<ErfolgsrechnungDaten, int>((ref, jahr) async {
-  final buchungen = await BuchungRepository.getAll();
-  return ErfolgsrechnungService.berechne(
-    _toSaldoInput(buchungen),
-    von: DateTime(jahr, 1, 1),
-    bis: DateTime(jahr, 12, 31),
-  );
-});
-
 /// Audit-Befunde: verdächtige Salden / fehlende Buchungen.
 final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
   final saldi = await BuchungService.getAllSaldi();
@@ -166,4 +126,52 @@ final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) as
     'historisch_aggregat': ((debitoren - nativeOffen) * 100).roundToDouble() / 100,
     'delkredere': (delkredere * 100).roundToDouble() / 100,
   };
+});
+
+/// Zeitraum-Key für Erfolgsrechnungs-Provider (Wert-Gleichheit via Record).
+typedef Zeitraum = ({DateTime von, DateTime bis});
+
+/// Bilanz per beliebigem Stichtag (Datum-normalisiert vom Aufrufer).
+final bilanzStichtagProvider =
+    FutureProvider.family<BilanzDaten, DateTime>((ref, stichtag) async {
+  final buchungen = await BuchungRepository.getAll();
+  final konten = await KontoRepository.getAll();
+  final infos = konten
+      .map((k) => KontoInfo(
+            kontonummer: k.kontonummer,
+            bezeichnung: k.bezeichnung,
+            kategorie: k.kategorie ?? '—',
+          ))
+      .toList();
+  return BilanzService.erstelle(_toSaldoInput(buchungen), infos, stichtag);
+});
+
+/// Erfolgsrechnung (Stufengliederung) über einen Zeitraum.
+final erfolgsrechnungZeitraumProvider =
+    FutureProvider.family<ErfolgsrechnungDaten, Zeitraum>((ref, z) async {
+  final buchungen = await BuchungRepository.getAll();
+  return ErfolgsrechnungService.berechne(
+    _toSaldoInput(buchungen),
+    von: z.von,
+    bis: z.bis,
+  );
+});
+
+/// Konten-Aufstellung (Klassen + Konten) über einen Zeitraum, mit Bezeichnung.
+final erKontenAufstellungProvider =
+    FutureProvider.family<ErKontenAufstellung, Zeitraum>((ref, z) async {
+  final buchungen = await BuchungRepository.getAll();
+  final konten = await KontoRepository.getAll();
+  final namen = {for (final k in konten) k.kontonummer: k.bezeichnung};
+  final roh = ErfolgsrechnungService.kontenAufstellung(
+      _toSaldoInput(buchungen), von: z.von, bis: z.bis);
+  final klassen = roh.klassen
+      .map((kl) => ErKlasse(
+            kl.klasse,
+            kl.konten
+                .map((kt) => kt.withBezeichnung(namen[kt.nr] ?? '—'))
+                .toList(),
+          ))
+      .toList();
+  return ErKontenAufstellung(klassen);
 });

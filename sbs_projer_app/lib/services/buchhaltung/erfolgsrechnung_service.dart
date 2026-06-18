@@ -81,4 +81,72 @@ class ErfolgsrechnungService {
       steuern: steuern,
     );
   }
+
+  /// Konten-Aufstellung je Klasse 3–8 über [von,bis]. Vorzeichen: Ertragsklassen
+  /// (3,7) positiv = Ertrag (−Saldo), Aufwandsklassen (4,5,6,8) positiv = Aufwand.
+  static ErKontenAufstellung kontenAufstellung(
+    List<BuchungSaldo> buchungen, {
+    required DateTime von,
+    required DateTime bis,
+  }) {
+    final shm = <int, double>{};
+    for (final b in buchungen) {
+      if (b.storniert) continue;
+      if (b.datum.isBefore(von) || b.datum.isAfter(bis)) continue;
+      SaldoExpansion.apply(
+        shm,
+        sollKonto: b.sollKonto,
+        habenKonto: b.habenKonto,
+        mwstKonto: b.mwstKonto,
+        betragNetto: b.betragNetto ?? b.betrag,
+        mwstBetrag: b.mwstBetrag,
+        betragBrutto: b.betrag,
+      );
+    }
+
+    final byKlasse = <int, List<ErKonto>>{};
+    shm.forEach((nr, net) {
+      final kl = nr ~/ 1000;
+      if (kl < 3 || kl > 8) return;
+      final ertragsklasse = kl == 3 || kl == 7;
+      final summe = ertragsklasse ? -net : net;
+      if (summe == 0) return;
+      (byKlasse[kl] ??= []).add(ErKonto(nr, summe));
+    });
+
+    final klassen = <ErKlasse>[];
+    for (final kl in [3, 4, 5, 6, 7, 8]) {
+      final konten = byKlasse[kl];
+      if (konten == null || konten.isEmpty) continue;
+      konten.sort((a, b) => a.nr.compareTo(b.nr));
+      klassen.add(ErKlasse(kl, konten));
+    }
+    return ErKontenAufstellung(klassen);
+  }
+}
+
+class ErKonto {
+  final int nr;
+  final String? bezeichnung; // im Service null, Provider füllt
+  final double summe;
+  const ErKonto(this.nr, this.summe, {this.bezeichnung});
+  ErKonto withBezeichnung(String b) => ErKonto(nr, summe, bezeichnung: b);
+}
+
+class ErKlasse {
+  final int klasse;
+  final List<ErKonto> konten;
+  const ErKlasse(this.klasse, this.konten);
+  double get summe => konten.fold(0.0, (s, k) => s + k.summe);
+}
+
+class ErKontenAufstellung {
+  final List<ErKlasse> klassen;
+  const ErKontenAufstellung(this.klassen);
+  double get nettoerloes {
+    for (final k in klassen) {
+      if (k.klasse == 3) return k.summe;
+    }
+    return 0;
+  }
 }
