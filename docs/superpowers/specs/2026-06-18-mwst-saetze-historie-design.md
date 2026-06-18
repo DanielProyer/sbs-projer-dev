@@ -18,7 +18,8 @@ Bestehende Sätze sind **fix** (read-only Anzeige). **Neue Sätze** lassen sich 
 
 - Tabelle **`mwst_satz`** (user_id, `gueltig_ab` date, `satz` numeric) — hält **nur den Normalsatz**. Aktuell: `2010-01-01 → 7.70`, `2024-01-01 → 8.10` (korrekt).
 - **`MwstSatzService`** (`services/buchhaltung/mwst_satz_service.dart`): `laden()` (Cache `_cache`), `satzFuer(datum, saetze)`, `satzFuerDatum(datum)`. Genutzt von `buchung_service`, `abschreibung_service`, `buchung_form_screen` → **datumsabhängiger Normalsatz für Buchungen**.
-- **Reduzierter Satz** existiert nur als `Preis.mwstSatzReduziert` (Einzelwert pro Preis-Version) und wird **ausschliesslich angezeigt/editiert** in der Einstellungen-Sektion „MwSt-Sätze" (`_editMwst`-Dialog) — **nicht** in der Buchungsrechnung verwendet.
+- **Reduzierter Satz**: aktuell als `Preis.mwstSatzReduziert` (Einzelwert pro Preis-Version) **angezeigt/editiert** in der Einstellungen-Sektion „MwSt-Sätze" (`_editMwst`-Dialog). **Wird tatsächlich gebucht** — der Spesen-Import (`spesen_import_service`) bucht `pos.mwstSatz` pro Position, wobei der Satz aus dem **gescannten Beleg (OCR)** stammt (reduzierter Satz kommt vor). Quelle für die Spesen-Buchung ist also der Beleg, **nicht** die Einstellungen.
+- **Kopplung MWST ↔ Preis:** Die MwSt-Sektion liegt heute **innerhalb** des `aktuellePreise.when(data: preis)`-Blocks und liest/editiert `preis.mwstSatz`/`preis.mwstSatzReduziert`. Das soll **entkoppelt** werden (kein Zusammenhang Preis ↔ MWST).
 
 ---
 
@@ -51,19 +52,20 @@ Feld ergänzen: `final double satzReduziert;` (Konstruktor `MwstSatz(this.guelti
 
 ---
 
-## 6. UI — Einstellungen „MwSt-Sätze" (`einstellungen_screen.dart`)
-- Den bestehenden `_SectionCard('MwSt-Sätze', …)` mit `_editMwst`-Bearbeiten-Action **ersetzen** durch eine **Historie-Anzeige** aus `mwstSaetzeProvider`:
-  - Pro Eintrag eine Zeile: **„ab TT.MM.JJJJ — Normal X.X % · Reduziert Y.Y %"**. (Optional Zusatz „(aktuell)" beim jüngsten Eintrag.)
-  - Darunter ein Button **„Neuen Satz hinzufügen"** → Dialog mit Feldern **Gültig ab** (Datum TT.MM.JJJJ), **Normal (%)**, **Reduziert (%)** → `MwstSatzService.hinzufuegen(...)` → `ref.invalidate(mwstSaetzeProvider)` + Snackbar.
-- Den `_editMwst`-Dialog + dessen Aufruf entfernen.
+## 6. UI — Einstellungen „MwSt-Sätze" entkoppeln (`einstellungen_screen.dart`)
+- **Entkopplung von der Preis-Version:** Die MwSt-Sektion wird zu einer **eigenständigen** Sektion, die **nicht** mehr `preis.*` liest, sondern `mwstSaetzeProvider`. Sie wird **unabhängig vom Preis** gerendert (auch wenn keine Preis-Version existiert): Der `body` wird so umgebaut, dass die preis-unabhängigen Sektionen (Geschäft, Lohn, **MwSt-Sätze**) immer angezeigt werden und nur die **preis-abhängigen** Sektionen (Reinigungs-/Störungs-/Weitere Preise, Biersorten, Heineken, „Neue Preise erfassen") in einem inneren `aktuellePreise.when(...)` liegen.
+- **MwSt-Sektion neu** (aus `mwstSaetzeProvider`):
+  - Pro Eintrag eine Zeile: **„ab TT.MM.JJJJ — Normal X.X % · Reduziert Y.Y %"** (jüngster Eintrag mit Zusatz „(aktuell)").
+  - Button **„Neuen Satz hinzufügen"** → Dialog (Gültig ab TT.MM.JJJJ, Normal %, Reduziert %) → `MwstSatzService.hinzufuegen(...)` → `ref.invalidate(mwstSaetzeProvider)` + Snackbar.
+- Den `_editMwst`-Dialog (Preis-basiert) + dessen Aufruf + die preis-basierte MwSt-Anzeige entfernen.
 - `Preis.mwstSatz`/`mwstSatzReduziert` bleiben im Schema/Model (von der Preis-Versions-Erfassung weiter genutzt) — **nicht** angefasst.
 
 ---
 
 ## 7. „App läuft gleich"
 - Buchungs-MWST (Normalsatz via `satzFuerDatum`) **unverändert**.
-- Reduzierter Satz ist reine Anzeige/Record; keine Buchungslogik betroffen.
-- Migration nur additive Spalte + Daten-Backfill.
+- Spesen-Buchungen nehmen den Satz weiterhin **vom gescannten Beleg** (`pos.mwstSatz`) — durch diese Änderung **nicht** betroffen.
+- Migration nur additive Spalte + Daten-Backfill; reduzierter Satz wird in den Einstellungen nur korrekt **abgebildet/erfassbar** (date-aware), ohne bestehende Buchungspfade zu ändern.
 
 ---
 
@@ -83,5 +85,5 @@ Feld ergänzen: `final double satzReduziert;` (Konstruktor `MwstSatz(this.guelti
 
 ## 10. Nicht im Scope
 - Bearbeiten/Löschen bestehender Sätze (fix; nur Hinzufügen neuer).
-- Reduzierten Satz in die Buchungsrechnung einbinden (aktuell nirgends reduziert gebucht).
-- Migration der `Preis.mwst*`-Felder.
+- Spesenscanner-Umbau: der Satz kommt weiter vom Beleg (OCR), keine Anbindung an `mwst_satz`.
+- Migration der `Preis.mwst*`-Felder (bleiben für die Preis-Versions-Erfassung).
