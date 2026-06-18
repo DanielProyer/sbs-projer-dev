@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/bericht_datum_picker.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/bilanz_view.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/erfolgsrechnung_view.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/mail/bericht_mail_service.dart';
 import 'package:sbs_projer_app/services/pdf/bilanz_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/erfolgsrechnung_pdf_service.dart';
@@ -55,13 +56,15 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
   }
 
   Future<void> _mail() async {
+    final geschaeft = ref.read(geschaeftProvider).valueOrNull;
+    final empfaenger = geschaeft?.mailEmpfaenger ?? BerichtMailService.fallbackEmpfaenger;
     final istBilanz = _tab.index == 0;
     final was = istBilanz ? 'Bilanz' : 'Erfolgsrechnung';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('$was senden'),
-        content: Text('$was als PDF an ${BerichtMailService.empfaenger} senden?'),
+        content: Text('$was als PDF an $empfaenger senden?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Senden')),
@@ -83,6 +86,7 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
         filename = 'Erfolgsrechnung.pdf';
       }
       await BerichtMailService.send(
+        to: empfaenger,
         subject: '$was SBS Projer GmbH',
         bodyText: 'Im Anhang die $was.\n\nSBS Projer GmbH',
         filename: filename,
@@ -90,7 +94,7 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$was gesendet an ${BerichtMailService.empfaenger}')));
+          SnackBar(content: Text('$was gesendet an $empfaenger')));
       }
     } catch (e) {
       if (mounted) {
