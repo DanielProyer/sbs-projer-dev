@@ -29,13 +29,7 @@ class ErfolgsrechnungView extends ConsumerWidget {
           kontenAsync.when(
             loading: () => const SizedBox.shrink(),
             error: (e, _) => Text('Konten-Fehler: $e'),
-            data: (auf) => Column(
-              children: [
-                _klassenCard(auf),
-                const SizedBox(height: 12),
-                _kontenCard(auf),
-              ],
-            ),
+            data: (auf) => _klassenCard(auf),
           ),
         ],
       ),
@@ -87,29 +81,15 @@ class ErfolgsrechnungView extends ConsumerWidget {
           title: const Text('Kontenklassen', style: TextStyle(fontWeight: FontWeight.w600)),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           children: [
-            for (final kl in auf.klassen)
-              if (kl.konten.any((k) => k.summe != 0)) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 2),
-                  child: _z('Klasse ${kl.klasse}', kl.summe, AppColors.textPrimary, bold: true),
-                ),
-                for (final kt in kl.konten.where((k) => k.summe != 0))
-                  _z('${kt.nr}  ${kt.bezeichnung ?? ''}', kt.summe, AppColors.textPrimary),
-              ],
-          ],
-        ),
-      );
-
-  Widget _kontenCard(ErKontenAufstellung auf) => Card(
-        child: ExpansionTile(
-          title: const Text('Alle Konten', style: TextStyle(fontWeight: FontWeight.w600)),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          children: [
             for (final kl in auf.klassen) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 8, bottom: 2),
-                child: Text('Klasse ${kl.klasse}',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                child: _z(
+                  'Klasse ${kl.klasse} — ${kontenklasseBeschreibung[kl.klasse] ?? ''}',
+                  kl.summe,
+                  AppColors.textPrimary,
+                  bold: true,
+                ),
               ),
               for (final kt in kl.konten)
                 _z('${kt.nr}  ${kt.bezeichnung ?? ''}', kt.summe, AppColors.textPrimary),

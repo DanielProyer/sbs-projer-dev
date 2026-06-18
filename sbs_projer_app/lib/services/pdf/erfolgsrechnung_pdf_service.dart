@@ -42,13 +42,11 @@ class ErfolgsrechnungPdfService {
         BerichtPdfCommon.zeile('Jahresergebnis', er.jahresergebnis, bold: true, linieOben: true),
         pw.SizedBox(height: 16),
         pw.Text('Kontenklassen', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-        for (final kl in konten.klassen)
-          BerichtPdfCommon.zeile('Klasse ${kl.klasse}', kl.summe, bold: true),
-        pw.SizedBox(height: 16),
-        pw.Text('Konten', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
         for (final kl in konten.klassen) ...[
           pw.SizedBox(height: 4),
-          pw.Text('Klasse ${kl.klasse}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+          BerichtPdfCommon.zeile(
+              'Klasse ${kl.klasse} — ${kontenklasseBeschreibung[kl.klasse] ?? ''}', kl.summe,
+              bold: true),
           for (final kt in kl.konten)
             BerichtPdfCommon.zeile('${kt.nr}  ${kt.bezeichnung ?? ''}', kt.summe, indent: 6),
         ],

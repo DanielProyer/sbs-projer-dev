@@ -1,6 +1,16 @@
 import 'bilanz_service.dart' show BuchungSaldo;
 import 'saldo_expansion.dart';
 
+/// Beschreibung der Haupt-Kontenklassen 3–8 (Schweizer KMU-Kontenrahmen).
+const kontenklasseBeschreibung = <int, String>{
+  3: 'Betriebsertrag',
+  4: 'Materialaufwand',
+  5: 'Personalaufwand',
+  6: 'Übriger Aufwand, Abschreibungen & Finanzergebnis',
+  7: 'Betrieblicher Nebenerfolg',
+  8: 'Betriebsfremder & a.o. Erfolg, Steuern',
+};
+
 /// Ergebnis der KMU-Stufengliederung.
 class ErfolgsrechnungDaten {
   final double nettoerloes;
