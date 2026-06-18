@@ -169,9 +169,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                   leading: const Icon(Icons.payments, color: AppColors.primary),
                   title: const Text('Lohn-Einstellungen',
                       style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Sätze & Lohnausweis pro Jahr'),
+                  subtitle: const Text('Sozialversicherungssätze & BVG pro Jahr'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/buchhaltung/lohn'),
+                  onTap: () => context.push('/buchhaltung/lohn/einstellungen'),
                 ),
               ),
 
