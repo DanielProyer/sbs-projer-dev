@@ -5,9 +5,21 @@
 
 ---
 
+## 🗓️ Tagesabschluss 18.06.2026 — live v0.10.130 (64 Commits, 5 Features)
+Alles gemergt nach `main` + auf gh-pages deployed. Specs/Pläne unter `docs/superpowers/`.
+1. **Berichtswesen-Umbau** (v0.10.119, Detail unten): Bilanz & Erfolgsrechnung als 2-Tab-Screen, MwSt eigener Screen, freie Datum-/Zeitraumwahl, PDF + Mail.
+2. **ER-/Bilanz-Verfeinerungen** (bis v0.10.127): ER-Zeitraum als Geschäftsjahr- + Quartal-Dropdown (inkl. „Ganzes Jahr"; Quartal bleibt beim Jahreswechsel → schneller Vergleich); Kontenklassen 3–8 mit KMU-Beschreibungen, „Alle Konten" entfernt; ER-PDF: Sonderzeichen-Fix (ASCII statt `−`/Dashes, Umlaute ok), grössere Hauptübersicht (Jahresergebnis-Box), Kontenklassen auf eigener Seite mit Detail-Beschreibung; Bilanz mit Geschäftsjahr-Dropdown (je 31.12.).
+3. **Geschäfts-Einstellungen + Settings-Umbau** (v0.10.128): neue Tabelle `geschaeft_einstellungen` (Firma/GF/Kontakt/MWST `CHE-413.083.919`/UID) speist Lohn (AG-Snapshot, AN-Vorbefüllung), **Report-Mail-Empfänger** und **PDF-Firmendaten** (Bilanz/ER-Kopf + Kundenrechnung-Kopf; QR/IBAN unangetastet). Überall Fallback auf die alten Konstanten. **Gast-Account deaktiviert** (Auth-User gelöscht + 26 `*_guest_read`-Policies weg, Migration 097; App-`isGuest`-Code inert belassen — siehe [[gastaccount-read-only-heineken]]).
+4. **Lohn-Trennung** (v0.10.129): Lohn-Einstellungen = nur noch variable Sätze (Sozialvers. + BVG); fixe AN-Stammdaten (AHV-Nr./Geburtsdatum) im Geschäft; Lohnbuchhaltung operativ ohne Einstellungs-Links; Lohnausweis unverändert (AN/AG-Snapshot beim Speichern).
+5. **MWST-Sätze Historie** (v0.10.130): `mwst_satz` + `satz_reduziert` (7.7/2.5 bis 2023, 8.1/2.6 ab 2024), datumsabhängig; Einstellungen zeigen Historie + „Neuen Satz hinzufügen"; von den Preisen entkoppelt. Buchungs-Normalsatz + Spesen-Pfad (Satz vom Beleg) unverändert.
+
+**Offene Klärpunkte (mit Daniel, unverändert):** B1 Lohnaufwand 5000 ~1–2k/Jahr über Lohnausweis-Brutto; B3 MWST-Zahllast 2023 +1'379. Plus camt-Review-Follow-ups (erst beim Echtlauf ab August relevant).
+
+---
+
 ## 📑 Berichtswesen-Umbau (18.06.2026, gemergt + deployed v0.10.119)
 „Berichte" → **„Bilanz & Erfolgsrechnung"** (2 Tabs, Route `/buchhaltung/berichte`); **MwSt-Abrechnung** eigener Screen (`/buchhaltung/mwst`). Bilanz frei nach Stichtag, ER frei nach Zeitraum (Presets + Datumswahl). Professionelle Darstellung mit `chf()` (Tausender-Apostroph) + Bilanz-Check. ER-Scroll-Seite: Stufen + aufklappbar Kontenklassen + alle Konten. PDF (Bilanz 2-spaltig, ER 3 Ebenen) via `printing`; Mail-Versand via neue Edge Function `send-pdf-mail` (Inline-PDF). Reine Services getestet (chf/kontenAufstellung/bilanz-erstelle). Spec/Plan: docs/superpowers/.../2026-06-18-berichtswesen-umbau*. 77 Tests grün.
-- [ ] **Mail-Empfänger Berichte hardcoded** `dani.proyer@gmail.com` (`BerichtMailService.empfaenger`, `TODO(settings)`) → beim Settings-Umbau auf E-Mail des Geschäftsführers umstellen.
+- [x] **Mail-Empfänger Berichte** kommt jetzt aus dem Geschäft (`mail_geschaeft` → `mail_privat` → Fallback) — siehe Geschäfts-Einstellungen unten.
 
 ## 🧾 Forderungen-Hub (13.06.2026, gemergt + deployed v0.10.118)
 Debitoren/Rechnungen/Mahnwesen vereint: Rechnungsliste = Hub „Forderungen" (`/rechnungen`) mit Mahnfällig-Filter + einklappbarem Debitoren-Kopf (Salden + Sammel-Abschreibung + Delkredere). `ForderungService` (empfohlene Mahn-Aktion, TDD). Mahnwesen-/Debitoren-Screens entfernt (Routen→Redirect), Tiles zu einem „Forderungen". Kritischer Re-Audit: Bilanz geht auf (Diff −0.02 Rundung), keine Strukturfehler.
