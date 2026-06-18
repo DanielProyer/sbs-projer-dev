@@ -82,20 +82,23 @@ class ErfolgsrechnungView extends ConsumerWidget {
         ),
       );
 
-  Widget _klassenCard(ErKontenAufstellung auf) {
-    final basis = auf.nettoerloes.abs();
-    String pct(double v) => basis == 0 ? '' : '  (${(v / basis * 100).toStringAsFixed(0)}%)';
-    return Card(
-      child: ExpansionTile(
-        title: const Text('Kontenklassen', style: TextStyle(fontWeight: FontWeight.w600)),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        children: [
-          for (final kl in auf.klassen)
-            _z('Klasse ${kl.klasse}${pct(kl.summe)}', kl.summe, AppColors.textPrimary),
-        ],
-      ),
-    );
-  }
+  Widget _klassenCard(ErKontenAufstellung auf) => Card(
+        child: ExpansionTile(
+          title: const Text('Kontenklassen', style: TextStyle(fontWeight: FontWeight.w600)),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          children: [
+            for (final kl in auf.klassen)
+              if (kl.konten.any((k) => k.summe != 0)) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 2),
+                  child: _z('Klasse ${kl.klasse}', kl.summe, AppColors.textPrimary, bold: true),
+                ),
+                for (final kt in kl.konten.where((k) => k.summe != 0))
+                  _z('${kt.nr}  ${kt.bezeichnung ?? ''}', kt.summe, AppColors.textPrimary),
+              ],
+          ],
+        ),
+      );
 
   Widget _kontenCard(ErKontenAufstellung auf) => Card(
         child: ExpansionTile(

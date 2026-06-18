@@ -158,20 +158,44 @@ final erfolgsrechnungZeitraumProvider =
 });
 
 /// Konten-Aufstellung (Klassen + Konten) über einen Zeitraum, mit Bezeichnung.
+/// Enthält ALLE Konten der Klassen 3–8 aus dem Kontenrahmen — auch ohne
+/// Bewegung (Saldo 0), damit „Alle Konten" wirklich vollständig ist.
 final erKontenAufstellungProvider =
     FutureProvider.family<ErKontenAufstellung, Zeitraum>((ref, z) async {
   final buchungen = await BuchungRepository.getAll();
   final konten = await KontoRepository.getAll();
   final namen = {for (final k in konten) k.kontonummer: k.bezeichnung};
+
+  // Salden (vorzeichenkorrigiert) nur der bebuchten Konten, Nr → Summe.
   final roh = ErfolgsrechnungService.kontenAufstellung(
       _toSaldoInput(buchungen), von: z.von, bis: z.bis);
-  final klassen = roh.klassen
-      .map((kl) => ErKlasse(
-            kl.klasse,
-            kl.konten
-                .map((kt) => kt.withBezeichnung(namen[kt.nr] ?? '—'))
-                .toList(),
-          ))
-      .toList();
+  final summeProKonto = <int, double>{
+    for (final kl in roh.klassen)
+      for (final kt in kl.konten) kt.nr: kt.summe,
+  };
+
+  // Alle Kontonummern der Klassen 3–8: Kontenrahmen ∪ bebuchte Konten.
+  final nrsProKlasse = <int, Set<int>>{};
+  void erfasse(int nr) {
+    final cls = nr ~/ 1000;
+    if (cls < 3 || cls > 8) return;
+    (nrsProKlasse[cls] ??= <int>{}).add(nr);
+  }
+
+  for (final k in konten) {
+    erfasse(k.kontonummer);
+  }
+  summeProKonto.keys.forEach(erfasse);
+
+  final klassen = <ErKlasse>[];
+  for (final cls in [3, 4, 5, 6, 7, 8]) {
+    final nrs = nrsProKlasse[cls];
+    if (nrs == null || nrs.isEmpty) continue;
+    final sortiert = nrs.toList()..sort();
+    klassen.add(ErKlasse(cls, [
+      for (final nr in sortiert)
+        ErKonto(nr, summeProKonto[nr] ?? 0, bezeichnung: namen[nr] ?? '—'),
+    ]));
+  }
   return ErKontenAufstellung(klassen);
 });
