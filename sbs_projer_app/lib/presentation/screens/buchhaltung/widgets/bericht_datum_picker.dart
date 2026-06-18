@@ -94,7 +94,12 @@ class ZeitraumPicker extends StatelessWidget {
                 DropdownMenuItem(value: y, child: Text('Geschäftsjahr $y')),
             ],
             onChanged: (y) {
-              if (y != null) onChanged(_ganzesJahr(y));
+              if (y == null) return;
+              // Quartals-/Ganzes-Jahr-Auswahl beibehalten (schneller Jahresvergleich);
+              // bei eigenem Zeitraum (null) auf ganzes Jahr fallen.
+              onChanged(auswahl == null || auswahl == 0
+                  ? _ganzesJahr(y)
+                  : _quartal(y, auswahl));
             },
           ),
           DropdownButton<int>(
