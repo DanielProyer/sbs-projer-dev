@@ -108,6 +108,26 @@ class BilanzService {
     return -s;
   }
 
+  /// Komplette Bilanz per [stichtag]: Saldi bis Stichtag + EK-Split aus
+  /// kumuliertem Ergebnis (Gewinnvortrag bis 31.12. Vorjahr, Jahresergebnis
+  /// Jahresbeginn–Stichtag). Reine Funktion (testbar).
+  static BilanzDaten erstelle(
+    List<BuchungSaldo> buchungen,
+    List<KontoInfo> konten,
+    DateTime stichtag,
+  ) {
+    final saldiBis = saldiPerStichtag(buchungen, stichtag);
+    final saldiVor = saldiPerStichtag(buchungen, DateTime(stichtag.year - 1, 12, 31));
+    final resBis = kumuliertesErgebnis(saldiBis);
+    final resVor = kumuliertesErgebnis(saldiVor);
+    return gruppiere(
+      saldiBis,
+      konten,
+      gewinnvortrag: resVor,
+      jahresergebnis: resBis - resVor,
+    );
+  }
+
   /// Gruppiert die Saldi nach Bilanz-Abschnitten. Aktiven nehmen den Saldo
   /// (Soll−Haben) direkt; Passiven invertieren ihn (Haben−Soll). Posten mit
   /// Saldo 0 entfallen. [gewinnvortrag]/[jahresergebnis] werden als berechnete
