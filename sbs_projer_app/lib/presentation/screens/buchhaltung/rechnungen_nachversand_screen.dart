@@ -20,6 +20,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_reposi
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -240,11 +241,16 @@ class _RechnungenNachversandScreenState
     final rechnungFuerPdf =
         rechnung.copyWith(faelligkeitsdatum: neueFaelligkeit);
 
+    final g = ref.read(geschaeftProvider).valueOrNull;
     final bytes = await RechnungPdfService.generate(
       rechnung: rechnungFuerPdf,
       positionen: positionen,
       betrieb: betrieb,
       rechnungsadresse: ra,
+      firmaName: g?.firma,
+      firmaStrasse: g?.adresseStrasse,
+      firmaPlzOrt: g?.adressePlzOrt,
+      firmaMwst: g?.mwstZeile,
     );
     await RechnungPdfStorage.uploadPdf(item.id, bytes);
   }

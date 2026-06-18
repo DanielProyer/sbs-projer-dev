@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_reposi
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
@@ -210,11 +211,16 @@ class JahresrechnungService {
     }
 
     // 1. Rechnungs-PDF generieren (nur Rechnung, ohne Protokolle)
+    final geschaeft = await GeschaeftRepository.get();
     final pdfBytes = await RechnungPdfService.generate(
       rechnung: rechnung,
       positionen: createdPositionen,
       betrieb: betrieb,
       rechnungsadresse: ra,
+      firmaName: geschaeft.firma,
+      firmaStrasse: geschaeft.adresseStrasse,
+      firmaPlzOrt: geschaeft.adressePlzOrt,
+      firmaMwst: geschaeft.mwstZeile,
     );
 
     // Rechnungs-PDF hochladen
