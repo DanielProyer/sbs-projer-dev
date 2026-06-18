@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 import 'package:sbs_projer_app/data/models/lohn_einstellungen.dart';
 import 'package:sbs_projer_app/data/repositories/lohn_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/lohn_providers.dart';
+import 'package:sbs_projer_app/services/buchhaltung/geschaeft_mapping.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class LohnEinstellungenScreen extends ConsumerStatefulWidget {
@@ -42,9 +45,6 @@ class _LohnEinstellungenScreenState
   final _plzOrtCtrl = TextEditingController();
   final _ahvNrCtrl = TextEditingController();
   final _gebDatumCtrl = TextEditingController();
-  final _agNameCtrl = TextEditingController(text: 'SBS Projer GmbH');
-  final _agAdresseCtrl = TextEditingController();
-  final _agPlzOrtCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -59,7 +59,7 @@ class _LohnEinstellungenScreenState
       _alvAnCtrl, _alvAgCtrl, _nbuAnCtrl, _buAgCtrl,
       _bvgAnCtrl, _bvgAgCtrl, _fakAgCtrl, _ktgAnCtrl, _ktgAgCtrl,
       _nameCtrl, _vornameCtrl, _adresseCtrl, _plzOrtCtrl,
-      _ahvNrCtrl, _gebDatumCtrl, _agNameCtrl, _agAdresseCtrl, _agPlzOrtCtrl,
+      _ahvNrCtrl, _gebDatumCtrl,
     ]) {
       c.dispose();
     }
@@ -87,21 +87,28 @@ class _LohnEinstellungenScreenState
     _gebDatumCtrl.text = e.arbeitnehmerGeburtsdatum != null
         ? '${e.arbeitnehmerGeburtsdatum!.day.toString().padLeft(2, '0')}.${e.arbeitnehmerGeburtsdatum!.month.toString().padLeft(2, '0')}.${e.arbeitnehmerGeburtsdatum!.year}'
         : '';
-    _agNameCtrl.text = e.arbeitgeberName ?? 'SBS Projer GmbH';
-    _agAdresseCtrl.text = e.arbeitgeberAdresse ?? '';
-    _agPlzOrtCtrl.text = e.arbeitgeberPlzOrt ?? '';
   }
 
   @override
   Widget build(BuildContext context) {
     final einst = ref.watch(lohnEinstellungenProvider(_jahr));
+    final geschaeftAsync = ref.watch(geschaeftProvider);
+    final geschaeft = geschaeftAsync.valueOrNull ?? const GeschaeftEinstellungen();
 
-    einst.whenData((e) {
-      if (!_loaded && e != null) {
-        _fillFromEinstellungen(e);
-        _loaded = true;
-      }
-    });
+    if (!_loaded && geschaeftAsync.hasValue && !einst.isLoading) {
+      final e = einst.valueOrNull;
+      if (e != null) _fillFromEinstellungen(e);
+      final pf = GeschaeftMapping.arbeitnehmerPrefill(
+        (name: _nameCtrl.text, vorname: _vornameCtrl.text,
+         adresse: _adresseCtrl.text, plzOrt: _plzOrtCtrl.text),
+        geschaeft,
+      );
+      _nameCtrl.text = pf.name ?? '';
+      _vornameCtrl.text = pf.vorname ?? '';
+      _adresseCtrl.text = pf.adresse ?? '';
+      _plzOrtCtrl.text = pf.plzOrt ?? '';
+      _loaded = true;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -141,12 +148,12 @@ class _LohnEinstellungenScreenState
       body: einst.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),
-        data: (_) => _buildForm(),
+        data: (_) => _buildForm(geschaeft),
       ),
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildForm(GeschaeftEinstellungen geschaeft) {
     return Form(
       key: _formKey,
       child: ListView(
@@ -178,10 +185,18 @@ class _LohnEinstellungenScreenState
           _textField(_gebDatumCtrl, 'Geburtsdatum (TT.MM.JJJJ)'),
 
           const SizedBox(height: 24),
-          _sectionHeader('Lohnausweis — Arbeitgeber'),
-          _textField(_agNameCtrl, 'Firmenname'),
-          _textField(_agAdresseCtrl, 'Adresse'),
-          _textField(_agPlzOrtCtrl, 'PLZ / Ort'),
+          _sectionHeader('Lohnausweis — Arbeitgeber (aus Geschäft)'),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black12),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${geschaeft.firma}\n${geschaeft.adresseStrasse}\n${geschaeft.adressePlzOrt}',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
 
           const SizedBox(height: 32),
           FilledButton.icon(
@@ -352,6 +367,8 @@ class _LohnEinstellungenScreenState
 
     setState(() => _saving = true);
     try {
+      final geschaeft = ref.read(geschaeftProvider).valueOrNull ?? const GeschaeftEinstellungen();
+      final ag = GeschaeftMapping.arbeitgeber(geschaeft);
       final e = LohnEinstellungen(
         id: '',
         userId: SupabaseService.dataUserId,
@@ -379,12 +396,9 @@ class _LohnEinstellungenScreenState
         arbeitnehmerAhvNr:
             _ahvNrCtrl.text.isEmpty ? null : _ahvNrCtrl.text,
         arbeitnehmerGeburtsdatum: _parseDatum(_gebDatumCtrl.text),
-        arbeitgeberName:
-            _agNameCtrl.text.isEmpty ? null : _agNameCtrl.text,
-        arbeitgeberAdresse:
-            _agAdresseCtrl.text.isEmpty ? null : _agAdresseCtrl.text,
-        arbeitgeberPlzOrt:
-            _agPlzOrtCtrl.text.isEmpty ? null : _agPlzOrtCtrl.text,
+        arbeitgeberName: ag.name,
+        arbeitgeberAdresse: ag.adresse,
+        arbeitgeberPlzOrt: ag.plzOrt,
       );
 
       await LohnRepository.saveEinstellungen(e);
