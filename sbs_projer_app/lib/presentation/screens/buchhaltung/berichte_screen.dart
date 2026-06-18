@@ -38,14 +38,17 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
 
   Future<void> _pdf() async {
     try {
+      final g = ref.read(geschaeftProvider).valueOrNull;
       if (_tab.index == 0) {
         final b = await ref.read(bilanzStichtagProvider(_stichtag).future);
-        final bytes = await BilanzPdfService.generate(b, _stichtag);
+        final bytes = await BilanzPdfService.generate(b, _stichtag,
+            firmaName: g?.firma, firmaStrasse: g?.adresseStrasse, firmaOrt: g?.adressePlzOrt, mwstZeile: g?.mwstZeile);
         await Printing.layoutPdf(onLayout: (_) => bytes);
       } else {
         final er = await ref.read(erfolgsrechnungZeitraumProvider(_zeitraum).future);
         final konten = await ref.read(erKontenAufstellungProvider(_zeitraum).future);
-        final bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum);
+        final bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum,
+            firmaName: g?.firma, firmaStrasse: g?.adresseStrasse, firmaOrt: g?.adressePlzOrt, mwstZeile: g?.mwstZeile);
         await Printing.layoutPdf(onLayout: (_) => bytes);
       }
     } catch (e) {
@@ -77,12 +80,14 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
       final String filename;
       if (istBilanz) {
         final b = await ref.read(bilanzStichtagProvider(_stichtag).future);
-        bytes = await BilanzPdfService.generate(b, _stichtag);
+        bytes = await BilanzPdfService.generate(b, _stichtag,
+            firmaName: geschaeft?.firma, firmaStrasse: geschaeft?.adresseStrasse, firmaOrt: geschaeft?.adressePlzOrt, mwstZeile: geschaeft?.mwstZeile);
         filename = 'Bilanz.pdf';
       } else {
         final er = await ref.read(erfolgsrechnungZeitraumProvider(_zeitraum).future);
         final konten = await ref.read(erKontenAufstellungProvider(_zeitraum).future);
-        bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum);
+        bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum,
+            firmaName: geschaeft?.firma, firmaStrasse: geschaeft?.adresseStrasse, firmaOrt: geschaeft?.adressePlzOrt, mwstZeile: geschaeft?.mwstZeile);
         filename = 'Erfolgsrechnung.pdf';
       }
       await BerichtMailService.send(

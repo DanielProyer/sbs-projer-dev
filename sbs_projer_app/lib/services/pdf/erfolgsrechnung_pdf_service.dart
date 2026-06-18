@@ -12,8 +12,12 @@ class ErfolgsrechnungPdfService {
   static Future<Uint8List> generate(
     ErfolgsrechnungDaten er,
     ErKontenAufstellung konten,
-    Zeitraum z,
-  ) async {
+    Zeitraum z, {
+    String? firmaName,
+    String? firmaStrasse,
+    String? firmaOrt,
+    String? mwstZeile,
+  }) async {
     final pdf = pw.Document();
     final df = DateFormat('dd.MM.yyyy');
     final periode = '${df.format(z.von)} - ${df.format(z.bis)}';
@@ -30,7 +34,7 @@ class ErfolgsrechnungPdfService {
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          BerichtPdfCommon.kopf('Erfolgsrechnung', periode),
+          BerichtPdfCommon.kopf('Erfolgsrechnung', periode, firmaName: firmaName, firmaStrasse: firmaStrasse, firmaOrt: firmaOrt, mwstZeile: mwstZeile),
           pw.SizedBox(height: 24),
           pos('Nettoerlös (3)', er.nettoerloes),
           pos('- Materialaufwand (4)', -er.materialaufwand),
@@ -75,7 +79,7 @@ class ErfolgsrechnungPdfService {
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(40),
       build: (context) => [
-        BerichtPdfCommon.kopf('Erfolgsrechnung - Kontenklassen', periode),
+        BerichtPdfCommon.kopf('Erfolgsrechnung - Kontenklassen', periode, firmaName: firmaName, firmaStrasse: firmaStrasse, firmaOrt: firmaOrt, mwstZeile: mwstZeile),
         pw.SizedBox(height: 16),
         for (final kl in konten.klassen) ...[
           pw.SizedBox(height: 8),

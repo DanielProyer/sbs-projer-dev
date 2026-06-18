@@ -7,7 +7,8 @@ import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/pdf/bericht_pdf_common.dart';
 
 class BilanzPdfService {
-  static Future<Uint8List> generate(BilanzDaten b, DateTime stichtag) async {
+  static Future<Uint8List> generate(BilanzDaten b, DateTime stichtag,
+      {String? firmaName, String? firmaStrasse, String? firmaOrt, String? mwstZeile}) async {
     final pdf = pw.Document();
     final df = DateFormat('dd.MM.yyyy');
 
@@ -33,7 +34,7 @@ class BilanzPdfService {
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          BerichtPdfCommon.kopf('Bilanz', 'per ${df.format(stichtag)}'),
+          BerichtPdfCommon.kopf('Bilanz', 'per ${df.format(stichtag)}', firmaName: firmaName, firmaStrasse: firmaStrasse, firmaOrt: firmaOrt, mwstZeile: mwstZeile),
           pw.SizedBox(height: 16),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
