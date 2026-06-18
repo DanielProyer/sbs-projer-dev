@@ -27,10 +27,6 @@ class _PreisVersionFormScreenState
 
   DateTime _gueltigAb = DateTime.now();
 
-  // MwSt
-  final _mwstSatzCtrl = TextEditingController();
-  final _mwstSatzRedCtrl = TextEditingController();
-
   // Reinigung Grundtarife
   final _reinBierCtrl = TextEditingController();
   final _reinOrionCtrl = TextEditingController();
@@ -91,9 +87,6 @@ class _PreisVersionFormScreenState
 
     if (vorlage != null) {
       _fillFromPreis(vorlage);
-    } else {
-      _mwstSatzCtrl.text = '8.10';
-      _mwstSatzRedCtrl.text = '2.60';
     }
 
     if (mounted) setState(() => _isLoading = false);
@@ -101,9 +94,6 @@ class _PreisVersionFormScreenState
 
   void _fillFromPreis(Preis p) {
     _gueltigAb = _isReadOnly ? p.gueltigAb : DateTime.now();
-    _mwstSatzCtrl.text = p.mwstSatz.toStringAsFixed(2);
-    _mwstSatzRedCtrl.text = p.mwstSatzReduziert.toStringAsFixed(2);
-
     _reinBierCtrl.text = p.grundtarifReinigungBier.toStringAsFixed(2);
     _reinOrionCtrl.text = p.grundtarifReinigungOrion.toStringAsFixed(2);
     _reinHeigenieCtrl.text = p.grundtarifHeigenie.toStringAsFixed(2);
@@ -155,8 +145,6 @@ class _PreisVersionFormScreenState
       final data = {
         'user_id': SupabaseService.dataUserId,
         'gueltig_ab': _gueltigAb.toIso8601String().split('T').first,
-        'mwst_satz': _d(_mwstSatzCtrl),
-        'mwst_satz_reduziert': _d(_mwstSatzRedCtrl),
         'bergkunden_zuschlag': _d(_bergkundenZCtrl),
         'grundtarif_reinigung_bier': _d(_reinBierCtrl),
         'grundtarif_reinigung_orion': _d(_reinOrionCtrl),
@@ -286,17 +274,7 @@ class _PreisVersionFormScreenState
             ),
             const SizedBox(height: 20),
 
-            // === KATEGORIE 1: MwSt ===
-            _categoryHeader(
-              'MwSt-Sätze',
-              Icons.percent,
-              'Änderung ca. alle 5–10 Jahre',
-            ),
-            _numRow('Normal', _mwstSatzCtrl, suffix: '%'),
-            _numRow('Reduziert', _mwstSatzRedCtrl, suffix: '%'),
-            const SizedBox(height: 24),
-
-            // === KATEGORIE 2: Heineken Preise ===
+            // === KATEGORIE: Heineken Preise ===
             _categoryHeader(
               'Heineken Preise',
               Icons.business,
@@ -464,8 +442,6 @@ class _PreisVersionFormScreenState
 
   @override
   void dispose() {
-    _mwstSatzCtrl.dispose();
-    _mwstSatzRedCtrl.dispose();
     _reinBierCtrl.dispose();
     _reinOrionCtrl.dispose();
     _reinHeigenieCtrl.dispose();
