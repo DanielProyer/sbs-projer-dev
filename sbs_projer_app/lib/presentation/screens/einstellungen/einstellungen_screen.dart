@@ -305,13 +305,11 @@ class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final List<Widget> children;
-  final Widget? trailing;
 
   const _SectionCard({
     required this.title,
     required this.icon,
     required this.children,
-    this.trailing,
   });
 
   @override
@@ -322,7 +320,6 @@ class _SectionCard extends StatelessWidget {
         leading: Icon(icon, color: AppColors.primary),
         title: Text(title,
             style: const TextStyle(fontWeight: FontWeight.w600)),
-        trailing: trailing,
         initiallyExpanded: false,
         childrenPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -3,8 +3,8 @@ import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
 
 void main() {
   final saetze = [
-    MwstSatz(DateTime(2010, 1, 1), 7.7),
-    MwstSatz(DateTime(2024, 1, 1), 8.1),
+    MwstSatz(DateTime(2010, 1, 1), 7.7, 2.5),
+    MwstSatz(DateTime(2024, 1, 1), 8.1, 2.6),
   ];
 
   test('Datum 2023 → 7.7', () {
