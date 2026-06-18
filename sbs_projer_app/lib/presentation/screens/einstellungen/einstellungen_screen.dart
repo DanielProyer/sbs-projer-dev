@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/geschaeft_form.dart';
 
 class EinstellungenScreen extends ConsumerStatefulWidget {
   const EinstellungenScreen({super.key});
@@ -110,6 +112,7 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
   @override
   Widget build(BuildContext context) {
     final aktuellePreise = ref.watch(aktuellePreiseProvider);
+    final geschaeftAsync = ref.watch(geschaeftProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Einstellungen')),
@@ -137,6 +140,41 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Geschäft (neu)
+              Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ExpansionTile(
+                  leading: const Icon(Icons.store, color: AppColors.primary),
+                  title: const Text('Geschäft',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Firma, Geschäftsführer, Kontakt, MWST/UID'),
+                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  children: [
+                    geschaeftAsync.when(
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => Text('Fehler: $e'),
+                      data: (g) => GeschaeftForm(key: ValueKey(g.id), geschaeft: g),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Lohn (Einstieg)
+              Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: const Icon(Icons.payments, color: AppColors.primary),
+                  title: const Text('Lohn-Einstellungen',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Sätze & Lohnausweis pro Jahr'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/buchhaltung/lohn'),
+                ),
+              ),
+
               // Biersorten verwalten
               Card(
                 margin: const EdgeInsets.only(bottom: 12),
