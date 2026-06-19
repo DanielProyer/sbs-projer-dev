@@ -73,14 +73,13 @@ def _satz(d):
     return 8.1 if d.year >= 2024 else 7.7
 
 
-def _status_zdat(einzdat, einzbel, abschr_col):
-    """abgeschrieben vor bezahlt pruefen (ABSCHREIBUNG hat Dummy-Zukunftsdatum)."""
-    eb = (_txt(einzbel) or '').upper()
-    ac = (_txt(abschr_col) or '').lower()
-    if eb == 'ABSCHREIBUNG' or ac == 'ja':
-        return 'abgeschrieben', None
+def _status_zdat(einzdat, einzbel):
+    """bezahlt nur bei echtem 020-Zahlbeleg + Datum; sonst offen.
+    ABSCHREIBUNG-Marker (Dummy-Zukunftsdatum) zaehlt NICHT als bezahlt -> offen,
+    da diese Forderungen real nicht abgeschrieben wurden (Vorgabe Daniel)."""
+    eb = _txt(einzbel) or ''
     ez = _txt(einzdat)
-    if ez:
+    if ez and eb.startswith('020'):
         try:
             return 'bezahlt', pd.Timestamp(einzdat).date().isoformat()
         except (ValueError, TypeError):
@@ -133,7 +132,7 @@ def run():
         netto = _num(r[I['totnetto']]) or 0.0
         mwst = round(brutto - netto, 2)
         art = _txt(r[I['art']])
-        st, zdat = _status_zdat(r[I['einzdat']], r[I['einzbel']], r[I['abschr']])
+        st, zdat = _status_zdat(r[I['einzdat']], r[I['einzbel']])
         abgerechnet = bool(art) and art != 'Gratis (Kulanz)'
         dauer = _dur_min(r[I['dauer']])
         berg = (_txt(r[I['berg']]) or '').lower() == 'ja'
@@ -188,10 +187,10 @@ def _selftest():
     assert _q("a'b") == "'a''b'"
     assert _satz(pd.Timestamp('2024-03-01')) == 8.1
     assert _satz(pd.Timestamp('2023-12-31')) == 7.7
-    assert _status_zdat('2025-12-29', 'ABSCHREIBUNG', None)[0] == 'abgeschrieben'
-    assert _status_zdat('2019-05-21', '020_x', None) == ('bezahlt', '2019-05-21')
-    assert _status_zdat(None, None, 'Ja')[0] == 'abgeschrieben'
-    assert _status_zdat(None, None, None)[0] == 'offen'
+    assert _status_zdat('2025-12-29', 'ABSCHREIBUNG')[0] == 'offen'   # nicht abgeschrieben
+    assert _status_zdat('2019-05-21', '020_x') == ('bezahlt', '2019-05-21')
+    assert _status_zdat('2019-01-01', '011_x')[0] == 'offen'          # kein 020-Zahlbeleg
+    assert _status_zdat(None, None)[0] == 'offen'
     print('OK')
 
 
