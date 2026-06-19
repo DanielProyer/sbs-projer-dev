@@ -7,8 +7,17 @@ import csv, json, os, re
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+# Excel transliteriert Umlaute/Akzente teils (ü->ue, é->e). Beidseitig auf ASCII falten.
+_FOLD = str.maketrans({
+    'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
+    'à': 'a', 'á': 'a', 'â': 'a', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+    'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i', 'ò': 'o', 'ó': 'o', 'ô': 'o',
+    'ù': 'u', 'ú': 'u', 'û': 'u', 'ç': 'c', 'ñ': 'n', '‘': "'", '’': "'", '`': "'",
+})
+
+
 def _norm(s):
-    s = (s or '').lower().strip()
+    s = (s or '').lower().strip().translate(_FOLD)
     return re.sub(r'\s+', ' ', s)
 
 
@@ -41,6 +50,10 @@ def match(name, ort, rows, aliase):
     for b in rows:                                  # exakt
         if _norm(b['name']) == n:
             return b['id'], 100
+    nd = n.replace(' ', '')                          # despaced-exakt (Pop Corn==Popcorn)
+    for b in rows:
+        if _norm(b['name']).replace(' ', '') == nd:
+            return b['id'], 95
     for b in rows:                                  # contains
         bn = _norm(b['name'])
         if bn and (n in bn or bn in n):
