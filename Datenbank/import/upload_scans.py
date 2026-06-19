@@ -64,7 +64,9 @@ def run():
     done = set(open(done_path, encoding='utf-8').read().split('\n')) if os.path.exists(done_path) else set()
     done_f = open(done_path, 'a', encoding='utf-8')
     sess = requests.Session()
-    sess.headers.update({'Authorization': f'Bearer {key}', 'Content-Type': 'application/pdf', 'x-upsert': 'true'})
+    # secret-Key (sb_secret_...) ueber apikey-Header; Bearer zusaetzlich fuer JWT-Faelle.
+    sess.headers.update({'apikey': key, 'Authorization': f'Bearer {key}',
+                         'Content-Type': 'application/pdf', 'x-upsert': 'true'})
 
     def upload(path, dest):
         if dest in done:
