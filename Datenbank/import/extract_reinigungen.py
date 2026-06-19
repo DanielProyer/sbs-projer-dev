@@ -73,6 +73,15 @@ def _satz(d):
     return 8.1 if d.year >= 2024 else 7.7
 
 
+def _service_typ(g_rein, g_orion, g_fremd):
+    """service_typ aus Grundtarif-Spalten (Fremd > Orion > Standard-Bier)."""
+    if (_num(g_fremd) or 0) != 0:
+        return 'reinigung_fremd'
+    if (_num(g_orion) or 0) != 0:
+        return 'reinigung_orion'
+    return 'reinigung_bier'
+
+
 def _status_zdat(einzdat, einzbel):
     """bezahlt nur bei echtem 020-Zahlbeleg + Datum; sonst offen.
     ABSCHREIBUNG-Marker (Dummy-Zukunftsdatum) zaehlt NICHT als bezahlt -> offen,
@@ -94,7 +103,8 @@ def run():
     I = {'id': c[0], 'anlage': c[2], 'datum': c[3], 'betrieb': c[4], 'ort': c[5],
          'berg': c[6], 'beleg': c[8], 'art': c[9], 'einzdat': c[10], 'einzbel': c[11],
          'serviceart': c[12], 'dauer': c[15], 'bem': c[18], 'totmwst': c[19],
-         'totnetto': c[20], 'abschr': c[32]}
+         'totnetto': c[20], 'g_rein': c[21], 'g_orion': c[22], 'g_fremd': c[23],
+         'abschr': c[32]}
     rows, aliase = build_betrieb_index()
 
     neue = {}          # key -> {id,name,ort,letzte}
@@ -143,10 +153,11 @@ def run():
             'mwst': mwst, 'art': art or '', 'beleg': _txt(r[I['beleg']]) or '',
             'einzbel': _txt(r[I['einzbel']]) or '', 'status': st, 'zdat': zdat or '',
         })
+        _ = dauer  # dauer_minuten ist generierte Spalte (aus Zeit Beginn/Ende) -> nicht einfuegen
+        styp = _service_typ(r[I['g_rein']], r[I['g_orion']], r[I['g_fremd']])
         rein_vals.append('(' + ','.join([
             _q(rid), _q(USER_ID), _q(bid), _q(datum.date().isoformat()),
-            "'reinigung'", _q(_txt(r[I['serviceart']])),
-            (str(dauer) if dauer is not None else 'NULL'),
+            _q(styp), _q(_txt(r[I['serviceart']])),
             ('true' if berg else 'false'),
             str(netto), str(mwst), str(brutto), str(_satz(datum)),
             "'abgeschlossen'", ('true' if abgerechnet else 'false'),
@@ -162,7 +173,7 @@ def run():
                         _q(GRUND), "'excel_import'"]) + ');\n')
 
     head = ('INSERT INTO reinigungen (id,user_id,betrieb_id,datum,service_typ,'
-            'service_art,dauer_minuten,ist_bergkunde,preis_netto,preis_mwst,'
+            'service_art,ist_bergkunde,preis_netto,preis_mwst,'
             'preis_brutto,mwst_satz,status,abgerechnet,notizen,quelle,extern_id) VALUES\n')
     for i in range(0, len(rein_vals), 1000):
         with open(os.path.join(OUT, f'02_reinigungen_{i // 1000:03d}.sql'), 'w', encoding='utf-8') as f:
@@ -187,6 +198,10 @@ def _selftest():
     assert _q("a'b") == "'a''b'"
     assert _satz(pd.Timestamp('2024-03-01')) == 8.1
     assert _satz(pd.Timestamp('2023-12-31')) == 7.7
+    assert _service_typ(120, 0, 0) == 'reinigung_bier'
+    assert _service_typ(0, 80, 0) == 'reinigung_orion'
+    assert _service_typ(0, 0, 90) == 'reinigung_fremd'
+    assert _service_typ(0, 0, 0) == 'reinigung_bier'
     assert _status_zdat('2025-12-29', 'ABSCHREIBUNG')[0] == 'offen'   # nicht abgeschrieben
     assert _status_zdat('2019-05-21', '020_x') == ('bezahlt', '2019-05-21')
     assert _status_zdat('2019-01-01', '011_x')[0] == 'offen'          # kein 020-Zahlbeleg
