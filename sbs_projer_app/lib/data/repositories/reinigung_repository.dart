@@ -8,10 +8,25 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 class ReinigungRepository {
   static String get _userId => SupabaseService.currentUser!.id;
 
+  /// Holt ALLE Zeilen seitenweise (PostgREST deckelt sonst bei 1000).
+  static Future<List<Map<String, dynamic>>> _pagedByUser({String? col, String? val}) async {
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      var q = SupabaseService.client.from('reinigungen').select().eq('user_id', _userId);
+      if (col != null) q = q.eq(col, val!);
+      final rows = await q.order('datum', ascending: false).range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  }
+
   static Future<List<ReinigungLocal>> getAll() async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('reinigungen').select().eq('user_id', _userId);
+      final rows = await _pagedByUser();
       return rows.map((r) => ReinigungMapper.fromDto(Reinigung.fromJson(r))).toList();
     }
     return IsarService.reinigungFindAll();
@@ -39,8 +54,7 @@ class ReinigungRepository {
 
   static Future<List<ReinigungLocal>> getByAnlage(String anlageId) async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('reinigungen').select().eq('user_id', _userId).eq('anlage_id', anlageId);
+      final rows = await _pagedByUser(col: 'anlage_id', val: anlageId);
       return rows.map((r) => ReinigungMapper.fromDto(Reinigung.fromJson(r))).toList();
     }
     return IsarService.reinigungFilterByAnlage(anlageId);
@@ -48,8 +62,7 @@ class ReinigungRepository {
 
   static Future<List<ReinigungLocal>> getByBetrieb(String betriebId) async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('reinigungen').select().eq('user_id', _userId).eq('betrieb_id', betriebId);
+      final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
       return rows.map((r) => ReinigungMapper.fromDto(Reinigung.fromJson(r))).toList();
     }
     return IsarService.reinigungFilterByBetrieb(betriebId);
@@ -67,9 +80,18 @@ class ReinigungRepository {
 
   static Future<int> count() async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('reinigungen').select('id').eq('user_id', _userId);
-      return rows.length;
+      int total = 0;
+      const pageSize = 1000;
+      int from = 0;
+      while (true) {
+        final rows = await SupabaseService.client
+            .from('reinigungen').select('id').eq('user_id', _userId)
+            .range(from, from + pageSize - 1);
+        total += rows.length;
+        if (rows.length < pageSize) break;
+        from += pageSize;
+      }
+      return total;
     }
     return IsarService.reinigungCount();
   }
