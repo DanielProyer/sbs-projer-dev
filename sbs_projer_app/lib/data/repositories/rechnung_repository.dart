@@ -5,12 +5,24 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 class RechnungRepository {
   static String get _userId => SupabaseService.currentUser!.id;
 
+  /// Holt ALLE Zeilen seitenweise (PostgREST deckelt sonst bei 1000).
+  static Future<List<Map<String, dynamic>>> _pagedByUser({String? col, String? val}) async {
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      var q = SupabaseService.client.from('rechnungen').select().eq('user_id', _userId);
+      if (col != null) q = q.eq(col, val!);
+      final rows = await q.order('created_at', ascending: false).range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  }
+
   static Future<List<Rechnung>> getAll() async {
-    final rows = await SupabaseService.client
-        .from('rechnungen')
-        .select()
-        .eq('user_id', _userId)
-        .order('created_at', ascending: false);
+    final rows = await _pagedByUser();
     return rows.map((r) => Rechnung.fromJson(r)).toList();
   }
 
@@ -29,12 +41,7 @@ class RechnungRepository {
   }
 
   static Future<List<Rechnung>> getByBetrieb(String betriebId) async {
-    final rows = await SupabaseService.client
-        .from('rechnungen')
-        .select()
-        .eq('user_id', _userId)
-        .eq('betrieb_id', betriebId)
-        .order('created_at', ascending: false);
+    final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
     return rows.map((r) => Rechnung.fromJson(r)).toList();
   }
 
@@ -43,20 +50,34 @@ class RechnungRepository {
   }
 
   static Future<int> count() async {
-    final rows = await SupabaseService.client
-        .from('rechnungen')
-        .select('id')
-        .eq('user_id', _userId);
-    return rows.length;
+    int total = 0;
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('rechnungen').select('id').eq('user_id', _userId)
+          .range(from, from + pageSize - 1);
+      total += rows.length;
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return total;
   }
 
   static Future<int> countOffene() async {
-    final rows = await SupabaseService.client
-        .from('rechnungen')
-        .select('id')
-        .eq('user_id', _userId)
-        .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")');
-    return rows.length;
+    int total = 0;
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('rechnungen').select('id').eq('user_id', _userId)
+          .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")')
+          .range(from, from + pageSize - 1);
+      total += rows.length;
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return total;
   }
 
   /// Erstellt eine Rechnung und gibt das DB-Ergebnis zurück (inkl. generierter ID).
