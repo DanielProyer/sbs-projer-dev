@@ -42,3 +42,6 @@ MX53D_*.xml
 
 # Buchhaltungs-Excel (Kopie zur Analyse) - private Finanzdaten, niemals committen
 00_Buchhaltung/
+
+# Lokale Secrets fuer Import-Skripte (NIE committen)
+Datenbank/import/.env
