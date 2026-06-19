@@ -128,7 +128,9 @@ def run():
             key = _norm(name) + '|' + _norm(ort)
             nb = neue.get(key)
             if nb is None:
-                nb = {'id': str(uuid.uuid4()), 'name': name, 'ort': ort, 'letzte': datum}
+                # Deterministische ID -> Re-Runs erzeugen denselben Betrieb (idempotent ggü. FK).
+                nb_id = str(uuid.uuid5(uuid.NAMESPACE_URL, 'sbs-betrieb|' + key))
+                nb = {'id': nb_id, 'name': name, 'ort': ort, 'letzte': datum}
                 neue[key] = nb
                 review.append((name, ort, 0, 'neu geschlossen'))
             else:
