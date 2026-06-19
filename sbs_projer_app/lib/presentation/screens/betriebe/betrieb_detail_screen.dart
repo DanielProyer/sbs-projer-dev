@@ -1092,19 +1092,27 @@ class _AnlageRow extends StatelessWidget {
   }
 }
 
-class _ReinigungenSection extends StatelessWidget {
+class _ReinigungenSection extends StatefulWidget {
   final BetriebLocal betrieb;
 
   const _ReinigungenSection({required this.betrieb});
 
   @override
+  State<_ReinigungenSection> createState() => _ReinigungenSectionState();
+}
+
+class _ReinigungenSectionState extends State<_ReinigungenSection> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final betrieb = widget.betrieb;
     return StreamBuilder<List<ReinigungLocal>>(
       stream: ReinigungRepository.watchByBetrieb(betrieb.serverId!),
       builder: (context, snapshot) {
         final reinigungen = snapshot.data ?? [];
         reinigungen.sort((a, b) => b.datum.compareTo(a.datum));
-        final display = reinigungen.take(5).toList();
+        final display = _expanded ? reinigungen : reinigungen.take(5).toList();
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -1169,13 +1177,30 @@ class _ReinigungenSection extends StatelessWidget {
                         ),
                       )),
                   if (reinigungen.length > 5)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '+ ${reinigungen.length - 5} weitere',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
+                    InkWell(
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _expanded ? Icons.expand_less : Icons.expand_more,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _expanded
+                                  ? 'Weniger anzeigen'
+                                  : 'Alle ${reinigungen.length} anzeigen',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
