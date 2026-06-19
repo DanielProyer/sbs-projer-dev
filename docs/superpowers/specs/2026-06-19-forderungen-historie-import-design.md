@@ -49,6 +49,15 @@ Befüllung pro berechneter Reinigung: rechnungstyp='kundenrechnung', betrieb_id,
 ### 4.3 Zahlungs-Scan (020)
 Der `020`-Scan ist der **Zahlungsbeleg**; sein Pfad wird auf der Rechnung hinterlegt (z. B. `notizen` oder Feld `zahlung_beleg_pfad` — Detail im Plan). Nicht zwingend, aber wertvoll als Nachweis + Teilprojekt-2-Validierung.
 
+### 4.4 Betrieb-Zuordnung & fehlende (geschlossene) Betriebe
+Manche Reinigungen betreffen Betriebe, die nicht (mehr) in der App sind (geschlossen / Anlage demontiert). Mehrstufige Zuordnung pro Excel-Name:
+1. **Exakter** Name-Match → bestehender Betrieb.
+2. **Fuzzy** (bestehende `CamtBetriebMatcher`-Logik: Contains / Wort-Overlap).
+3. **Alias-Tabelle** (`Datenbank/import/betrieb_aliase.csv`, `excel_name → betrieb_id`) für Schreibvarianten — verhindert Dubletten zu noch existierenden Betrieben.
+4. **Rest = wirklich ehemalige Kunden** → **automatisch als inaktiver Betrieb anlegen**: `name`+`ort` aus Excel, `inaktiv_seit` = Datum der letzten Reinigung dieses Betriebs, `inaktiv_grund='Import Historie 2019–2025 (geschlossen/Anlage demontiert)'`, `status` = inaktiv-Wert (bestehende Werte prüfen), `quelle='excel_import'`. Reinigung + Forderung hängen an diesem Betrieb → Forderungs-Historie **pro Kunde** erhalten.
+
+So bleiben Debitoren/Abschreibung pro (auch ehemaligem) Kunden auswertbar; die inaktiven Betriebe werden in den aktiven Listen/Tourenplanung über `inaktiv_seit`/`status` herausgefiltert. Der Import erzeugt eine **Review-Liste**: „neu inaktiv angelegt" + „unsicher gematcht (Score)" zur einmaligen Durchsicht (Korrektur via Alias-Tabelle, Re-Run reversibel).
+
 ---
 
 ## 5. Pipeline (wie der bewährte Journal-Import)
@@ -81,7 +90,7 @@ Der `020`-Scan ist der **Zahlungsbeleg**; sein Pfad wird auf der Rechnung hinter
 ---
 
 ## 9. Offene Implementierungs-Details (im Plan zu klären, nicht Design-blockierend)
-- Betrieb-Name-Matching: Schwellen + manuelle Mapping-Tabelle für Abweichungen (292 Betriebe vs. Excel-Namen).
+- Betrieb-Matching-Schwellen (Fuzzy-Score) + Format der `betrieb_aliase.csv`; konkrete `status`-/inaktiv-Werte beim Auto-Anlegen (siehe 4.4).
 - Anlage-Zuordnung (`ID Anlage` → app anlage_id) — best effort; Forderung braucht nur betrieb_id.
 - Exakte Status-Enum-Werte für `reinigungen.status` (vorhandene Werte prüfen).
 - Storage-Bucket + Pfadschema für die Scans; Upload-Drosselung.
