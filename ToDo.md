@@ -1,7 +1,24 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 18.06.2026
+**Stand**: 19.06.2026
 **Für**: SBS Projer App Entwicklung
+
+---
+
+## 🗓️ Tagesabschluss 19.06.2026 — live v0.10.133 (Forderungen-Historie TP1 komplett)
+Branch `feature/forderungen-historie-import` → gemergt nach `main` + deployed. Spec/Plan unter `docs/superpowers/`, ETL-Skripte unter `Datenbank/import/`.
+
+1. **Historischer Import (TP1)**: 7'786 Reinigungen (2019–Nov 2025) + 4'438 Kundenrechnungen (Mail/Post/Tresen: bezahlt 3'425 / offen 1'013) + 4'438 Positionen aus Excel importiert. 106 ehemalige Kunden als `status='geschlossen'` neu angelegt + 7 Schreibvarianten als Alias. **Offene Forderungen CHF 105'240.95** — Treue-Gate SOLL=IST grün. Alles `quelle='excel_import'` (reversibel), KEINE Buchungen (Detail über 1100). Die 181 „ABSCHREIBUNG"-Marker bleiben **offen** (real nicht abgeschrieben).
+2. **Scans verknüpft**: 7'328 Protokoll-PDFs (`protokoll_foto_pfad`) + 3'404 Zahlbelege (`zahlung_beleg_pfad`) in Bucket `reinigung-fotos` (`import/010/`, `import/020/`).
+3. **App-Fix Pagination** (v0.10.132): PostgREST 1000-Cap war Grund für „fehlende" Reinigungen → `reinigung_repository`/`rechnung_repository` paginiert. **Merke: jede grosse Liste paginieren.**
+4. **anlage_id nachgezogen**: 7'249 zugeordnet (Excel-Index `_NN` → N-te Anlage), 1'845 ohne (Betrieb ohne Anlage).
+5. **Betrieb-Detail**: Reinigungs-Liste aufklappbar (v0.10.133).
+6. **Zusatzanlagen-Merge**: 1'308 „Zusätzliche Anlage"-0.00-Dubletten zusammengeführt (9'094→7'786). 2 alleinstehende bewusst behalten (Vieri Bar, Strela — bestätigt korrekt).
+
+**Offen / nächst:**
+- [ ] **App-Sichtprüfung Scans**: zeigen Protokoll-/Zahlbeleg-Scans an Reinigungen/Forderungen korrekt an? (Pfad `import/010/x.pdf` im privaten Bucket `reinigung-fotos` → App muss signed URL bauen.)
+- [ ] 1100-Plausibilität im Debitoren-Screen gegen die 105'240.95 prüfen.
+- [ ] **TP2 — camt-Abgleich-Engine** (Subset-Summe Auto-Match offener Forderungen + Sammelzahlungen + Prüfliste; Anker `rechnungen.einzahlungsbeleg`). Danach TP3 Hub/Mahnwesen auf echten Daten.
 
 ---
 
