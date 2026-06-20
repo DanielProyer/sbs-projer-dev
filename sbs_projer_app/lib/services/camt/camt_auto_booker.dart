@@ -119,7 +119,8 @@ class CamtAutoBooker {
           case TxKategorie.ausgabe:
             final vid = RegelMatcher.matchVorlageId(
               partyName: tx.partyName, partyIban: tx.partyIban,
-              additionalInfo: tx.additionalInfo, regeln: regeln);
+              additionalInfo: tx.additionalInfo,
+              remittanceInfo: tx.remittanceInfo, regeln: regeln);
             final vorlage = vid != null ? vorlagenById[vid] : null;
             if (vorlage != null) {
               await CamtAusgabeBooker.book(tx, vorlage);
