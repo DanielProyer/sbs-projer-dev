@@ -24,6 +24,7 @@ import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
 import 'package:sbs_projer_app/services/camt/camt_bereich_router.dart';
 import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
+import 'package:sbs_projer_app/services/camt/camt_vorschlag.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 
@@ -39,7 +40,9 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   int _step = 0; // 0=Datei wählen, 1=Bestätigen, 2=Ergebnis
   CamtStatement? _statement;
   String? _xmlRoh;
-  AutoBookerResult? _result;
+  List<CamtVorschlag> _vorschlaege = []; // Bereich 2: zu bestätigen
+  int _prueflisteCount = 0;
+  int _uebersprungen = 0;
   AbgleichErgebnis? _abgleich;          // Bereich 1 Ergebnis
   List<Rechnung> _alleOffenen = [];     // Pool für ⚪-Zuordnung
   Map<String, String> _betriebName = {};
@@ -200,7 +203,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           Icon(Icons.auto_awesome, size: 56, color: AppColors.primary.withAlpha(120)),
           const SizedBox(height: 20),
           Text(
-            'Automatische Verbuchung & Rechnungskontrolle',
+            'Verbuchung & Rechnungskontrolle',
             style: Theme.of(context).textTheme.titleMedium,
             textAlign: TextAlign.center,
           ),
@@ -209,8 +212,8 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
               '$_automatisierbarCount von ${txs.length} Transaktion${txs.length == 1 ? '' : 'en'} '
-              'liegen am/nach dem Stichtag ${_dateFormat.format(CamtStichtag.stichtag)} '
-              'und werden automatisch verarbeitet.',
+              'liegen am/nach dem Stichtag ${_dateFormat.format(CamtStichtag.stichtag)}. '
+              'Nichts wird automatisch gebucht — du bestätigst jede Buchung danach selbst.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
@@ -338,27 +341,24 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           .toList();
       final bereich1 = post.where(istKundenzahlungsKandidat).toList();
       final bereich2 = post.where((t) => !istKundenzahlungsKandidat(t)).toList();
-      // Pre-Stichtag / bereits-verarbeitet kommen mit in die Booker-Liste,
-      // damit er sie als "übersprungen" korrekt zählt (er filtert selbst).
-      final bookerTx = [
-        ...bereich2,
-        ...stmtTx.where((t) =>
-            !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
-            bereitsVerarbeitet.contains(t.txKey)),
-      ];
 
-      final result = await CamtAutoBooker.run(
-        transactions: bookerTx,
-        betriebe: betriebe,
-        offeneRechnungen: offeneRechnungen,
+      // Bereich 2 (Übriges): Anfangsphase — NICHTS automatisch buchen.
+      // Regel-/Heineken-Treffer werden als Vorschläge zum Bestätigen gezeigt,
+      // ungetroffene gehen in die Prüfliste.
+      final plan = CamtAutoBooker.plan(
+        transactions: bereich2,
         heinekenRechnungen: heinekenRechnungen,
-        bereitsVerarbeitet: bereitsVerarbeitet,
         regeln: regeln,
         vorlagenById: vorlagenById,
       );
-
-      ref.invalidate(buchungenStreamProvider);
+      await CamtAutoBooker.zuPruefliste(plan.pruefliste);
       ref.invalidate(camtPrueflisteProvider);
+
+      final preStichtagOderVerarbeitet = stmtTx
+          .where((t) =>
+              !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
+              bereitsVerarbeitet.contains(t.txKey))
+          .length;
 
       // Bereich 1: Kundenzahlungen gegen offene Forderungen abgleichen.
       final abgleich = ForderungsAbgleichService.abgleich(
@@ -368,7 +368,9 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       );
 
       setState(() {
-        _result = result;
+        _vorschlaege = plan.vorschlaege;
+        _prueflisteCount = plan.pruefliste.length;
+        _uebersprungen = plan.uebersprungen + preStichtagOderVerarbeitet;
         _abgleich = abgleich;
         _alleOffenen = offeneRechnungen;
         _betriebName = {for (final b in betriebe) b['id']!: b['name']!};
@@ -385,7 +387,6 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
   // === Schritt 3: Ergebnis ===
   Widget _buildResultStep() {
-    final r = _result!;
     final ab = _abgleich!;
     final hatKundenzahlungen = ab.auto.isNotEmpty ||
         ab.manuell.isNotEmpty ||
@@ -418,63 +419,167 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                     style: TextStyle(color: AppColors.textSecondary)),
               ),
             const Divider(height: 32),
-            // === Bereich 2: Übriges (automatisch) ===
+            // === Bereich 2: Übriges — zu BESTÄTIGEN (nichts auto-gebucht) ===
             const Padding(
               padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
-              child: Text('Übriges (automatisch verbucht)',
+              child: Text('Übriges — zu bestätigen',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            _ResultRow(Icons.check, '${r.gebucht} verbucht', AppColors.success),
-            if (r.pruefliste > 0)
-              _ResultRow(Icons.info_outline, '${r.pruefliste} in Prüfliste',
+            if (_vorschlaege.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _tapButton(
+                    'Alle bestätigen',
+                    _bucheAlleVorschlaege,
+                    primaer: true,
+                  ),
+                ),
+              ),
+              for (final v in _vorschlaege) _vorschlagZeile(v),
+            ] else
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Keine automatisch zuordenbaren Buchungen.',
+                    style: TextStyle(color: AppColors.textSecondary)),
+              ),
+            if (_prueflisteCount > 0)
+              _ResultRow(Icons.info_outline,
+                  '$_prueflisteCount in Prüfliste (manuell klären)',
                   AppColors.warning),
-            if (r.uebersprungen > 0)
+            if (_uebersprungen > 0)
               _ResultRow(Icons.skip_next,
-                  '${r.uebersprungen} übersprungen (vor Stichtag / bereits verarbeitet)',
+                  '$_uebersprungen übersprungen (vor Stichtag / bereits verarbeitet)',
                   AppColors.textSecondary),
-            if (r.fehler.isNotEmpty)
-              _ResultRow(Icons.error_outline, '${r.fehler.length} Fehler',
-                  AppColors.error),
-            if (r.fehler.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ...r.fehler.map((e) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(e,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.error)),
-                  )),
-            ],
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/buchhaltung/camt-pruefliste'),
-              icon: const Icon(Icons.fact_check),
-              label: const Text('Zur Prüfliste'),
+            Align(
+              alignment: Alignment.center,
+              child: _tapButton(
+                'Zur Prüfliste',
+                () => context.push('/buchhaltung/camt-pruefliste'),
+                primaer: false,
+              ),
             ),
             const Divider(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            _tapButton(
+              'Weiteren Auszug importieren',
+              () => setState(() {
+                _step = 0;
+                _statement = null;
+                _vorschlaege = [];
+                _prueflisteCount = 0;
+                _uebersprungen = 0;
+                _abgleich = null;
+                _automatisierbarCount = 0;
+                _xmlRoh = null;
+                _alleOffenen = [];
+                _betriebName = {};
+              }),
+              primaer: false,
+            ),
+            const SizedBox(height: 10),
+            _tapButton('Fertig', () => Navigator.of(context).pop(),
+                primaer: true),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Eine Bereich-2-Vorschlagszeile (Betrag · Buchungs-Ziel · Verbuchen).
+  Widget _vorschlagZeile(CamtVorschlag v) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OutlinedButton(
-                  onPressed: () => setState(() {
-                    _step = 0;
-                    _statement = null;
-                    _result = null;
-                    _abgleich = null;
-                    _automatisierbarCount = 0;
-                    _xmlRoh = null;
-                    _alleOffenen = [];
-                    _betriebName = {};
-                  }),
-                  child: const Text('Weiteren Auszug importieren'),
-                ),
-                const SizedBox(width: 12),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fertig'),
+                Text('${v.tx.amount.toStringAsFixed(2)} CHF',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 15)),
+                const SizedBox(height: 2),
+                Text(
+                  '${v.label} · ${_dateFormat.format(v.tx.bookingDate)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
                 ),
               ],
             ),
-          ],
+          ),
+          const SizedBox(width: 12),
+          _tapButton('Verbuchen', () => _bucheVorschlag(v), primaer: true),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _bucheVorschlag(CamtVorschlag v) async {
+    try {
+      await CamtAutoBooker.bucheVorschlag(v);
+      ref.invalidate(buchungenStreamProvider);
+      if (!mounted) return;
+      setState(() => _vorschlaege.remove(v));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Verbucht.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Buchungs-Fehler: $e')));
+      }
+    }
+  }
+
+  Future<void> _bucheAlleVorschlaege() async {
+    final liste = List<CamtVorschlag>.from(_vorschlaege);
+    final fehler = <String>[];
+    final ok = <CamtVorschlag>[];
+    for (final v in liste) {
+      try {
+        await CamtAutoBooker.bucheVorschlag(v);
+        ok.add(v);
+      } catch (e) {
+        fehler.add('${v.label}: $e');
+      }
+    }
+    ref.invalidate(buchungenStreamProvider);
+    if (mounted) {
+      setState(() => _vorschlaege.removeWhere((v) => ok.contains(v)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(fehler.isEmpty
+            ? '${ok.length} verbucht.'
+            : '${ok.length} verbucht, ${fehler.length} fehlgeschlagen'),
+      ));
+    }
+  }
+
+  /// Robuste Tap-Fläche (Material-Buttons rendern auf diesem Screen nicht).
+  Widget _tapButton(String label, VoidCallback onTap, {required bool primaer}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+        decoration: BoxDecoration(
+          color: primaer ? AppColors.primary : Colors.transparent,
+          border: primaer ? null : Border.all(color: AppColors.primary),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: primaer ? Colors.white : AppColors.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
         ),
       ),
     );

@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/services/camt/camt_ausgabe_booker.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
 import 'package:sbs_projer_app/services/camt/camt_klassifizierer.dart';
 import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
+import 'package:sbs_projer_app/services/camt/camt_vorschlag.dart';
 import 'package:sbs_projer_app/services/camt/heineken_matcher.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
 import 'package:sbs_projer_app/services/camt/regel_matcher.dart';
@@ -142,6 +143,99 @@ class CamtAutoBooker {
       }
     }
     return res;
+  }
+
+  /// Bestätigungs-Modus: klassifiziert + matcht Bereich-2-Transaktionen, BUCHT
+  /// aber NICHTS. Liefert bestätigbare Vorschläge (Regel-/Heineken-Treffer),
+  /// die ungetroffenen für die Prüfliste und die Anzahl übersprungener.
+  /// Rein (ohne IO) — testbar.
+  static CamtPlanErgebnis plan({
+    required List<CamtTransaction> transactions,
+    required List<Rechnung> heinekenRechnungen,
+    required List<CamtRegel> regeln,
+    required Map<String, BuchungsVorlage> vorlagenById,
+  }) {
+    final vorschlaege = <CamtVorschlag>[];
+    final pruefliste = <CamtTransaction>[];
+    int uebersprungen = 0;
+
+    for (final tx in transactions) {
+      final kat = CamtKlassifizierer.kategorie(tx, betriebErkannt: false);
+      switch (kat) {
+        case TxKategorie.saldovortrag:
+          uebersprungen++;
+          break;
+        case TxKategorie.heinekenEingang:
+          final hr = HeinekenMatcher.match(
+              zahlbetrag: tx.amount, heinekenRechnungen: heinekenRechnungen);
+          if (hr != null) {
+            vorschlaege.add(CamtVorschlag(
+              tx: tx,
+              typ: CamtVorschlagTyp.heineken,
+              heinekenRechnung: hr,
+              label: 'Heineken-Zahlung ${hr.rechnungsnummer ?? ''}',
+            ));
+          } else {
+            pruefliste.add(tx);
+          }
+          break;
+        case TxKategorie.bargeldEinzahlung:
+        case TxKategorie.ausgabe:
+          final vid = RegelMatcher.matchVorlageId(
+            partyName: tx.partyName,
+            partyIban: tx.partyIban,
+            additionalInfo: tx.additionalInfo,
+            remittanceInfo: tx.remittanceInfo,
+            regeln: regeln,
+          );
+          final vorlage = vid != null ? vorlagenById[vid] : null;
+          if (vorlage != null) {
+            vorschlaege.add(CamtVorschlag(
+              tx: tx,
+              typ: CamtVorschlagTyp.ausgabe,
+              vorlage: vorlage,
+              label: '${vorlage.bezeichnung} → ${vorlage.sollKonto}',
+            ));
+          } else {
+            pruefliste.add(tx);
+          }
+          break;
+        case TxKategorie.kundenzahlung:
+        case TxKategorie.unbekannt:
+          pruefliste.add(tx);
+          break;
+      }
+    }
+    return CamtPlanErgebnis(vorschlaege, pruefliste, uebersprungen);
+  }
+
+  /// Bucht EINEN bestätigten Vorschlag über die bestehenden Booker
+  /// (mit korrektem Datum + camt_tx_key).
+  static Future<void> bucheVorschlag(CamtVorschlag v) async {
+    if (v.typ == CamtVorschlagTyp.ausgabe) {
+      await CamtAusgabeBooker.book(v.tx, v.vorlage!);
+    } else {
+      final b = await HeinekenBuchungService.createZahlungseingang(
+          v.heinekenRechnung!,
+          datum: v.tx.bookingDate);
+      if (b != null) {
+        await BuchungRepository.setCamtTxKey(b.id, v.tx.txKey);
+        final datumStr = v.tx.bookingDate.toIso8601String().split('T').first;
+        await RechnungRepository.update(v.heinekenRechnung!.id, {
+          'zahlungsstatus': 'bezahlt',
+          'zahlung_eingegangen_am': datumStr,
+          'zahlung_betrag': v.heinekenRechnung!.betragBrutto,
+        });
+      }
+    }
+  }
+
+  /// Schreibt ungetroffene Transaktionen in die Prüfliste (manuell zu klären).
+  static Future<void> zuPruefliste(List<CamtTransaction> txs) async {
+    for (final tx in txs) {
+      final kat = CamtKlassifizierer.kategorie(tx, betriebErkannt: false);
+      await _zurPruefliste(tx, kat);
+    }
   }
 
   static Future<void> _zurPruefliste(CamtTransaction tx, TxKategorie kat,
