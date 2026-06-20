@@ -225,15 +225,49 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
                     ),
                   ),
                 for (final t in erg.auto)
-                  ListTile(
-                    title: Text(
-                      '${t.gutschrift.amount.toStringAsFixed(2)} CHF — '
-                      '${t.forderungen.map((r) => r.rechnungsnummer ?? '?').join(', ')}',
-                    ),
-                    subtitle: Text(_dateFormat.format(t.gutschrift.bookingDate)),
-                    trailing: FilledButton(
-                      onPressed: () => _verbuche(t),
-                      child: const Text('Verbuchen'),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                t.forderungen.length == 1
+                                    ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}'
+                                    : '${t.forderungen.length} Rechnungen: '
+                                        '${t.forderungen.map((r) => r.rechnungsnummer ?? '?').join(', ')}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _dateFormat.format(t.gutschrift.bookingDate),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton(
+                          onPressed: () => _verbuche(t),
+                          child: const Text('Verbuchen'),
+                        ),
+                      ],
                     ),
                   ),
               ],
