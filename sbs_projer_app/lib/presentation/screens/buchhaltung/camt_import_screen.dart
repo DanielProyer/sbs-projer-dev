@@ -1,13 +1,20 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
+import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
+import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/abgleich_vorschau.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
@@ -15,7 +22,9 @@ import 'package:sbs_projer_app/data/repositories/camt_regel_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
+import 'package:sbs_projer_app/services/camt/camt_bereich_router.dart';
 import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
+import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 
 class CamtImportScreen extends ConsumerStatefulWidget {
@@ -29,7 +38,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   // State
   int _step = 0; // 0=Datei wählen, 1=Bestätigen, 2=Ergebnis
   CamtStatement? _statement;
+  String? _xmlRoh;
   AutoBookerResult? _result;
+  AbgleichErgebnis? _abgleich;          // Bereich 1 Ergebnis
+  List<Rechnung> _alleOffenen = [];     // Pool für ⚪-Zuordnung
+  Map<String, String> _betriebName = {};
   bool _loading = false;
   String? _error;
   int _automatisierbarCount = 0;
@@ -139,6 +152,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
       setState(() {
         _statement = statement;
+        _xmlRoh = xmlString;
         _automatisierbarCount = automatisierbar;
         _step = 1;
         _loading = false;
@@ -280,6 +294,36 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   Future<void> _doImport() async {
     setState(() => _loading = true);
     try {
+      final stmt = _statement!;
+      // Doppel-Upload-Schutz (wie Forderungs-Abgleich).
+      final bereitsErfasst = await CamtDateiRepository.existsZeitraum(
+          stmt.iban, stmt.fromDate, stmt.toDate);
+      if (bereitsErfasst) {
+        if (!mounted) { setState(() => _loading = false); return; }
+        final weiter = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Zeitraum bereits erfasst'),
+            content: Text('Für diese IBAN ist der Zeitraum '
+                '${_dateFormat.format(stmt.fromDate)} – '
+                '${_dateFormat.format(stmt.toDate)} bereits archiviert.\n\n'
+                'Trotzdem importieren?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Trotzdem')),
+            ],
+          ),
+        );
+        if (weiter != true) { setState(() => _loading = false); return; }
+      }
+      final gutAnzahl = stmt.transactions.where((t) => t.isCredit).length;
+      // Archiv-Kopie (UTF-8-normalisiert).
+      await CamtDateiRepository.speichern(
+        CamtDatei(id: '', userId: '', dateiname: 'camt.xml',
+          zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
+          anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
+        Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
+
       final betriebe = ref.read(betriebeProvider)
           .where((b) => b.serverId != null)
           .map((b) => {'id': b.serverId!, 'name': b.name})
@@ -299,8 +343,25 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           .cast<BuchungsVorlage>();
       final vorlagenById = {for (final v in vorlagen) v.id: v};
 
+      final stmtTx = _statement!.transactions;
+      // Post-Stichtag + noch nicht verarbeitet → in Bereiche aufteilen.
+      final post = stmtTx
+          .where((t) => CamtStichtag.istAutomatisierbar(t.bookingDate))
+          .where((t) => !bereitsVerarbeitet.contains(t.txKey))
+          .toList();
+      final bereich1 = post.where(istKundenzahlungsKandidat).toList();
+      final bereich2 = post.where((t) => !istKundenzahlungsKandidat(t)).toList();
+      // Pre-Stichtag / bereits-verarbeitet kommen mit in die Booker-Liste,
+      // damit er sie als "übersprungen" korrekt zählt (er filtert selbst).
+      final bookerTx = [
+        ...bereich2,
+        ...stmtTx.where((t) =>
+            !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
+            bereitsVerarbeitet.contains(t.txKey)),
+      ];
+
       final result = await CamtAutoBooker.run(
-        transactions: _statement!.transactions,
+        transactions: bookerTx,
         betriebe: betriebe,
         offeneRechnungen: offeneRechnungen,
         heinekenRechnungen: heinekenRechnungen,
@@ -312,7 +373,21 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       ref.invalidate(buchungenStreamProvider);
       ref.invalidate(camtPrueflisteProvider);
 
-      setState(() { _result = result; _step = 2; _loading = false; });
+      // Bereich 1: Kundenzahlungen gegen offene Forderungen abgleichen.
+      final abgleich = ForderungsAbgleichService.abgleich(
+        gutschriften: bereich1,
+        offeneForderungen: offeneRechnungen,
+        betriebe: betriebe,
+      );
+
+      setState(() {
+        _result = result;
+        _abgleich = abgleich;
+        _alleOffenen = offeneRechnungen;
+        _betriebName = {for (final b in betriebe) b['id']!: b['name']!};
+        _step = 2;
+        _loading = false;
+      });
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
@@ -324,54 +399,71 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   // === Schritt 3: Ergebnis ===
   Widget _buildResultStep() {
     final r = _result!;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    final ab = _abgleich!;
+    final hatKundenzahlungen = ab.auto.isNotEmpty ||
+        ab.manuell.isNotEmpty ||
+        ab.unbekannteGutschriften.isNotEmpty ||
+        ab.keineZahlung.isNotEmpty;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 880),
+        child: ListView(
+          padding: const EdgeInsets.all(12),
           children: [
-            Icon(
-              r.fehler.isEmpty ? Icons.check_circle : Icons.warning,
-              size: 64,
-              color: r.fehler.isEmpty ? AppColors.success : AppColors.warning,
+            // === Bereich 1: Kundenzahlungen ===
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
+              child: Text('Kundenzahlungen',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Verarbeitung abgeschlossen',
-              style: Theme.of(context).textTheme.titleLarge,
+            if (hatKundenzahlungen)
+              AbgleichVorschau(
+                ergebnis: ab,
+                alleOffenen: _alleOffenen,
+                betriebName: _betriebName,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Keine Kundenzahlungen in diesem Auszug.',
+                    style: TextStyle(color: AppColors.textSecondary)),
+              ),
+            const Divider(height: 32),
+            // === Bereich 2: Übriges (automatisch) ===
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+              child: Text('Übriges (automatisch verbucht)',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            const SizedBox(height: 16),
             _ResultRow(Icons.check, '${r.gebucht} verbucht', AppColors.success),
             if (r.pruefliste > 0)
-              _ResultRow(Icons.info_outline, '${r.pruefliste} in Prüfliste', AppColors.warning),
+              _ResultRow(Icons.info_outline, '${r.pruefliste} in Prüfliste',
+                  AppColors.warning),
             if (r.uebersprungen > 0)
               _ResultRow(Icons.skip_next,
                   '${r.uebersprungen} übersprungen (vor Stichtag / bereits verarbeitet)',
                   AppColors.textSecondary),
             if (r.fehler.isNotEmpty)
-              _ResultRow(Icons.error_outline, '${r.fehler.length} Fehler', AppColors.error),
+              _ResultRow(Icons.error_outline, '${r.fehler.length} Fehler',
+                  AppColors.error),
             if (r.fehler.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: r.fehler.map((e) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(e, style: const TextStyle(fontSize: 12, color: AppColors.error)),
-                    )).toList(),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 8),
+              ...r.fehler.map((e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(e,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.error)),
+                  )),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => context.push('/buchhaltung/camt-pruefliste'),
               icon: const Icon(Icons.fact_check),
               label: const Text('Zur Prüfliste'),
             ),
-            const SizedBox(height: 24),
+            const Divider(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -380,7 +472,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                     _step = 0;
                     _statement = null;
                     _result = null;
+                    _abgleich = null;
                     _automatisierbarCount = 0;
+                    _xmlRoh = null;
+                    _alleOffenen = [];
+                    _betriebName = {};
                   }),
                   child: const Text('Weiteren Auszug importieren'),
                 ),
