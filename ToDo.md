@@ -5,8 +5,18 @@
 
 ---
 
-## 🚧 IN ARBEIT: camt-Forderungsabgleich (TP2) — Branch `feature/camt-forderungsabgleich`
-Spec + Plan freigegeben (`docs/superpowers/.../2026-06-20-camt-forderungsabgleich*`). **Task 1/12 erledigt** (Stichtag → 20.06.2026). **Resume bei Task 2** via subagent-driven-development. Details + Resume-Prompt in Memory [[camt-forderungsabgleich-tp2]]. Voll-camt-Datei liegt im Repo-Root (2'623 Gutschriften 2019–19.06.2026).
+## ✅ ERLEDIGT: camt-Forderungsabgleich (TP2) — live v0.10.138
+Branch `feature/camt-forderungsabgleich` → gemergt nach `main` + deployed (20.06.2026). Alle 12 Tasks erledigt (subagent-driven, je 2-stufig reviewt), 101 Tests grün, 0 analyze-Fehler.
+- **Engine** `ForderungsAbgleichService` (forderungs-getrieben/Pull, Subset-Summe via `RechnungMatcher`): eindeutig → 🟢 auto-verbuchen, Rest → 🟡 manuell, ohne Zahlung → 🔴. Zahlername aus `partyName` **oder** „Gutschrift <Name>" (`AddtlNtryInf`, GKB).
+- **Verbuchung** über bestehende `ZahlungsdifferenzService.verbuchenSammel` + Status `bezahlt` (Bank 1020 ← Debitoren 1100, Differenz 3805/8000, 5-Rappen).
+- **Archiv**: Tabelle `camt_dateien` (Migration 101) + privater Bucket `camt-dateien` (eigene RLS-Policies). Screen „camt-Dateien": Zeiträume + Lücken-Warnung (>3 T) + signed-URL-Download.
+- **Screens** `/buchhaltung/camt-abgleich` + `/buchhaltung/camt-dateien` + 2 Dashboard-Kacheln + Wochen-Erinnerung (kein Auszug oder letzter >7 T).
+- **Stichtag** Auto-Booker auf 20.06.2026 gesenkt.
+
+**Offene Minor/Folge-Punkte (kein Blocker):**
+- [ ] `CamtDateiRepository.existsZeitraum` existiert, ist aber noch **nicht verdrahtet** (Doppel-Upload-Dedup) — bei Bedarf im Abgleich-Upload nutzen.
+- [ ] **Unbekannte Zahlungseingänge sichtbar machen**: Gutschrift ohne passende offene Forderung wird forderungs-getrieben bewusst NICHT angezeigt (kein Bucket). Falls gewünscht, eigener „nicht zugeordnet"-Bucket/Screen.
+- [ ] `verbuche` nicht transaktional geklammert (wie `camt_auto_booker`, durch Idempotenz-Guard abgesichert) — bei Bedarf in echte Transaktion fassen.
 
 ---
 
