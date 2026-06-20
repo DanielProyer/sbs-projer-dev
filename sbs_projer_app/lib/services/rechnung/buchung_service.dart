@@ -53,10 +53,20 @@ class BuchungService {
 
   /// Berechnet Saldi für alle Konten auf einmal (effizienter als einzeln).
   static Future<Map<int, double>> getAllSaldi() async {
-    final rows = await SupabaseService.client
-        .from('buchungen')
-        .select('soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
-        .eq('user_id', SupabaseService.dataUserId);
+    // Seitenweise holen — PostgREST deckelt sonst bei 1000 Zeilen (Saldo wäre verfälscht).
+    final rows = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      final page = await SupabaseService.client
+          .from('buchungen')
+          .select('soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
+          .eq('user_id', SupabaseService.dataUserId)
+          .range(from, from + pageSize - 1);
+      rows.addAll(List<Map<String, dynamic>>.from(page));
+      if (page.length < pageSize) break;
+      from += pageSize;
+    }
 
     final saldi = <int, double>{};
     for (final row in rows) {

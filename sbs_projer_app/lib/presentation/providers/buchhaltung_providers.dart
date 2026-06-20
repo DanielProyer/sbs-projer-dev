@@ -34,13 +34,18 @@ final mwstAbrechnungProvider =
 /// MwSt-Quartaldetails mit Umsatz + ESTV-Ziffern.
 final mwstQuartalDetailProvider =
     FutureProvider.family<List<Map<String, dynamic>>, int>((ref, jahr) async {
-  final rows = await SupabaseService.client
-      .from('buchungen')
-      .select('quartal, soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
-      .eq('user_id', SupabaseService.dataUserId)
-      .eq('geschaeftsjahr', jahr);
-
-  final buchungen = List<Map<String, dynamic>>.from(rows);
+  // Seitenweise — ein Geschäftsjahr kann >1000 Buchungen haben (PostgREST-Cap).
+  final buchungen = <Map<String, dynamic>>[];
+  for (int from = 0;; from += 1000) {
+    final page = await SupabaseService.client
+        .from('buchungen')
+        .select('quartal, soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
+        .eq('user_id', SupabaseService.dataUserId)
+        .eq('geschaeftsjahr', jahr)
+        .range(from, from + 999);
+    buchungen.addAll(List<Map<String, dynamic>>.from(page));
+    if (page.length < 1000) break;
+  }
   final result = <Map<String, dynamic>>[];
 
   for (int q = 1; q <= 4; q++) {
@@ -111,11 +116,18 @@ final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
 final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) async {
   final saldi = await BuchungService.getAllSaldi();
   // Offene native Rechnungen: in Dart filtern (robust gegen PostgREST-in-Syntax).
-  final rgRows = await SupabaseService.client
-      .from('rechnungen')
-      .select('betrag_brutto, zahlungsstatus');
+  // Seitenweise — PostgREST deckelt sonst bei 1000 Rechnungen.
+  final rgRows = <Map<String, dynamic>>[];
+  for (int from = 0;; from += 1000) {
+    final page = await SupabaseService.client
+        .from('rechnungen')
+        .select('betrag_brutto, zahlungsstatus')
+        .range(from, from + 999);
+    rgRows.addAll(List<Map<String, dynamic>>.from(page));
+    if (page.length < 1000) break;
+  }
   const erledigt = {'bezahlt', 'abgeschrieben'};
-  final nativeOffen = (rgRows as List)
+  final nativeOffen = rgRows
       .where((r) => !erledigt.contains(r['zahlungsstatus']))
       .fold<double>(0, (s, r) => s + _toDouble(r['betrag_brutto']));
   final debitoren = saldi[1100] ?? 0;

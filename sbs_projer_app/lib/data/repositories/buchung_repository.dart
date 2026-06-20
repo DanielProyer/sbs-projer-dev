@@ -50,13 +50,23 @@ class BuchungRepository {
   }
 
   static Future<List<Buchung>> getByKonto(int kontonummer) async {
-    final rows = await SupabaseService.client
-        .from('buchungen')
-        .select()
-        .eq('user_id', _userId)
-        .or('soll_konto.eq.$kontonummer,haben_konto.eq.$kontonummer')
-        .order('datum', ascending: false);
-    return rows.map((r) => Buchung.fromJson(r)).toList();
+    // Seitenweise — Konten wie 1100/Bank können >1000 Buchungen haben (PostgREST-Cap).
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('buchungen')
+          .select()
+          .eq('user_id', _userId)
+          .or('soll_konto.eq.$kontonummer,haben_konto.eq.$kontonummer')
+          .order('datum', ascending: false)
+          .range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all.map((r) => Buchung.fromJson(r)).toList();
   }
 
   static Future<List<Buchung>> getByBeleg(String belegId) async {
