@@ -18,8 +18,9 @@ class BuchungenListScreen extends ConsumerStatefulWidget {
 class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
   String _searchQuery = '';
   int? _filterKonto;
-  int _filterJahr = DateTime.now().year;
-  int? _filterMonat;
+  int? _filterJahr; // null = alle Jahre
+  double? _betragVon; // exakter Betrag (wenn _betragBis leer) oder Bereichs-Untergrenze
+  double? _betragBis; // Bereichs-Obergrenze (optional)
 
   @override
   void initState() {
@@ -39,10 +40,16 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
           return false;
         }
       }
-      // Jahr-Filter
-      if (b.geschaeftsjahr != _filterJahr) return false;
-      // Monat-Filter
-      if (_filterMonat != null && b.monat != _filterMonat) return false;
+      // Jahr-Filter (null = alle Jahre)
+      if (_filterJahr != null && b.geschaeftsjahr != _filterJahr) return false;
+      // Betrag-Filter: fixer Betrag (nur "von") oder Bereich ("von"–"bis")
+      final betrag = b.betragBrutto;
+      if (_betragVon != null && _betragBis == null) {
+        if ((betrag - _betragVon!).abs() >= 0.005) return false;
+      } else {
+        if (_betragVon != null && betrag < _betragVon! - 0.005) return false;
+        if (_betragBis != null && betrag > _betragBis! + 0.005) return false;
+      }
       // Suche
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
@@ -68,14 +75,6 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
         title: Text(_filterKonto != null
             ? 'Konto $_filterKonto'
             : 'Journal'),
-        actions: [
-          if (_filterKonto != null)
-            IconButton(
-              icon: const Icon(Icons.filter_alt_off),
-              tooltip: 'Konto-Filter entfernen',
-              onPressed: () => setState(() => _filterKonto = null),
-            ),
-        ],
       ),
       body: Column(
         children: [
@@ -91,41 +90,55 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
             ),
           ),
 
-          // Filter-Chips
+          // Filter: Jahr (Dropdown) + Betrag (fix / Bereich)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  // Jahr
-                  _FilterChip(
-                    label: '$_filterJahr',
-                    onTap: () => _showJahrPicker(),
-                  ),
-                  const SizedBox(width: 8),
-                  // Monat
-                  _FilterChip(
-                    label: _filterMonat != null
-                        ? _monatName(_filterMonat!)
-                        : 'Alle Monate',
-                    onTap: () => _showMonatPicker(),
-                    onDelete: _filterMonat != null
-                        ? () => setState(() => _filterMonat = null)
-                        : null,
-                  ),
-                  if (_filterKonto != null) ...[
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Konto $_filterKonto',
-                      onTap: () {},
-                      onDelete: () => setState(() => _filterKonto = null),
-                    ),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Row(
+              children: [
+                DropdownButton<int?>(
+                  value: _filterJahr,
+                  isDense: true,
+                  hint: const Text('Alle Jahre'),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                        value: null, child: Text('Alle Jahre')),
+                    for (int y = DateTime.now().year; y >= 2019; y--)
+                      DropdownMenuItem<int?>(value: y, child: Text('$y')),
                   ],
-                ],
-              ),
+                  onChanged: (v) => setState(() => _filterJahr = v),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Betrag',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => setState(() =>
+                        _betragVon = double.tryParse(v.replaceAll(',', '.'))),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'bis',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => setState(() =>
+                        _betragBis = double.tryParse(v.replaceAll(',', '.'))),
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 4),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -183,102 +196,6 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
     );
   }
 
-  void _showJahrPicker() {
-    final currentYear = DateTime.now().year;
-    showDialog(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Jahr wählen'),
-        children: [
-          for (int y = currentYear; y >= 2019; y--)
-            SimpleDialogOption(
-              onPressed: () {
-                setState(() => _filterJahr = y);
-                Navigator.pop(ctx);
-              },
-              child: Text(
-                '$y',
-                style: TextStyle(
-                  fontWeight: y == _filterJahr ? FontWeight.w700 : null,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showMonatPicker() {
-    showDialog(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Monat wählen'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () {
-              setState(() => _filterMonat = null);
-              Navigator.pop(ctx);
-            },
-            child: Text(
-              'Alle Monate',
-              style: TextStyle(
-                fontWeight: _filterMonat == null ? FontWeight.w700 : null,
-              ),
-            ),
-          ),
-          for (int m = 1; m <= 12; m++)
-            SimpleDialogOption(
-              onPressed: () {
-                setState(() => _filterMonat = m);
-                Navigator.pop(ctx);
-              },
-              child: Text(
-                _monatName(m),
-                style: TextStyle(
-                  fontWeight: m == _filterMonat ? FontWeight.w700 : null,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  static String _monatName(int m) {
-    const namen = [
-      '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
-    ];
-    return namen[m];
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final VoidCallback? onDelete;
-
-  const _FilterChip({
-    required this.label,
-    required this.onTap,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (onDelete != null) {
-      return InputChip(
-        label: Text(label, style: const TextStyle(fontSize: 12)),
-        onPressed: onTap,
-        onDeleted: onDelete,
-        deleteIcon: const Icon(Icons.close, size: 14),
-      );
-    }
-    return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      onPressed: onTap,
-    );
-  }
 }
 
 class _BuchungListItem extends StatelessWidget {
