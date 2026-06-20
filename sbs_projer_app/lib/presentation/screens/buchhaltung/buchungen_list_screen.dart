@@ -100,72 +100,81 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
             ),
           ),
 
-          // Filter (einheitlicher App-Stil: DropdownButton im Wrap)
+          // Filter (einheitlicher App-Stil): Dropdowns oben, Betrag in neuer Zeile
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Jahr
-                DropdownButton<int?>(
-                  value: _filterJahr,
-                  hint: const Text('Alle Jahre'),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                        value: null, child: Text('Alle Jahre')),
-                    for (int y = DateTime.now().year; y >= 2019; y--)
-                      DropdownMenuItem<int?>(value: y, child: Text('$y')),
+                // Zeile 1: Jahr / Monat / Soll-Haben
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    DropdownButton<int?>(
+                      value: _filterJahr,
+                      hint: const Text('Alle Jahre'),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                            value: null, child: Text('Alle Jahre')),
+                        for (int y = DateTime.now().year; y >= 2019; y--)
+                          DropdownMenuItem<int?>(value: y, child: Text('$y')),
+                      ],
+                      onChanged: (v) => setState(() => _filterJahr = v),
+                    ),
+                    DropdownButton<int?>(
+                      value: _filterMonat,
+                      hint: const Text('Ganzes Jahr'),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                            value: null, child: Text('Ganzes Jahr')),
+                        for (int m = 1; m <= 12; m++)
+                          DropdownMenuItem<int?>(
+                              value: m, child: Text(_monatName(m))),
+                      ],
+                      onChanged: (v) => setState(() => _filterMonat = v),
+                    ),
+                    if (_filterKonto != null)
+                      DropdownButton<String>(
+                        value: _seite,
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'alle', child: Text('Alle Buchungen')),
+                          DropdownMenuItem(value: 'soll', child: Text('Soll')),
+                          DropdownMenuItem(value: 'haben', child: Text('Haben')),
+                        ],
+                        onChanged: (v) => setState(() => _seite = v ?? 'alle'),
+                      ),
                   ],
-                  onChanged: (v) => setState(() => _filterJahr = v),
                 ),
-                // Monat
-                DropdownButton<int?>(
-                  value: _filterMonat,
-                  hint: const Text('Ganzes Jahr'),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                        value: null, child: Text('Ganzes Jahr')),
-                    for (int m = 1; m <= 12; m++)
-                      DropdownMenuItem<int?>(value: m, child: Text(_monatName(m))),
+                // Zeile 2: Betrag fix (nur "Betrag") oder Bereich ("Betrag"–"bis")
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 110,
+                      child: TextField(
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Betrag', isDense: true),
+                        onChanged: (v) => setState(() => _betragVon =
+                            double.tryParse(v.replaceAll(',', '.'))),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: 90,
+                      child: TextField(
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'bis', isDense: true),
+                        onChanged: (v) => setState(() => _betragBis =
+                            double.tryParse(v.replaceAll(',', '.'))),
+                      ),
+                    ),
                   ],
-                  onChanged: (v) => setState(() => _filterMonat = v),
-                ),
-                // Soll/Haben (nur in der Konto-Ansicht sinnvoll)
-                if (_filterKonto != null)
-                  DropdownButton<String>(
-                    value: _seite,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'alle', child: Text('Alle Buchungen')),
-                      DropdownMenuItem(value: 'soll', child: Text('Soll')),
-                      DropdownMenuItem(value: 'haben', child: Text('Haben')),
-                    ],
-                    onChanged: (v) => setState(() => _seite = v ?? 'alle'),
-                  ),
-                // Betrag: fix (nur "Betrag") oder Bereich ("Betrag"–"bis")
-                SizedBox(
-                  width: 110,
-                  child: TextField(
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    decoration: const InputDecoration(
-                        labelText: 'Betrag', isDense: true),
-                    onChanged: (v) => setState(() =>
-                        _betragVon = double.tryParse(v.replaceAll(',', '.'))),
-                  ),
-                ),
-                SizedBox(
-                  width: 90,
-                  child: TextField(
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    decoration:
-                        const InputDecoration(labelText: 'bis', isDense: true),
-                    onChanged: (v) => setState(() =>
-                        _betragBis = double.tryParse(v.replaceAll(',', '.'))),
-                  ),
                 ),
               ],
             ),
