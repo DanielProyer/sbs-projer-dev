@@ -22,6 +22,9 @@ Branch `feature/forderungen-historie-import` → gemergt nach `main` + deployed.
 
 ---
 
+## 🎨 UI-Follow-up (geplant, NICHT jetzt)
+- [ ] **App-weite Vereinheitlichung** von Filtern, Dropdowns etc. — einheitliches Design über die ganze App (Daniel 20.06.2026). Referenz-Stil aktuell: schlichte `DropdownButton` im `Wrap` (Zeitraum-Picker Erfolgsrechnung + Konto-Journal v0.10.136). Eigener grösserer Durchgang.
+
 ## 🗓️ Tagesabschluss 18.06.2026 — live v0.10.130 (64 Commits, 5 Features)
 Alles gemergt nach `main` + auf gh-pages deployed. Specs/Pläne unter `docs/superpowers/`.
 1. **Berichtswesen-Umbau** (v0.10.119, Detail unten): Bilanz & Erfolgsrechnung als 2-Tab-Screen, MwSt eigener Screen, freie Datum-/Zeitraumwahl, PDF + Mail.
