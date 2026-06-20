@@ -52,7 +52,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   @override
   Widget build(BuildContext context) {
     // ignore: avoid_print
-    print('[camt-import] build v=0.11.3 step=$_step loading=$_loading');
+    print('[camt-import] build v=0.11.4 step=$_step loading=$_loading');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bankauszug Import'),
@@ -176,10 +176,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Auszugs-Header
+          // Auszugs-Header (volle Breite)
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(16),
             color: AppColors.primary.withAlpha(15),
             child: Column(
@@ -217,35 +218,34 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
             ),
           ),
           const SizedBox(height: 28),
-          // DIAGNOSE-Isolationstest: knallgrüne Tap-Fläche OHNE Material-Button.
-          GestureDetector(
-            onTap: _loading ? null : _doImport,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(18),
-              color: const Color(0xFF008200),
-              child: Text(
-                _loading ? 'VERARBEITE…' : 'VERARBEITEN (Test)',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16),
+          // Aktions-Buttons (Zeile sizet sich auf Inhalt → keine straffe Vollbreite).
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              OutlinedButton(
+                onPressed: _loading
+                    ? null
+                    : () => setState(() {
+                          _step = 0;
+                          _statement = null;
+                        }),
+                child: const Text('Zurück'),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _loading
-                ? null
-                : () => setState(() {
-                      _step = 0;
-                      _statement = null;
-                    }),
-            child: const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text('Zurück', textAlign: TextAlign.center),
-            ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: !_loading ? _doImport : null,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.play_arrow),
+                label: Text(_loading ? 'Verarbeite…' : 'Verarbeiten'),
+              ),
+            ],
           ),
           const SizedBox(height: 32),
         ],
