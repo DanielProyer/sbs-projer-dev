@@ -1,10 +1,15 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
+import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
+import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
@@ -29,6 +34,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   // State
   int _step = 0; // 0=Datei wählen, 1=Bestätigen, 2=Ergebnis
   CamtStatement? _statement;
+  String? _xmlRoh;
   AutoBookerResult? _result;
   bool _loading = false;
   String? _error;
@@ -139,6 +145,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
       setState(() {
         _statement = statement;
+        _xmlRoh = xmlString;
         _automatisierbarCount = automatisierbar;
         _step = 1;
         _loading = false;
@@ -280,6 +287,36 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   Future<void> _doImport() async {
     setState(() => _loading = true);
     try {
+      final stmt = _statement!;
+      // Doppel-Upload-Schutz (wie Forderungs-Abgleich).
+      final bereitsErfasst = await CamtDateiRepository.existsZeitraum(
+          stmt.iban, stmt.fromDate, stmt.toDate);
+      if (bereitsErfasst) {
+        if (!mounted) { setState(() => _loading = false); return; }
+        final weiter = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Zeitraum bereits erfasst'),
+            content: Text('Für diese IBAN ist der Zeitraum '
+                '${_dateFormat.format(stmt.fromDate)} – '
+                '${_dateFormat.format(stmt.toDate)} bereits archiviert.\n\n'
+                'Trotzdem importieren?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Trotzdem')),
+            ],
+          ),
+        );
+        if (weiter != true) { setState(() => _loading = false); return; }
+      }
+      final gutAnzahl = stmt.transactions.where((t) => t.isCredit).length;
+      // Archiv-Kopie (UTF-8-normalisiert).
+      await CamtDateiRepository.speichern(
+        CamtDatei(id: '', userId: '', dateiname: 'camt.xml',
+          zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
+          anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
+        Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
+
       final betriebe = ref.read(betriebeProvider)
           .where((b) => b.serverId != null)
           .map((b) => {'id': b.serverId!, 'name': b.name})
