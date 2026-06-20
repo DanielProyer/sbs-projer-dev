@@ -15,7 +15,7 @@ Branch `feature/camt-forderungsabgleich` → gemergt nach `main` + deployed (20.
 
 **Offene Minor/Folge-Punkte (kein Blocker):**
 - [x] `CamtDateiRepository.existsZeitraum` verdrahtet (v0.10.139): vor dem Archivieren im Abgleich-Upload geprüft; bei bereits erfasstem Zeitraum Dialog „Zeitraum bereits erfasst — trotzdem archivieren?" (Abbrechen = ganzer Upload abgebrochen).
-- [ ] **Unbekannte Zahlungseingänge sichtbar machen**: Gutschrift ohne passende offene Forderung wird forderungs-getrieben bewusst NICHT angezeigt (kein Bucket). Falls gewünscht, eigener „nicht zugeordnet"-Bucket/Screen.
+- [x] **Unbekannte Zahlungseingänge sichtbar gemacht** (v0.10.140): 4. Bucket „⚪ Nicht zugeordnet" im Abgleich-Screen zeigt benannte Gutschriften ohne Zuordnung; antippbar → manuelle Zuordnung zu beliebiger offener Forderung (Suche + Mehrfachauswahl + 5-Rappen-Differenz). Namenlose (Saldovortrag/Gebühren) ausgeblendet. Spec/Plan: `docs/superpowers/.../2026-06-20-camt-unbekannte-gutschriften*`. Alle Verbuchungs-Pfade halten den Auswahl-Pool synchron (kein Re-Book bezahlter Forderungen).
 - [ ] `verbuche` nicht transaktional geklammert (wie `camt_auto_booker`, durch Idempotenz-Guard abgesichert) — bei Bedarf in echte Transaktion fassen.
 
 ---
