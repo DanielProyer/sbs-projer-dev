@@ -229,37 +229,26 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
                     child: Row(
                       children: [
+                        // Betrag (fett, feste natürliche Breite)
+                        Text(
+                          '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Rechnung(en) · Datum — eine Zeile, bei Platzmangel gekürzt
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                t.forderungen.length == 1
-                                    ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}'
-                                    : '${t.forderungen.length} Rechnungen: '
-                                        '${t.forderungen.map((r) => r.rechnungsnummer ?? '?').join(', ')}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _dateFormat.format(t.gutschrift.bookingDate),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            '${t.forderungen.length == 1 ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}' : '${t.forderungen.length} Rechnungen'}'
+                            ' · ${_dateFormat.format(t.gutschrift.bookingDate)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
