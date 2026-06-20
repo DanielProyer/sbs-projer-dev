@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/auto_match_tile.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
@@ -369,63 +370,22 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
     );
   }
 
-  /// Eine Auto-Treffer-Zeile, responsiv: breit = einzeilig (Betrag · Beschreibung
-  /// · Button), schmal = Betrag+Button oben, Beschreibung darunter (nie weggedrückt).
+  /// Baut die Beschreibung + delegiert an das getestete, responsive
+  /// [AutoMatchTile] (Betrag/Beschreibung strikt einzeilig).
   Widget _autoZeile(AutoTreffer t) {
-    final beschreibung = t.forderungen.length == 1
+    final betrieb = _betriebName[t.forderungen.first.betriebId] ?? '';
+    final rechnungen = t.forderungen.length == 1
         ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}'
-            ' · ${_dateFormat.format(t.gutschrift.bookingDate)}'
-        : '${t.forderungen.length} Rechnungen'
-            ' · ${_dateFormat.format(t.gutschrift.bookingDate)}';
-
-    final betragWidget = Text(
-      '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
-      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-    );
-    final beschreibungWidget = Text(
-      beschreibung,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-    );
-    final button = FilledButton(
-      onPressed: () => _verbuche(t),
-      child: const Text('Verbuchen'),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Schmal (Smartphone): zweizeilig, Beschreibung in voller Breite.
-          if (constraints.maxWidth < 460) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: betragWidget),
-                    const SizedBox(width: 12),
-                    button,
-                  ],
-                ),
-                const SizedBox(height: 4),
-                beschreibungWidget,
-              ],
-            );
-          }
-          // Breit (Desktop): eine Zeile.
-          return Row(
-            children: [
-              betragWidget,
-              const SizedBox(width: 16),
-              Expanded(child: beschreibungWidget),
-              const SizedBox(width: 16),
-              button,
-            ],
-          );
-        },
-      ),
+        : '${t.forderungen.length} Rechnungen';
+    final teile = [
+      if (betrieb.isNotEmpty) betrieb,
+      rechnungen,
+      _dateFormat.format(t.gutschrift.bookingDate),
+    ];
+    return AutoMatchTile(
+      betrag: '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
+      beschreibung: teile.join(' · '),
+      onVerbuchen: () => _verbuche(t),
     );
   }
 
