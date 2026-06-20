@@ -1,5 +1,7 @@
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
@@ -88,5 +90,26 @@ class ForderungsAbgleichService {
     }
 
     return AbgleichErgebnis(auto, manuell, keineZahlung);
+  }
+
+  /// Verbucht eine Zahlung gegen die gewählten Forderungen + markiert sie bezahlt.
+  /// Nutzt die bestehende Sammel-Verbuchung (Bank 1020 ← Debitoren 1100 + Differenz).
+  static Future<void> verbuche({
+    required double zahlbetrag,
+    required DateTime datum,
+    required List<Rechnung> forderungen,
+  }) async {
+    if (forderungen.isEmpty) return;
+    await ZahlungsdifferenzService.verbuchenSammel(
+      rechnungen: forderungen, zahlungBetrag: zahlbetrag, datum: datum,
+    );
+    final datumStr = datum.toIso8601String().split('T').first;
+    for (final r in forderungen) {
+      await RechnungRepository.update(r.id, {
+        'zahlungsstatus': 'bezahlt',
+        'zahlung_eingegangen_am': datumStr,
+        'zahlung_betrag': r.betragBrutto,
+      });
+    }
   }
 }
