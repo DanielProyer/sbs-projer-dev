@@ -427,6 +427,9 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       f.forderungen.removeWhere((r) => gewaehlteForderungen.contains(r));
       f.gutschriften.removeWhere((g) => gewaehlteGutschriften.contains(g));
       // Bleiben keine Forderungen mehr offen, fällt der ganze Fall weg.
+      // Forderungs-getrieben: ein Fall verschwindet, sobald keine offene Forderung mehr da ist.
+      // Eine evtl. übrige (nicht zugeordnete) Gutschrift wird hier bewusst nicht weiter angezeigt
+      // — sie ist eine Bankzeile ohne offene Forderung (analog zum Scoping in ForderungsAbgleichService).
       if (f.forderungen.isEmpty) {
         _ergebnis!.manuell.remove(f);
       }
