@@ -389,6 +389,37 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
     );
   }
 
+  /// Zusatz-Infos zu einer Gutschrift: Zahler-Name, Mitteilung, und bei
+  /// Schalter-/Automaten-/Posteinzahlung der rohe Bank-Text (Ort/Datum/Zeit).
+  /// Null, wenn keine über Betrag/Datum hinausgehende Info vorhanden ist.
+  String? _zahlungInfo(CamtTransaction g) {
+    final teile = <String>[];
+    final name = effektiverZahlername(
+        partyName: g.partyName, additionalInfo: g.additionalInfo);
+    if (name != null) teile.add(name);
+    final remit = g.remittanceInfo?.trim();
+    if (remit != null && remit.isNotEmpty) teile.add(remit);
+    // Kein Name extrahierbar (z.B. Schalter-/Automaten-/Posteinzahlung) →
+    // rohen AddtlNtryInf-Text zeigen (enthält bei Automaten Ort/Datum/Zeit).
+    if (name == null) {
+      final addtl = g.additionalInfo?.trim();
+      if (addtl != null && addtl.isNotEmpty) teile.add(addtl);
+    }
+    return teile.isEmpty ? null : teile.join(' · ');
+  }
+
+  /// Untertitel-Widget mit [_zahlungInfo] (oder null, wenn nichts vorhanden).
+  Widget? _zahlungInfoText(CamtTransaction g) {
+    final info = _zahlungInfo(g);
+    if (info == null) return null;
+    return Text(
+      info,
+      style: const TextStyle(fontSize: 12),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   Future<void> _verbuche(AutoTreffer t) async {
     try {
       await ForderungsAbgleichService.verbuche(
@@ -491,9 +522,10 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
                         controlAffinity: ListTileControlAffinity.leading,
                         value: gewaehlteGutschriften.contains(g),
                         title: Text(
-                          '${g.amount.toStringAsFixed(2)} CHF — '
-                          '${_dateFormat.format(g.bookingDate)}',
+                          '${_dateFormat.format(g.bookingDate)} — '
+                          '${g.amount.toStringAsFixed(2)} CHF',
                         ),
+                        subtitle: _zahlungInfoText(g),
                         onChanged: (sel) => setDialogState(() {
                           if (sel == true) {
                             gewaehlteGutschriften.add(g);
@@ -513,9 +545,10 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
                         controlAffinity: ListTileControlAffinity.leading,
                         value: gewaehlteForderungen.contains(r),
                         title: Text(
-                          '${r.rechnungsnummer ?? '?'} — '
+                          '${_dateFormat.format(r.rechnungsdatum)} — '
                           '${r.betragBrutto.toStringAsFixed(2)} CHF',
                         ),
+                        subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'}'),
                         onChanged: (sel) => setDialogState(() {
                           if (sel == true) {
                             gewaehlteForderungen.add(r);
@@ -666,6 +699,34 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Info zur Zahlung (Datum/Betrag + Zahler/Mitteilung/Schalter-Text).
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondary.withAlpha(20),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${_dateFormat.format(g.bookingDate)} — '
+                          '${g.amount.toStringAsFixed(2)} CHF',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        if (_zahlungInfo(g) != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            _zahlungInfo(g)!,
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   TextField(
                     decoration: const InputDecoration(
                       labelText: 'Suche (Rechnungsnr. oder Betrieb)',
@@ -682,9 +743,10 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
                           CheckboxListTile(
                             dense: true,
                             value: gewaehlt.contains(r),
-                            title: Text('${r.rechnungsnummer ?? '?'} · '
+                            title: Text('${_dateFormat.format(r.rechnungsdatum)} — '
+                                '${r.betragBrutto.toStringAsFixed(2)} CHF'),
+                            subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
                                 '${_betriebName[r.betriebId] ?? '?'}'),
-                            subtitle: Text('${r.betragBrutto.toStringAsFixed(2)} CHF'),
                             onChanged: (sel) => setDialogState(() {
                               if (sel == true) {
                                 gewaehlt.add(r);
