@@ -19,6 +19,8 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
   String _searchQuery = '';
   int? _filterKonto;
   int? _filterJahr; // null = alle Jahre
+  int? _filterMonat; // null = ganzes Jahr
+  String _seite = 'alle'; // alle | soll | haben (nur bei Konto-Ansicht)
   double? _betragVon; // exakter Betrag (wenn _betragBis leer) oder Bereichs-Untergrenze
   double? _betragBis; // Bereichs-Obergrenze (optional)
 
@@ -34,14 +36,22 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
 
     // Filter anwenden
     final filtered = buchungen.where((b) {
-      // Konto-Filter
+      // Konto-Filter (inkl. Soll/Haben-Seite)
       if (_filterKonto != null) {
-        if (b.sollKonto != _filterKonto && b.habenKonto != _filterKonto) {
+        final istSoll = b.sollKonto == _filterKonto;
+        final istHaben = b.habenKonto == _filterKonto;
+        if (_seite == 'soll') {
+          if (!istSoll) return false;
+        } else if (_seite == 'haben') {
+          if (!istHaben) return false;
+        } else if (!istSoll && !istHaben) {
           return false;
         }
       }
       // Jahr-Filter (null = alle Jahre)
       if (_filterJahr != null && b.geschaeftsjahr != _filterJahr) return false;
+      // Monat-Filter (null = ganzes Jahr)
+      if (_filterMonat != null && b.monat != _filterMonat) return false;
       // Betrag-Filter: fixer Betrag (nur "von") oder Bereich ("von"–"bis")
       final betrag = b.betragBrutto;
       if (_betragVon != null && _betragBis == null) {
@@ -90,14 +100,17 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
             ),
           ),
 
-          // Filter: Jahr (Dropdown) + Betrag (fix / Bereich)
+          // Filter (einheitlicher App-Stil: DropdownButton im Wrap)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Row(
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                // Jahr
                 DropdownButton<int?>(
                   value: _filterJahr,
-                  isDense: true,
                   hint: const Text('Alle Jahre'),
                   items: [
                     const DropdownMenuItem<int?>(
@@ -107,30 +120,49 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
                   ],
                   onChanged: (v) => setState(() => _filterJahr = v),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                // Monat
+                DropdownButton<int?>(
+                  value: _filterMonat,
+                  hint: const Text('Ganzes Jahr'),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                        value: null, child: Text('Ganzes Jahr')),
+                    for (int m = 1; m <= 12; m++)
+                      DropdownMenuItem<int?>(value: m, child: Text(_monatName(m))),
+                  ],
+                  onChanged: (v) => setState(() => _filterMonat = v),
+                ),
+                // Soll/Haben (nur in der Konto-Ansicht sinnvoll)
+                if (_filterKonto != null)
+                  DropdownButton<String>(
+                    value: _seite,
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'alle', child: Text('Alle Buchungen')),
+                      DropdownMenuItem(value: 'soll', child: Text('Soll')),
+                      DropdownMenuItem(value: 'haben', child: Text('Haben')),
+                    ],
+                    onChanged: (v) => setState(() => _seite = v ?? 'alle'),
+                  ),
+                // Betrag: fix (nur "Betrag") oder Bereich ("Betrag"–"bis")
+                SizedBox(
+                  width: 110,
                   child: TextField(
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
                     decoration: const InputDecoration(
-                      labelText: 'Betrag',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
+                        labelText: 'Betrag', isDense: true),
                     onChanged: (v) => setState(() =>
                         _betragVon = double.tryParse(v.replaceAll(',', '.'))),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                SizedBox(
+                  width: 90,
                   child: TextField(
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'bis',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration:
+                        const InputDecoration(labelText: 'bis', isDense: true),
                     onChanged: (v) => setState(() =>
                         _betragBis = double.tryParse(v.replaceAll(',', '.'))),
                   ),
@@ -196,6 +228,13 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
     );
   }
 
+  static String _monatName(int m) {
+    const namen = [
+      '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+    ];
+    return namen[m];
+  }
 }
 
 class _BuchungListItem extends StatelessWidget {
