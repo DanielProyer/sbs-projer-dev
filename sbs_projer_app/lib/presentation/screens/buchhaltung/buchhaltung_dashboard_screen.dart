@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/camt_abgleich_providers.dart';
 
 class BuchhaltungDashboardScreen extends ConsumerWidget {
   const BuchhaltungDashboardScreen({super.key});
@@ -17,6 +18,11 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
     final erfolgsrechnung = ref.watch(erfolgsrechnungProvider(now.year));
     final mwst = ref.watch(mwstAbrechnungProvider(now.year));
     final offeneCount = ref.watch(offeneRechnungenCountProvider);
+
+    // Wochen-Erinnerung: letzte erfasste camt-Periode
+    final letzteCamtPeriode = ref.watch(letzteCamtPeriodeProvider).valueOrNull;
+    final camtErinnerung = letzteCamtPeriode == null ||
+        DateTime.now().difference(letzteCamtPeriode).inDays > 7;
 
     // Buchungen aktueller Monat
     final buchungenMonat = buchungen.where((b) =>
@@ -50,6 +56,32 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Wochen-Erinnerung: neuen camt-Auszug hochladen
+          if (camtErinnerung)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withAlpha(25),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.warning.withAlpha(60)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.upload_file, color: AppColors.warning),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(letzteCamtPeriode == null
+                        ? 'Noch kein Bankauszug erfasst — camt-Datei hochladen'
+                        : 'Letzter Auszug bis ${_fmt(letzteCamtPeriode)} — neuen camt-Auszug hochladen'),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/buchhaltung/camt-abgleich'),
+                    child: const Text('Hochladen'),
+                  ),
+                ],
+              ),
+            ),
           // Kennzahlen
           Row(
             children: [
@@ -173,6 +205,18 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/camt-regeln'),
           ),
           _NavTile(
+            icon: Icons.compare_arrows,
+            title: 'Forderungs-Abgleich',
+            subtitle: 'Zahlungseingänge mit Forderungen abgleichen',
+            onTap: () => context.push('/buchhaltung/camt-abgleich'),
+          ),
+          _NavTile(
+            icon: Icons.folder_open,
+            title: 'camt-Dateien',
+            subtitle: 'Hochgeladene Bankauszüge verwalten',
+            onTap: () => context.push('/buchhaltung/camt-dateien'),
+          ),
+          _NavTile(
             icon: Icons.payments,
             title: 'Lohnbuchhaltung',
             subtitle: 'Lohnlauf, Abzüge & Lohnausweis',
@@ -268,6 +312,9 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
 
   static double _d(dynamic v) =>
       double.tryParse(v?.toString() ?? '') ?? 0;
+
+  static String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
   static String _monatName(int m) {
     const namen = [
