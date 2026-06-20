@@ -121,4 +121,53 @@ void main() {
     expect(r.manuell, isEmpty);
     expect(r.keineZahlung.map((f) => f.id), contains('r2'));
   });
+
+  test('benannte Gutschrift ohne Betrieb-Match → unbekannt', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(99.0, 'Unbekannt AG')],
+      offeneForderungen: [_rg('r1', 'b1', 67.85)],
+      betriebe: betriebe,
+    );
+    expect(r.unbekannteGutschriften.single.amount, 99.0);
+    expect(r.auto, isEmpty);
+    expect(r.keineZahlung.single.id, 'r1');
+  });
+
+  test('Betrieb ohne offene Forderung, Gutschrift vorhanden → unbekannt', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(50.0, 'Gastro Latina GmbH')],
+      offeneForderungen: [_rg('r1', 'b1', 67.85)],
+      betriebe: betriebe,
+    );
+    expect(r.unbekannteGutschriften.single.amount, 50.0);
+  });
+
+  test('Rest-Gutschrift nach Auto-Match (Forderungen leer) → unbekannt', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(67.85, 'Hotel Alpina'), _gut(200.0, 'Hotel Alpina')],
+      offeneForderungen: [_rg('r1', 'b1', 67.85)],
+      betriebe: betriebe,
+    );
+    expect(r.auto.single.forderungen.single.id, 'r1');
+    expect(r.unbekannteGutschriften.single.amount, 200.0);
+  });
+
+  test('namenlose Gutschrift (Saldovortrag) → NICHT unbekannt', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(10.0, '', 'Saldovortrag')],
+      offeneForderungen: [_rg('r1', 'b1', 67.85)],
+      betriebe: betriebe,
+    );
+    expect(r.unbekannteGutschriften, isEmpty);
+  });
+
+  test('zugeordnete (auto) Gutschrift nicht doppelt in unbekannt', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(67.85, 'Hotel Alpina')],
+      offeneForderungen: [_rg('r1', 'b1', 67.85)],
+      betriebe: betriebe,
+    );
+    expect(r.auto.single.gutschrift.amount, 67.85);
+    expect(r.unbekannteGutschriften, isEmpty);
+  });
 }

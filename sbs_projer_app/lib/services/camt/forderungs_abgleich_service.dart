@@ -26,7 +26,8 @@ class AbgleichErgebnis {
   final List<AutoTreffer> auto;
   final List<ManuellFall> manuell;
   final List<Rechnung> keineZahlung; // offene Forderungen ohne passende Gutschrift
-  AbgleichErgebnis(this.auto, this.manuell, this.keineZahlung);
+  final List<CamtTransaction> unbekannteGutschriften; // benannte Zahlungseingänge ohne Zuordnung
+  AbgleichErgebnis(this.auto, this.manuell, this.keineZahlung, this.unbekannteGutschriften);
 }
 
 class ForderungsAbgleichService {
@@ -89,7 +90,20 @@ class ForderungsAbgleichService {
       }
     }
 
-    return AbgleichErgebnis(auto, manuell, keineZahlung);
+    // 4. Benannte Gutschriften, die weder auto noch manuell zugeordnet wurden → unbekannt.
+    final zugeordnet = <CamtTransaction>{
+      ...auto.map((a) => a.gutschrift),
+      ...manuell.expand((m) => m.gutschriften),
+    };
+    final unbekannt = <CamtTransaction>[];
+    for (final g in gutschriften.where((g) => g.isCredit)) {
+      final name = effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo);
+      if (name == null) continue;
+      if (zugeordnet.contains(g)) continue;
+      unbekannt.add(g);
+    }
+
+    return AbgleichErgebnis(auto, manuell, keineZahlung, unbekannt);
   }
 
   /// Verbucht eine Zahlung gegen die gewählten Forderungen + markiert sie bezahlt.
