@@ -280,15 +280,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
   Future<void> _doImport() async {
     setState(() => _loading = true);
-    // ignore: avoid_print
-    print('[camt-import] _doImport START (${_statement?.transactions.length} tx)');
     try {
       final stmt = _statement!;
       // Doppel-Upload-Schutz (wie Forderungs-Abgleich).
       final bereitsErfasst = await CamtDateiRepository.existsZeitraum(
           stmt.iban, stmt.fromDate, stmt.toDate);
-      // ignore: avoid_print
-      print('[camt-import] existsZeitraum=$bereitsErfasst');
       if (bereitsErfasst) {
         if (!mounted) { setState(() => _loading = false); return; }
         final weiter = await showDialog<bool>(
@@ -314,8 +310,6 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
           anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
         Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
-      // ignore: avoid_print
-      print('[camt-import] Datei archiviert → lade Stammdaten');
 
       final betriebe = ref.read(betriebeProvider)
           .where((b) => b.serverId != null)
@@ -352,11 +346,6 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
             !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
             bereitsVerarbeitet.contains(t.txKey)),
       ];
-      // ignore: avoid_print
-      print('[camt-import] Stammdaten geladen: offen=${offeneRechnungen.length} '
-          'betriebe=${betriebe.length} regeln=${regeln.length} | '
-          'bereich1=${bereich1.length} bereich2=${bereich2.length} '
-          'bookerTx=${bookerTx.length} → Booker startet');
 
       final result = await CamtAutoBooker.run(
         transactions: bookerTx,
@@ -367,10 +356,6 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         regeln: regeln,
         vorlagenById: vorlagenById,
       );
-      // ignore: avoid_print
-      print('[camt-import] Booker fertig: gebucht=${result.gebucht} '
-          'pruefliste=${result.pruefliste} uebersprungen=${result.uebersprungen} '
-          'fehler=${result.fehler.length} → Abgleich');
 
       ref.invalidate(buchungenStreamProvider);
       ref.invalidate(camtPrueflisteProvider);
@@ -381,11 +366,6 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         offeneForderungen: offeneRechnungen,
         betriebe: betriebe,
       );
-      // ignore: avoid_print
-      print('[camt-import] Abgleich fertig: auto=${abgleich.auto.length} '
-          'manuell=${abgleich.manuell.length} '
-          'unbekannt=${abgleich.unbekannteGutschriften.length} '
-          'keineZahlung=${abgleich.keineZahlung.length} → Ergebnis-Screen');
 
       setState(() {
         _result = result;
@@ -395,9 +375,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         _step = 2;
         _loading = false;
       });
-    } catch (e, st) {
-      // ignore: avoid_print
-      print('[camt-import] FEHLER: $e\n$st');
+    } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import-Fehler: $e')));

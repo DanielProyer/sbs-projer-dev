@@ -1,5 +1,6 @@
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
@@ -108,15 +109,22 @@ class ForderungsAbgleichService {
 
   /// Verbucht eine Zahlung gegen die gewählten Forderungen + markiert sie bezahlt.
   /// Nutzt die bestehende Sammel-Verbuchung (Bank 1020 ← Debitoren 1100 + Differenz).
+  /// [camtTxKey] markiert die erzeugten Buchungen → identifizierbar/reversibel.
   static Future<void> verbuche({
     required double zahlbetrag,
     required DateTime datum,
     required List<Rechnung> forderungen,
+    String? camtTxKey,
   }) async {
     if (forderungen.isEmpty) return;
-    await ZahlungsdifferenzService.verbuchenSammel(
+    final buchungen = await ZahlungsdifferenzService.verbuchenSammel(
       rechnungen: forderungen, zahlungBetrag: zahlbetrag, datum: datum,
     );
+    if (camtTxKey != null) {
+      for (final b in buchungen) {
+        await BuchungRepository.setCamtTxKey(b.id, camtTxKey);
+      }
+    }
     final datumStr = datum.toIso8601String().split('T').first;
     for (final r in forderungen) {
       await RechnungRepository.update(r.id, {

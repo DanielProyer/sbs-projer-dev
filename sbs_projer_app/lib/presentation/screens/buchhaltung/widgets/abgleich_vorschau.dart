@@ -263,6 +263,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         zahlbetrag: t.gutschrift.amount,
         datum: t.gutschrift.bookingDate,
         forderungen: t.forderungen,
+        camtTxKey: t.gutschrift.txKey,
       );
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
@@ -296,6 +297,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           zahlbetrag: t.gutschrift.amount,
           datum: t.gutschrift.bookingDate,
           forderungen: t.forderungen,
+          camtTxKey: t.gutschrift.txKey,
         );
         verbuchteTreffer.add(t);
       } catch (e) {
@@ -465,6 +467,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                               zahlbetrag: zahlSumme,
                               datum: gewaehlteGutschriften.first.bookingDate,
                               forderungen: gewaehlteForderungen.toList(),
+                              camtTxKey: gewaehlteGutschriften.first.txKey,
                             );
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           } catch (e) {
@@ -634,6 +637,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             zahlbetrag: g.amount,
                             datum: g.bookingDate,
                             forderungen: gewaehlt.toList(),
+                            camtTxKey: g.txKey,
                           );
                           if (ctx.mounted) Navigator.pop(ctx, true);
                         } catch (e) {
