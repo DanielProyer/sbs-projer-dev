@@ -5,6 +5,24 @@
 
 ---
 
+## ✅ ERLEDIGT: TP-A Bankauszug-Import + Forderungs-Abgleich zusammengeführt — live v0.11.0
+Branch `feature/camt-import-merge` → gemergt nach `main` + deployed (20.06.2026). 6 Tasks subagent-driven, je 2-stufig reviewt + finaler Integrations-Review (READY TO MERGE), 116 Tests grün, 0 analyze-Fehler. Spec/Plan: `docs/superpowers/.../2026-06-20-camt-import-forderungsabgleich-merge-design.md` + `...-merge-tpA.md`.
+- **Stichtag → 11.03.2026** (Buchhaltung bis 11.03 aus Excel komplett; ab 12.03 über die App).
+- **Import teilt** jede camt-Datei: **Bereich 1 = Kundenzahlungen** (`istKundenzahlungsKandidat` → eingebetteter `AbgleichVorschau` mit 🟢🟡🔴⚪ + geführten Dialogen, **Vorschau+Bestätigen**, Matching via `effektiverZahlername`) / **Bereich 2 = Übriges** (Belastungen/Heineken/Bargeld → `CamtAutoBooker` + **camt-Regeln** → Prüfliste).
+- **`AbgleichVorschau`** als gemeinsames Widget (Standalone-Abgleich + Import teilen es, DRY). Import archiviert die Datei (`camt_dateien`) + Doppel-Upload-Schutz.
+- Standalone-Forderungs-Abgleich bleibt als Fallback.
+
+**Nächste Teilprojekte (Spec liegt, Reihenfolge):**
+- [ ] **TP-B — Zahler→Betrieb-Lernen** (Alias): Tabelle `camt_zahler_alias`; Lernen bei manueller Zuordnung; Anwenden als Matching-**Stufe 2**; Verwaltungs-Screen.
+- [ ] **TP-C — QR-Referenz**: `rechnungen.qr_referenz`; Vergabe + QR-/PDF-Einbettung bei Rechnungserstellung; Referenz-First als Matching-**Stufe 1**.
+
+**Offene Minor (kein Blocker):**
+- [ ] **4 Rechnungen** `offen`/`gesendet` mit `zahlung_eingegangen_am=2026-05-17` (CHF 337.28) — Daniel sichten, evtl. auf `bezahlt` setzen.
+- [ ] Import-Archiv-Dateiname hart `camt.xml` (Dedup nutzt IBAN+Zeitraum; nur Anzeige) — bei Bedarf `picked.name` mitführen.
+- [ ] Kosmetik: nach „Alle verbuchen" im Import bleibt die statische Überschrift „Kundenzahlungen" stehen.
+
+---
+
 ## ✅ ERLEDIGT: camt-Forderungsabgleich (TP2) — live v0.10.138
 Branch `feature/camt-forderungsabgleich` → gemergt nach `main` + deployed (20.06.2026). Alle 12 Tasks erledigt (subagent-driven, je 2-stufig reviewt), 101 Tests grün, 0 analyze-Fehler.
 - **Engine** `ForderungsAbgleichService` (forderungs-getrieben/Pull, Subset-Summe via `RechnungMatcher`): eindeutig → 🟢 auto-verbuchen, Rest → 🟡 manuell, ohne Zahlung → 🔴. Zahlername aus `partyName` **oder** „Gutschrift <Name>" (`AddtlNtryInf`, GKB).
