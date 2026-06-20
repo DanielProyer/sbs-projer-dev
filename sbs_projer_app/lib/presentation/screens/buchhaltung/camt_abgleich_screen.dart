@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
+import 'package:sbs_projer_app/services/camt/zahlername.dart';
 
 /// Forderungs-getriebener camt-Abgleich: Datei wählen → Vorschau (3 Gruppen)
 /// → Auto-Treffer verbuchen. Manuelle Fälle: Dialog mit Sammelzahlung-Split
@@ -31,6 +32,11 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
   AbgleichErgebnis? _ergebnis;
   bool _loading = false;
   String? _dateiname;
+
+  // Pool aller offenen Forderungen + Betriebsnamen für die manuelle Zuordnung
+  // der „Nicht zugeordnet"-Gutschriften.
+  List<Rechnung> _alleOffenen = [];
+  Map<String, String> _betriebName = {};
 
   final _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -161,6 +167,8 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
 
       setState(() {
         _ergebnis = erg;
+        _alleOffenen = offen;
+        _betriebName = {for (final b in betriebe) b['id']!: b['name']!};
         _loading = false;
       });
     } catch (e) {
@@ -234,6 +242,21 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
                 title: Text(
                   '${r.rechnungsnummer ?? '?'} — ${r.betragBrutto.toStringAsFixed(2)} CHF',
                 ),
+              ),
+          ],
+        ),
+
+        // ⚪ Nicht zugeordnet (benannte Gutschriften ohne offene Forderung)
+        _Gruppe(
+          titel: '⚪ Nicht zugeordnet (${erg.unbekannteGutschriften.length})',
+          children: [
+            for (final g in erg.unbekannteGutschriften)
+              ListTile(
+                title: Text('${g.amount.toStringAsFixed(2)} CHF — '
+                    '${effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo) ?? '?'}'),
+                subtitle: Text(_dateFormat.format(g.bookingDate)),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _ordneZu(g),
               ),
           ],
         ),
@@ -463,16 +486,140 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       f.forderungen.removeWhere((r) => gewaehlteForderungen.contains(r));
       f.gutschriften.removeWhere((g) => gewaehlteGutschriften.contains(g));
       // Bleiben keine Forderungen mehr offen, fällt der ganze Fall weg.
-      // Forderungs-getrieben: ein Fall verschwindet, sobald keine offene Forderung mehr da ist.
-      // Eine evtl. übrige (nicht zugeordnete) Gutschrift wird hier bewusst nicht weiter angezeigt
-      // — sie ist eine Bankzeile ohne offene Forderung (analog zum Scoping in ForderungsAbgleichService).
       if (f.forderungen.isEmpty) {
+        // Übrige (nicht zugeordnete) Gutschriften des Falls sichtbar halten.
+        _ergebnis!.unbekannteGutschriften.addAll(f.gutschriften);
         _ergebnis!.manuell.remove(f);
       }
     });
     if (mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+    }
+  }
+
+  /// Manuelle Zuordnung einer „nicht zugeordneten" Gutschrift zu einer oder
+  /// mehreren offenen Forderungen aus dem Gesamtpool (mit Suche).
+  Future<void> _ordneZu(CamtTransaction g) async {
+    final gewaehlt = <Rechnung>{};
+    var suche = '';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final gefiltert = _alleOffenen.where((r) {
+            if (suche.isEmpty) return true;
+            final q = suche.toLowerCase();
+            final nr = (r.rechnungsnummer ?? '').toLowerCase();
+            final betrieb = (_betriebName[r.betriebId] ?? '').toLowerCase();
+            return nr.contains(q) || betrieb.contains(q);
+          }).toList();
+          final zahlSumme = g.amount;
+          final fordSumme = gewaehlt.fold<double>(0, (s, r) => s + r.betragBrutto);
+          final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
+          return AlertDialog(
+            title: Text('Zahlung zuordnen — ${g.amount.toStringAsFixed(2)} CHF'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Suche (Rechnungsnr. oder Betrieb)',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (v) => setDialogState(() => suche = v),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final r in gefiltert)
+                          CheckboxListTile(
+                            dense: true,
+                            value: gewaehlt.contains(r),
+                            title: Text('${r.rechnungsnummer ?? '?'} · '
+                                '${_betriebName[r.betriebId] ?? '?'}'),
+                            subtitle: Text('${r.betragBrutto.toStringAsFixed(2)} CHF'),
+                            onChanged: (sel) => setDialogState(() {
+                              if (sel == true) {
+                                gewaehlt.add(r);
+                              } else {
+                                gewaehlt.remove(r);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (gewaehlt.isNotEmpty && diff.abs() >= 0.01)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (diff < 0 ? AppColors.warning : AppColors.success)
+                            .withAlpha(25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(children: [
+                        Icon(diff < 0 ? Icons.trending_down : Icons.trending_up,
+                            color: diff < 0 ? AppColors.warning : AppColors.success),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(diff < 0
+                              ? 'Unterzahlung ${diff.abs().toStringAsFixed(2)} CHF — wird als Debitorenverlust (3805) gebucht'
+                              : 'Mehrzahlung ${diff.toStringAsFixed(2)} CHF — wird als a.o. Ertrag (8000) gebucht'),
+                        ),
+                      ]),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Abbrechen')),
+              FilledButton(
+                onPressed: gewaehlt.isEmpty
+                    ? null
+                    : () async {
+                        try {
+                          await ForderungsAbgleichService.verbuche(
+                            zahlbetrag: g.amount,
+                            datum: g.bookingDate,
+                            forderungen: gewaehlt.toList(),
+                          );
+                          if (ctx.mounted) Navigator.pop(ctx, true);
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text('Verbuchungs-Fehler: $e')));
+                          }
+                        }
+                      },
+                child: const Text('Verbuchen'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (ok == true) {
+      ref.invalidate(rechnungenStreamProvider);
+      ref.invalidate(buchungenStreamProvider);
+      if (!mounted) return;
+      setState(() {
+        _ergebnis!.unbekannteGutschriften.remove(g);
+        final gebuchteIds = gewaehlt.map((r) => r.id).toSet();
+        _alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
+        _ergebnis!.keineZahlung.removeWhere((r) => gebuchteIds.contains(r.id));
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+      }
     }
   }
 }
