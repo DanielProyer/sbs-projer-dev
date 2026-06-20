@@ -51,8 +51,6 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ignore: avoid_print
-    print('[camt-import] build v=0.11.5 step=$_step loading=$_loading');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bankauszug Import'),
@@ -217,31 +215,44 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 28),
-          // Aktions-Buttons als einfache Tap-Flächen (Material-Buttons rendern auf
-          // diesem Screen nicht — bewusst GestureDetector+Container, jeweils direkt).
+          const SizedBox(height: 32),
+          // Aktions-Buttons als robuste Tap-Flächen (Material-Buttons rendern auf
+          // diesem Screen nicht — bewusst GestureDetector+Container, ohne Row).
+          // Verarbeiten (primär)
           GestureDetector(
             onTap: _loading ? null : _doImport,
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              constraints: const BoxConstraints(minWidth: 220),
+              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 15),
               decoration: BoxDecoration(
                 color: _loading
-                    ? AppColors.primary.withAlpha(140)
+                    ? AppColors.primary.withAlpha(150)
                     : AppColors.primary,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: _loading
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: AppColors.primary.withAlpha(70),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
               ),
               child: Text(
                 _loading ? 'Verarbeite…' : 'Verarbeiten',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          // Zurück (sekundär, dezent)
           GestureDetector(
             onTap: _loading
                 ? null
@@ -249,18 +260,15 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                       _step = 0;
                       _statement = null;
                     }),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.primary),
-                borderRadius: BorderRadius.circular(10),
-              ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
                 'Zurück',
-                textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w600),
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
