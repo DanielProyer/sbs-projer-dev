@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
+import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
@@ -20,7 +21,9 @@ import 'package:sbs_projer_app/data/repositories/camt_regel_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
+import 'package:sbs_projer_app/services/camt/camt_bereich_router.dart';
 import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
+import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 
 class CamtImportScreen extends ConsumerStatefulWidget {
@@ -36,6 +39,9 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   CamtStatement? _statement;
   String? _xmlRoh;
   AutoBookerResult? _result;
+  AbgleichErgebnis? _abgleich;          // Bereich 1 Ergebnis
+  List<Rechnung> _alleOffenen = [];     // Pool für ⚪-Zuordnung
+  Map<String, String> _betriebName = {};
   bool _loading = false;
   String? _error;
   int _automatisierbarCount = 0;
@@ -336,8 +342,25 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           .cast<BuchungsVorlage>();
       final vorlagenById = {for (final v in vorlagen) v.id: v};
 
+      final stmtTx = _statement!.transactions;
+      // Post-Stichtag + noch nicht verarbeitet → in Bereiche aufteilen.
+      final post = stmtTx
+          .where((t) => CamtStichtag.istAutomatisierbar(t.bookingDate))
+          .where((t) => !bereitsVerarbeitet.contains(t.txKey))
+          .toList();
+      final bereich1 = post.where(istKundenzahlungsKandidat).toList();
+      final bereich2 = post.where((t) => !istKundenzahlungsKandidat(t)).toList();
+      // Pre-Stichtag / bereits-verarbeitet kommen mit in die Booker-Liste,
+      // damit er sie als "übersprungen" korrekt zählt (er filtert selbst).
+      final bookerTx = [
+        ...bereich2,
+        ...stmtTx.where((t) =>
+            !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
+            bereitsVerarbeitet.contains(t.txKey)),
+      ];
+
       final result = await CamtAutoBooker.run(
-        transactions: _statement!.transactions,
+        transactions: bookerTx,
         betriebe: betriebe,
         offeneRechnungen: offeneRechnungen,
         heinekenRechnungen: heinekenRechnungen,
@@ -349,7 +372,21 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       ref.invalidate(buchungenStreamProvider);
       ref.invalidate(camtPrueflisteProvider);
 
-      setState(() { _result = result; _step = 2; _loading = false; });
+      // Bereich 1: Kundenzahlungen gegen offene Forderungen abgleichen.
+      final abgleich = ForderungsAbgleichService.abgleich(
+        gutschriften: bereich1,
+        offeneForderungen: offeneRechnungen,
+        betriebe: betriebe,
+      );
+
+      setState(() {
+        _result = result;
+        _abgleich = abgleich;
+        _alleOffenen = offeneRechnungen;
+        _betriebName = {for (final b in betriebe) b['id']!: b['name']!};
+        _step = 2;
+        _loading = false;
+      });
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
