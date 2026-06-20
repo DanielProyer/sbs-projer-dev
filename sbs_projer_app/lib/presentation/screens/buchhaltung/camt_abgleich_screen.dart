@@ -86,6 +86,42 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       if (xml.startsWith('﻿')) xml = xml.substring(1); // BOM entfernen
       final stmt = Camt053Parser.parse(xml);
 
+      // Doppel-Upload-Schutz: ist dieser Zeitraum (IBAN + von/bis) schon archiviert?
+      final bereitsErfasst = await CamtDateiRepository.existsZeitraum(
+          stmt.iban, stmt.fromDate, stmt.toDate);
+      if (bereitsErfasst) {
+        if (!mounted) {
+          setState(() => _loading = false);
+          return;
+        }
+        final trotzdem = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Zeitraum bereits erfasst'),
+            content: Text(
+              'Für diese IBAN ist der Zeitraum '
+              '${_dateFormat.format(stmt.fromDate)} – '
+              '${_dateFormat.format(stmt.toDate)} bereits archiviert.\n\n'
+              'Trotzdem archivieren?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Abbrechen'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Trotzdem archivieren'),
+              ),
+            ],
+          ),
+        );
+        if (trotzdem != true) {
+          setState(() => _loading = false);
+          return;
+        }
+      }
+
       // Archivieren (XML in Bucket + Metadaten-Record).
       final gut = stmt.transactions.where((t) => t.isCredit).length;
       // Archiv-Kopie: UTF-8-normalisiert (Picker liefert dekodierten Text, keine Roh-Bytes).
