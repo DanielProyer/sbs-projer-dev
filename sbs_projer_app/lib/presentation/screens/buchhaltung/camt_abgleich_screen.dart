@@ -85,6 +85,7 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
 
       // Archivieren (XML in Bucket + Metadaten-Record).
       final gut = stmt.transactions.where((t) => t.isCredit).length;
+      // Archiv-Kopie: UTF-8-normalisiert (Picker liefert dekodierten Text, keine Roh-Bytes).
       final bytes = Uint8List.fromList(utf8.encode(picked.content));
       await CamtDateiRepository.speichern(
         CamtDatei(
@@ -210,6 +211,7 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       );
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
+      if (!mounted) return;
       setState(() => _ergebnis!.auto.remove(t));
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -226,6 +228,7 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
   Future<void> _verbucheAlle() async {
     final treffer = List<AutoTreffer>.from(_ergebnis!.auto);
     final fehler = <String>[];
+    final verbuchteTreffer = <AutoTreffer>[];
     for (final t in treffer) {
       try {
         await ForderungsAbgleichService.verbuche(
@@ -233,7 +236,7 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
           datum: t.gutschrift.bookingDate,
           forderungen: t.forderungen,
         );
-        setState(() => _ergebnis!.auto.remove(t));
+        verbuchteTreffer.add(t);
       } catch (e) {
         fehler.add('${t.gutschrift.amount.toStringAsFixed(2)} CHF: $e');
       }
@@ -241,6 +244,8 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
     ref.invalidate(rechnungenStreamProvider);
     ref.invalidate(buchungenStreamProvider);
     if (mounted) {
+      setState(() =>
+          _ergebnis!.auto.removeWhere((t) => verbuchteTreffer.contains(t)));
       final verbucht = treffer.length - fehler.length;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(fehler.isEmpty
