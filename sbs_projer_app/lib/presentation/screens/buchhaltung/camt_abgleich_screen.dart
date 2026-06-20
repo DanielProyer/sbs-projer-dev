@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -39,6 +40,11 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
   Map<String, String> _betriebName = {};
 
   final _dateFormat = DateFormat('dd.MM.yyyy');
+
+  // Max. gerenderte Zeilen pro Gruppe (verhindert die 1000-Zeilen-Wand).
+  static const _maxZeilen = 50;
+  // Lesebreite auf Desktop; auf schmalen Fenstern füllt der Inhalt die Breite.
+  static const _maxBreite = 880.0;
 
   @override
   Widget build(BuildContext context) {
@@ -180,87 +186,197 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
     }
   }
 
-  // === Ergebnis (3 Gruppen) ===
+  // === Ergebnis (Kopf-Übersicht + 4 klappbare Gruppen, breitenbegrenzt) ===
   Widget _buildErgebnis(AbgleichErgebnis erg) {
-    return ListView(
-      children: [
-        // 🟢 Auto-gematcht
-        _Gruppe(
-          titel: '🟢 Auto-gematcht (${erg.auto.length})',
+    final autoSumme = erg.auto.fold<double>(0, (s, t) => s + t.gutschrift.amount);
+    final offenSumme =
+        erg.keineZahlung.fold<double>(0, (s, r) => s + r.betragBrutto);
+    final unbekanntSumme =
+        erg.unbekannteGutschriften.fold<double>(0, (s, g) => s + g.amount);
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _maxBreite),
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           children: [
-            if (erg.auto.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _verbucheAlle,
-                    icon: const Icon(Icons.done_all),
-                    label: const Text('Alle auto-Treffer verbuchen'),
+            _uebersicht(erg, autoSumme, offenSumme, unbekanntSumme),
+
+            // 🟢 Auto-gematcht
+            _GruppeCard(
+              emoji: '🟢',
+              titel: 'Auto-gematcht',
+              anzahl: erg.auto.length,
+              summe: erg.auto.isEmpty ? null : autoSumme,
+              farbe: AppColors.success,
+              initiallyExpanded: true,
+              children: [
+                if (erg.auto.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.icon(
+                        onPressed: _verbucheAlle,
+                        icon: const Icon(Icons.done_all),
+                        label: const Text('Alle verbuchen'),
+                      ),
+                    ),
+                  ),
+                for (final t in erg.auto)
+                  ListTile(
+                    title: Text(
+                      '${t.gutschrift.amount.toStringAsFixed(2)} CHF — '
+                      '${t.forderungen.map((r) => r.rechnungsnummer ?? '?').join(', ')}',
+                    ),
+                    subtitle: Text(_dateFormat.format(t.gutschrift.bookingDate)),
+                    trailing: FilledButton(
+                      onPressed: () => _verbuche(t),
+                      child: const Text('Verbuchen'),
+                    ),
+                  ),
+              ],
+            ),
+
+            // 🟡 Manuell zuordnen
+            _GruppeCard(
+              emoji: '🟡',
+              titel: 'Manuell zuordnen',
+              anzahl: erg.manuell.length,
+              summe: null,
+              farbe: AppColors.warning,
+              initiallyExpanded: true,
+              children: [
+                for (final f in erg.manuell)
+                  ListTile(
+                    title: Text(f.betriebName),
+                    subtitle: Text(
+                      '${f.gutschriften.length} Zahlung(en), '
+                      '${f.forderungen.length} offene Forderung(en)',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _oeffneManuell(f),
+                  ),
+              ],
+            ),
+
+            // ⚪ Nicht zugeordnet (benannte Gutschriften ohne offene Forderung)
+            _GruppeCard(
+              emoji: '⚪',
+              titel: 'Nicht zugeordnet',
+              anzahl: erg.unbekannteGutschriften.length,
+              summe: erg.unbekannteGutschriften.isEmpty ? null : unbekanntSumme,
+              farbe: AppColors.textSecondary,
+              initiallyExpanded: true,
+              children: [
+                for (final g in erg.unbekannteGutschriften)
+                  ListTile(
+                    title: Text('${g.amount.toStringAsFixed(2)} CHF — '
+                        '${effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo) ?? '?'}'),
+                    subtitle: Text(_dateFormat.format(g.bookingDate)),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _ordneZu(g),
+                  ),
+              ],
+            ),
+
+            // 🔴 Keine Zahlung gefunden (standardmäßig zugeklappt, Deckel 50 Zeilen)
+            _GruppeCard(
+              emoji: '🔴',
+              titel: 'Keine Zahlung gefunden',
+              anzahl: erg.keineZahlung.length,
+              summe: erg.keineZahlung.isEmpty ? null : offenSumme,
+              farbe: AppColors.error,
+              initiallyExpanded: false,
+              children: [
+                for (final r in erg.keineZahlung.take(_maxZeilen))
+                  ListTile(
+                    dense: true,
+                    title: Text(
+                      '${r.rechnungsnummer ?? '?'} — ${r.betragBrutto.toStringAsFixed(2)} CHF',
+                    ),
+                  ),
+                if (erg.keineZahlung.length > _maxZeilen)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Text(
+                      '… und ${erg.keineZahlung.length - _maxZeilen} weitere '
+                      '(im Forderungen-Hub)',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Kompakte Kopf-Übersicht: Dateiname + vier KPIs (umbrechend auf Smartphone).
+  Widget _uebersicht(
+    AbgleichErgebnis erg,
+    double autoSumme,
+    double offenSumme,
+    double unbekanntSumme,
+  ) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.description_outlined, size: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _dateiname ?? 'camt-Datei',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-            for (final t in erg.auto)
-              ListTile(
-                title: Text(
-                  '${t.gutschrift.amount.toStringAsFixed(2)} CHF — '
-                  '${t.forderungen.map((r) => r.rechnungsnummer ?? '?').join(', ')}',
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _Kpi(
+                  farbe: AppColors.success,
+                  label: 'Auto',
+                  anzahl: erg.auto.length,
+                  sub: '${chf(autoSumme)} CHF',
                 ),
-                subtitle: Text(_dateFormat.format(t.gutschrift.bookingDate)),
-                trailing: FilledButton(
-                  onPressed: () => _verbuche(t),
-                  child: const Text('Verbuchen'),
+                _Kpi(
+                  farbe: AppColors.warning,
+                  label: 'Manuell',
+                  anzahl: erg.manuell.length,
                 ),
-              ),
+                _Kpi(
+                  farbe: AppColors.textSecondary,
+                  label: 'Nicht zugeordnet',
+                  anzahl: erg.unbekannteGutschriften.length,
+                  sub: '${chf(unbekanntSumme)} CHF',
+                ),
+                _Kpi(
+                  farbe: AppColors.error,
+                  label: 'Keine Zahlung',
+                  anzahl: erg.keineZahlung.length,
+                  sub: '${chf(offenSumme)} CHF offen',
+                ),
+              ],
+            ),
           ],
         ),
-
-        // 🟡 Manuell zuordnen
-        _Gruppe(
-          titel: '🟡 Manuell zuordnen (${erg.manuell.length})',
-          children: [
-            for (final f in erg.manuell)
-              ListTile(
-                title: Text(f.betriebName),
-                subtitle: Text(
-                  '${f.gutschriften.length} Zahlung(en), '
-                  '${f.forderungen.length} offene Forderung(en)',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _oeffneManuell(f),
-              ),
-          ],
-        ),
-
-        // 🔴 Keine Zahlung gefunden
-        _Gruppe(
-          titel: '🔴 Keine Zahlung gefunden (${erg.keineZahlung.length})',
-          children: [
-            for (final r in erg.keineZahlung)
-              ListTile(
-                dense: true,
-                title: Text(
-                  '${r.rechnungsnummer ?? '?'} — ${r.betragBrutto.toStringAsFixed(2)} CHF',
-                ),
-              ),
-          ],
-        ),
-
-        // ⚪ Nicht zugeordnet (benannte Gutschriften ohne offene Forderung)
-        _Gruppe(
-          titel: '⚪ Nicht zugeordnet (${erg.unbekannteGutschriften.length})',
-          children: [
-            for (final g in erg.unbekannteGutschriften)
-              ListTile(
-                title: Text('${g.amount.toStringAsFixed(2)} CHF — '
-                    '${effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo) ?? '?'}'),
-                subtitle: Text(_dateFormat.format(g.bookingDate)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _ordneZu(g),
-              ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
@@ -641,34 +757,140 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
   }
 }
 
-/// Titel-Sektion mit darunterliegenden Einträgen.
-class _Gruppe extends StatelessWidget {
+/// Klappbare Gruppen-Karte: Header (Emoji · Titel · Anzahl-Badge · CHF-Summe)
+/// und darunter die Einträge. Standard-Zustand über [initiallyExpanded].
+class _GruppeCard extends StatelessWidget {
+  final String emoji;
   final String titel;
+  final int anzahl;
+  final double? summe;
+  final Color farbe;
+  final bool initiallyExpanded;
   final List<Widget> children;
 
-  const _Gruppe({required this.titel, required this.children});
+  const _GruppeCard({
+    required this.emoji,
+    required this.titel,
+    required this.anzahl,
+    required this.summe,
+    required this.farbe,
+    required this.initiallyExpanded,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            titel,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        // ExpansionTile zieht sonst Trennlinien über die Kartenkanten.
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          leading: Text(emoji, style: const TextStyle(fontSize: 20)),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  titel,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: farbe.withAlpha(30),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$anzahl',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: farbe,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
           ),
+          subtitle: summe == null ? null : Text('${chf(summe!)} CHF'),
+          childrenPadding: EdgeInsets.zero,
+          children: children.isEmpty
+              ? const [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('—',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                    ),
+                  ),
+                ]
+              : children,
         ),
-        if (children.isEmpty)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text('—', style: TextStyle(color: AppColors.textSecondary)),
-          )
-        else
-          ...children,
-        const Divider(height: 24),
-      ],
+      ),
+    );
+  }
+}
+
+/// Kompakte Kennzahl-Kachel in der Kopf-Übersicht (umbruchfähig via Wrap).
+class _Kpi extends StatelessWidget {
+  final Color farbe;
+  final String label;
+  final int anzahl;
+  final String? sub;
+
+  const _Kpi({
+    required this.farbe,
+    required this.label,
+    required this.anzahl,
+    this.sub,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: farbe.withAlpha(20),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: farbe.withAlpha(60)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: farbe, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '$anzahl',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          if (sub != null)
+            Text(
+              sub!,
+              style: const TextStyle(
+                  fontSize: 11, color: AppColors.textSecondary),
+            ),
+        ],
+      ),
     );
   }
 }
