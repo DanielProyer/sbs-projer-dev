@@ -274,7 +274,12 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
-      setState(() => _ergebnis!.auto.remove(t));
+      setState(() {
+        _ergebnis!.auto.remove(t);
+        final gebuchteIds = t.forderungen.map((r) => r.id).toSet();
+        _alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
+        _ergebnis!.keineZahlung.removeWhere((r) => gebuchteIds.contains(r.id));
+      });
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
@@ -306,8 +311,15 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
     ref.invalidate(rechnungenStreamProvider);
     ref.invalidate(buchungenStreamProvider);
     if (mounted) {
-      setState(() =>
-          _ergebnis!.auto.removeWhere((t) => verbuchteTreffer.contains(t)));
+      setState(() {
+        _ergebnis!.auto.removeWhere((t) => verbuchteTreffer.contains(t));
+        final gebuchteIds = verbuchteTreffer
+            .expand((t) => t.forderungen)
+            .map((r) => r.id)
+            .toSet();
+        _alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
+        _ergebnis!.keineZahlung.removeWhere((r) => gebuchteIds.contains(r.id));
+      });
       final verbucht = treffer.length - fehler.length;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(fehler.isEmpty
