@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/abgleich_vorschau.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
@@ -398,54 +399,71 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   // === Schritt 3: Ergebnis ===
   Widget _buildResultStep() {
     final r = _result!;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    final ab = _abgleich!;
+    final hatKundenzahlungen = ab.auto.isNotEmpty ||
+        ab.manuell.isNotEmpty ||
+        ab.unbekannteGutschriften.isNotEmpty ||
+        ab.keineZahlung.isNotEmpty;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 880),
+        child: ListView(
+          padding: const EdgeInsets.all(12),
           children: [
-            Icon(
-              r.fehler.isEmpty ? Icons.check_circle : Icons.warning,
-              size: 64,
-              color: r.fehler.isEmpty ? AppColors.success : AppColors.warning,
+            // === Bereich 1: Kundenzahlungen ===
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
+              child: Text('Kundenzahlungen',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Verarbeitung abgeschlossen',
-              style: Theme.of(context).textTheme.titleLarge,
+            if (hatKundenzahlungen)
+              AbgleichVorschau(
+                ergebnis: ab,
+                alleOffenen: _alleOffenen,
+                betriebName: _betriebName,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Keine Kundenzahlungen in diesem Auszug.',
+                    style: TextStyle(color: AppColors.textSecondary)),
+              ),
+            const Divider(height: 32),
+            // === Bereich 2: Übriges (automatisch) ===
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+              child: Text('Übriges (automatisch verbucht)',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            const SizedBox(height: 16),
             _ResultRow(Icons.check, '${r.gebucht} verbucht', AppColors.success),
             if (r.pruefliste > 0)
-              _ResultRow(Icons.info_outline, '${r.pruefliste} in Prüfliste', AppColors.warning),
+              _ResultRow(Icons.info_outline, '${r.pruefliste} in Prüfliste',
+                  AppColors.warning),
             if (r.uebersprungen > 0)
               _ResultRow(Icons.skip_next,
                   '${r.uebersprungen} übersprungen (vor Stichtag / bereits verarbeitet)',
                   AppColors.textSecondary),
             if (r.fehler.isNotEmpty)
-              _ResultRow(Icons.error_outline, '${r.fehler.length} Fehler', AppColors.error),
+              _ResultRow(Icons.error_outline, '${r.fehler.length} Fehler',
+                  AppColors.error),
             if (r.fehler.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: r.fehler.map((e) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(e, style: const TextStyle(fontSize: 12, color: AppColors.error)),
-                    )).toList(),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 8),
+              ...r.fehler.map((e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(e,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.error)),
+                  )),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => context.push('/buchhaltung/camt-pruefliste'),
               icon: const Icon(Icons.fact_check),
               label: const Text('Zur Prüfliste'),
             ),
-            const SizedBox(height: 24),
+            const Divider(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -454,7 +472,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
                     _step = 0;
                     _statement = null;
                     _result = null;
+                    _abgleich = null;
                     _automatisierbarCount = 0;
+                    _xmlRoh = null;
+                    _alleOffenen = [];
+                    _betriebName = {};
                   }),
                   child: const Text('Weiteren Auszug importieren'),
                 ),
