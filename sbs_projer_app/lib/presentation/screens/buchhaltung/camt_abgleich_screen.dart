@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/camt_datei.dart';
+import 'package:sbs_projer_app/data/models/camt_transaction.dart';
+import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -16,7 +18,8 @@ import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 
 /// Forderungs-getriebener camt-Abgleich: Datei wählen → Vorschau (3 Gruppen)
-/// → Auto-Treffer verbuchen. Manuelle Fälle öffnen (Task 9) ist noch ein Stub.
+/// → Auto-Treffer verbuchen. Manuelle Fälle: Dialog mit Sammelzahlung-Split
+/// und 5-Rappen-Differenz (Debitorenverlust 3805 / a.o. Ertrag 8000).
 class CamtAbgleichScreen extends ConsumerStatefulWidget {
   const CamtAbgleichScreen({super.key});
 
@@ -255,8 +258,183 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
     }
   }
 
-  void _oeffneManuell(ManuellFall f) {
-    // TODO(Task 9): Dialog zur manuellen Zuordnung der Zahlungen ↔ Forderungen.
+  Future<void> _oeffneManuell(ManuellFall f) async {
+    // Lokale Auswahl-Mengen für den Dialog (Sammelzahlung ↔ mehrere Forderungen).
+    final gewaehlteGutschriften = <CamtTransaction>{};
+    final gewaehlteForderungen = <Rechnung>{};
+
+    final verbucht = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            // Live-Summen + 5-Rappen-gerundete Differenz.
+            final zahlSumme =
+                gewaehlteGutschriften.fold<double>(0, (s, g) => s + g.amount);
+            final fordSumme = gewaehlteForderungen.fold<double>(
+                0, (s, r) => s + r.betragBrutto);
+            final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
+            final kannVerbuchen = gewaehlteGutschriften.isNotEmpty &&
+                gewaehlteForderungen.isNotEmpty;
+
+            return AlertDialog(
+              title: Text('Manuelle Zuordnung — ${f.betriebName}'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Zahlungseingänge (Gutschriften) als Mehrfachauswahl.
+                    const Text('Zahlungseingänge',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    for (final g in f.gutschriften)
+                      CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: gewaehlteGutschriften.contains(g),
+                        title: Text(
+                          '${g.amount.toStringAsFixed(2)} CHF — '
+                          '${_dateFormat.format(g.bookingDate)}',
+                        ),
+                        onChanged: (sel) => setDialogState(() {
+                          if (sel == true) {
+                            gewaehlteGutschriften.add(g);
+                          } else {
+                            gewaehlteGutschriften.remove(g);
+                          }
+                        }),
+                      ),
+                    const SizedBox(height: 12),
+                    // Offene Forderungen als Mehrfachauswahl.
+                    const Text('Offene Forderungen',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    for (final r in f.forderungen)
+                      CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: gewaehlteForderungen.contains(r),
+                        title: Text(
+                          '${r.rechnungsnummer ?? '?'} — '
+                          '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                        ),
+                        onChanged: (sel) => setDialogState(() {
+                          if (sel == true) {
+                            gewaehlteForderungen.add(r);
+                          } else {
+                            gewaehlteForderungen.remove(r);
+                          }
+                        }),
+                      ),
+                    const SizedBox(height: 12),
+                    // Summen + Differenz-Hinweis (gespiegelt aus rechnung_detail_screen).
+                    Text(
+                      'Zahlung: CHF ${zahlSumme.toStringAsFixed(2)}\n'
+                      'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    if (diff.abs() >= 0.01) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: diff < 0
+                              ? AppColors.warning.withAlpha(25)
+                              : AppColors.success.withAlpha(25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: diff < 0
+                                ? AppColors.warning.withAlpha(80)
+                                : AppColors.success.withAlpha(80),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              diff < 0
+                                  ? Icons.trending_down
+                                  : Icons.trending_up,
+                              size: 18,
+                              color: diff < 0
+                                  ? AppColors.warning
+                                  : AppColors.success,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                diff < 0
+                                    ? 'Unterzahlung: CHF ${diff.abs().toStringAsFixed(2)}\n'
+                                        'Wird als Debitorenverlust (3805) gebucht'
+                                    : 'Mehrzahlung: CHF ${diff.toStringAsFixed(2)}\n'
+                                        'Wird als a.o. Ertrag (8000) gebucht',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: diff < 0
+                                      ? AppColors.warning
+                                      : AppColors.success,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Abbrechen'),
+                ),
+                FilledButton(
+                  onPressed: kannVerbuchen
+                      ? () async {
+                          try {
+                            await ForderungsAbgleichService.verbuche(
+                              zahlbetrag: zahlSumme,
+                              datum: gewaehlteGutschriften.first.bookingDate,
+                              forderungen: gewaehlteForderungen.toList(),
+                            );
+                            if (ctx.mounted) Navigator.pop(ctx, true);
+                          } catch (e) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                  content:
+                                      Text('Verbuchungs-Fehler: $e')));
+                            }
+                          }
+                        }
+                      : null,
+                  child: const Text('Verbuchen'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (verbucht != true) return;
+
+    ref.invalidate(rechnungenStreamProvider);
+    ref.invalidate(buchungenStreamProvider);
+    if (!mounted) return;
+    setState(() {
+      // Verbuchte Forderungen + konsumierte Gutschriften aus dem Fall entfernen.
+      f.forderungen.removeWhere((r) => gewaehlteForderungen.contains(r));
+      f.gutschriften.removeWhere((g) => gewaehlteGutschriften.contains(g));
+      // Bleiben keine Forderungen mehr offen, fällt der ganze Fall weg.
+      if (f.forderungen.isEmpty) {
+        _ergebnis!.manuell.remove(f);
+      }
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+    }
   }
 }
 
