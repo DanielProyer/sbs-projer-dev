@@ -51,60 +51,13 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: avoid_print
+    print('[camt-import] build v=0.11.2 step=$_step loading=$_loading');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bankauszug Import'),
       ),
       body: _buildBody(),
-      // Aktionsleiste der Bestätigen-Seite fest am unteren Rand pinnen, damit
-      // der „Verarbeiten"-Button nie durch Body-Layout-Probleme verschwindet.
-      bottomNavigationBar: _step == 1 ? _buildConfirmFooter() : null,
-    );
-  }
-
-  Widget _buildConfirmFooter() {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(15),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            OutlinedButton(
-              onPressed: _loading
-                  ? null
-                  : () => setState(() {
-                        _step = 0;
-                        _statement = null;
-                      }),
-              child: const Text('Zurück'),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: !_loading ? _doImport : null,
-              child: _loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Verarbeiten'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -215,88 +168,89 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
   }
 
   // === Schritt 2: Bestätigen ===
+  // Robust: einfache scrollbare Spalte mit den Aktions-Buttons INLINE direkt
+  // unter dem Text (kein Expanded / bottomNavigationBar — kann nicht verschwinden).
   Widget _buildConfirmStep() {
     final stmt = _statement!;
     final txs = stmt.transactions;
 
-    return Column(
-      children: [
-        // Auszugs-Header
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: AppColors.primary.withAlpha(15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Bankauszug ${_dateFormat.format(stmt.fromDate)} – ${_dateFormat.format(stmt.toDate)}',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${stmt.ownerName} · IBAN ${stmt.iban} · ${txs.length} Transaktionen',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    size: 56,
-                    color: AppColors.primary.withAlpha(120),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Automatische Verbuchung & Rechnungskontrolle',
-                    style: Theme.of(context).textTheme.titleMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '$_automatisierbarCount von ${txs.length} Transaktion${txs.length == 1 ? '' : 'en'} '
-                    'liegen am/nach dem Stichtag ${_dateFormat.format(CamtStichtag.stichtag)} '
-                    'und werden automatisch verarbeitet.',
-                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_automatisierbarCount == 0) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withAlpha(30),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.warning_amber, size: 16, color: AppColors.warning),
-                          SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              'Alle Buchungen liegen vor dem Stichtag — '
-                              'es wird nichts automatisch verbucht.',
-                              style: TextStyle(fontSize: 12, color: AppColors.warning),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Auszugs-Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: AppColors.primary.withAlpha(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Bankauszug ${_dateFormat.format(stmt.fromDate)} – ${_dateFormat.format(stmt.toDate)}',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${stmt.ownerName} · IBAN ${stmt.iban} · ${txs.length} Transaktionen',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 32),
+          Icon(Icons.auto_awesome, size: 56, color: AppColors.primary.withAlpha(120)),
+          const SizedBox(height: 20),
+          Text(
+            'Automatische Verbuchung & Rechnungskontrolle',
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              '$_automatisierbarCount von ${txs.length} Transaktion${txs.length == 1 ? '' : 'en'} '
+              'liegen am/nach dem Stichtag ${_dateFormat.format(CamtStichtag.stichtag)} '
+              'und werden automatisch verarbeitet.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Aktions-Buttons inline
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton(
+                  onPressed: _loading
+                      ? null
+                      : () => setState(() {
+                            _step = 0;
+                            _statement = null;
+                          }),
+                  child: const Text('Zurück'),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.icon(
+                  onPressed: !_loading ? _doImport : null,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.play_arrow),
+                  label: Text(_loading ? 'Verarbeite…' : 'Verarbeiten'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 
