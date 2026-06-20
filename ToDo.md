@@ -22,6 +22,9 @@ Branch `feature/forderungen-historie-import` → gemergt nach `main` + deployed.
 
 ---
 
+## 💳 camt-Follow-up (nach TP2)
+- [ ] **QR-Referenz-Matching** für selbst generierte Mail/Post-Rechnungen (ab heute): eindeutige QR-Referenz beim Rechnung/QR-Erstellen vergeben + Feld `rechnungen.qr_referenz` + Referenz-First-Matching im camt-Abgleich (`CamtTransaction.strukturierteReferenz` → Rechnung, deterministisch, vor Name+Betrag-Fallback). Daniel 20.06.2026. Eigenes TP nach dem aktuellen camt-Forderungsabgleich (Spec/Plan 2026-06-20).
+
 ## 🎨 UI-Follow-up (geplant, NICHT jetzt)
 - [ ] **App-weite Vereinheitlichung** von Filtern, Dropdowns etc. — einheitliches Design über die ganze App (Daniel 20.06.2026). Referenz-Stil aktuell: schlichte `DropdownButton` im `Wrap` (Zeitraum-Picker Erfolgsrechnung + Konto-Journal v0.10.136). Eigener grösserer Durchgang.
 

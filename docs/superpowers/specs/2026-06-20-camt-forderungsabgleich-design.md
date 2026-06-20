@@ -90,6 +90,8 @@ Verbuchung erst auf Bestätigung; danach verschwinden die erledigten Posten aus 
 - Keine Push-Notifications; Erinnerung nur als Dashboard-Hinweis.
 - Keine automatische Abschreibung der „keine Zahlung gefunden"-Forderungen (nur Anzeige).
 
+**Zukünftige Erweiterung (eigenes TP, nicht hier):** Für die ab heute selbst generierten Mail/Post-Rechnungen eine **eindeutige QR-Referenz** vergeben + auf der Rechnung speichern. Dann matcht der Going-forward-Abgleich **deterministisch** über `CamtTransaction.strukturierteReferenz` → Rechnung (vor dem Name+Betrag-Fallback). Erfordert: QR-Referenz-Generierung beim Rechnung/QR-Erstellen + Feld `rechnungen.qr_referenz` + Referenz-First-Matching im Matcher.
+
 ---
 
 ## 10. Erfolgskriterien
