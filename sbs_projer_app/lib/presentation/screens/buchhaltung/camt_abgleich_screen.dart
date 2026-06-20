@@ -485,6 +485,11 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       // Verbuchte Forderungen + konsumierte Gutschriften aus dem Fall entfernen.
       f.forderungen.removeWhere((r) => gewaehlteForderungen.contains(r));
       f.gutschriften.removeWhere((g) => gewaehlteGutschriften.contains(g));
+      // Gemeinsamen Pool synchron halten, damit eine bereits hier verbuchte
+      // Forderung nicht erneut im ⚪-Dialog (_ordneZu) auswählbar bleibt.
+      final gebuchteIds = gewaehlteForderungen.map((r) => r.id).toSet();
+      _alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
+      _ergebnis!.keineZahlung.removeWhere((r) => gebuchteIds.contains(r.id));
       // Bleiben keine Forderungen mehr offen, fällt der ganze Fall weg.
       if (f.forderungen.isEmpty) {
         // Übrige (nicht zugeordnete) Gutschriften des Falls sichtbar halten.
