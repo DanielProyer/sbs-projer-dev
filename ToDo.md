@@ -12,6 +12,12 @@ Branch `feature/camt-import-merge` → gemergt nach `main` + deployed (20.06.202
 - **`AbgleichVorschau`** als gemeinsames Widget (Standalone-Abgleich + Import teilen es, DRY). Import archiviert die Datei (`camt_dateien`) + Doppel-Upload-Schutz.
 - Standalone-Forderungs-Abgleich bleibt als Fallback.
 
+**Nachträge 20.06.2026 (live, von Daniel noch zu testen):**
+- **Buchungs-Doppelbuchung gefixt** (v0.11.7): DB-Trigger `rechnungen_auto_buchung_zahlung` abgeschaltet (Migration 102) → **App ist alleinige Buchungsquelle**. `createZahlungseingang` nutzt echtes Datum. Heineken-Datum-Bug weg.
+- **Reversibel** (v0.11.8): alle camt-Buchungen tragen `camt_tx_key`. Reset bei Testfehler: „mach die camt-Buchungen rückgängig".
+- **Lohn vs. Büromiete getrennt** (v0.11.9): `RegelMatcher` prüft jetzt auch `remittanceInfo`. Büromiete-Regel → match „Miete Büro", Prio 20, Vorlage **6000←1020**; Lohn („daniel proyer", Prio 10) → 2002←1020.
+- **Bestätigungs-Modus** (v0.11.10): Import bucht **nichts mehr automatisch** — Bereich-2-Regel-/Heineken-Treffer erscheinen im Ergebnis als **bestätigbare Vorschläge** (`CamtAutoBooker.plan`/`bucheVorschlag`, Tap-Buttons), Ungetroffene → Prüfliste. „Später automatisch": Import wieder auf `CamtAutoBooker.run` umstellen (Methode existiert noch). **Material-Buttons rendern auf dem Import-Screen nicht (CanvasKit) → GestureDetector-Workaround durchgängig.**
+
 **Nächste Teilprojekte (Spec liegt, Reihenfolge):**
 - [ ] **TP-B — Zahler→Betrieb-Lernen** (Alias): Tabelle `camt_zahler_alias`; Lernen bei manueller Zuordnung; Anwenden als Matching-**Stufe 2**; Verwaltungs-Screen.
 - [ ] **TP-C — QR-Referenz**: `rechnungen.qr_referenz`; Vergabe + QR-/PDF-Einbettung bei Rechnungserstellung; Referenz-First als Matching-**Stufe 1**.
