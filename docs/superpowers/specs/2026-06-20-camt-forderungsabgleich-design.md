@@ -9,7 +9,7 @@
 - **Offene Forderungen:** 1'013 Kundenrechnungen `zahlungsstatus ∈ {offen, gesendet}` (CHF 105'240.95), grossteils historisch (Import TP1). Sie haben **keinen** verbuchten Zahlungseingang (das Excel hatte keinen 020-Beleg → keine Journal-Buchung).
 - **Bereits bezahlte Forderungen** (3'425) sind im Journal verbucht — **dürfen nicht** erneut angefasst werden (Doppelbuchung).
 - **Voll-camt-Datei** vorhanden (`…20260620…941625813.xml`, camt.053.001.04, GKB IBAN CH6600774010376550601): **2'623 Gutschriften**, 2019–19.06.2026, Summe CHF 742'730. Zahlername steht im Text „Gutschrift <Name>" (nicht im strukturierten `Nm`).
-- **Bestehende camt-Pipeline** (Phase 1+2, `lib/services/camt/`): Parser, Klassifizierer, `CamtBetriebMatcher` (exakt→contains→Wort-Overlap), `RechnungMatcher` (Subset-Summe, max 20 Kandidaten/4er-Kombi), `ZahlungsdifferenzService.verbuchenSammel` (Buchung Bank 1020 ← Debitoren 1100 + Über-/Unterzahlung 3805/8000, 5-Rappen-Rundung), Prüfliste, Auto-Booker (Going-forward, **Stichtag 01.07.2026**).
+- **Bestehende camt-Pipeline** (Phase 1+2, `lib/services/camt/`): Parser, Klassifizierer, `CamtBetriebMatcher` (exakt→contains→Wort-Overlap), `RechnungMatcher` (Subset-Summe, max 20 Kandidaten/4er-Kombi), `ZahlungsdifferenzService.verbuchenSammel` (Buchung Bank 1020 ← Debitoren 1100 + Über-/Unterzahlung 3805/8000, 5-Rappen-Rundung), Prüfliste, Auto-Booker (Going-forward, Stichtag bisher 01.07.2026 → **wird auf heute 20.06.2026 gesenkt**, da ab heute alles über die App läuft).
 
 ---
 
@@ -18,7 +18,7 @@
 2. **Alle hochgeladenen camt-Dateien archivieren** und die **erfassten Zeiträume** anzeigen (Lücken/Ferien sichtbar).
 3. **Wöchentliche Erinnerung**, eine neue camt-Datei hochzuladen.
 
-Der Going-forward-Auto-Booker (Stichtag 01.07.2026) bleibt unverändert; dieses TP ist **additiv**.
+Der **Stichtag** des Going-forward-Auto-Bookers wird auf **heute (20.06.2026)** gesetzt (`camt_stichtag.dart`): ab heute wird alles über die App erledigt. Die forderungs-getriebene Abgleich-Engine deckt den **Backlog davor** ab (offene Forderungen bis 19.06.2026). Beide teilen sich Matcher/Buchungslogik; Dedup über `txKey` verhindert Doppelverarbeitung am Übergang.
 
 ---
 
@@ -84,7 +84,7 @@ Verbuchung erst auf Bestätigung; danach verschwinden die erledigten Posten aus 
 ---
 
 ## 9. Abgrenzung (YAGNI / Nicht-Scope)
-- **Kein Umbau** der bestehenden Going-forward-Push-Pipeline (Stichtag 01.07.2026 bleibt für den Live-Betrieb).
+- **Kein Umbau** der bestehenden Going-forward-Push-Pipeline — nur der **Stichtag** wird auf heute (20.06.2026) gesenkt (eine Konstante in `camt_stichtag.dart`).
 - Kein Abgleich der bereits **bezahlten** historischen Forderungen (sind verbucht).
 - Keine Ausgaben-/Belastungs-Verarbeitung in diesem TP (nur Gutschriften → Forderungen). Belastungen laufen weiter über die bestehende Ausgaben-/Regel-Logik.
 - Keine Push-Notifications; Erinnerung nur als Dashboard-Hinweis.
