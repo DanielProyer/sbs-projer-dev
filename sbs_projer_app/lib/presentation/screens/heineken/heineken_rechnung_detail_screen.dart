@@ -175,8 +175,9 @@ class _HeinekenRechnungDetailScreenState
       try {
         final aktuell = await RechnungRepository.getById(widget.rechnungId);
         if (aktuell != null) {
-          final buchung =
-              await HeinekenBuchungService.createZahlungseingang(aktuell);
+          final buchung = await HeinekenBuchungService.createZahlungseingang(
+              aktuell,
+              datum: aktuell.zahlungEingegangenAm);
           if (buchung != null && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Zahlungseingang gebucht')),

@@ -85,8 +85,10 @@ class HeinekenBuchungService {
   }
 
   /// Erstellt Zahlungseingang-Buchung wenn bezahlt markiert.
-  /// Soll 1020 (Bank) / Haben 1100 (Debitoren)
-  static Future<Buchung?> createZahlungseingang(Rechnung rechnung) async {
+  /// Soll 1020 (Bank) / Haben 1100 (Debitoren).
+  /// [datum] = tatsächliches Zahlungs-/Einzahlungsdatum (NICHT das Einlesedatum).
+  static Future<Buchung?> createZahlungseingang(Rechnung rechnung,
+      {DateTime? datum}) async {
     // Duplikat-Check: schon Zahlungseingang gebucht?
     final existing = await BuchungRepository.getByBeleg(rechnung.id);
     final hatZahlung =
@@ -99,7 +101,8 @@ class HeinekenBuchungService {
     final monatLabel = rechnung.heinekenMonat != null
         ? DateFormat('MM/yyyy').format(rechnung.heinekenMonat!)
         : '?';
-    final datumStr = DateTime.now().toIso8601String().split('T').first;
+    final effDatum = datum ?? DateTime.now();
+    final datumStr = effDatum.toIso8601String().split('T').first;
 
     try {
       final buchung = await BuchungRepository.create({
@@ -115,7 +118,7 @@ class HeinekenBuchungService {
         'zahlungsweg': 'bank',
         'beleg_typ': 'zahlung',
         'beleg_id': rechnung.id,
-        'geschaeftsjahr': DateTime.now().year,
+        'geschaeftsjahr': effDatum.year,
       });
 
       debugPrint('[HeiBuch] Zahlungseingang: ${rechnung.betragBrutto} CHF');

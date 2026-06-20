@@ -94,7 +94,8 @@ class CamtAutoBooker {
             final hr = HeinekenMatcher.match(
                 zahlbetrag: tx.amount, heinekenRechnungen: heinekenRechnungen);
             if (hr != null) {
-              final b = await HeinekenBuchungService.createZahlungseingang(hr);
+              final b = await HeinekenBuchungService.createZahlungseingang(hr,
+                  datum: tx.bookingDate);
               if (b == null) {
                 await _zurPrueflisteMitFehler(tx, kat,
                     'Heineken-Rechnung bereits verbucht — bitte manuell prüfen');
