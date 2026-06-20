@@ -56,6 +56,55 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         title: const Text('Bankauszug Import'),
       ),
       body: _buildBody(),
+      // Aktionsleiste der Bestätigen-Seite fest am unteren Rand pinnen, damit
+      // der „Verarbeiten"-Button nie durch Body-Layout-Probleme verschwindet.
+      bottomNavigationBar: _step == 1 ? _buildConfirmFooter() : null,
+    );
+  }
+
+  Widget _buildConfirmFooter() {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(15),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            OutlinedButton(
+              onPressed: _loading
+                  ? null
+                  : () => setState(() {
+                        _step = 0;
+                        _statement = null;
+                      }),
+              child: const Text('Zurück'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: !_loading ? _doImport : null,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Verarbeiten'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -247,57 +296,21 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
             ),
           ),
         ),
-
-        // Bottom-Bar
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(15),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                onPressed: _loading
-                    ? null
-                    : () => setState(() { _step = 0; _statement = null; }),
-                child: const Text('Zurück'),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: !_loading ? _doImport : null,
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Verarbeiten'),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
 
   Future<void> _doImport() async {
     setState(() => _loading = true);
+    // ignore: avoid_print
+    print('[camt-import] _doImport START (${_statement?.transactions.length} tx)');
     try {
       final stmt = _statement!;
       // Doppel-Upload-Schutz (wie Forderungs-Abgleich).
       final bereitsErfasst = await CamtDateiRepository.existsZeitraum(
           stmt.iban, stmt.fromDate, stmt.toDate);
+      // ignore: avoid_print
+      print('[camt-import] existsZeitraum=$bereitsErfasst');
       if (bereitsErfasst) {
         if (!mounted) { setState(() => _loading = false); return; }
         final weiter = await showDialog<bool>(
@@ -323,6 +336,8 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
           anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
         Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
+      // ignore: avoid_print
+      print('[camt-import] Datei archiviert → lade Stammdaten');
 
       final betriebe = ref.read(betriebeProvider)
           .where((b) => b.serverId != null)
@@ -359,6 +374,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
             !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
             bereitsVerarbeitet.contains(t.txKey)),
       ];
+      // ignore: avoid_print
+      print('[camt-import] Stammdaten geladen: offen=${offeneRechnungen.length} '
+          'betriebe=${betriebe.length} regeln=${regeln.length} | '
+          'bereich1=${bereich1.length} bereich2=${bereich2.length} '
+          'bookerTx=${bookerTx.length} → Booker startet');
 
       final result = await CamtAutoBooker.run(
         transactions: bookerTx,
@@ -369,6 +389,10 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         regeln: regeln,
         vorlagenById: vorlagenById,
       );
+      // ignore: avoid_print
+      print('[camt-import] Booker fertig: gebucht=${result.gebucht} '
+          'pruefliste=${result.pruefliste} uebersprungen=${result.uebersprungen} '
+          'fehler=${result.fehler.length} → Abgleich');
 
       ref.invalidate(buchungenStreamProvider);
       ref.invalidate(camtPrueflisteProvider);
@@ -379,6 +403,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         offeneForderungen: offeneRechnungen,
         betriebe: betriebe,
       );
+      // ignore: avoid_print
+      print('[camt-import] Abgleich fertig: auto=${abgleich.auto.length} '
+          'manuell=${abgleich.manuell.length} '
+          'unbekannt=${abgleich.unbekannteGutschriften.length} '
+          'keineZahlung=${abgleich.keineZahlung.length} → Ergebnis-Screen');
 
       setState(() {
         _result = result;
@@ -388,7 +417,9 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         _step = 2;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[camt-import] FEHLER: $e\n$st');
       setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import-Fehler: $e')));
