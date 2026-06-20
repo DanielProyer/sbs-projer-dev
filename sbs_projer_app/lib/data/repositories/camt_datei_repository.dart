@@ -29,18 +29,23 @@ class CamtDateiRepository {
   static Future<bool> existsZeitraum(
       String? iban, DateTime? von, DateTime? bis) async {
     if (von == null || bis == null) return false;
-    final rows = await SupabaseService.client
+    var query = SupabaseService.client
         .from('camt_dateien')
         .select('id')
         .eq('user_id', _userId)
         .eq('zeitraum_von', von.toIso8601String().split('T').first)
         .eq('zeitraum_bis', bis.toIso8601String().split('T').first);
+    if (iban != null) {
+      query = query.eq('iban', iban);
+    }
+    final rows = await query;
     return (rows as List).isNotEmpty;
   }
 
   /// Lädt das XML in den Bucket + erstellt den Metadaten-Record.
   static Future<CamtDatei> speichern(CamtDatei meta, Uint8List xmlBytes) async {
-    final pfad = '$_userId/${meta.dateiname}';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final pfad = '$_userId/${timestamp}_${meta.dateiname}';
     await SupabaseService.client.storage.from(_bucket).uploadBinary(
           pfad,
           xmlBytes,
@@ -50,9 +55,18 @@ class CamtDateiRepository {
     final json = meta.toInsert()
       ..['user_id'] = _userId
       ..['storage_pfad'] = pfad;
-    final rows =
-        await SupabaseService.client.from('camt_dateien').insert(json).select();
-    return CamtDatei.fromJson(rows.first);
+    try {
+      final rows = await SupabaseService.client
+          .from('camt_dateien')
+          .insert(json)
+          .select();
+      return CamtDatei.fromJson(rows.first);
+    } catch (_) {
+      // Metadaten-Insert fehlgeschlagen: hochgeladenes XML wieder entfernen,
+      // damit kein verwaistes Storage-Objekt zurückbleibt.
+      await SupabaseService.client.storage.from(_bucket).remove([pfad]);
+      rethrow;
+    }
   }
 
   static Future<String> signedUrl(String storagePfad) =>
