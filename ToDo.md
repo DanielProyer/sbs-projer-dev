@@ -1,7 +1,12 @@
 # ToDo-Liste - Daniel Projer
 
-**Stand**: 19.06.2026
+**Stand**: 20.06.2026
 **Für**: SBS Projer App Entwicklung
+
+---
+
+## 🚧 IN ARBEIT: camt-Forderungsabgleich (TP2) — Branch `feature/camt-forderungsabgleich`
+Spec + Plan freigegeben (`docs/superpowers/.../2026-06-20-camt-forderungsabgleich*`). **Task 1/12 erledigt** (Stichtag → 20.06.2026). **Resume bei Task 2** via subagent-driven-development. Details + Resume-Prompt in Memory [[camt-forderungsabgleich-tp2]]. Voll-camt-Datei liegt im Repo-Root (2'623 Gutschriften 2019–19.06.2026).
 
 ---
 
