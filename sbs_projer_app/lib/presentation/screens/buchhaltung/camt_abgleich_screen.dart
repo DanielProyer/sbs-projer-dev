@@ -224,41 +224,7 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
                       ),
                     ),
                   ),
-                for (final t in erg.auto)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
-                    child: Row(
-                      children: [
-                        // Betrag (fett, feste natürliche Breite)
-                        Text(
-                          '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Rechnung(en) · Datum — eine Zeile, bei Platzmangel gekürzt
-                        Expanded(
-                          child: Text(
-                            '${t.forderungen.length == 1 ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}' : '${t.forderungen.length} Rechnungen'}'
-                            ' · ${_dateFormat.format(t.gutschrift.bookingDate)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          onPressed: () => _verbuche(t),
-                          child: const Text('Verbuchen'),
-                        ),
-                      ],
-                    ),
-                  ),
+                for (final t in erg.auto) _autoZeile(t),
               ],
             ),
 
@@ -399,6 +365,66 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Eine Auto-Treffer-Zeile, responsiv: breit = einzeilig (Betrag · Beschreibung
+  /// · Button), schmal = Betrag+Button oben, Beschreibung darunter (nie weggedrückt).
+  Widget _autoZeile(AutoTreffer t) {
+    final beschreibung = t.forderungen.length == 1
+        ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}'
+            ' · ${_dateFormat.format(t.gutschrift.bookingDate)}'
+        : '${t.forderungen.length} Rechnungen'
+            ' · ${_dateFormat.format(t.gutschrift.bookingDate)}';
+
+    final betragWidget = Text(
+      '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
+      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+    );
+    final beschreibungWidget = Text(
+      beschreibung,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+    );
+    final button = FilledButton(
+      onPressed: () => _verbuche(t),
+      child: const Text('Verbuchen'),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Schmal (Smartphone): zweizeilig, Beschreibung in voller Breite.
+          if (constraints.maxWidth < 460) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: betragWidget),
+                    const SizedBox(width: 12),
+                    button,
+                  ],
+                ),
+                const SizedBox(height: 4),
+                beschreibungWidget,
+              ],
+            );
+          }
+          // Breit (Desktop): eine Zeile.
+          return Row(
+            children: [
+              betragWidget,
+              const SizedBox(width: 16),
+              Expanded(child: beschreibungWidget),
+              const SizedBox(width: 16),
+              button,
+            ],
+          );
+        },
       ),
     );
   }
