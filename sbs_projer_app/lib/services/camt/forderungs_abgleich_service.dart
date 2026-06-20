@@ -57,6 +57,8 @@ class ForderungsAbgleichService {
     final betriebName = {for (final b in betriebe) b['id']!: b['name']!};
 
     // 3. Pro Betrieb mit offenen Forderungen matchen.
+    // Forderungs-getrieben: nur Betriebe MIT offenen Forderungen werden betrachtet.
+    // Gutschriften zu Betrieben ohne offene Forderung werden bewusst ignoriert (kein Bucket dafür).
     for (final entry in fordProBetrieb.entries) {
       final betriebId = entry.key;
       final offen = List<Rechnung>.from(entry.value);

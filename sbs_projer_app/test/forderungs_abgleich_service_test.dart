@@ -82,4 +82,43 @@ void main() {
     expect(r.auto, isEmpty);
     expect(r.manuell.single.forderungen.length, 2);
   });
+
+  test('Gutschrift ohne offene Forderung wird verworfen', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(67.85, 'Hotel Alpina')],
+      offeneForderungen: const [], // keine offene Forderung für b1 (oder irgendeinen Betrieb)
+      betriebe: betriebe,
+    );
+    expect(r.auto, isEmpty);
+    expect(r.manuell, isEmpty);
+    expect(r.keineZahlung, isEmpty);
+  });
+
+  test('ein Treffer auto, übrige Gutschrift → manuell', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(67.85, 'Hotel Alpina'), _gut(99.0, 'Hotel Alpina')],
+      offeneForderungen: [_rg('r1', 'b1', 67.85), _rg('r2', 'b1', 40.0)],
+      betriebe: betriebe,
+    );
+    // 67.85 matcht eindeutig r1 → auto; 99.0 matcht keine (Rest-)Forderung → manuell.
+    expect(r.auto.length, 1);
+    expect(r.auto.single.forderungen.map((f) => f.id).toSet(), {'r1'});
+    expect(r.manuell.length, 1);
+    expect(r.manuell.single.betriebId, 'b1');
+    expect(r.manuell.single.gutschriften.map((g) => g.amount), contains(99.0));
+    expect(r.manuell.single.forderungen.map((f) => f.id), contains('r2'));
+    expect(r.keineZahlung, isEmpty);
+  });
+
+  test('alle Gutschriften verbraucht, Forderung bleibt → keineZahlung', () {
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(67.85, 'Hotel Alpina')],
+      offeneForderungen: [_rg('r1', 'b1', 67.85), _rg('r2', 'b1', 40.0)],
+      betriebe: betriebe,
+    );
+    expect(r.auto.length, 1);
+    expect(r.auto.single.forderungen.map((f) => f.id).toSet(), {'r1'});
+    expect(r.manuell, isEmpty);
+    expect(r.keineZahlung.map((f) => f.id), contains('r2'));
+  });
 }
