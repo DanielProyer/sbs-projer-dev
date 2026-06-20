@@ -14,7 +14,7 @@ Branch `feature/camt-forderungsabgleich` → gemergt nach `main` + deployed (20.
 - **Stichtag** Auto-Booker auf 20.06.2026 gesenkt.
 
 **Offene Minor/Folge-Punkte (kein Blocker):**
-- [ ] `CamtDateiRepository.existsZeitraum` existiert, ist aber noch **nicht verdrahtet** (Doppel-Upload-Dedup) — bei Bedarf im Abgleich-Upload nutzen.
+- [x] `CamtDateiRepository.existsZeitraum` verdrahtet (v0.10.139): vor dem Archivieren im Abgleich-Upload geprüft; bei bereits erfasstem Zeitraum Dialog „Zeitraum bereits erfasst — trotzdem archivieren?" (Abbrechen = ganzer Upload abgebrochen).
 - [ ] **Unbekannte Zahlungseingänge sichtbar machen**: Gutschrift ohne passende offene Forderung wird forderungs-getrieben bewusst NICHT angezeigt (kein Bucket). Falls gewünscht, eigener „nicht zugeordnet"-Bucket/Screen.
 - [ ] `verbuche` nicht transaktional geklammert (wie `camt_auto_booker`, durch Idempotenz-Guard abgesichert) — bei Bedarf in echte Transaktion fassen.
 
