@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
+import 'package:sbs_projer_app/services/camt/zahlername.dart';
 
 class BetriebFormScreen extends ConsumerStatefulWidget {
   final String? betriebId; // null = neu erstellen
@@ -65,6 +66,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   bool _keineBetriebsferien = false;
   List<String> _ruhetage = [];
   List<String> _zapfsysteme = [];
+  List<String> _zahlerAliase = [];
+  final _aliasController = TextEditingController();
 
   // Servicezeiten
   final _servicezeitMorgenAbCtrl = TextEditingController();
@@ -137,6 +140,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _keineBetriebsferien = betrieb.keineBetriebsferien;
       _ruhetage = List<String>.from(betrieb.ruhetage);
       _zapfsysteme = List<String>.from(betrieb.zapfsysteme);
+      _zahlerAliase = List<String>.from(betrieb.zahlerAliase);
       if (betrieb.oeffnungszeitenJson != null && betrieb.oeffnungszeitenJson!.isNotEmpty) {
         try {
           final map = jsonDecode(betrieb.oeffnungszeitenJson!) as Map<String, dynamic>;
@@ -150,6 +154,15 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
           }
         } catch (_) {}
       }
+    });
+  }
+
+  void _aliasHinzufuegen() {
+    final norm = zahlernameNorm(_aliasController.text);
+    if (norm.isEmpty) return;
+    setState(() {
+      if (!_zahlerAliase.contains(norm)) _zahlerAliase.add(norm);
+      _aliasController.clear();
     });
   }
 
@@ -194,6 +207,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.keineBetriebsferien = _keineBetriebsferien;
       betrieb.ruhetage = _ruhetage;
       betrieb.zapfsysteme = _zapfsysteme;
+      betrieb.zahlerAliase = _zahlerAliase;
       betrieb.oeffnungszeitenJson = jsonEncode(_oeffnungszeiten);
       betrieb.servicezeitMorgenAb = _emptyToNull(_servicezeitMorgenAbCtrl.text);
       betrieb.servicezeitMorgenBis = _emptyToNull(_servicezeitMorgenBisCtrl.text);
@@ -294,6 +308,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     _servicezeitMorgenBisCtrl.dispose();
     _servicezeitNachmittagAbCtrl.dispose();
     _servicezeitNachmittagBisCtrl.dispose();
+    _aliasController.dispose();
     super.dispose();
   }
 
@@ -389,6 +404,51 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                   if (v != null) setState(() => _rechnungsstellung = v);
                 },
               ),
+            const SizedBox(height: 16),
+
+            // === Zahlernamen-Aliase (Bank zu Betrieb-Lernen) ===
+            Text('Zahlernamen (Bank)',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    )),
+            const Text(
+              'Namen, unter denen dieser Betrieb Zahlungen überweist. '
+              'Wird beim Bankauszug-Import automatisch gelernt.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            if (_zahlerAliase.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final a in _zahlerAliase)
+                    InputChip(
+                      label: Text(a),
+                      onDeleted: () => setState(() => _zahlerAliase.remove(a)),
+                    ),
+                ],
+              ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _aliasController,
+                    decoration: const InputDecoration(
+                      labelText: 'Zahlername hinzufügen',
+                      prefixIcon: Icon(Icons.account_balance),
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _aliasHinzufuegen(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: 'Hinzufügen',
+                  onPressed: _aliasHinzufuegen,
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
 
             // === Adresse ===

@@ -44,6 +44,7 @@ class BetriebLocal {
   DateTime? sommerEndeDatum;
   List<String> ruhetage = [];
   List<String> zapfsysteme = [];
+  List<String> zahlerAliase = [];
   String rechnungsstellung = 'rechnung_mail';
   double? latitude;
   double? longitude;

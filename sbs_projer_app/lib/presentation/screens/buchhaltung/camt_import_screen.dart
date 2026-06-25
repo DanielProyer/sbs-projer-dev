@@ -316,7 +316,11 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
 
       final betriebe = ref.read(betriebeProvider)
           .where((b) => b.serverId != null)
-          .map((b) => {'id': b.serverId!, 'name': b.name})
+          .map((b) => {
+                'id': b.serverId!,
+                'name': b.name,
+                'aliase': b.zahlerAliase.join('\n'),
+              })
           .toList();
       final alleRechnungen = await RechnungRepository.getAll();
       final offeneRechnungen = alleRechnungen.where((r) =>

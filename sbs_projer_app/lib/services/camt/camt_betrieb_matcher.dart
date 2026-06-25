@@ -1,4 +1,5 @@
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
+import 'package:sbs_projer_app/services/camt/zahlername.dart';
 
 /// Matcht camt-Transaktionen automatisch mit Betrieben.
 /// Strategie: Exakt → Contains → Wort-Overlap.
@@ -16,6 +17,30 @@ class CamtBetriebMatcher {
         tx.matchedBetriebName = match['name'];
       }
     }
+  }
+
+  /// Stufe 2 der Matching-Kette: exakter Treffer gegen gelernte Zahler-Aliase.
+  /// Die [betriebe]-Maps tragen optional `aliase` = normalisierte Aliase, mit
+  /// Zeilenumbruch verbunden. Liefert den EINDEUTIGEN Betrieb oder null
+  /// (0 oder mehrere Treffer).
+  static Map<String, String>? matchByAlias(
+    String? zahlername,
+    List<Map<String, String>> betriebe,
+  ) {
+    if (zahlername == null) return null;
+    final norm = zahlernameNorm(zahlername);
+    if (norm.isEmpty) return null;
+    Map<String, String>? treffer;
+    for (final b in betriebe) {
+      final aliase = (b['aliase'] ?? '')
+          .split('\n')
+          .where((a) => a.trim().isNotEmpty);
+      if (aliase.any((a) => zahlernameNorm(a) == norm)) {
+        if (treffer != null) return null; // mehrdeutig → kein Auto-Treffer
+        treffer = b;
+      }
+    }
+    return treffer;
   }
 
   /// Findet den besten Betrieb-Match für einen Parteinamen.

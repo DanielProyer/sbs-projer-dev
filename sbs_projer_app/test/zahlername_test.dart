@@ -12,4 +12,9 @@ void main() {
   test('null wenn nichts brauchbar', () {
     expect(effektiverZahlername(partyName: null, additionalInfo: 'Saldovortrag'), isNull);
   });
+  test('zahlernameNorm: trim, lowercase, Mehrfach-Whitespace', () {
+    expect(zahlernameNorm('  Hotel   Alpina AG '), 'hotel alpina ag');
+    expect(zahlernameNorm('GASTRO\tLatina'), 'gastro latina');
+    expect(zahlernameNorm(''), '');
+  });
 }

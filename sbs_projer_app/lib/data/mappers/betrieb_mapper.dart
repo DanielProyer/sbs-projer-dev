@@ -32,6 +32,7 @@ class BetriebMapper {
     local.sommerEndeDatum = dto.sommerEndeDatum;
     local.ruhetage = dto.ruhetage;
     local.zapfsysteme = dto.zapfsysteme;
+    local.zahlerAliase = dto.zahlerAliase;
     local.rechnungsstellung = dto.rechnungsstellung;
     local.latitude = dto.latitude;
     local.longitude = dto.longitude;
@@ -85,6 +86,7 @@ class BetriebMapper {
       'sommer_ende_datum': local.sommerEndeDatum?.toIso8601String().split('T').first,
       'ruhetage': local.ruhetage,
       'zapfsysteme': local.zapfsysteme,
+      'zahler_aliase': local.zahlerAliase,
       'rechnungsstellung': local.rechnungsstellung,
       'latitude': local.latitude,
       'longitude': local.longitude,

@@ -170,4 +170,17 @@ void main() {
     expect(r.auto.single.gutschrift.amount, 67.85);
     expect(r.unbekannteGutschriften, isEmpty);
   });
+
+  test('Alias-Treffer ordnet Gutschrift dem Betrieb zu (Stufe 2 vor Unscharf)', () {
+    final betriebeMitAlias = [
+      {'id': 'b1', 'name': 'Hotel Alpina', 'aliase': 'znueni beiz'},
+    ];
+    final r = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(100.00, 'Znueni Beiz')],
+      offeneForderungen: [_rg('r1', 'b1', 100.00)],
+      betriebe: betriebeMitAlias,
+    );
+    expect(r.auto.length, 1);
+    expect(r.auto.first.forderungen.first.id, 'r1');
+  });
 }

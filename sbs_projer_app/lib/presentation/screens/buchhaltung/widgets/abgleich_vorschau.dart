@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/auto_match_tile.dart';
@@ -490,6 +491,17 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
 
     if (verbucht != true) return;
 
+    // Zahler→Betrieb lernen: pro eindeutigem Zahlernamen einmal (mehrere
+    // Gutschriften desselben Betriebs teilen i.d.R. denselben Namen) → spart
+    // wiederholte getAll()-Fetches und doppelte Konflikt-Hinweise.
+    final gelernteNamen = <String>{};
+    for (final g in gewaehlteGutschriften) {
+      final name = effektiverZahlername(
+          partyName: g.partyName, additionalInfo: g.additionalInfo);
+      if (name == null || !gelernteNamen.add(zahlernameNorm(name))) continue;
+      await _lerneAlias(f.betriebId, g);
+    }
+
     ref.invalidate(rechnungenStreamProvider);
     ref.invalidate(buchungenStreamProvider);
     if (!mounted) return;
@@ -655,6 +667,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       ),
     );
     if (ok == true) {
+      // Lernen nur bei eindeutigem Betrieb der gewählten Forderungen.
+      final betriebIds =
+          gewaehlt.map((r) => r.betriebId).whereType<String>().toSet();
+      if (betriebIds.length == 1) {
+        await _lerneAlias(betriebIds.first, g);
+      }
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
@@ -669,6 +687,26 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
       }
+    }
+  }
+
+  /// Lernt den Zahlernamen einer Gutschrift als Alias des Betriebs [betriebId].
+  /// Zeigt bei Konflikt (Name schon bei anderem Betrieb) einen Hinweis.
+  Future<void> _lerneAlias(String betriebId, CamtTransaction g) async {
+    final name = effektiverZahlername(
+        partyName: g.partyName, additionalInfo: g.additionalInfo);
+    if (name == null) return;
+    try {
+      final res = await BetriebRepository.addZahlerAlias(betriebId, name);
+      if (res == AliasLernResultat.konflikt && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Zahlername „$name" ist bereits einem anderen Betrieb zugeordnet — '
+              'nicht gelernt.'),
+        ));
+      }
+    } catch (_) {
+      // Lernen ist Best-Effort; Verbuchung darf dadurch nicht scheitern.
     }
   }
 }
