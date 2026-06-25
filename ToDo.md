@@ -22,7 +22,7 @@ Branch `feature/camt-import-merge` → gemergt nach `main` + deployed (20.06.202
 - [x] **TP-B — Zahler→Betrieb-Lernen** (live v0.12.0/0.12.1): Aliase **am Betrieb** (`betriebe.zahler_aliase`, Migration 103) statt eigener Tabelle. Lernen bei manueller Zuordnung (+ optional Auto-Treffer via Schalter, Standard an), Matching-**Stufe 2** (`matchByAlias`), Pflege im Betrieb-Formular. Plan: `docs/superpowers/plans/2026-06-25-camt-zahler-betrieb-lernen.md`.
 - [x] **TP-C — QR-Referenz (SCOR)** (live v0.13.0): `rechnungen.qr_referenz` (Migration 104). **SCOR** (ISO 11649, `RF…`) statt QRR, da normale IBAN (keine QR-IBAN). Util `scor_referenz.dart`; Vergabe zentral in `RechnungRepository.create` (kundenrechnung+jahresrechnung, heineken_monat aus); SCOR in QR-Code + Zahlteil von Rechnungs-+Mahnungs-PDF; Matching-**Stufe 1** (Referenz→Rechnung, vor Alias/Unscharf). Plan: `docs/superpowers/plans/2026-06-25-camt-qr-referenz-scor.md`.
   - **Daniel testen:** neue Rechnung erzeugen → PDF-Zahlteil zeigt `RF…`, QR scanbar; camt-Import mit dieser Referenz → 🟢 exakter Treffer (Stufe 1).
-  - [ ] **Minor (Folge):** Kollision gleicher Referenz-Body (zwei Rechnungsnummern mit identischen Ziffern) → DB-Unique wirft `PostgrestException` ungefangen in die UI. Bei Bedarf abfangen/Fehlertext.
+  - [x] **Minor (erledigt v0.13.2):** Referenz-Kollision (gleiche Ziffern-Body) → `RechnungRepository.create` fängt die `PostgrestException` (Unique-Verletzung auf `qr_referenz`) ab und vergibt automatisch eine eindeutige Referenz mit Suffix (`qrReferenzAusNummer(..., suffix:)`), statt zu werfen.
 
 **Offene Minor (kein Blocker):**
 - [ ] **4 Rechnungen** `offen`/`gesendet` mit `zahlung_eingegangen_am=2026-05-17` (CHF 337.28) — Daniel sichten, evtl. auf `bezahlt` setzen.

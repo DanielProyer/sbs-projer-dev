@@ -1,3 +1,4 @@
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -82,22 +83,37 @@ class RechnungRepository {
   }
 
   /// Erstellt eine Rechnung und gibt das DB-Ergebnis zurück (inkl. generierter ID).
+  /// Vergibt für Kundentypen automatisch eine eindeutige SCOR-Referenz; bei einer
+  /// Referenz-Kollision (zwei Rechnungsnummern mit identischen Ziffern) wird mit
+  /// einem Suffix neu vergeben und erneut eingefügt, statt eine Exception zu werfen.
   static Future<Rechnung> create(Map<String, dynamic> json) async {
     json['user_id'] = _userId;
     json.remove('id');
-    // SCOR-Referenz für Kundentypen vergeben (idempotent; reine Logik getestet).
-    if (json['qr_referenz'] == null) {
-      final ref = qrReferenzAusNummer(
-        json['rechnungstyp'] as String?,
-        json['rechnungsnummer'] as String?,
-      );
-      if (ref != null) json['qr_referenz'] = ref;
+    // Eigene Referenz vom Aufrufer wird respektiert und nicht überschrieben.
+    final eigeneRef = json['qr_referenz'] != null;
+    for (var suffix = 0;; suffix++) {
+      if (!eigeneRef) {
+        json['qr_referenz'] = qrReferenzAusNummer(
+          json['rechnungstyp'] as String?,
+          json['rechnungsnummer'] as String?,
+          suffix: suffix,
+        ); // null bei Nicht-Kundentyp
+      }
+      try {
+        final rows = await SupabaseService.client
+            .from('rechnungen')
+            .insert(json)
+            .select();
+        return Rechnung.fromJson(rows.first);
+      } on PostgrestException catch (e) {
+        // Nur bei Referenz-Kollision (eigene Vergabe) mit anderem Suffix erneut.
+        final refKonflikt = e.code == '23505' &&
+            (e.message.contains('qr_referenz') ||
+                (e.details?.toString().contains('qr_referenz') ?? false));
+        if (!eigeneRef && refKonflikt && suffix < 50) continue;
+        rethrow;
+      }
     }
-    final rows = await SupabaseService.client
-        .from('rechnungen')
-        .insert(json)
-        .select();
-    return Rechnung.fromJson(rows.first);
   }
 
   /// Aktualisiert einzelne Felder einer Rechnung.

@@ -21,14 +21,18 @@ String scorRefNorm(String s) =>
 
 /// Leitet die SCOR-Referenz aus der Rechnungsnummer ab — nur für Kundentypen
 /// (heineken_monat ausgeschlossen). Body = Ziffern der Rechnungsnummer.
+/// [suffix] > 0 hängt eine Ziffernfolge an den Body, um bei einer Kollision
+/// (zwei Rechnungsnummern mit identischen Ziffern) eine eindeutige Referenz zu
+/// erzeugen. suffix 0 = Basisreferenz.
 /// Liefert null, wenn kein Kundentyp, keine Nummer oder keine Ziffern.
-String? qrReferenzAusNummer(String? rechnungstyp, String? rechnungsnummer) {
+String? qrReferenzAusNummer(String? rechnungstyp, String? rechnungsnummer,
+    {int suffix = 0}) {
   const kundentypen = {'kundenrechnung', 'jahresrechnung'};
   if (!kundentypen.contains(rechnungstyp)) return null;
   if (rechnungsnummer == null) return null;
   final digits = rechnungsnummer.replaceAll(RegExp(r'\D'), '');
   if (digits.isEmpty) return null;
-  return scorReferenz(digits);
+  return scorReferenz(suffix > 0 ? '$digits$suffix' : digits);
 }
 
 /// MOD 97 über einen alphanumerischen String: jede Ziffer 0–9 bleibt, jeder
