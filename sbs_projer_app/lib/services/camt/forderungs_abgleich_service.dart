@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.da
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
+import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 
 /// Ein eindeutiger Auto-Treffer: eine Gutschrift schliesst eine/mehrere Forderungen.
 class AutoTreffer {
@@ -38,9 +39,35 @@ class ForderungsAbgleichService {
     required List<Rechnung> offeneForderungen,
     required List<Map<String, String>> betriebe,
   }) {
+    // STUFE 1: deterministischer QR-/SCOR-Referenz-Match (vor der Gruppierung).
+    final refTreffer = <AutoTreffer>[];
+    final verbrauchteGuts = <CamtTransaction>{};
+    final verbrauchteFordIds = <String>{};
+    final refIndex = <String, Rechnung>{};
+    for (final r in offeneForderungen) {
+      final ref = r.qrReferenz;
+      if (ref != null && ref.trim().isNotEmpty) {
+        refIndex[scorRefNorm(ref)] = r;
+      }
+    }
+    for (final g in gutschriften.where((g) => g.isCredit)) {
+      final sref = g.strukturierteReferenz;
+      if (sref == null || sref.trim().isEmpty) continue;
+      final r = refIndex[scorRefNorm(sref)];
+      if (r == null || verbrauchteFordIds.contains(r.id)) continue;
+      refTreffer.add(AutoTreffer(g, [r]));
+      verbrauchteGuts.add(g);
+      verbrauchteFordIds.add(r.id);
+    }
+    final gutschriftenAktiv =
+        gutschriften.where((g) => !verbrauchteGuts.contains(g)).toList();
+    final offeneAktiv = offeneForderungen
+        .where((r) => !verbrauchteFordIds.contains(r.id))
+        .toList();
+
     // 1. Gutschriften pro Betrieb gruppieren (über effektiven Zahlernamen).
     final gutProBetrieb = <String, List<CamtTransaction>>{};
-    for (final g in gutschriften.where((g) => g.isCredit)) {
+    for (final g in gutschriftenAktiv.where((g) => g.isCredit)) {
       final name = effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo);
       if (name == null) continue;
       // Stufe 2 (gelernter Alias) vor Stufe 3 (unscharf).
@@ -52,7 +79,7 @@ class ForderungsAbgleichService {
 
     // 2. Offene Forderungen pro Betrieb gruppieren.
     final fordProBetrieb = <String, List<Rechnung>>{};
-    for (final r in offeneForderungen) {
+    for (final r in offeneAktiv) {
       if (r.betriebId == null) continue;
       fordProBetrieb.putIfAbsent(r.betriebId!, () => []).add(r);
     }
@@ -99,14 +126,14 @@ class ForderungsAbgleichService {
       ...manuell.expand((m) => m.gutschriften),
     };
     final unbekannt = <CamtTransaction>[];
-    for (final g in gutschriften.where((g) => g.isCredit)) {
+    for (final g in gutschriftenAktiv.where((g) => g.isCredit)) {
       final name = effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo);
       if (name == null) continue;
       if (zugeordnet.contains(g)) continue;
       unbekannt.add(g);
     }
 
-    return AbgleichErgebnis(auto, manuell, keineZahlung, unbekannt);
+    return AbgleichErgebnis([...refTreffer, ...auto], manuell, keineZahlung, unbekannt);
   }
 
   /// Verbucht eine Zahlung gegen die gewählten Forderungen + markiert sie bezahlt.
