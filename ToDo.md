@@ -56,7 +56,8 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 ---
 
 ## ✅ Erledigt (Chronik, neueste zuerst)
-- **v0.15.0** (25.06) **Rechnungsadresse-Dialog wie Betrieb-Formular** (Firma/Betrieb/Strasse/Nr/PLZ→Ort-Lookup/Email) + **Propagierung auf den Betrieb** (Adresse gilt künftig) + **Neu-Versand** (Bestätigung → PDF neu, Mail an Kunde, **Fällig bis = heute+30** persistiert in Rechnung/Forderung). „Neue Buchung"-Kachel (v0.14.1) + Adress-Button-CanvasKit-Fix (v0.14.2) inklusive.
+- **v0.15.1** (25.06) **Rechnungsadresse-Modell vereinfacht:** Adresse wird nur noch **beim Betrieb** gepflegt (Link „Adresse beim Betrieb bearbeiten" im Rechnungs-Detail → bestehendes Betrieb-Formular). Rechnung hat nur noch **„Rechnung erneut senden"** (Bestätigung → PDF neu mit aktueller Betriebsadresse + **Fällig bis = heute+30** persistiert → Mail an Kunde). Per-Rechnung-Adress-Dialog (v0.15.0) entfernt. Snapshot-Feld `rechnungen.rechnungsadresse` (Migration 105) bleibt technisch bestehen (Resolver Override→Betrieb), wird aber nicht mehr gesetzt.
+- **v0.15.0** (25.06) Rechnungsadresse-Dialog im Detail + Neu-Versand (durch v0.15.1 zu „Adresse beim Betrieb" umgebaut). „Neue Buchung"-Kachel entfernt (v0.14.1) + Adress-Button-CanvasKit-Fix (v0.14.2).
 - **v0.14.0** (25.06) **Pro-Rechnung Rechnungsadresse** (Override/Snapshot, Migration 105 `rechnungen.rechnungsadresse` jsonb): „Adresse anpassen" im Rechnungs-Detail ändert nur diese eine Rechnung (Betrieb/andere Rechnungen unberührt); PDF/Mahnung nutzen den Override via reinem Resolver `effektiveRechnungsadresse`; „Zurücksetzen" auf Betriebsadresse.
 - **v0.13.3** (25.06) Temporären Rechnungs-Nachversand-Screen entfernt (Backlog abgearbeitet).
 - **v0.13.2** (25.06) QR-Referenz-Kollision robust (Suffix-Retry statt PostgrestException).
