@@ -384,6 +384,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
             final kannVerbuchen = gewaehlteGutschriften.isNotEmpty &&
                 gewaehlteForderungen.isNotEmpty;
+            // Forderungen chronologisch (neueste zuoberst, nach Datum — nicht Nr.).
+            final forderungenSortiert = [...f.forderungen]
+              ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
 
             return AlertDialog(
               title: Text('Manuelle Zuordnung — ${f.betriebName}'),
@@ -420,7 +423,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     // Offene Forderungen als Mehrfachauswahl.
                     const Text('Offene Forderungen',
                         style: TextStyle(fontWeight: FontWeight.w700)),
-                    for (final r in f.forderungen)
+                    for (final r in forderungenSortiert)
                       CheckboxListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
@@ -584,7 +587,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             final nr = (r.rechnungsnummer ?? '').toLowerCase();
             final betrieb = (widget.betriebName[r.betriebId] ?? '').toLowerCase();
             return nr.contains(q) || betrieb.contains(q);
-          }).toList();
+          }).toList()
+            ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
           final zahlSumme = g.amount;
           final fordSumme = gewaehlt.fold<double>(0, (s, r) => s + r.betragBrutto);
           final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
