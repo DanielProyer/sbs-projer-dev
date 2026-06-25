@@ -11,3 +11,9 @@ String? effektiverZahlername({required String? partyName, required String? addit
   }
   return null;
 }
+
+/// Normalisiert einen Zahlernamen für den Alias-Vergleich:
+/// trim, Kleinschreibung, Mehrfach-Whitespace zu einfachem Leerzeichen.
+/// Reine Funktion — identisch in Lernen (Speichern) und Anwenden (Matching).
+String zahlernameNorm(String s) =>
+    s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
