@@ -389,7 +389,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
               title: Text('Manuelle Zuordnung — ${f.betriebName}'),
               content: SizedBox(
                 width: 420,
-                child: Column(
+                child: SingleChildScrollView(
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -492,6 +493,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                       ),
                     ],
                   ],
+                ),
                 ),
               ),
               actions: [
