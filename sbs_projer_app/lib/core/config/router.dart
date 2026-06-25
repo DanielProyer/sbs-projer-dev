@@ -46,6 +46,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_abgleich_sc
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_dateien_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_liste_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_upload_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/kontenplan_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchungen_list_screen.dart';
@@ -485,6 +486,15 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/eingangsrechnungen/upload',
       builder: (context, state) => const EingangsrechnungUploadScreen(),
+    ),
+    // :id-Route NACH der statischen "upload"-Route, damit "upload" nicht als
+    // ID interpretiert wird.
+    GoRoute(
+      path: '/buchhaltung/eingangsrechnungen/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return EingangsrechnungDetailScreen(id: id);
+      },
     ),
     GoRoute(
       path: '/buchhaltung/lohn',
