@@ -4,6 +4,10 @@ import 'package:sbs_projer_app/data/models/betrieb.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_mapper.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/camt/zahlername.dart';
+
+/// Ergebnis eines Alias-Lernversuchs.
+enum AliasLernResultat { gelernt, schonVorhanden, konflikt }
 
 class BetriebRepository {
   static String get _userId => SupabaseService.currentUser!.id;
@@ -87,5 +91,51 @@ class BetriebRepository {
       await SupabaseService.client.from('betriebe').delete().eq('id', local!.serverId!);
     }
     await IsarService.betriebDeleteCascade(int.parse(id));
+  }
+
+  /// Reine Entscheidung, ob ein Zahlername als Alias für [betriebServerId]
+  /// gelernt werden soll. Konflikt = Name bereits bei einem ANDEREN Betrieb.
+  static AliasLernResultat entscheideAlias({
+    required String betriebServerId,
+    required String zahlername,
+    required List<BetriebLocal> alleBetriebe,
+  }) {
+    final norm = zahlernameNorm(zahlername);
+    if (norm.isEmpty) return AliasLernResultat.schonVorhanden;
+    for (final b in alleBetriebe) {
+      final hat = b.zahlerAliase.any((a) => zahlernameNorm(a) == norm);
+      if (hat) {
+        return b.serverId == betriebServerId
+            ? AliasLernResultat.schonVorhanden
+            : AliasLernResultat.konflikt;
+      }
+    }
+    return AliasLernResultat.gelernt;
+  }
+
+  /// Lernt [zahlername] als Alias für den Betrieb [betriebServerId] (idempotent,
+  /// mit Konflikt-Check gegen andere Betriebe). Speichert nur bei `gelernt`.
+  static Future<AliasLernResultat> addZahlerAlias(
+    String betriebServerId,
+    String zahlername,
+  ) async {
+    final alle = await getAll();
+    final res = entscheideAlias(
+      betriebServerId: betriebServerId,
+      zahlername: zahlername,
+      alleBetriebe: alle,
+    );
+    if (res != AliasLernResultat.gelernt) return res;
+    BetriebLocal? ziel;
+    for (final b in alle) {
+      if (b.serverId == betriebServerId) {
+        ziel = b;
+        break;
+      }
+    }
+    if (ziel == null) return AliasLernResultat.schonVorhanden;
+    ziel.zahlerAliase = [...ziel.zahlerAliase, zahlernameNorm(zahlername)];
+    await save(ziel);
+    return AliasLernResultat.gelernt;
   }
 }
