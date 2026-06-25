@@ -54,10 +54,14 @@ Mehrdeutig/kein Treffer → 🟡 manuell bzw. 🔴/⚪.
 - **Verwalten:** im **Betrieb-Detail/-Form** wird die Alias-Liste angezeigt; Daniel kann Einträge hinzufügen/bearbeiten/löschen (falsche Lernung direkt dort korrigierbar). Kein separater Alias-Screen.
 
 ## QR-Referenz (deterministisch, für künftige Rechnungen)
-- Neues Feld `rechnungen.qr_referenz` (text, unique pro user).
-- **Vergabe bei Rechnungserstellung:** eindeutige QR-Referenz (27-stellig, Modulo-10 rekursiv) generieren, in `qr_referenz` speichern **und** in den QR-Code/das Rechnungs-PDF einbetten (bestehende QR-/IBAN-Generierung erweitern).
-- **Anwenden:** Stufe 1 der Matching-Reihenfolge (`strukturierteReferenz` normalisiert vergleichen).
-- Wirkt nur für ab jetzt erstellte QR-Rechnungen; Altbestand unberührt.
+**Entscheidung 25.06.2026 (Daniel): SCOR statt QRR.** Verifiziert: Die hinterlegte IBAN `CH6600774010376550601` ist eine **normale** Postfinance-IBAN (IID `00774`), **keine QR-IBAN** (30000–31999). Damit ist **QRR** (27-stellig, Modulo-10) nicht zulässig. Verwendet wird die **SCOR**-Referenz (ISO 11649, Format `RF` + 2 Mod-97-Prüfziffern + Body, max. 25 Zeichen), die mit der bestehenden IBAN funktioniert. Beide Typen erscheinen im camt unter `<Strd><CdtrRefInf><Ref>` (Parser extrahiert das bereits → `CamtTransaction.strukturierteReferenz`).
+
+- Neues Feld `rechnungen.qr_referenz` (text, UNIQUE; Altbestand NULL).
+- **SCOR-Generator** (reine, getestete Util `lib/core/util/scor_referenz.dart`): `scorReferenz(body)` baut `RF`+Prüfziffer+Body; Body = Ziffern der `rechnungsnummer` (Format `YYYY-MM-DD-BBBB` → 12 Ziffern). `scorRefNorm(s)` (Leerzeichen weg, Uppercase) für den Vergleich. Kanonischer Testvektor: `scorReferenz('539007547034') == 'RF18539007547034'`.
+- **Vergabe zentral in `RechnungRepository.create`:** bei Kundentypen (kundenrechnung + ggf. jahresrechnung; **heineken_monat ausgeschlossen**), wenn `rechnungsnummer` vorhanden und `qr_referenz` noch nicht gesetzt → ableiten + ins Insert schreiben. Deckt alle Erstellungs-Services automatisch ab.
+- **PDF-Einbettung** (`rechnung_pdf_service.dart` + `mahnung_pdf_service.dart`): in `_buildQrData` Referenztyp `NON`→`SCOR` und die Referenz setzen, wenn `rechnung.qrReferenz != null` (sonst `NON`); zusätzlich Abschnitt „Referenz" im gedruckten Zahlteil anzeigen.
+- **Anwenden:** **Stufe 1** der Matching-Reihenfolge in `forderungs_abgleich_service.abgleich` — vor der Betriebs-Gruppierung: Gutschrift mit `strukturierteReferenz` → eindeutige offene Rechnung mit gleicher `qr_referenz` (normalisiert) → AutoTreffer; verbrauchte Gutschriften/Rechnungen aus Stufe 2/3 ausschließen.
+- Wirkt nur für ab jetzt erstellte Rechnungen; Altbestand (0 von 2'623 mit struktur. Referenz) unberührt.
 
 ## Zerlegung in Teilprojekte (Reihenfolge)
 
@@ -65,7 +69,7 @@ Jedes TP liefert für sich lauffähige, getestete Software:
 
 - **TP-A — Import-Merge + Stichtag** (Kern): Stichtag 11.03; Bereich-1/2-Aufteilung; Abgleich-UI-Bausteine extrahieren + im Import einbetten; Archivierung; Vorschau+Bestätigen. Matching bleibt vorerst Stufe 3 (unscharf, wie heute, aber mit `effektiverZahlername`).
 - **TP-B — Zahler→Betrieb-Lernen:** Feld `betriebe.zahler_aliase`; Lernen bei manueller Zuordnung (eindeutiger Betrieb, Konflikt-Check); Anwenden als Matching-Stufe 2; Pflege im Betrieb-Detail.
-- **TP-C — QR-Referenz:** `qr_referenz`-Feld; Vergabe + Einbettung bei Rechnungserstellung; Referenz-First als Matching-Stufe 1.
+- **TP-C — QR-Referenz (SCOR):** `qr_referenz`-Feld; SCOR-Util; zentrale Vergabe in `RechnungRepository.create`; SCOR-Einbettung in Rechnungs-+Mahnungs-PDF; Referenz-First als Matching-Stufe 1.
 
 Die Matching-Reihenfolge wird in TP-A als erweiterbare Kette angelegt (Stufen 1/2 als spätere Einschübe vorgesehen), damit TP-B/C ohne Umbau andocken.
 
