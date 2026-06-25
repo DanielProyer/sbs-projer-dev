@@ -26,6 +26,7 @@ class Betrieb {
   final DateTime? sommerEndeDatum;
   final List<String> ruhetage;
   final List<String> zapfsysteme;
+  final List<String> zahlerAliase;
   final String rechnungsstellung;
   final double? latitude;
   final double? longitude;
@@ -73,6 +74,7 @@ class Betrieb {
     this.sommerEndeDatum,
     this.ruhetage = const [],
     this.zapfsysteme = const [],
+    this.zahlerAliase = const [],
     this.rechnungsstellung = 'rechnung_mail',
     this.latitude,
     this.longitude,
@@ -126,6 +128,9 @@ class Betrieb {
       zapfsysteme: json['zapfsysteme'] != null
           ? List<String>.from(json['zapfsysteme'])
           : [],
+      zahlerAliase: json['zahler_aliase'] != null
+          ? List<String>.from(json['zahler_aliase'])
+          : [],
       rechnungsstellung: json['rechnungsstellung'] ?? 'rechnung_mail',
       latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
       longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
@@ -178,6 +183,7 @@ class Betrieb {
       'sommer_ende_datum': sommerEndeDatum?.toIso8601String().split('T').first,
       'ruhetage': ruhetage,
       'zapfsysteme': zapfsysteme,
+      'zahler_aliase': zahlerAliase,
       'rechnungsstellung': rechnungsstellung,
       'latitude': latitude,
       'longitude': longitude,
