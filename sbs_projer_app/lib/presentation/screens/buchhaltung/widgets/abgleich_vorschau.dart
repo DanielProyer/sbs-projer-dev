@@ -491,8 +491,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
 
     if (verbucht != true) return;
 
-    // Zahler→Betrieb lernen: alle gewählten Gutschriften → dieser Betrieb.
+    // Zahler→Betrieb lernen: pro eindeutigem Zahlernamen einmal (mehrere
+    // Gutschriften desselben Betriebs teilen i.d.R. denselben Namen) → spart
+    // wiederholte getAll()-Fetches und doppelte Konflikt-Hinweise.
+    final gelernteNamen = <String>{};
     for (final g in gewaehlteGutschriften) {
+      final name = effektiverZahlername(
+          partyName: g.partyName, additionalInfo: g.additionalInfo);
+      if (name == null || !gelernteNamen.add(zahlernameNorm(name))) continue;
       await _lerneAlias(f.betriebId, g);
     }
 
