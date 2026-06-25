@@ -123,7 +123,8 @@ class MahnungPdfService {
               pw.Spacer(),
               _buildQrZahlteil(brutto, kundeAddr,
                   mitteilung:
-                      '$titel - ${rechnung.rechnungsnummer ?? ""}'),
+                      '$titel - ${rechnung.rechnungsnummer ?? ""}',
+                  referenz: rechnung.qrReferenz),
             ],
           );
         },
@@ -294,11 +295,11 @@ class MahnungPdfService {
   // ─── QR-ZAHLTEIL ───
 
   static pw.Widget _buildQrZahlteil(
-      double betrag, _KundeAdresse kunde, {String? mitteilung}) {
+      double betrag, _KundeAdresse kunde, {String? mitteilung, String? referenz}) {
     const mm = PdfPageFormat.mm;
     final betragStr = betrag.toStringAsFixed(2);
 
-    final qrData = _buildQrData(betrag, kunde, mitteilung: mitteilung);
+    final qrData = _buildQrData(betrag, kunde, mitteilung: mitteilung, referenz: referenz);
 
     return pw.Container(
       height: 105 * mm,
@@ -416,6 +417,11 @@ class MahnungPdfService {
                   _qrText('$_firmaStrasse $_firmaNr'),
                   _qrText('$_firmaPlz $_firmaOrt'),
                   pw.SizedBox(height: 6),
+                  if (referenz != null && referenz.isNotEmpty) ...[
+                    _qrTitle('Referenz'),
+                    _qrText(_scorAnzeige(referenz)),
+                    pw.SizedBox(height: 6),
+                  ],
                   if (kunde.name.isNotEmpty) ...[
                     _qrTitle('Zahlbar durch'),
                     _qrText(kunde.name),
@@ -442,8 +448,19 @@ class MahnungPdfService {
   static pw.Widget _qrText(String text) =>
       pw.Text(text, style: const pw.TextStyle(fontSize: 8));
 
+  /// SCOR-Referenz in 4er-Gruppen für die Anzeige: RF18 5390 0754 7034.
+  static String _scorAnzeige(String ref) {
+    final r = ref.replaceAll(' ', '');
+    final sb = StringBuffer();
+    for (var i = 0; i < r.length; i += 4) {
+      if (i > 0) sb.write(' ');
+      sb.write(r.substring(i, i + 4 > r.length ? r.length : i + 4));
+    }
+    return sb.toString();
+  }
+
   static String _buildQrData(double betrag, _KundeAdresse kunde,
-      {String? mitteilung}) {
+      {String? mitteilung, String? referenz}) {
     final info = mitteilung != null && mitteilung.isNotEmpty
         ? (mitteilung.length > 140 ? mitteilung.substring(0, 140) : mitteilung)
         : '';
@@ -456,7 +473,9 @@ class MahnungPdfService {
       kunde.name.isNotEmpty ? 'S' : '', kunde.name,
       kunde.strasseOnly, kunde.nrOnly, kunde.plzOnly, kunde.ortOnly,
       kunde.name.isNotEmpty ? _firmaLand : '',
-      'NON', '', info, 'EPD',
+      (referenz != null && referenz.isNotEmpty) ? 'SCOR' : 'NON',
+      referenz ?? '',
+      info, 'EPD',
     ];
     return lines.join('\n');
   }

@@ -89,7 +89,8 @@ class RechnungPdfService {
 
               // === QR-ZAHLTEIL (untere 105mm) ===
               _buildQrZahlteil(brutto, kundeAddr,
-                  mitteilung: mitteilung ?? '${betrieb.ort ?? ''} - ${betrieb.name} - ${dateFormat.format(rechnung.rechnungsdatum)}'),
+                  mitteilung: mitteilung ?? '${betrieb.ort ?? ''} - ${betrieb.name} - ${dateFormat.format(rechnung.rechnungsdatum)}',
+                  referenz: rechnung.qrReferenz),
             ],
           );
         },
@@ -359,12 +360,12 @@ class RechnungPdfService {
   // ═══════════════════════════════════════════════════════════════
 
   static pw.Widget _buildQrZahlteil(
-      double betrag, _KundeAdresse kunde, {String? mitteilung}) {
+      double betrag, _KundeAdresse kunde, {String? mitteilung, String? referenz}) {
     const mm = PdfPageFormat.mm;
     final betragStr = betrag.toStringAsFixed(2);
 
     // QR-Code Daten (Swiss Payment Standards v2.3)
-    final qrData = _buildQrData(betrag, kunde, mitteilung: mitteilung);
+    final qrData = _buildQrData(betrag, kunde, mitteilung: mitteilung, referenz: referenz);
 
     return pw.Container(
       height: 105 * mm,
@@ -503,6 +504,11 @@ class RechnungPdfService {
                   _qrText('$_firmaStrasse $_firmaNr'),
                   _qrText('$_firmaPlz $_firmaOrt'),
                   pw.SizedBox(height: 6),
+                  if (referenz != null && referenz.isNotEmpty) ...[
+                    _qrSectionTitle('Referenz'),
+                    _qrText(_scorAnzeige(referenz)),
+                    pw.SizedBox(height: 6),
+                  ],
                   if (kunde.name.isNotEmpty) ...[
                     _qrSectionTitle('Zahlbar durch'),
                     _qrText(kunde.name),
@@ -532,9 +538,20 @@ class RechnungPdfService {
     return pw.Text(text, style: const pw.TextStyle(fontSize: 8));
   }
 
+  /// SCOR-Referenz in 4er-Gruppen für die Anzeige: RF18 5390 0754 7034.
+  static String _scorAnzeige(String ref) {
+    final r = ref.replaceAll(' ', '');
+    final sb = StringBuffer();
+    for (var i = 0; i < r.length; i += 4) {
+      if (i > 0) sb.write(' ');
+      sb.write(r.substring(i, i + 4 > r.length ? r.length : i + 4));
+    }
+    return sb.toString();
+  }
+
   /// Baut den QR-Code Datenstring gemäss Swiss Payment Standards.
   static String _buildQrData(double betrag, _KundeAdresse kunde,
-      {String? mitteilung}) {
+      {String? mitteilung, String? referenz}) {
     // Additional Information: max 140 Zeichen (Swiss QR-Bill Standard)
     final info = mitteilung != null && mitteilung.isNotEmpty
         ? (mitteilung.length > 140 ? mitteilung.substring(0, 140) : mitteilung)
@@ -568,8 +585,8 @@ class RechnungPdfService {
       kunde.plzOnly, // Debtor Postal Code
       kunde.ortOnly, // Debtor City
       kunde.name.isNotEmpty ? _firmaLand : '', // Debtor Country
-      'NON', // Reference Type
-      '', // Reference
+      (referenz != null && referenz.isNotEmpty) ? 'SCOR' : 'NON', // Reference Type
+      referenz ?? '', // Reference
       info, // Unstructured Message (Ustrd) → Buchungstext in PostFinance
       'EPD', // Trailer
     ];
