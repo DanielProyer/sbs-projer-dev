@@ -334,18 +334,24 @@ class _RechnungDetailContentState
               color: hatOverride ? null : AppColors.textSecondary),
         ),
         const SizedBox(height: 8),
+        // GestureDetector statt Material-Button: FilledButton/OutlinedButton
+        // rendern in CanvasKit auf manchen Screen-Bodies nicht (bekannter Bug).
         Row(
           children: [
-            OutlinedButton.icon(
-              icon: const Icon(Icons.edit_location_alt, size: 18),
-              label: const Text('Adresse anpassen'),
-              onPressed: _editRechnungsadresse,
-            ),
+            _tapButton('Adresse anpassen', _editRechnungsadresse,
+                icon: Icons.edit_location_alt),
             if (hatOverride) ...[
               const SizedBox(width: 8),
-              TextButton(
-                onPressed: _resetRechnungsadresse,
-                child: const Text('Zurücksetzen'),
+              GestureDetector(
+                onTap: _resetRechnungsadresse,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+                  child: Text('Zurücksetzen',
+                      style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600)),
+                ),
               ),
             ],
           ],
@@ -461,6 +467,34 @@ class _RechnungDetailContentState
     for (final c in ctrls.values) {
       c.dispose();
     }
+  }
+
+  /// Tap-Button (GestureDetector) — rendert auch dort, wo Material-Buttons in
+  /// CanvasKit unsichtbar bleiben.
+  Widget _tapButton(String label, VoidCallback onTap, {IconData? icon}) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.primary, width: 1.2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 18, color: AppColors.primary),
+              const SizedBox(width: 6),
+            ],
+            Text(label,
+                style: const TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _adrFeld(TextEditingController c, String label) => Padding(
