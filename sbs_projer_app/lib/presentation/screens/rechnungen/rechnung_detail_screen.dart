@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnungsadresse_resolver.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -169,6 +170,10 @@ class _RechnungDetailContentState
             ),
           const SizedBox(height: 12),
 
+          // Rechnungsadresse (pro Rechnung anpassbar)
+          _rechnungsadresseCard(),
+          const SizedBox(height: 12),
+
           // Rechnungsinfo
           _SectionCard(
             children: [
@@ -291,6 +296,202 @@ class _RechnungDetailContentState
     );
   }
 
+  // ─── Rechnungsadresse (pro Rechnung, Override/Snapshot) ───
+
+  Widget _rechnungsadresseCard() {
+    final override = _rechnung.rechnungsadresse;
+    final hatOverride = override != null && override.isNotEmpty;
+    return _SectionCard(
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text('Rechnungsadresse',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            ),
+            if (hatOverride)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withAlpha(30),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('abweichend',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          hatOverride
+              ? _adresseText(override)
+              : 'Standard: Rechnungsadresse des Betriebs.',
+          style: TextStyle(
+              fontSize: 13,
+              color: hatOverride ? null : AppColors.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.edit_location_alt, size: 18),
+              label: const Text('Adresse anpassen'),
+              onPressed: _editRechnungsadresse,
+            ),
+            if (hatOverride) ...[
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: _resetRechnungsadresse,
+                child: const Text('Zurücksetzen'),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _adresseText(Map<String, dynamic> a) {
+    String join(List<String> keys, String sep) => keys
+        .map((k) => (a[k] as String?)?.trim() ?? '')
+        .where((s) => s.isNotEmpty)
+        .join(sep);
+    final lines = <String>[
+      join(['firma'], ' '),
+      join(['vorname', 'nachname'], ' '),
+      join(['strasse', 'nr'], ' '),
+      join(['plz', 'ort'], ' '),
+      join(['email'], ' '),
+    ].where((s) => s.isNotEmpty).toList();
+    return lines.isEmpty ? '—' : lines.join('\n');
+  }
+
+  Future<void> _editRechnungsadresse() async {
+    // Vorbefüllung: Override > Betriebs-Rechnungsadresse > leer.
+    Map<String, dynamic> init = _rechnung.rechnungsadresse ?? {};
+    if (init.isEmpty && _rechnung.betriebId != null) {
+      final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
+          _rechnung.betriebId!);
+      if (raLocal != null) {
+        init = {
+          'firma': raLocal.firma,
+          'vorname': raLocal.vorname,
+          'nachname': raLocal.nachname,
+          'strasse': raLocal.strasse,
+          'nr': raLocal.nr,
+          'plz': raLocal.plz,
+          'ort': raLocal.ort,
+          'email': raLocal.email,
+        };
+      }
+    }
+    if (!mounted) return;
+    const felder = [
+      'firma', 'vorname', 'nachname', 'strasse', 'nr', 'plz', 'ort', 'email'
+    ];
+    final ctrls = {
+      for (final k in felder)
+        k: TextEditingController(text: (init[k] as String?) ?? ''),
+    };
+    final gespeichert = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rechnungsadresse anpassen'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _adrFeld(ctrls['firma']!, 'Firma'),
+                Row(children: [
+                  Expanded(child: _adrFeld(ctrls['vorname']!, 'Vorname')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _adrFeld(ctrls['nachname']!, 'Nachname')),
+                ]),
+                Row(children: [
+                  Expanded(flex: 3, child: _adrFeld(ctrls['strasse']!, 'Strasse')),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 1, child: _adrFeld(ctrls['nr']!, 'Nr.')),
+                ]),
+                Row(children: [
+                  Expanded(flex: 1, child: _adrFeld(ctrls['plz']!, 'PLZ')),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 3, child: _adrFeld(ctrls['ort']!, 'Ort')),
+                ]),
+                _adrFeld(ctrls['email']!, 'E-Mail'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Speichern')),
+        ],
+      ),
+    );
+    if (gespeichert == true) {
+      final map = <String, dynamic>{
+        for (final e in ctrls.entries)
+          e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim(),
+      };
+      try {
+        await RechnungRepository.update(
+            _rechnung.id, {'rechnungsadresse': map});
+        await _reloadRechnung();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content:
+                  Text('Rechnungsadresse für diese Rechnung gespeichert.')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
+        }
+      }
+    }
+    for (final c in ctrls.values) {
+      c.dispose();
+    }
+  }
+
+  Widget _adrFeld(TextEditingController c, String label) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: TextField(
+          controller: c,
+          decoration: InputDecoration(labelText: label, isDense: true),
+        ),
+      );
+
+  Future<void> _resetRechnungsadresse() async {
+    try {
+      await RechnungRepository.update(_rechnung.id, {'rechnungsadresse': null});
+      await _reloadRechnung();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Auf Betriebsadresse zurückgesetzt.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Zurücksetzen fehlgeschlagen: $e')));
+      }
+    }
+  }
+
+  Future<void> _reloadRechnung() async {
+    final r = await RechnungRepository.getById(_rechnung.id);
+    if (r != null && mounted) setState(() => _rechnung = r);
+  }
+
   Future<void> _showPdf(BuildContext context) async {
     showDialog(
       context: context,
@@ -339,7 +540,9 @@ class _RechnungDetailContentState
         rechnung: _rechnung,
         positionen: positionen,
         betrieb: betrieb,
-        rechnungsadresse: ra,
+        rechnungsadresse: effektiveRechnungsadresse(
+            _rechnung.rechnungsadresse, ra,
+            betriebId: _rechnung.betriebId ?? ''),
         firmaName: g?.firma,
         firmaStrasse: g?.adresseStrasse,
         firmaPlzOrt: g?.adressePlzOrt,
@@ -410,7 +613,9 @@ class _RechnungDetailContentState
       final pdfBytes = await MahnungPdfService.generate(
         rechnung: _rechnung,
         betrieb: betrieb,
-        rechnungsadresse: ra,
+        rechnungsadresse: effektiveRechnungsadresse(
+            _rechnung.rechnungsadresse, ra,
+            betriebId: _rechnung.betriebId ?? ''),
         mahnStufe: stufe,
       );
 

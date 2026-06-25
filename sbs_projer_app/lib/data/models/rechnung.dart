@@ -23,6 +23,10 @@ class Rechnung {
   final DateTime? mahnung2Am;
   final String? pdfUrl;
   final String? qrReferenz;
+  /// Optionale, pro Rechnung abweichende Rechnungsadresse (Override/Snapshot).
+  /// null = es gilt die Betriebs-Rechnungsadresse. Keys: firma, vorname,
+  /// nachname, strasse, nr, plz, ort, email.
+  final Map<String, dynamic>? rechnungsadresse;
   final String? notizen;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -52,6 +56,7 @@ class Rechnung {
     this.mahnung2Am,
     this.pdfUrl,
     this.qrReferenz,
+    this.rechnungsadresse,
     this.notizen,
     this.createdAt,
     this.updatedAt,
@@ -97,6 +102,9 @@ class Rechnung {
           : null,
       pdfUrl: json['pdf_url'],
       qrReferenz: json['qr_referenz'],
+      rechnungsadresse: json['rechnungsadresse'] is Map
+          ? Map<String, dynamic>.from(json['rechnungsadresse'])
+          : null,
       notizen: json['notizen'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -129,6 +137,7 @@ class Rechnung {
       'mahnung_2_am': mahnung2Am?.toIso8601String().split('T').first,
       'pdf_url': pdfUrl,
       'qr_referenz': qrReferenz,
+      'rechnungsadresse': rechnungsadresse,
       'notizen': notizen,
     };
   }
@@ -165,6 +174,7 @@ class Rechnung {
       mahnung2Am: mahnung2Am,
       pdfUrl: pdfUrl,
       qrReferenz: qrReferenz,
+      rechnungsadresse: rechnungsadresse,
       notizen: notizen,
       createdAt: createdAt,
       updatedAt: updatedAt,

@@ -67,6 +67,36 @@ class BetriebRechnungsadresse {
     };
   }
 
+  /// Adress-Snapshot für die pro-Rechnung-Override (ohne id/Betrieb/Zeitstempel).
+  Map<String, dynamic> toAdressSnapshot() => {
+        'firma': firma,
+        'vorname': vorname,
+        'nachname': nachname,
+        'strasse': strasse,
+        'nr': nr,
+        'plz': plz,
+        'ort': ort,
+        'email': email,
+      };
+
+  /// Baut eine Adresse aus einem pro-Rechnung-Snapshot (siehe [toAdressSnapshot]).
+  factory BetriebRechnungsadresse.fromAdressSnapshot(Map<String, dynamic> m,
+      {String betriebId = ''}) {
+    return BetriebRechnungsadresse(
+      id: '',
+      userId: '',
+      betriebId: betriebId,
+      firma: m['firma'] as String?,
+      vorname: m['vorname'] as String?,
+      nachname: (m['nachname'] as String?) ?? '',
+      strasse: (m['strasse'] as String?) ?? '',
+      nr: m['nr'] as String?,
+      plz: (m['plz'] as String?) ?? '',
+      ort: (m['ort'] as String?) ?? '',
+      email: m['email'] as String?,
+    );
+  }
+
   String get vollstaendigeAdresse {
     final parts = <String>[];
     if (firma != null && firma!.isNotEmpty) parts.add(firma!);
