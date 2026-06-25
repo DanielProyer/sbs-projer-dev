@@ -174,6 +174,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/rechnungen'),
           ),
           _NavTile(
+            icon: Icons.mark_email_read,
+            title: 'Eingangsrechnungen',
+            subtitle: 'Lieferantenrechnungen erfassen & buchen',
+            onTap: () => context.push('/buchhaltung/eingangsrechnungen'),
+          ),
+          _NavTile(
             icon: Icons.account_balance,
             title: 'Bankauszug Import',
             subtitle: 'camt.053 Transaktionen importieren',
