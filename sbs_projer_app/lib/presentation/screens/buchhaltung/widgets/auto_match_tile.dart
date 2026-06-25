@@ -45,11 +45,19 @@ class AutoMatchTile extends StatelessWidget {
       onPressed: onVerbuchen,
       child: const Text('Verbuchen'),
     );
+    // GestureDetector statt TextButton: Material-Buttons rendern in CanvasKit
+    // auf manchen Screen-Bodies nicht (bekannter Bug).
     final korrigieren = onKorrigieren == null
         ? null
-        : TextButton(
-            onPressed: onKorrigieren,
-            child: const Text('Anders zuordnen'),
+        : GestureDetector(
+            onTap: onKorrigieren,
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: Text('Anders zuordnen',
+                  style: TextStyle(
+                      color: AppColors.primary, fontWeight: FontWeight.w600)),
+            ),
           );
 
     return Padding(
