@@ -156,7 +156,11 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       final betriebe = ref
           .read(betriebeProvider)
           .where((b) => b.serverId != null)
-          .map((b) => {'id': b.serverId!, 'name': b.name})
+          .map((b) => {
+                'id': b.serverId!,
+                'name': b.name,
+                'aliase': b.zahlerAliase.join('\n'),
+              })
           .toList();
 
       final erg = ForderungsAbgleichService.abgleich(

@@ -43,7 +43,9 @@ class ForderungsAbgleichService {
     for (final g in gutschriften.where((g) => g.isCredit)) {
       final name = effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo);
       if (name == null) continue;
-      final match = CamtBetriebMatcher.findBestMatch(name, betriebe);
+      // Stufe 2 (gelernter Alias) vor Stufe 3 (unscharf).
+      final match = CamtBetriebMatcher.matchByAlias(name, betriebe) ??
+          CamtBetriebMatcher.findBestMatch(name, betriebe);
       if (match == null) continue;
       gutProBetrieb.putIfAbsent(match['id']!, () => []).add(g);
     }
