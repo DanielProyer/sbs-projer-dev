@@ -15,12 +15,14 @@ class AutoMatchTile extends StatelessWidget {
   final String betrag; // z.B. "135.70 CHF"
   final String beschreibung; // z.B. "Hotel Alpina · Rechnung RG-123 · 05.01.2026"
   final VoidCallback onVerbuchen;
+  final VoidCallback? onKorrigieren; // optional: „Anders zuordnen"
 
   const AutoMatchTile({
     super.key,
     required this.betrag,
     required this.beschreibung,
     required this.onVerbuchen,
+    this.onKorrigieren,
   });
 
   @override
@@ -43,12 +45,18 @@ class AutoMatchTile extends StatelessWidget {
       onPressed: onVerbuchen,
       child: const Text('Verbuchen'),
     );
+    final korrigieren = onKorrigieren == null
+        ? null
+        : TextButton(
+            onPressed: onKorrigieren,
+            child: const Text('Anders zuordnen'),
+          );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
       child: LayoutBuilder(
         builder: (context, c) {
-          // Schmal (Smartphone): gestapelt, Button rechts darunter.
+          // Schmal (Smartphone): gestapelt, Buttons rechts darunter.
           if (c.maxWidth < 460) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +65,18 @@ class AutoMatchTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 beschreibungText,
                 const SizedBox(height: 8),
-                Align(alignment: Alignment.centerRight, child: button),
+                // Ohne Korrigieren-Button exakt wie vorher (nur Button);
+                // mit Korrigieren als Wrap (umbricht bei wenig Platz).
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: korrigieren == null
+                      ? button
+                      : Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 4,
+                          children: [korrigieren, button],
+                        ),
+                ),
               ],
             );
           }
@@ -67,7 +86,9 @@ class AutoMatchTile extends StatelessWidget {
               betragText,
               const SizedBox(width: 16),
               Expanded(child: beschreibungText),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              ?korrigieren,
+              if (korrigieren != null) const SizedBox(width: 4),
               button,
             ],
           );

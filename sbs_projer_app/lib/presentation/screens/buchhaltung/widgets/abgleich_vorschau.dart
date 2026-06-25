@@ -242,6 +242,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       betrag: '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
       beschreibung: teile.join(' · '),
       onVerbuchen: () => _verbuche(t),
+      // Falscher Treffer (z.B. Betreiber-Name)? Neu zuordnen + Alias lernen.
+      onKorrigieren: () => _ordneZu(t.gutschrift, korrigiereAuto: t),
     );
   }
 
@@ -572,9 +574,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     }
   }
 
-  /// Manuelle Zuordnung einer „nicht zugeordneten" Gutschrift zu einer oder
-  /// mehreren offenen Forderungen aus dem Gesamtpool (mit Suche).
-  Future<void> _ordneZu(CamtTransaction g) async {
+  /// Manuelle Zuordnung einer Gutschrift zu einer oder mehreren offenen
+  /// Forderungen aus dem Gesamtpool (mit Suche). [korrigiereAuto] != null:
+  /// korrigiert einen falschen Auto-Treffer (z.B. Betreiber-/Ketten-Name) —
+  /// dieser wird entfernt, seine ursprünglichen Forderungen wieder als offen
+  /// gezeigt; bei eindeutigem Betrieb wird der Alias gelernt.
+  Future<void> _ordneZu(CamtTransaction g, {AutoTreffer? korrigiereAuto}) async {
     final gewaehlt = <Rechnung>{};
     var suche = '';
     final ok = await showDialog<bool>(
@@ -722,8 +727,21 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
       setState(() {
-        widget.ergebnis.unbekannteGutschriften.remove(g);
         final gebuchteIds = gewaehlt.map((r) => r.id).toSet();
+        if (korrigiereAuto != null) {
+          // Falschen Auto-Treffer entfernen; seine (nicht gebuchten)
+          // Forderungen wieder als „Keine Zahlung" anzeigen.
+          widget.ergebnis.auto.remove(korrigiereAuto);
+          for (final r in korrigiereAuto.forderungen) {
+            if (!gebuchteIds.contains(r.id) &&
+                widget.alleOffenen.any((o) => o.id == r.id) &&
+                !widget.ergebnis.keineZahlung.any((k) => k.id == r.id)) {
+              widget.ergebnis.keineZahlung.add(r);
+            }
+          }
+        } else {
+          widget.ergebnis.unbekannteGutschriften.remove(g);
+        }
         widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
         widget.ergebnis.keineZahlung
             .removeWhere((r) => gebuchteIds.contains(r.id));
