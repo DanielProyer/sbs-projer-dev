@@ -297,10 +297,6 @@ class _HeinekenRechnungDetailScreenState
                 const PopupMenuItem(
                     value: 'gesendet',
                     child: Text('Auf gesendet zurücksetzen')),
-              if (r.zahlungsstatus == 'bezahlt')
-                const PopupMenuItem(
-                    value: 'freigegeben',
-                    child: Text('Auf freigegeben zurücksetzen')),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',
