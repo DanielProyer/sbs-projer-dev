@@ -25,7 +25,7 @@ Branch `feature/camt-import-merge` → gemergt nach `main` + deployed (20.06.202
   - [x] **Minor (erledigt v0.13.2):** Referenz-Kollision (gleiche Ziffern-Body) → `RechnungRepository.create` fängt die `PostgrestException` (Unique-Verletzung auf `qr_referenz`) ab und vergibt automatisch eine eindeutige Referenz mit Suffix (`qrReferenzAusNummer(..., suffix:)`), statt zu werfen.
 
 **Offene Minor (kein Blocker):**
-- [ ] **4 Rechnungen** `offen`/`gesendet` mit `zahlung_eingegangen_am=2026-05-17` (CHF 337.28) — Daniel sichten, evtl. auf `bezahlt` setzen.
+- [x] **4 Rechnungen** mit `zahlung_eingegangen_am=2026-05-17` (CHF 337.28, Nr. 2026-05-0611–0614) — **erledigt 25.06.2026**: war eine Phantom-Zahlung aus einem manuellen SQL-Bulk-Update am 17.05. (identisches `updated_at` auf die Mikrosekunde, 0 Buchungen, kein camt/Excel). `zahlung_betrag`/`zahlung_eingegangen_am` auf NULL gesetzt → sauber `offen`.
 - [ ] Import-Archiv-Dateiname hart `camt.xml` (Dedup nutzt IBAN+Zeitraum; nur Anzeige) — bei Bedarf `picked.name` mitführen.
 - [ ] Kosmetik: nach „Alle verbuchen" im Import bleibt die statische Überschrift „Kundenzahlungen" stehen.
 
