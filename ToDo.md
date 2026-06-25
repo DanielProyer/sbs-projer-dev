@@ -31,7 +31,6 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 - [ ] Phase 0a Follow-up: 11 alte camt-Vorlagen `ist_aktiv=true` (FK-Schutz) — optional Regeln auf neue Geschäftsfälle umhängen, dann Alt-Vorlagen deaktivieren (tauchen sonst im manuellen Dropdown auf).
 - [ ] Hub: toter Code `forderungenProvider` / `mahnwesenDashboardProvider` entfernen (invalidate auf `rechnungenStreamProvider` umbiegen).
 - [ ] **App-weite UI-Vereinheitlichung** (Filter/Dropdowns) — eigener grösserer Durchgang. Referenz-Stil: schlichte `DropdownButton` im `Wrap`.
-- [ ] **Optional Folge:** „Per Mail senden"-Aktion im Rechnungs-Detail (Empfänger editierbar) — ersetzt den weggefallenen Nachversand für Einzelfälle vollständig. Aktuell deckt Drucken/Teilen + manueller Versand den Fall ab.
 
 ---
 
@@ -57,6 +56,7 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 ---
 
 ## ✅ Erledigt (Chronik, neueste zuerst)
+- **v0.15.0** (25.06) **Rechnungsadresse-Dialog wie Betrieb-Formular** (Firma/Betrieb/Strasse/Nr/PLZ→Ort-Lookup/Email) + **Propagierung auf den Betrieb** (Adresse gilt künftig) + **Neu-Versand** (Bestätigung → PDF neu, Mail an Kunde, **Fällig bis = heute+30** persistiert in Rechnung/Forderung). „Neue Buchung"-Kachel (v0.14.1) + Adress-Button-CanvasKit-Fix (v0.14.2) inklusive.
 - **v0.14.0** (25.06) **Pro-Rechnung Rechnungsadresse** (Override/Snapshot, Migration 105 `rechnungen.rechnungsadresse` jsonb): „Adresse anpassen" im Rechnungs-Detail ändert nur diese eine Rechnung (Betrieb/andere Rechnungen unberührt); PDF/Mahnung nutzen den Override via reinem Resolver `effektiveRechnungsadresse`; „Zurücksetzen" auf Betriebsadresse.
 - **v0.13.3** (25.06) Temporären Rechnungs-Nachversand-Screen entfernt (Backlog abgearbeitet).
 - **v0.13.2** (25.06) QR-Referenz-Kollision robust (Suffix-Retry statt PostgrestException).
