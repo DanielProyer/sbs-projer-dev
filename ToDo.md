@@ -48,7 +48,7 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 ## 📌 Merksätze / Design-Entscheidungen (NICHT ändern)
 - **Kein DB-Unique-Constraint auf `buchungen(camt_tx_key)`:** der Kundenzahlungs-Pfad stempelt denselben `tx_key` absichtlich auf mehrere Buchungen (Sammelzahlung). Dedup läuft über den In-App-Set (Single-User).
 - **App ist alleinige Buchungsquelle** (DB-Trigger `rechnungen_auto_buchung_zahlung` abgeschaltet, Migration 102). „Rechnung gestellt"-Trigger `…_erstellt` bleibt aktiv.
-- **Kundenrechnungen werden NUR über den camt-Abgleich als bezahlt gebucht** (echtes Bankdatum, `camt_tx_key`/reversibel, gegen echte Bankbewegung). Kein manuelles „Als bezahlt markieren" mehr (Detail-Button + Hub-Sammelzahlung entfernt v0.15.2/0.15.3). Heineken-Workflow (freigegeben→bezahlt) ist separat und bleibt.
+- **Alle Rechnungstypen werden NUR über den camt-Abgleich als bezahlt gebucht** (echtes Bankdatum, `camt_tx_key`/reversibel, gegen echte Bankbewegung). Kein manuelles „Als bezahlt markieren" mehr: Kundenrechnung-Detail-Button + Hub-Sammelzahlung (v0.15.2/0.15.3) und Heineken-Bezahlt-Schritt (v0.15.4) entfernt. Jahresrechnung nutzt denselben Rechnungs-Detail/Hub → automatisch abgedeckt. Heineken: offen→gesendet→freigegeben bleibt manuell, **bezahlt nur via camt** (Button nur noch Anzeige „Zahlung über Bankabgleich").
 - **Jede grosse Liste paginieren** (PostgREST deckelt bei 1000).
 - **Reversibilität:** alle camt-Buchungen tragen `camt_tx_key` → „mach die camt-Buchungen rückgängig".
 - **QR-Bill:** SCOR (RF…) wegen normaler IBAN (keine QR-IBAN); QR-Code braucht zwingend das Schweizerkreuz.
@@ -57,7 +57,7 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 ---
 
 ## ✅ Erledigt (Chronik, neueste zuerst)
-- **v0.15.2/0.15.3** (25.06) **Manuelles Bezahlt-Markieren entfernt** — Detail-Button „Als bezahlt markieren" (v0.15.2) + Hub-Sammelzahlung-Auswahlmodus (v0.15.3) raus. Bezahlt läuft nur noch über den camt-Abgleich (echtes Datum, reversibel). −520 Zeilen.
+- **v0.15.2–0.15.4** (25.06) **Manuelles Bezahlt-Markieren komplett entfernt** — Kundenrechnung-Detail-Button (v0.15.2) + Hub-Sammelzahlung (v0.15.3) + Heineken-Bezahlt-Schritt (v0.15.4). Bezahlt läuft für ALLE Rechnungstypen nur noch über den camt-Abgleich (echtes Datum, reversibel). Jahresrechnung automatisch abgedeckt (gleicher Screen). ~530 Zeilen weniger.
 - **v0.15.1** (25.06) **Rechnungsadresse-Modell vereinfacht:** Adresse wird nur noch **beim Betrieb** gepflegt (Link „Adresse beim Betrieb bearbeiten" im Rechnungs-Detail → bestehendes Betrieb-Formular). Rechnung hat nur noch **„Rechnung erneut senden"** (Bestätigung → PDF neu mit aktueller Betriebsadresse + **Fällig bis = heute+30** persistiert → Mail an Kunde). Per-Rechnung-Adress-Dialog (v0.15.0) entfernt. Snapshot-Feld `rechnungen.rechnungsadresse` (Migration 105) bleibt technisch bestehen (Resolver Override→Betrieb), wird aber nicht mehr gesetzt.
 - **v0.15.0** (25.06) Rechnungsadresse-Dialog im Detail + Neu-Versand (durch v0.15.1 zu „Adresse beim Betrieb" umgebaut). „Neue Buchung"-Kachel entfernt (v0.14.1) + Adress-Button-CanvasKit-Fix (v0.14.2).
 - **v0.14.0** (25.06) **Pro-Rechnung Rechnungsadresse** (Override/Snapshot, Migration 105 `rechnungen.rechnungsadresse` jsonb): „Adresse anpassen" im Rechnungs-Detail ändert nur diese eine Rechnung (Betrieb/andere Rechnungen unberührt); PDF/Mahnung nutzen den Override via reinem Resolver `effektiveRechnungsadresse`; „Zurücksetzen" auf Betriebsadresse.
