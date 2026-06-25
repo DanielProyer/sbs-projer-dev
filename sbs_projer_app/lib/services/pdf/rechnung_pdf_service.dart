@@ -449,18 +449,24 @@ class RechnungPdfService {
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      // QR-Code (46×46mm)
+                      // QR-Code (46×46mm) mit zwingendem Schweizerkreuz (7mm) in der Mitte
                       pw.Container(
                         width: 46 * mm,
                         height: 46 * mm,
-                        child: pw.BarcodeWidget(
-                          barcode: Barcode.qrCode(
-                            errorCorrectLevel:
-                                BarcodeQRCorrectionLevel.medium,
-                          ),
-                          data: qrData,
-                          width: 46 * mm,
-                          height: 46 * mm,
+                        child: pw.Stack(
+                          alignment: pw.Alignment.center,
+                          children: [
+                            pw.BarcodeWidget(
+                              barcode: Barcode.qrCode(
+                                errorCorrectLevel:
+                                    BarcodeQRCorrectionLevel.medium,
+                              ),
+                              data: qrData,
+                              width: 46 * mm,
+                              height: 46 * mm,
+                            ),
+                            _swissQrCross(),
+                          ],
                         ),
                       ),
                       pw.SizedBox(width: 5 * mm),
@@ -536,6 +542,32 @@ class RechnungPdfService {
 
   static pw.Widget _qrText(String text) {
     return pw.Text(text, style: const pw.TextStyle(fontSize: 8));
+  }
+
+  /// Zwingendes Schweizerkreuz (7×7mm) in der Mitte des QR-Codes (Swiss QR-Bill).
+  /// Weisses Kreuz auf schwarzem Feld mit dünnem weissem Rahmen zur Abgrenzung.
+  static pw.Widget _swissQrCross() {
+    const mm = PdfPageFormat.mm;
+    const white = PdfColor.fromInt(0xFFFFFFFF);
+    const black = PdfColor.fromInt(0xFF000000);
+    return pw.Container(
+      width: 7 * mm,
+      height: 7 * mm,
+      color: white,
+      child: pw.Padding(
+        padding: pw.EdgeInsets.all(0.4 * mm),
+        child: pw.Container(
+          color: black,
+          child: pw.Stack(
+            alignment: pw.Alignment.center,
+            children: [
+              pw.Container(width: 1.3 * mm, height: 4.0 * mm, color: white),
+              pw.Container(width: 4.0 * mm, height: 1.3 * mm, color: white),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// SCOR-Referenz in 4er-Gruppen für die Anzeige: RF18 5390 0754 7034.
