@@ -13,6 +13,19 @@ CamtTransaction _gut(double amt, String party, [String? info]) => CamtTransactio
       amount: amt, currency: 'CHF', isCredit: true, bookingDate: DateTime(2026, 1, 5),
       partyName: party, additionalInfo: info, txKey: '$party-$amt');
 
+Rechnung _rgMitRef(String id, String betriebId, double betrag, String ref) =>
+    Rechnung(
+      id: id, userId: 'u', rechnungsnummer: id, rechnungstyp: 'kundenrechnung',
+      betriebId: betriebId, rechnungsdatum: DateTime(2025, 1, 1),
+      faelligkeitsdatum: DateTime(2025, 2, 1), betragNetto: betrag, mwstBetrag: 0,
+      betragBrutto: betrag, zahlungsstatus: 'offen', qrReferenz: ref);
+
+CamtTransaction _gutMitRef(double amt, String party, String ref) =>
+    CamtTransaction(
+      amount: amt, currency: 'CHF', isCredit: true,
+      bookingDate: DateTime(2026, 4, 1),
+      partyName: party, strukturierteReferenz: ref, txKey: '$party-$amt');
+
 void main() {
   final betriebe = [
     {'id': 'b1', 'name': 'Hotel Alpina'},
@@ -169,6 +182,21 @@ void main() {
     );
     expect(r.auto.single.gutschrift.amount, 67.85);
     expect(r.unbekannteGutschriften, isEmpty);
+  });
+
+  test('QR-Referenz-Treffer (Stufe 1) ordnet exakt zu, vor Betrieb-Logik', () {
+    final betriebe = [
+      {'id': 'b1', 'name': 'Hotel Alpina', 'aliase': ''},
+    ];
+    // Zahlername passt NICHT auf den Betrieb — nur die Referenz verbindet.
+    final gut = _gutMitRef(100.00, 'Wildfremd AG', 'RF18539007547034');
+    final rg = _rgMitRef('r1', 'b1', 100.00, 'RF18539007547034');
+    final erg = ForderungsAbgleichService.abgleich(
+      gutschriften: [gut], offeneForderungen: [rg], betriebe: betriebe,
+    );
+    expect(erg.auto.length, 1);
+    expect(erg.auto.first.forderungen.first.id, 'r1');
+    expect(erg.auto.first.forderungen.length, 1);
   });
 
   test('Alias-Treffer ordnet Gutschrift dem Betrieb zu (Stufe 2 vor Unscharf)', () {

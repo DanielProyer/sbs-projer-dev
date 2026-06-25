@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -84,6 +85,14 @@ class RechnungRepository {
   static Future<Rechnung> create(Map<String, dynamic> json) async {
     json['user_id'] = _userId;
     json.remove('id');
+    // SCOR-Referenz für Kundentypen vergeben (idempotent; reine Logik getestet).
+    if (json['qr_referenz'] == null) {
+      final ref = qrReferenzAusNummer(
+        json['rechnungstyp'] as String?,
+        json['rechnungsnummer'] as String?,
+      );
+      if (ref != null) json['qr_referenz'] = ref;
+    }
     final rows = await SupabaseService.client
         .from('rechnungen')
         .insert(json)

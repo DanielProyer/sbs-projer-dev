@@ -22,6 +22,7 @@ class Rechnung {
   final DateTime? mahnung1Am;
   final DateTime? mahnung2Am;
   final String? pdfUrl;
+  final String? qrReferenz;
   final String? notizen;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -50,6 +51,7 @@ class Rechnung {
     this.mahnung1Am,
     this.mahnung2Am,
     this.pdfUrl,
+    this.qrReferenz,
     this.notizen,
     this.createdAt,
     this.updatedAt,
@@ -94,6 +96,7 @@ class Rechnung {
           ? DateTime.parse(json['mahnung_2_am'])
           : null,
       pdfUrl: json['pdf_url'],
+      qrReferenz: json['qr_referenz'],
       notizen: json['notizen'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -125,6 +128,7 @@ class Rechnung {
       'mahnung_1_am': mahnung1Am?.toIso8601String().split('T').first,
       'mahnung_2_am': mahnung2Am?.toIso8601String().split('T').first,
       'pdf_url': pdfUrl,
+      'qr_referenz': qrReferenz,
       'notizen': notizen,
     };
   }
@@ -160,6 +164,7 @@ class Rechnung {
       mahnung1Am: mahnung1Am,
       mahnung2Am: mahnung2Am,
       pdfUrl: pdfUrl,
+      qrReferenz: qrReferenz,
       notizen: notizen,
       createdAt: createdAt,
       updatedAt: updatedAt,
