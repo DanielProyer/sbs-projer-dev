@@ -150,12 +150,6 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/buchungen'),
           ),
           _NavTile(
-            icon: Icons.add_circle_outline,
-            title: 'Neue Buchung',
-            subtitle: 'Manuelle Buchung erfassen',
-            onTap: () => context.push('/buchhaltung/buchungen/neu'),
-          ),
-          _NavTile(
             icon: Icons.assessment,
             title: 'Bilanz & Erfolgsrechnung',
             subtitle: 'Bilanz & Erfolgsrechnung per Datum',
