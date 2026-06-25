@@ -130,6 +130,10 @@ class _EingangsrechnungDetailScreenState
       _snack('Bitte Aufwandskonto wählen');
       return;
     }
+    if (_parseBetrag(_betragCtrl.text) <= 0) {
+      _snack('Betrag muss grösser als 0 sein');
+      return;
+    }
 
     setState(() => _busy = true);
     try {
