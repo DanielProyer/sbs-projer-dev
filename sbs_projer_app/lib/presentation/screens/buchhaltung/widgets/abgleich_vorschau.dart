@@ -372,6 +372,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // Lokale Auswahl-Mengen für den Dialog (Sammelzahlung ↔ mehrere Forderungen).
     final gewaehlteGutschriften = <CamtTransaction>{};
     final gewaehlteForderungen = <Rechnung>{};
+    // Gesetzt, wenn der User eine Gutschrift „anders zuordnen" will (gehört zu
+    // einem anderen Betrieb, z.B. Betreiber-/Ketten-Name).
+    CamtTransaction? umleiten;
 
     final verbucht = await showDialog<bool>(
       context: context,
@@ -413,6 +416,26 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           '${g.amount.toStringAsFixed(2)} CHF',
                         ),
                         subtitle: _zahlungInfoText(g),
+                        // Gehört zu einem anderen Betrieb? Über alle Betriebe
+                        // neu zuordnen (+ Alias lernen). GestureDetector, da
+                        // Material-Buttons in CanvasKit teils nicht rendern.
+                        secondary: GestureDetector(
+                          onTap: () {
+                            umleiten = g;
+                            Navigator.pop(ctx, false);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: const Padding(
+                            padding:
+                                EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                            child: Text('anders\nzuordnen',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ),
                         onChanged: (sel) => setDialogState(() {
                           if (sel == true) {
                             gewaehlteGutschriften.add(g);
@@ -535,6 +558,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       },
     );
 
+    // „Anders zuordnen": diese Gutschrift gehört zu einem anderen Betrieb →
+    // über alle offenen Forderungen neu zuordnen (+ Alias lernen).
+    if (umleiten != null) {
+      await _ordneZu(umleiten!, korrigiereManuell: f);
+      return;
+    }
     if (verbucht != true) return;
 
     // Zahler→Betrieb lernen: pro eindeutigem Zahlernamen einmal (mehrere
@@ -579,7 +608,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   /// korrigiert einen falschen Auto-Treffer (z.B. Betreiber-/Ketten-Name) —
   /// dieser wird entfernt, seine ursprünglichen Forderungen wieder als offen
   /// gezeigt; bei eindeutigem Betrieb wird der Alias gelernt.
-  Future<void> _ordneZu(CamtTransaction g, {AutoTreffer? korrigiereAuto}) async {
+  Future<void> _ordneZu(CamtTransaction g,
+      {AutoTreffer? korrigiereAuto, ManuellFall? korrigiereManuell}) async {
     final gewaehlt = <Rechnung>{};
     var suche = '';
     final ok = await showDialog<bool>(
@@ -738,6 +768,20 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 !widget.ergebnis.keineZahlung.any((k) => k.id == r.id)) {
               widget.ergebnis.keineZahlung.add(r);
             }
+          }
+        } else if (korrigiereManuell != null) {
+          // Diese Gutschrift aus dem Manuell-Fall entfernen; bleibt keine
+          // Zahlung übrig, fällt der Fall weg (Forderungen → „Keine Zahlung").
+          korrigiereManuell.gutschriften.remove(g);
+          if (korrigiereManuell.gutschriften.isEmpty) {
+            for (final r in korrigiereManuell.forderungen) {
+              if (!gebuchteIds.contains(r.id) &&
+                  widget.alleOffenen.any((o) => o.id == r.id) &&
+                  !widget.ergebnis.keineZahlung.any((k) => k.id == r.id)) {
+                widget.ergebnis.keineZahlung.add(r);
+              }
+            }
+            widget.ergebnis.manuell.remove(korrigiereManuell);
           }
         } else {
           widget.ergebnis.unbekannteGutschriften.remove(g);
