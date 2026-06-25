@@ -3,7 +3,7 @@ import 'package:sbs_projer_app/data/models/eingangsrechnung.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
 
 /// Eingangsrechnungen (Kreditoren) für die Listen-/Bestätigungsansicht.
-/// Lädt alle relevanten Stati (ohne `abgelegt`/`verworfen`).
+/// Lädt alle relevanten Stati (ohne `verworfen`).
 final eingangsrechnungenProvider =
     FutureProvider<List<Eingangsrechnung>>((ref) async {
   return EingangsrechnungRepository.getByStatus(const [
@@ -12,5 +12,7 @@ final eingangsrechnungenProvider =
     'gebucht',
     'zahlung_vorgemerkt',
     'exportiert',
+    'bezahlt',
+    'abgelegt',
   ]);
 });
