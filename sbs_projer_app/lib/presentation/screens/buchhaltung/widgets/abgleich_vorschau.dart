@@ -44,6 +44,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   // Max. gerenderte Zeilen pro Gruppe (verhindert die 1000-Zeilen-Wand).
   static const _maxZeilen = 50;
 
+  // Auch bei Auto-Treffern den Zahlernamen als Alias des Betriebs lernen.
+  // Standard an; pro Abgleich/Import abschaltbar (Schutz gegen Festschreiben
+  // eines falschen unscharfen Treffers).
+  bool _autoLernen = true;
+
   @override
   Widget build(BuildContext context) {
     final erg = widget.ergebnis;
@@ -67,6 +72,19 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           farbe: AppColors.success,
           initiallyExpanded: true,
           children: [
+            if (erg.auto.isNotEmpty)
+              CheckboxListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _autoLernen,
+                onChanged: (v) => setState(() => _autoLernen = v ?? true),
+                title: const Text('Zahlernamen aus Auto-Treffern lernen',
+                    style: TextStyle(fontSize: 13)),
+                subtitle: const Text(
+                    'Schreibt den Einzahler-Namen als Alias des Betriebs fest.',
+                    style: TextStyle(fontSize: 11)),
+              ),
             if (erg.auto.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -266,6 +284,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         forderungen: t.forderungen,
         camtTxKey: t.gutschrift.txKey,
       );
+      // Auto-Treffer lernen (wenn aktiviert): Zahlername → Betrieb der Forderung.
+      if (_autoLernen) {
+        final bid = t.forderungen.first.betriebId;
+        if (bid != null) await _lerneAlias(bid, t.gutschrift);
+      }
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
@@ -303,6 +326,22 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         verbuchteTreffer.add(t);
       } catch (e) {
         fehler.add('${t.gutschrift.amount.toStringAsFixed(2)} CHF: $e');
+      }
+    }
+    // Auto-Treffer lernen (wenn aktiviert): je eindeutigem Betrieb+Zahlername
+    // einmal (spart wiederholte getAll()-Fetches).
+    if (_autoLernen) {
+      final gelernt = <String>{};
+      for (final t in verbuchteTreffer) {
+        final bid = t.forderungen.first.betriebId;
+        if (bid == null) continue;
+        final name = effektiverZahlername(
+            partyName: t.gutschrift.partyName,
+            additionalInfo: t.gutschrift.additionalInfo);
+        if (name == null || !gelernt.add('$bid|${zahlernameNorm(name)}')) {
+          continue;
+        }
+        await _lerneAlias(bid, t.gutschrift);
       }
     }
     ref.invalidate(rechnungenStreamProvider);
