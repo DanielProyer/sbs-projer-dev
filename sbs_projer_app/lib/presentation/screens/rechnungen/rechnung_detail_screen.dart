@@ -15,10 +15,8 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
-import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
-import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/services/pdf/mahnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
@@ -291,14 +289,6 @@ class _RechnungDetailContentState
             ),
             const SizedBox(height: 12),
           ],
-
-          // Aktionen
-          if (_rechnung.zahlungsstatus != 'bezahlt' && _rechnung.zahlungsstatus != 'abgeschrieben')
-            FilledButton.icon(
-              onPressed: () => _markAsBezahlt(context),
-              icon: const Icon(Icons.check),
-              label: const Text('Als bezahlt markieren'),
-            ),
         ],
       ),
     );
@@ -740,181 +730,6 @@ class _RechnungDetailContentState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Keine Protokolle vorhanden oder Fehler: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _markAsBezahlt(BuildContext context) async {
-    final brutto = (_rechnung.betragBrutto * 20).roundToDouble() / 20;
-    final controller = TextEditingController(text: brutto.toStringAsFixed(2));
-
-    final result = await showDialog<double?>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            final eingabe = double.tryParse(
-                    controller.text.replaceAll(',', '.')) ??
-                0;
-            final differenz =
-                ((eingabe - brutto) * 20).roundToDouble() / 20;
-
-            return AlertDialog(
-              title: const Text('Zahlungseingang'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Rechnung ${_rechnung.rechnungsnummer ?? ''}\n'
-                    'Rechnungsbetrag: CHF ${brutto.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: controller,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                          RegExp(r'[\d.,]')),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Eingegangener Betrag (CHF)',
-                      prefixText: 'CHF ',
-                      border: OutlineInputBorder(),
-                    ),
-                    autofocus: true,
-                    onChanged: (_) => setDialogState(() {}),
-                  ),
-                  if (differenz.abs() >= 0.01) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: differenz < 0
-                            ? AppColors.warning.withAlpha(25)
-                            : AppColors.success.withAlpha(25),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: differenz < 0
-                              ? AppColors.warning.withAlpha(80)
-                              : AppColors.success.withAlpha(80),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            differenz < 0
-                                ? Icons.trending_down
-                                : Icons.trending_up,
-                            size: 18,
-                            color: differenz < 0
-                                ? AppColors.warning
-                                : AppColors.success,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              differenz < 0
-                                  ? 'Unterzahlung: CHF ${differenz.abs().toStringAsFixed(2)}\n'
-                                    'Wird als Debitorenverlust (3805) gebucht'
-                                  : 'Mehrzahlung: CHF ${differenz.toStringAsFixed(2)}\n'
-                                    'Wird als a.o. Ertrag (8000) gebucht',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: differenz < 0
-                                    ? AppColors.warning
-                                    : AppColors.success,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, null),
-                  child: const Text('Abbrechen'),
-                ),
-                FilledButton(
-                  onPressed: eingabe > 0
-                      ? () => Navigator.pop(ctx, eingabe)
-                      : null,
-                  child: const Text('Bezahlt'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result == null) return;
-
-    final zahlungBetrag = (result * 20).roundToDouble() / 20;
-
-    try {
-      // 1. Rechnung als bezahlt markieren
-      await RechnungRepository.update(_rechnung.id, {
-        'zahlungsstatus': 'bezahlt',
-        'zahlung_eingegangen_am':
-            DateTime.now().toIso8601String().split('T').first,
-        'zahlung_betrag': zahlungBetrag,
-      });
-
-      // 2. Buchungen erstellen (Zahlungseingang + ggf. Differenz)
-      final buchungen = await ZahlungsdifferenzService.verbuchen(
-        rechnung: _rechnung,
-        zahlungBetrag: zahlungBetrag,
-      );
-
-      if (mounted) {
-        ref.invalidate(rechnungenStreamProvider);
-        ref.invalidate(buchungenStreamProvider);
-        setState(() {
-          _rechnung = Rechnung(
-            id: _rechnung.id,
-            userId: _rechnung.userId,
-            rechnungsnummer: _rechnung.rechnungsnummer,
-            rechnungstyp: _rechnung.rechnungstyp,
-            betriebId: _rechnung.betriebId,
-            rechnungsdatum: _rechnung.rechnungsdatum,
-            faelligkeitsdatum: _rechnung.faelligkeitsdatum,
-            betragNetto: _rechnung.betragNetto,
-            mwstBetrag: _rechnung.mwstBetrag,
-            betragBrutto: _rechnung.betragBrutto,
-            zahlungsstatus: 'bezahlt',
-            versandart: _rechnung.versandart,
-            zahlungEingegangenAm: DateTime.now(),
-            zahlungBetrag: zahlungBetrag,
-            pdfUrl: _rechnung.pdfUrl,
-          );
-        });
-
-        final differenz =
-            ((zahlungBetrag - brutto) * 20).roundToDouble() / 20;
-        String snackText = 'Rechnung als bezahlt markiert';
-        if (differenz.abs() >= 0.01) {
-          snackText += differenz < 0
-              ? ' (CHF ${differenz.abs().toStringAsFixed(2)} Debitorenverlust)'
-              : ' (CHF ${differenz.toStringAsFixed(2)} Mehrzahlung)';
-        }
-        if (buchungen.isNotEmpty) {
-          snackText += ' — ${buchungen.length} Buchung(en) erstellt';
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(snackText)),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
         );
       }
     }
