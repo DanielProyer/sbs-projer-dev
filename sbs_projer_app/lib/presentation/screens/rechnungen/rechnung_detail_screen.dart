@@ -1,11 +1,14 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnungsadresse_resolver.dart';
+import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -20,6 +23,7 @@ import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.da
 import 'package:sbs_projer_app/services/pdf/mahnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class RechnungDetailScreen extends ConsumerWidget {
   final String rechnungId;
@@ -384,8 +388,6 @@ class _RechnungDetailContentState
       if (raLocal != null) {
         init = {
           'firma': raLocal.firma,
-          'vorname': raLocal.vorname,
-          'nachname': raLocal.nachname,
           'strasse': raLocal.strasse,
           'nr': raLocal.nr,
           'plz': raLocal.plz,
@@ -395,13 +397,27 @@ class _RechnungDetailContentState
       }
     }
     if (!mounted) return;
-    const felder = [
-      'firma', 'vorname', 'nachname', 'strasse', 'nr', 'plz', 'ort', 'email'
-    ];
-    final ctrls = {
-      for (final k in felder)
-        k: TextEditingController(text: (init[k] as String?) ?? ''),
-    };
+    final firma = TextEditingController(text: (init['firma'] as String?) ?? '');
+    final strasse =
+        TextEditingController(text: (init['strasse'] as String?) ?? '');
+    final nr = TextEditingController(text: (init['nr'] as String?) ?? '');
+    final plz = TextEditingController(text: (init['plz'] as String?) ?? '');
+    final ort = TextEditingController(text: (init['ort'] as String?) ?? '');
+    final email = TextEditingController(text: (init['email'] as String?) ?? '');
+
+    // PLZ → Ort (zippopotam.us, wie im Betrieb-Formular), nur wenn Ort leer.
+    Future<void> lookupPlz(String v) async {
+      if (v.trim().length != 4 || ort.text.trim().isNotEmpty) return;
+      try {
+        final resp = await Dio().get('https://api.zippopotam.us/ch/${v.trim()}');
+        final places = resp.data['places'] as List?;
+        final o = (places != null && places.isNotEmpty)
+            ? places[0]['place name'] as String?
+            : null;
+        if (o != null && ort.text.trim().isEmpty) ort.text = o;
+      } catch (_) {}
+    }
+
     final gespeichert = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -412,23 +428,39 @@ class _RechnungDetailContentState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _adrFeld(ctrls['firma']!, 'Firma'),
+                _adrFeld(firma, 'Firma (falls abweichend)'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: TextFormField(
+                    initialValue: _betriebName ?? '',
+                    readOnly: true,
+                    enabled: false,
+                    decoration: const InputDecoration(
+                        labelText: 'Betrieb', isDense: true),
+                  ),
+                ),
                 Row(children: [
-                  Expanded(child: _adrFeld(ctrls['vorname']!, 'Vorname')),
+                  Expanded(flex: 3, child: _adrFeld(strasse, 'Strasse')),
                   const SizedBox(width: 8),
-                  Expanded(child: _adrFeld(ctrls['nachname']!, 'Nachname')),
+                  Expanded(child: _adrFeld(nr, 'Nr.')),
                 ]),
                 Row(children: [
-                  Expanded(flex: 3, child: _adrFeld(ctrls['strasse']!, 'Strasse')),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: TextField(
+                        controller: plz,
+                        keyboardType: TextInputType.number,
+                        onChanged: lookupPlz,
+                        decoration: const InputDecoration(
+                            labelText: 'PLZ', isDense: true),
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(flex: 1, child: _adrFeld(ctrls['nr']!, 'Nr.')),
+                  Expanded(flex: 2, child: _adrFeld(ort, 'Ort')),
                 ]),
-                Row(children: [
-                  Expanded(flex: 1, child: _adrFeld(ctrls['plz']!, 'PLZ')),
-                  const SizedBox(width: 8),
-                  Expanded(flex: 3, child: _adrFeld(ctrls['ort']!, 'Ort')),
-                ]),
-                _adrFeld(ctrls['email']!, 'E-Mail'),
+                _adrFeld(email, 'E-Mail (für Rechnungsversand)'),
               ],
             ),
           ),
@@ -443,20 +475,47 @@ class _RechnungDetailContentState
         ],
       ),
     );
+
     if (gespeichert == true) {
-      final map = <String, dynamic>{
-        for (final e in ctrls.entries)
-          e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim(),
+      // Snapshot mit Betriebsname als "nachname" (wie Betrieb-Formular).
+      final snapshot = <String, dynamic>{
+        'firma': _nullIf(firma.text),
+        'vorname': null,
+        'nachname': _betriebName ?? '',
+        'strasse': _nullIf(strasse.text),
+        'nr': _nullIf(nr.text),
+        'plz': _nullIf(plz.text),
+        'ort': _nullIf(ort.text),
+        'email': _nullIf(email.text),
       };
       try {
+        // 1. Snapshot auf der Rechnung.
         await RechnungRepository.update(
-            _rechnung.id, {'rechnungsadresse': map});
+            _rechnung.id, {'rechnungsadresse': snapshot});
+        // 2. Gleiche Adresse auf den Betrieb übernehmen (gilt künftig).
+        if (_rechnung.betriebId != null) {
+          final bestehend = await BetriebRechnungsadresseRepository
+              .getByBetrieb(_rechnung.betriebId!);
+          final adr = bestehend ?? BetriebRechnungsadresseLocal();
+          adr.betriebId = _rechnung.betriebId!;
+          adr.firma = _nullIf(firma.text);
+          adr.vorname = null;
+          adr.nachname = _betriebName ?? '';
+          adr.strasse = strasse.text.trim();
+          adr.nr = _nullIf(nr.text);
+          adr.plz = plz.text.trim();
+          adr.ort = ort.text.trim();
+          adr.email = _nullIf(email.text);
+          await BetriebRechnungsadresseRepository.save(adr);
+        }
         await _reloadRechnung();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content:
-                  Text('Rechnungsadresse für diese Rechnung gespeichert.')));
+                  Text('Rechnungsadresse gespeichert (Rechnung + Betrieb).')));
         }
+        // 3. Neu-Versand anbieten (Bestätigung).
+        await _neuVersendenAnbieten(_nullIf(email.text));
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -464,9 +523,184 @@ class _RechnungDetailContentState
         }
       }
     }
-    for (final c in ctrls.values) {
+    for (final c in [firma, strasse, nr, plz, ort, email]) {
       c.dispose();
     }
+  }
+
+  String? _nullIf(String s) => s.trim().isEmpty ? null : s.trim();
+
+  /// Bietet nach dem Speichern der Adresse den Neu-Versand an (Bestätigung).
+  Future<void> _neuVersendenAnbieten(String? email) async {
+    if (!mounted) return;
+    final neueFaelligkeit = DateTime.now().add(const Duration(days: 30));
+    final to = email ?? '';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rechnung neu versenden?'),
+        content: Text(to.isEmpty
+            ? 'Keine E-Mail in der Rechnungsadresse hinterlegt — kein Versand möglich.'
+            : 'Die Rechnung wird neu erzeugt und per Mail an\n$to\nversendet.\n\n'
+                'Fällig bis wird auf ${_formatDate(neueFaelligkeit)} '
+                '(heute + 30 Tage) gesetzt.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Nein')),
+          if (to.isNotEmpty)
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Neu versenden')),
+        ],
+      ),
+    );
+    if (ok == true) await _neuVersenden(neueFaelligkeit, to);
+  }
+
+  /// Persistiert das neue Fälligkeitsdatum, erzeugt das PDF neu (mit neuer
+  /// Adresse + Fälligkeit) und versendet es per Mail an [to].
+  Future<void> _neuVersenden(DateTime neueFaelligkeit, String to) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      // 1. Fällig bis in der Rechnung/Forderung persistieren.
+      await RechnungRepository.update(_rechnung.id, {
+        'faelligkeitsdatum': neueFaelligkeit.toIso8601String().split('T').first,
+      });
+      await _reloadRechnung();
+
+      // 2. Betrieb + effektive Adresse laden.
+      final betrieb = _rechnung.betriebId != null
+          ? await BetriebRepository.getByServerId(_rechnung.betriebId!)
+          : null;
+      if (betrieb == null) throw Exception('Betrieb nicht gefunden');
+      BetriebRechnungsadresse? betriebRa;
+      final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
+          _rechnung.betriebId!);
+      if (raLocal != null) {
+        betriebRa = BetriebRechnungsadresse(
+          id: raLocal.serverId ?? '',
+          userId: raLocal.userId,
+          betriebId: _rechnung.betriebId!,
+          firma: raLocal.firma,
+          vorname: raLocal.vorname,
+          nachname: raLocal.nachname,
+          strasse: raLocal.strasse,
+          nr: raLocal.nr,
+          plz: raLocal.plz,
+          ort: raLocal.ort,
+          email: raLocal.email,
+        );
+      }
+      final effRa = effektiveRechnungsadresse(
+          _rechnung.rechnungsadresse, betriebRa,
+          betriebId: _rechnung.betriebId ?? '');
+
+      // 3. PDF neu erzeugen (neue Adresse + Fälligkeit) + hochladen.
+      final positionen = _positionen ??
+          await RechnungsPositionRepository.getByRechnung(_rechnung.id);
+      final g = ref.read(geschaeftProvider).valueOrNull;
+      final pdfBytes = await RechnungPdfService.generate(
+        rechnung: _rechnung,
+        positionen: positionen,
+        betrieb: betrieb,
+        rechnungsadresse: effRa,
+        firmaName: g?.firma,
+        firmaStrasse: g?.adresseStrasse,
+        firmaPlzOrt: g?.adressePlzOrt,
+        firmaMwst: g?.mwstZeile,
+      );
+      await RechnungPdfStorage.uploadPdf(_rechnung.id, pdfBytes);
+
+      // 4. Mail senden (MailConfig respektieren) + Protokoll als Anhang.
+      final protokoll = await _findProtokollPfad(_rechnung.id);
+      final empfaenger = MailConfig.empfaenger(to, bereich: 'reinigung');
+      final d = _rechnung.rechnungsdatum;
+      final datumStr = '${d.day}. ${_monatName(d.month)} ${d.year}';
+      final betriebLabel = (betrieb.ort != null && betrieb.ort!.isNotEmpty)
+          ? '${betrieb.name} ${betrieb.ort}'
+          : betrieb.name;
+      final betragStr = ((_rechnung.betragBrutto * 20).roundToDouble() / 20)
+          .toStringAsFixed(2);
+      await SupabaseService.client.functions.invoke('send-rechnung-mail', body: {
+        'to': empfaenger,
+        'subject':
+            'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
+        'bodyText': 'Guten Tag\n\n'
+            'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
+            'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
+            'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
+            'mit dem beiliegenden Einzahlungsschein zu begleichen.\n\n'
+            'Mit freundlichen Grüssen\n\n'
+            'Daniel Projer\n\n'
+            'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
+        'rechnungId': _rechnung.id,
+        'userId': SupabaseService.dataUserId,
+        'protokollFotoPfad': ?protokoll,
+      });
+
+      // 5. versendet_am setzen (nur bei scharfem Versand).
+      final istScharf = MailConfig.istScharf('reinigung');
+      if (istScharf) {
+        await RechnungRepository.update(_rechnung.id, {
+          'versendet_am': DateTime.now().toIso8601String().split('T').first,
+          'versandart': 'rechnung_mail',
+        });
+        await _reloadRechnung();
+      }
+      ref.invalidate(rechnungenStreamProvider);
+      if (mounted) {
+        Navigator.of(context).pop(); // Lade-Dialog
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(istScharf
+              ? 'Rechnung neu versendet an $empfaenger (Fällig bis ${_formatDate(neueFaelligkeit)}).'
+              : 'TEST: Mail ging an $empfaenger (nicht an Kunde).'),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Neu-Versand fehlgeschlagen: $e')));
+      }
+    }
+  }
+
+  /// Sucht den Protokoll-Pfad (Reinigung) für den Mail-Anhang.
+  Future<String?> _findProtokollPfad(String rechnungId) async {
+    try {
+      final posRows = await SupabaseService.client
+          .from('rechnungs_positionen')
+          .select('service_id')
+          .eq('rechnung_id', rechnungId)
+          .eq('service_typ', 'reinigung')
+          .limit(1);
+      if ((posRows as List).isEmpty) return null;
+      final sid = (posRows.first as Map)['service_id']?.toString();
+      if (sid == null || sid.isEmpty) return null;
+      final reinRows = await SupabaseService.client
+          .from('reinigungen')
+          .select('protokoll_foto_pfad')
+          .eq('id', sid)
+          .limit(1);
+      if ((reinRows as List).isEmpty) return null;
+      final pfad = (reinRows.first as Map)['protokoll_foto_pfad']?.toString();
+      return (pfad != null && pfad.isNotEmpty) ? pfad : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _monatName(int m) {
+    const namen = [
+      '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
+      'August', 'September', 'Oktober', 'November', 'Dezember'
+    ];
+    return (m >= 1 && m <= 12) ? namen[m] : '';
   }
 
   /// Tap-Button (GestureDetector) — rendert auch dort, wo Material-Buttons in
