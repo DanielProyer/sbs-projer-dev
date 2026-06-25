@@ -319,6 +319,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
           .map((b) => {
                 'id': b.serverId!,
                 'name': b.name,
+                'ort': b.ort ?? '',
                 'aliase': b.zahlerAliase.join('\n'),
               })
           .toList();
@@ -377,7 +378,12 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         _uebersprungen = plan.uebersprungen + preStichtagOderVerarbeitet;
         _abgleich = abgleich;
         _alleOffenen = offeneRechnungen;
-        _betriebName = {for (final b in betriebe) b['id']!: b['name']!};
+        _betriebName = {
+          for (final b in betriebe)
+            b['id']!: (b['ort'] ?? '').isEmpty
+                ? b['name']!
+                : '${b['name']} · ${b['ort']}'
+        };
         _step = 2;
         _loading = false;
       });

@@ -87,7 +87,12 @@ class ForderungsAbgleichService {
     final auto = <AutoTreffer>[];
     final manuell = <ManuellFall>[];
     final keineZahlung = <Rechnung>[];
-    final betriebName = {for (final b in betriebe) b['id']!: b['name']!};
+    final betriebName = {
+      for (final b in betriebe)
+        b['id']!: (b['ort'] ?? '').isEmpty
+            ? b['name']!
+            : '${b['name']} · ${b['ort']}'
+    };
 
     // 3. Pro Betrieb mit offenen Forderungen matchen.
     // Forderungs-getrieben: nur Betriebe MIT offenen Forderungen werden betrachtet.

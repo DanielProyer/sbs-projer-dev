@@ -159,6 +159,7 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
           .map((b) => {
                 'id': b.serverId!,
                 'name': b.name,
+                'ort': b.ort ?? '',
                 'aliase': b.zahlerAliase.join('\n'),
               })
           .toList();
@@ -172,7 +173,12 @@ class _CamtAbgleichScreenState extends ConsumerState<CamtAbgleichScreen> {
       setState(() {
         _ergebnis = erg;
         _alleOffenen = offen;
-        _betriebName = {for (final b in betriebe) b['id']!: b['name']!};
+        _betriebName = {
+          for (final b in betriebe)
+            b['id']!: (b['ort'] ?? '').isEmpty
+                ? b['name']!
+                : '${b['name']} · ${b['ort']}'
+        };
         _loading = false;
       });
     } catch (e) {
