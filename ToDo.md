@@ -31,7 +31,7 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 - [ ] Phase 0a Follow-up: 11 alte camt-Vorlagen `ist_aktiv=true` (FK-Schutz) — optional Regeln auf neue Geschäftsfälle umhängen, dann Alt-Vorlagen deaktivieren (tauchen sonst im manuellen Dropdown auf).
 - [ ] Hub: toter Code `forderungenProvider` / `mahnwesenDashboardProvider` entfernen (invalidate auf `rechnungenStreamProvider` umbiegen).
 - [ ] **App-weite UI-Vereinheitlichung** (Filter/Dropdowns) — eigener grösserer Durchgang. Referenz-Stil: schlichte `DropdownButton` im `Wrap`.
-- [ ] **Nachversand-Screen entfernen** (`rechnungen_nachversand_screen.dart` + Route + Tile), wenn Backlog ab 18.02. abgearbeitet.
+- [ ] **Optional Folge:** „Per Mail senden"-Aktion im Rechnungs-Detail (Empfänger editierbar) — ersetzt den weggefallenen Nachversand für Einzelfälle vollständig. Aktuell deckt Drucken/Teilen + manueller Versand den Fall ab.
 
 ---
 
@@ -57,6 +57,8 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 ---
 
 ## ✅ Erledigt (Chronik, neueste zuerst)
+- **v0.14.0** (25.06) **Pro-Rechnung Rechnungsadresse** (Override/Snapshot, Migration 105 `rechnungen.rechnungsadresse` jsonb): „Adresse anpassen" im Rechnungs-Detail ändert nur diese eine Rechnung (Betrieb/andere Rechnungen unberührt); PDF/Mahnung nutzen den Override via reinem Resolver `effektiveRechnungsadresse`; „Zurücksetzen" auf Betriebsadresse.
+- **v0.13.3** (25.06) Temporären Rechnungs-Nachversand-Screen entfernt (Backlog abgearbeitet).
 - **v0.13.2** (25.06) QR-Referenz-Kollision robust (Suffix-Retry statt PostgrestException).
 - **v0.13.1** (25.06) Schweizerkreuz im QR-Code (Rechnung+Mahnung) — QR war ohne ungültig.
 - **v0.13.0** (25.06) **TP-C QR-Referenz (SCOR)**: Migration 104, Util `scor_referenz.dart`, Vergabe in `RechnungRepository.create`, SCOR in Rechnungs-/Mahnungs-PDF, Matching-Stufe 1. Plan: `docs/superpowers/plans/2026-06-25-camt-qr-referenz-scor.md`.
