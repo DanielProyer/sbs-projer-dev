@@ -179,13 +179,6 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             subtitle: 'Rechnungen, Mahnwesen & Debitoren',
             onTap: () => context.push('/rechnungen'),
           ),
-          // TEMPORÄR: entfernen nach Aufholen des Mail-Backlogs
-          _NavTile(
-            icon: Icons.outgoing_mail,
-            title: 'Rechnungen nachversenden (temporär)',
-            subtitle: 'Reinigungs-Rechnungen ab 18.02.2026 per Mail',
-            onTap: () => context.push('/buchhaltung/rechnungen-nachversand'),
-          ),
           _NavTile(
             icon: Icons.account_balance,
             title: 'Bankauszug Import',
