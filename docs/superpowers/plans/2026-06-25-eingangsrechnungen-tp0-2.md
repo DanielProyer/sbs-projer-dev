@@ -21,6 +21,13 @@
 - Vor jedem Deploy: `flutter analyze` 0 Errors + `flutter test` grün; Deploy nach `CLAUDE.md` (Version bumpen → bauen → cache-busten → gh-pages). **Reihenfolge: Version bumpen, DANN bauen.**
 - Branch: `feature/eingangsrechnungen` (vor TP-0 anlegen, nicht auf `main` implementieren).
 
+## Umsetzungs-Abweichungen vom Plan (Stand 25.06.2026, nach Entscheidungen)
+
+- **QR-Erkennung (Task 1.3 entfällt):** Kein QR-Decoder. `parse-rechnung` liest die im Zahlteil **gedruckten** Felder (IBAN/Referenz/Betrag/Typ) per KI. Echter Swiss-QR-Decoder vertagt auf TP-6.
+- **Scan-Erfassung:** extern via **ClearScanner → PDF-Upload** (`FilePicker`, PDF-only im MVP). Kein App-Kamera-Scanner.
+- **Beleg-Storage:** NICHT via `BuchungsBelegRepository`/`beleg_id` (dessen `buchung_id` hat FK auf `buchungen`, existiert beim Scannen noch nicht) — stattdessen Migration **107** (`beleg_pfad`, `beleg_dateiname`) + `EingangsrechnungRepository.uploadBeleg`/`signedBelegUrl` im selben Bucket `buchungs-belege` unter Pfad `{userId}/eingangsrechnung/{id}/...`.
+- **Erkennungs-Output:** `RechnungScanResult` (Felder s. `lib/data/models/rechnung_scan_result.dart`); Service `RechnungScanService.scan`.
+
 ---
 
 # TP-0 — Fundament (Migration + Modell + Repository + Upload)

@@ -1,7 +1,8 @@
 /// DTO für eine Eingangsrechnung (Kreditor / Lieferantenrechnung).
 ///
 /// Plain-Dart-Klasse mit fromJson-Factory + toJson (snake_case Keys),
-/// passend zur Supabase-Tabelle `eingangsrechnung` (Migration 106, 31 Spalten).
+/// passend zur Supabase-Tabelle `eingangsrechnung` (Migration 106 + 107,
+/// inkl. beleg_pfad/beleg_dateiname).
 class Eingangsrechnung {
   final String id;
   final String userId;
