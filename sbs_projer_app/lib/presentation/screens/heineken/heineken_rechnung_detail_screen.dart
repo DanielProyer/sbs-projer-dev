@@ -277,7 +277,6 @@ class _HeinekenRechnungDetailScreenState
                 case 'offen':
                 case 'gesendet':
                 case 'freigegeben':
-                case 'bezahlt':
                   _updateStatus(value);
                   break;
                 case 'delete':
@@ -294,13 +293,10 @@ class _HeinekenRechnungDetailScreenState
                 const PopupMenuItem(
                     value: 'offen', child: Text('Auf offen zurücksetzen')),
               ],
-              if (r.zahlungsstatus == 'freigegeben') ...[
-                const PopupMenuItem(
-                    value: 'bezahlt', child: Text('Als bezahlt markieren')),
+              if (r.zahlungsstatus == 'freigegeben')
                 const PopupMenuItem(
                     value: 'gesendet',
                     child: Text('Auf gesendet zurücksetzen')),
-              ],
               if (r.zahlungsstatus == 'bezahlt')
                 const PopupMenuItem(
                     value: 'freigegeben',
@@ -424,13 +420,12 @@ class _HeinekenRechnungDetailScreenState
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: r.zahlungsstatus == 'freigegeben'
-                  ? () => _updateStatus('bezahlt')
-                  : null,
+              // Bezahlt wird ausschliesslich über den camt-Bankabgleich gesetzt.
+              onPressed: null,
               icon: const Icon(Icons.check_circle),
               label: Text(r.zahlungsstatus == 'bezahlt'
                   ? 'Bezahlt'
-                  : 'Als bezahlt markieren'),
+                  : 'Zahlung über Bankabgleich'),
             ),
           ),
         ],
