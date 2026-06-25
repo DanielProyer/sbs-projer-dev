@@ -25,4 +25,15 @@ void main() {
     expect(qrReferenzAusNummer('heineken_monat', '2026-06-25-0001'), isNull);
     expect(qrReferenzAusNummer('kundenrechnung', null), isNull);
   });
+
+  test('Suffix erzeugt eine andere, gültige Referenz (Kollisions-Auflösung)', () {
+    final basis = qrReferenzAusNummer('kundenrechnung', '2026-06-25-0001')!;
+    final s1 = qrReferenzAusNummer('kundenrechnung', '2026-06-25-0001', suffix: 1)!;
+    final s2 = qrReferenzAusNummer('kundenrechnung', '2026-06-25-0001', suffix: 2)!;
+    expect(qrReferenzAusNummer('kundenrechnung', '2026-06-25-0001', suffix: 0), basis);
+    expect(s1, isNot(basis));
+    expect(s2, isNot(s1));
+    expect(istGueltigeScor(s1), isTrue);
+    expect(istGueltigeScor(s2), isTrue);
+  });
 }
