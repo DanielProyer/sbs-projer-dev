@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,6 +70,7 @@ class _RechnungDetailContentState
   List<RechnungsPosition>? _positionen;
   String? _betriebName;
   String? _betriebId;
+  BetriebRechnungsadresseLocal? _betriebRa;
   bool _loadingPositionen = true;
 
   @override
@@ -86,17 +86,21 @@ class _RechnungDetailContentState
           await RechnungsPositionRepository.getByRechnung(_rechnung.id);
 
       String? betriebName;
+      BetriebRechnungsadresseLocal? betriebRa;
       if (_rechnung.betriebId != null) {
         final betrieb =
             await BetriebRepository.getByServerId(_rechnung.betriebId!);
         betriebName = betrieb?.name;
         _betriebId = betrieb?.routeId;
+        betriebRa = await BetriebRechnungsadresseRepository
+            .getByBetrieb(_rechnung.betriebId!);
       }
 
       if (mounted) {
         setState(() {
           _positionen = positionen;
           _betriebName = betriebName;
+          _betriebRa = betriebRa;
           _loadingPositionen = false;
         });
       }
@@ -300,237 +304,67 @@ class _RechnungDetailContentState
     );
   }
 
-  // ─── Rechnungsadresse (pro Rechnung, Override/Snapshot) ───
+  // ─── Rechnungsadresse (gehört dem Betrieb; hier nur Anzeige + Neu-Versand) ───
 
   Widget _rechnungsadresseCard() {
-    final override = _rechnung.rechnungsadresse;
-    final hatOverride = override != null && override.isNotEmpty;
+    final ra = _betriebRa;
     return _SectionCard(
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text('Rechnungsadresse',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            ),
-            if (hatOverride)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withAlpha(30),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text('abweichend',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.warning,
-                        fontWeight: FontWeight.w600)),
-              ),
-          ],
-        ),
+        const Text('Rechnungsadresse',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
         const SizedBox(height: 8),
         Text(
-          hatOverride
-              ? _adresseText(override)
-              : 'Standard: Rechnungsadresse des Betriebs.',
+          ra != null
+              ? _betriebRaText(ra)
+              : 'Keine separate Rechnungsadresse beim Betrieb hinterlegt.',
           style: TextStyle(
-              fontSize: 13,
-              color: hatOverride ? null : AppColors.textSecondary),
+              fontSize: 13, color: ra != null ? null : AppColors.textSecondary),
         ),
-        const SizedBox(height: 8),
-        // GestureDetector statt Material-Button: FilledButton/OutlinedButton
-        // rendern in CanvasKit auf manchen Screen-Bodies nicht (bekannter Bug).
-        Row(
+        const SizedBox(height: 10),
+        // GestureDetector statt Material-Button (CanvasKit-Render-Bug im Body).
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            _tapButton('Adresse anpassen', _editRechnungsadresse,
+            _tapButton('Adresse beim Betrieb bearbeiten', _adresseBeiBetrieb,
                 icon: Icons.edit_location_alt),
-            if (hatOverride) ...[
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _resetRechnungsadresse,
-                behavior: HitTestBehavior.opaque,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-                  child: Text('Zurücksetzen',
-                      style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
+            if (_rechnung.betriebId != null)
+              _tapButton('Rechnung erneut senden', _rechnungErneutSenden,
+                  icon: Icons.send),
           ],
         ),
       ],
     );
   }
 
-  String _adresseText(Map<String, dynamic> a) {
-    String join(List<String> keys, String sep) => keys
-        .map((k) => (a[k] as String?)?.trim() ?? '')
-        .where((s) => s.isNotEmpty)
-        .join(sep);
+  String _betriebRaText(BetriebRechnungsadresseLocal a) {
     final lines = <String>[
-      join(['firma'], ' '),
-      join(['vorname', 'nachname'], ' '),
-      join(['strasse', 'nr'], ' '),
-      join(['plz', 'ort'], ' '),
-      join(['email'], ' '),
+      (a.firma ?? '').trim(),
+      a.nachname.trim(),
+      '${a.strasse}${a.nr != null && a.nr!.isNotEmpty ? ' ${a.nr}' : ''}'.trim(),
+      '${a.plz} ${a.ort}'.trim(),
+      (a.email ?? '').trim(),
     ].where((s) => s.isNotEmpty).toList();
     return lines.isEmpty ? '—' : lines.join('\n');
   }
 
-  Future<void> _editRechnungsadresse() async {
-    // Vorbefüllung: Override > Betriebs-Rechnungsadresse > leer.
-    Map<String, dynamic> init = _rechnung.rechnungsadresse ?? {};
-    if (init.isEmpty && _rechnung.betriebId != null) {
-      final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
-          _rechnung.betriebId!);
-      if (raLocal != null) {
-        init = {
-          'firma': raLocal.firma,
-          'strasse': raLocal.strasse,
-          'nr': raLocal.nr,
-          'plz': raLocal.plz,
-          'ort': raLocal.ort,
-          'email': raLocal.email,
-        };
-      }
-    }
-    if (!mounted) return;
-    final firma = TextEditingController(text: (init['firma'] as String?) ?? '');
-    final strasse =
-        TextEditingController(text: (init['strasse'] as String?) ?? '');
-    final nr = TextEditingController(text: (init['nr'] as String?) ?? '');
-    final plz = TextEditingController(text: (init['plz'] as String?) ?? '');
-    final ort = TextEditingController(text: (init['ort'] as String?) ?? '');
-    final email = TextEditingController(text: (init['email'] as String?) ?? '');
-
-    // PLZ → Ort (zippopotam.us, wie im Betrieb-Formular), nur wenn Ort leer.
-    Future<void> lookupPlz(String v) async {
-      if (v.trim().length != 4 || ort.text.trim().isNotEmpty) return;
-      try {
-        final resp = await Dio().get('https://api.zippopotam.us/ch/${v.trim()}');
-        final places = resp.data['places'] as List?;
-        final o = (places != null && places.isNotEmpty)
-            ? places[0]['place name'] as String?
-            : null;
-        if (o != null && ort.text.trim().isEmpty) ort.text = o;
-      } catch (_) {}
-    }
-
-    final gespeichert = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rechnungsadresse anpassen'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _adrFeld(firma, 'Firma (falls abweichend)'),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: TextFormField(
-                    initialValue: _betriebName ?? '',
-                    readOnly: true,
-                    enabled: false,
-                    decoration: const InputDecoration(
-                        labelText: 'Betrieb', isDense: true),
-                  ),
-                ),
-                Row(children: [
-                  Expanded(flex: 3, child: _adrFeld(strasse, 'Strasse')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _adrFeld(nr, 'Nr.')),
-                ]),
-                Row(children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: TextField(
-                        controller: plz,
-                        keyboardType: TextInputType.number,
-                        onChanged: lookupPlz,
-                        decoration: const InputDecoration(
-                            labelText: 'PLZ', isDense: true),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(flex: 2, child: _adrFeld(ort, 'Ort')),
-                ]),
-                _adrFeld(email, 'E-Mail (für Rechnungsversand)'),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Speichern')),
-        ],
-      ),
-    );
-
-    if (gespeichert == true) {
-      // Snapshot mit Betriebsname als "nachname" (wie Betrieb-Formular).
-      final snapshot = <String, dynamic>{
-        'firma': _nullIf(firma.text),
-        'vorname': null,
-        'nachname': _betriebName ?? '',
-        'strasse': _nullIf(strasse.text),
-        'nr': _nullIf(nr.text),
-        'plz': _nullIf(plz.text),
-        'ort': _nullIf(ort.text),
-        'email': _nullIf(email.text),
-      };
-      try {
-        // 1. Snapshot auf der Rechnung.
-        await RechnungRepository.update(
-            _rechnung.id, {'rechnungsadresse': snapshot});
-        // 2. Gleiche Adresse auf den Betrieb übernehmen (gilt künftig).
-        if (_rechnung.betriebId != null) {
-          final bestehend = await BetriebRechnungsadresseRepository
-              .getByBetrieb(_rechnung.betriebId!);
-          final adr = bestehend ?? BetriebRechnungsadresseLocal();
-          adr.betriebId = _rechnung.betriebId!;
-          adr.firma = _nullIf(firma.text);
-          adr.vorname = null;
-          adr.nachname = _betriebName ?? '';
-          adr.strasse = strasse.text.trim();
-          adr.nr = _nullIf(nr.text);
-          adr.plz = plz.text.trim();
-          adr.ort = ort.text.trim();
-          adr.email = _nullIf(email.text);
-          await BetriebRechnungsadresseRepository.save(adr);
-        }
-        await _reloadRechnung();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content:
-                  Text('Rechnungsadresse gespeichert (Rechnung + Betrieb).')));
-        }
-        // 3. Neu-Versand anbieten (Bestätigung).
-        await _neuVersendenAnbieten(_nullIf(email.text));
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
-        }
-      }
-    }
-    for (final c in [firma, strasse, nr, plz, ort, email]) {
-      c.dispose();
-    }
+  /// Springt zum Adress-Formular des Betriebs; danach Anzeige neu laden.
+  Future<void> _adresseBeiBetrieb() async {
+    final bid = _rechnung.betriebId;
+    if (bid == null) return;
+    await context.push('/betriebe/$bid/rechnungsadresse');
+    final ra = await BetriebRechnungsadresseRepository.getByBetrieb(bid);
+    if (mounted) setState(() => _betriebRa = ra);
   }
 
-  String? _nullIf(String s) => s.trim().isEmpty ? null : s.trim();
+  /// Bestätigt + versendet die Rechnung neu (Fällig bis → heute+30).
+  Future<void> _rechnungErneutSenden() async {
+    final email = _betriebRa?.email;
+    await _neuVersendenAnbieten(
+        (email != null && email.trim().isNotEmpty) ? email.trim() : null);
+  }
 
-  /// Bietet nach dem Speichern der Adresse den Neu-Versand an (Bestätigung).
+  /// Bietet den Neu-Versand an (Bestätigung).
   Future<void> _neuVersendenAnbieten(String? email) async {
     if (!mounted) return;
     final neueFaelligkeit = DateTime.now().add(const Duration(days: 30));
@@ -729,30 +563,6 @@ class _RechnungDetailContentState
         ),
       ),
     );
-  }
-
-  Widget _adrFeld(TextEditingController c, String label) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: TextField(
-          controller: c,
-          decoration: InputDecoration(labelText: label, isDense: true),
-        ),
-      );
-
-  Future<void> _resetRechnungsadresse() async {
-    try {
-      await RechnungRepository.update(_rechnung.id, {'rechnungsadresse': null});
-      await _reloadRechnung();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Auf Betriebsadresse zurückgesetzt.')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Zurücksetzen fehlgeschlagen: $e')));
-      }
-    }
   }
 
   Future<void> _reloadRechnung() async {
