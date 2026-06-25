@@ -32,6 +32,8 @@ class Eingangsrechnung {
   final String? camtTxKey;
   final double? konfidenz;
   final String? belegId;
+  final String? belegPfad;
+  final String? belegDateiname;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -65,6 +67,8 @@ class Eingangsrechnung {
     this.camtTxKey,
     this.konfidenz,
     this.belegId,
+    this.belegPfad,
+    this.belegDateiname,
     this.createdAt,
     this.updatedAt,
   });
@@ -100,6 +104,8 @@ class Eingangsrechnung {
       camtTxKey: json['camt_tx_key'],
       konfidenz: _toDouble(json['konfidenz']),
       belegId: json['beleg_id'],
+      belegPfad: json['beleg_pfad'],
+      belegDateiname: json['beleg_dateiname'],
       createdAt: _toDate(json['created_at']),
       updatedAt: _toDate(json['updated_at']),
     );
@@ -136,6 +142,8 @@ class Eingangsrechnung {
       'camt_tx_key': camtTxKey,
       'konfidenz': konfidenz,
       'beleg_id': belegId,
+      'beleg_pfad': belegPfad,
+      'beleg_dateiname': belegDateiname,
     };
   }
 
