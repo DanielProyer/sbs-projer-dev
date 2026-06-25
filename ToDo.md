@@ -18,9 +18,11 @@ Branch `feature/camt-import-merge` → gemergt nach `main` + deployed (20.06.202
 - **Lohn vs. Büromiete getrennt** (v0.11.9): `RegelMatcher` prüft jetzt auch `remittanceInfo`. Büromiete-Regel → match „Miete Büro", Prio 20, Vorlage **6000←1020**; Lohn („daniel proyer", Prio 10) → 2002←1020.
 - **Bestätigungs-Modus** (v0.11.10): Import bucht **nichts mehr automatisch** — Bereich-2-Regel-/Heineken-Treffer erscheinen im Ergebnis als **bestätigbare Vorschläge** (`CamtAutoBooker.plan`/`bucheVorschlag`, Tap-Buttons), Ungetroffene → Prüfliste. „Später automatisch": Import wieder auf `CamtAutoBooker.run` umstellen (Methode existiert noch). **Material-Buttons rendern auf dem Import-Screen nicht (CanvasKit) → GestureDetector-Workaround durchgängig.**
 
-**Nächste Teilprojekte (Spec liegt, Reihenfolge):**
-- [ ] **TP-B — Zahler→Betrieb-Lernen** (Alias): Tabelle `camt_zahler_alias`; Lernen bei manueller Zuordnung; Anwenden als Matching-**Stufe 2**; Verwaltungs-Screen.
-- [ ] **TP-C — QR-Referenz**: `rechnungen.qr_referenz`; Vergabe + QR-/PDF-Einbettung bei Rechnungserstellung; Referenz-First als Matching-**Stufe 1**.
+**Teilprojekte (alle live, von Daniel zu testen):**
+- [x] **TP-B — Zahler→Betrieb-Lernen** (live v0.12.0/0.12.1): Aliase **am Betrieb** (`betriebe.zahler_aliase`, Migration 103) statt eigener Tabelle. Lernen bei manueller Zuordnung (+ optional Auto-Treffer via Schalter, Standard an), Matching-**Stufe 2** (`matchByAlias`), Pflege im Betrieb-Formular. Plan: `docs/superpowers/plans/2026-06-25-camt-zahler-betrieb-lernen.md`.
+- [x] **TP-C — QR-Referenz (SCOR)** (live v0.13.0): `rechnungen.qr_referenz` (Migration 104). **SCOR** (ISO 11649, `RF…`) statt QRR, da normale IBAN (keine QR-IBAN). Util `scor_referenz.dart`; Vergabe zentral in `RechnungRepository.create` (kundenrechnung+jahresrechnung, heineken_monat aus); SCOR in QR-Code + Zahlteil von Rechnungs-+Mahnungs-PDF; Matching-**Stufe 1** (Referenz→Rechnung, vor Alias/Unscharf). Plan: `docs/superpowers/plans/2026-06-25-camt-qr-referenz-scor.md`.
+  - **Daniel testen:** neue Rechnung erzeugen → PDF-Zahlteil zeigt `RF…`, QR scanbar; camt-Import mit dieser Referenz → 🟢 exakter Treffer (Stufe 1).
+  - [ ] **Minor (Folge):** Kollision gleicher Referenz-Body (zwei Rechnungsnummern mit identischen Ziffern) → DB-Unique wirft `PostgrestException` ungefangen in die UI. Bei Bedarf abfangen/Fehlertext.
 
 **Offene Minor (kein Blocker):**
 - [ ] **4 Rechnungen** `offen`/`gesendet` mit `zahlung_eingegangen_am=2026-05-17` (CHF 337.28) — Daniel sichten, evtl. auf `bezahlt` setzen.
