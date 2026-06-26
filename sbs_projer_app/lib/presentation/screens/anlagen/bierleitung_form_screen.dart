@@ -53,6 +53,7 @@ class _BierleitungFormScreenState
     'Inox 316L',
     'Siporex',
     'SK 240-014 Gold',
+    'SK 343-025',
     'SL 492010',
     'Smartschank',
     'Anderer',
