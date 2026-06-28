@@ -1,6 +1,7 @@
 // Supabase Edge Function: parse-rechnung
 // Analysiert Schweizer EINGANGSRECHNUNGEN / Geschäftspost (PDF oder Bild) via Claude
-// Haiku 4.5 und extrahiert strukturierte Daten für die Kreditoren-Buchhaltung.
+// Sonnet 4.6 (höhere Ziffern-/Layout-Genauigkeit) und extrahiert strukturierte
+// Daten für die Kreditoren-Buchhaltung.
 // Liest die im QR-Zahlteil GEDRUCKTEN Felder (Klartext) — dekodiert NICHT den QR-Code.
 // Deploy: supabase functions deploy parse-rechnung --no-verify-jwt
 // Secret: ANTHROPIC_API_KEY (bereits gesetzt für parse-beleg)
@@ -105,7 +106,7 @@ Deno.serve(async (req: Request) => {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 1500,
         messages: [
           { role: "user", content: [sourceBlock, { type: "text", text: PROMPT }] },
