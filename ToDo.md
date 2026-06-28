@@ -1,15 +1,17 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.06.2026 · **Live:** v0.16.13
+**Stand:** 28.06.2026 · **Live:** v0.16.14
 
 ---
 
 ## 🔴 OFFEN — relevant
 
-### Eingangsrechnungen (TP-0..5 live v0.16.13) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss
+### Eingangsrechnungen (TP-0..6 live v0.16.14) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität
 - [ ] **🔴 HOHE PRIORITÄT — GKB-Zahlungsfile Test-Upload:** Erstes `pain.001.001.09`-File mit EINER kleinen Lieferantenzahlung im **GKB-E-Banking testweise hochladen** → bestätigt das Schweizer Profil `.ch.03` (ISO-Basis-XSD ist bereits validiert: VALID). Weg: Eingangsrechnung hochladen → „Bestätigen & buchen" (macht vorgemerkt) → Eingangsrechnungen-Liste → Icon oben rechts → „Zahlungsfile erstellen" (XML-Download). Bei GKB-Ablehnung: Fehlermeldung an Claude → gezielte XSD/Profil-Anpassung. (Generator `tool/gen_pain001.dart` für Re-Validierung; falls SIX-`.ch.03`-XSD vorhanden → direkt dagegen validieren.)
 - [ ] **TP-5 End-to-End-Test (camt-Kreditor-Abschluss):** nach echter GKB-Zahlung den camt-Auszug importieren → prüfen, ob die Belastung als „Kreditor-Zahlung"-Vorschlag erscheint (Match Referenz/IBAN), bestätigen → Stufe-2-Buchung (Kreditor→Bank 1020) + Status `bezahlt`. **Empirisch offen:** ob GKB im camt bei Belastungen die QRR/SCOR-Referenz zurückspielt (sonst Fallback IBAN+Betrag).
-- [ ] **TP-6 Reversibilität** (nächster Baustein): Storno/Löschen einer camt-Stufe-2-Buchung per `camt_tx_key` setzt Eingangsrechnung-Status zurück (`bezahlt`→`exportiert`/`gebucht`, bezahlt_am/buchung_stufe2_id/camt_tx_key leeren). + **TP-7 Datenhygiene** (Vorlagen A-*, Konten-Altlasten).
+- [ ] **🔴 Bilanz/ER-Storno-Bug (vor scharfem Bankabgleich klären — Daniel-Entscheidung):** `bilanz_service.dart:84` (+ `erfolgsrechnung_service`) überspringt stornierte Buchungen, zählt aber die Storno-**Gegenbuchung** mit → ein Storno nettet auf **−Original statt 0** (Konto/Saldo um den Betrag verfälscht). Betrifft ALLE Stornos (reinigung/heineken/kreditor), wird durch TP-6 Path-B systematisch ausgelöst. Fix: Gegenbuchungen (`stornoVonId != null`) ebenfalls überspringen (oder Original mitzählen). **Ändert Salden bestehender Stornos → vor dem Fix kurz Rücksprache.** (Entdeckt bei TP-6-Review, vorbestehend.)
+- [ ] **TP-7 Datenhygiene** (Vorlagen A-*, Konten-Altlasten). *(TP-6 Reversibilität ✓ live v0.16.14: „Zahlung rückgängig" im Detail + Konsistenz beim Buchung-Storno.)*
+- [ ] TP-6 deferred (info, aus Review): Atomarität der Rücknahme bei Teil-Fehler (heute self-healing per Retry; DB-RPC/Transaktion wäre sauber); book()-Partial-Write-Waise (aktive 'zahlung'-Buchung ohne `buchung_stufe2_id` blockiert künftiges Matching — Fallback-Suche via `beleg_id` denkbar).
 - [ ] AXA-Personenversicherung Seed-Regel: aktuell Konto **5730** (Best-Guess) — prüfen ob eher **5740 (KTG)**; im Screen Eingangsrechnungen → **Rechnungsregeln** korrigierbar.
 - [ ] Sicherheit: Edge-Functions `parse-rechnung` + `parse-beleg` laufen mit `verify_jwt=false` — auf `true` härtbar (schützt API-Credits).
 - [ ] TP-5 deferred (info, aus Review): (a) partieller DB-UNIQUE-Index auf `buchungen(beleg_id) WHERE beleg_typ='zahlung' AND NOT ist_storniert` als letztes Netz gegen Doppelklick-Race (App-Guards greifen bereits); (b) optionale 5-Rappen-/Spesen-Toleranz beim Kreditor-Betragsmatch (heute exakt = sicher, sonst Prüfliste).
