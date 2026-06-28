@@ -19,12 +19,14 @@ SCHRITT 1 — KLASSIFIZIEREN:
 - ist_nur_info = true (und ist_rechnung = false) bei reinen Info-Dokumenten OHNE Zahlungsaufforderung, z.B.: Vorsorge-/PK-Ausweis, Lohnausweis, Versicherungspolice ohne Einzahlungsschein, Sozialversicherungssätze/Beitragsübersicht, Veranlagungs-/Steuerverfügung ohne Zahlteil, Lohndeklaration, Schadenbericht, Kontoauszug, allgemeine Mitteilung.
 - dok_typ: genau einer von: rechnung | akontorechnung | schlussrechnung | mahnung | gutschrift | info.
 
-SCHRITT 2 — ZAHLDATEN aus dem QR-Zahlteil / Einzahlungsschein (unten auf Schweizer Rechnungen). Die Felder stehen dort auch als KLARTEXT — lies sie von dort, NICHT aus dem QR-Code-Bild:
-- empfaenger_iban: die IBAN unter "Konto / Zahlbar an" (CH.. oder LI.., 21 Zeichen). Eine QR-IBAN erkennst du an den Stellen 5-9 (IID) im Bereich 30000-31999.
-- referenz: die "Referenz" aus dem Zahlteil (Ziffern oder RF...).
-- referenz_typ: "QRR" wenn 27-stellige reine Zahlenreferenz; "SCOR" wenn sie mit "RF" beginnt; "NON" wenn keine Referenz vorhanden (nur Mitteilung / "Zusätzliche Informationen").
-- betrag_zahlbar: der "Betrag" aus dem Zahlteil = der tatsächlich zu zahlende Betrag (Total/Saldo "zu zahlen"). NICHT eine einzelne Position. Bei Mahnung inkl. Gebühren.
+SCHRITT 2 — ZAHLDATEN aus dem QR-Zahlteil (Abschnitt "Zahlteil", unten auf Schweizer Rechnungen). Lies die KLARTEXT-Felder daneben, dekodiere NICHT den QR-Code. IBAN UND REFERENZ MÜSSEN ZEICHENGENAU STIMMEN — eine einzige falsche Ziffer macht die Zahlung ungültig:
+- Wenn das PDF eine Textebene hat (digitales, nicht gescanntes PDF): übernimm IBAN und Referenz ZEICHEN FÜR ZEICHEN aus dem eingebetteten Text, NICHT aus dem visuellen Eindruck.
+- empfaenger_iban: die IBAN aus dem Feld "Konto / Zahlbar an" des Zahlteils — EXAKT 21 Zeichen (CH oder LI + 19 Ziffern). Oft in Blöcken mit Leerzeichen gedruckt: gib sie OHNE Leerzeichen zurück, jede Ziffer einzeln und sorgfältig. Verwende NICHT eine andere IBAN aus Briefkopf/Fuss/Fliesstext, sondern ausschliesslich die des QR-Zahlteils. QR-IBAN = Stellen 5–9 (IID) im Bereich 30000–31999.
+- referenz: die Nummer aus dem Feld "Referenz" des Zahlteils. Verwechsle sie NICHT mit Kundennummer, Rechnungsnummer oder "Zusätzliche Informationen". QRR = EXAKT 27 Ziffern (nur Zahlen, oft in Blöcken gedruckt — gib alle 27 OHNE Leerzeichen). SCOR = beginnt mit "RF" + 2 Prüfziffern. Übernimm jede Stelle sorgfältig.
+- referenz_typ: "QRR" (27-stellig, nur Ziffern) | "SCOR" (RF...) | "NON" (keine strukturierte Referenz, nur Mitteilung).
+- betrag_zahlbar: das Feld "Betrag" im Zahlteil = der tatsächlich zu zahlende Betrag (Total/Saldo "zu zahlen"). NICHT eine einzelne Position. Bei Mahnung inkl. Gebühren.
 - waehrung: i.d.R. CHF.
+- Wenn du IBAN oder Referenz nicht zweifelsfrei und vollständig lesen kannst, gib das betroffene Feld lieber null und senke die Konfidenz, statt zu raten.
 
 SCHRITT 3 — WEITERE FELDER:
 - aussteller_name: Rechnungssteller/Lieferant (Firma oben bzw. "Zahlbar an").
@@ -32,7 +34,7 @@ SCHRITT 3 — WEITERE FELDER:
 - rechnungsnummer; rechnungsdatum (YYYY-MM-DD); faelligkeit (YYYY-MM-DD; "zahlbar bis"/"Fälligkeit"; null falls fehlend).
 - mwst_satz: ausgewiesener MWST-Satz in Prozent. Schweiz aktuell: 8.1 (normal), 2.6 (reduziert), 3.8 (Beherbergung); historisch 7.7/2.5/3.7. Bei mehreren den dominanten; wenn keiner ausgewiesen 0.
 - mwst_pflichtig: false (und mwst_satz 0) bei hoheitlichen / MWST-FREIEN Forderungen: Feuerwehrersatzabgabe, Gemeinde-Gebühren/Fahrbewilligung, Bussen, Sozialversicherungsbeiträge (SVA/AHV/SUVA/BVG/Pensionskasse), Steuern, Versicherungsprämien (Stempelsteuer ist KEINE MWST). Bei normalen Waren/Dienstleistungen true.
-- konfidenz: 0..1, sei streng und ehrlich. Unscharf, abgeschnitten oder unsicher gelesen -> niedrig (< 0.85).
+- konfidenz: 0..1, ehrliche Gesamteinschätzung. Sauber lesbares digitales PDF mit klar erkannten Feldern -> hoch (0.9+). Senke nur bei echter Unsicherheit (unscharf, abgeschnitten, mehrdeutig) oder wenn IBAN/Referenz nicht zweifelsfrei lesbar sind.
 
 WICHTIGE REGELN:
 - "Betrag zu zahlen" / Saldo schlägt die Brutto-Summe einzelner Positionen.
