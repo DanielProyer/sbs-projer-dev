@@ -7,6 +7,7 @@ class BuchungSaldo {
   final double betrag; // betragBrutto
   final DateTime datum;
   final bool storniert;
+  final bool istGegenbuchung; // Storno-Gegenbuchung (storno_von_id != null)
   final int? mwstKonto;
   final double? betragNetto; // null → = betrag (brutto)
   final double mwstBetrag;
@@ -16,6 +17,7 @@ class BuchungSaldo {
     required this.betrag,
     required this.datum,
     required this.storniert,
+    this.istGegenbuchung = false,
     this.mwstKonto,
     this.betragNetto,
     this.mwstBetrag = 0,
@@ -81,7 +83,9 @@ class BilanzService {
       List<BuchungSaldo> buchungen, DateTime stichtag) {
     final saldi = <int, double>{};
     for (final b in buchungen) {
-      if (b.storniert) continue;
+      // Stornierte Originale UND ihre Gegenbuchungen aus dem Saldo nehmen —
+      // sonst nettet ein Storno auf −Original statt 0.
+      if (b.storniert || b.istGegenbuchung) continue;
       if (b.datum.isAfter(stichtag)) continue;
       SaldoExpansion.apply(
         saldi,

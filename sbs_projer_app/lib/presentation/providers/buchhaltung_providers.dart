@@ -91,6 +91,7 @@ List<BuchungSaldo> _toSaldoInput(List<Buchung> buchungen) => buchungen
           betrag: b.betragBrutto,
           datum: b.datum,
           storniert: b.istStorniert,
+          istGegenbuchung: b.stornoVonId != null,
           mwstKonto: b.mwstKonto,
           betragNetto: b.betragNetto,
           mwstBetrag: b.mwstBetrag,

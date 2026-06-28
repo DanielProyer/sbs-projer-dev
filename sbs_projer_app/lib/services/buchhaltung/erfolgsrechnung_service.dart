@@ -69,7 +69,7 @@ class ErfolgsrechnungService {
   }) {
     final shm = <int, double>{};
     for (final b in buchungen) {
-      if (b.storniert) continue;
+      if (b.storniert || b.istGegenbuchung) continue;
       if (b.datum.isBefore(von) || b.datum.isAfter(bis)) continue;
       SaldoExpansion.apply(
         shm,
@@ -113,7 +113,7 @@ class ErfolgsrechnungService {
   }) {
     final shm = <int, double>{};
     for (final b in buchungen) {
-      if (b.storniert) continue;
+      if (b.storniert || b.istGegenbuchung) continue;
       if (b.datum.isBefore(von) || b.datum.isAfter(bis)) continue;
       SaldoExpansion.apply(
         shm,
