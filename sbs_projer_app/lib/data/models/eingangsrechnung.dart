@@ -35,6 +35,8 @@ class Eingangsrechnung {
   final String? belegId;
   final String? belegPfad;
   final String? belegDateiname;
+  final bool qrGelesen;
+  final String? qrAbweichungen;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -70,6 +72,8 @@ class Eingangsrechnung {
     this.belegId,
     this.belegPfad,
     this.belegDateiname,
+    this.qrGelesen = false,
+    this.qrAbweichungen,
     this.createdAt,
     this.updatedAt,
   });
@@ -107,6 +111,8 @@ class Eingangsrechnung {
       belegId: json['beleg_id'],
       belegPfad: json['beleg_pfad'],
       belegDateiname: json['beleg_dateiname'],
+      qrGelesen: json['qr_gelesen'] ?? false,
+      qrAbweichungen: json['qr_abweichungen'],
       createdAt: _toDate(json['created_at']),
       updatedAt: _toDate(json['updated_at']),
     );
@@ -145,6 +151,8 @@ class Eingangsrechnung {
       'beleg_id': belegId,
       'beleg_pfad': belegPfad,
       'beleg_dateiname': belegDateiname,
+      'qr_gelesen': qrGelesen,
+      'qr_abweichungen': qrAbweichungen,
     };
   }
 

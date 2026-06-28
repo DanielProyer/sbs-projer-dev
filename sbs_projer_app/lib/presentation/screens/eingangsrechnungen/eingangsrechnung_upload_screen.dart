@@ -8,6 +8,8 @@ import 'package:sbs_projer_app/data/models/rechnung_scan_result.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/rechnung_scan_service.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/swiss_qr_data.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/swiss_qr_service.dart';
 
 /// Upload-/Erkennungs-Screen für Eingangsrechnungen (Kreditoren, TP-1).
 ///
@@ -28,6 +30,8 @@ class _EingangsrechnungUploadScreenState
   bool _busy = false;
   String _statusText = '';
   RechnungScanResult? _result;
+  SwissQrData? _qr;
+  String? _abweichungen;
   String? _dateiname;
 
   Future<void> _pickAndScanPdf() async {
@@ -60,6 +64,8 @@ class _EingangsrechnungUploadScreenState
     setState(() {
       _busy = true;
       _result = null;
+      _qr = null;
+      _abweichungen = null;
       _dateiname = name;
       _statusText = 'Rechnung wird analysiert …';
     });
@@ -68,15 +74,36 @@ class _EingangsrechnungUploadScreenState
       // 1) KI-Analyse via Edge Function
       final r = await RechnungScanService.scan(bytes: bytes, mediaType: mediaType);
 
-      // 2) Eingangsrechnung anlegen (Status erkannt)
+      // 1b) Swiss-QR-Code dekodieren (exakte IBAN/Referenz/Betrag) + abgleichen.
+      //     QR gilt als Wahrheit; KI wird dagegengehalten.
+      setState(() => _statusText = 'QR-Code wird gelesen …');
+      final qr = await SwissQrService.decode(bytes: bytes, mediaType: mediaType);
+      final abw = qr == null
+          ? null
+          : qrAbweichungen(
+              qrIban: qr.iban,
+              kiIban: r.empfaengerIban,
+              qrRef: qr.referenz,
+              kiRef: r.referenz,
+              qrBetrag: qr.betrag,
+              kiBetrag: r.betragZahlbar,
+            );
+
+      final effIban = qr?.iban ?? r.empfaengerIban;
+      final effRef = qr?.referenz ?? r.referenz;
+      final effRefTyp = qr?.referenzTyp ?? r.referenzTyp;
+      final effBetrag =
+          (qr?.betrag != null && qr!.betrag! > 0) ? qr.betrag! : r.betragZahlbar;
+
+      // 2) Eingangsrechnung anlegen (Status erkannt) — QR-Werte für IBAN/Ref/Betrag
       setState(() => _statusText = 'Eingangsrechnung wird gespeichert …');
       final created = await EingangsrechnungRepository.create({
         'aussteller_name': r.ausstellerName,
         'aussteller_uid': r.ausstellerUid,
-        'lieferant_iban': r.empfaengerIban,
-        'qr_referenz': r.referenz,
-        'referenz_typ': r.referenzTyp,
-        'betrag_brutto': r.betragZahlbar,
+        'lieferant_iban': effIban,
+        'qr_referenz': effRef,
+        'referenz_typ': effRefTyp,
+        'betrag_brutto': effBetrag,
         'mwst_satz': r.mwstSatz,
         'mwst_pflichtig': r.mwstPflichtig,
         'rechnungsnummer': r.rechnungsnummer,
@@ -85,6 +112,8 @@ class _EingangsrechnungUploadScreenState
         'dok_typ': r.dokTyp,
         'ist_nur_info': r.istNurInfo,
         'konfidenz': r.konfidenz,
+        'qr_gelesen': qr != null,
+        'qr_abweichungen': abw,
         'status': 'erkannt',
       });
 
@@ -107,6 +136,8 @@ class _EingangsrechnungUploadScreenState
       if (!mounted) return;
       setState(() {
         _result = r;
+        _qr = qr;
+        _abweichungen = abw;
         _statusText = '';
         _busy = false;
       });
@@ -197,6 +228,11 @@ class _EingangsrechnungUploadScreenState
 
   Widget _ergebnisKarte(RechnungScanResult r) {
     final niedrigeKonfidenz = r.konfidenz < 0.85;
+    final effIban = _qr?.iban ?? r.empfaengerIban;
+    final effRef = _qr?.referenz ?? r.referenz;
+    final effRefTyp = _qr?.referenzTyp ?? r.referenzTyp;
+    final effBetrag =
+        (_qr?.betrag != null && _qr!.betrag! > 0) ? _qr!.betrag! : r.betragZahlbar;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -227,6 +263,8 @@ class _EingangsrechnungUploadScreenState
             ],
           ),
           const Divider(height: 24),
+
+          _qrBanner(),
 
           if (r.istNurInfo)
             Padding(
@@ -259,14 +297,19 @@ class _EingangsrechnungUploadScreenState
           _zeile('Dokument-Typ', r.dokTyp),
           _zeile(
             'Betrag',
-            '${(r.waehrung ?? 'CHF')} ${r.betragZahlbar.toStringAsFixed(2)}',
+            'CHF ${effBetrag.toStringAsFixed(2)}'
+                '${_qr?.betrag != null ? ' (QR)' : ''}',
           ),
-          _zeile('IBAN', r.empfaengerIban),
+          _zeile(
+            'IBAN',
+            effIban == null ? null : '$effIban${_qr != null ? ' (QR)' : ''}',
+          ),
           _zeile(
             'Referenz',
-            r.referenz == null
+            effRef == null
                 ? null
-                : '${r.referenz} (${r.referenzTyp ?? 'NON'})',
+                : '$effRef (${effRefTyp ?? 'NON'})'
+                    '${_qr?.referenz != null ? ' · QR' : ''}',
           ),
           _zeile('Rechnungsnummer', r.rechnungsnummer),
           _zeile('Rechnungsdatum', _dateOnly(r.rechnungsdatum)),
@@ -317,6 +360,46 @@ class _EingangsrechnungUploadScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _qrBanner() {
+    final IconData icon;
+    final Color color;
+    final String text;
+    if (_qr == null) {
+      icon = Icons.warning_amber_rounded;
+      color = AppColors.warning;
+      text = 'Kein QR-Code gelesen – IBAN/Referenz stammen aus der '
+          'Texterkennung. Bitte sorgfältig prüfen.';
+    } else if (_abweichungen != null) {
+      icon = Icons.error_outline;
+      color = AppColors.error;
+      text = 'QR ↔ Texterkennung weichen ab: $_abweichungen. '
+          'Es gelten die QR-Werte (prüfziffer-gesichert).';
+    } else {
+      icon = Icons.verified_outlined;
+      color = AppColors.success;
+      text = 'QR-Code gelesen – IBAN/Referenz/Betrag stimmen mit der '
+          'Texterkennung überein.';
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withAlpha(25),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+          ],
+        ),
       ),
     );
   }

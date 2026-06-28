@@ -327,6 +327,7 @@ class _EingangsrechnungDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _qrBadge(e),
             if (niedrigeKonfidenz) ...[
               _konfidenzBadge(e.konfidenz!),
               const SizedBox(height: 16),
@@ -437,6 +438,50 @@ class _EingangsrechnungDetailScreenState
               const Center(child: CircularProgressIndicator()),
             ],
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Banner zum QR-Abgleich: rot bei Abweichung QR ↔ Texterkennung, gelb wenn
+  /// kein QR gelesen wurde, sonst nichts (saubere Übereinstimmung).
+  Widget _qrBadge(Eingangsrechnung e) {
+    if (e.qrAbweichungen != null && e.qrAbweichungen!.isNotEmpty) {
+      return _hinweisBanner(
+        Icons.error_outline,
+        AppColors.error,
+        'QR ↔ Texterkennung weichen ab: ${e.qrAbweichungen}. '
+        'Es gelten die QR-Werte (prüfziffer-gesichert).',
+      );
+    }
+    if (!e.qrGelesen) {
+      return _hinweisBanner(
+        Icons.warning_amber_rounded,
+        AppColors.warning,
+        'Kein QR-Code gelesen – IBAN/Referenz stammen aus der Texterkennung. '
+        'Bitte sorgfältig prüfen.',
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _hinweisBanner(IconData icon, Color color, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withAlpha(25),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withAlpha(80)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 10),
+            Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
           ],
         ),
       ),
