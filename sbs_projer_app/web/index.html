@@ -50,24 +50,38 @@
         var bin = atob(base64);
         var bytes = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        if (!window.jsQR) return null;
+        if (!window.jsQR) { console.warn('[QR] jsQR nicht geladen'); return null; }
 
-        function scan(imageData) {
-          var code = window.jsQR(
-            imageData.data, imageData.width, imageData.height,
-            { inversionAttempts: 'attemptBoth' }
-          );
-          return code ? code.data : null;
+        // Scannt eine Canvas in mehreren Regionen: ganze Flaeche, dann das
+        // untere Drittel (Swiss-QR-Zahlteil) inkl. linker/rechter Haelfte.
+        function scanCanvas(canvas, ctx, label) {
+          function tryRegion(x, y, w, h, sub) {
+            if (w < 40 || h < 40) return null;
+            var img = ctx.getImageData(x, y, w, h);
+            var code = window.jsQR(img.data, img.width, img.height,
+              { inversionAttempts: 'attemptBoth' });
+            if (code && code.data) {
+              console.log('[QR] gefunden auf ' + label + ' (' + sub + ')');
+              return code.data;
+            }
+            return null;
+          }
+          var W = canvas.width, H = canvas.height;
+          var by = Math.floor(H * 0.55), bh = H - by;
+          return tryRegion(0, 0, W, H, 'voll')
+            || tryRegion(0, by, W, bh, 'unten')
+            || tryRegion(Math.floor(W * 0.45), by, W - Math.floor(W * 0.45), bh, 'unten-rechts')
+            || tryRegion(0, by, Math.floor(W * 0.55), bh, 'unten-links');
         }
 
         if (mediaType === 'application/pdf') {
-          if (!window.pdfjsLib) return null;
+          if (!window.pdfjsLib) { console.warn('[QR] pdf.js nicht geladen'); return null; }
           if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
             window.pdfjsLib.GlobalWorkerOptions.workerSrc =
               'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
           }
           var pdf = await window.pdfjsLib.getDocument({ data: bytes }).promise;
-          // ALLE Seiten pruefen — der QR-Zahlteil sitzt oft auf der letzten Seite.
+          console.log('[QR] PDF mit ' + pdf.numPages + ' Seite(n)');
           for (var p = 1; p <= pdf.numPages; p++) {
             var page = await pdf.getPage(p);
             var viewport = page.getViewport({ scale: 3 });
@@ -76,9 +90,11 @@
             canvas.height = Math.floor(viewport.height);
             var ctx = canvas.getContext('2d');
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            var found = scan(ctx.getImageData(0, 0, canvas.width, canvas.height));
+            var found = scanCanvas(canvas, ctx, 'Seite ' + p);
             if (found) return found;
+            console.log('[QR] kein QR auf Seite ' + p);
           }
+          console.warn('[QR] kein QR auf allen ' + pdf.numPages + ' Seiten gefunden');
           return null;
         } else {
           var blob = new Blob([bytes], { type: mediaType });
@@ -88,10 +104,12 @@
           c2.height = bmp.height;
           var cx = c2.getContext('2d');
           cx.drawImage(bmp, 0, 0);
-          return scan(cx.getImageData(0, 0, c2.width, c2.height));
+          var f = scanCanvas(c2, cx, 'Bild');
+          if (!f) console.warn('[QR] kein QR im Bild gefunden');
+          return f;
         }
       } catch (e) {
-        console.error('sbsDecodeQr error', e);
+        console.error('[QR] sbsDecodeQr error', e);
         return null;
       }
     };
