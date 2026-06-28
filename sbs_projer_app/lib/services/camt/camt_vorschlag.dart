@@ -1,8 +1,9 @@
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
+import 'package:sbs_projer_app/data/models/eingangsrechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
-enum CamtVorschlagTyp { ausgabe, heineken }
+enum CamtVorschlagTyp { ausgabe, heineken, kreditor }
 
 /// Ein vorgeschlagener Buchungsvorgang aus Bereich 2 (Übriges), der in der
 /// Bestätigungs-Phase NICHT automatisch gebucht, sondern vom Benutzer
@@ -13,6 +14,7 @@ class CamtVorschlag {
   final CamtVorschlagTyp typ;
   final BuchungsVorlage? vorlage; // bei typ == ausgabe
   final Rechnung? heinekenRechnung; // bei typ == heineken
+  final Eingangsrechnung? eingangsrechnung; // bei typ == kreditor
   final String label; // z.B. "Büromiete → 6000"
 
   CamtVorschlag({
@@ -20,6 +22,7 @@ class CamtVorschlag {
     required this.typ,
     this.vorlage,
     this.heinekenRechnung,
+    this.eingangsrechnung,
     required this.label,
   });
 }

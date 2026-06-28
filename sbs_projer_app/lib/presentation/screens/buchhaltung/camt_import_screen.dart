@@ -14,11 +14,13 @@ import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/abgleich_vorschau.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_regel_repository.dart';
+import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
@@ -337,6 +339,15 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       final vorlagen = (await BuchungsVorlageRepository.getAll())
           .cast<BuchungsVorlage>();
       final vorlagenById = {for (final v in vorlagen) v.id: v};
+      // TP-5: offene Kreditoren (Stufe-1 gebucht, noch nicht bezahlt) als
+      // Match-Kandidaten für camt-Belastungen.
+      final offeneKreditoren = (await EingangsrechnungRepository
+              .getByStatus(['gebucht', 'exportiert']))
+          .where((e) =>
+              e.camtTxKey == null &&
+              e.bezahltAm == null &&
+              e.buchungStufe1Id != null)
+          .toList();
 
       final stmtTx = _statement!.transactions;
       // Post-Stichtag + noch nicht verarbeitet → in Bereiche aufteilen.
@@ -355,6 +366,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
         heinekenRechnungen: heinekenRechnungen,
         regeln: regeln,
         vorlagenById: vorlagenById,
+        offeneKreditoren: offeneKreditoren,
       );
       await CamtAutoBooker.zuPruefliste(plan.pruefliste);
       ref.invalidate(camtPrueflisteProvider);
@@ -533,6 +545,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
     try {
       await CamtAutoBooker.bucheVorschlag(v);
       ref.invalidate(buchungenStreamProvider);
+      ref.invalidate(eingangsrechnungenProvider);
       if (!mounted) return;
       setState(() => _vorschlaege.remove(v));
       if (mounted) {

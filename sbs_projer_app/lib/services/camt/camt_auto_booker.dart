@@ -2,6 +2,7 @@ import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/models/camt_regel.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
+import 'package:sbs_projer_app/data/models/eingangsrechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
@@ -10,12 +11,14 @@ import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dar
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/services/camt/camt_ausgabe_booker.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
+import 'package:sbs_projer_app/services/camt/camt_kreditor_booker.dart';
 import 'package:sbs_projer_app/services/camt/camt_klassifizierer.dart';
 import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
 import 'package:sbs_projer_app/services/camt/camt_vorschlag.dart';
 import 'package:sbs_projer_app/services/camt/heineken_matcher.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
 import 'package:sbs_projer_app/services/camt/regel_matcher.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/kreditoren_abgleich_service.dart';
 
 class AutoBookerResult {
   int gebucht = 0, pruefliste = 0, uebersprungen = 0;
@@ -154,6 +157,7 @@ class CamtAutoBooker {
     required List<Rechnung> heinekenRechnungen,
     required List<CamtRegel> regeln,
     required Map<String, BuchungsVorlage> vorlagenById,
+    List<Eingangsrechnung> offeneKreditoren = const [],
   }) {
     final vorschlaege = <CamtVorschlag>[];
     final pruefliste = <CamtTransaction>[];
@@ -181,6 +185,20 @@ class CamtAutoBooker {
           break;
         case TxKategorie.bargeldEinzahlung:
         case TxKategorie.ausgabe:
+          // TP-5: Kreditor-Abschluss VOR dem Ausgaben-Regelwerk (nur Belastungen).
+          if (!tx.isCredit) {
+            final e = KreditorenAbgleichService.match(tx, offeneKreditoren);
+            if (e != null) {
+              vorschlaege.add(CamtVorschlag(
+                tx: tx,
+                typ: CamtVorschlagTyp.kreditor,
+                eingangsrechnung: e,
+                label:
+                    'Kreditor-Zahlung ${e.ausstellerName ?? ''} → bezahlt (${e.betragBrutto.toStringAsFixed(2)})',
+              ));
+              break;
+            }
+          }
           final vid = RegelMatcher.matchVorlageId(
             partyName: tx.partyName,
             partyIban: tx.partyIban,
@@ -212,21 +230,27 @@ class CamtAutoBooker {
   /// Bucht EINEN bestätigten Vorschlag über die bestehenden Booker
   /// (mit korrektem Datum + camt_tx_key).
   static Future<void> bucheVorschlag(CamtVorschlag v) async {
-    if (v.typ == CamtVorschlagTyp.ausgabe) {
-      await CamtAusgabeBooker.book(v.tx, v.vorlage!);
-    } else {
-      final b = await HeinekenBuchungService.createZahlungseingang(
-          v.heinekenRechnung!,
-          datum: v.tx.bookingDate);
-      if (b != null) {
-        await BuchungRepository.setCamtTxKey(b.id, v.tx.txKey);
-        final datumStr = v.tx.bookingDate.toIso8601String().split('T').first;
-        await RechnungRepository.update(v.heinekenRechnung!.id, {
-          'zahlungsstatus': 'bezahlt',
-          'zahlung_eingegangen_am': datumStr,
-          'zahlung_betrag': v.heinekenRechnung!.betragBrutto,
-        });
-      }
+    switch (v.typ) {
+      case CamtVorschlagTyp.kreditor:
+        await CamtKreditorBooker.book(v.tx, v.eingangsrechnung!);
+        break;
+      case CamtVorschlagTyp.ausgabe:
+        await CamtAusgabeBooker.book(v.tx, v.vorlage!);
+        break;
+      case CamtVorschlagTyp.heineken:
+        final b = await HeinekenBuchungService.createZahlungseingang(
+            v.heinekenRechnung!,
+            datum: v.tx.bookingDate);
+        if (b != null) {
+          await BuchungRepository.setCamtTxKey(b.id, v.tx.txKey);
+          final datumStr = v.tx.bookingDate.toIso8601String().split('T').first;
+          await RechnungRepository.update(v.heinekenRechnung!.id, {
+            'zahlungsstatus': 'bezahlt',
+            'zahlung_eingegangen_am': datumStr,
+            'zahlung_betrag': v.heinekenRechnung!.betragBrutto,
+          });
+        }
+        break;
     }
   }
 
