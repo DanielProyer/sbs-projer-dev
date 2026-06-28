@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung_scan_result.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
@@ -33,6 +34,7 @@ class _EingangsrechnungUploadScreenState
   SwissQrData? _qr;
   String? _abweichungen;
   String? _dateiname;
+  String? _belegPfad;
 
   Future<void> _pickAndScanPdf() async {
     if (_busy) return;
@@ -138,6 +140,7 @@ class _EingangsrechnungUploadScreenState
         _result = r;
         _qr = qr;
         _abweichungen = abw;
+        _belegPfad = pfad;
         _statusText = '';
         _busy = false;
       });
@@ -168,6 +171,56 @@ class _EingangsrechnungUploadScreenState
     } else {
       context.go('/buchhaltung/eingangsrechnungen');
     }
+  }
+
+  /// Öffnet das hochgeladene PDF über eine signierte Storage-URL (neuer Tab).
+  Future<void> _pdfAnsehen() async {
+    if (_belegPfad == null) return;
+    try {
+      final url = await EingangsrechnungRepository.signedBelegUrl(_belegPfad!);
+      if (!await launchUrl(Uri.parse(url),
+          mode: LaunchMode.externalApplication)) {
+        _showError('PDF konnte nicht geöffnet werden');
+      }
+    } catch (e) {
+      _showError('Fehler beim Öffnen: $e');
+    }
+  }
+
+  Widget _outlineButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onTap,
+  }) {
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: enabled ? AppColors.primary : AppColors.divider,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppColors.primary, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -213,7 +266,15 @@ class _EingangsrechnungUploadScreenState
             if (_result != null) ...[
               const SizedBox(height: 24),
               _ergebnisKarte(_result!),
-              const SizedBox(height: 24),
+              if (_belegPfad != null) ...[
+                const SizedBox(height: 16),
+                _outlineButton(
+                  label: 'PDF ansehen',
+                  icon: Icons.picture_as_pdf,
+                  onTap: _busy ? null : _pdfAnsehen,
+                ),
+              ],
+              const SizedBox(height: 14),
               _primaryButton(
                 label: 'Fertig',
                 icon: Icons.check,
