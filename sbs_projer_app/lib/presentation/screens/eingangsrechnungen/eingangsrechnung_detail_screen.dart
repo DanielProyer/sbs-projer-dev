@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dar
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/konto_providers.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_buchung_service.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/kreditor_lern_service.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -153,6 +154,22 @@ class _EingangsrechnungDetailScreenState
 
       final frisch = await EingangsrechnungRepository.getById(widget.id);
       await EingangsrechnungBuchungService.bucheStufe1(frisch!);
+
+      // Lieferanten-Vorbelegung lernen (neue Regel oder Konto-Korrektur).
+      // Fehler hier dürfen die erfolgte Buchung nicht stören.
+      try {
+        await KreditorLernService.lerne(
+          ausstellerName: _trimOrNull(_ausstellerCtrl.text),
+          iban: _trimOrNull(_ibanCtrl.text),
+          referenz: _trimOrNull(_referenzCtrl.text),
+          aufwandskonto: _aufwandskonto!,
+          vorsteuerKonto: _vorsteuerKonto,
+          mwstSatz: _parseMwst(_mwstCtrl.text),
+          mwstPflichtig: _mwstPflichtig,
+        );
+      } catch (_) {
+        // Lern-Fehler bewusst ignorieren.
+      }
 
       ref.invalidate(eingangsrechnungenProvider);
       if (!mounted) return;

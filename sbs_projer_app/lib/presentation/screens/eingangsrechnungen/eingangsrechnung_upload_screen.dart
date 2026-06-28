@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/kreditor_regel.dart';
 import 'package:sbs_projer_app/data/models/rechnung_scan_result.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/kreditor_regel_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/kreditor_matcher.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/rechnung_scan_service.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/swiss_qr_data.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/swiss_qr_service.dart';
@@ -35,6 +38,7 @@ class _EingangsrechnungUploadScreenState
   String? _abweichungen;
   String? _dateiname;
   String? _belegPfad;
+  KreditorRegel? _kreditorTreffer;
 
   Future<void> _pickAndScanPdf() async {
     if (_busy) return;
@@ -68,6 +72,7 @@ class _EingangsrechnungUploadScreenState
       _result = null;
       _qr = null;
       _abweichungen = null;
+      _kreditorTreffer = null;
       _dateiname = name;
       _statusText = 'Rechnung wird analysiert …';
     });
@@ -97,6 +102,20 @@ class _EingangsrechnungUploadScreenState
       final effBetrag =
           (qr?.betrag != null && qr!.betrag! > 0) ? qr.betrag! : r.betragZahlbar;
 
+      // 1c) Lieferanten-Lernregel suchen → Konto/MwSt/Geschäftsfall vorbelegen.
+      KreditorRegel? treffer;
+      try {
+        final regeln = await KreditorRegelRepository.getAllActive();
+        treffer = matchKreditorRegel(
+          regeln,
+          ausstellerName: r.ausstellerName,
+          iban: effIban,
+          referenz: effRef,
+        );
+      } catch (_) {
+        // Lernregeln dürfen den Upload nicht blockieren.
+      }
+
       // 2) Eingangsrechnung anlegen (Status erkannt) — QR-Werte für IBAN/Ref/Betrag
       setState(() => _statusText = 'Eingangsrechnung wird gespeichert …');
       final created = await EingangsrechnungRepository.create({
@@ -106,8 +125,8 @@ class _EingangsrechnungUploadScreenState
         'qr_referenz': effRef,
         'referenz_typ': effRefTyp,
         'betrag_brutto': effBetrag,
-        'mwst_satz': r.mwstSatz,
-        'mwst_pflichtig': r.mwstPflichtig,
+        'mwst_satz': treffer?.mwstSatzPercent ?? r.mwstSatz,
+        'mwst_pflichtig': treffer?.mwstPflichtig ?? r.mwstPflichtig,
         'rechnungsnummer': r.rechnungsnummer,
         'rechnungsdatum': _dateOnly(r.rechnungsdatum),
         'faelligkeit': _dateOnly(r.faelligkeit),
@@ -117,6 +136,9 @@ class _EingangsrechnungUploadScreenState
         'qr_gelesen': qr != null,
         'qr_abweichungen': abw,
         'status': 'erkannt',
+        if (treffer != null) 'aufwandskonto': treffer.aufwandskonto,
+        if (treffer != null) 'vorsteuer_konto': treffer.vorsteuerKonto,
+        if (treffer != null) 'geschaeftsfall_id': treffer.geschaeftsfallId,
       });
 
       // 3) Beleg in Storage ablegen + Pfad nachtragen
@@ -141,6 +163,7 @@ class _EingangsrechnungUploadScreenState
         _qr = qr;
         _abweichungen = abw;
         _belegPfad = pfad;
+        _kreditorTreffer = treffer;
         _statusText = '';
         _busy = false;
       });
@@ -380,6 +403,11 @@ class _EingangsrechnungUploadScreenState
             '${r.mwstSatz.toStringAsFixed(1)}% '
                 '(${r.mwstPflichtig ? 'pflichtig' : 'nicht pflichtig'})',
           ),
+          if (_kreditorTreffer != null)
+            _zeile(
+              'Konto-Vorschlag',
+              '${_kreditorTreffer!.aufwandskonto} (gelernt)',
+            ),
 
           const SizedBox(height: 8),
           Row(
