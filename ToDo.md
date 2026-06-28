@@ -1,15 +1,18 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.06.2026 · **Live:** v0.16.11
+**Stand:** 28.06.2026 · **Live:** v0.16.13
 
 ---
 
 ## 🔴 OFFEN — relevant
 
-### Eingangsrechnungen / GKB-Zahlungsfile (neu, TP-0..4 live v0.16.11)
+### Eingangsrechnungen (TP-0..5 live v0.16.13) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss
 - [ ] **🔴 HOHE PRIORITÄT — GKB-Zahlungsfile Test-Upload:** Erstes `pain.001.001.09`-File mit EINER kleinen Lieferantenzahlung im **GKB-E-Banking testweise hochladen** → bestätigt das Schweizer Profil `.ch.03` (ISO-Basis-XSD ist bereits validiert: VALID). Weg: Eingangsrechnung hochladen → „Bestätigen & buchen" (macht vorgemerkt) → Eingangsrechnungen-Liste → Icon oben rechts → „Zahlungsfile erstellen" (XML-Download). Bei GKB-Ablehnung: Fehlermeldung an Claude → gezielte XSD/Profil-Anpassung. (Generator `tool/gen_pain001.dart` für Re-Validierung; falls SIX-`.ch.03`-XSD vorhanden → direkt dagegen validieren.)
-- [ ] AXA-Personenversicherung Seed-Regel: aktuell Konto **5730** (Best-Guess) — prüfen ob eher **5740 (KTG)**; im Verwaltungs-Screen (Eingangsrechnungen → Regeln) korrigierbar.
+- [ ] **TP-5 End-to-End-Test (camt-Kreditor-Abschluss):** nach echter GKB-Zahlung den camt-Auszug importieren → prüfen, ob die Belastung als „Kreditor-Zahlung"-Vorschlag erscheint (Match Referenz/IBAN), bestätigen → Stufe-2-Buchung (Kreditor→Bank 1020) + Status `bezahlt`. **Empirisch offen:** ob GKB im camt bei Belastungen die QRR/SCOR-Referenz zurückspielt (sonst Fallback IBAN+Betrag).
+- [ ] **TP-6 Reversibilität** (nächster Baustein): Storno/Löschen einer camt-Stufe-2-Buchung per `camt_tx_key` setzt Eingangsrechnung-Status zurück (`bezahlt`→`exportiert`/`gebucht`, bezahlt_am/buchung_stufe2_id/camt_tx_key leeren). + **TP-7 Datenhygiene** (Vorlagen A-*, Konten-Altlasten).
+- [ ] AXA-Personenversicherung Seed-Regel: aktuell Konto **5730** (Best-Guess) — prüfen ob eher **5740 (KTG)**; im Screen Eingangsrechnungen → **Rechnungsregeln** korrigierbar.
 - [ ] Sicherheit: Edge-Functions `parse-rechnung` + `parse-beleg` laufen mit `verify_jwt=false` — auf `true` härtbar (schützt API-Credits).
+- [ ] TP-5 deferred (info, aus Review): (a) partieller DB-UNIQUE-Index auf `buchungen(beleg_id) WHERE beleg_typ='zahlung' AND NOT ist_storniert` als letztes Netz gegen Doppelklick-Race (App-Guards greifen bereits); (b) optionale 5-Rappen-/Spesen-Toleranz beim Kreditor-Betragsmatch (heute exakt = sicher, sonst Prüfliste).
 
 ### Scharfstellung / Live-Betrieb (Buchhaltung 01.07.2026)
 Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.2019→heute im System, Bilanz geht an allen Jahresenden auf, Salden laufen weiter. „Scharfstellen" = nur noch:
