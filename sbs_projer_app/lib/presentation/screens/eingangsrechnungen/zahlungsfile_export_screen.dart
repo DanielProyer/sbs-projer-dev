@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/data/repositories/zahlungsfile_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/pain001_writer.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/pain001_validation.dart';
 
 /// Export-Screen für das GKB-Zahlungsfile (ISO-20022 pain.001).
 ///
@@ -64,8 +65,34 @@ class _ZahlungsfileExportScreenState
     }
   }
 
+  /// Baut die pain.001-Zahlung aus einer Eingangsrechnung.
+  Pain001Payment _toPayment(Eingangsrechnung e) => Pain001Payment(
+        endToEndId: e.rechnungsnummer ?? 'NOTPROVIDED',
+        cdtrName: e.ausstellerName ?? '',
+        cdtrIban: e.lieferantIban ?? '',
+        cdtrStrtNm: e.ausstellerStrasse,
+        cdtrBldgNb: e.ausstellerHausnr,
+        cdtrPstCd: e.ausstellerPlz,
+        cdtrTwnNm: e.ausstellerOrt,
+        cdtrCtry: e.ausstellerLand ?? 'CH',
+        referenzTyp: e.referenzTyp ?? 'NON',
+        referenz: e.qrReferenz,
+        betrag: e.betragBrutto,
+        waehrung: 'CHF',
+      );
+
+  /// Exportierbare Zahlungen (Vor-Export-Validierung ok).
+  List<Eingangsrechnung> get _valide =>
+      _zahlungen.where((e) => pruefeZahlung(_toPayment(e)).isEmpty).toList();
+
+  /// Zahlungen mit Konsistenz-Problemen (nicht exportierbar) + Gründe.
+  List<MapEntry<Eingangsrechnung, List<String>>> get _invalide => _zahlungen
+      .map((e) => MapEntry(e, pruefeZahlung(_toPayment(e))))
+      .where((m) => m.value.isNotEmpty)
+      .toList();
+
   double get _summe =>
-      _zahlungen.fold<double>(0, (sum, e) => sum + e.betragBrutto);
+      _valide.fold<double>(0, (sum, e) => sum + e.betragBrutto);
 
   /// Baut den Auftraggeber (Dbtr) aus den Geschäfts-Stammdaten.
   Pain001Debtor _buildDebtor(GeschaeftEinstellungen g) {
@@ -103,7 +130,7 @@ class _ZahlungsfileExportScreenState
   }
 
   Future<void> _erstellen() async {
-    if (_busy || _zahlungen.isEmpty) return;
+    if (_busy || _valide.isEmpty) return;
     setState(() => _busy = true);
     try {
       final g = await GeschaeftRepository.get();
@@ -119,23 +146,8 @@ class _ZahlungsfileExportScreenState
       final msgId = 'SBS-$millis';
       final now = DateTime.now();
 
-      final exportierte = List<Eingangsrechnung>.from(_zahlungen);
-      final payments = exportierte
-          .map((e) => Pain001Payment(
-                endToEndId: e.rechnungsnummer ?? 'NOTPROVIDED',
-                cdtrName: e.ausstellerName ?? '',
-                cdtrIban: e.lieferantIban ?? '',
-                cdtrStrtNm: e.ausstellerStrasse,
-                cdtrBldgNb: e.ausstellerHausnr,
-                cdtrPstCd: e.ausstellerPlz,
-                cdtrTwnNm: e.ausstellerOrt,
-                cdtrCtry: e.ausstellerLand ?? 'CH',
-                referenzTyp: e.referenzTyp ?? 'NON',
-                referenz: e.qrReferenz,
-                betrag: e.betragBrutto,
-                waehrung: 'CHF',
-              ))
-          .toList();
+      final exportierte = List<Eingangsrechnung>.from(_valide);
+      final payments = exportierte.map(_toPayment).toList();
 
       final xml = Pain001Writer.build(
         msgId: msgId,
@@ -249,19 +261,37 @@ class _ZahlungsfileExportScreenState
       );
     }
 
+    final valide = _valide;
+    final invalide = _invalide;
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
+          child: ListView(
             padding: const EdgeInsets.only(top: 8, bottom: 8),
-            itemCount: _zahlungen.length,
-            itemBuilder: (context, i) => _ZahlungZeile(e: _zahlungen[i]),
+            children: [
+              for (final e in valide) _ZahlungZeile(e: e),
+              if (invalide.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: Text(
+                    'Nicht exportierbar — bitte im Detail korrigieren:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
+                for (final m in invalide)
+                  _ZahlungZeile(e: m.key, fehler: m.value),
+              ],
+            ],
           ),
         ),
         _Footer(
-          anzahl: _zahlungen.length,
+          anzahl: valide.length,
           summe: _summe,
           busy: _busy,
+          enabled: valide.isNotEmpty,
           onErstellen: _erstellen,
         ),
       ],
@@ -270,9 +300,10 @@ class _ZahlungsfileExportScreenState
 }
 
 class _ZahlungZeile extends StatelessWidget {
-  const _ZahlungZeile({required this.e});
+  const _ZahlungZeile({required this.e, this.fehler});
 
   final Eingangsrechnung e;
+  final List<String>? fehler;
 
   @override
   Widget build(BuildContext context) {
@@ -327,6 +358,24 @@ class _ZahlungZeile extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
+            if (fehler != null && fehler!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 14, color: AppColors.error),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      fehler!.join(' · '),
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.error),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -339,12 +388,14 @@ class _Footer extends StatelessWidget {
     required this.anzahl,
     required this.summe,
     required this.busy,
+    required this.enabled,
     required this.onErstellen,
   });
 
   final int anzahl;
   final double summe;
   final bool busy;
+  final bool enabled;
   final VoidCallback onErstellen;
 
   @override
@@ -378,12 +429,12 @@ class _Footer extends StatelessWidget {
               const SizedBox(height: 12),
               // In-Body-Button als GestureDetector (CanvasKit-Klick-Workaround).
               GestureDetector(
-                onTap: busy ? null : onErstellen,
+                onTap: (busy || !enabled) ? null : onErstellen,
                 child: Container(
                   height: 48,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: busy
+                    color: (busy || !enabled)
                         ? AppColors.primary.withAlpha(120)
                         : AppColors.primary,
                     borderRadius: BorderRadius.circular(8),
