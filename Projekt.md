@@ -2,9 +2,12 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 02.06.2026
+**Stand**: 29.06.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.10.112+394
+**Version**: 0.16.15+473
+
+> Detaillierter aktueller Stand & offene Punkte: **`ToDo.md`** (Projekt-Root) + Memory.
+> Zuletzt (Juni 2026): Buchhaltung-Voll-Migration 2019–2025, camt-Import/-Abgleich, Forderungs-Hub, **Eingangsrechnungen TP-0…6 komplett** (Scan→KI/QR→Lernen→Kreditoren-Buchung→GKB-Zahlungsfile pain.001→camt-Kreditor-Abschluss→Reversibilität).
 
 ---
 
