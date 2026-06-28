@@ -30,7 +30,7 @@ class EingangsrechnungListeScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.rule),
-            tooltip: 'Lieferantenregeln',
+            tooltip: 'Rechnungsregeln',
             onPressed: () =>
                 context.push('/buchhaltung/eingangsrechnungen/regeln'),
           ),

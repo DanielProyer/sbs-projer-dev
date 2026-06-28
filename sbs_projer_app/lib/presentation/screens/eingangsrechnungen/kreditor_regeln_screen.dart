@@ -65,7 +65,7 @@ class KreditorRegelnScreen extends ConsumerWidget {
     final konten = ref.watch(kontenProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lieferantenregeln')),
+      appBar: AppBar(title: const Text('Rechnungsregeln')),
       floatingActionButton: FloatingActionButton(
         onPressed: () =>
             showKreditorRegelDialog(context, ref, konten: konten),
@@ -96,7 +96,7 @@ class KreditorRegelnScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Noch keine Lieferantenregeln',
+                    'Noch keine Rechnungsregeln',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ],
@@ -317,7 +317,7 @@ Future<void> showKreditorRegelDialog(
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text(istNeu ? 'Neue Lieferantenregel' : 'Regel bearbeiten'),
+            title: Text(istNeu ? 'Neue Rechnungsregel' : 'Regel bearbeiten'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
