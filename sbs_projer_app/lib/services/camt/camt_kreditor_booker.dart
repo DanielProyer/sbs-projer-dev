@@ -18,8 +18,14 @@ class CamtKreditorBooker {
     // Idempotenz: bereits eine Zahlungs-Buchung (Stufe 2) zu diesem Beleg?
     // Sichtbar machen statt still schlucken (sonst würde eine zweite reale
     // Belastung lautlos verschwinden) — kein Doppelbuchen.
+    // Aktive Zahlungs-Buchung = beleg_typ 'zahlung', nicht storniert UND keine
+    // Storno-Gegenbuchung (stornoVonId==null) — sonst würde nach einem Storno
+    // die Gegenbuchung ein erneutes Matching fälschlich blockieren.
     final existing = await BuchungRepository.getByBeleg(e.id);
-    if (existing.any((b) => b.belegTyp == 'zahlung' && !b.istStorniert)) {
+    if (existing.any((b) =>
+        b.belegTyp == 'zahlung' &&
+        !b.istStorniert &&
+        b.stornoVonId == null)) {
       throw StateError(
           'Kreditor "${e.ausstellerName ?? e.id}" ist bereits als bezahlt gebucht.');
     }

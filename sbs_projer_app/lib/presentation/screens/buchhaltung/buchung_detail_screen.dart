@@ -5,7 +5,9 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/beleg_upload_widget.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_reversal_service.dart';
 
 class BuchungDetailScreen extends ConsumerStatefulWidget {
   final String buchungId;
@@ -220,7 +222,11 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
     if (confirmed == true && mounted) {
       try {
         await BuchungRepository.stornieren(b.id);
+        // TP-6: war es eine Kreditor-Stufe-2-Buchung, die zugehörige
+        // Eingangsrechnung wieder auf offen/zahlbar zurücksetzen.
+        await EingangsrechnungReversalService.resetNachBuchungStorno(b.id);
         ref.invalidate(buchungenStreamProvider);
+        ref.invalidate(eingangsrechnungenProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Buchung storniert')),

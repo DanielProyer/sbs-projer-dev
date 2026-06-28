@@ -8,9 +8,11 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/eingangsrechnung.dart';
 import 'package:sbs_projer_app/data/models/konto.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/konto_providers.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_buchung_service.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_reversal_service.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/kreditor_lern_service.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
@@ -242,6 +244,50 @@ class _EingangsrechnungDetailScreenState
     }
   }
 
+  /// TP-6: macht die Stufe-2-Zahlung rückgängig (löscht die Zahlungs-Buchung,
+  /// setzt die Rechnung wieder auf offen/zahlbar; camt-Tx wird re-importierbar).
+  Future<void> _zahlungRueckgaengig() async {
+    if (_busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Zahlung rückgängig?'),
+        content: const Text(
+          'Die Stufe-2-Buchung (Kreditor → Bank) wird gelöscht und die '
+          'Rechnung wieder als offen/zahlbar gesetzt. Die Bank-Belastung kann '
+          'danach erneut abgeglichen werden.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Rückgängig'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    try {
+      await EingangsrechnungReversalService.zahlungRueckgaengig(_rechnung!);
+      ref.invalidate(eingangsrechnungenProvider);
+      ref.invalidate(buchungenStreamProvider);
+      if (!mounted) return;
+      _snack('Zahlung rückgängig — Rechnung wieder offen');
+      setState(() => _busy = false);
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack('Fehler: $e');
+    }
+  }
+
   Future<void> _belegOeffnen() async {
     final pfad = _rechnung?.belegPfad;
     if (pfad == null) return;
@@ -432,23 +478,39 @@ class _EingangsrechnungDetailScreenState
             const SizedBox(height: 28),
 
             // Aktionen
-            _primaryButton(
-              label: 'Bestätigen & buchen',
-              icon: Icons.check_circle,
-              onTap: _bestaetigenUndBuchen,
-            ),
-            const SizedBox(height: 12),
-            _outlineButton(
-              label: 'Nur ablegen (Info)',
-              icon: Icons.inventory_2_outlined,
-              onTap: _nurAblegen,
-            ),
-            const SizedBox(height: 12),
-            _dangerButton(
-              label: 'Verwerfen',
-              icon: Icons.delete_outline,
-              onTap: _verwerfen,
-            ),
+            if (e.status == 'bezahlt' || e.bezahltAm != null) ...[
+              _hinweisBanner(
+                Icons.check_circle,
+                AppColors.primary,
+                e.bezahltAm != null
+                    ? 'Bezahlt am ${_dateFormat.format(e.bezahltAm!)} (camt-Abgleich).'
+                    : 'Bezahlt (camt-Abgleich).',
+              ),
+              const SizedBox(height: 16),
+              _dangerButton(
+                label: 'Zahlung rückgängig',
+                icon: Icons.undo,
+                onTap: _zahlungRueckgaengig,
+              ),
+            ] else ...[
+              _primaryButton(
+                label: 'Bestätigen & buchen',
+                icon: Icons.check_circle,
+                onTap: _bestaetigenUndBuchen,
+              ),
+              const SizedBox(height: 12),
+              _outlineButton(
+                label: 'Nur ablegen (Info)',
+                icon: Icons.inventory_2_outlined,
+                onTap: _nurAblegen,
+              ),
+              const SizedBox(height: 12),
+              _dangerButton(
+                label: 'Verwerfen',
+                icon: Icons.delete_outline,
+                onTap: _verwerfen,
+              ),
+            ],
 
             if (_busy) ...[
               const SizedBox(height: 24),

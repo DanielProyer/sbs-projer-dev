@@ -49,6 +49,19 @@ class EingangsrechnungRepository {
     return Eingangsrechnung.fromJson(rows.first);
   }
 
+  /// Eingangsrechnung, deren Stufe-2-Zahlung mit der gegebenen Buchung verknüpft
+  /// ist (für die camt-Reversibilität). Null, wenn keine.
+  static Future<Eingangsrechnung?> getByBuchungStufe2Id(String buchungId) async {
+    final rows = await SupabaseService.client
+        .from('eingangsrechnung')
+        .select()
+        .eq('user_id', _userId)
+        .eq('buchung_stufe2_id', buchungId)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    return Eingangsrechnung.fromJson(rows.first);
+  }
+
   /// Lädt den Beleg (PDF/Bild) einer Eingangsrechnung in den Storage-Bucket
   /// `buchungs-belege` und gibt den Storage-Pfad zurück.
   static Future<String> uploadBeleg({
