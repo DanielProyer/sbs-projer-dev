@@ -35,8 +35,60 @@
 
   <title>SBS Projer</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Swiss-QR-Dekodierung: pdf.js rastert die PDF-Seite, jsQR liest den QR-Code.
+       Genutzt vom Eingangsrechnungs-Upload (exakte IBAN/Referenz/Betrag). -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
+  <script>
+    // window.sbsDecodeQr(base64, mediaType) -> Promise<string|null>
+    // Liefert den rohen Swiss-QR-Payload (Text) oder null.
+    window.sbsDecodeQr = async function (base64, mediaType) {
+      try {
+        var bin = atob(base64);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+        var imageData;
+        if (mediaType === 'application/pdf') {
+          if (!window.pdfjsLib) return null;
+          if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+              'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+          }
+          var pdf = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+          var page = await pdf.getPage(1);
+          var viewport = page.getViewport({ scale: 3 });
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+          var ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+          imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        } else {
+          var blob = new Blob([bytes], { type: mediaType });
+          var bmp = await createImageBitmap(blob);
+          var c2 = document.createElement('canvas');
+          c2.width = bmp.width;
+          c2.height = bmp.height;
+          var cx = c2.getContext('2d');
+          cx.drawImage(bmp, 0, 0);
+          imageData = cx.getImageData(0, 0, c2.width, c2.height);
+        }
+
+        if (!window.jsQR) return null;
+        var code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'attemptBoth',
+        });
+        return code ? code.data : null;
+      } catch (e) {
+        console.error('sbsDecodeQr error', e);
+        return null;
+      }
+    };
+  </script>
   <script>
     // Service Workers killen (Flutter SW ist deprecated)
     if ('serviceWorker' in navigator) {
