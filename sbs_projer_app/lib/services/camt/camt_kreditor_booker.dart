@@ -15,14 +15,18 @@ class CamtKreditorBooker {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
 
   static Future<void> book(CamtTransaction tx, Eingangsrechnung e) async {
-    // Idempotenz: bereits Stufe-2 gebucht?
+    // Idempotenz: bereits eine Zahlungs-Buchung (Stufe 2) zu diesem Beleg?
+    // Sichtbar machen statt still schlucken (sonst würde eine zweite reale
+    // Belastung lautlos verschwinden) — kein Doppelbuchen.
     final existing = await BuchungRepository.getByBeleg(e.id);
     if (existing.any((b) => b.belegTyp == 'zahlung' && !b.istStorniert)) {
-      return;
+      throw StateError(
+          'Kreditor "${e.ausstellerName ?? e.id}" ist bereits als bezahlt gebucht.');
     }
 
-    // Kreditorkonto, das Stufe 1 bebucht hat, rekonstruieren (Sonderkonten!):
-    // Die erste Stufe-1-Zeile bucht Aufwand (soll) AN Kreditorkonto (haben).
+    // Kreditorkonto aus der Stufe-1-Buchung lesen (robust ggü. künftigen
+    // Sonderkonten; heute stets 2000): die erste Stufe-1-Zeile bucht
+    // Aufwand (soll) AN Kreditorkonto (haben).
     int kreditorKonto = kreditorKontoDefault;
     if (e.buchungStufe1Id != null) {
       final stufe1 = await BuchungRepository.getById(e.buchungStufe1Id!);

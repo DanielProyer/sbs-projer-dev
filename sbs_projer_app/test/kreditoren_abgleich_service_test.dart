@@ -83,4 +83,30 @@ void main() {
     final e = _er(name: 'Heineken', iban: 'CH9300762011623852957', betrag: 50);
     expect(KreditorenAbgleichService.match(tx, [e]), isNull);
   });
+
+  test('vorhandene aber abweichende Referenz -> KEIN IBAN-Fallthrough', () {
+    // tx trägt eine Referenz, die zu keiner Rechnung passt; eine andere
+    // Rechnung desselben Lieferanten hat zufällig gleiche IBAN+Betrag.
+    final tx = _tx(
+        ref: '21 00000 00000 09999 99999 99999',
+        iban: 'CH9300762011623852957',
+        amount: 100);
+    final e = _er(
+        ref: '210000000000031394714300009',
+        iban: 'CH9300762011623852957',
+        betrag: 100);
+    expect(KreditorenAbgleichService.match(tx, [e]), isNull);
+  });
+
+  test('Name-False-Positive: Post matcht NICHT PostFinance', () {
+    final tx = _tx(name: 'PostFinance AG', amount: 50);
+    final e = _er(name: 'Post', betrag: 50);
+    expect(KreditorenAbgleichService.match(tx, [e]), isNull);
+  });
+
+  test('Name token-basiert: voller Lieferantenname matcht', () {
+    final tx = _tx(name: 'Garage Arpagaus AG Chur', amount: 80);
+    final e = _er(name: 'Garage Arpagaus', betrag: 80);
+    expect(KreditorenAbgleichService.match(tx, [e])?.id, 'e1');
+  });
 }

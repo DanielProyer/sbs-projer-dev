@@ -36,8 +36,10 @@ class CamtAutoBooker {
     required Set<String> bereitsVerarbeitet,
     required List<CamtRegel> regeln,
     required Map<String, BuchungsVorlage> vorlagenById,
+    List<Eingangsrechnung> offeneKreditoren = const [],
   }) async {
     final res = AutoBookerResult();
+    final verbrauchteKreditoren = <String>{};
 
     for (final tx in transactions) {
       if (!CamtStichtag.istAutomatisierbar(tx.bookingDate)) {
@@ -121,6 +123,19 @@ class CamtAutoBooker {
 
           case TxKategorie.bargeldEinzahlung:
           case TxKategorie.ausgabe:
+            // TP-5: Kreditor-Abschluss VOR dem Ausgaben-Regelwerk (nur DBIT).
+            if (!tx.isCredit) {
+              final kandidaten = offeneKreditoren
+                  .where((e) => !verbrauchteKreditoren.contains(e.id))
+                  .toList();
+              final e = KreditorenAbgleichService.match(tx, kandidaten);
+              if (e != null) {
+                await CamtKreditorBooker.book(tx, e);
+                verbrauchteKreditoren.add(e.id);
+                res.gebucht++;
+                break;
+              }
+            }
             final vid = RegelMatcher.matchVorlageId(
               partyName: tx.partyName, partyIban: tx.partyIban,
               additionalInfo: tx.additionalInfo,
@@ -161,6 +176,9 @@ class CamtAutoBooker {
   }) {
     final vorschlaege = <CamtVorschlag>[];
     final pruefliste = <CamtTransaction>[];
+    // Pro Plan-Lauf bereits zugeordnete Kreditoren — verhindert, dass zwei
+    // Belastungen dieselbe offene Rechnung treffen (zweite -> Prüfliste).
+    final verbrauchteKreditoren = <String>{};
     int uebersprungen = 0;
 
     for (final tx in transactions) {
@@ -187,8 +205,12 @@ class CamtAutoBooker {
         case TxKategorie.ausgabe:
           // TP-5: Kreditor-Abschluss VOR dem Ausgaben-Regelwerk (nur Belastungen).
           if (!tx.isCredit) {
-            final e = KreditorenAbgleichService.match(tx, offeneKreditoren);
+            final kandidaten = offeneKreditoren
+                .where((e) => !verbrauchteKreditoren.contains(e.id))
+                .toList();
+            final e = KreditorenAbgleichService.match(tx, kandidaten);
             if (e != null) {
+              verbrauchteKreditoren.add(e.id);
               vorschlaege.add(CamtVorschlag(
                 tx: tx,
                 typ: CamtVorschlagTyp.kreditor,

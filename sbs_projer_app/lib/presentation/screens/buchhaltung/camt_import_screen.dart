@@ -342,7 +342,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       // TP-5: offene Kreditoren (Stufe-1 gebucht, noch nicht bezahlt) als
       // Match-Kandidaten für camt-Belastungen.
       final offeneKreditoren = (await EingangsrechnungRepository
-              .getByStatus(['gebucht', 'exportiert']))
+              .getByStatus(['gebucht', 'zahlung_vorgemerkt', 'exportiert']))
           .where((e) =>
               e.camtTxKey == null &&
               e.bezahltAm == null &&
@@ -573,6 +573,7 @@ class _CamtImportScreenState extends ConsumerState<CamtImportScreen> {
       }
     }
     ref.invalidate(buchungenStreamProvider);
+    ref.invalidate(eingangsrechnungenProvider);
     if (mounted) {
       setState(() => _vorschlaege.removeWhere((v) => ok.contains(v)));
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

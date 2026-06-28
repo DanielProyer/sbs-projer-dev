@@ -52,4 +52,30 @@ void main() {
         r.vorschlaege.where((v) => v.typ == CamtVorschlagTyp.kreditor), isEmpty);
     expect(r.pruefliste.length, 1);
   });
+
+  test('zwei Belastungen, EINE Rechnung -> 1 Vorschlag + zweite in Prüfliste',
+      () {
+    // Dedup: dieselbe Rechnung darf nicht zweimal zugeordnet werden.
+    final tx1 = _dbit();
+    final tx2 = CamtTransaction(
+      amount: 100,
+      currency: 'CHF',
+      isCredit: false,
+      bookingDate: DateTime(2026, 6, 21),
+      txKey: 'K2',
+      partyIban: 'CH9300762011623852957',
+      partyName: 'Lieferant X',
+      additionalInfo: 'Lieferant X',
+    );
+    final r = CamtAutoBooker.plan(
+      transactions: [tx1, tx2],
+      heinekenRechnungen: [],
+      regeln: [],
+      vorlagenById: {},
+      offeneKreditoren: [_kreditor()],
+    );
+    expect(r.vorschlaege.where((v) => v.typ == CamtVorschlagTyp.kreditor).length,
+        1);
+    expect(r.pruefliste.length, 1); // zweite Belastung -> manuell
+  });
 }
