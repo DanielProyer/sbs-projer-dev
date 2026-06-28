@@ -19,7 +19,17 @@ class EingangsrechnungListeScreen extends ConsumerWidget {
     final async = ref.watch(eingangsrechnungenProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Eingangsrechnungen')),
+      appBar: AppBar(
+        title: const Text('Eingangsrechnungen'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.rule),
+            tooltip: 'Lieferantenregeln',
+            onPressed: () =>
+                context.push('/buchhaltung/eingangsrechnungen/regeln'),
+          ),
+        ],
+      ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
