@@ -23,6 +23,12 @@ class EingangsrechnungListeScreen extends ConsumerWidget {
         title: const Text('Eingangsrechnungen'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.account_balance),
+            tooltip: 'GKB-Zahlungsfile',
+            onPressed: () =>
+                context.push('/buchhaltung/eingangsrechnungen/zahlungsfile'),
+          ),
+          IconButton(
             icon: const Icon(Icons.rule),
             tooltip: 'Lieferantenregeln',
             onPressed: () =>

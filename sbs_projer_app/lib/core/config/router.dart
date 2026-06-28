@@ -48,6 +48,7 @@ import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsr
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_upload_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/kreditor_regeln_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/zahlungsfile_export_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/kontenplan_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchungen_list_screen.dart';
@@ -492,8 +493,12 @@ final router = GoRouter(
       path: '/buchhaltung/eingangsrechnungen/regeln',
       builder: (context, state) => const KreditorRegelnScreen(),
     ),
-    // :id-Route NACH den statischen "upload"-/"regeln"-Routen, damit diese
-    // nicht als ID interpretiert werden.
+    GoRoute(
+      path: '/buchhaltung/eingangsrechnungen/zahlungsfile',
+      builder: (context, state) => const ZahlungsfileExportScreen(),
+    ),
+    // :id-Route NACH den statischen "upload"-/"regeln"-/"zahlungsfile"-Routen,
+    // damit diese nicht als ID interpretiert werden.
     GoRoute(
       path: '/buchhaltung/eingangsrechnungen/:id',
       builder: (context, state) {

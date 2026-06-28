@@ -11,6 +11,7 @@ class GeschaeftEinstellungen {
   final String? mailPrivat;
   final String? mwstNummer;
   final String? uidNummer;
+  final String? firmenIban;
   final String? gfAhvNr;
   final DateTime? gfGeburtsdatum;
 
@@ -27,6 +28,7 @@ class GeschaeftEinstellungen {
     this.mailPrivat,
     this.mwstNummer,
     this.uidNummer,
+    this.firmenIban,
     this.gfAhvNr,
     this.gfGeburtsdatum,
   });
@@ -65,6 +67,7 @@ class GeschaeftEinstellungen {
         mailPrivat: j['mail_privat'],
         mwstNummer: j['mwst_nummer'],
         uidNummer: j['uid_nummer'],
+        firmenIban: j['firmen_iban'],
         gfAhvNr: j['gf_ahv_nr'],
         gfGeburtsdatum: j['gf_geburtsdatum'] != null ? DateTime.parse(j['gf_geburtsdatum']) : null,
       );
@@ -80,6 +83,7 @@ class GeschaeftEinstellungen {
         'mail_privat': mailPrivat,
         'mwst_nummer': mwstNummer,
         'uid_nummer': uidNummer,
+        'firmen_iban': firmenIban,
         'gf_ahv_nr': gfAhvNr,
         'gf_geburtsdatum': gfGeburtsdatum?.toIso8601String().split('T').first,
       };
