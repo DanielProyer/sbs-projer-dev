@@ -121,6 +121,11 @@ class _EingangsrechnungUploadScreenState
       final created = await EingangsrechnungRepository.create({
         'aussteller_name': r.ausstellerName,
         'aussteller_uid': r.ausstellerUid,
+        if (qr != null) 'aussteller_strasse': qr.cdtrStrasse,
+        if (qr != null) 'aussteller_hausnr': qr.cdtrHausnr,
+        if (qr != null) 'aussteller_plz': qr.cdtrPlz,
+        if (qr != null) 'aussteller_ort': qr.cdtrOrt,
+        if (qr != null) 'aussteller_land': qr.cdtrLand ?? 'CH',
         'lieferant_iban': effIban,
         'qr_referenz': effRef,
         'referenz_typ': effRefTyp,

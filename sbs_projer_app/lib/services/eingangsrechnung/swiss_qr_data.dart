@@ -10,6 +10,11 @@ class SwissQrData {
   final double? betrag;
   final String waehrung;
   final String? cdtrName;
+  final String? cdtrStrasse;
+  final String? cdtrHausnr;
+  final String? cdtrPlz;
+  final String? cdtrOrt;
+  final String? cdtrLand;
 
   const SwissQrData({
     required this.iban,
@@ -18,6 +23,11 @@ class SwissQrData {
     this.betrag,
     required this.waehrung,
     this.cdtrName,
+    this.cdtrStrasse,
+    this.cdtrHausnr,
+    this.cdtrPlz,
+    this.cdtrOrt,
+    this.cdtrLand,
   });
 }
 
@@ -59,13 +69,42 @@ SwissQrData? parseSwissQrPayload(String payload) {
     ref = ref?.replaceAll(' ', '');
   }
 
+  // Creditor-Adresse: Zeile 4 = Adresstyp ('S' strukturiert / 'K' kombiniert).
+  //  S: 6 Strasse · 7 Hausnr · 8 PLZ · 9 Ort · 10 Land
+  //  K: 6 Adresszeile 1 (Strasse) · 7 Adresszeile 2 (PLZ/Ort) · 10 Land
+  String? nz(int i) => at(i).isEmpty ? null : at(i);
+  final adrTp = at(4);
+  String? cdtrStrasse;
+  String? cdtrHausnr;
+  String? cdtrPlz;
+  String? cdtrOrt;
+  String? cdtrLand;
+  if (adrTp == 'S') {
+    cdtrStrasse = nz(6);
+    cdtrHausnr = nz(7);
+    cdtrPlz = nz(8);
+    cdtrOrt = nz(9);
+    cdtrLand = nz(10);
+  } else if (adrTp == 'K') {
+    cdtrStrasse = nz(6);
+    cdtrHausnr = null;
+    cdtrPlz = null;
+    cdtrOrt = nz(7);
+    cdtrLand = nz(10);
+  }
+
   return SwissQrData(
     iban: iban,
     referenzTyp: refTyp,
     referenz: ref,
     betrag: betrag,
     waehrung: waehrung,
-    cdtrName: at(5).isEmpty ? null : at(5),
+    cdtrName: nz(5),
+    cdtrStrasse: cdtrStrasse,
+    cdtrHausnr: cdtrHausnr,
+    cdtrPlz: cdtrPlz,
+    cdtrOrt: cdtrOrt,
+    cdtrLand: cdtrLand,
   );
 }
 

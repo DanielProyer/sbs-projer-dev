@@ -8,6 +8,11 @@ class Eingangsrechnung {
   final String userId;
   final String? ausstellerName;
   final String? ausstellerUid;
+  final String? ausstellerStrasse;
+  final String? ausstellerHausnr;
+  final String? ausstellerPlz;
+  final String? ausstellerOrt;
+  final String? ausstellerLand;
   final String? lieferantIban;
   final String? qrReferenz;
   final String? referenzTyp;
@@ -45,6 +50,11 @@ class Eingangsrechnung {
     required this.userId,
     this.ausstellerName,
     this.ausstellerUid,
+    this.ausstellerStrasse,
+    this.ausstellerHausnr,
+    this.ausstellerPlz,
+    this.ausstellerOrt,
+    this.ausstellerLand,
     this.lieferantIban,
     this.qrReferenz,
     this.referenzTyp,
@@ -84,6 +94,11 @@ class Eingangsrechnung {
       userId: json['user_id'],
       ausstellerName: json['aussteller_name'],
       ausstellerUid: json['aussteller_uid'],
+      ausstellerStrasse: json['aussteller_strasse'],
+      ausstellerHausnr: json['aussteller_hausnr'],
+      ausstellerPlz: json['aussteller_plz'],
+      ausstellerOrt: json['aussteller_ort'],
+      ausstellerLand: json['aussteller_land'],
       lieferantIban: json['lieferant_iban'],
       qrReferenz: json['qr_referenz'],
       referenzTyp: json['referenz_typ'],
@@ -124,6 +139,11 @@ class Eingangsrechnung {
       'user_id': userId,
       'aussteller_name': ausstellerName,
       'aussteller_uid': ausstellerUid,
+      'aussteller_strasse': ausstellerStrasse,
+      'aussteller_hausnr': ausstellerHausnr,
+      'aussteller_plz': ausstellerPlz,
+      'aussteller_ort': ausstellerOrt,
+      'aussteller_land': ausstellerLand,
       'lieferant_iban': lieferantIban,
       'qr_referenz': qrReferenz,
       'referenz_typ': referenzTyp,
