@@ -50,28 +50,69 @@
         var bin = atob(base64);
         var bytes = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        if (!window.jsQR) { console.warn('[QR] jsQR nicht geladen'); return null; }
 
-        // Scannt eine Canvas in mehreren Regionen: ganze Flaeche, dann das
-        // untere Drittel (Swiss-QR-Zahlteil) inkl. linker/rechter Haelfte.
-        function scanCanvas(canvas, ctx, label) {
-          function tryRegion(x, y, w, h, sub) {
-            if (w < 40 || h < 40) return null;
-            var img = ctx.getImageData(x, y, w, h);
-            var code = window.jsQR(img.data, img.width, img.height,
-              { inversionAttempts: 'attemptBoth' });
-            if (code && code.data) {
-              console.log('[QR] gefunden auf ' + label + ' (' + sub + ')');
-              return code.data;
-            }
-            return null;
+        var bd = null;
+        if ('BarcodeDetector' in window) {
+          try { bd = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { bd = null; }
+        }
+        console.log('[QR] start: bytes=' + bytes.length + ' type=' + mediaType
+          + ' BarcodeDetector=' + (!!bd) + ' jsQR=' + (!!window.jsQR));
+
+        // Scannt eine Canvas: BarcodeDetector (robust, nativ) zuerst, dann
+        // jsQR auf mehreren Regionen (ganz / unteres Drittel = Zahlteil).
+        async function scanCanvas(canvas, ctx, label) {
+          if (bd) {
+            try {
+              var codes = await bd.detect(canvas);
+              for (var k = 0; k < (codes ? codes.length : 0); k++) {
+                if (codes[k].rawValue) {
+                  console.log('[QR] gefunden auf ' + label + ' (BarcodeDetector)');
+                  return codes[k].rawValue;
+                }
+              }
+            } catch (e) { console.warn('[QR] BarcodeDetector-Fehler', e); }
           }
-          var W = canvas.width, H = canvas.height;
-          var by = Math.floor(H * 0.55), bh = H - by;
-          return tryRegion(0, 0, W, H, 'voll')
-            || tryRegion(0, by, W, bh, 'unten')
-            || tryRegion(Math.floor(W * 0.45), by, W - Math.floor(W * 0.45), bh, 'unten-rechts')
-            || tryRegion(0, by, Math.floor(W * 0.55), bh, 'unten-links');
+          if (window.jsQR) {
+            var W = canvas.width, H = canvas.height, by = Math.floor(H * 0.55), bh = H - by;
+            function reg(x, y, w, h, sub) {
+              if (w < 40 || h < 40) return null;
+              var img = ctx.getImageData(x, y, w, h);
+              var c = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+              if (c && c.data) { console.log('[QR] gefunden auf ' + label + ' (jsQR ' + sub + ')'); return c.data; }
+              return null;
+            }
+            return reg(0, 0, W, H, 'voll') || reg(0, by, W, bh, 'unten')
+              || reg(Math.floor(W * 0.45), by, W - Math.floor(W * 0.45), bh, 'u-rechts')
+              || reg(0, by, Math.floor(W * 0.55), bh, 'u-links');
+          }
+          return null;
+        }
+
+        // Fallback fuer digitale PDFs: Zahldaten aus der Textebene synthetisieren
+        // (IBAN ist eindeutig; Referenz/Betrag best effort). Liefert SPC-Payload.
+        function synthFromText(flat) {
+          var noSp = flat.replace(/\s+/g, '');
+          var ibanM = noSp.match(/(CH|LI)\d{19}/);
+          if (!ibanM) return null;
+          var refType = 'NON', ref = '';
+          var scorM = noSp.match(/RF\d{2}[0-9A-Z]{1,21}/);
+          if (scorM) { refType = 'SCOR'; ref = scorM[0]; }
+          else {
+            var runs = flat.match(/[0-9][0-9\s]*[0-9]/g) || [];
+            for (var i = 0; i < runs.length; i++) {
+              var d = runs[i].replace(/\s/g, '');
+              if (d.length === 27) { refType = 'QRR'; ref = d; break; }
+            }
+          }
+          var amt = '';
+          var aM = flat.match(/CHF\s*([0-9][0-9'.\s]*[0-9])/i) || flat.match(/([0-9][0-9'.\s]*[0-9])\s*CHF/i);
+          if (aM) amt = aM[1].replace(/[\s']/g, '');
+          console.log('[QR] Text-Fallback: IBAN=' + ibanM[0] + ' refTyp=' + refType
+            + ' ref=' + (ref || '-') + ' betrag=' + (amt || '-'));
+          return ['SPC', '0200', '1', ibanM[0],
+            '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+            amt, 'CHF', '', '', '', '', '', '', '',
+            refType, ref, '', 'EPD'].join('\n');
         }
 
         if (mediaType === 'application/pdf') {
@@ -82,29 +123,38 @@
           }
           var pdf = await window.pdfjsLib.getDocument({ data: bytes }).promise;
           console.log('[QR] PDF mit ' + pdf.numPages + ' Seite(n)');
+          var allText = '';
           for (var p = 1; p <= pdf.numPages; p++) {
             var page = await pdf.getPage(p);
+            try {
+              var tc = await page.getTextContent();
+              var ptxt = tc.items.map(function (it) { return it.str; }).join(' ');
+              allText += ' ' + ptxt;
+              var im = ptxt.replace(/\s/g, '').match(/(CH|LI)\d{19}/);
+              console.log('[QR] Seite ' + p + ' Textebene: ' + ptxt.length + ' Zeichen, IBAN=' + (im ? im[0] : '-'));
+            } catch (e) {}
             var viewport = page.getViewport({ scale: 3 });
             var canvas = document.createElement('canvas');
             canvas.width = Math.floor(viewport.width);
             canvas.height = Math.floor(viewport.height);
-            var ctx = canvas.getContext('2d');
+            var ctx = canvas.getContext('2d', { willReadFrequently: true });
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            var found = scanCanvas(canvas, ctx, 'Seite ' + p);
+            console.log('[QR] Seite ' + p + ' gerendert: ' + canvas.width + 'x' + canvas.height);
+            var found = await scanCanvas(canvas, ctx, 'Seite ' + p);
             if (found) return found;
             console.log('[QR] kein QR auf Seite ' + p);
           }
-          console.warn('[QR] kein QR auf allen ' + pdf.numPages + ' Seiten gefunden');
-          return null;
+          console.warn('[QR] kein QR auf allen ' + pdf.numPages + ' Seiten — versuche Textebene');
+          return synthFromText(allText);
         } else {
           var blob = new Blob([bytes], { type: mediaType });
           var bmp = await createImageBitmap(blob);
           var c2 = document.createElement('canvas');
           c2.width = bmp.width;
           c2.height = bmp.height;
-          var cx = c2.getContext('2d');
+          var cx = c2.getContext('2d', { willReadFrequently: true });
           cx.drawImage(bmp, 0, 0);
-          var f = scanCanvas(c2, cx, 'Bild');
+          var f = await scanCanvas(c2, cx, 'Bild');
           if (!f) console.warn('[QR] kein QR im Bild gefunden');
           return f;
         }
