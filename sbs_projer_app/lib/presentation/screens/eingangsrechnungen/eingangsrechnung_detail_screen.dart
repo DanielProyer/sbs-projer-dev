@@ -492,6 +492,19 @@ class _EingangsrechnungDetailScreenState
                 icon: Icons.undo,
                 onTap: _zahlungRueckgaengig,
               ),
+            ] else if (e.buchungStufe1Id != null) ...[
+              _hinweisBanner(
+                Icons.account_balance,
+                AppColors.primary,
+                'Gebucht (Stufe 1) — Zahlung offen, wird über den camt-Abgleich '
+                'als bezahlt erkannt.',
+              ),
+              const SizedBox(height: 16),
+              _dangerButton(
+                label: 'Verwerfen',
+                icon: Icons.delete_outline,
+                onTap: _verwerfen,
+              ),
             ] else ...[
               _primaryButton(
                 label: 'Bestätigen & buchen',

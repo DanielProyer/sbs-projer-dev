@@ -1,5 +1,6 @@
 import 'package:sbs_projer_app/data/models/eingangsrechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
 
 /// Macht die Stufe-2-Zahlung (camt-Kreditor-Abschluss) einer Eingangsrechnung
@@ -24,10 +25,21 @@ class EingangsrechnungReversalService {
   /// und setzt die Eingangsrechnung zurück. Idempotent gegenüber fehlender
   /// Stufe-2-Buchung (z.B. doppeltes Rückgängig).
   static Future<void> zahlungRueckgaengig(Eingangsrechnung e) async {
-    if (e.buchungStufe2Id != null) {
-      await BuchungRepository.delete(e.buchungStufe2Id!);
+    // Frisch laden — der übergebene Snapshot kann veraltet sein (z.B. wenn die
+    // Stufe-2-Buchung zwischenzeitlich anderswo storniert wurde).
+    final akt = await EingangsrechnungRepository.getById(e.id) ?? e;
+    final key = akt.camtTxKey;
+    final stufe2Id = akt.buchungStufe2Id;
+    if (stufe2Id != null) {
+      final b = await BuchungRepository.getById(stufe2Id);
+      // Nur die AKTIVE Stufe-2-Buchung löschen — eine bereits stornierte
+      // Buchung oder eine Storno-Gegenbuchung NICHT anfassen (sonst Waise).
+      if (b != null && !b.istStorniert && b.stornoVonId == null) {
+        await BuchungRepository.delete(stufe2Id);
+      }
     }
-    await EingangsrechnungRepository.update(e.id, resetFelder(e));
+    await EingangsrechnungRepository.update(akt.id, resetFelder(akt));
+    if (key != null) await CamtPrueflisteRepository.deleteByTxKey(key);
   }
 
   /// Konsistenz-Hook: wurde eine Stufe-2-Buchung anderswo storniert/gelöscht
@@ -37,9 +49,11 @@ class EingangsrechnungReversalService {
   static Future<String?> resetNachBuchungStorno(String buchungId) async {
     final e = await EingangsrechnungRepository.getByBuchungStufe2Id(buchungId);
     if (e == null) return null;
+    final key = e.camtTxKey;
     await EingangsrechnungRepository.update(e.id, resetFelder(e));
     // camt-Schlüssel der (stornierten) Original-Buchung freigeben.
     await BuchungRepository.update(buchungId, {'camt_tx_key': null});
+    if (key != null) await CamtPrueflisteRepository.deleteByTxKey(key);
     return e.id;
   }
 }

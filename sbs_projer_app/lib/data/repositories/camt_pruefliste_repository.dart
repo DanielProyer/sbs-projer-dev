@@ -27,6 +27,16 @@ class CamtPrueflisteRepository {
             onConflict: 'user_id,tx_key', ignoreDuplicates: true);
   }
 
+  /// Entfernt einen Prüflisten-Eintrag anhand des camt-Schlüssels (z.B. nach
+  /// einer Reversal, damit die Belastung wieder importierbar wird).
+  static Future<void> deleteByTxKey(String txKey) async {
+    await SupabaseService.client
+        .from('camt_pruefliste')
+        .delete()
+        .eq('user_id', _userId)
+        .eq('tx_key', txKey);
+  }
+
   static Future<void> setStatus(String id, String status) async {
     await SupabaseService.client
         .from('camt_pruefliste')

@@ -16,6 +16,14 @@ class EingangsrechnungBuchungService {
       throw Exception('Aufwandskonto fehlt');
     }
 
+    // Idempotenz: nicht erneut Stufe-1 buchen, wenn bereits eine aktive
+    // Aufwand-an-Kreditor-Buchung existiert (verhindert Doppel-Aufwand, z.B.
+    // nach einem Zahlung-Rückgängig, wenn die Rechnung wieder 'gebucht' ist).
+    final bestehend = await BuchungRepository.getByBeleg(e.id);
+    if (bestehend.any((b) => b.belegTyp == 'eingang' && !b.istStorniert)) {
+      throw Exception('Eingangsrechnung ist bereits gebucht (Stufe 1)');
+    }
+
     final basisDatum = e.rechnungsdatum ?? DateTime.now();
     final datumStr = basisDatum.toIso8601String().split('T').first;
     final jahr = basisDatum.year;

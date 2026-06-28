@@ -116,7 +116,11 @@ class BuchungRepository {
   }
 
   static Future<void> delete(String id) async {
-    await SupabaseService.client.from('buchungen').delete().eq('id', id);
+    await SupabaseService.client
+        .from('buchungen')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', _userId);
   }
 
   /// Stempelt den camt-Dedup-Schlüssel auf eine Buchung (Idempotenz-Marker).
@@ -129,9 +133,12 @@ class BuchungRepository {
 
   /// Liefert alle bereits per camt verbuchten tx_keys (für Dedup).
   static Future<Set<String>> getAlleCamtTxKeys() async {
+    // Nur AKTIVE (nicht stornierte) Buchungen sperren den Re-Import — eine
+    // stornierte Buchung gibt ihren camt-Schlüssel frei (Reversibilität).
     final rows = await SupabaseService.client
         .from('buchungen')
         .select('camt_tx_key')
+        .eq('ist_storniert', false)
         .not('camt_tx_key', 'is', null);
     return (rows as List).map((r) => r['camt_tx_key'] as String).toSet();
   }
@@ -149,6 +156,9 @@ class BuchungRepository {
   static Future<Buchung> stornieren(String id) async {
     final original = await getById(id);
     if (original == null) throw Exception('Buchung nicht gefunden');
+    if (original.istStorniert) {
+      throw Exception('Buchung ist bereits storniert');
+    }
 
     // Original als storniert markieren
     await update(id, {'ist_storniert': true});
