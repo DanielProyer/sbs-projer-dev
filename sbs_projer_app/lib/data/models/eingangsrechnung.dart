@@ -25,6 +25,7 @@ class Eingangsrechnung {
   final DateTime? faelligkeit;
   final int? aufwandskonto;
   final String? geschaeftsfallId;
+  final String? kategorie;
   final bool istNurInfo;
   final String? dokTyp;
   final String? status;
@@ -67,6 +68,7 @@ class Eingangsrechnung {
     this.faelligkeit,
     this.aufwandskonto,
     this.geschaeftsfallId,
+    this.kategorie,
     this.istNurInfo = false,
     this.dokTyp,
     this.status,
@@ -111,6 +113,7 @@ class Eingangsrechnung {
       faelligkeit: _toDate(json['faelligkeit']),
       aufwandskonto: _toInt(json['aufwandskonto']),
       geschaeftsfallId: json['geschaeftsfall_id'],
+      kategorie: json['kategorie'],
       istNurInfo: json['ist_nur_info'] ?? false,
       dokTyp: json['dok_typ'],
       status: json['status'],
@@ -156,6 +159,7 @@ class Eingangsrechnung {
       'faelligkeit': faelligkeit?.toIso8601String().split('T').first,
       'aufwandskonto': aufwandskonto,
       'geschaeftsfall_id': geschaeftsfallId,
+      'kategorie': kategorie,
       'ist_nur_info': istNurInfo,
       'dok_typ': dokTyp,
       'status': status,

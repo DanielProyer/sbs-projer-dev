@@ -17,6 +17,7 @@ class RechnungScanResult {
   final double mwstSatz;
   final bool mwstPflichtig;
   final double konfidenz;
+  final String? kategorie; // code aus eingangsrechnung_kategorie
 
   RechnungScanResult({
     required this.istRechnung,
@@ -35,6 +36,7 @@ class RechnungScanResult {
     this.mwstSatz = 0,
     this.mwstPflichtig = true,
     this.konfidenz = 0,
+    this.kategorie,
   });
 
   factory RechnungScanResult.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class RechnungScanResult {
       mwstSatz: _d(json['mwst_satz']),
       mwstPflichtig: json['mwst_pflichtig'] != false,
       konfidenz: _d(json['konfidenz']),
+      kategorie: json['kategorie'] as String?,
     );
   }
 
