@@ -1,20 +1,20 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 29.06.2026 · **Live:** v0.16.15
+**Stand:** 29.06.2026 · **Live:** v0.16.16
 
 ---
 
 ## 🔴 OFFEN — relevant
 
-### Eingangsrechnungen (TP-0..7 ✓, live v0.16.15) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität→Datenhygiene
+### Eingangsrechnungen (TP-0..7 ✓, live v0.16.16) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität→Datenhygiene
 - [ ] **🔴 HOHE PRIORITÄT — GKB-Zahlungsfile Test-Upload:** Erstes `pain.001.001.09`-File mit EINER kleinen Lieferantenzahlung im **GKB-E-Banking testweise hochladen** → bestätigt das Schweizer Profil `.ch.03` (ISO-Basis-XSD ist bereits validiert: VALID). Weg: Eingangsrechnung hochladen → „Bestätigen & buchen" (macht vorgemerkt) → Eingangsrechnungen-Liste → Icon oben rechts → „Zahlungsfile erstellen" (XML-Download). Bei GKB-Ablehnung: Fehlermeldung an Claude → gezielte XSD/Profil-Anpassung. (Generator `tool/gen_pain001.dart` für Re-Validierung; falls SIX-`.ch.03`-XSD vorhanden → direkt dagegen validieren.)
 - [ ] **TP-5 End-to-End-Test (camt-Kreditor-Abschluss):** nach echter GKB-Zahlung den camt-Auszug importieren → prüfen, ob die Belastung als „Kreditor-Zahlung"-Vorschlag erscheint (Match Referenz/IBAN), bestätigen → Stufe-2-Buchung (Kreditor→Bank 1020) + Status `bezahlt`. **Empirisch offen:** ob GKB im camt bei Belastungen die QRR/SCOR-Referenz zurückspielt (sonst Fallback IBAN+Betrag).
 - [x] ✓ **Storno-Saldo-Fix** (v0.16.15): Bilanz + Erfolgsrechnung überspringen jetzt auch Storno-Gegenbuchungen (`stornoVonId != null`) → ein Storno nettet korrekt auf 0 statt −Original. Geprüft: aktuell 0 Gegenbuchungen (die 13 „stornierten" sind Jahresgewinn-Abschlüsse, kein echter Storno) → keine Änderung bestehender Salden; greift beim ersten echten Storno (z.B. TP-6 Path-B).
 - [x] ✓ **TP-7 Datenhygiene** (29.06.2026, Migration 115): 28 inaktive Vorlagen-Duplikate gelöscht (waren ohnehin aus Dropdowns gefiltert); Konten-Altlasten bereinigt — 8090/8500/2850 gelöscht (Platzhalter/Duplikate, 0 Buchungen), 9000/9100 von „FEHLER…"-Namen auf „Gewinn-/Verlustübertrag (Abschluss)" umbenannt. Reine DB-Daten, kein Deploy. *(Hinweis Buchhaltung: Jahresergebnis liegt im Standard auf EINEM Konto 2980; 9000/9100 sind eigentlich Abschlusskonten Erfolgsrechnung/Bilanz — Daniel nutzt sie bewusst als Gewinn-/Verlustübertrag, unkritisch da App das Ergebnis aus den Erfolgskonten rechnet.)*
-- [ ] TP-6 deferred (info, aus Review): Atomarität der Rücknahme bei Teil-Fehler (heute self-healing per Retry; DB-RPC/Transaktion wäre sauber); book()-Partial-Write-Waise (aktive 'zahlung'-Buchung ohne `buchung_stufe2_id` blockiert künftiges Matching — Fallback-Suche via `beleg_id` denkbar).
+- [x] ✓ **Cleanup (v0.16.16, 29.06.):** toter Code entfernt (`forderungenProvider`/`mahnwesenDashboardProvider`/`getMahnwesenDashboard`, Invalidierung läuft über `rechnungenStreamProvider`); TP-6 `resetNachBuchungStorno` Fallback via `beleg_id` (verwaiste Zahlungs-Buchung wird freigegeben). **Offen (niedrige Prio):** volle Atomarität der Stufe-2-Rücknahme via DB-RPC/Transaktion — heute self-healing per Retry.
 - [ ] AXA-Personenversicherung Seed-Regel: aktuell Konto **5730** (Best-Guess) — prüfen ob eher **5740 (KTG)**; im Screen Eingangsrechnungen → **Rechnungsregeln** korrigierbar.
-- [ ] Sicherheit: Edge-Functions `parse-rechnung` + `parse-beleg` laufen mit `verify_jwt=false` — auf `true` härtbar (schützt API-Credits).
-- [ ] TP-5 deferred (info, aus Review): (a) partieller DB-UNIQUE-Index auf `buchungen(beleg_id) WHERE beleg_typ='zahlung' AND NOT ist_storniert` als letztes Netz gegen Doppelklick-Race (App-Guards greifen bereits); (b) optionale 5-Rappen-/Spesen-Toleranz beim Kreditor-Betragsmatch (heute exakt = sicher, sonst Prüfliste).
+- [ ] Sicherheit: Edge-Functions `parse-rechnung` + `parse-beleg` mit `verify_jwt=false` → auf `true` härtbar (schützt API-Credits). App sendet via `functions.invoke` ohnehin das User-JWT → funktional sicher; braucht aber einen **Edge-Function-Redeploy = eigener Schritt**.
+- [x] ✗ **DB-UNIQUE-Index verworfen** (statt umgesetzt): würde den bewussten Sammel-/Teilzahlungs-Pfad brechen (mehrere 'zahlung'-Buchungen je Beleg bzw. gleicher tx_key — Memory-Merksatz). App-seitige Idempotenz-Guards sind hier das richtige Mittel. *Optional offen:* 5-Rappen-/Spesen-Toleranz beim Kreditor-Betragsmatch (heute exakt = sicher).
 
 ### Scharfstellung / Live-Betrieb (Buchhaltung 01.07.2026)
 Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.2019→heute im System, Bilanz geht an allen Jahresenden auf, Salden laufen weiter. „Scharfstellen" = nur noch:
