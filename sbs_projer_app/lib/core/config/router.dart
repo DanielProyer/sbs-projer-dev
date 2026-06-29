@@ -39,10 +39,7 @@ import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_g
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_raster_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_import_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_pruefliste_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_regeln_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_dateien_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_bankauszug_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_liste_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_upload_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_detail_screen.dart';
@@ -462,19 +459,28 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/buchhaltung/camt-import',
-      builder: (context, state) => const CamtImportScreen(),
+      builder: (context, state) {
+        final tab = state.uri.queryParameters['tab'];
+        final initial = switch (tab) {
+          'pruefliste' => 1,
+          'regeln' => 2,
+          'dateien' => 3,
+          _ => 0,
+        };
+        return CamtBankauszugScreen(initialTab: initial);
+      },
     ),
     GoRoute(
       path: '/buchhaltung/camt-pruefliste',
-      builder: (context, state) => const CamtPrueflisteScreen(),
+      redirect: (context, state) => '/buchhaltung/camt-import?tab=pruefliste',
     ),
     GoRoute(
       path: '/buchhaltung/camt-regeln',
-      builder: (context, state) => const CamtRegelnScreen(),
+      redirect: (context, state) => '/buchhaltung/camt-import?tab=regeln',
     ),
     GoRoute(
       path: '/buchhaltung/camt-dateien',
-      builder: (context, state) => const CamtDateienScreen(),
+      redirect: (context, state) => '/buchhaltung/camt-import?tab=dateien',
     ),
     GoRoute(
       path: '/buchhaltung/eingangsrechnungen',
