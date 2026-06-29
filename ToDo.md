@@ -1,12 +1,14 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 29.06.2026 · **Live:** v0.16.17
+**Stand:** 29.06.2026 · **Live:** v0.16.18
 
 ---
 
 ## 🔴 OFFEN — relevant
 
-### Eingangsrechnungen (TP-0..7 ✓ + real getestet, live v0.16.17) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität→Datenhygiene
+### Eingangsrechnungen (TP-0..7 ✓ + Kategorien, live v0.16.18) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität→Datenhygiene→Kategorien
+- [ ] **🟡 Manueller Test Kategorien (v0.16.18):** (a) eine **Busse aus einem beliebigen Kanton** hochladen → Kategorie `busse` erkannt → Aufwandskonto **6280** vorgeschlagen (löst das Luzern-Problem). (b) ein **Info-Dokument** hochladen → erscheint in „Rechnungen" (Zu bestätigen) → „Nur ablegen" → wandert in „Ablage". (c) Liste: Umschalter „Rechnungen | Ablage" + **Kategorie-Filter** testen. (d) Detail: Kategorie ändern → Konto-Vorschlag aktualisiert sich (wenn leer).
+- [x] ✓ **Eingangsrechnung-Kategorien** (v0.16.18): 15 inhaltsbasierte Kategorien (KI klassifiziert aus dem Inhalt → löst Bussen-Erkennung kanton-unabhängig). Tabelle `eingangsrechnung_kategorie` (code→Konto-Default), Spalte `kategorie`, KI-Output (Whitelist-normalisiert), `schlageKontoVor` (Regel > Kategorie-Default > leer, MwSt-gekoppelt), UI: Dropdown in Upload+Detail (Konto-Update bei Wechsel) + Liste „Rechnungen | Ablage"-Umschalter + Kategorie-Filter + Label. Subagent-getrieben (3 Implementer) + adversariale Review (6 Bugs gefixt: Vorsteuer/MwSt, Whitelist, Dropdown-Crash-Guard, Ablage-Sicht, Detail-Konto, Upload-Dropdown). Spec/Plan in docs/superpowers. *Minor offen:* Kategorie-Filter erreicht künftig deaktivierte Kategorien nicht (Designentscheidung).
 - [x] ✓ **GKB-Zahlungsfile Test-Upload BESTANDEN** (29.06.): `pain.001.001.09`-File testweise im GKB-E-Banking hochgeladen → **akzeptiert**. Das `.ch.03`-Profil ist damit real bestätigt, das File ist bankfähig.
 - [x] ✓ **TP-5/6 End-to-End validiert** (29.06., synthetisches camt): voller Round-Trip mit echter Heineken-Rechnung + synthetischem camt.053 getestet — Belastung → Referenz-Match (QRR) → Stufe-2-Buchung (2000→1020) → Status `bezahlt` → „Zahlung rückgängig" → wieder offen + re-importierbar → Re-Match erscheint. Alles korrekt (per SQL geprüft), Test-Daten aufgeräumt. **Empirisch offen bleibt nur:** ob die GKB im camt bei DBIT die QRR/SCOR-Referenz zurückspielt (sonst greift Fallback IBAN+Betrag) — zeigt sich erst am echten GKB-Auszug.
 - [x] ✓ **UX-Cleanup Dashboard** (v0.16.17): alten `camt-Abgleich`-Screen entfernt (Screen + Route + Links + redundante Kachel). Alles läuft über den vereinten „Bankauszug Import" (camt-import = Kundenzahlungen + Kreditoren + Ausgaben).
