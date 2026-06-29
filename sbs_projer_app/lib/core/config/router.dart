@@ -42,7 +42,6 @@ import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_import_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_pruefliste_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_regeln_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_abgleich_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_dateien_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_liste_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_upload_screen.dart';
@@ -472,10 +471,6 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/camt-regeln',
       builder: (context, state) => const CamtRegelnScreen(),
-    ),
-    GoRoute(
-      path: '/buchhaltung/camt-abgleich',
-      builder: (context, state) => const CamtAbgleichScreen(),
     ),
     GoRoute(
       path: '/buchhaltung/camt-dateien',

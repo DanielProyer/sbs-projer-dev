@@ -76,7 +76,7 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
                         : 'Letzter Auszug bis ${_fmt(letzteCamtPeriode)} — neuen camt-Auszug hochladen'),
                   ),
                   TextButton(
-                    onPressed: () => context.push('/buchhaltung/camt-abgleich'),
+                    onPressed: () => context.push('/buchhaltung/camt-import'),
                     child: const Text('Hochladen'),
                   ),
                 ],
@@ -196,12 +196,6 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             title: 'camt-Regeln',
             subtitle: 'Automatische Zuordnungsregeln verwalten',
             onTap: () => context.push('/buchhaltung/camt-regeln'),
-          ),
-          _NavTile(
-            icon: Icons.compare_arrows,
-            title: 'Forderungs-Abgleich',
-            subtitle: 'Zahlungseingänge mit Forderungen abgleichen',
-            onTap: () => context.push('/buchhaltung/camt-abgleich'),
           ),
           _NavTile(
             icon: Icons.folder_open,
