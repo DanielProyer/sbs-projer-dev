@@ -402,7 +402,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           mailSenden: mailSenden ?? false,
         );
         ref.invalidate(rechnungenStreamProvider);
-        ref.invalidate(mahnwesenDashboardProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(
@@ -447,7 +446,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       try {
         await MahnwesenService.abschreiben(rechnung);
         ref.invalidate(rechnungenStreamProvider);
-        ref.invalidate(mahnwesenDashboardProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('${rechnung.rechnungsnummer} abgeschrieben')),

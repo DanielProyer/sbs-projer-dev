@@ -124,14 +124,6 @@ class RechnungRepository {
         .eq('id', id);
   }
 
-  static Future<List<Map<String, dynamic>>> getMahnwesenDashboard() async {
-    final rows = await SupabaseService.client
-        .from('view_mahnwesen_dashboard')
-        .select()
-        .eq('user_id', _userId);
-    return List<Map<String, dynamic>>.from(rows);
-  }
-
   static Future<void> delete(String id) async {
     await SupabaseService.client
         .from('rechnungen')

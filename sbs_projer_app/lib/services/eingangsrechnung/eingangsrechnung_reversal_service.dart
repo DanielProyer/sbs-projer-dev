@@ -47,7 +47,16 @@ class EingangsrechnungReversalService {
   /// und den camt-Schlüssel der stornierten Buchung freigeben (re-importierbar).
   /// Liefert die betroffene Eingangsrechnung-ID oder null.
   static Future<String?> resetNachBuchungStorno(String buchungId) async {
-    final e = await EingangsrechnungRepository.getByBuchungStufe2Id(buchungId);
+    var e = await EingangsrechnungRepository.getByBuchungStufe2Id(buchungId);
+    // Fallback: bei Teil-Schreibfehler (Buchung erstellt, aber buchung_stufe2_id
+    // auf der Rechnung nie gesetzt) über die beleg_id der Zahlungs-Buchung
+    // suchen — so wird auch eine verwaiste Zahlungs-Buchung sauber freigegeben.
+    if (e == null) {
+      final b = await BuchungRepository.getById(buchungId);
+      if (b != null && b.belegTyp == 'zahlung' && b.belegId != null) {
+        e = await EingangsrechnungRepository.getById(b.belegId!);
+      }
+    }
     if (e == null) return null;
     final key = e.camtTxKey;
     await EingangsrechnungRepository.update(e.id, resetFelder(e));
