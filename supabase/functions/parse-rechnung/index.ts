@@ -145,6 +145,20 @@ Deno.serve(async (req: Request) => {
     if (jsonMatch) jsonText = jsonMatch[1].trim();
 
     const parsed = JSON.parse(jsonText);
+
+    // kategorie gegen die 15 gültigen Codes normalisieren (LLM-Halluzination/
+    // Casing/Tippfehler abfangen -> sonst 'sonstiges').
+    const KATEGORIEN = [
+      "versicherung", "sozialversicherung", "unfall_krankheit", "steuern",
+      "busse", "fahrzeug", "telekom_it", "franchise", "miete_raum",
+      "entsorgung_gemeinde", "material_werkzeug", "treuhand_beratung",
+      "lohn_personal", "behoerde_amtliches", "sonstiges",
+    ];
+    const katRaw = typeof parsed.kategorie === "string"
+      ? parsed.kategorie.toLowerCase().trim()
+      : "";
+    parsed.kategorie = KATEGORIEN.includes(katRaw) ? katRaw : "sonstiges";
+
     console.log(
       `parse-rechnung: ${parsed.aussteller_name}, ${parsed.betrag_zahlbar} ${parsed.waehrung}, typ=${parsed.dok_typ}, info=${parsed.ist_nur_info}, kat=${parsed.kategorie}, ref=${parsed.referenz_typ}`
     );
