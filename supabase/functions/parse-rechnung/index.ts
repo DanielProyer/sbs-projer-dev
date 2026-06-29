@@ -19,6 +19,8 @@ SCHRITT 1 — KLASSIFIZIEREN:
 - ist_rechnung = true NUR wenn ein zu zahlender Betrag an einen Lieferanten/Aussteller gefordert wird (Rechnung, Akonto, Schluss, Mahnung mit Betrag, Versicherungsprämie mit Einzahlungsschein).
 - ist_nur_info = true (und ist_rechnung = false) bei reinen Info-Dokumenten OHNE Zahlungsaufforderung, z.B.: Vorsorge-/PK-Ausweis, Lohnausweis, Versicherungspolice ohne Einzahlungsschein, Sozialversicherungssätze/Beitragsübersicht, Veranlagungs-/Steuerverfügung ohne Zahlteil, Lohndeklaration, Schadenbericht, Kontoauszug, allgemeine Mitteilung.
 - dok_typ: genau einer von: rechnung | akontorechnung | schlussrechnung | mahnung | gutschrift | info.
+- kategorie: genau einer dieser Codes, nach INHALT/Thema des Dokuments (nicht nach Aussteller-Name):
+  versicherung (Haftpflicht/Sach/Police/Prämie), sozialversicherung (Beiträge/Prämien AHV/SVA/BVG/PK/SUVA/KTG, Vorsorgeausweis), unfall_krankheit (Schadensmeldung, Krankschreibung, Apothekerschein, SUVA-Korrespondenz, Taggeldbescheid, Unfallschein), steuern (Bundes-/Kantons-/Gemeindesteuer, ESTV-MWST, Veranlagung), busse (JEDE Ordnungs-/Geschwindigkeitsbusse, egal welcher Kanton/Aussteller), fahrzeug (Tanken, Reparatur, Fahrbewilligung, Strassenverkehrsamt), telekom_it (Telefon, Internet, Software/Abos), franchise (Heineken-Franchisegebühr), miete_raum (Büromiete, Nebenkosten), entsorgung_gemeinde (Kehricht, Feuerwehrabgabe), material_werkzeug (Material-/Werkzeug-Einkauf), treuhand_beratung (Buchhaltung, Beratung), lohn_personal (Lohnausweis, Lohndeklaration, Personalpapiere), behoerde_amtliches (sonstige behördliche Schreiben), sonstiges (Auffang). Bei Unsicherheit: sonstiges.
 
 SCHRITT 2 — ZAHLDATEN aus dem QR-Zahlteil (Abschnitt "Zahlteil", unten auf Schweizer Rechnungen). Lies die KLARTEXT-Felder daneben, dekodiere NICHT den QR-Code. IBAN UND REFERENZ MÜSSEN ZEICHENGENAU STIMMEN — eine einzige falsche Ziffer macht die Zahlung ungültig:
 - Wenn das PDF eine Textebene hat (digitales, nicht gescanntes PDF): übernimm IBAN und Referenz ZEICHEN FÜR ZEICHEN aus dem eingebetteten Text, NICHT aus dem visuellen Eindruck.
@@ -60,6 +62,7 @@ JSON-Format:
   "waehrung": "CHF",
   "mwst_satz": 8.1,
   "mwst_pflichtig": true,
+  "kategorie": "franchise",
   "konfidenz": 0.93
 }`;
 
@@ -143,7 +146,7 @@ Deno.serve(async (req: Request) => {
 
     const parsed = JSON.parse(jsonText);
     console.log(
-      `parse-rechnung: ${parsed.aussteller_name}, ${parsed.betrag_zahlbar} ${parsed.waehrung}, typ=${parsed.dok_typ}, info=${parsed.ist_nur_info}, ref=${parsed.referenz_typ}`
+      `parse-rechnung: ${parsed.aussteller_name}, ${parsed.betrag_zahlbar} ${parsed.waehrung}, typ=${parsed.dok_typ}, info=${parsed.ist_nur_info}, kat=${parsed.kategorie}, ref=${parsed.referenz_typ}`
     );
 
     return new Response(JSON.stringify(parsed), {
