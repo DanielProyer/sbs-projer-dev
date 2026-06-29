@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/eingangsrechnung.dart';
+import 'package:sbs_projer_app/data/models/eingangsrechnung_kategorie.dart';
 import 'package:sbs_projer_app/data/models/konto.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
@@ -13,6 +14,7 @@ import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers
 import 'package:sbs_projer_app/presentation/providers/konto_providers.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_buchung_service.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_reversal_service.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/konto_vorschlag.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/kreditor_lern_service.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
@@ -306,6 +308,29 @@ class _EingangsrechnungDetailScreenState
     }
   }
 
+  /// Kategorie-Wechsel: setzt die Kategorie und füllt Aufwand-/Vorsteuerkonto
+  /// aus dem Kategorie-Default NACH — aber nur Felder, die der Nutzer noch nicht
+  /// befüllt hat (kein Überschreiben). So greift z.B. die Busse-Automatik
+  /// (Aufwand 6280, kein Vorsteuerabzug) automatisch bei der Kategorie 'busse'.
+  void _onKategorieChanged(
+      String? v, List<EingangsrechnungKategorie> kategorien) {
+    final mwstRelevant = _mwstPflichtig && _parseMwst(_mwstCtrl.text) > 0;
+    final vor = schlageKontoVor(
+      kategorie: v,
+      kategorien: kategorien,
+      mwstRelevant: mwstRelevant,
+    );
+    setState(() {
+      _kategorie = v;
+      if (_aufwandskonto == null && vor.aufwandskonto != null) {
+        _aufwandskonto = vor.aufwandskonto;
+      }
+      if (_vorsteuerKonto == null && vor.vorsteuerKonto != null) {
+        _vorsteuerKonto = vor.vorsteuerKonto;
+      }
+    });
+  }
+
   Future<void> _pickFaelligkeit() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -478,15 +503,26 @@ class _EingangsrechnungDetailScreenState
               final kat =
                   ref.watch(eingangsrechnungKategorienProvider).valueOrNull ??
                       [];
+              // Guard gegen Flutter-Assertion: ein unbekannter/inaktiver Code
+              // darf nicht als initialValue gesetzt werden, wenn er nicht in
+              // den Items ist. Ist der gespeicherte Code unbekannt, zeigen wir
+              // ihn als zusätzlichen (vorangestellten) Eintrag, damit er nicht
+              // still verschwindet.
+              final codes = kat.map((k) => k.code).toSet();
+              final unbekannt =
+                  _kategorie != null && !codes.contains(_kategorie);
               return DropdownButtonFormField<String>(
                 initialValue: _kategorie,
                 isExpanded: true,
                 items: [
+                  if (unbekannt)
+                    DropdownMenuItem(
+                        value: _kategorie, child: Text(_kategorie!)),
                   for (final k in kat)
                     DropdownMenuItem(
                         value: k.code, child: Text(k.bezeichnung)),
                 ],
-                onChanged: (v) => setState(() => _kategorie = v),
+                onChanged: (v) => _onKategorieChanged(v, kat),
                 decoration:
                     const InputDecoration(hintText: 'Kategorie wählen'),
               );

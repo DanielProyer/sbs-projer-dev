@@ -44,6 +44,26 @@ void main() {
     expect(v.vorsteuerKonto, 1171);
   });
 
+  test('Kategorie mit Vorsteuer-Default, aber nicht MwSt-relevant -> '
+      'Vorsteuer unterdrückt', () {
+    final v = schlageKontoVor(
+        kategorie: 'telekom_it',
+        kategorien: _kategorien,
+        mwstRelevant: false);
+    expect(v.aufwandskonto, 6510);
+    expect(v.vorsteuerKonto, isNull);
+  });
+
+  test('Kategorie mit Vorsteuer-Default + MwSt-relevant -> Vorsteuer gesetzt',
+      () {
+    final v = schlageKontoVor(
+        kategorie: 'telekom_it',
+        kategorien: _kategorien,
+        mwstRelevant: true);
+    expect(v.aufwandskonto, 6510);
+    expect(v.vorsteuerKonto, 1171);
+  });
+
   test('Kategorie ohne Default -> leer', () {
     final v = schlageKontoVor(kategorie: 'sonstiges', kategorien: _kategorien);
     expect(v.aufwandskonto, isNull);

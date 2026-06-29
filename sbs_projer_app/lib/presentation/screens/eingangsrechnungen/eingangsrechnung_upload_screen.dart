@@ -42,6 +42,10 @@ class _EingangsrechnungUploadScreenState
   String? _dateiname;
   String? _belegPfad;
   KreditorRegel? _kreditorTreffer;
+  // ID der im Scan angelegten Eingangsrechnung — für nachträgliche Korrekturen.
+  String? _erstellteId;
+  // Aktuell gewählte Kategorie (vorbelegt mit der validierten KI-Kategorie).
+  String? _kategorie;
 
   Future<void> _pickAndScanPdf() async {
     if (_busy) return;
@@ -76,6 +80,8 @@ class _EingangsrechnungUploadScreenState
       _qr = null;
       _abweichungen = null;
       _kreditorTreffer = null;
+      _erstellteId = null;
+      _kategorie = null;
       _dateiname = name;
       _statusText = 'Rechnung wird analysiert …';
     });
@@ -124,10 +130,15 @@ class _EingangsrechnungUploadScreenState
       try {
         kategorien = await EingangsrechnungKategorieRepository.getAll();
       } catch (_) {}
+      // KI-Kategorie gegen die gültigen (geladenen) Codes prüfen — ein
+      // unbekannter Code würde sonst in der DB landen und Dropdowns crashen.
+      final gueltigeKat =
+          kategorien.any((k) => k.code == r.kategorie) ? r.kategorie : null;
       final konto = schlageKontoVor(
-        kategorie: r.kategorie,
+        kategorie: gueltigeKat,
         kategorien: kategorien,
         regelTreffer: treffer,
+        mwstRelevant: r.mwstPflichtig && r.mwstSatz > 0,
       );
 
       // 2) Eingangsrechnung anlegen (Status erkannt) — QR-Werte für IBAN/Ref/Betrag
@@ -155,7 +166,7 @@ class _EingangsrechnungUploadScreenState
         'qr_gelesen': qr != null,
         'qr_abweichungen': abw,
         'status': 'erkannt',
-        'kategorie': r.kategorie,
+        'kategorie': gueltigeKat,
         if (konto.aufwandskonto != null) 'aufwandskonto': konto.aufwandskonto,
         if (konto.vorsteuerKonto != null) 'vorsteuer_konto': konto.vorsteuerKonto,
         if (treffer != null) 'geschaeftsfall_id': treffer.geschaeftsfallId,
@@ -184,6 +195,8 @@ class _EingangsrechnungUploadScreenState
         _abweichungen = abw;
         _belegPfad = pfad;
         _kreditorTreffer = treffer;
+        _erstellteId = created.id;
+        _kategorie = gueltigeKat;
         _statusText = '';
         _busy = false;
       });
@@ -429,6 +442,9 @@ class _EingangsrechnungUploadScreenState
               '${_kreditorTreffer!.aufwandskonto} (gelernt)',
             ),
 
+          const SizedBox(height: 12),
+          _kategorieFeld(),
+
           const SizedBox(height: 8),
           Row(
             children: [
@@ -471,6 +487,71 @@ class _EingangsrechnungUploadScreenState
         ],
       ),
     );
+  }
+
+  /// Kategorie-Dropdown in der Ergebniskarte: zeigt die erkannte Kategorie und
+  /// erlaubt eine Korrektur. Die Rechnung ist bereits angelegt (`_erstellteId`),
+  /// daher wird die Änderung direkt persistiert. Keine Konto-Neuberechnung hier
+  /// — das übernimmt der Detail-Screen beim Bestätigen.
+  Widget _kategorieFeld() {
+    return Consumer(builder: (context, ref, _) {
+      final kat =
+          ref.watch(eingangsrechnungKategorienProvider).valueOrNull ?? const [];
+      final codes = kat.map((k) => k.code).toSet();
+      final sel = (_kategorie != null && codes.contains(_kategorie))
+          ? _kategorie
+          : null;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 130,
+              child: Text(
+                'Kategorie',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ),
+            Expanded(
+              child: DropdownButtonFormField<String?>(
+                initialValue: sel,
+                isExpanded: true,
+                isDense: true,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Kategorie wählen',
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('—'),
+                  ),
+                  for (final k in kat)
+                    DropdownMenuItem<String?>(
+                      value: k.code,
+                      child: Text(k.bezeichnung),
+                    ),
+                ],
+                onChanged: _busy ? null : _onKategorieChanged,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Future<void> _onKategorieChanged(String? v) async {
+    setState(() => _kategorie = v);
+    final id = _erstellteId;
+    if (id == null) return;
+    try {
+      await EingangsrechnungRepository.update(id, {'kategorie': v});
+      ref.invalidate(eingangsrechnungenProvider);
+    } catch (e) {
+      _showError('Kategorie konnte nicht gespeichert werden: $e');
+    }
   }
 
   Widget _qrBanner() {

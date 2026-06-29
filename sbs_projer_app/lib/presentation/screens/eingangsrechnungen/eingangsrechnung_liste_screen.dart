@@ -78,9 +78,10 @@ class _EingangsrechnungListeScreenState
     );
   }
 
-  /// Ablage = Info-Dokumente oder abgelegte Dokumente.
-  bool _istAblage(Eingangsrechnung e) =>
-      e.istNurInfo || (e.status ?? '') == 'abgelegt';
+  /// Ablage = explizit abgelegte Dokumente (Status 'abgelegt'). Frisch erkannte
+  /// Info-Belege (Status 'erkannt') bleiben in der "Rechnungen"-Ansicht sichtbar
+  /// (Gruppe "Zu bestätigen") und wandern erst nach "Nur ablegen" hierher.
+  bool _istAblage(Eingangsrechnung e) => (e.status ?? '') == 'abgelegt';
 
   Widget _buildBody(
     BuildContext context,
