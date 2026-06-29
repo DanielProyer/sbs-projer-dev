@@ -1,15 +1,15 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 29.06.2026 · **Live:** v0.16.16
+**Stand:** 29.06.2026 · **Live:** v0.16.17
 
 ---
 
 ## 🔴 OFFEN — relevant
 
-### Eingangsrechnungen (TP-0..7 ✓, live v0.16.16) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität→Datenhygiene
-- [ ] **🔴 HOHE PRIORITÄT — GKB-Zahlungsfile Test-Upload:** Erstes `pain.001.001.09`-File mit EINER kleinen Lieferantenzahlung im **GKB-E-Banking testweise hochladen** → bestätigt das Schweizer Profil `.ch.03` (ISO-Basis-XSD ist bereits validiert: VALID). Weg: Eingangsrechnung hochladen → „Bestätigen & buchen" (macht vorgemerkt) → Eingangsrechnungen-Liste → Icon oben rechts → „Zahlungsfile erstellen" (XML-Download). Bei GKB-Ablehnung: Fehlermeldung an Claude → gezielte XSD/Profil-Anpassung. (Generator `tool/gen_pain001.dart` für Re-Validierung; falls SIX-`.ch.03`-XSD vorhanden → direkt dagegen validieren.)
+### Eingangsrechnungen (TP-0..7 ✓ + real getestet, live v0.16.17) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität→Datenhygiene
+- [x] ✓ **GKB-Zahlungsfile Test-Upload BESTANDEN** (29.06.): `pain.001.001.09`-File testweise im GKB-E-Banking hochgeladen → **akzeptiert**. Das `.ch.03`-Profil ist damit real bestätigt, das File ist bankfähig.
 - [x] ✓ **TP-5/6 End-to-End validiert** (29.06., synthetisches camt): voller Round-Trip mit echter Heineken-Rechnung + synthetischem camt.053 getestet — Belastung → Referenz-Match (QRR) → Stufe-2-Buchung (2000→1020) → Status `bezahlt` → „Zahlung rückgängig" → wieder offen + re-importierbar → Re-Match erscheint. Alles korrekt (per SQL geprüft), Test-Daten aufgeräumt. **Empirisch offen bleibt nur:** ob die GKB im camt bei DBIT die QRR/SCOR-Referenz zurückspielt (sonst greift Fallback IBAN+Betrag) — zeigt sich erst am echten GKB-Auszug.
-- [ ] **UX-Cleanup Dashboard:** Buchhaltungs-Dashboard verlinkt noch den alten `camt-Abgleich`-Screen (nur Kundenzahlungen, KEINE Kreditoren). Daniel nutzt nur „Bankauszug Import" (`camt-import`, vereint = Kundenzahlungen + Kreditoren + Ausgaben). Links auf `camt-import` umbiegen / alten Screen pensionieren, damit niemand versehentlich den eingeschränkten Screen nimmt.
+- [x] ✓ **UX-Cleanup Dashboard** (v0.16.17): alten `camt-Abgleich`-Screen entfernt (Screen + Route + Links + redundante Kachel). Alles läuft über den vereinten „Bankauszug Import" (camt-import = Kundenzahlungen + Kreditoren + Ausgaben).
 - [x] ✓ **Storno-Saldo-Fix** (v0.16.15): Bilanz + Erfolgsrechnung überspringen jetzt auch Storno-Gegenbuchungen (`stornoVonId != null`) → ein Storno nettet korrekt auf 0 statt −Original. Geprüft: aktuell 0 Gegenbuchungen (die 13 „stornierten" sind Jahresgewinn-Abschlüsse, kein echter Storno) → keine Änderung bestehender Salden; greift beim ersten echten Storno (z.B. TP-6 Path-B).
 - [x] ✓ **TP-7 Datenhygiene** (29.06.2026, Migration 115): 28 inaktive Vorlagen-Duplikate gelöscht (waren ohnehin aus Dropdowns gefiltert); Konten-Altlasten bereinigt — 8090/8500/2850 gelöscht (Platzhalter/Duplikate, 0 Buchungen), 9000/9100 von „FEHLER…"-Namen auf „Gewinn-/Verlustübertrag (Abschluss)" umbenannt. Reine DB-Daten, kein Deploy. *(Hinweis Buchhaltung: Jahresergebnis liegt im Standard auf EINEM Konto 2980; 9000/9100 sind eigentlich Abschlusskonten Erfolgsrechnung/Bilanz — Daniel nutzt sie bewusst als Gewinn-/Verlustübertrag, unkritisch da App das Ergebnis aus den Erfolgskonten rechnet.)*
 - [x] ✓ **Cleanup (v0.16.16, 29.06.):** toter Code entfernt (`forderungenProvider`/`mahnwesenDashboardProvider`/`getMahnwesenDashboard`, Invalidierung läuft über `rechnungenStreamProvider`); TP-6 `resetNachBuchungStorno` Fallback via `beleg_id` (verwaiste Zahlungs-Buchung wird freigegeben). **Offen (niedrige Prio):** volle Atomarität der Stufe-2-Rücknahme via DB-RPC/Transaktion — heute self-healing per Retry.
