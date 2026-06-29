@@ -182,26 +182,8 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
           _NavTile(
             icon: Icons.account_balance,
             title: 'Bankauszug Import',
-            subtitle: 'camt.053 Transaktionen importieren',
+            subtitle: 'Import, Prüfliste, Regeln & Dateien',
             onTap: () => context.push('/buchhaltung/camt-import'),
-          ),
-          _NavTile(
-            icon: Icons.fact_check,
-            title: 'camt-Prüfliste',
-            subtitle: 'Nicht verbuchte Transaktionen prüfen',
-            onTap: () => context.push('/buchhaltung/camt-pruefliste'),
-          ),
-          _NavTile(
-            icon: Icons.rule,
-            title: 'camt-Regeln',
-            subtitle: 'Automatische Zuordnungsregeln verwalten',
-            onTap: () => context.push('/buchhaltung/camt-regeln'),
-          ),
-          _NavTile(
-            icon: Icons.folder_open,
-            title: 'camt-Dateien',
-            subtitle: 'Hochgeladene Bankauszüge verwalten',
-            onTap: () => context.push('/buchhaltung/camt-dateien'),
           ),
           _NavTile(
             icon: Icons.payments,
