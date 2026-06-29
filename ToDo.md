@@ -1,10 +1,14 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 29.06.2026 · **Live:** v0.16.18
+**Stand:** 29.06.2026 · **Live:** v0.16.19
 
 ---
 
 ## 🔴 OFFEN — relevant
+
+### Buchhaltung-Aufräumen
+- [x] ✓ **camt-Screens in „Bankauszug Import" integriert** (v0.16.19): Prüfliste, Regeln, Dateien sind jetzt Tabs im Import-Screen (4 Tabs unter einem Host `CamtBankauszugScreen`), Dashboard von 4 camt-Kacheln auf **eine** reduziert. Alte Routen als Redirects (`?tab=`), FAB nur im Regeln-Tab, „Zur Prüfliste" = Tab-Wechsel. Subagent-getrieben (3 Implementer) + adversariale Review (3 Lenses, 0 Bugs — Extraktion zeilengenau treu gegen Originale). Widget-Test (4 Tabs, FAB-Gate). Spec/Plan in docs/superpowers.
+- [ ] **🟡 Visueller Check camt-Tabs (bei Gelegenheit):** kurz im Browser durchklicken — v.a. der **Import-Tab** (hatte historisch Render-Eigenheiten: GestureDetector statt Material-Buttons), Tab-Wechsel, FAB nur bei „Regeln", Download im Dateien-Tab, „Regel anlegen" aus der Prüfliste, Direktaufruf alter URLs landet im richtigen Tab.
 
 ### Eingangsrechnungen (TP-0..7 ✓ + Kategorien, live v0.16.18) — Scan→KI/QR→Lernen→Buchung→GKB-File→camt-Abschluss→Reversibilität→Datenhygiene→Kategorien
 - [ ] **🟡 Kategorien ausführlich testen (bei Gelegenheit):** Grundfunktion bestätigt (Daniel, 29.06. — funktioniert). Noch im Alltag durchprobieren: (a) **Busse** beliebiger Kanton → `busse`/6280; (b) **Info-Doc** → erscheint in „Rechnungen", nach „Nur ablegen" in „Ablage"; (c) Umschalter + Kategorie-Filter; (d) Detail Kategorie ändern → Konto-Vorschlag. **Falls die KI eine Kategorie falsch trifft → Beleg an Claude, Prompt nachschärfen.**
