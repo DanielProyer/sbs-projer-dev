@@ -4,10 +4,10 @@
 **Kunde**: Daniel Projer, SBS Projer GmbH
 **Stand**: 29.06.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.16.15+473
+**Version**: 0.16.19+477
 
 > Detaillierter aktueller Stand & offene Punkte: **`ToDo.md`** (Projekt-Root) + Memory.
-> Zuletzt (Juni 2026): Buchhaltung-Voll-Migration 2019–2025, camt-Import/-Abgleich, Forderungs-Hub, **Eingangsrechnungen TP-0…6 komplett** (Scan→KI/QR→Lernen→Kreditoren-Buchung→GKB-Zahlungsfile pain.001→camt-Kreditor-Abschluss→Reversibilität).
+> Zuletzt (Juni 2026): Buchhaltung-Voll-Migration 2019–2025, camt-Import, Forderungs-Hub, **Eingangsrechnungen TP-0…7 komplett** (Scan→KI/QR→Lernen→Kreditoren-Buchung→GKB-Zahlungsfile pain.001→camt-Kreditor-Abschluss→Reversibilität→Datenhygiene). **Eingangsrechnung-Kategorien** (15 KI-inhaltsbasierte Kategorien, löst Bussen-Erkennung kanton-unabhängig, v0.16.18). **camt-Screens in „Bankauszug Import" zusammengeführt** (4 Tabs Import·Prüfliste·Regeln·Dateien, Dashboard auf eine Kachel reduziert, v0.16.19). Alter camt-Abgleich-Screen entfernt (v0.16.17).
 
 ---
 
