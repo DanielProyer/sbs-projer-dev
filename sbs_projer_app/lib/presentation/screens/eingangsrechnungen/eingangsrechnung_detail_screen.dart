@@ -52,6 +52,7 @@ class _EingangsrechnungDetailScreenState
   DateTime? _faelligkeit;
   int? _aufwandskonto;
   int? _vorsteuerKonto;
+  String? _kategorie;
 
   @override
   void initState() {
@@ -94,6 +95,7 @@ class _EingangsrechnungDetailScreenState
       _aufwandskonto = e.aufwandskonto;
       // Vorsteuer-Default: bei MwSt-Satz > 0 -> 1171, sonst kein Abzug.
       _vorsteuerKonto = e.vorsteuerKonto ?? (mwst > 0 ? 1171 : null);
+      _kategorie = e.kategorie;
       setState(() {
         _rechnung = e;
         _loading = false;
@@ -150,6 +152,7 @@ class _EingangsrechnungDetailScreenState
         'mwst_pflichtig': _mwstPflichtig,
         'aufwandskonto': _aufwandskonto,
         'vorsteuer_konto': _vorsteuerKonto,
+        'kategorie': _kategorie,
         'faelligkeit': _dateOnly(_faelligkeit),
         'status': 'bestaetigt',
       });
@@ -191,6 +194,7 @@ class _EingangsrechnungDetailScreenState
       await EingangsrechnungRepository.update(widget.id, {
         'status': 'abgelegt',
         'ist_nur_info': true,
+        'kategorie': _kategorie,
       });
       ref.invalidate(eingangsrechnungenProvider);
       if (!mounted) return;
@@ -467,6 +471,26 @@ class _EingangsrechnungDetailScreenState
 
             _label('Fälligkeit'),
             _faelligkeitFeld(),
+            const SizedBox(height: 16),
+
+            _label('Kategorie'),
+            Consumer(builder: (context, ref, _) {
+              final kat =
+                  ref.watch(eingangsrechnungKategorienProvider).valueOrNull ??
+                      [];
+              return DropdownButtonFormField<String>(
+                initialValue: _kategorie,
+                isExpanded: true,
+                items: [
+                  for (final k in kat)
+                    DropdownMenuItem(
+                        value: k.code, child: Text(k.bezeichnung)),
+                ],
+                onChanged: (v) => setState(() => _kategorie = v),
+                decoration:
+                    const InputDecoration(hintText: 'Kategorie wählen'),
+              );
+            }),
             const SizedBox(height: 16),
 
             _label('Aufwandskonto (Pflicht zum Buchen)'),
