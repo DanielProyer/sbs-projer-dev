@@ -5,12 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/eingangsrechnung_kategorie.dart';
 import 'package:sbs_projer_app/data/models/kreditor_regel.dart';
 import 'package:sbs_projer_app/data/models/rechnung_scan_result.dart';
+import 'package:sbs_projer_app/data/repositories/eingangsrechnung_kategorie_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/kreditor_regel_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/kreditor_matcher.dart';
+import 'package:sbs_projer_app/services/eingangsrechnung/konto_vorschlag.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/rechnung_scan_service.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/swiss_qr_data.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/swiss_qr_service.dart';
@@ -116,6 +119,17 @@ class _EingangsrechnungUploadScreenState
         // Lernregeln dürfen den Upload nicht blockieren.
       }
 
+      // 1d) Konto-Vorschlag: Aussteller-Regel > Kategorie-Default > leer.
+      List<EingangsrechnungKategorie> kategorien = const [];
+      try {
+        kategorien = await EingangsrechnungKategorieRepository.getAll();
+      } catch (_) {}
+      final konto = schlageKontoVor(
+        kategorie: r.kategorie,
+        kategorien: kategorien,
+        regelTreffer: treffer,
+      );
+
       // 2) Eingangsrechnung anlegen (Status erkannt) — QR-Werte für IBAN/Ref/Betrag
       setState(() => _statusText = 'Eingangsrechnung wird gespeichert …');
       final created = await EingangsrechnungRepository.create({
@@ -141,8 +155,9 @@ class _EingangsrechnungUploadScreenState
         'qr_gelesen': qr != null,
         'qr_abweichungen': abw,
         'status': 'erkannt',
-        if (treffer != null) 'aufwandskonto': treffer.aufwandskonto,
-        if (treffer != null) 'vorsteuer_konto': treffer.vorsteuerKonto,
+        'kategorie': r.kategorie,
+        if (konto.aufwandskonto != null) 'aufwandskonto': konto.aufwandskonto,
+        if (konto.vorsteuerKonto != null) 'vorsteuer_konto': konto.vorsteuerKonto,
         if (treffer != null) 'geschaeftsfall_id': treffer.geschaeftsfallId,
       });
 
