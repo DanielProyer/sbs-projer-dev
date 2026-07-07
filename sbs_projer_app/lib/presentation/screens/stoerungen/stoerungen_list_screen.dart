@@ -27,7 +27,6 @@ class StoerungenListScreen extends ConsumerStatefulWidget {
 class _StoerungenListScreenState
     extends ConsumerState<StoerungenListScreen> {
   String _searchQuery = '';
-  String _statusFilter = 'alle';
   String? _anlagenTypFilter; // null = alle, 'ohne' = ohne Anlagentyp
   String _kmFilter = 'alle'; // 'alle' | 'mit' | 'ohne'
   int _selectedYear = DateTime.now().year;
@@ -54,7 +53,6 @@ class _StoerungenListScreenState
     final filtered = sorted.where((s) {
       if (s.datum.year != _selectedYear) return false;
       if (_selectedMonth != 0 && s.datum.month != _selectedMonth) return false;
-      if (_statusFilter != 'alle' && s.status != _statusFilter) return false;
       if (_anlagenTypFilter != null) {
         if (_anlagenTypFilter == 'ohne') {
           if (s.anlageTyp != null) return false;
@@ -181,20 +179,6 @@ class _StoerungenListScreenState
               ],
             ),
           ),
-          if (_statusFilter != 'alle')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Chip(
-                    label: Text(_statusFilter),
-                    onDeleted: () =>
-                        setState(() => _statusFilter = 'alle'),
-                    deleteIcon: const Icon(Icons.close, size: 16),
-                  ),
-                ],
-              ),
-            ),
           Expanded(
             child: filtered.isEmpty
                 ? _buildEmpty()
@@ -368,9 +352,7 @@ class _StoerungenListScreenState
   }
 
   int get _aktiveFilterAnzahl =>
-      (_statusFilter != 'alle' ? 1 : 0) +
-      (_anlagenTypFilter != null ? 1 : 0) +
-      (_kmFilter != 'alle' ? 1 : 0);
+      (_anlagenTypFilter != null ? 1 : 0) + (_kmFilter != 'alle' ? 1 : 0);
 
   String _typLabel(String typ) =>
       typ.isEmpty ? typ : typ[0].toUpperCase() + typ.substring(1);
@@ -408,27 +390,6 @@ class _StoerungenListScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  section('Status'),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final e in const [
-                          ('alle', 'Alle'),
-                          ('offen', 'Offen'),
-                          ('behoben', 'Behoben'),
-                          ('nicht_behebbar', 'Nicht behebbar'),
-                        ])
-                          ChoiceChip(
-                            label: Text(e.$2),
-                            selected: _statusFilter == e.$1,
-                            onSelected: (_) =>
-                                apply(() => _statusFilter = e.$1),
-                          ),
-                      ],
-                    ),
-                  ),
                   section('Anlagentyp'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -90,11 +90,28 @@ class _ReinigungDetailContent extends ConsumerWidget {
             title: 'Zeiterfassung',
             icon: Icons.schedule,
             children: [
-              _InfoRow('Datum', _formatDate(reinigung.datum)),
-              if (reinigung.uhrzeitStart != null)
-                _InfoRow('Start', _kurzZeit(reinigung.uhrzeitStart!)),
-              if (reinigung.uhrzeitEnde != null)
-                _InfoRow('Ende', _kurzZeit(reinigung.uhrzeitEnde!)),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: _CompactInfo('Datum', _formatDate(reinigung.datum)),
+                  ),
+                  if (reinigung.uhrzeitStart != null)
+                    Expanded(
+                      flex: 3,
+                      child: _CompactInfo(
+                          'Start', _kurzZeit(reinigung.uhrzeitStart!)),
+                    ),
+                  if (reinigung.uhrzeitEnde != null)
+                    Expanded(
+                      flex: 3,
+                      child: _CompactInfo(
+                          'Ende', _kurzZeit(reinigung.uhrzeitEnde!)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
               if (reinigung.uhrzeitStart != null &&
                   reinigung.uhrzeitEnde != null)
                 Builder(builder: (_) {
@@ -1006,6 +1023,31 @@ class _SectionCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CompactInfo extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _CompactInfo(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(fontSize: 14)),
+      ],
     );
   }
 }
