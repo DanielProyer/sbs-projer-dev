@@ -28,6 +28,8 @@ class _StoerungenListScreenState
     extends ConsumerState<StoerungenListScreen> {
   String _searchQuery = '';
   String _statusFilter = 'alle';
+  String? _anlagenTypFilter; // null = alle, 'ohne' = ohne Anlagentyp
+  String _kmFilter = 'alle'; // 'alle' | 'mit' | 'ohne'
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
 
@@ -53,6 +55,15 @@ class _StoerungenListScreenState
       if (s.datum.year != _selectedYear) return false;
       if (_selectedMonth != 0 && s.datum.month != _selectedMonth) return false;
       if (_statusFilter != 'alle' && s.status != _statusFilter) return false;
+      if (_anlagenTypFilter != null) {
+        if (_anlagenTypFilter == 'ohne') {
+          if (s.anlageTyp != null) return false;
+        } else if (s.anlageTyp != _anlagenTypFilter) {
+          return false;
+        }
+      }
+      if (_kmFilter == 'mit' && !s.istKilometerabrechnung) return false;
+      if (_kmFilter == 'ohne' && s.istKilometerabrechnung) return false;
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final betriebName =
@@ -95,16 +106,14 @@ class _StoerungenListScreenState
       appBar: AppBar(
         title: const Text('Störungen'),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
+          IconButton(
             tooltip: 'Filter',
-            onSelected: (value) => setState(() => _statusFilter = value),
-            itemBuilder: (context) => [
-              _filterItem('alle', 'Alle'),
-              _filterItem('offen', 'Offen'),
-              _filterItem('behoben', 'Behoben'),
-              _filterItem('nicht_behebbar', 'Nicht behebbar'),
-            ],
+            onPressed: () => _showFilterSheet(stoerungen),
+            icon: Badge.count(
+              count: _aktiveFilterAnzahl,
+              isLabelVisible: _aktiveFilterAnzahl > 0,
+              child: const Icon(Icons.filter_list),
+            ),
           ),
         ],
       ),
@@ -328,22 +337,6 @@ class _StoerungenListScreenState
     );
   }
 
-  PopupMenuItem<String> _filterItem(String value, String label) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          if (_statusFilter == value)
-            const Icon(Icons.check, size: 18)
-          else
-            const SizedBox(width: 18),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmpty() {
     return Center(
       child: Column(
@@ -370,6 +363,123 @@ class _StoerungenListScreenState
                 ),
           ),
         ],
+      ),
+    );
+  }
+
+  int get _aktiveFilterAnzahl =>
+      (_statusFilter != 'alle' ? 1 : 0) +
+      (_anlagenTypFilter != null ? 1 : 0) +
+      (_kmFilter != 'alle' ? 1 : 0);
+
+  void _showFilterSheet(List<StoerungLocal> stoerungen) {
+    final anlagenTypen = stoerungen
+        .map((s) => s.anlageTyp)
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+    final hatOhneTyp = stoerungen.any((s) => s.anlageTyp == null);
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          void apply(VoidCallback fn) {
+            setSheetState(fn);
+            setState(() {});
+          }
+
+          Widget section(String titel) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(titel,
+                    style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        )),
+              );
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  section('Status'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final e in const [
+                          ('alle', 'Alle'),
+                          ('offen', 'Offen'),
+                          ('behoben', 'Behoben'),
+                          ('nicht_behebbar', 'Nicht behebbar'),
+                        ])
+                          ChoiceChip(
+                            label: Text(e.$2),
+                            selected: _statusFilter == e.$1,
+                            onSelected: (_) =>
+                                apply(() => _statusFilter = e.$1),
+                          ),
+                      ],
+                    ),
+                  ),
+                  section('Anlagentyp'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Alle'),
+                          selected: _anlagenTypFilter == null,
+                          onSelected: (_) =>
+                              apply(() => _anlagenTypFilter = null),
+                        ),
+                        for (final typ in anlagenTypen)
+                          ChoiceChip(
+                            label: Text(typ),
+                            selected: _anlagenTypFilter == typ,
+                            onSelected: (_) =>
+                                apply(() => _anlagenTypFilter = typ),
+                          ),
+                        if (hatOhneTyp)
+                          ChoiceChip(
+                            label: const Text('Ohne Anlagentyp'),
+                            selected: _anlagenTypFilter == 'ohne',
+                            onSelected: (_) =>
+                                apply(() => _anlagenTypFilter = 'ohne'),
+                          ),
+                      ],
+                    ),
+                  ),
+                  section('Km-Abrechnung'),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final e in const [
+                          ('alle', 'Alle'),
+                          ('mit', 'Nur mit Km'),
+                          ('ohne', 'Nur ohne Km'),
+                        ])
+                          ChoiceChip(
+                            label: Text(e.$2),
+                            selected: _kmFilter == e.$1,
+                            onSelected: (_) => apply(() => _kmFilter = e.$1),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
