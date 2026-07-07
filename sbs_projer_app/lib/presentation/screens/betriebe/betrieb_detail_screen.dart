@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
@@ -160,8 +161,8 @@ class _BetriebDetailContent extends ConsumerWidget {
             ),
 
           // Ruhetage & Ferien (für alle Betriebe)
-          if (betrieb.ruhetage.isNotEmpty || betrieb.ferienStart != null ||
-              betrieb.ferien2Start != null || betrieb.ferien3Start != null ||
+          if (betrieb.ruhetage.isNotEmpty ||
+              ferienStarts(betrieb).isNotEmpty ||
               betrieb.keineBetriebsferien)
             _SectionCard(
               title: 'Ruhetage & Ferien',
@@ -173,12 +174,11 @@ class _BetriebDetailContent extends ConsumerWidget {
                       : betrieb.ruhetage.join(', ')),
                 if (betrieb.keineBetriebsferien)
                   const _InfoRow('Betriebsferien', 'Keine'),
-                if (!betrieb.keineBetriebsferien && betrieb.ferienStart != null)
-                  _InfoRow('Ferien 1', '${_formatDate(betrieb.ferienStart!)} – ${betrieb.ferienEnde != null ? _formatDate(betrieb.ferienEnde!) : '?'}'),
-                if (!betrieb.keineBetriebsferien && betrieb.ferien2Start != null)
-                  _InfoRow('Ferien 2', '${_formatDate(betrieb.ferien2Start!)} – ${betrieb.ferien2Ende != null ? _formatDate(betrieb.ferien2Ende!) : '?'}'),
-                if (!betrieb.keineBetriebsferien && betrieb.ferien3Start != null)
-                  _InfoRow('Ferien 3', '${_formatDate(betrieb.ferien3Start!)} – ${betrieb.ferien3Ende != null ? _formatDate(betrieb.ferien3Ende!) : '?'}'),
+                if (!betrieb.keineBetriebsferien)
+                  for (final (i, slot) in ferienSlots(betrieb).indexed)
+                    if (slot.start != null)
+                      _InfoRow('Ferien ${i + 1}',
+                          '${_formatDate(slot.start!)} – ${slot.ende != null ? _formatDate(slot.ende!) : '?'}'),
               ],
             ),
 
