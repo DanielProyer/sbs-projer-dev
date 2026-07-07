@@ -1,6 +1,21 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 29.06.2026 · **Live:** v0.16.19
+**Stand:** 07.07.2026 · **Live:** v0.16.20
+
+---
+
+## 🟢 App-Optimierung — Paket 06 (P1 Quick-Wins, live v0.16.20 · 07.07.2026)
+Optimierungspaket 06 (`Prompts/06_Optimierung_App_2026_07_07.txt`), Spec/Plan in `docs/superpowers`. P1 = 7 Quick-Wins:
+- [x] ✓ **Eigenaufträge:** Status-Filter entfernt.
+- [x] ✓ **Störungen:** Filter-Sheet nur noch **Anlagentyp + Km-Abrechnung** (Status raus, auf Wunsch), Badge-Zähler, Anlagentyp-Chips kapitalisiert.
+- [x] ✓ **Reinigung:** Chip „Protokoll" statt „Foto"; **Service-Art** (Klartext) statt rohem `serviceTyp`; Zeiterfassung **kompakt einzeilig** (Datum/Start/Ende) in **Formular UND Detail-Übersicht**.
+- [x] ✓ **Kontakte:** Heineken-Rolle **„Stardrinks"** (Migration 117).
+- [x] ✓ **Betriebsferien:** 3 → **5 Slots** (Migration 118); Formular dynamisch (nur belegte Zeilen + „Weitere Ferien"); Detail zeigt Ferien 1–5; zentraler `betrieb_ferien.dart`-Util + **Bugfix** (`isBetriebOffen`/`_isBetriebAktiv` prüften bisher nur Ferien 1) → Touren/Termine/Heineken-Raster umgestellt; 8 neue Unit-Tests.
+- [ ] **🟡 Visueller Check Betriebsferien (Handy, live):** Betrieb-Formular „Weitere Ferien" bis 5 + speichern/wieder öffnen, Betrieb-Detail zeigt Ferien 4/5. *(Störungen-Filter, Eigenaufträge, Reinigung-Detail + -Formular bereits am Web-Build bestätigt.)*
+
+Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks sequenziell), je Task Spec- + Qualitäts-Review, finaler Branch-Review **APPROVED** (Web-Sync der neuen Ferien-Felder verifiziert), 210 Tests grün. **Migrationen 117 + 118 sind produktiv angewendet.**
+
+**Noch offen aus Paket 06 (P2–P9, nicht begonnen):** Anlagen-Screen + Anlagen-PDF; Betriebe Google-Datenübernahme; Reinigung QR-Firmenkonto-Link; Kontakte Event-Struktur (Jahr/Rolle/WhatsApp); **Termine komplette Überarbeitung**; **Events-Feature** (Telefonliste, Einsätze + Material, Abschluss-Mail an RSL); **Tourenplanung** (UX, Ruhetage/Servicezeiten anzeigen, Default leerer Tagesplan, Auto-Speicherung, Drag-Fläche vergrössern).
 
 ---
 
