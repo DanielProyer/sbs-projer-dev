@@ -27,7 +27,6 @@ class EigenauftragListScreen extends ConsumerStatefulWidget {
 class _EigenauftragListScreenState
     extends ConsumerState<EigenauftragListScreen> {
   String _searchQuery = '';
-  String _statusFilter = 'alle';
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
 
@@ -52,7 +51,6 @@ class _EigenauftragListScreenState
     final filtered = sorted.where((e) {
       if (e.datum.year != _selectedYear) return false;
       if (_selectedMonth != 0 && e.datum.month != _selectedMonth) return false;
-      if (_statusFilter != 'alle' && e.status != _statusFilter) return false;
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final betriebName =
@@ -93,19 +91,6 @@ class _EigenauftragListScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Eigenaufträge'),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Filter',
-            onSelected: (value) => setState(() => _statusFilter = value),
-            itemBuilder: (context) => [
-              _filterItem('alle', 'Alle'),
-              _filterItem('behoben', 'Behoben'),
-              _filterItem('nicht_behebbar', 'Nicht behebbar'),
-              _filterItem('nachbearbeitung_noetig', 'Nachbearbeitung'),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -171,20 +156,6 @@ class _EigenauftragListScreenState
               ],
             ),
           ),
-          if (_statusFilter != 'alle')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Chip(
-                    label: Text(_statusFilter),
-                    onDeleted: () =>
-                        setState(() => _statusFilter = 'alle'),
-                    deleteIcon: const Icon(Icons.close, size: 16),
-                  ),
-                ],
-              ),
-            ),
           Expanded(
             child: filtered.isEmpty
                 ? _buildEmpty()
@@ -322,22 +293,6 @@ class _EigenauftragListScreenState
                       fontSize: 11,
                     )),
           ],
-        ],
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _filterItem(String value, String label) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          if (_statusFilter == value)
-            const Icon(Icons.check, size: 18)
-          else
-            const SizedBox(width: 18),
-          const SizedBox(width: 8),
-          Text(label),
         ],
       ),
     );
