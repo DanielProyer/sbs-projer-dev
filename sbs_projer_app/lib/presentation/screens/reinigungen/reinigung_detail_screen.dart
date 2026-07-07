@@ -105,8 +105,8 @@ class _ReinigungDetailContent extends ConsumerWidget {
                   }
                   return const SizedBox.shrink();
                 }),
-              if (reinigung.serviceArt != 'standardservice')
-                _InfoRow('Service-Art', _serviceArtLabel(reinigung.serviceArt ?? 'standardservice')),
+              _InfoRow('Service-Art',
+                  _serviceArtLabel(reinigung.serviceArt ?? 'standardservice')),
             ],
           ),
 
@@ -124,8 +124,6 @@ class _ReinigungDetailContent extends ConsumerWidget {
               title: 'Preis',
               icon: Icons.payments,
               children: [
-                _InfoRow('Service-Art',
-                    _serviceArtLabel(reinigung.serviceArt ?? 'standardservice')),
                 if (reinigung.anzahlHaehneEigen > 0)
                   _InfoRow('Hähne Eigen', '${reinigung.anzahlHaehneEigen}'),
                 if (reinigung.anzahlHaehneOrion > 0)

@@ -372,6 +372,9 @@ class _StoerungenListScreenState
       (_anlagenTypFilter != null ? 1 : 0) +
       (_kmFilter != 'alle' ? 1 : 0);
 
+  String _typLabel(String typ) =>
+      typ.isEmpty ? typ : typ[0].toUpperCase() + typ.substring(1);
+
   void _showFilterSheet(List<StoerungLocal> stoerungen) {
     final anlagenTypen = stoerungen
         .map((s) => s.anlageTyp)
@@ -441,7 +444,7 @@ class _StoerungenListScreenState
                         ),
                         for (final typ in anlagenTypen)
                           ChoiceChip(
-                            label: Text(typ),
+                            label: Text(_typLabel(typ)),
                             selected: _anlagenTypFilter == typ,
                             onSelected: (_) =>
                                 apply(() => _anlagenTypFilter = typ),
