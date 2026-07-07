@@ -42,6 +42,10 @@ class BetriebMapper {
     local.ferien2Ende = dto.ferien2Ende;
     local.ferien3Start = dto.ferien3Start;
     local.ferien3Ende = dto.ferien3Ende;
+    local.ferien4Start = dto.ferien4Start;
+    local.ferien4Ende = dto.ferien4Ende;
+    local.ferien5Start = dto.ferien5Start;
+    local.ferien5Ende = dto.ferien5Ende;
     local.keineBetriebsferien = dto.keineBetriebsferien;
     local.oeffnungszeitenJson = dto.oeffnungszeiten != null
         ? jsonEncode(dto.oeffnungszeiten)
@@ -96,6 +100,10 @@ class BetriebMapper {
       'ferien2_ende': local.ferien2Ende?.toIso8601String().split('T').first,
       'ferien3_start': local.ferien3Start?.toIso8601String().split('T').first,
       'ferien3_ende': local.ferien3Ende?.toIso8601String().split('T').first,
+      'ferien4_start': local.ferien4Start?.toIso8601String().split('T').first,
+      'ferien4_ende': local.ferien4Ende?.toIso8601String().split('T').first,
+      'ferien5_start': local.ferien5Start?.toIso8601String().split('T').first,
+      'ferien5_ende': local.ferien5Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': local.keineBetriebsferien,
       'oeffnungszeiten': local.oeffnungszeitenJson != null
           ? jsonDecode(local.oeffnungszeitenJson!)

@@ -45,6 +45,10 @@ class BetriebLocal {
   DateTime? ferien2Ende;
   DateTime? ferien3Start;
   DateTime? ferien3Ende;
+  DateTime? ferien4Start;
+  DateTime? ferien4Ende;
+  DateTime? ferien5Start;
+  DateTime? ferien5Ende;
   bool keineBetriebsferien = false;
   String? oeffnungszeitenJson;
   String? servicezeitMorgenAb;

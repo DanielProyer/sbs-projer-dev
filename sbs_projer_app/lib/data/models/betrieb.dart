@@ -36,6 +36,10 @@ class Betrieb {
   final DateTime? ferien2Ende;
   final DateTime? ferien3Start;
   final DateTime? ferien3Ende;
+  final DateTime? ferien4Start;
+  final DateTime? ferien4Ende;
+  final DateTime? ferien5Start;
+  final DateTime? ferien5Ende;
   final bool keineBetriebsferien;
   final Map<String, dynamic>? oeffnungszeiten;
   final String? servicezeitMorgenAb;
@@ -84,6 +88,10 @@ class Betrieb {
     this.ferien2Ende,
     this.ferien3Start,
     this.ferien3Ende,
+    this.ferien4Start,
+    this.ferien4Ende,
+    this.ferien5Start,
+    this.ferien5Ende,
     this.keineBetriebsferien = false,
     this.oeffnungszeiten,
     this.servicezeitMorgenAb,
@@ -140,6 +148,10 @@ class Betrieb {
       ferien2Ende: json['ferien2_ende'] != null ? DateTime.parse(json['ferien2_ende']) : null,
       ferien3Start: json['ferien3_start'] != null ? DateTime.parse(json['ferien3_start']) : null,
       ferien3Ende: json['ferien3_ende'] != null ? DateTime.parse(json['ferien3_ende']) : null,
+      ferien4Start: json['ferien4_start'] != null ? DateTime.parse(json['ferien4_start']) : null,
+      ferien4Ende: json['ferien4_ende'] != null ? DateTime.parse(json['ferien4_ende']) : null,
+      ferien5Start: json['ferien5_start'] != null ? DateTime.parse(json['ferien5_start']) : null,
+      ferien5Ende: json['ferien5_ende'] != null ? DateTime.parse(json['ferien5_ende']) : null,
       keineBetriebsferien: json['keine_betriebsferien'] ?? false,
       oeffnungszeiten: json['oeffnungszeiten'] is Map
           ? Map<String, dynamic>.from(json['oeffnungszeiten'])
@@ -193,6 +205,10 @@ class Betrieb {
       'ferien2_ende': ferien2Ende?.toIso8601String().split('T').first,
       'ferien3_start': ferien3Start?.toIso8601String().split('T').first,
       'ferien3_ende': ferien3Ende?.toIso8601String().split('T').first,
+      'ferien4_start': ferien4Start?.toIso8601String().split('T').first,
+      'ferien4_ende': ferien4Ende?.toIso8601String().split('T').first,
+      'ferien5_start': ferien5Start?.toIso8601String().split('T').first,
+      'ferien5_ende': ferien5Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': keineBetriebsferien,
       'oeffnungszeiten': oeffnungszeiten ?? {},
       'servicezeit_morgen_ab': servicezeitMorgenAb,
