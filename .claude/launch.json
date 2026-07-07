@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "flutter-web",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": "py",
       "runtimeArgs": ["-m", "http.server", "8080", "-d", "sbs_projer_app/build/web"],
       "port": 8080
     }
