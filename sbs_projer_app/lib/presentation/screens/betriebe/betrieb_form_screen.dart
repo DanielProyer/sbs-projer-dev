@@ -57,12 +57,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   bool _sommerSaisonAktiv = false;
   DateTime? _sommerStartDatum;
   DateTime? _sommerEndeDatum;
-  DateTime? _ferienStart;
-  DateTime? _ferienEnde;
-  DateTime? _ferien2Start;
-  DateTime? _ferien2Ende;
-  DateTime? _ferien3Start;
-  DateTime? _ferien3Ende;
+  final List<DateTime?> _ferienStarts = List.filled(5, null);
+  final List<DateTime?> _ferienEnden = List.filled(5, null);
+  int _ferienZeilen = 1;
   bool _keineBetriebsferien = false;
   List<String> _ruhetage = [];
   List<String> _zapfsysteme = [];
@@ -131,12 +128,25 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _sommerSaisonAktiv = betrieb.sommerSaisonAktiv;
       _sommerStartDatum = betrieb.sommerStartDatum;
       _sommerEndeDatum = betrieb.sommerEndeDatum;
-      _ferienStart = betrieb.ferienStart;
-      _ferienEnde = betrieb.ferienEnde;
-      _ferien2Start = betrieb.ferien2Start;
-      _ferien2Ende = betrieb.ferien2Ende;
-      _ferien3Start = betrieb.ferien3Start;
-      _ferien3Ende = betrieb.ferien3Ende;
+      final geladeneStarts = [
+        betrieb.ferienStart, betrieb.ferien2Start, betrieb.ferien3Start,
+        betrieb.ferien4Start, betrieb.ferien5Start,
+      ];
+      final geladeneEnden = [
+        betrieb.ferienEnde, betrieb.ferien2Ende, betrieb.ferien3Ende,
+        betrieb.ferien4Ende, betrieb.ferien5Ende,
+      ];
+      for (var i = 0; i < 5; i++) {
+        _ferienStarts[i] = geladeneStarts[i];
+        _ferienEnden[i] = geladeneEnden[i];
+      }
+      _ferienZeilen = 1;
+      for (var i = 4; i >= 0; i--) {
+        if (_ferienStarts[i] != null || _ferienEnden[i] != null) {
+          _ferienZeilen = i + 1;
+          break;
+        }
+      }
       _keineBetriebsferien = betrieb.keineBetriebsferien;
       _ruhetage = List<String>.from(betrieb.ruhetage);
       _zapfsysteme = List<String>.from(betrieb.zapfsysteme);
@@ -198,12 +208,16 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.sommerSaisonAktiv = _istSaisonbetrieb ? _sommerSaisonAktiv : false;
       betrieb.sommerStartDatum = _istSaisonbetrieb ? _sommerStartDatum : null;
       betrieb.sommerEndeDatum = _istSaisonbetrieb ? _sommerEndeDatum : null;
-      betrieb.ferienStart = _keineBetriebsferien ? null : _ferienStart;
-      betrieb.ferienEnde = _keineBetriebsferien ? null : _ferienEnde;
-      betrieb.ferien2Start = _keineBetriebsferien ? null : _ferien2Start;
-      betrieb.ferien2Ende = _keineBetriebsferien ? null : _ferien2Ende;
-      betrieb.ferien3Start = _keineBetriebsferien ? null : _ferien3Start;
-      betrieb.ferien3Ende = _keineBetriebsferien ? null : _ferien3Ende;
+      betrieb.ferienStart = _keineBetriebsferien ? null : _ferienStarts[0];
+      betrieb.ferienEnde = _keineBetriebsferien ? null : _ferienEnden[0];
+      betrieb.ferien2Start = _keineBetriebsferien ? null : _ferienStarts[1];
+      betrieb.ferien2Ende = _keineBetriebsferien ? null : _ferienEnden[1];
+      betrieb.ferien3Start = _keineBetriebsferien ? null : _ferienStarts[2];
+      betrieb.ferien3Ende = _keineBetriebsferien ? null : _ferienEnden[2];
+      betrieb.ferien4Start = _keineBetriebsferien ? null : _ferienStarts[3];
+      betrieb.ferien4Ende = _keineBetriebsferien ? null : _ferienEnden[3];
+      betrieb.ferien5Start = _keineBetriebsferien ? null : _ferienStarts[4];
+      betrieb.ferien5Ende = _keineBetriebsferien ? null : _ferienEnden[4];
       betrieb.keineBetriebsferien = _keineBetriebsferien;
       betrieb.ruhetage = _ruhetage;
       betrieb.zapfsysteme = _zapfsysteme;
@@ -743,7 +757,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               ],
             ),
 
-            // === Betriebsferien (für alle Betriebe, bis 3 Perioden) ===
+            // === Betriebsferien (bis 5 Perioden, kompakt) ===
             const SizedBox(height: 16),
             Text('Betriebsferien',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -757,79 +771,49 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               onChanged: (v) => setState(() {
                 _keineBetriebsferien = v;
                 if (v) {
-                  _ferienStart = null;
-                  _ferienEnde = null;
-                  _ferien2Start = null;
-                  _ferien2Ende = null;
-                  _ferien3Start = null;
-                  _ferien3Ende = null;
+                  for (var i = 0; i < 5; i++) {
+                    _ferienStarts[i] = null;
+                    _ferienEnden[i] = null;
+                  }
+                  _ferienZeilen = 1;
                 }
               }),
             ),
             if (!_keineBetriebsferien) ...[
-            // Ferien 1
-            Row(
-              children: [
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Ferien 1 von',
-                    value: _ferienStart,
-                    onChanged: (v) => setState(() => _ferienStart = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Ferien 1 bis',
-                    value: _ferienEnde,
-                    onChanged: (v) => setState(() => _ferienEnde = v),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Ferien 2
-            Row(
-              children: [
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Ferien 2 von',
-                    value: _ferien2Start,
-                    onChanged: (v) => setState(() => _ferien2Start = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Ferien 2 bis',
-                    value: _ferien2Ende,
-                    onChanged: (v) => setState(() => _ferien2Ende = v),
-                  ),
+              for (var i = 0; i < _ferienZeilen; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DatePickerField(
+                        label: 'Ferien ${i + 1} von',
+                        value: _ferienStarts[i],
+                        onChanged: (v) =>
+                            setState(() => _ferienStarts[i] = v),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DatePickerField(
+                        label: 'Ferien ${i + 1} bis',
+                        value: _ferienEnden[i],
+                        onChanged: (v) =>
+                            setState(() => _ferienEnden[i] = v),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-            // Ferien 3
-            Row(
-              children: [
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Ferien 3 von',
-                    value: _ferien3Start,
-                    onChanged: (v) => setState(() => _ferien3Start = v),
+              if (_ferienZeilen < 5)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _ferienZeilen++),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Weitere Ferien'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Ferien 3 bis',
-                    value: _ferien3Ende,
-                    onChanged: (v) => setState(() => _ferien3Ende = v),
-                  ),
-                ),
-              ],
-            ),
-            ], // Ende if (!_keineBetriebsferien)
+            ],
 
             // === Öffnungszeiten ===
             const SizedBox(height: 16),
