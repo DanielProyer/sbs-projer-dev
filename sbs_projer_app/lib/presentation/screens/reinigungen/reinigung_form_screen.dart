@@ -941,55 +941,65 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             // === Zeiterfassung ===
             _sectionTitle(context, 'Zeiterfassung'),
             const SizedBox(height: 8),
-            InkWell(
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _datum,
-                  firstDate: DateTime(2024),
-                  lastDate: DateTime.now().add(const Duration(days: 1)),
-                );
-                if (picked != null) {
-                  setState(() => _datum = picked);
-                }
-              },
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Datum',
-                  prefixIcon: Icon(Icons.calendar_today),
+            // Datum, Start und Ende in einer Zeile
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _datum,
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime.now().add(const Duration(days: 1)),
+                      );
+                      if (picked != null) {
+                        setState(() => _datum = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Datum',
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(_formatDate(_datum)),
+                    ),
+                  ),
                 ),
-                child: Text(_formatDate(_datum)),
-              ),
-            ),
-
-            // Bei Heineken-Monteur: nur Datum, Rest ausblenden
-            if (!_istHeinekenMonteur) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
+                // Bei Heineken-Monteur: nur Datum, Start/Ende ausblenden
+                if (!_istHeinekenMonteur) ...[
+                  const SizedBox(width: 8),
                   Expanded(
+                    flex: 3,
                     child: TextFormField(
                       controller: _uhrzeitStartController,
                       decoration: const InputDecoration(
                         labelText: 'Start',
-                        prefixIcon: Icon(Icons.play_arrow),
+                        isDense: true,
                       ),
                       textInputAction: TextInputAction.next,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
+                    flex: 3,
                     child: TextFormField(
                       controller: _uhrzeitEndeController,
                       decoration: const InputDecoration(
                         labelText: 'Ende',
-                        prefixIcon: Icon(Icons.stop),
+                        isDense: true,
                       ),
                       textInputAction: TextInputAction.next,
                     ),
                   ),
                 ],
-              ),
+              ],
+            ),
+
+            // Bei Heineken-Monteur: Rest ausblenden
+            if (!_istHeinekenMonteur) ...[
               const SizedBox(height: 24),
 
               // === Service-Art & Wasserwechsel ===
