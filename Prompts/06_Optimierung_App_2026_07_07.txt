@@ -1,0 +1,65 @@
+Hier sind einige Punkte die wir optimieren und/oder nochmals genauer anschauen müssen
+Überlege dir selber wie du das alles umsetzt, die bestehenden Funktionen sollen nicht tangiert werden (frage sonst)
+Mach einen Plan für die Umsetzung, überlege welche Schritte du bündelst und welche Pakete du bildest
+
+
+Anlagen:
+- doch eigener Screen mit allen Anlagen und Anlagenübersicht (Kennzahlen), wird nicht so oft genutzt, also unter Bergkundenpauschale anordnen
+- pdf generieren mit allen Anlageninfos und Fotos (profesionelles Design) und Teilen
+
+
+
+Betriebe:
+- Betriebsferien nur eine Zeile (Ferien 1) anzeigen und plus Symbol für weitere Betriebsferien (max. 5)
+- Automatische Übernahme (nach Bestätigung) der Öffnungszeiten, Adresse, Kontakte, Webseite, Mail usw.. aus Internet (Google), was ist alles möglich?
+
+
+Reinigung:
+- Service-Typ nicht reinigung_bier sondern Service-Art (Standartservice, Endreinigung, Eröffnungsservice)
+- Zeiterfassung kompakter darstellen (2 spaltig?) soll trotzdem übersichtlich sein
+- Der Chip Foto oben, was soll das?, wenn dann müsste es eher Protokoll sein (für das pdf) Fotos werden bei einer Reinigung nicht erfasst
+- QR Code Firmenkonto als link in neue Reinigung (falls der Kunde direkt mit e-Banking zahlt)
+
+
+Störungen:
+- Filtern (oben rechts) nach Anlagentyp und Kilometerabrechnung
+
+
+Eigenaufträge:
+- Filter oben rechts entfernen
+
+
+Kontakte:
+- Für Events brauchen wir zusätzliche Abstufungen: 
+	- Event (z.B. OpenAir Val Lumnezia, aus Betrieb Veranstaltungen)
+	- Jahr
+	- Rolle (OK, Bau, Stand)
+	- Kontaktliste jedes Jahr neu (mit option übernahme aus dem Vorjahr) inkl. verantwortlichen Heineken Kontakten (Rolle: Event Heineken)
+	- entscheide selber wie du das am elegantesten und einfachsten löst
+	- die Kommunikation an Events läuft oft über WhatsApp, berücksichtige das
+	- evtl. Auslagern???
+- Rollen Heineken um Stardrinks ergänzen
+
+
+Termine:
+- komplette Überarbeitung in einem separaten Arbeitspaket, mit ansprechenderem Design
+
+
+Events:
+- Änderungen bei den Kontakten (Telefonliste)
+- Einsätze sollen Erfasst werden (sehr einfach, Beschreibung) mit Materialerfassung
+- entscheide selber wie wir das umsetzen (Brainstorming) und mache Vorschläge
+- Am Ende des Events ein Mail mit allen Einsätzen und MNaterialaufwand an RSL und den Eventverantwortlichen
+
+
+Tourenplannung
+- Eröffnung/Endreinigung, Betriebsferien und Saisonalität nochmal genau checken und optimieren
+- Handling (UI) Tourenplannung einfacher 
+- Ruhetage anzeigen (wichtig für Plannung
+- Servicezeiten berücksichtigen/anzeigen
+- Tagesplan defaultmässig leer, Auswahl aus überfällig/fällig ist der Standart, aus den anderen Kategorien die absolute Ausnahme (soll trotzdem möglich sein)
+- Filterung Region und Fälligkeit separat aber übersichtlich
+- Automatische Speicherung des Tagesplans (Speicherbutton entfällt)
+- Termine für Eröffnung/Endreinigung automatisch im Tagesplan
+- das verschieben der einzelnen Betriebe im Tagesplan optimieren (grössere Fläche) das ist noch sehr hakelig für mich
+ 
