@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:uuid/uuid.dart';
+import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/termin_local_export.dart';
@@ -249,12 +250,10 @@ class TerminRepository {
       }
 
       if (!betrieb.keineBetriebsferien) {
-        _addFerienSoll(soll, bId, name, betrieb.ferienStart, betrieb.ferienEnde,
-            skipEroeffnung);
-        _addFerienSoll(soll, bId, name, betrieb.ferien2Start,
-            betrieb.ferien2Ende, skipEroeffnung);
-        _addFerienSoll(soll, bId, name, betrieb.ferien3Start,
-            betrieb.ferien3Ende, skipEroeffnung);
+        for (final slot in ferienSlots(betrieb)) {
+          _addFerienSoll(
+              soll, bId, name, slot.start, slot.ende, skipEroeffnung);
+        }
       }
     }
     return soll;

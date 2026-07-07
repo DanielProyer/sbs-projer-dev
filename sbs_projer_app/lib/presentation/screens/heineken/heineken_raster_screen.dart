@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
@@ -123,14 +124,10 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
         // Ferien
         final ferien = <FerienPeriode>[];
         if (!b.keineBetriebsferien) {
-          if (b.ferienStart != null && b.ferienEnde != null) {
-            ferien.add(FerienPeriode(b.ferienStart!, b.ferienEnde!));
-          }
-          if (b.ferien2Start != null && b.ferien2Ende != null) {
-            ferien.add(FerienPeriode(b.ferien2Start!, b.ferien2Ende!));
-          }
-          if (b.ferien3Start != null && b.ferien3Ende != null) {
-            ferien.add(FerienPeriode(b.ferien3Start!, b.ferien3Ende!));
+          for (final slot in ferienSlots(b)) {
+            if (slot.start != null && slot.ende != null) {
+              ferien.add(FerienPeriode(slot.start!, slot.ende!));
+            }
           }
         }
 

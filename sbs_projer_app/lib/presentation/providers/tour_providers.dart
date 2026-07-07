@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
@@ -54,12 +55,8 @@ DateTime? _wiederoeffnungNachEndreinigung(
   DateTime? wiederoeffnung;
 
   // Ferien: Tag nach Ferienende = Wiedereröffnung
-  for (final fe in [
-    betrieb.ferienEnde,
-    betrieb.ferien2Ende,
-    betrieb.ferien3Ende,
-  ]) {
-    if (fe != null && fe.isAfter(letzteReinigung)) {
+  for (final fe in ferienEnden(betrieb)) {
+    if (fe.isAfter(letzteReinigung)) {
       final reopen = fe.add(const Duration(days: 1));
       if (wiederoeffnung == null || reopen.isBefore(wiederoeffnung)) {
         wiederoeffnung = reopen;
@@ -130,12 +127,8 @@ DateTime? _naechsteSchliessung(BetriebLocal betrieb, DateTime datum) {
   }
 
   // Ferienstart: Ferien die noch kommen
-  for (final fs in [
-    betrieb.ferienStart,
-    betrieb.ferien2Start,
-    betrieb.ferien3Start,
-  ]) {
-    if (fs != null && fs.isAfter(datum)) {
+  for (final fs in ferienStarts(betrieb)) {
+    if (fs.isAfter(datum)) {
       if (naechste == null || fs.isBefore(naechste)) naechste = fs;
     }
   }
@@ -163,16 +156,10 @@ DateTime? _naechsteOeffnung(
   }
 
   // Ferienende + 1 Tag
-  for (final fe in [
-    betrieb.ferienEnde,
-    betrieb.ferien2Ende,
-    betrieb.ferien3Ende,
-  ]) {
-    if (fe != null) {
-      final reopen = fe.add(const Duration(days: 1));
-      if (letzteReinigung == null || reopen.isAfter(letzteReinigung)) {
-        if (naechste == null || reopen.isBefore(naechste)) naechste = reopen;
-      }
+  for (final fe in ferienEnden(betrieb)) {
+    final reopen = fe.add(const Duration(days: 1));
+    if (letzteReinigung == null || reopen.isAfter(letzteReinigung)) {
+      if (naechste == null || reopen.isBefore(naechste)) naechste = reopen;
     }
   }
 
@@ -273,11 +260,7 @@ bool isBetriebOffen(BetriebLocal b, DateTime datum) {
   if (b.status != 'aktiv') return false;
 
   // Ferien-Check
-  if (b.ferienStart != null && b.ferienEnde != null) {
-    if (!datum.isBefore(b.ferienStart!) && !datum.isAfter(b.ferienEnde!)) {
-      return false;
-    }
-  }
+  if (istInFerien(b, datum)) return false;
 
   // Saison-Check
   if (b.istSaisonbetrieb) {
@@ -321,11 +304,7 @@ bool _isBetriebAktiv(BetriebLocal b, DateTime datum) {
   if (b.status != 'aktiv') return false;
 
   // Ferien-Check
-  if (b.ferienStart != null && b.ferienEnde != null) {
-    if (!datum.isBefore(b.ferienStart!) && !datum.isAfter(b.ferienEnde!)) {
-      return false;
-    }
-  }
+  if (istInFerien(b, datum)) return false;
 
   // Saison-Check
   if (b.istSaisonbetrieb) {
