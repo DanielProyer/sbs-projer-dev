@@ -124,8 +124,8 @@ class _ReinigungDetailContent extends ConsumerWidget {
               title: 'Preis',
               icon: Icons.payments,
               children: [
-                if (reinigung.serviceTyp != null)
-                  _InfoRow('Service-Typ', reinigung.serviceTyp!),
+                _InfoRow('Service-Art',
+                    _serviceArtLabel(reinigung.serviceArt ?? 'standardservice')),
                 if (reinigung.anzahlHaehneEigen > 0)
                   _InfoRow('Hähne Eigen', '${reinigung.anzahlHaehneEigen}'),
                 if (reinigung.anzahlHaehneOrion > 0)
@@ -895,9 +895,9 @@ class _StatusRow extends StatelessWidget {
           ),
         if (reinigung.protokollFotoPfad != null)
           const _StatusChip(
-            label: 'Foto',
+            label: 'Protokoll',
             color: AppColors.success,
-            icon: Icons.photo_camera,
+            icon: Icons.description,
           ),
       ],
     );
