@@ -24,6 +24,8 @@ import 'package:sbs_projer_app/data/local/montage_local.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
 import 'package:sbs_projer_app/data/local/termin_local.dart';
+import 'package:sbs_projer_app/data/local/event_local.dart';
+import 'package:sbs_projer_app/data/local/event_kontakt_local.dart';
 
 // DTOs
 import 'package:sbs_projer_app/data/models/region.dart';
@@ -41,6 +43,8 @@ import 'package:sbs_projer_app/data/models/montage.dart';
 import 'package:sbs_projer_app/data/models/eigenauftrag.dart';
 import 'package:sbs_projer_app/data/models/eroeffnungsreinigung.dart';
 import 'package:sbs_projer_app/data/models/termin.dart';
+import 'package:sbs_projer_app/data/models/event.dart';
+import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 
 // Mappers
 import 'package:sbs_projer_app/data/mappers/region_mapper.dart';
@@ -58,6 +62,8 @@ import 'package:sbs_projer_app/data/mappers/montage_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/eigenauftrag_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/eroeffnungsreinigung_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_kontakt_mapper.dart';
 
 enum SyncState { idle, syncing, error }
 
@@ -132,15 +138,17 @@ class SyncService {
         // Tier 2: → Betrieb
         [
           () => _syncBetriebKontakte(userId),
+          () => _syncEvents(userId),
           () => _syncBetriebRechnungsadressen(userId),
           () => _syncAnlagen(userId),
         ],
-        // Tier 3: → Anlage
+        // Tier 3: → Anlage / Event
         [
           () => _syncBierleitungen(userId),
           () => _syncReinigungen(userId),
           () => _syncStoerungen(userId),
           () => _syncMontagen(userId),
+          () => _syncEventKontakte(userId),
         ],
         // Tier 4: → Betrieb/Anlage
         [
@@ -387,7 +395,8 @@ class SyncService {
   }
 
   // ============================================================
-  // TIER 2: BetriebKontakt, Anlage (→ Betrieb)
+  // TIER 2: BetriebKontakt, Event, Anlage (→ Betrieb)
+  // (EventKontakt läuft in Tier 3, braucht Events + Kontakte)
   // ============================================================
 
   static Future<({int pushed, int pulled})> _syncBetriebKontakte(String uid) async {
@@ -416,6 +425,66 @@ class SyncService {
       await _isar.writeTxn(() => _isar.betriebKontaktLocals.putAll(toSave));
     }
     await _updateMeta('betrieb_kontakte');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  // Event-Jahre (Tier 2: → Betrieb)
+  static Future<({int pushed, int pulled})> _syncEvents(String uid) async {
+    final unsynced =
+        await _isar.eventLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EventLocal>(
+      'events', unsynced, EventMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('events', 'events', uid);
+    final toSave = <EventLocal>[];
+    for (final row in rows) {
+      final dto = Event.fromJson(row);
+      final ex = await _isar.eventLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EventMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventLocals.putAll(toSave));
+    }
+    await _updateMeta('events');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  // Event-Kontakt-Zuordnungen (Tier 3: → Event + Kontakt)
+  static Future<({int pushed, int pulled})> _syncEventKontakte(String uid) async {
+    final unsynced =
+        await _isar.eventKontaktLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EventKontaktLocal>(
+      'event_kontakte', unsynced, EventKontaktMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventKontaktLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('event_kontakte', 'event_kontakte', uid);
+    final toSave = <EventKontaktLocal>[];
+    for (final row in rows) {
+      final dto = EventKontakt.fromJson(row);
+      final ex = await _isar.eventKontaktLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EventKontaktMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventKontaktLocals.putAll(toSave));
+    }
+    await _updateMeta('event_kontakte');
     return (pushed: pushed.length, pulled: toSave.length);
   }
 
