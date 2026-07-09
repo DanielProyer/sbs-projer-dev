@@ -1,6 +1,19 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 07.07.2026 · **Live:** v0.16.20
+**Stand:** 10.07.2026 · **Live:** v0.17.0
+
+---
+
+## 🟢 Events-Modul — Phase E1 (live v0.17.0 · 10.07.2026)
+Spec `docs/superpowers/specs/2026-07-09-events-e1-design.md`, Plan + Ablauf-Kontext `Prompts/07_Events_Ablauf.txt`. Neues Modul: Dashboard-Kachel **Events** → Event-Jahre («Albani Fest 2026»):
+- [x] ✓ **Event-Jahr-Entität** (`events`, Migration 119): referenziert Veranstaltungs-Betrieb (zapfsysteme `Veranstaltungen`), Jahr + Termin, Status abgeleitet (kommend «in X Tagen»/laufend/vorbei/Termin offen). Abrechnung bleibt unverändert bei Montage «Anlass».
+- [x] ✓ **Kontaktliste pro Event-Jahr** (`event_kontakte`): Rolle auf der Zuordnung (Eventverantwortlicher, RSL, OK, Bau, Stand, Monteur, Stardrinks, Sonstige), Bemerkung, Gruppierung; Kontakte bleiben globale Personen. **Vorjahres-Übernahme** (Checkbox beim Anlegen + Menü, Merge ohne Duplikate).
+- [x] ✓ **WhatsApp + Anruf** direkt aus der Liste (wa.me mit CH-Normalisierung, getestet: +41 79 885 20 88 → wa.me/41798852088).
+- [x] ✓ Qualität: subagent-getrieben (9 Tasks, je Spec-+Qualitäts-Review), finaler Branch-Review APPROVED, 224 Tests grün (15 neue), visueller Web-Test komplett (Anlegen, Zuordnen, Übernahme, Löschen). Review-Fixes W1+W2 umgesetzt (Native-Delete serverseitig; `KontaktRepository.save` generiert jetzt Client-UUID).
+- [ ] **🟡 Bekanntes Verhalten (Multi-Device, W3):** Legen zwei Geräte offline dasselbe Event-Jahr an, scheitert der zweite Push am UNIQUE-Constraint dauerhaft still (`isSynced=false` bleibt). Bei Ein-Personen-Nutzung akzeptabel; fixen falls je zweites Gerät aktiv schreibt.
+- [ ] **🟡 Kosmetik offen (K1/K3):** Status-Badge/Termin-Format in Liste+Detail dupliziert (gemeinsames Widget lohnenswert bei E2); Web-`getAll` ohne Pagination (irrelevant bei < 1000 Events).
+
+**Nächste Phasen:** **E2** Lageplan-PDF + Stände + Anlagen pro Stand (Beispieldateien in `00_Event/`, nicht versioniert) · **E3** Inbetriebnahme + GPS-Standorte + Karten-Tab (flutter_map + swisstopo-Luftbild, kein API-Key) + Pikett-Einsätze (1 Material-Slot) · **E4** Abschluss-Mail (Einsatzliste als PDF an Eventverantwortlichen + RSL + optional, MailConfig-Bereich `event`).
 
 ---
 
