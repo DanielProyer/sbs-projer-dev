@@ -55,6 +55,9 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/audit_screen.dar
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/mwst_abrechnung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakte_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakt_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/events/events_list_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/einstellungen_screen.dart';
@@ -564,6 +567,26 @@ final router = GoRouter(
         final id = state.pathParameters['id']!;
         return KontaktFormScreen(kontaktId: id);
       },
+    ),
+
+    // Events
+    GoRoute(
+      path: '/events',
+      builder: (context, state) => const EventsListScreen(),
+    ),
+    GoRoute(
+      path: '/events/neu',
+      builder: (context, state) => const EventFormScreen(),
+    ),
+    GoRoute(
+      path: '/events/:id',
+      builder: (context, state) =>
+          EventDetailScreen(eventId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/events/:id/bearbeiten',
+      builder: (context, state) =>
+          EventFormScreen(eventId: state.pathParameters['id']),
     ),
 
     // Bergkundenpauschalen
