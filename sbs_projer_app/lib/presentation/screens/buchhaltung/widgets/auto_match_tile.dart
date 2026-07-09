@@ -95,7 +95,7 @@ class AutoMatchTile extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(child: beschreibungText),
               const SizedBox(width: 8),
-              ?korrigieren,
+              if (korrigieren != null) korrigieren,
               if (korrigieren != null) const SizedBox(width: 4),
               button,
             ],

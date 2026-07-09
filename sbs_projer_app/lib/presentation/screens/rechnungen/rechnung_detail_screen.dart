@@ -464,7 +464,7 @@ class _RechnungDetailContentState
             'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
         'rechnungId': _rechnung.id,
         'userId': SupabaseService.dataUserId,
-        'protokollFotoPfad': ?protokoll,
+        if (protokoll != null) 'protokollFotoPfad': protokoll,
       });
 
       // 5. versendet_am setzen (nur bei scharfem Versand).

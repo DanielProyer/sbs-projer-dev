@@ -257,8 +257,8 @@ class RechnungService {
       'mwst_satz': _mwstSatzProzent,
       'mwst_betrag': mwst,
       'betrag_brutto': _round2(netto + mwst),
-      'service_typ': ?serviceTyp,
-      'service_id': ?serviceId,
+      if (serviceTyp != null) 'service_typ': serviceTyp,
+      if (serviceId != null) 'service_id': serviceId,
     };
   }
 

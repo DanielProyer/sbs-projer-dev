@@ -11,7 +11,7 @@ class AnrufLogRepository {
       'user_id': _userId,
       'kontakt_id': kontaktId,
       'anruf_zeitpunkt': DateTime.now().toUtc().toIso8601String(),
-      'notiz': ?notiz,
+      if (notiz != null) 'notiz': notiz,
     });
   }
 

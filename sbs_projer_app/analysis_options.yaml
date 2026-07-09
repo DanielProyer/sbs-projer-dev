@@ -23,6 +23,13 @@ linter:
   rules:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # Deaktiviert: Die Null-aware-Element-Syntax (`?ausdruck` in Collections,
+    # Dart 3.8) kann vom analyzer 5.13.0, den isar_generator 3.1.0 pinnt, NICHT
+    # geparst werden -> `dart run build_runner build` meldet "Failed". Wir nutzen
+    # daher bewusst `if (x != null) 'key': x`; die Lint-Empfehlung wuerde den
+    # Code-Generator wieder brechen. (Kann reaktiviert werden, sobald isar/analyzer
+    # aktualisiert ist.)
+    use_null_aware_elements: false
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
