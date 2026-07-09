@@ -1,0 +1,26 @@
+Infos zum Feature Events
+
+Ich werde durch Heineken Aufgeboten, Entscheidung zum Aufgebot meist mehrere Monate vor dem Event (Termin)
+
+Vor dem Event bekomme ich Infos, meist ein pdf mit dem Geländeplan und eine Liste (Excel) mit allen Anlagen, Verknüpfung zum Plan mit Standnummern
+
+Von Seiten Heineken gibt es einen Eventverantwortlichen (Event Manager), teilweise mehrere Monteure die dor aufstellen/Arbeiten, und teilweise übernimmt der RLS einen Teil des Leads (Aufbau)
+
+Meine Aufgabe besteht zum Teil aus dem Aufbau der Anlagen (Gampel, Chant du gros), der Inbetriebnahme und Pikettdienst während dem Anlass
+
+Alle Arbeiten (inkl. Spesen) werden direkt der Heineken über die Monatsrechnung verrechnet, aktuell läuft das über Montage Typ Anlass (5 Felder für Zeiteingabe), die Heineken wünscht diese Abrechnungsart inklusive des entsprechenden Montage pdf für die Monatsrechnung, dies soll also so bestehen bleiben
+
+Die Eingabe für die Zeit- und Spesenabrechnung soll für mich so einfach wie möglich sein
+
+Je nach Anlass habe ich diverse Kontakte (Natelnummern) von OK, Bau, Standbetriebern, Eventverantwortlicher ect… ), diese Kontakte bleiben teilweise über die Jahre gleich (kenne die Leute)
+
+Jeder Einsatz im Pikettdienst soll erfasst werden (mit Material, nur ein Slot), sehr einfache Erfassung da ich teilweise leicht angetrunken bin bei den Einsätzen ;-)
+
+die Kommunikation auf dem Event erfolgt hauptsächlich über WhatsApp und (seltener) über Telefon
+
+Am Ende des Events soll eine Liste aller Störungen an Eventverantwortlichen, RSL (im Gebiet des Events), und wahlweise einen weiteren Kontakt (Heineken oder Event) gemailt werden
+
+
+
+
+
