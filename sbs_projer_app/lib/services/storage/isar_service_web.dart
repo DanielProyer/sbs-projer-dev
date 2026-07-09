@@ -140,6 +140,19 @@ class IsarService {
   static dynamic kontaktDelete(int id) => throw UnsupportedError('Isar not available on web');
   static dynamic kontaktFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
 
+  // ─── Event ───
+  static dynamic eventFindAll() => throw UnsupportedError('Isar not available on web');
+  static dynamic eventGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventPut(dynamic e) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventDelete(int id) => throw UnsupportedError('Isar not available on web');
+
+  // ─── EventKontakt ───
+  static dynamic eventKontaktFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventKontaktFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventKontaktPut(dynamic e) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventKontaktDelete(int id) => throw UnsupportedError('Isar not available on web');
+
   // ─── Termin ───
   static dynamic terminFindAll() => throw UnsupportedError('Isar not available on web');
   static dynamic terminWatchAll() => throw UnsupportedError('Isar not available on web');

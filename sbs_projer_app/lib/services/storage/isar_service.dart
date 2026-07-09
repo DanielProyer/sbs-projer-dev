@@ -16,6 +16,8 @@ import 'package:sbs_projer_app/data/local/preis_local.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
 import 'package:sbs_projer_app/data/local/termin_local.dart';
+import 'package:sbs_projer_app/data/local/event_local.dart';
+import 'package:sbs_projer_app/data/local/event_kontakt_local.dart';
 import 'package:sbs_projer_app/data/local/sync_meta_local.dart';
 
 class IsarService {
@@ -50,6 +52,8 @@ class IsarService {
         PreisLocalSchema,
         EroeffnungsreinigungLocalSchema,
         TerminLocalSchema,
+        EventLocalSchema,
+        EventKontaktLocalSchema,
         SyncMetaLocalSchema,
       ],
       directory: dir.path,
@@ -246,6 +250,28 @@ class IsarService {
       instance.writeTxn(() => instance.kontaktLocals.delete(id));
   static Future<KontaktLocal?> kontaktFindByServerId(String serverId) =>
       instance.kontaktLocals.filter().serverIdEqualTo(serverId).findFirst();
+
+  // ─── Event ───
+  static Future<List<EventLocal>> eventFindAll() =>
+      instance.eventLocals.where().findAll();
+  static Future<EventLocal?> eventGet(int id) =>
+      instance.eventLocals.get(id);
+  static Future<EventLocal?> eventFindByServerId(String serverId) =>
+      instance.eventLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<void> eventPut(EventLocal e) =>
+      instance.writeTxn(() => instance.eventLocals.put(e));
+  static Future<void> eventDelete(int id) =>
+      instance.writeTxn(() => instance.eventLocals.delete(id));
+
+  // ─── EventKontakt ───
+  static Future<List<EventKontaktLocal>> eventKontaktFindByEvent(String eventId) =>
+      instance.eventKontaktLocals.filter().eventIdEqualTo(eventId).findAll();
+  static Future<EventKontaktLocal?> eventKontaktFindByServerId(String serverId) =>
+      instance.eventKontaktLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<void> eventKontaktPut(EventKontaktLocal e) =>
+      instance.writeTxn(() => instance.eventKontaktLocals.put(e));
+  static Future<void> eventKontaktDelete(int id) =>
+      instance.writeTxn(() => instance.eventKontaktLocals.delete(id));
 
   // ─── BetriebRechnungsadresse ───
   static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByBetrieb(String betriebId) =>
