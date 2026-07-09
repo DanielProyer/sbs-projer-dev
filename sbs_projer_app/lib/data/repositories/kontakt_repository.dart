@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/kontakt.dart';
 import 'package:sbs_projer_app/data/mappers/kontakt_mapper.dart';
@@ -58,6 +59,9 @@ class KontaktRepository {
 
   static Future<void> save(KontaktLocal kontakt) async {
     kontakt.userId = _userId;
+    // Server-UUID client-seitig generieren (wie EventRepository): damit ist ein
+    // offline neu angelegter Kontakt sofort referenzierbar (z.B. Event-Zuordnung).
+    kontakt.serverId ??= const Uuid().v4();
     if (kIsWeb) {
       final json = KontaktMapper.toJson(kontakt);
       await SupabaseService.client.from('kontakte').upsert(json);

@@ -40,7 +40,14 @@ class EventKontaktRepository {
       await SupabaseService.client.from('event_kontakte').delete().eq('id', id);
       return;
     }
-    await IsarService.eventKontaktDelete(int.parse(id));
+    // Native: zuerst serverseitig löschen, dann Isar aufräumen.
+    final isarId = int.parse(id);
+    final local = await IsarService.eventKontaktGet(isarId);
+    if (local?.serverId != null) {
+      await SupabaseService.client
+          .from('event_kontakte').delete().eq('id', local!.serverId!);
+    }
+    await IsarService.eventKontaktDelete(isarId);
   }
 
   /// Entfernt alle Zuordnungen eines Event-Jahres (vor dem Event-Löschen).
@@ -53,6 +60,10 @@ class EventKontaktRepository {
     }
     final zuordnungen = await IsarService.eventKontaktFindByEvent(eventId);
     for (final z in zuordnungen) {
+      if (z.serverId != null) {
+        await SupabaseService.client
+            .from('event_kontakte').delete().eq('id', z.serverId!);
+      }
       await IsarService.eventKontaktDelete(z.id);
     }
   }

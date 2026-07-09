@@ -264,6 +264,8 @@ class IsarService {
       instance.writeTxn(() => instance.eventLocals.delete(id));
 
   // ─── EventKontakt ───
+  static Future<EventKontaktLocal?> eventKontaktGet(int id) =>
+      instance.eventKontaktLocals.get(id);
   static Future<List<EventKontaktLocal>> eventKontaktFindByEvent(String eventId) =>
       instance.eventKontaktLocals.filter().eventIdEqualTo(eventId).findAll();
   static Future<EventKontaktLocal?> eventKontaktFindByServerId(String serverId) =>

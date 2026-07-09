@@ -45,7 +45,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
       ref.invalidate(eventKontakteProvider(event.serverId!));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$n Kontakte übernommen')),
+          SnackBar(
+              content: Text(
+                  n == 1 ? '1 Kontakt übernommen' : '$n Kontakte übernommen')),
         );
       }
     } catch (e) {

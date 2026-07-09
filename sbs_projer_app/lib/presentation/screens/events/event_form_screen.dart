@@ -98,6 +98,19 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     try {
       final jahr = int.parse(_jahrCtrl.text.trim());
 
+      // Termin-Plausibilität: bis darf nicht vor von liegen
+      if (_terminVon != null &&
+          _terminBis != null &&
+          _terminBis!.isBefore(_terminVon!)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('«Termin bis» liegt vor «Termin von»')),
+          );
+        }
+        return;
+      }
+
       // Duplikat-Schutz: pro Betrieb und Jahr genau ein Event
       // (UNIQUE-Constraint nicht in die DB crashen lassen)
       final alle = await EventRepository.getAll();
@@ -137,7 +150,10 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       if (mounted) {
         if (uebernommen >= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$uebernommen Kontakte übernommen')),
+            SnackBar(
+                content: Text(uebernommen == 1
+                    ? '1 Kontakt übernommen'
+                    : '$uebernommen Kontakte übernommen')),
           );
         }
         if (_isEdit) {

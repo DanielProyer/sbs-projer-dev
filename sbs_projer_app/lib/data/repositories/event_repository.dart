@@ -54,7 +54,15 @@ class EventRepository {
       await SupabaseService.client.from('events').delete().eq('id', id);
       return;
     }
-    await IsarService.eventDelete(int.parse(id));
+    // Native: zuerst serverseitig löschen (CASCADE räumt event_kontakte ab),
+    // dann Isar aufräumen — Muster stoerung_repository, verhindert Geister-Events.
+    final isarId = int.parse(id);
+    final local = await IsarService.eventGet(isarId);
+    if (local?.serverId != null) {
+      await SupabaseService.client
+          .from('events').delete().eq('id', local!.serverId!);
+    }
+    await IsarService.eventDelete(isarId);
   }
 
   /// Liefert das jüngste Event des Betriebs mit Jahr < [jahr] (oder null).
