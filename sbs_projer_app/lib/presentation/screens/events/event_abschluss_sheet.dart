@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_mail_empfaenger.dart';
@@ -58,6 +59,10 @@ class _EventAbschlussSheetState extends State<EventAbschlussSheet> {
         _mailController.clear();
       });
     }
+  }
+
+  Future<void> _vorschau() async {
+    await Printing.layoutPdf(onLayout: (_) => widget.pdf);
   }
 
   Future<void> _senden() async {
@@ -192,6 +197,15 @@ class _EventAbschlussSheetState extends State<EventAbschlussSheet> {
                     .toList(),
               ),
             const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _sending ? null : _vorschau,
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                label: const Text('PDF-Vorschau'),
+              ),
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(

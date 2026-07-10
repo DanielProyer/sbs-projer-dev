@@ -33,69 +33,66 @@ class EventAbschlussPdfService {
     'spesen': 'Spesen',
   };
 
-  /// Ersetzt Zeichen, die die Standard-Helvetica im pdf-Paket nicht rendert,
-  /// durch ASCII-Äquivalente (sonst leere Stellen im PDF).
-  static String _s(String t) => t
-      .replaceAll('✓', 'OK')
-      .replaceAll('–', '-')
-      .replaceAll('—', '-')
-      .replaceAll('‹', '<')
-      .replaceAll('›', '>');
-
   static Future<Uint8List> build(EventAbschlussDaten d) async {
     final doc = pw.Document();
     final totalStunden = d.aufwaende.fold<double>(0, (s, a) => s + a.stunden);
+    final jetzt = DateTime.now();
 
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        margin: const pw.EdgeInsets.fromLTRB(36, 36, 36, 42),
+        footer: (context) => pw.Container(
+          margin: const pw.EdgeInsets.only(top: 10),
+          padding: const pw.EdgeInsets.only(top: 4),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400, width: 0.5)),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Erstellt am ${_ddMMyyyy(jetzt)}',
+                  style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600)),
+              pw.Text('Seite ${context.pageNumber} / ${context.pagesCount}',
+                  style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600)),
+            ],
+          ),
+        ),
         build: (context) => [
           BerichtPdfCommon.kopf('Abschlussbericht', _s('${d.eventName} · ${d.zeitraum}')),
-          pw.SizedBox(height: 12),
-          _abschnitt('Zusammenfassung'),
-          _infoZeile('Stände', '${d.staende.length}'),
-          _infoZeile('Anlagen in Betrieb', '${d.anlagenInBetrieb} / ${d.anlagenTotal}'),
-          _infoZeile('Einsätze', '${d.einsaetze.length}'),
-          _infoZeile('Erfasste Stunden', '${totalStunden.toStringAsFixed(2)} h'),
-          pw.SizedBox(height: 12),
-          _abschnitt('Stände'),
+          pw.SizedBox(height: 16),
+
+          _sectionHeader('Zusammenfassung'),
+          pw.SizedBox(height: 6),
+          _summaryGrid([
+            ('Stände', '${d.staende.length}'),
+            ('Anlagen in Betrieb', '${d.anlagenInBetrieb} / ${d.anlagenTotal}'),
+            ('Einsätze', '${d.einsaetze.length}'),
+            ('Erfasste Stunden', '${totalStunden.toStringAsFixed(2)} h'),
+          ]),
+          pw.SizedBox(height: 16),
+
+          _sectionHeader('Stände'),
+          pw.SizedBox(height: 6),
           if (d.staende.isEmpty)
             _leer('Keine Stände erfasst.')
           else
-            ...d.staende.map((s) => pw.Padding(
-                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Expanded(
-                        child: pw.Text(_s('${s.name} - ${s.anlagenText}'),
-                            style: const pw.TextStyle(fontSize: 9)),
-                      ),
-                      pw.Text(_s(s.inbetriebLabel), style: const pw.TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                )),
-          pw.SizedBox(height: 12),
-          _abschnitt('Zeit & Aufwand'),
+            _staendeTabelle(d.staende),
+          pw.SizedBox(height: 16),
+
+          _sectionHeader('Zeit & Aufwand'),
+          pw.SizedBox(height: 6),
           if (d.aufwaende.isEmpty)
             _leer('Keine Zeiten erfasst.')
-          else
+          else ...[
             ..._aufwandGruppen(d.aufwaende),
-          pw.Padding(
-            padding: const pw.EdgeInsets.only(top: 4),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Total Stunden',
-                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                pw.Text('${totalStunden.toStringAsFixed(2)} h',
-                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 12),
-          _abschnitt('Pikett-Einsätze'),
+            pw.SizedBox(height: 6),
+            _totalRow('Total Stunden', '${totalStunden.toStringAsFixed(2)} h'),
+          ],
+          pw.SizedBox(height: 16),
+
+          _sectionHeader('Pikett-Einsätze'),
+          pw.SizedBox(height: 6),
           if (d.einsaetze.isEmpty)
             _leer('Keine Einsätze erfasst.')
           else
@@ -106,26 +103,82 @@ class EventAbschlussPdfService {
     return doc.save();
   }
 
-  static pw.Widget _abschnitt(String t) => pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 4),
+  // ── Bausteine ──────────────────────────────────────────────
+
+  static pw.Widget _sectionHeader(String t) => pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        color: BerichtPdfCommon.dunkel,
         child: pw.Text(t,
             style: pw.TextStyle(
-                fontSize: 12, fontWeight: pw.FontWeight.bold, color: BerichtPdfCommon.dunkel)),
+                fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
       );
 
-  static pw.Widget _infoZeile(String label, String wert) => pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(vertical: 1),
+  static pw.Widget _summaryGrid(List<(String, String)> items) {
+    final rows = <pw.Widget>[];
+    for (var i = 0; i < items.length; i += 2) {
+      final left = items[i];
+      final right = i + 1 < items.length ? items[i + 1] : null;
+      rows.add(pw.Row(children: [
+        pw.Expanded(child: _kv(left.$1, left.$2)),
+        pw.SizedBox(width: 16),
+        pw.Expanded(child: right == null ? pw.SizedBox() : _kv(right.$1, right.$2)),
+      ]));
+    }
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: pw.BorderRadius.circular(3),
+      ),
+      child: pw.Column(children: rows),
+    );
+  }
+
+  static pw.Widget _kv(String k, String v) => pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 2.5),
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(label, style: const pw.TextStyle(fontSize: 9)),
-            pw.Text(wert, style: const pw.TextStyle(fontSize: 9)),
+            pw.Text(_s(k), style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+            pw.Text(_s(v), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
           ],
         ),
       );
 
-  static pw.Widget _leer(String t) =>
-      pw.Text(t, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600));
+  static pw.Widget _leer(String t) => pw.Text(_s(t),
+      style: pw.TextStyle(
+          fontSize: 9, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic));
+
+  static pw.Widget _totalRow(String label, String wert) => pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.grey200,
+          borderRadius: pw.BorderRadius.circular(3),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(label, style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
+            pw.Text(wert, style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
+          ],
+        ),
+      );
+
+  static pw.Widget _staendeTabelle(
+      List<({String name, String anlagenText, String inbetriebLabel})> staende) {
+    return _tabelle(
+      ['Stand', 'Anlagen', 'Inbetriebnahme'],
+      const {
+        0: pw.FlexColumnWidth(2),
+        1: pw.FlexColumnWidth(3.2),
+        2: pw.FlexColumnWidth(1.6),
+      },
+      [
+        for (final s in staende) [_s(s.name), _s(s.anlagenText), _s(s.inbetriebLabel)],
+      ],
+    );
+  }
 
   static List<pw.Widget> _aufwandGruppen(
       List<({DateTime datum, String kategorie, String? notiz, double stunden})> aufw) {
@@ -136,26 +189,38 @@ class EventAbschlussPdfService {
       if (zeilen.isEmpty) continue;
       final summe = zeilen.fold<double>(0, (s, a) => s + a.stunden);
       widgets.add(pw.Padding(
-        padding: const pw.EdgeInsets.only(top: 4, bottom: 1),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text(_kategorieLabel[kat]!,
-                style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
-            pw.Text('${summe.toStringAsFixed(2)} h',
-                style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
-          ],
+        padding: const pw.EdgeInsets.only(top: 6, bottom: 2),
+        child: pw.Container(
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+                bottom: pw.BorderSide(color: BerichtPdfCommon.dunkel, width: 0.8)),
+          ),
+          padding: const pw.EdgeInsets.only(bottom: 2),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(_kategorieLabel[kat]!,
+                  style: pw.TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: pw.FontWeight.bold,
+                      color: BerichtPdfCommon.dunkel)),
+              pw.Text('${summe.toStringAsFixed(2)} h',
+                  style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
+            ],
+          ),
         ),
       ));
       for (final z in zeilen) {
-        final links = '${_ddMM(z.datum)}${(z.notiz != null && z.notiz!.isNotEmpty) ? ' · ${z.notiz}' : ''}';
+        final links =
+            '${_ddMM(z.datum)}${(z.notiz != null && z.notiz!.isNotEmpty) ? ' · ${z.notiz}' : ''}';
         widgets.add(pw.Padding(
-          padding: const pw.EdgeInsets.only(left: 10, top: 0.5, bottom: 0.5),
+          padding: const pw.EdgeInsets.only(left: 10, top: 1, bottom: 1),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Expanded(child: pw.Text(_s(links), style: const pw.TextStyle(fontSize: 8.5))),
-              pw.Text('${z.stunden.toStringAsFixed(2)} h', style: const pw.TextStyle(fontSize: 8.5)),
+              pw.Text('${z.stunden.toStringAsFixed(2)} h',
+                  style: const pw.TextStyle(fontSize: 8.5)),
             ],
           ),
         ));
@@ -167,40 +232,63 @@ class EventAbschlussPdfService {
   static pw.Widget _einsatzTabelle(
       List<({DateTime zeitpunkt, String beschreibung, String? material, String? standName})> eins) {
     final sorted = [...eins]..sort((a, b) => a.zeitpunkt.compareTo(b.zeitpunkt));
-    return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-      columnWidths: const {
-        0: pw.FlexColumnWidth(1.6),
+    return _tabelle(
+      ['Zeitpunkt', 'Beschreibung', 'Material', 'Stand'],
+      const {
+        0: pw.FlexColumnWidth(1.5),
         1: pw.FlexColumnWidth(3),
         2: pw.FlexColumnWidth(2),
         3: pw.FlexColumnWidth(1.6),
       },
-      children: [
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-          children: ['Zeitpunkt', 'Beschreibung', 'Material', 'Stand']
-              .map((h) => _zelle(h, bold: true))
-              .toList(),
-        ),
-        ...sorted.map((e) => pw.TableRow(children: [
-              _zelle(_ddMMHHmm(e.zeitpunkt)),
-              _zelle(_s(e.beschreibung)),
-              _zelle(_s(e.material ?? '-')),
-              _zelle(_s(e.standName ?? '-')),
-            ])),
+      [
+        for (final e in sorted)
+          [_ddMMHHmm(e.zeitpunkt), _s(e.beschreibung), _s(e.material ?? '-'), _s(e.standName ?? '-')],
       ],
     );
   }
 
-  static pw.Widget _zelle(String t, {bool bold = false}) => pw.Padding(
-        padding: const pw.EdgeInsets.all(3),
+  /// Generische Tabelle mit dunkler Kopfzeile (weiss) + Zebra-Zeilen.
+  static pw.Widget _tabelle(
+      List<String> header, Map<int, pw.TableColumnWidth> widths, List<List<String>> rows) {
+    return pw.Table(
+      columnWidths: widths,
+      border: pw.TableBorder.symmetric(
+        inside: const pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+      ),
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: BerichtPdfCommon.dunkel),
+          children: [for (final h in header) _zelle(h, bold: true, color: PdfColors.white)],
+        ),
+        for (var i = 0; i < rows.length; i++)
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: i.isEven ? PdfColors.white : PdfColors.grey100),
+            children: [for (final c in rows[i]) _zelle(c)],
+          ),
+      ],
+    );
+  }
+
+  static pw.Widget _zelle(String t, {bool bold = false, PdfColor? color}) => pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
         child: pw.Text(t,
             style: pw.TextStyle(
-                fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+                fontSize: 8,
+                fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                color: color)),
       );
+
+  /// Ersetzt Zeichen, die die Standard-Helvetica im pdf-Paket nicht rendert.
+  static String _s(String t) => t
+      .replaceAll('✓', 'OK')
+      .replaceAll('–', '-')
+      .replaceAll('—', '-')
+      .replaceAll('‹', '<')
+      .replaceAll('›', '>');
 
   static String _zwei(int v) => v.toString().padLeft(2, '0');
   static String _ddMM(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.';
+  static String _ddMMyyyy(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.${d.year}';
   static String _ddMMHHmm(DateTime d) =>
       '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';
 }
