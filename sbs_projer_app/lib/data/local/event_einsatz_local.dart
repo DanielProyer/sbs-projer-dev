@@ -25,6 +25,8 @@ class EventEinsatzLocal {
   late DateTime zeitpunkt;
   late String beschreibung;
   String? material;
+  String? materialId;
+  double? materialMenge;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

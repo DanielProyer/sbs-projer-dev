@@ -7,6 +7,8 @@ class EventEinsatz {
   final DateTime zeitpunkt;
   final String beschreibung;
   final String? material;
+  final String? materialId;
+  final double? materialMenge;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -18,6 +20,8 @@ class EventEinsatz {
     required this.zeitpunkt,
     required this.beschreibung,
     this.material,
+    this.materialId,
+    this.materialMenge,
     this.createdAt,
     this.updatedAt,
   });
@@ -31,6 +35,8 @@ class EventEinsatz {
       zeitpunkt: DateTime.parse(json['zeitpunkt']),
       beschreibung: json['beschreibung'],
       material: json['material'],
+      materialId: json['material_id'],
+      materialMenge: json['material_menge'] != null ? (json['material_menge'] as num).toDouble() : null,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -45,6 +51,8 @@ class EventEinsatz {
       'zeitpunkt': zeitpunkt.toIso8601String(),
       'beschreibung': beschreibung,
       'material': material,
+      'material_id': materialId,
+      'material_menge': materialMenge,
     };
   }
 }

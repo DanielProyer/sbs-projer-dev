@@ -16,6 +16,8 @@ class EventEinsatzLocal {
   DateTime zeitpunkt = DateTime(2000);
   String beschreibung = '';
   String? material;
+  String? materialId;
+  double? materialMenge;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

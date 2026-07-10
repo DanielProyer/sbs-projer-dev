@@ -11,6 +11,8 @@ class EventEinsatzMapper {
     local.zeitpunkt = dto.zeitpunkt;
     local.beschreibung = dto.beschreibung;
     local.material = dto.material;
+    local.materialId = dto.materialId;
+    local.materialMenge = dto.materialMenge;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -26,6 +28,8 @@ class EventEinsatzMapper {
       'zeitpunkt': local.zeitpunkt.toIso8601String(),
       'beschreibung': local.beschreibung,
       'material': local.material,
+      'material_id': local.materialId,
+      'material_menge': local.materialMenge,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;
