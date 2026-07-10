@@ -1,6 +1,17 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.19.0
+**Stand:** 10.07.2026 · **Live:** v0.20.0
+
+---
+
+## 🟢 Events-Modul — Phase E4 (live v0.20.0 · 10.07.2026)
+Spec `docs/superpowers/specs/2026-07-10-events-e4-design.md`. Event-Detail jetzt mit **5 Tabs** (Kontakte | Stände | Einsätze | **Zeit** | Dokumente):
+- [x] ✓ **Zeit-/Spesenerfassung** (neue Sync-Vertikale `event_aufwand`, Migration 123): Zeilen mit Datum + Kategorie (Anfahrt/Inbetriebnahme/Pikett/Spesen) + Notiz + Stunden. Neuer Tab „Zeit" mit Total-Stunden-Chip, Erfassungs-Formular, Bearbeiten/Löschen. Spesen werden als zusätzliche Stunden verrechnet (kein CHF-Feld).
+- [x] ✓ **Auto-Montage-Generierung**: Button „Montage generieren" aggregiert die Zeit-Zeilen **pro Eventtag** (≤5 Slots, >5 Tage → 4 Tage + „Weitere Tage") und öffnet das bestehende Montage-Formular **vorbefüllt** (Typ Anlass, Betrieb = Veranstaltungs-Betrieb, Startdatum, Slots, Stundensatz aus Preisliste). Du prüfst + speicherst → normaler Heineken-Abrechnungsfluss. Pikettdienst ist ein eigener Zeitblock; die E3-Einsätze bleiben reine Doku (nicht separat verrechnet).
+- [x] ✓ Qualität: subagent-getrieben (10 Tasks + Migration), finaler Branch-Review **APPROVED**, 237 Tests grün (5 neue: DTO + 4 Aggregation). Visueller Web-Test: 5 Tabs, Zeit erfassen/Total, „Montage generieren" → Formular korrekt vorbefüllt (Fr 10.7. 16h · Fr 24.7. 8.5h → 24.50h × 80 = 1960 CHF).
+- [ ] **🟡 Am Handy bestätigen (native, live):** Zeit-Live-Refresh (im Web erschien der 2. Eintrag erst nach Reload — Supabase Read-after-Write-Latenz; native/Isar instant); „Montage generieren" real speichern und in der Monatsrechnung prüfen.
+
+**Nächste Phase:** **E5** Abschluss-Mail (Einsatzliste + Zeiten/Spesen als PDF an Eventverantwortlichen + RSL, MailConfig-Bereich `event`, erst Test dann scharf) · *optional* Verteilung-PDF-KI-Import.
 
 ---
 
