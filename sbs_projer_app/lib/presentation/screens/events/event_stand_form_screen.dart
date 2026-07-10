@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
@@ -40,6 +39,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
   // Widget-State (z. B. Anzahl-Feld) beim Entfernen einer Zeile stabil.
   final List<String> _typen = [];
   final List<int> _anzahl = [];
+  final List<String?> _anlagenServerIds = [];
   final List<UniqueKey> _zeilenKeys = [];
 
   bool get _isEdit => widget.standId != null;
@@ -75,6 +75,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
         for (final a in anlagen) {
           _typen.add(a.typ);
           _anzahl.add(a.anzahl);
+          _anlagenServerIds.add(a.serverId);
           _zeilenKeys.add(UniqueKey());
         }
         _initialLoading = false;
@@ -88,6 +89,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
     setState(() {
       _typen.add(EventStandAnlage.typen.first);
       _anzahl.add(1);
+      _anlagenServerIds.add(null);
       _zeilenKeys.add(UniqueKey());
     });
   }
@@ -96,6 +98,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
     setState(() {
       _typen.removeAt(i);
       _anzahl.removeAt(i);
+      _anlagenServerIds.removeAt(i);
       _zeilenKeys.removeAt(i);
     });
   }
@@ -116,15 +119,13 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
       stand.notizen = notizen.isEmpty ? null : notizen;
       await EventStandRepository.save(stand);
 
-      // Anlagen ersetzen (Reihenfolge = Zeilen-Reihenfolge).
-      final anlagen = <EventStandAnlageLocal>[];
-      for (var i = 0; i < _typen.length; i++) {
-        anlagen.add(EventStandAnlageLocal()
-          ..typ = _typen[i]
-          ..anzahl = _anzahl[i]);
-      }
-      await EventStandAnlageRepository.replaceForStand(
-          stand.serverId!, anlagen);
+      // Anlagen id-basiert abgleichen (Reihenfolge = Zeilen-Reihenfolge,
+      // inBetrieb/inBetriebAm bestehender Anlagen bleiben erhalten).
+      final zeilen = <({String? serverId, String typ, int anzahl})>[
+        for (var i = 0; i < _typen.length; i++)
+          (serverId: _anlagenServerIds[i], typ: _typen[i], anzahl: _anzahl[i]),
+      ];
+      await EventStandAnlageRepository.applyForStand(stand.serverId!, zeilen);
 
       ref.invalidate(eventStaendeProvider(widget.eventId));
       ref.invalidate(eventStandAnlagenProvider(stand.serverId!));
