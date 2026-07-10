@@ -1,5 +1,5 @@
-/// Web-Stub für EventStandLocal (kein Isar auf Web).
-class EventStandLocal {
+/// Web-Stub für EventEinsatzLocal (kein Isar auf Web).
+class EventEinsatzLocal {
   int id = 0;
 
   String get routeId => serverId!;
@@ -12,12 +12,10 @@ class EventStandLocal {
   // Felder
   String userId = '';
   String eventId = '';
-  String name = '';
-  String? standnummer;
-  int sortierung = 0;
-  String? notizen;
-  double? latitude;
-  double? longitude;
+  String? standId;
+  DateTime zeitpunkt = DateTime(2000);
+  String beschreibung = '';
+  String? material;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

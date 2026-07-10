@@ -81,7 +81,9 @@ class EventStandRepository {
         ..name = q.name
         ..standnummer = q.standnummer
         ..sortierung = q.sortierung
-        ..notizen = q.notizen;
+        ..notizen = q.notizen
+        ..latitude = q.latitude
+        ..longitude = q.longitude;
       await save(s);
       // Anlagen des Quell-Stands kopieren.
       final quellAnlagen =
@@ -91,7 +93,9 @@ class EventStandRepository {
           ..standId = s.serverId!
           ..typ = qa.typ
           ..anzahl = qa.anzahl
-          ..sortierung = qa.sortierung;
+          ..sortierung = qa.sortierung
+          ..inBetrieb = qa.inBetrieb
+          ..inBetriebAm = qa.inBetriebAm;
         await EventStandAnlageRepository.save(a);
       }
     }

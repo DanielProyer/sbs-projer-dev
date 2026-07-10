@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:isar/isar.dart';
 
-part 'event_stand_anlage_local.g.dart';
+part 'event_einsatz_local.g.dart';
 
 @collection
-class EventStandAnlageLocal {
+class EventEinsatzLocal {
   Id id = Isar.autoIncrement;
 
   @ignore
@@ -20,12 +20,11 @@ class EventStandAnlageLocal {
   // Felder
   late String userId;
   @Index()
-  late String standId;
-  late String typ;
-  int anzahl = 1;
-  int sortierung = 0;
-  bool inBetrieb = false;
-  DateTime? inBetriebAm;
+  late String eventId;
+  String? standId;
+  late DateTime zeitpunkt;
+  late String beschreibung;
+  String? material;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

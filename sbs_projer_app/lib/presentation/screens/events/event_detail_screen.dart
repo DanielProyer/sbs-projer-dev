@@ -7,8 +7,10 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_status.dart';
+import 'package:sbs_projer_app/core/util/inbetriebnahme.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
@@ -17,17 +19,22 @@ import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/data/models/event_stand.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_einsatz_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_staende_map.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
+import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
-/// Dokumente. Der FAB wechselt je nach aktivem Tab (E2).
+/// Einsätze | Dokumente. Der FAB wechselt je nach aktivem Tab (E2/E3).
 class EventDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
 
@@ -44,7 +51,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     // FAB je Tab neu aufbauen.
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -235,6 +242,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                 tabs: const [
                   Tab(text: 'Kontakte'),
                   Tab(text: 'Stände'),
+                  Tab(text: 'Einsätze'),
                   Tab(text: 'Dokumente'),
                 ],
               ),
@@ -244,6 +252,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   children: [
                     _KontakteTab(eventServerId: eventServerId),
                     _StaendeTab(event: event),
+                    _EinsaetzeTab(event: event),
                     _DokumenteTab(eventServerId: eventServerId),
                   ],
                 ),
@@ -256,7 +265,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen,
-  /// 2 Dokument hochladen.
+  /// 2 Einsatz erfassen, 3 Dokument hochladen.
   Widget? _buildFab(String eventServerId) {
     switch (_tabController.index) {
       case 0:
@@ -273,6 +282,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         );
       case 2:
         return FloatingActionButton.extended(
+          onPressed: () => _einsatzHinzufuegen(eventServerId),
+          icon: const Icon(Icons.bolt),
+          label: const Text('Einsatz erfassen'),
+        );
+      case 3:
+        return FloatingActionButton.extended(
           onPressed: () => _dokumentHochladen(eventServerId),
           icon: const Icon(Icons.upload_file),
           label: const Text('Dokument hochladen'),
@@ -280,6 +295,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       default:
         return null;
     }
+  }
+
+  /// Öffnet das Einsatz-Formular (neu) und aktualisiert danach die Liste.
+  Future<void> _einsatzHinzufuegen(String eventServerId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventEinsatzFormScreen(eventId: eventServerId),
+      ),
+    );
+    ref.invalidate(eventEinsaetzeProvider(eventServerId));
   }
 
   /// Öffnet das Stand-Formular (neu) und aktualisiert danach die Stände-Liste.
@@ -590,20 +615,30 @@ class _KontakteTab extends ConsumerWidget {
 }
 
 /// Stände-Tab: Liste der Event-Stände (aufklappbar mit Anlagen + Notizen),
-/// Bearbeiten/Löschen je Stand, «Aus Vorjahr übernehmen» im Kopf (E2).
-class _StaendeTab extends ConsumerWidget {
+/// Bearbeiten/Löschen je Stand, «Aus Vorjahr übernehmen» im Kopf (E2);
+/// Umschalter Liste ↔ Karte (swisstopo-Luftbild) mit Markern je Stand (E3).
+class _StaendeTab extends ConsumerStatefulWidget {
   final EventLocal event;
 
   const _StaendeTab({required this.event});
 
+  @override
+  ConsumerState<_StaendeTab> createState() => _StaendeTabState();
+}
+
+class _StaendeTabState extends ConsumerState<_StaendeTab> {
+  /// false = Liste, true = Karte.
+  bool _karte = false;
+
+  EventLocal get event => widget.event;
+
   /// Übernimmt die Stände (inkl. Anlagen) aus dem Vorjahres-Event.
-  Future<void> _ausVorjahrUebernehmen(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _ausVorjahrUebernehmen() async {
     try {
       final vorjahr =
           await EventRepository.getVorjahr(event.betriebId, event.jahr);
       if (vorjahr == null) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Kein Vorjahres-Event vorhanden')),
           );
@@ -613,7 +648,7 @@ class _StaendeTab extends ConsumerWidget {
       final n = await EventStandRepository.uebernehmeVon(
           vorjahr.serverId!, event.serverId!);
       ref.invalidate(eventStaendeProvider(event.serverId!));
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:
@@ -621,7 +656,7 @@ class _StaendeTab extends ConsumerWidget {
         );
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Fehler: $e')),
         );
@@ -629,8 +664,7 @@ class _StaendeTab extends ConsumerWidget {
     }
   }
 
-  Future<void> _standLoeschen(
-      BuildContext context, WidgetRef ref, EventStandLocal stand) async {
+  Future<void> _standLoeschen(EventStandLocal stand) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -655,13 +689,13 @@ class _StaendeTab extends ConsumerWidget {
     try {
       await EventStandRepository.delete(stand.routeId);
       ref.invalidate(eventStaendeProvider(event.serverId!));
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${stand.name} gelöscht')),
         );
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Fehler: $e')),
         );
@@ -669,8 +703,7 @@ class _StaendeTab extends ConsumerWidget {
     }
   }
 
-  Future<void> _standBearbeiten(
-      BuildContext context, WidgetRef ref, EventStandLocal stand) async {
+  Future<void> _standBearbeiten(EventStandLocal stand) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => EventStandFormScreen(
@@ -684,20 +717,45 @@ class _StaendeTab extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final staendeAsync = ref.watch(eventStaendeProvider(event.serverId!));
 
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-            child: TextButton.icon(
-              icon: const Icon(Icons.history, size: 18),
-              label: const Text('Aus Vorjahr übernehmen'),
-              onPressed: () => _ausVorjahrUebernehmen(context, ref),
-            ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+          child: Row(
+            children: [
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.list, size: 18),
+                    label: Text('Liste'),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.map, size: 18),
+                    label: Text('Karte'),
+                  ),
+                ],
+                selected: {_karte},
+                onSelectionChanged: (s) => setState(() => _karte = s.first),
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(
+                    TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('Aus Vorjahr übernehmen'),
+                onPressed: _ausVorjahrUebernehmen,
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -705,6 +763,12 @@ class _StaendeTab extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Fehler: $e')),
             data: (staende) {
+              if (_karte) {
+                return EventStaendeMap(
+                  staende: staende,
+                  onStandTap: (s) => _standBearbeiten(s),
+                );
+              }
               if (staende.isEmpty) {
                 return Padding(
                   padding: const EdgeInsets.only(top: 32),
@@ -728,8 +792,8 @@ class _StaendeTab extends ConsumerWidget {
                 itemCount: staende.length,
                 itemBuilder: (ctx, i) => _StandCard(
                   stand: staende[i],
-                  onEdit: () => _standBearbeiten(context, ref, staende[i]),
-                  onDelete: () => _standLoeschen(context, ref, staende[i]),
+                  onEdit: () => _standBearbeiten(staende[i]),
+                  onDelete: () => _standLoeschen(staende[i]),
                 ),
               );
             },
@@ -753,12 +817,38 @@ class _StandCard extends ConsumerWidget {
     required this.onDelete,
   });
 
+  /// Erfasst die aktuelle GPS-Position und speichert sie am Stand.
+  Future<void> _standortErfassen(
+      BuildContext context, WidgetRef ref, EventStandLocal stand) async {
+    try {
+      final pos = await GpsService.aktuellePosition();
+      stand
+        ..latitude = pos.latitude
+        ..longitude = pos.longitude;
+      await EventStandRepository.save(stand);
+      ref.invalidate(eventStaendeProvider(stand.eventId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('📍 Standort erfasst')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Standort nicht möglich: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final anlagenAsync = ref.watch(eventStandAnlagenProvider(stand.serverId!));
     final anlagen = anlagenAsync.valueOrNull ?? [];
     final untertitel = EventStand.anlagenText(
         anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList());
+    final fortschritt = inbetriebnahmeFortschritt(
+        anlagen.map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb)).toList());
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -792,6 +882,30 @@ class _StandCard extends ConsumerWidget {
                   ),
                 ),
               ),
+            if (fortschritt.total > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: (fortschritt.komplett
+                          ? AppColors.success
+                          : AppColors.textSecondary)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  fortschritt.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: fortschritt.komplett
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         subtitle: Text(
@@ -815,6 +929,35 @@ class _StandCard extends ConsumerWidget {
           ],
         ),
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: stand.latitude != null
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.place,
+                          size: 16, color: AppColors.success),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Standort erfasst',
+                        style: TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.my_location, size: 16),
+                        label: const Text('Neu erfassen'),
+                        onPressed: () =>
+                            _standortErfassen(context, ref, stand),
+                      ),
+                    ],
+                  )
+                : TextButton.icon(
+                    icon: const Icon(Icons.my_location, size: 16),
+                    label: const Text('📍 Standort erfassen'),
+                    onPressed: () => _standortErfassen(context, ref, stand),
+                  ),
+          ),
           if (anlagen.isEmpty)
             const Align(
               alignment: Alignment.centerLeft,
@@ -828,6 +971,19 @@ class _StandCard extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
                     children: [
+                      Checkbox(
+                        value: a.inBetrieb,
+                        visualDensity: VisualDensity.compact,
+                        onChanged: (v) async {
+                          a
+                            ..inBetrieb = v ?? false
+                            ..inBetriebAm =
+                                (v ?? false) ? DateTime.now().toUtc() : null;
+                          await EventStandAnlageRepository.save(a);
+                          ref.invalidate(
+                              eventStandAnlagenProvider(stand.serverId!));
+                        },
+                      ),
                       const Icon(Icons.sports_bar,
                           size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 8),
@@ -864,6 +1020,187 @@ class _StandCard extends ConsumerWidget {
     );
   }
 
+}
+
+/// Einsätze-Tab: Liste der Pikett-Einsätze (neueste zuerst) mit Zeitpunkt,
+/// Beschreibung, Material und optionalem Stand-Chip. Tap bearbeitet,
+/// Trailing löscht nach Bestätigung (E3).
+class _EinsaetzeTab extends ConsumerWidget {
+  final EventLocal event;
+
+  const _EinsaetzeTab({required this.event});
+
+  Future<void> _einsatzBearbeiten(
+      BuildContext context, WidgetRef ref, EventEinsatzLocal einsatz) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventEinsatzFormScreen(
+          eventId: event.serverId!,
+          einsatzId: einsatz.routeId,
+        ),
+      ),
+    );
+    ref.invalidate(eventEinsaetzeProvider(event.serverId!));
+  }
+
+  Future<void> _einsatzLoeschen(
+      BuildContext context, WidgetRef ref, EventEinsatzLocal einsatz) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Einsatz löschen'),
+        content: const Text('Diesen Einsatz wirklich löschen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await EventEinsatzRepository.delete(einsatz.routeId);
+      ref.invalidate(eventEinsaetzeProvider(event.serverId!));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Einsatz gelöscht')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final einsaetzeAsync = ref.watch(eventEinsaetzeProvider(event.serverId!));
+    // Stand-Namen für den optionalen Chip nachschlagen.
+    final standNamen = <String, String>{
+      for (final s in ref.watch(eventStaendeProvider(event.serverId!))
+              .valueOrNull ??
+          <EventStandLocal>[])
+        if (s.serverId != null) s.serverId!: s.name,
+    };
+
+    return einsaetzeAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Fehler: $e')),
+      data: (einsaetze) {
+        if (einsaetze.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 32),
+            child: Column(
+              children: [
+                Icon(Icons.bolt,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Noch keine Einsätze.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+          itemCount: einsaetze.length,
+          itemBuilder: (ctx, i) {
+            final e = einsaetze[i];
+            final standName =
+                e.standId != null ? standNamen[e.standId] : null;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                title: Text(
+                  e.beschreibung,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule,
+                            size: 13, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          _ddMMHHmm(e.zeitpunkt.toLocal()),
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    if (e.material != null && e.material!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.build,
+                              size: 13, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              e.material!,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (standName != null) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:
+                              AppColors.textSecondary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          standName,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      size: 20, color: AppColors.error),
+                  tooltip: 'Löschen',
+                  onPressed: () => _einsatzLoeschen(context, ref, e),
+                ),
+                onTap: () => _einsatzBearbeiten(context, ref, e),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 /// Dokumente-Tab: PDF-Liste pro Event-Jahr, Tap öffnet den nativen PDF-Viewer
@@ -1398,3 +1735,6 @@ String _zwei(int v) => v.toString().padLeft(2, '0');
 String _ddMM(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.';
 
 String _ddMMyyyy(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.${d.year}';
+
+String _ddMMHHmm(DateTime d) =>
+    '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';

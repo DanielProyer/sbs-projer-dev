@@ -29,6 +29,7 @@ import 'package:sbs_projer_app/data/local/event_kontakt_local.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local.dart';
+import 'package:sbs_projer_app/data/local/event_einsatz_local.dart';
 
 // DTOs
 import 'package:sbs_projer_app/data/models/region.dart';
@@ -51,6 +52,7 @@ import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/data/models/event_dokument.dart';
 import 'package:sbs_projer_app/data/models/event_stand.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
+import 'package:sbs_projer_app/data/models/event_einsatz.dart';
 
 // Mappers
 import 'package:sbs_projer_app/data/mappers/region_mapper.dart';
@@ -73,6 +75,7 @@ import 'package:sbs_projer_app/data/mappers/event_kontakt_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_dokument_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_stand_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_stand_anlage_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_einsatz_mapper.dart';
 
 enum SyncState { idle, syncing, error }
 
@@ -167,6 +170,7 @@ class SyncService {
           () => _syncEroeffnungsreinigungen(userId),
           () => _syncTermine(userId),
           () => _syncEventStandAnlagen(userId),
+          () => _syncEventEinsaetze(userId),
         ],
       ];
 
@@ -557,6 +561,38 @@ class SyncService {
       await _isar.writeTxn(() => _isar.eventStandLocals.putAll(toSave));
     }
     await _updateMeta('event_staende');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  // Event-Einsätze / Pikett (Tier 4: → Event; stand_id FK auf event_staende,
+  // nullable/SET NULL — muss NACH _syncEventStaende laufen, damit ein bei
+  // NICHT-null gesetzter stand_id referenzierte Stand bereits existiert)
+  static Future<({int pushed, int pulled})> _syncEventEinsaetze(String uid) async {
+    final unsynced =
+        await _isar.eventEinsatzLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EventEinsatzLocal>(
+      'event_einsaetze', unsynced, EventEinsatzMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventEinsatzLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('event_einsaetze', 'event_einsaetze', uid);
+    final toSave = <EventEinsatzLocal>[];
+    for (final row in rows) {
+      final dto = EventEinsatz.fromJson(row);
+      final ex = await _isar.eventEinsatzLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EventEinsatzMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventEinsatzLocals.putAll(toSave));
+    }
+    await _updateMeta('event_einsaetze');
     return (pushed: pushed.length, pulled: toSave.length);
   }
 

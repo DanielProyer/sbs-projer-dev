@@ -51,18 +51,40 @@ class EventStandAnlageRepository {
     await IsarService.eventStandAnlageDelete(isarId);
   }
 
-  /// Ersetzt alle Anlagen eines Stands durch [neu] (löscht bestehende, legt neue an).
-  static Future<void> replaceForStand(
-      String standId, List<EventStandAnlageLocal> neu) async {
-    final alt = await getByStand(standId);
-    for (final a in alt) {
-      await delete(a.routeId);
+  /// Gleicht die Anlagen eines Stands id-basiert ab: bestehende (per serverId)
+  /// werden auf Typ/Anzahl aktualisiert (inBetrieb/inBetriebAm bleiben erhalten),
+  /// neue eingefügt, entfernte gelöscht. [zeilen] in gewünschter Reihenfolge.
+  static Future<void> applyForStand(
+      String standId, List<({String? serverId, String typ, int anzahl})> zeilen) async {
+    final bestehende = await getByStand(standId);
+    final beiId = {
+      for (final b in bestehende)
+        if (b.serverId != null) b.serverId!: b,
+    };
+    final behalten = <String>{};
+    for (var i = 0; i < zeilen.length; i++) {
+      final z = zeilen[i];
+      final vorhanden = z.serverId != null ? beiId[z.serverId] : null;
+      if (vorhanden != null) {
+        vorhanden
+          ..typ = z.typ
+          ..anzahl = z.anzahl
+          ..sortierung = i;
+        await save(vorhanden); // inBetrieb/inBetriebAm bleiben unveraendert
+        behalten.add(z.serverId!);
+      } else {
+        final neu = EventStandAnlageLocal()
+          ..standId = standId
+          ..typ = z.typ
+          ..anzahl = z.anzahl
+          ..sortierung = i;
+        await save(neu);
+      }
     }
-    for (var i = 0; i < neu.length; i++) {
-      final a = neu[i]
-        ..standId = standId
-        ..sortierung = i;
-      await save(a);
+    for (final b in bestehende) {
+      if (b.serverId != null && !behalten.contains(b.serverId)) {
+        await delete(b.routeId);
+      }
     }
   }
 }

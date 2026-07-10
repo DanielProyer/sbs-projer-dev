@@ -11,6 +11,8 @@ class EventStandMapper {
     local.standnummer = dto.standnummer;
     local.sortierung = dto.sortierung;
     local.notizen = dto.notizen;
+    local.latitude = dto.latitude;
+    local.longitude = dto.longitude;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -26,6 +28,8 @@ class EventStandMapper {
       'standnummer': local.standnummer,
       'sortierung': local.sortierung,
       'notizen': local.notizen,
+      'latitude': local.latitude,
+      'longitude': local.longitude,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;
