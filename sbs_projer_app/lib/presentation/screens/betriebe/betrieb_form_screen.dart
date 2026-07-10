@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
+import 'package:sbs_projer_app/core/util/betrieb_kunde.dart';
 
 class BetriebFormScreen extends ConsumerStatefulWidget {
   final String? betriebId; // null = neu erstellen
@@ -47,6 +48,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
   String _status = 'aktiv';
   bool _istMeinKunde = true;
+  String? _schliessungsgrund;
+  DateTime? _schliessungsdatum;
   bool _istBergkunde = false;
   bool _istSaisonbetrieb = false;
   String _rechnungsstellung = 'rechnung_mail';
@@ -122,6 +125,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _servicezeitNachmittagAbCtrl.text = betrieb.servicezeitNachmittagAb ?? '';
       _servicezeitNachmittagBisCtrl.text = betrieb.servicezeitNachmittagBis ?? '';
       _status = betrieb.status;
+      _schliessungsgrund = betrieb.schliessungsgrund;
+      _schliessungsdatum = betrieb.schliessungsdatum;
       _istMeinKunde = betrieb.istMeinKunde;
       _istBergkunde = betrieb.istBergkunde;
       _istSaisonbetrieb = betrieb.istSaisonbetrieb;
@@ -361,6 +366,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.zugangNotizen = _emptyToNull(_zugangController.text);
       betrieb.notizen = _emptyToNull(_notizenController.text);
       betrieb.status = _status;
+      betrieb.schliessungsgrund =
+          _status == 'geschlossen' ? _schliessungsgrund : null;
+      betrieb.schliessungsdatum =
+          _status == 'geschlossen' ? _schliessungsdatum : null;
       betrieb.istMeinKunde = _istMeinKunde;
       betrieb.istBergkunde = _istBergkunde;
       betrieb.istSaisonbetrieb = _istSaisonbetrieb;
@@ -546,12 +555,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                       } else {
                         _zapfsysteme.remove(system);
                       }
-                      // Auto: Mein Kunde = false wenn nur David/Higenie/Veranstaltungen
-                      const nichtMeinKunde = {'David', 'Higenie', 'Veranstaltungen'};
-                      if (_zapfsysteme.isNotEmpty &&
-                          _zapfsysteme.every((s) => nichtMeinKunde.contains(s))) {
-                        _istMeinKunde = false;
-                      }
+                      // Vorschlag: Mein Kunde je nach Status + Zapfsystemen neu setzen
+                      _istMeinKunde = istMeinKundeVorschlag(
+                          _status, _zapfsysteme.toList());
                     });
                   },
                 );
@@ -797,11 +803,64 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                 DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
                 DropdownMenuItem(
                     value: 'saisonpause', child: Text('Saisonpause')),
+                DropdownMenuItem(
+                    value: 'geschlossen',
+                    child: Text('Geschlossen (dauerhaft)')),
               ],
               onChanged: (v) {
-                if (v != null) setState(() => _status = v);
+                if (v != null) {
+                  setState(() {
+                    _status = v;
+                    _istMeinKunde = istMeinKundeVorschlag(
+                        _status, _zapfsysteme.toList());
+                    if (_status != 'geschlossen') {
+                      _schliessungsgrund = null;
+                      _schliessungsdatum = null;
+                    }
+                  });
+                }
               },
             ),
+            if (_status == 'geschlossen') ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _schliessungsgrund,
+                decoration: const InputDecoration(
+                  labelText: 'Schliessungsgrund',
+                  prefixIcon: Icon(Icons.info_outline),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'umnutzung', child: Text('Umnutzung')),
+                  DropdownMenuItem(value: 'abbruch', child: Text('Abbruch')),
+                  DropdownMenuItem(value: 'konkurs', child: Text('Konkurs')),
+                  DropdownMenuItem(value: 'sonstiges', child: Text('Sonstiges')),
+                ],
+                onChanged: (v) => setState(() => _schliessungsgrund = v),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final d = await showDatePicker(
+                    context: context,
+                    initialDate: _schliessungsdatum ?? DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (d != null) setState(() => _schliessungsdatum = d);
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Schliessungsdatum',
+                    prefixIcon: Icon(Icons.event),
+                  ),
+                  child: Text(_schliessungsdatum == null
+                      ? 'Datum wählen'
+                      : '${_schliessungsdatum!.day.toString().padLeft(2, '0')}.'
+                          '${_schliessungsdatum!.month.toString().padLeft(2, '0')}.'
+                          '${_schliessungsdatum!.year}'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             // === Region ===
             DropdownButtonFormField<String>(
