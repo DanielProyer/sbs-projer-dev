@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.27.0
+**Stand:** 10.07.2026 · **Live:** v0.28.0
 
 ---
 
@@ -122,7 +122,7 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
 
 **🔴 Aus Paket 06 noch offen (echte Restpunkte):**
 - [x] ✓ **Anlagen-Screen + Steckbrief-PDF** (live v0.27.0 · 10.07.2026): Dashboard-Kachel „Anlagen" + Kennzahlen-Kopf (aktiv/nach Typ/überfällig) im vorhandenen `/anlagen`-Screen; **Steckbrief-PDF pro Anlage** (Grunddaten + Fotos aus `anlagen_fotos` + Bierleitungen) mit **Teilen** + **Mail an RSL** (neue Heineken-Zuweisung `rsl`, MailConfig-Bereich `anlage`). Subagent-getrieben, 271 Tests grün. **🟡 Offen:** RSL-Kontakt in „Heineken-Zuweisungen" setzen + Steckbrief-Mail testen, dann `anlageScharf=true`.
-- [ ] **Reinigung QR-Firmenkonto-Link:** QR-Code Firmenkonto als Link in „neue Reinigung" (Kunde zahlt direkt per E-Banking).
+- [x] ✓ **Reinigung QR-Firmenkonto-Link** (live v0.28.0 · 10.07.2026): Button „QR-Zahlung" im Reinigungs-Formular → Dialog mit Swiss-QR aufs Firmenkonto (Schweizerkreuz), Betrag aus `preisBrutto` vorbefüllt+editierbar. Reine Funktion `swissQrPayload` (TDD) — Rechnungs-QR nutzt sie byte-identisch. **🟡 Offen:** realer Scan-Test mit Banking-App.
 - [ ] **Termine — komplette Überarbeitung** (eigenes Arbeitspaket, ansprechenderes Design).
 - [ ] **Tourenplanung (grosser Brocken):** UI einfacher; Ruhetage + Servicezeiten anzeigen; Tagesplan default leer (überfällig/fällig = Standard, andere Kategorien Ausnahme); Region/Fälligkeit-Filter separat & übersichtlich; **Auto-Speicherung** (Speicherbutton entfällt); Eröffnung/Endreinigung-Termine automatisch im Tagesplan; Drag-Fläche zum Verschieben vergrössern; Saisonalität/Eröffnung/Endreinigung/Betriebsferien nochmal genau prüfen.
 
