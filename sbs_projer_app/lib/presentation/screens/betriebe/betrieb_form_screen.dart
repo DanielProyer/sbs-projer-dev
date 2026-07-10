@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
+import 'package:sbs_projer_app/data/models/google_betrieb_daten.dart';
+import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
@@ -62,6 +64,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   int _ferienZeilen = 1;
   bool _keineBetriebsferien = false;
   List<String> _ruhetage = [];
+  double? _latitude;
+  double? _longitude;
+  bool _googleLoading = false;
   List<String> _zapfsysteme = [];
   List<String> _zahlerAliase = [];
   final _aliasController = TextEditingController();
@@ -149,6 +154,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       }
       _keineBetriebsferien = betrieb.keineBetriebsferien;
       _ruhetage = List<String>.from(betrieb.ruhetage);
+      _latitude = betrieb.latitude;
+      _longitude = betrieb.longitude;
       _zapfsysteme = List<String>.from(betrieb.zapfsysteme);
       _zahlerAliase = List<String>.from(betrieb.zahlerAliase);
       if (betrieb.oeffnungszeitenJson != null && betrieb.oeffnungszeitenJson!.isNotEmpty) {
@@ -174,6 +181,163 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       if (!_zahlerAliase.contains(norm)) _zahlerAliase.add(norm);
       _aliasController.clear();
     });
+  }
+
+  Future<void> _ausGoogleUebernehmen() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      _snack('Bitte zuerst den Betriebsnamen eingeben.');
+      return;
+    }
+    final ortTeil = [_plzController.text.trim(), _ortController.text.trim()]
+        .where((s) => s.isNotEmpty)
+        .join(' ');
+    final query = ortTeil.isEmpty ? name : '$name $ortTeil';
+
+    setState(() => _googleLoading = true);
+    try {
+      final daten = await BetriebGoogleService.lookup(query);
+      if (!mounted) return;
+      await _zeigeUebernahmeDialog(daten);
+    } on BetriebGoogleException catch (e) {
+      if (mounted) _snack(e.message);
+    } catch (e) {
+      if (mounted) _snack('Google-Abgleich fehlgeschlagen: $e');
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _zeigeUebernahmeDialog(GoogleBetriebDaten d) async {
+    final hatOeffnungszeiten =
+        d.oeffnungszeiten.values.any((l) => l.isNotEmpty);
+    final kandidaten = <_GoogleFeld>[
+      if (d.strasse != null || d.nr != null)
+        _GoogleFeld(
+          'Adresse',
+          '${d.strasse ?? ''} ${d.nr ?? ''}'.trim(),
+          '${_strasseController.text} ${_nrController.text}'.trim(),
+          () {
+            if (d.strasse != null) _strasseController.text = d.strasse!;
+            if (d.nr != null) _nrController.text = d.nr!;
+          },
+        ),
+      if (d.plz != null)
+        _GoogleFeld('PLZ', d.plz!, _plzController.text,
+            () => _plzController.text = d.plz!),
+      if (d.ort != null)
+        _GoogleFeld('Ort', d.ort!, _ortController.text,
+            () => _ortController.text = d.ort!),
+      if (d.telefon != null)
+        _GoogleFeld('Telefon', d.telefon!, _telefonController.text,
+            () => _telefonController.text = d.telefon!),
+      if (d.website != null)
+        _GoogleFeld('Website', d.website!, _websiteController.text,
+            () => _websiteController.text = d.website!),
+      if (d.latitude != null && d.longitude != null)
+        _GoogleFeld(
+          'Koordinaten',
+          '${d.latitude!.toStringAsFixed(5)}, ${d.longitude!.toStringAsFixed(5)}',
+          (_latitude != null && _longitude != null)
+              ? '${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}'
+              : '',
+          () {
+            _latitude = d.latitude;
+            _longitude = d.longitude;
+          },
+        ),
+      if (hatOeffnungszeiten)
+        _GoogleFeld(
+          'Öffnungszeiten',
+          _oeffnungszeitenKurz(d.oeffnungszeiten),
+          '',
+          () {
+            setState(() {
+              for (final t in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) {
+                _oeffnungszeiten[t] =
+                    List<Map<String, String>>.from(d.oeffnungszeiten[t] ?? []);
+              }
+              if (d.ruhetage.isNotEmpty) {
+                _ruhetage = List<String>.from(d.ruhetage);
+              }
+            });
+          },
+        ),
+    ];
+
+    if (kandidaten.isEmpty) {
+      _snack('Google lieferte keine übernehmbaren Felder.');
+      return;
+    }
+
+    final auswahl = {for (final k in kandidaten) k: true};
+
+    final uebernehmen = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Google-Daten übernehmen'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                if (d.name != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('Gefunden: ${d.name}',
+                        style:
+                            const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                for (final k in kandidaten)
+                  CheckboxListTile(
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: auswahl[k],
+                    onChanged: (v) =>
+                        setDialogState(() => auswahl[k] = v ?? false),
+                    title: Text('${k.label}: ${k.wert}'),
+                    subtitle: k.aktuell.isNotEmpty
+                        ? Text('ersetzt: ${k.aktuell}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey))
+                        : null,
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Abbrechen')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Übernehmen')),
+          ],
+        ),
+      ),
+    );
+
+    if (uebernehmen == true) {
+      setState(() {
+        for (final k in kandidaten) {
+          if (auswahl[k] == true) k.uebernehmen();
+        }
+      });
+      _snack('Google-Daten übernommen. Zum Sichern speichern.');
+    }
+  }
+
+  String _oeffnungszeitenKurz(Map<String, List<Map<String, String>>> oz) {
+    final tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+        .where((t) => (oz[t] ?? []).isNotEmpty)
+        .toList();
+    return '${tage.length} Tag(e) mit Zeiten';
   }
 
   Future<void> _save() async {
@@ -223,6 +387,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.zapfsysteme = _zapfsysteme;
       betrieb.zahlerAliase = _zahlerAliase;
       betrieb.oeffnungszeitenJson = jsonEncode(_oeffnungszeiten);
+      betrieb.latitude = _latitude;
+      betrieb.longitude = _longitude;
       betrieb.servicezeitMorgenAb = _emptyToNull(_servicezeitMorgenAbCtrl.text);
       betrieb.servicezeitMorgenBis = _emptyToNull(_servicezeitMorgenBisCtrl.text);
       betrieb.servicezeitNachmittagAb = _emptyToNull(_servicezeitNachmittagAbCtrl.text);
@@ -352,7 +518,18 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Name ist erforderlich' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _googleLoading ? null : _ausGoogleUebernehmen,
+              icon: _googleLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.travel_explore),
+              label: const Text('Aus Google übernehmen'),
+            ),
+            const SizedBox(height: 8),
 
             // === Zapfsysteme (direkt unter Name) ===
             Wrap(
@@ -1029,6 +1206,14 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
+}
+
+class _GoogleFeld {
+  final String label;
+  final String wert;
+  final String aktuell;
+  final void Function() uebernehmen;
+  _GoogleFeld(this.label, this.wert, this.aktuell, this.uebernehmen);
 }
 
 class _DatePickerField extends StatelessWidget {
