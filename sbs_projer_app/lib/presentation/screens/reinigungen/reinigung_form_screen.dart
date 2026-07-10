@@ -26,6 +26,8 @@ import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dar
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
+import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
+import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_qr_dialog.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -1535,7 +1537,35 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             ..._buildKulanzKalkulationRows()
           else
             ..._buildKalkulationRows(preis),
+
+          // QR-Zahlung (Firmenkonto-QR, Betrag vorbefüllt aus Brutto)
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _zeigeQrZahlung,
+            icon: const Icon(Icons.qr_code_2),
+            label: const Text('QR-Zahlung'),
+          ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _zeigeQrZahlung() async {
+    final betriebName = _betrieb?.name ??
+        (widget.betriebId != null
+            ? (await BetriebRepository.getByServerId(widget.betriebId!))?.name ??
+                ''
+            : '');
+    final firma = await GeschaeftRepository.get();
+    final brutto = _calculatePreis()['brutto'];
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => ReinigungQrDialog(
+        firma: firma,
+        betriebName: betriebName,
+        datum: _datum,
+        initialBetrag: brutto,
       ),
     );
   }
