@@ -8,8 +8,6 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
-import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
-import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -78,133 +76,19 @@ class _ReinigungDetailContent extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Status & Info
-          _StatusRow(reinigung: reinigung),
-          const SizedBox(height: 16),
-
-          // Betrieb & Anlage
-          _BetriebAnlageCard(reinigung: reinigung),
-
           // Zeiterfassung
-          _SectionCard(
-            title: 'Zeiterfassung',
-            icon: Icons.schedule,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: _CompactInfo('Datum', _formatDate(reinigung.datum)),
-                  ),
-                  if (reinigung.uhrzeitStart != null)
-                    Expanded(
-                      flex: 3,
-                      child: _CompactInfo(
-                          'Start', _kurzZeit(reinigung.uhrzeitStart!)),
-                    ),
-                  if (reinigung.uhrzeitEnde != null)
-                    Expanded(
-                      flex: 3,
-                      child: _CompactInfo(
-                          'Ende', _kurzZeit(reinigung.uhrzeitEnde!)),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (reinigung.uhrzeitStart != null &&
-                  reinigung.uhrzeitEnde != null)
-                Builder(builder: (_) {
-                  final dauer = _berechneDauer(
-                      reinigung.uhrzeitStart!, reinigung.uhrzeitEnde!);
-                  if (dauer != null) {
-                    return _InfoRow('Dauer', '$dauer Min.');
-                  }
-                  return const SizedBox.shrink();
-                }),
-              _InfoRow('Service-Art',
-                  _serviceArtLabel(reinigung.serviceArt ?? 'standardservice')),
-            ],
-          ),
+          _ZeiterfassungCard(reinigung: reinigung),
 
-          // Protokoll-Foto
+          // Preis + Rechnungsart
+          _PreisCard(reinigung: reinigung),
+
+          // Protokoll (mit Voransicht)
           if (reinigung.protokollFotoPfad != null)
             _ProtokollFotoCard(fotoPfad: reinigung.protokollFotoPfad!),
 
           // Alte Checkliste (Rückwärtskompatibilität für bestehende Reinigungen)
           if (_hasChecklisteData(reinigung))
             _ChecklisteCard(reinigung: reinigung),
-
-          // Preis
-          if (reinigung.preisNetto != null || reinigung.preisBrutto != null)
-            _SectionCard(
-              title: 'Preis',
-              icon: Icons.payments,
-              children: [
-                if (reinigung.anzahlHaehneEigen > 0)
-                  _InfoRow('Hähne Eigen', '${reinigung.anzahlHaehneEigen}'),
-                if (reinigung.anzahlHaehneOrion > 0)
-                  _InfoRow('Hähne Orion', '${reinigung.anzahlHaehneOrion}'),
-                if (reinigung.anzahlHaehneFremd > 0)
-                  _InfoRow('Hähne Fremd', '${reinigung.anzahlHaehneFremd}'),
-                if (reinigung.anzahlHaehneWein > 0)
-                  _InfoRow('Hähne Wein', '${reinigung.anzahlHaehneWein}'),
-                if (reinigung.anzahlHaehneAndererStandort > 0)
-                  _InfoRow('Anderer Standort',
-                      '${reinigung.anzahlHaehneAndererStandort}'),
-                if (reinigung.istBergkunde)
-                  _InfoRow('Bergkunde', 'Ja (Heineken)'),
-                const Divider(),
-                if (reinigung.preisGrundtarif != null)
-                  _InfoRow('Grundtarif',
-                      '${reinigung.preisGrundtarif!.toStringAsFixed(2)} CHF'),
-                if (reinigung.preisZusatzHaehne != null &&
-                    reinigung.preisZusatzHaehne! > 0)
-                  _InfoRow('Zusatz Hähne',
-                      '${reinigung.preisZusatzHaehne!.toStringAsFixed(2)} CHF'),
-                if (reinigung.preisNetto != null) ...[
-                  _InfoRow('Netto',
-                      '${reinigung.preisNetto!.toStringAsFixed(2)} CHF'),
-                  if (reinigung.preisBrutto != null) ...[
-                    Builder(builder: (_) {
-                      final brutto = _roundTo5Rappen(reinigung.preisBrutto!);
-                      final mwst = brutto - reinigung.preisNetto!;
-                      return _InfoRow(
-                        'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? '8.1'}%)',
-                        '${mwst.toStringAsFixed(2)} CHF',
-                      );
-                    }),
-                  ],
-                ],
-                if (reinigung.preisBrutto != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        const SizedBox(
-                          width: 130,
-                          child: Text(
-                            'Total',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            '${_roundTo5Rappen(reinigung.preisBrutto!).toStringAsFixed(2)} CHF',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
 
           // Alte Unterschriften (Rückwärtskompatibilität)
           if (reinigung.unterschriftTechniker != null ||
@@ -581,104 +465,6 @@ class _ProtokollFotoCard extends StatelessWidget {
   }
 }
 
-class _BetriebAnlageCard extends StatelessWidget {
-  final ReinigungLocal reinigung;
-
-  const _BetriebAnlageCard({required this.reinigung});
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<_BetriebAnlagenData>(
-      future: _loadData(),
-      builder: (context, snapshot) {
-        final data = snapshot.data;
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            children: [
-              if (data?.betriebName != null)
-                ListTile(
-                  leading:
-                      const Icon(Icons.store, color: AppColors.primary),
-                  title: Text(data!.betriebName!),
-                  subtitle: const Text('Betrieb'),
-                  dense: true,
-                  trailing: const Icon(Icons.chevron_right, size: 18),
-                  onTap: () async {
-                    final b = await BetriebRepository.getByServerId(
-                        reinigung.betriebId);
-                    if (b != null && context.mounted) {
-                      context.push('/betriebe/${b.routeId}');
-                    }
-                  },
-                ),
-              if (data != null)
-                ...data.anlagen.map((anlage) => ListTile(
-                  leading: const Icon(Icons.precision_manufacturing,
-                      color: AppColors.info),
-                  title: Text(anlage.label),
-                  subtitle: const Text('Anlage'),
-                  dense: true,
-                  trailing: const Icon(Icons.chevron_right, size: 18),
-                  onTap: () async {
-                    final a = await AnlageRepository.getByServerId(anlage.serverId);
-                    if (a != null && context.mounted) {
-                      context.push('/anlagen/${a.routeId}');
-                    }
-                  },
-                )),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<_BetriebAnlagenData> _loadData() async {
-    final betrieb = await BetriebRepository.getByServerId(reinigung.betriebId);
-    final anlagen = <_AnlageInfo>[];
-
-    // anlageIdsJson hat Priorität (Multi-Anlagen)
-    if (reinigung.anlageIdsJson != null) {
-      final ids = (jsonDecode(reinigung.anlageIdsJson!) as List)
-          .map((e) => e.toString()).toList();
-      for (final id in ids) {
-        final a = await AnlageRepository.getByServerId(id);
-        if (a != null) {
-          anlagen.add(_AnlageInfo(
-            serverId: id,
-            label: a.bezeichnung ?? a.typAnlage,
-          ));
-        }
-      }
-    } else if (reinigung.anlageId.isNotEmpty) {
-      // Fallback: einzelne anlageId
-      final a = await AnlageRepository.getByServerId(reinigung.anlageId);
-      if (a != null) {
-        anlagen.add(_AnlageInfo(
-          serverId: reinigung.anlageId,
-          label: a.bezeichnung ?? a.typAnlage,
-        ));
-      }
-    }
-
-    return _BetriebAnlagenData(betriebName: betrieb?.name, anlagen: anlagen);
-  }
-}
-
-class _BetriebAnlagenData {
-  final String? betriebName;
-  final List<_AnlageInfo> anlagen;
-  _BetriebAnlagenData({this.betriebName, this.anlagen = const []});
-}
-
-class _AnlageInfo {
-  final String serverId;
-  final String label;
-  _AnlageInfo({required this.serverId, required this.label});
-}
-
 /// Rückwärtskompatibilität: Zeigt Checkliste für alte Reinigungen (vor Foto-Umstellung).
 class _ChecklisteCard extends StatelessWidget {
   final ReinigungLocal reinigung;
@@ -868,116 +654,232 @@ class _CheckItem extends StatelessWidget {
   }
 }
 
-class _StatusRow extends StatelessWidget {
+String _fmtDatum(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+/// Zeiterfassung: Datum, Start/Ende, Dauer-Badge + Service-Art.
+class _ZeiterfassungCard extends StatelessWidget {
   final ReinigungLocal reinigung;
 
-  const _StatusRow({required this.reinigung});
+  const _ZeiterfassungCard({required this.reinigung});
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _StatusChip(
-          label: reinigung.status,
-          color: _statusColor(reinigung.status),
-          icon: _statusIcon(reinigung.status),
+    final start = reinigung.uhrzeitStart;
+    final ende = reinigung.uhrzeitEnde;
+    final dauer = (start != null && ende != null)
+        ? _ReinigungDetailContent._berechneDauer(start, ende)
+        : null;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.schedule,
+                    size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: 8),
+                const Text('Zeiterfassung',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _ReinigungDetailContent._serviceArtLabel(
+                        reinigung.serviceArt ?? 'standardservice'),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: _CompactInfo('Datum', _fmtDatum(reinigung.datum))),
+                if (start != null)
+                  Expanded(
+                      child: _CompactInfo(
+                          'Start', _ReinigungDetailContent._kurzZeit(start))),
+                if (ende != null)
+                  Expanded(
+                      child: _CompactInfo(
+                          'Ende', _ReinigungDetailContent._kurzZeit(ende))),
+                if (dauer != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: Column(
+                      children: [
+                        Text('$dauer',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700)),
+                        const Text('Minuten',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
-        if (reinigung.istKulanz)
-          const _StatusChip(
-            label: 'Kulanz',
-            color: AppColors.warning,
-            icon: Icons.volunteer_activism,
-          ),
-        if (reinigung.istHeinekenMonteur)
-          const _StatusChip(
-            label: 'Heineken-Monteur',
-            color: AppColors.info,
-            icon: Icons.engineering,
-          ),
-        if (reinigung.istBergkunde)
-          const _StatusChip(
-            label: 'Bergkunde',
-            color: AppColors.info,
-            icon: Icons.terrain,
-          ),
-        if (reinigung.wasserKuehlerGewechselt)
-          const _StatusChip(
-            label: 'Wasser gewechselt',
-            color: AppColors.info,
-            icon: Icons.water_drop,
-          ),
-        if (reinigung.protokollFotoPfad != null)
-          const _StatusChip(
-            label: 'Protokoll',
-            color: AppColors.success,
-            icon: Icons.description,
-          ),
-      ],
+      ),
     );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'offen':
-        return AppColors.warning;
-      case 'abgeschlossen':
-        return AppColors.success;
-      case 'abgebrochen':
-        return AppColors.inaktiv;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
-
-  IconData _statusIcon(String status) {
-    switch (status) {
-      case 'offen':
-        return Icons.hourglass_top;
-      case 'abgeschlossen':
-        return Icons.check_circle;
-      case 'abgebrochen':
-        return Icons.cancel;
-      default:
-        return Icons.circle;
-    }
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final IconData? icon;
+/// Preis mit Rechnungsart und prominentem Total.
+class _PreisCard extends StatelessWidget {
+  final ReinigungLocal reinigung;
 
-  const _StatusChip(
-      {required this.label, required this.color, this.icon});
+  const _PreisCard({required this.reinigung});
+
+  String _rechnungsart() {
+    if (reinigung.istKulanz) return 'Kulanz (keine Verrechnung)';
+    if (reinigung.istHeinekenMonteur || reinigung.istBergkunde) {
+      return 'Heineken-Monatsrechnung';
+    }
+    return 'Kundenrechnung';
+  }
+
+  Widget _preisZeile(String label, double betrag) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+            Text('${betrag.toStringAsFixed(2)} CHF',
+                style: const TextStyle(fontSize: 14)),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withAlpha(50)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+    final hasPreis =
+        reinigung.preisNetto != null || reinigung.preisBrutto != null;
+    if (!hasPreis && !reinigung.istKulanz) return const SizedBox.shrink();
+
+    final kulanz = reinigung.istKulanz;
+    final artColor = kulanz
+        ? AppColors.warning
+        : (reinigung.istHeinekenMonteur || reinigung.istBergkunde)
+            ? AppColors.info
+            : AppColors.primary;
+
+    final brutto = reinigung.preisBrutto != null
+        ? _ReinigungDetailContent._roundTo5Rappen(reinigung.preisBrutto!)
+        : null;
+    final mwst = (brutto != null && reinigung.preisNetto != null)
+        ? brutto - reinigung.preisNetto!
+        : null;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.payments,
+                    size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: 8),
+                const Text('Preis',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: artColor.withAlpha(25),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: artColor.withAlpha(60)),
+                  ),
+                  child: Text(_rechnungsart(),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: artColor)),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            if (reinigung.preisGrundtarif != null)
+              _preisZeile('Grundtarif', reinigung.preisGrundtarif!),
+            if (reinigung.preisZusatzHaehne != null &&
+                reinigung.preisZusatzHaehne! > 0)
+              _preisZeile('Zusatz Hähne', reinigung.preisZusatzHaehne!),
+            if (reinigung.preisNetto != null)
+              _preisZeile('Netto', reinigung.preisNetto!),
+            if (mwst != null)
+              _preisZeile(
+                  'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? '8.1'}%)',
+                  mwst),
+            if (brutto != null) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: (kulanz ? AppColors.warning : AppColors.primary)
+                      .withAlpha(20),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(kulanz ? 'Total (Kulanz)' : 'Total',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15)),
+                    Text('${brutto.toStringAsFixed(2)} CHF',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color:
+                              kulanz ? AppColors.warning : AppColors.primary,
+                          decoration:
+                              kulanz ? TextDecoration.lineThrough : null,
+                        )),
+                  ],
+                ),
+              ),
+            ],
+            if (kulanz && brutto != null)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Kulanz — wird dem Kunden nicht verrechnet.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic)),
+              ),
+          ],
+        ),
       ),
     );
   }

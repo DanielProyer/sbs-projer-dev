@@ -4,7 +4,7 @@
 **Kunde**: Daniel Projer, SBS Projer GmbH
 **Stand**: 10.07.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.23.1+489
+**Version**: 0.24.0+490
 
 > Detaillierter aktueller Stand & offene Punkte: **`ToDo.md`** (Projekt-Root) + Memory.
 > Zuletzt (10.07.2026): **Events-Modul Phase E5** (v0.21.0) — **Events-Modul E1–E5 komplett**: **Abschluss-Mail** nach dem Event. Menüpunkt „Abschluss-Mail senden" → **PDF-Abschlussbericht** (ohne CHF: Zusammenfassung, Stände/Inbetriebnahme, Zeit & Aufwand nach Kategorie, Pikett-Einsätze) + **Empfänger-Sheet** (Eventverantwortlicher + RSL automatisch vorgeschlagen, freie Mail hinzufügbar, kommaseparierter Versand via `send-pdf-mail`). MailConfig-Bereich `event` (`eventScharf=false` → Testmodus). Keine DB-Migration. Scharfstellen (`eventScharf=true`) nach Handy-Testversand.
