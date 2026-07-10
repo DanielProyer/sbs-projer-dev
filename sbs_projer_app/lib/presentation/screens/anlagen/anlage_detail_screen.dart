@@ -1,9 +1,13 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/anlage_pdf_util.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/pdf/anlage_pdf_service.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/bierleitung_local_export.dart';
 import 'package:sbs_projer_app/data/models/anlage_foto.dart';
@@ -13,9 +17,11 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_steckbrief_sheet.dart';
 
 class AnlageDetailScreen extends ConsumerWidget {
   final String anlageId;
@@ -58,6 +64,18 @@ class _AnlageDetailContent extends ConsumerWidget {
       appBar: AppBar(
         title: Text(anlage.bezeichnung ?? anlage.typAnlage),
         actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Steckbrief',
+            onSelected: (v) {
+              if (v == 'teilen') _steckbriefTeilen(context, anlage);
+              if (v == 'rsl') _steckbriefAnRsl(context, anlage);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'teilen', child: Text('Steckbrief teilen')),
+              PopupMenuItem(value: 'rsl', child: Text('Steckbrief an RSL')),
+            ],
+          ),
           if (!SupabaseService.isGuest) ...[
             IconButton(
               icon: const Icon(Icons.edit),
@@ -202,6 +220,76 @@ class _AnlageDetailContent extends ConsumerWidget {
   String _vorkuehlerLabel(String value) {
     if (value == 'keiner') return 'Keiner';
     return value; // DB-Werte sind bereits lesbar (Fasskühler, Kühlzelle, Buffet)
+  }
+
+  /// Baut das Steckbrief-PDF (Betrieb, Bierleitungen + Foto-Bytes aus Storage).
+  Future<Uint8List> _buildSteckbrief(AnlageLocal anlage) async {
+    final sid = anlage.serverId;
+    final betrieb = await BetriebRepository.getByServerId(anlage.betriebId);
+    final bierleitungen =
+        sid == null ? <BierleitungLocal>[] : await BierleitungRepository.getByAnlage(sid);
+    final fotoBytes = <Uint8List>[];
+    if (sid != null) {
+      final fotos = await AnlageFotoRepository.getByAnlage(sid);
+      for (final f in fotos) {
+        try {
+          final bytes = await SupabaseService.client.storage
+              .from('anlagen-fotos')
+              .download(f.fotoUrl);
+          fotoBytes.add(bytes);
+        } catch (_) {/* Foto fehlt -> überspringen */}
+      }
+    }
+    return AnlagePdfService.steckbrief(
+      anlage: anlage,
+      betrieb: betrieb,
+      fotos: fotoBytes,
+      bierleitungen: bierleitungen,
+    );
+  }
+
+  Future<void> _steckbriefTeilen(BuildContext context, AnlageLocal anlage) async {
+    try {
+      final betrieb = await BetriebRepository.getByServerId(anlage.betriebId);
+      final pdf = await _buildSteckbrief(anlage);
+      await Printing.sharePdf(
+        bytes: pdf,
+        filename: anlageSteckbriefDateiname(betrieb?.name ?? '', anlage.bezeichnung ?? ''),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
+      }
+    }
+  }
+
+  Future<void> _steckbriefAnRsl(BuildContext context, AnlageLocal anlage) async {
+    try {
+      final betrieb = await BetriebRepository.getByServerId(anlage.betriebId);
+      final rsl = await KontaktRepository.getHeinekenZuweisung('rsl');
+      final pdf = await _buildSteckbrief(anlage);
+      if (!context.mounted) return;
+      final betriebName = betrieb?.name ?? '';
+      final bez = anlage.bezeichnung ?? (anlage.typAnlage.isEmpty ? 'Anlage' : anlage.typAnlage);
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => AnlageSteckbriefSheet(
+          betriebName: betriebName,
+          anlageBezeichnung: bez,
+          rslMail: rsl?.email,
+          betreff: anlageMailBetreff(betriebName, bez),
+          dateiname: anlageSteckbriefDateiname(betriebName, bez),
+          pdf: pdf,
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
+      }
+    }
   }
 
   String _formatDate(DateTime date) {
