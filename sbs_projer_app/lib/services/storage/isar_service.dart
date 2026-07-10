@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/data/local/termin_local.dart';
 import 'package:sbs_projer_app/data/local/event_local.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local.dart';
+import 'package:sbs_projer_app/data/local/event_einsatz_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local.dart';
 import 'package:sbs_projer_app/data/local/sync_meta_local.dart';
@@ -58,6 +59,7 @@ class IsarService {
         EventLocalSchema,
         EventKontaktLocalSchema,
         EventDokumentLocalSchema,
+        EventEinsatzLocalSchema,
         EventStandLocalSchema,
         EventStandAnlageLocalSchema,
         SyncMetaLocalSchema,
@@ -292,6 +294,18 @@ class IsarService {
       instance.writeTxn(() => instance.eventDokumentLocals.put(d));
   static Future<void> eventDokumentDelete(int id) =>
       instance.writeTxn(() => instance.eventDokumentLocals.delete(id));
+
+  // ─── EventEinsatz ───
+  static Future<List<EventEinsatzLocal>> eventEinsatzFindByEvent(String eventId) =>
+      instance.eventEinsatzLocals.filter().eventIdEqualTo(eventId).findAll();
+  static Future<EventEinsatzLocal?> eventEinsatzGet(int id) =>
+      instance.eventEinsatzLocals.get(id);
+  static Future<EventEinsatzLocal?> eventEinsatzFindByServerId(String serverId) =>
+      instance.eventEinsatzLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<void> eventEinsatzPut(EventEinsatzLocal e) =>
+      instance.writeTxn(() => instance.eventEinsatzLocals.put(e));
+  static Future<void> eventEinsatzDelete(int id) =>
+      instance.writeTxn(() => instance.eventEinsatzLocals.delete(id));
 
   // ─── EventStand ───
   static Future<List<EventStandLocal>> eventStandFindByEvent(String eventId) =>

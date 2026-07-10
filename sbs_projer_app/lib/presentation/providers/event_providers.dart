@@ -2,11 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
 
@@ -31,6 +33,14 @@ final eventKontakteProvider =
 final eventDokumenteProvider =
     FutureProvider.family<List<EventDokumentLocal>, String>((ref, eventId) async {
   return EventDokumentRepository.getByEvent(eventId);
+});
+
+/// Einsätze eines Event-Jahres (neueste zuerst).
+final eventEinsaetzeProvider =
+    FutureProvider.family<List<EventEinsatzLocal>, String>((ref, eventId) async {
+  final list = await EventEinsatzRepository.getByEvent(eventId);
+  list.sort((a, b) => b.zeitpunkt.compareTo(a.zeitpunkt)); // neueste zuerst
+  return list;
 });
 
 /// Stände eines Event-Jahres.
