@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/core/util/event_status.dart';
 import 'package:sbs_projer_app/core/util/inbetriebnahme.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
@@ -18,6 +19,7 @@ import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/data/models/event_stand.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
@@ -25,13 +27,14 @@ import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_einsatz_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_staende_map.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
-/// Dokumente. Der FAB wechselt je nach aktivem Tab (E2).
+/// Einsätze | Dokumente. Der FAB wechselt je nach aktivem Tab (E2/E3).
 class EventDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
 
@@ -48,7 +51,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     // FAB je Tab neu aufbauen.
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -239,6 +242,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                 tabs: const [
                   Tab(text: 'Kontakte'),
                   Tab(text: 'Stände'),
+                  Tab(text: 'Einsätze'),
                   Tab(text: 'Dokumente'),
                 ],
               ),
@@ -248,6 +252,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   children: [
                     _KontakteTab(eventServerId: eventServerId),
                     _StaendeTab(event: event),
+                    _EinsaetzeTab(event: event),
                     _DokumenteTab(eventServerId: eventServerId),
                   ],
                 ),
@@ -260,7 +265,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen,
-  /// 2 Dokument hochladen.
+  /// 2 Einsatz erfassen, 3 Dokument hochladen.
   Widget? _buildFab(String eventServerId) {
     switch (_tabController.index) {
       case 0:
@@ -277,6 +282,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         );
       case 2:
         return FloatingActionButton.extended(
+          onPressed: () => _einsatzHinzufuegen(eventServerId),
+          icon: const Icon(Icons.bolt),
+          label: const Text('Einsatz erfassen'),
+        );
+      case 3:
+        return FloatingActionButton.extended(
           onPressed: () => _dokumentHochladen(eventServerId),
           icon: const Icon(Icons.upload_file),
           label: const Text('Dokument hochladen'),
@@ -284,6 +295,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       default:
         return null;
     }
+  }
+
+  /// Öffnet das Einsatz-Formular (neu) und aktualisiert danach die Liste.
+  Future<void> _einsatzHinzufuegen(String eventServerId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventEinsatzFormScreen(eventId: eventServerId),
+      ),
+    );
+    ref.invalidate(eventEinsaetzeProvider(eventServerId));
   }
 
   /// Öffnet das Stand-Formular (neu) und aktualisiert danach die Stände-Liste.
@@ -1001,6 +1022,187 @@ class _StandCard extends ConsumerWidget {
 
 }
 
+/// Einsätze-Tab: Liste der Pikett-Einsätze (neueste zuerst) mit Zeitpunkt,
+/// Beschreibung, Material und optionalem Stand-Chip. Tap bearbeitet,
+/// Trailing löscht nach Bestätigung (E3).
+class _EinsaetzeTab extends ConsumerWidget {
+  final EventLocal event;
+
+  const _EinsaetzeTab({required this.event});
+
+  Future<void> _einsatzBearbeiten(
+      BuildContext context, WidgetRef ref, EventEinsatzLocal einsatz) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventEinsatzFormScreen(
+          eventId: event.serverId!,
+          einsatzId: einsatz.routeId,
+        ),
+      ),
+    );
+    ref.invalidate(eventEinsaetzeProvider(event.serverId!));
+  }
+
+  Future<void> _einsatzLoeschen(
+      BuildContext context, WidgetRef ref, EventEinsatzLocal einsatz) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Einsatz löschen'),
+        content: const Text('Diesen Einsatz wirklich löschen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await EventEinsatzRepository.delete(einsatz.routeId);
+      ref.invalidate(eventEinsaetzeProvider(event.serverId!));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Einsatz gelöscht')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final einsaetzeAsync = ref.watch(eventEinsaetzeProvider(event.serverId!));
+    // Stand-Namen für den optionalen Chip nachschlagen.
+    final standNamen = <String, String>{
+      for (final s in ref.watch(eventStaendeProvider(event.serverId!))
+              .valueOrNull ??
+          <EventStandLocal>[])
+        if (s.serverId != null) s.serverId!: s.name,
+    };
+
+    return einsaetzeAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Fehler: $e')),
+      data: (einsaetze) {
+        if (einsaetze.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 32),
+            child: Column(
+              children: [
+                Icon(Icons.bolt,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Noch keine Einsätze.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+          itemCount: einsaetze.length,
+          itemBuilder: (ctx, i) {
+            final e = einsaetze[i];
+            final standName =
+                e.standId != null ? standNamen[e.standId] : null;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                title: Text(
+                  e.beschreibung,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule,
+                            size: 13, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          _ddMMHHmm(e.zeitpunkt.toLocal()),
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    if (e.material != null && e.material!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.build,
+                              size: 13, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              e.material!,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (standName != null) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:
+                              AppColors.textSecondary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          standName,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      size: 20, color: AppColors.error),
+                  tooltip: 'Löschen',
+                  onPressed: () => _einsatzLoeschen(context, ref, e),
+                ),
+                onTap: () => _einsatzBearbeiten(context, ref, e),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 /// Dokumente-Tab: PDF-Liste pro Event-Jahr, Tap öffnet den nativen PDF-Viewer
 /// über eine signierte URL, Trailing löscht Datei + Datensatz (E2).
 class _DokumenteTab extends ConsumerWidget {
@@ -1533,3 +1735,6 @@ String _zwei(int v) => v.toString().padLeft(2, '0');
 String _ddMM(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.';
 
 String _ddMMyyyy(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.${d.year}';
+
+String _ddMMHHmm(DateTime d) =>
+    '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';
