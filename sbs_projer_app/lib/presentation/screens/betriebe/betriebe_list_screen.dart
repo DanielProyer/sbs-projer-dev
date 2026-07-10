@@ -22,7 +22,7 @@ class BetriebeListScreen extends ConsumerStatefulWidget {
 
 class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   String _searchQuery = '';
-  String _statusFilter = 'alle';
+  String _statusFilter = 'aktiv';
   String _kundenFilter = 'alle'; // 'alle', 'meine', 'fremde'
   Set<String> _selectedZapfsysteme = {};
   Set<String> _selectedRegionIds = {};
@@ -31,6 +31,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   bool _karteAktiv = false;
   bool _karteNurMeine = false;
   bool _karteNurFaellig = false;
+  bool _karteZeigeInaktiv = false;
   String? _karteRegionId; // null = alle Regionen
 
   @override
@@ -268,6 +269,11 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
         s == FaelligkeitsStatus.baldFaellig;
 
     final gefiltert = alle.where((b) {
+      if (!_karteZeigeInaktiv &&
+          b.status != 'aktiv' &&
+          b.status != 'saisonpause') {
+        return false;
+      }
       if (_karteNurMeine && !b.istMeinKunde) return false;
       if (_karteRegionId != null && b.regionId != _karteRegionId) return false;
       if (_karteNurFaellig && !istFaellig(statusFuer(b))) return false;
@@ -298,6 +304,12 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
                 label: const Text('Nur fällige'),
                 selected: _karteNurFaellig,
                 onSelected: (v) => setState(() => _karteNurFaellig = v),
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Inaktive/geschl.'),
+                selected: _karteZeigeInaktiv,
+                onSelected: (v) => setState(() => _karteZeigeInaktiv = v),
               ),
               const SizedBox(width: 8),
               if (regionen.isNotEmpty)
