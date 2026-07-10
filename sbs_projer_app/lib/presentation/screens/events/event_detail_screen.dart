@@ -209,6 +209,36 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     }
   }
 
+  /// Aggregiert die erfassten Zeiten je Tag und öffnet das Montage-Formular
+  /// (Typ Anlass) vorbefüllt. Vom 3-Punkte-Menü aus.
+  Future<void> _montageGenerieren(EventLocal event) async {
+    final zeilen = await ref.read(eventAufwaendeProvider(event.serverId!).future);
+    if (zeilen.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Keine Zeiten erfasst — nichts zu generieren.')),
+        );
+      }
+      return;
+    }
+    final slots = montageSlotsAusAufwand(
+      [for (final a in zeilen) (datum: a.datum, stunden: a.stunden)],
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MontageFormScreen(
+          vorbefuellung: MontageVorbefuellung(
+            montageTyp: 'anlass',
+            betriebId: event.betriebId,
+            datum: event.terminVon ?? DateTime.now(),
+            slots: slots,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Zeitraum-String fürs PDF: „dd.-dd.MM.yyyy" wenn Termin gesetzt, sonst Jahr.
   String _abschlussZeitraum(EventLocal event) {
     final von = event.terminVon;
@@ -322,6 +352,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   switch (value) {
                     case 'vorjahr':
                       _ausVorjahrUebernehmen(event);
+                    case 'montage':
+                      _montageGenerieren(event);
                     case 'abschluss':
                       _abschlussMailSenden(event);
                     case 'loeschen':
@@ -336,6 +368,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                         Icon(Icons.history, size: 20),
                         SizedBox(width: 8),
                         Text('Aus Vorjahr übernehmen'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'montage',
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_long, size: 20),
+                        SizedBox(width: 8),
+                        Text('Montage generieren'),
                       ],
                     ),
                   ),
@@ -1424,25 +1466,6 @@ class _ZeitTab extends ConsumerWidget {
     }
   }
 
-  Future<void> _montageGenerieren(
-      BuildContext context, List<EventAufwandLocal> zeilen) async {
-    final slots = montageSlotsAusAufwand(
-      [for (final a in zeilen) (datum: a.datum, stunden: a.stunden)],
-    );
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => MontageFormScreen(
-          vorbefuellung: MontageVorbefuellung(
-            montageTyp: 'anlass',
-            betriebId: event.betriebId,
-            datum: event.terminVon ?? DateTime.now(),
-            slots: slots,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(eventAufwaendeProvider(event.serverId!));
@@ -1456,21 +1479,12 @@ class _ZeitTab extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(
-                children: [
-                  Chip(
-                    label: Text('Total ${total.toStringAsFixed(2)} h'),
-                    backgroundColor: AppColors.surface,
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: zeilen.isEmpty
-                        ? null
-                        : () => _montageGenerieren(context, zeilen),
-                    icon: const Icon(Icons.receipt_long, size: 18),
-                    label: const Text('Montage generieren'),
-                  ),
-                ],
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Chip(
+                  label: Text('Total ${total.toStringAsFixed(2)} h'),
+                  backgroundColor: AppColors.surface,
+                ),
               ),
             ),
             if (zeilen.isEmpty)
