@@ -112,6 +112,7 @@ class KontaktRepository {
       'raster': null,
       'heigenie_service': null,
       'materialbestellung': null,
+      'rsl': null,
     };
 
     final rows = await SupabaseService.client

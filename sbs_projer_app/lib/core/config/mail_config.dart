@@ -26,6 +26,8 @@ class MailConfig {
   // Events-Abschlussmail: scharfgestellt 10.07.2026 nach erfolgreichem Test —
   // Versand geht an die echten Empfänger (Eventverantwortlicher/RSL).
   static const eventScharf = true;
+  // Anlagen-Steckbrief an RSL: erst Test (an dich), dann scharfstellen.
+  static const anlageScharf = false;
 
   /// Unsichtbare Zeichen, die beim Copy-Paste in E-Mail-Adressen geraten und
   /// z.B. beim Gmail-Versand "Invalid To header" auslösen:
@@ -55,6 +57,8 @@ class MailConfig {
         if (!mahnwesenScharf) return bereinige(testEmpfaenger);
       case 'event':
         if (!eventScharf) return bereinige(testEmpfaenger);
+      case 'anlage':
+        if (!anlageScharf) return bereinige(testEmpfaenger);
     }
 
     return bereinige(echterEmpfaenger ?? testEmpfaenger);
@@ -80,6 +84,8 @@ class MailConfig {
         return mahnwesenScharf;
       case 'event':
         return eventScharf;
+      case 'anlage':
+        return anlageScharf;
     }
     return true;
   }
