@@ -4,7 +4,7 @@
 **Kunde**: Daniel Projer, SBS Projer GmbH
 **Stand**: 10.07.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.20.1+484
+**Version**: 0.20.2+485
 
 > Detaillierter aktueller Stand & offene Punkte: **`ToDo.md`** (Projekt-Root) + Memory.
 > Zuletzt (10.07.2026): **Events-Modul Phase E4** (v0.20.0): Event-Detail auf **5 Tabs** (Kontakte | Stände | Einsätze | **Zeit** | Dokumente). **Zeit-/Spesenerfassung** (neue Sync-Vertikale `event_aufwand`, Migration 123): Zeilen mit Datum/Kategorie (Anfahrt/Inbetriebnahme/Pikett/Spesen)/Notiz/Stunden, Total-Chip. **Auto-Montage-Generierung**: „Montage generieren" aggregiert pro Eventtag (≤5 Slots) und öffnet das Montage-Formular (Typ Anlass, Veranstaltungs-Betrieb) vorbefüllt → normaler Heineken-Abrechnungsfluss. Spesen als zusätzliche Stunden. Nächste Phase E5 (Abschluss-Mail Einsatzliste + Zeiten/Spesen als PDF).

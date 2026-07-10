@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.20.1
+**Stand:** 10.07.2026 · **Live:** v0.20.2
 
 ---
 
@@ -12,6 +12,7 @@ Spec `docs/superpowers/specs/2026-07-10-events-e4-design.md`. Event-Detail jetzt
 - [ ] **🟡 Am Handy bestätigen (native, live):** Zeit-Live-Refresh (im Web erschien der 2. Eintrag erst nach Reload — Supabase Read-after-Write-Latenz; native/Isar instant); „Montage generieren" real speichern und in der Monatsrechnung prüfen.
 
 - [x] ✓ **UI (v0.20.1):** Event-Tabs füllen die Breite gleichmäßig (kein Scrollen mehr auf dem Handy / Pixel 9), kompaktere Label-Abstände.
+- [x] ✓ **GPS-Fix (v0.20.2):** „Standort erfassen" warf im Web `MissingPluginException` — Ursache war ein veralteter Web-Plugin-Registrant ohne `geolocator_web` (Build-Cache). Fix: `flutter clean` + Neubau (Registrant enthält geolocator wieder). Zusätzlich `ACCESS_FINE/COARSE_LOCATION` in `AndroidManifest.xml` ergänzt (für native Builds).
 
 **Nächste Phase:** **E5** Abschluss-Mail (Einsatzliste + Zeiten/Spesen als PDF an Eventverantwortlichen + RSL, MailConfig-Bereich `event`, erst Test dann scharf) · *optional* Verteilung-PDF-KI-Import.
 
