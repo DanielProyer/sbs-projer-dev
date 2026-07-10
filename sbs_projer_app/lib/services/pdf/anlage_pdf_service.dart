@@ -105,7 +105,7 @@ class AnlagePdfService {
     for (var i = 0; i < fotos.length; i += 2) {
       pw.Widget box(Uint8List? b) => pw.Expanded(
             child: pw.Container(
-              height: 120,
+              height: 155,
               alignment: pw.Alignment.center,
               padding: const pw.EdgeInsets.all(2),
               decoration: pw.BoxDecoration(
