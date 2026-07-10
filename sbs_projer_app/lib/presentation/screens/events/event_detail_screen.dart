@@ -26,6 +26,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
+import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
@@ -755,6 +756,30 @@ class _StandCard extends ConsumerWidget {
     required this.onDelete,
   });
 
+  /// Erfasst die aktuelle GPS-Position und speichert sie am Stand.
+  Future<void> _standortErfassen(
+      BuildContext context, WidgetRef ref, EventStandLocal stand) async {
+    try {
+      final pos = await GpsService.aktuellePosition();
+      stand
+        ..latitude = pos.latitude
+        ..longitude = pos.longitude;
+      await EventStandRepository.save(stand);
+      ref.invalidate(eventStaendeProvider(stand.eventId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('📍 Standort erfasst')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Standort nicht möglich: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final anlagenAsync = ref.watch(eventStandAnlagenProvider(stand.serverId!));
@@ -843,6 +868,35 @@ class _StandCard extends ConsumerWidget {
           ],
         ),
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: stand.latitude != null
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.place,
+                          size: 16, color: AppColors.success),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Standort erfasst',
+                        style: TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.my_location, size: 16),
+                        label: const Text('Neu erfassen'),
+                        onPressed: () =>
+                            _standortErfassen(context, ref, stand),
+                      ),
+                    ],
+                  )
+                : TextButton.icon(
+                    icon: const Icon(Icons.my_location, size: 16),
+                    label: const Text('📍 Standort erfassen'),
+                    onPressed: () => _standortErfassen(context, ref, stand),
+                  ),
+          ),
           if (anlagen.isEmpty)
             const Align(
               alignment: Alignment.centerLeft,
