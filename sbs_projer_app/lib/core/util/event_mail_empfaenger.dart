@@ -16,7 +16,7 @@ List<EmpfaengerVorschlag> abschlussEmpfaenger(
   return gefiltert;
 }
 
-/// Mail-Betreff: „Abschlussbericht <Event> <Jahr>".
+/// Mail-Betreff: „Abschlussbericht `Event` `Jahr`".
 String abschlussBetreff(String eventName, int jahr) =>
     'Abschlussbericht $eventName $jahr';
 

@@ -105,7 +105,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   /// Sammelt Event-Daten, baut das Abschluss-PDF und öffnet das Versand-Sheet.
-  Future<void> _abschlussMailSenden(EventLocal event, String nameMitJahr) async {
+  Future<void> _abschlussMailSenden(EventLocal event) async {
     final eventId = event.serverId!;
     showDialog(
       context: context,
@@ -323,7 +323,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                     case 'vorjahr':
                       _ausVorjahrUebernehmen(event);
                     case 'abschluss':
-                      _abschlussMailSenden(event, name);
+                      _abschlussMailSenden(event);
                     case 'loeschen':
                       _eventLoeschen(event, name);
                   }
