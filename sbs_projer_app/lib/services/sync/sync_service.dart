@@ -26,6 +26,9 @@ import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
 import 'package:sbs_projer_app/data/local/termin_local.dart';
 import 'package:sbs_projer_app/data/local/event_local.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local.dart';
+import 'package:sbs_projer_app/data/local/event_dokument_local.dart';
+import 'package:sbs_projer_app/data/local/event_stand_local.dart';
+import 'package:sbs_projer_app/data/local/event_stand_anlage_local.dart';
 
 // DTOs
 import 'package:sbs_projer_app/data/models/region.dart';
@@ -45,6 +48,9 @@ import 'package:sbs_projer_app/data/models/eroeffnungsreinigung.dart';
 import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/models/event.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
+import 'package:sbs_projer_app/data/models/event_dokument.dart';
+import 'package:sbs_projer_app/data/models/event_stand.dart';
+import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 
 // Mappers
 import 'package:sbs_projer_app/data/mappers/region_mapper.dart';
@@ -64,6 +70,9 @@ import 'package:sbs_projer_app/data/mappers/eroeffnungsreinigung_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_kontakt_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_dokument_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_stand_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_stand_anlage_mapper.dart';
 
 enum SyncState { idle, syncing, error }
 
@@ -149,12 +158,15 @@ class SyncService {
           () => _syncStoerungen(userId),
           () => _syncMontagen(userId),
           () => _syncEventKontakte(userId),
+          () => _syncEventDokumente(userId),
+          () => _syncEventStaende(userId),
         ],
-        // Tier 4: → Betrieb/Anlage
+        // Tier 4: → Betrieb/Anlage/Stand
         [
           () => _syncEigenauftraege(userId),
           () => _syncEroeffnungsreinigungen(userId),
           () => _syncTermine(userId),
+          () => _syncEventStandAnlagen(userId),
         ],
       ];
 
@@ -485,6 +497,96 @@ class SyncService {
       await _isar.writeTxn(() => _isar.eventKontaktLocals.putAll(toSave));
     }
     await _updateMeta('event_kontakte');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  // Event-Dokumente (Tier 3: → Event)
+  static Future<({int pushed, int pulled})> _syncEventDokumente(String uid) async {
+    final unsynced =
+        await _isar.eventDokumentLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EventDokumentLocal>(
+      'event_dokumente', unsynced, EventDokumentMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventDokumentLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('event_dokumente', 'event_dokumente', uid);
+    final toSave = <EventDokumentLocal>[];
+    for (final row in rows) {
+      final dto = EventDokument.fromJson(row);
+      final ex = await _isar.eventDokumentLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EventDokumentMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventDokumentLocals.putAll(toSave));
+    }
+    await _updateMeta('event_dokumente');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  // Event-Stände (Tier 3: → Event)
+  static Future<({int pushed, int pulled})> _syncEventStaende(String uid) async {
+    final unsynced =
+        await _isar.eventStandLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EventStandLocal>(
+      'event_staende', unsynced, EventStandMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventStandLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('event_staende', 'event_staende', uid);
+    final toSave = <EventStandLocal>[];
+    for (final row in rows) {
+      final dto = EventStand.fromJson(row);
+      final ex = await _isar.eventStandLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EventStandMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventStandLocals.putAll(toSave));
+    }
+    await _updateMeta('event_staende');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  // Event-Stand-Anlagen (Tier 4: → Stand)
+  static Future<({int pushed, int pulled})> _syncEventStandAnlagen(String uid) async {
+    final unsynced =
+        await _isar.eventStandAnlageLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EventStandAnlageLocal>(
+      'event_stand_anlagen', unsynced, EventStandAnlageMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventStandAnlageLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('event_stand_anlagen', 'event_stand_anlagen', uid);
+    final toSave = <EventStandAnlageLocal>[];
+    for (final row in rows) {
+      final dto = EventStandAnlage.fromJson(row);
+      final ex = await _isar.eventStandAnlageLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EventStandAnlageMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventStandAnlageLocals.putAll(toSave));
+    }
+    await _updateMeta('event_stand_anlagen');
     return (pushed: pushed.length, pulled: toSave.length);
   }
 
