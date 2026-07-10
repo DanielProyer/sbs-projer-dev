@@ -190641,7 +190641,7 @@ $1(a){var s,r=null,q=a==null
 if(q)s=r
 else{s=new A.fn(B.p7,1,B.ck)
 s=new A.fU(s,s,s,s)}s=A.ie(s,r,q?r:B.bB8)
-return A.fZ(A.cx(B.cX,q?new A.ad(r,r,r):new A.tA(A.L_(a),B.jE,r,r),r,r,s,120,r,B.ama,r))},
+return A.fZ(A.cx(B.cX,q?new A.ad(r,r,r):new A.tA(A.L_(a),B.jE,r,r),r,r,s,155,r,B.ama,r))},
 $S:1439}
 A.aD4.prototype={
 $1(a1){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e=this,d=null,c=A.a2("Anlagen-Steckbrief",d,A.ba(d,B.kz,d,d,d,d,d,d,d,B.W,d,d,18,d,B.a6,d,!0,d,d,d,d),d,d),b=e.a,a=e.b,a0=t.o
