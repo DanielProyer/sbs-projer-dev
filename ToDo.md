@@ -118,7 +118,14 @@ Optimierungspaket 06 (`Prompts/06_Optimierung_App_2026_07_07.txt`), Spec/Plan in
 
 Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks sequenziell), je Task Spec- + Qualitäts-Review, finaler Branch-Review **APPROVED** (Web-Sync der neuen Ferien-Felder verifiziert), 210 Tests grün. **Migrationen 117 + 118 sind produktiv angewendet.**
 
-**Noch offen aus Paket 06 (P2–P9, nicht begonnen):** Anlagen-Screen + Anlagen-PDF; Betriebe Google-Datenübernahme; Reinigung QR-Firmenkonto-Link; Kontakte Event-Struktur (Jahr/Rolle/WhatsApp); **Termine komplette Überarbeitung**; **Events-Feature** (Telefonliste, Einsätze + Material, Abschluss-Mail an RSL); **Tourenplanung** (UX, Ruhetage/Servicezeiten anzeigen, Default leerer Tagesplan, Auto-Speicherung, Drag-Fläche vergrössern).
+**Aus Paket 06 inzwischen erledigt:** Betriebe (Ferien-Zeile + Google-Übernahme v0.25), Reinigung (Service-Art/Zeiterfassung/Protokoll-Chip), Störungen/Eigenaufträge-Filter, Kontakte (Stardrinks + Event-Struktur), **Events-Feature komplett** (E1–E5: Kontakte/Telefonliste, Einsätze+Material, Abschluss-Mail an RSL/Eventverantwortlichen).
+
+**🔴 Aus Paket 06 noch offen (echte Restpunkte):**
+- [ ] **Anlagen-Screen:** eigener Screen mit allen Anlagen + Übersicht/Kennzahlen (unter Bergkundenpauschale einordnen, wird selten genutzt).
+- [ ] **Anlagen-PDF:** alle Anlageninfos + Fotos, professionelles Design, Teilen.
+- [ ] **Reinigung QR-Firmenkonto-Link:** QR-Code Firmenkonto als Link in „neue Reinigung" (Kunde zahlt direkt per E-Banking).
+- [ ] **Termine — komplette Überarbeitung** (eigenes Arbeitspaket, ansprechenderes Design).
+- [ ] **Tourenplanung (grosser Brocken):** UI einfacher; Ruhetage + Servicezeiten anzeigen; Tagesplan default leer (überfällig/fällig = Standard, andere Kategorien Ausnahme); Region/Fälligkeit-Filter separat & übersichtlich; **Auto-Speicherung** (Speicherbutton entfällt); Eröffnung/Endreinigung-Termine automatisch im Tagesplan; Drag-Fläche zum Verschieben vergrössern; Saisonalität/Eröffnung/Endreinigung/Betriebsferien nochmal genau prüfen.
 
 ---
 
