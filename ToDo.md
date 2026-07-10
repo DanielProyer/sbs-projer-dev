@@ -1,6 +1,18 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.17.0
+**Stand:** 10.07.2026 · **Live:** v0.18.0
+
+---
+
+## 🟢 Events-Modul — Phase E2 (live v0.18.0 · 10.07.2026)
+Spec `docs/superpowers/specs/2026-07-10-events-e2-design.md`. Event-Detail jetzt mit **3 Tabs** (Kontakte | Stände | Dokumente):
+- [x] ✓ **Stände** pro Event-Jahr mit **Schankanlagen** (Typen: Oberthekengerät/OT, Hollandbuffet, Ausschankwagen, Sonstige) — dynamische Anlagen-Zeilen im Stand-Formular, Zusammenfassung „7× OT · 1× Hollandbuffet". Vorjahres-Übernahme (Checkbox im Event-Formular + Menü im Tab, Merge case-insensitive über Stand-Namen).
+- [x] ✓ **Dokument-Ablage** pro Event-Jahr: PDF hochladen (Lageplan, Verteilung …) in privaten Storage-Bucket `event-dokumente`, ansehen (signed URL, PDF-Viewer), löschen. Migration 120 (3 Tabellen + Bucket + RLS).
+- [x] ✓ Qualität: subagent-getrieben (10 Tasks), finaler Branch-Review **APPROVED** (kritischer Tab-Umbau: Kontakte-Tab unverändert; serverId→Anlagen-Kette + Native-Delete W1 sauber), 228 Tests grün (4 neue). Visueller Web-Test: Tabs, Stand+Anlagen anlegen, Dokumente-Tab bestätigt.
+- [ ] **🟡 Am Handy bestätigen:** echter **PDF-Upload** des Lageplans (Datei-Dialog per Web-Automation nicht testbar) + Öffnen/Löschen; sowie ob die Stände-Liste direkt nach dem Anlegen refresht (im Web-Test kam der neue Stand erst nach Tab-Wechsel — evtl. nur Refetch-Latenz, beobachten).
+- [ ] **🟡 Kosmetik offen (aus Review):** Anzahl-Feld korrigiert `_anzahl` intern auf 1, aktualisiert aber die sichtbare Eingabe nicht (kein Datenfehler); redundante Provider-Invalidierung nach Stand-Bearbeiten.
+
+**Nächste Phasen:** **E3** Inbetriebnahme-Checkliste + GPS-Standorte der Stände + Karten-Tab (flutter_map + swisstopo-Luftbild, kein API-Key) + Pikett-Einsätze (Stand + Beschreibung + 1 Material) · **E4** Abschluss-Mail (Einsatzliste als PDF an Eventverantwortlichen + RSL + optional, MailConfig-Bereich `event`) · *optional* Verteilung-PDF-KI-Import.
 
 ---
 

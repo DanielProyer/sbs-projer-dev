@@ -4,10 +4,11 @@
 **Kunde**: Daniel Projer, SBS Projer GmbH
 **Stand**: 10.07.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.17.0+479
+**Version**: 0.18.0+480
 
 > Detaillierter aktueller Stand & offene Punkte: **`ToDo.md`** (Projekt-Root) + Memory.
-> Zuletzt (10.07.2026): **Events-Modul Phase E1** (v0.17.0): neue Dashboard-Kachel «Events» mit Event-Jahren (Migration 119: `events` + `event_kontakte`), Kontaktliste pro Event-Jahr mit Rollen (Eventverantwortlicher/RSL/OK/Bau/Stand/…), Vorjahres-Übernahme, WhatsApp-/Anruf-Buttons; Abrechnung bleibt bei Montage «Anlass». Phasen E2–E4 (Lageplan/Stände, GPS-Karte + Einsätze, Abschluss-Mail) geplant — siehe ToDo.md. Zudem build_runner-Fix (null-aware Elements ersetzt, Lint deaktiviert).
+> Zuletzt (10.07.2026): **Events-Modul Phase E2** (v0.18.0): Event-Detail auf 3 Tabs (Kontakte | Stände | Dokumente). **Stände** mit Schankanlagen (OT/Hollandbuffet/Ausschankwagen), dynamisches Stand-Formular, Vorjahres-Übernahme. **Dokument-Ablage** (PDF-Upload in Storage-Bucket `event-dokumente`, ansehen/löschen; Migration 120). Nächste Phasen E3 (Inbetriebnahme + GPS-Karte + Einsätze) / E4 (Abschluss-Mail).
+> **Events-Modul Phase E1** (v0.17.0): neue Dashboard-Kachel «Events» mit Event-Jahren (Migration 119: `events` + `event_kontakte`), Kontaktliste pro Event-Jahr mit Rollen (Eventverantwortlicher/RSL/OK/Bau/Stand/…), Vorjahres-Übernahme, WhatsApp-/Anruf-Buttons; Abrechnung bleibt bei Montage «Anlass». Phasen E2–E4 (Lageplan/Stände, GPS-Karte + Einsätze, Abschluss-Mail) geplant — siehe ToDo.md. Zudem build_runner-Fix (null-aware Elements ersetzt, Lint deaktiviert).
 > 07.07.2026: **App-Optimierung Paket 06 – P1 Quick-Wins** (v0.16.20): Eigenaufträge-Filter entfernt, Störungen-Filter auf Anlagentyp + Km-Abrechnung, Reinigung-UI (Chip „Protokoll", Service-Art, kompakte Zeiterfassung), Kontakt-Rolle „Stardrinks" (Migration 117), **Betriebsferien 3 → 5 Slots** (Migration 118, dynamisches Formular, zentraler Ferien-Util + Bugfix „nur Ferien 1 geprüft"). P2–P9 aus Paket 06 offen (siehe ToDo.md).
 > Juni 2026: Buchhaltung-Voll-Migration 2019–2025, camt-Import, Forderungs-Hub, **Eingangsrechnungen TP-0…7 komplett** (Scan→KI/QR→Lernen→Kreditoren-Buchung→GKB-Zahlungsfile pain.001→camt-Kreditor-Abschluss→Reversibilität→Datenhygiene). **Eingangsrechnung-Kategorien** (15 KI-inhaltsbasierte Kategorien, löst Bussen-Erkennung kanton-unabhängig, v0.16.18). **camt-Screens in „Bankauszug Import" zusammengeführt** (4 Tabs Import·Prüfliste·Regeln·Dateien, Dashboard auf eine Kachel reduziert, v0.16.19). Alter camt-Abgleich-Screen entfernt (v0.16.17).
 
