@@ -46,12 +46,18 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
     }
     final jetzt = DateTime.now();
     FaelligkeitsStatus statusFuer(BetriebLocal b) {
+      // Inaktive/geschlossene Betriebe werden nicht mehr serviciert -> nie fällig.
+      if (b.status != 'aktiv') return FaelligkeitsStatus.nichtFaellig;
       final sid = b.serverId;
       final list = sid == null
           ? const <AnlageLocal>[]
           : (anlagenNachBetrieb[sid] ?? const []);
       return betriebFaelligkeit(
-        list.map((a) => getFaelligkeit(a, jetzt, betrieb: b)).toList(),
+        // Nur aktive Anlagen zählen (analog Touren-Logik).
+        list
+            .where((a) => a.status == 'aktiv')
+            .map((a) => getFaelligkeit(a, jetzt, betrieb: b))
+            .toList(),
       );
     }
 
