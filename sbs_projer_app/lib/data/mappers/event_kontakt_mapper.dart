@@ -10,6 +10,7 @@ class EventKontaktMapper {
     local.kontaktId = dto.kontaktId;
     local.rolle = dto.rolle;
     local.bemerkung = dto.bemerkung;
+    local.standId = dto.standId;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -24,6 +25,7 @@ class EventKontaktMapper {
       'kontakt_id': local.kontaktId,
       'rolle': local.rolle,
       'bemerkung': local.bemerkung,
+      'stand_id': local.standId,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

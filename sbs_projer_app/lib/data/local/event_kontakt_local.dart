@@ -24,6 +24,7 @@ class EventKontaktLocal {
   late String kontaktId;
   late String rolle;
   String? bemerkung;
+  String? standId;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

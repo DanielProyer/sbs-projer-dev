@@ -15,6 +15,7 @@ class EventKontaktLocal {
   String kontaktId = '';
   String rolle = '';
   String? bemerkung;
+  String? standId;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

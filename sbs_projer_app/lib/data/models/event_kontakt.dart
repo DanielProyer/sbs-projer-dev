@@ -6,6 +6,7 @@ class EventKontakt {
   final String kontaktId;
   final String rolle;
   final String? bemerkung;
+  final String? standId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -16,6 +17,7 @@ class EventKontakt {
     required this.kontaktId,
     required this.rolle,
     this.bemerkung,
+    this.standId,
     this.createdAt,
     this.updatedAt,
   });
@@ -28,6 +30,7 @@ class EventKontakt {
       kontaktId: json['kontakt_id'],
       rolle: json['rolle'],
       bemerkung: json['bemerkung'],
+      standId: json['stand_id'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -41,6 +44,7 @@ class EventKontakt {
       'kontakt_id': kontaktId,
       'rolle': rolle,
       'bemerkung': bemerkung,
+      'stand_id': standId,
     };
   }
 
