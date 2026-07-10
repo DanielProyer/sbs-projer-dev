@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -855,3 +856,41 @@ final tagesCountsProvider =
 
   return counts;
 });
+
+// ─── Fälligkeits-Helfer (öffentlich, geteilt mit Betriebe-Karte) ───
+
+/// Farbe je Fälligkeitsstatus (identisch zum Touren-Farbschema).
+Color faelligkeitFarbe(FaelligkeitsStatus status) {
+  switch (status) {
+    case FaelligkeitsStatus.ueberfaellig:
+      return AppColors.error;
+    case FaelligkeitsStatus.faellig:
+      return AppColors.warning;
+    case FaelligkeitsStatus.baldFaellig:
+      return AppColors.success;
+    case FaelligkeitsStatus.endreinigungFaellig:
+      return const Color(0xFFEA580C);
+    case FaelligkeitsStatus.eroeffnungFaellig:
+      return AppColors.info;
+    case FaelligkeitsStatus.nichtFaellig:
+      return AppColors.textSecondary;
+  }
+}
+
+/// Kurzlabel je Fälligkeitsstatus.
+String faelligkeitLabel(FaelligkeitsStatus status) {
+  switch (status) {
+    case FaelligkeitsStatus.ueberfaellig:
+      return 'Überfällig';
+    case FaelligkeitsStatus.faellig:
+      return 'Fällig';
+    case FaelligkeitsStatus.baldFaellig:
+      return 'Bald fällig';
+    case FaelligkeitsStatus.endreinigungFaellig:
+      return 'Endreinigung';
+    case FaelligkeitsStatus.eroeffnungFaellig:
+      return 'Eröffnung';
+    case FaelligkeitsStatus.nichtFaellig:
+      return 'Nicht fällig';
+  }
+}
