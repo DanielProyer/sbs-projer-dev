@@ -1,6 +1,15 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.22.0
+**Stand:** 10.07.2026 · **Live:** v0.23.0
+
+---
+
+## 🟢 Events-Feinschliff 2 (live v0.23.0 · 10.07.2026)
+- [x] ✓ **Einsatz-Formular:** Stand-Auswahl ganz oben; **ein** Material-Feld (Autocomplete mit Freitext-Option oben + Lager-Artikeln), Menge nur bei Lager-Artikel. Verwendetes Material (Lager oder Freitext) wird immer gespeichert.
+- [x] ✓ **PDF:** verwendetes Material der Pikett-Einsätze inkl. Menge in der Einsatz-Tabelle.
+- [x] ✓ **Stand-Kontakt:** bei „Kontakt zuordnen" mit Rolle „Stand" ist der konkrete **Stand auswählbar** (Migration 125: `event_kontakte.stand_id`); die Stand-Karte zeigt den zugeordneten Kontakt (Name · Tel) direkt an.
+- [x] ✓ Qualität: subagent-getrieben (3 + Verifikation), finaler Review **APPROVED**, 244 Tests grün.
+- [ ] **🟡 Weiterhin offen:** Testdaten „Openair Val Lumnezia 2026" löschen + Mail scharfstellen (`eventScharf=true`) NACH deiner Abnahme.
 
 ---
 
