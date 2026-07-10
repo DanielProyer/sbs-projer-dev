@@ -98,15 +98,17 @@ typedef EmpfaengerVorschlag = ({String name, String rolle, String? email});
 List<EmpfaengerVorschlag> abschlussEmpfaenger(
     List<({String name, String rolle, String? email})> kontakte);
 ```
-- Filtert auf die beiden Rollen, sortiert Eventverantwortlicher vor RSL.
+- Filtert auf die beiden Rollen (Slugs `event_heineken` = Eventverantwortlicher, `rsl`),
+  sortiert Eventverantwortlicher vor RSL. (Rollen aus E1: `EventKontakt.rolleLabel`.)
 - Einträge ohne/leere E-Mail bleiben in der Liste (email == null/leer) → im Sheet ausgegraut.
 - Betreff/Dateiname-Helfer ebenfalls hier (testbar):
   `String abschlussBetreff(String eventName, int jahr)` → `'Abschlussbericht $eventName $jahr'`;
   `String abschlussDateiname(String eventName, int jahr)` → bereinigt (nur `[A-Za-z0-9_-]`,
   Leerzeichen→`_`) `'Abschlussbericht_${clean}_$jahr.pdf'`.
 
-Hinweis: Die Rollen-Slugs entsprechen den bestehenden `event_kontakte.rolle`-Werten
-(E1: `eventverantwortlicher`, `rsl`, …). Beim Bau die tatsächlichen Slugs verifizieren.
+Kontakt-E-Mail-Beschaffung: `eventKontakteProvider` (EventKontaktLocal mit `kontaktId`+`rolle`)
+gejoint mit `kontakteProvider` (KontaktLocal mit `email`/`vorname`/`nachname`, gemappt über
+`serverId`) — exakt wie im bestehenden `_KontakteTab` (event_detail_screen.dart:498).
 
 ### 4. Empfänger-Sheet + Versand
 
