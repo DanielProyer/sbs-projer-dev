@@ -244,7 +244,13 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
               ),
               TabBar(
                 controller: _tabController,
-                isScrollable: true,
+                // Nicht scrollbar → alle 5 Tabs füllen die Breite gleichmässig
+                // (auf dem Handy zentriert, kein Scrollen). Kompaktere Abstände
+                // und Schrift, damit «Dokumente» auf schmalen Displays passt.
+                labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                labelStyle:
+                    const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                unselectedLabelStyle: const TextStyle(fontSize: 12.5),
                 tabs: const [
                   Tab(text: 'Kontakte'),
                   Tab(text: 'Stände'),
