@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.26.4
+**Stand:** 10.07.2026 · **Live:** v0.27.0
 
 ---
 
@@ -121,8 +121,7 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
 **Aus Paket 06 inzwischen erledigt:** Betriebe (Ferien-Zeile + Google-Übernahme v0.25), Reinigung (Service-Art/Zeiterfassung/Protokoll-Chip), Störungen/Eigenaufträge-Filter, Kontakte (Stardrinks + Event-Struktur), **Events-Feature komplett** (E1–E5: Kontakte/Telefonliste, Einsätze+Material, Abschluss-Mail an RSL/Eventverantwortlichen).
 
 **🔴 Aus Paket 06 noch offen (echte Restpunkte):**
-- [ ] **Anlagen-Screen:** eigener Screen mit allen Anlagen + Übersicht/Kennzahlen (unter Bergkundenpauschale einordnen, wird selten genutzt).
-- [ ] **Anlagen-PDF:** alle Anlageninfos + Fotos, professionelles Design, Teilen.
+- [x] ✓ **Anlagen-Screen + Steckbrief-PDF** (live v0.27.0 · 10.07.2026): Dashboard-Kachel „Anlagen" + Kennzahlen-Kopf (aktiv/nach Typ/überfällig) im vorhandenen `/anlagen`-Screen; **Steckbrief-PDF pro Anlage** (Grunddaten + Fotos aus `anlagen_fotos` + Bierleitungen) mit **Teilen** + **Mail an RSL** (neue Heineken-Zuweisung `rsl`, MailConfig-Bereich `anlage`). Subagent-getrieben, 271 Tests grün. **🟡 Offen:** RSL-Kontakt in „Heineken-Zuweisungen" setzen + Steckbrief-Mail testen, dann `anlageScharf=true`.
 - [ ] **Reinigung QR-Firmenkonto-Link:** QR-Code Firmenkonto als Link in „neue Reinigung" (Kunde zahlt direkt per E-Banking).
 - [ ] **Termine — komplette Überarbeitung** (eigenes Arbeitspaket, ansprechenderes Design).
 - [ ] **Tourenplanung (grosser Brocken):** UI einfacher; Ruhetage + Servicezeiten anzeigen; Tagesplan default leer (überfällig/fällig = Standard, andere Kategorien Ausnahme); Region/Fälligkeit-Filter separat & übersichtlich; **Auto-Speicherung** (Speicherbutton entfällt); Eröffnung/Endreinigung-Termine automatisch im Tagesplan; Drag-Fläche zum Verschieben vergrössern; Saisonalität/Eröffnung/Endreinigung/Betriebsferien nochmal genau prüfen.
