@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/core/util/swiss_qr_bill.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
@@ -584,45 +585,24 @@ class RechnungPdfService {
   /// Baut den QR-Code Datenstring gemäss Swiss Payment Standards.
   static String _buildQrData(double betrag, _KundeAdresse kunde,
       {String? mitteilung, String? referenz}) {
-    // Additional Information: max 140 Zeichen (Swiss QR-Bill Standard)
-    final info = mitteilung != null && mitteilung.isNotEmpty
-        ? (mitteilung.length > 140 ? mitteilung.substring(0, 140) : mitteilung)
-        : '';
-    final lines = <String>[
-      'SPC', // QR Type
-      '0200', // Version
-      '1', // Coding Type (UTF-8)
-      _iban, // IBAN
-      'S', // Creditor Address Type (S=structured)
-      _firmaName, // Creditor Name
-      _firmaStrasse, // Creditor Street
-      _firmaNr, // Creditor Building Number
-      _firmaPlz, // Creditor Postal Code
-      _firmaOrt, // Creditor City
-      _firmaLand, // Creditor Country
-      '', // Ultimate Creditor Address Type
-      '', // Ultimate Creditor Name
-      '', // Ultimate Creditor Street
-      '', // Ultimate Creditor Building Number
-      '', // Ultimate Creditor Postal Code
-      '', // Ultimate Creditor City
-      '', // Ultimate Creditor Country
-      betrag.toStringAsFixed(2), // Amount
-      'CHF', // Currency
-      // Debtor (Zahlbar durch)
-      kunde.name.isNotEmpty ? 'S' : '', // Debtor Address Type
-      kunde.name, // Debtor Name
-      kunde.strasseOnly, // Debtor Street
-      kunde.nrOnly, // Debtor Building Number
-      kunde.plzOnly, // Debtor Postal Code
-      kunde.ortOnly, // Debtor City
-      kunde.name.isNotEmpty ? _firmaLand : '', // Debtor Country
-      (referenz != null && referenz.isNotEmpty) ? 'SCOR' : 'NON', // Reference Type
-      referenz ?? '', // Reference
-      info, // Unstructured Message (Ustrd) → Buchungstext in PostFinance
-      'EPD', // Trailer
-    ];
-    return lines.join('\n');
+    // Nutzt die gemeinsame reine Funktion (byte-identisch zur bisherigen Ausgabe).
+    return swissQrPayload(
+      iban: _iban,
+      creditorName: _firmaName,
+      creditorStreet: _firmaStrasse,
+      creditorNr: _firmaNr,
+      creditorPlz: _firmaPlz,
+      creditorOrt: _firmaOrt,
+      creditorLand: _firmaLand,
+      betrag: betrag,
+      debtorName: kunde.name,
+      debtorStreet: kunde.strasseOnly,
+      debtorNr: kunde.nrOnly,
+      debtorPlz: kunde.plzOnly,
+      debtorOrt: kunde.ortOnly,
+      referenz: referenz,
+      mitteilung: mitteilung,
+    );
   }
 
   // ─── HELPERS ───
