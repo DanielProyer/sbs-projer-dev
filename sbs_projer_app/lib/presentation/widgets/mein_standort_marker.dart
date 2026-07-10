@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Auffällige Farbe für den eigenen Standort — kontrastiert stark mit dem vielen
-/// Grün (und Wasser-Blau) auf dem swisstopo-Luftbild und ist keine der
-/// Fälligkeits-Markerfarben.
-const meinStandortColor = Color(0xFFE91E63); // Magenta/Pink
+/// Farbe für den eigenen Standort-Punkt (klassisches „My-Location"-Blau).
+const meinStandortColor = Color(0xFF2196F3); // Blau
 
 /// Marker (gefüllter Punkt mit weissem Ring) für die aktuelle Handy-Position.
 Marker meinStandortMarker(LatLng point) {

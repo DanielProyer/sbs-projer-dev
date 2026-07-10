@@ -129,6 +129,8 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
           bottom: 34,
           child: FloatingActionButton.small(
             heroTag: 'event_standort',
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF2196F3),
             onPressed:
                 _standortLaedt ? null : () => _ladeStandort(zentrieren: true),
             tooltip: 'Mein Standort',

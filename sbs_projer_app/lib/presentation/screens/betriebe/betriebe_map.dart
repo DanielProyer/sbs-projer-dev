@@ -140,6 +140,8 @@ class _BetriebeMapState extends State<BetriebeMap> {
           bottom: 34,
           child: FloatingActionButton.small(
             heroTag: 'betriebe_standort',
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF2196F3),
             onPressed:
                 _standortLaedt ? null : () => _ladeStandort(zentrieren: true),
             tooltip: 'Mein Standort',
