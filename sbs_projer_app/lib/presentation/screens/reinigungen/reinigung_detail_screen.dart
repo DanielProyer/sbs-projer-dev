@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -300,6 +301,9 @@ class _ProtokollFotoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPdf = ProtokollFotoStorage.isPdf(fotoPfad);
+    // Foto-Protokolle liegen als PDF + JPG vor → das JPG als Voransicht nutzen.
+    final bildPfad =
+        isPdf ? ProtokollFotoStorage.jpgPathFromPdf(fotoPfad) : fotoPfad;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -310,85 +314,32 @@ class _ProtokollFotoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(isPdf ? Icons.picture_as_pdf : Icons.photo_camera,
+                const Icon(Icons.description,
                     size: 18, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
-                Text(
-                  isPdf ? 'Protokoll (PDF)' : 'Protokoll-Foto',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                if (!isPdf) ...[
-                  const Spacer(),
-                  const Text('Tippen zum Vergrössern',
-                      style: TextStyle(
-                          fontSize: 11, color: AppColors.textSecondary)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.zoom_in,
-                      size: 16, color: AppColors.textSecondary),
-                ],
+                const Text('Protokoll',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const Spacer(),
+                const Text('Tippen zum Vergrössern',
+                    style: TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary)),
+                const SizedBox(width: 4),
+                const Icon(Icons.zoom_in,
+                    size: 16, color: AppColors.textSecondary),
               ],
             ),
             const SizedBox(height: 12),
-            if (isPdf)
-              _buildPdfPreview()
-            else
-              _buildImagePreview(),
+            _buildImagePreview(context, bildPfad),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPdfPreview() {
+  Widget _buildImagePreview(BuildContext context, String bildPfad) {
     return FutureBuilder<String>(
-      future: ProtokollFotoStorage.getSignedUrl(fotoPfad),
-      builder: (context, snapshot) {
-        return Container(
-          height: 120,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.picture_as_pdf,
-                    size: 40, color: AppColors.error),
-                const SizedBox(height: 8),
-                if (snapshot.hasData)
-                  FilledButton.icon(
-                    onPressed: () {
-                      launchUrl(Uri.parse(snapshot.data!),
-                          mode: LaunchMode.externalApplication);
-                    },
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: const Text('PDF öffnen'),
-                  )
-                else if (snapshot.hasError)
-                  const Text('PDF nicht verfügbar',
-                      style: TextStyle(color: AppColors.textSecondary))
-                else
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildImagePreview() {
-    return FutureBuilder<String>(
-      future: ProtokollFotoStorage.getSignedUrl(fotoPfad),
+      future: ProtokollFotoStorage.getSignedUrl(bildPfad),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           return GestureDetector(
@@ -399,37 +350,52 @@ class _ProtokollFotoCard extends StatelessWidget {
                 snapshot.data!,
                 width: double.infinity,
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text('Foto konnte nicht geladen werden',
-                        style: TextStyle(color: AppColors.textSecondary)),
-                  ),
-                ),
+                errorBuilder: (_, _, _) => _fallback(context),
               ),
             ),
           );
         }
-        if (snapshot.hasError) {
-          return Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Center(
-              child: Text('Foto nicht verfügbar',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            ),
-          );
-        }
+        if (snapshot.hasError) return _fallback(context);
         return const SizedBox(
           height: 200,
           child: Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+  }
+
+  /// Wenn das JPG (noch) nicht verfügbar ist: Original-Protokoll öffnen.
+  Widget _fallback(BuildContext context) {
+    return FutureBuilder<String>(
+      future: ProtokollFotoStorage.getSignedUrl(fotoPfad),
+      builder: (context, snapshot) {
+        return Container(
+          height: 140,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.picture_as_pdf,
+                    size: 36, color: AppColors.error),
+                const SizedBox(height: 8),
+                if (snapshot.hasData)
+                  FilledButton.icon(
+                    onPressed: () => launchUrl(Uri.parse(snapshot.data!),
+                        mode: LaunchMode.externalApplication),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Protokoll öffnen'),
+                  )
+                else
+                  const Text('Vorschau nicht verfügbar',
+                      style: TextStyle(color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -754,13 +720,22 @@ class _PreisCard extends StatelessWidget {
 
   const _PreisCard({required this.reinigung});
 
-  String _rechnungsart() {
+  /// Echte Verrechnungsart aus dem Betrieb (rechnungsstellung); Kulanz-Override.
+  Future<String> _ladeVerrechnungsart() async {
     if (reinigung.istKulanz) return 'Kulanz (keine Verrechnung)';
-    if (reinigung.istHeinekenMonteur || reinigung.istBergkunde) {
-      return 'Heineken-Monatsrechnung';
-    }
-    return 'Kundenrechnung';
+    final b = await BetriebRepository.getByServerId(reinigung.betriebId);
+    return _rechnungsstellungLabel(b?.rechnungsstellung ?? 'rechnung_mail');
   }
+
+  static String _rechnungsstellungLabel(String v) => switch (v) {
+        'rechnung_mail' => 'Per E-Mail',
+        'rechnung_post' => 'Per Post',
+        'rechnung_tresen' => 'Rechnung Tresen',
+        'barzahlung' => 'Barzahlung',
+        'jahresrechnung' => 'Jahresrechnung',
+        'heineken' => 'Via Heineken',
+        _ => v,
+      };
 
   Widget _preisZeile(String label, double betrag) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
@@ -783,11 +758,7 @@ class _PreisCard extends StatelessWidget {
     if (!hasPreis && !reinigung.istKulanz) return const SizedBox.shrink();
 
     final kulanz = reinigung.istKulanz;
-    final artColor = kulanz
-        ? AppColors.warning
-        : (reinigung.istHeinekenMonteur || reinigung.istBergkunde)
-            ? AppColors.info
-            : AppColors.primary;
+    final artColor = kulanz ? AppColors.warning : AppColors.primary;
 
     final brutto = reinigung.preisBrutto != null
         ? _ReinigungDetailContent._roundTo5Rappen(reinigung.preisBrutto!)
@@ -820,11 +791,14 @@ class _PreisCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: artColor.withAlpha(60)),
                   ),
-                  child: Text(_rechnungsart(),
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: artColor)),
+                  child: FutureBuilder<String>(
+                    future: _ladeVerrechnungsart(),
+                    builder: (context, snap) => Text(snap.data ?? '…',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: artColor)),
+                  ),
                 ),
               ],
             ),
