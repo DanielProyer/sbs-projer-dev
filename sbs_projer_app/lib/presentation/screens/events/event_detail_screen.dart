@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/event_aufwand_slots.dart';
 import 'package:sbs_projer_app/core/util/event_status.dart';
 import 'package:sbs_projer_app/core/util/inbetriebnahme.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
+import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
@@ -18,6 +20,7 @@ import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/data/models/event_stand.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
+import 'package:sbs_projer_app/data/repositories/event_aufwand_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
@@ -27,9 +30,11 @@ import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_aufwand_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_einsatz_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_staende_map.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/montagen/montage_form_screen.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
 
@@ -51,7 +56,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     // FAB je Tab neu aufbauen.
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -239,10 +244,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
               ),
               TabBar(
                 controller: _tabController,
+                isScrollable: true,
                 tabs: const [
                   Tab(text: 'Kontakte'),
                   Tab(text: 'Stände'),
                   Tab(text: 'Einsätze'),
+                  Tab(text: 'Zeit'),
                   Tab(text: 'Dokumente'),
                 ],
               ),
@@ -253,6 +260,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                     _KontakteTab(eventServerId: eventServerId),
                     _StaendeTab(event: event),
                     _EinsaetzeTab(event: event),
+                    _ZeitTab(event: event),
                     _DokumenteTab(eventServerId: eventServerId),
                   ],
                 ),
@@ -265,7 +273,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen,
-  /// 2 Einsatz erfassen, 3 Dokument hochladen.
+  /// 2 Einsatz erfassen, 3 Zeit erfassen, 4 Dokument hochladen.
   Widget? _buildFab(String eventServerId) {
     switch (_tabController.index) {
       case 0:
@@ -288,6 +296,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         );
       case 3:
         return FloatingActionButton.extended(
+          onPressed: () => _zeitErfassen(eventServerId),
+          icon: const Icon(Icons.schedule),
+          label: const Text('Zeit erfassen'),
+        );
+      case 4:
+        return FloatingActionButton.extended(
           onPressed: () => _dokumentHochladen(eventServerId),
           icon: const Icon(Icons.upload_file),
           label: const Text('Dokument hochladen'),
@@ -305,6 +319,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       ),
     );
     ref.invalidate(eventEinsaetzeProvider(eventServerId));
+  }
+
+  /// Öffnet das Zeit-Formular (neu) und aktualisiert danach die Liste.
+  Future<void> _zeitErfassen(String eventServerId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventAufwandFormScreen(eventId: eventServerId),
+      ),
+    );
+    ref.invalidate(eventAufwaendeProvider(eventServerId));
   }
 
   /// Öffnet das Stand-Formular (neu) und aktualisiert danach die Stände-Liste.
@@ -1197,6 +1221,169 @@ class _EinsaetzeTab extends ConsumerWidget {
               ),
             );
           },
+        );
+      },
+    );
+  }
+}
+
+/// Zeit-Tab: erfasste Aufwand-Zeilen (Kategorie/Datum/Stunden) mit Total-Chip,
+/// «Montage generieren» (aggregiert je Tag zu Anlass-Slots) sowie Bearbeiten/
+/// Löschen je Zeile (E4).
+class _ZeitTab extends ConsumerWidget {
+  final EventLocal event;
+  const _ZeitTab({required this.event});
+
+  Future<void> _bearbeiten(
+      BuildContext context, WidgetRef ref, EventAufwandLocal a) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventAufwandFormScreen(
+          eventId: event.serverId!,
+          aufwandId: a.routeId,
+        ),
+      ),
+    );
+    ref.invalidate(eventAufwaendeProvider(event.serverId!));
+  }
+
+  Future<void> _loeschen(
+      BuildContext context, WidgetRef ref, EventAufwandLocal a) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Zeit löschen'),
+        content: const Text('Diese Zeile wirklich löschen?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await EventAufwandRepository.delete(a.routeId);
+      ref.invalidate(eventAufwaendeProvider(event.serverId!));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Zeit gelöscht')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _montageGenerieren(
+      BuildContext context, List<EventAufwandLocal> zeilen) async {
+    final slots = montageSlotsAusAufwand(
+      [for (final a in zeilen) (datum: a.datum, stunden: a.stunden)],
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MontageFormScreen(
+          vorbefuellung: MontageVorbefuellung(
+            montageTyp: 'anlass',
+            betriebId: event.betriebId,
+            datum: event.terminVon ?? DateTime.now(),
+            slots: slots,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(eventAufwaendeProvider(event.serverId!));
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Fehler: $e')),
+      data: (zeilen) {
+        final total = zeilen.fold<double>(0, (s, a) => s + a.stunden);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(
+                children: [
+                  Chip(
+                    label: Text('Total ${total.toStringAsFixed(2)} h'),
+                    backgroundColor: AppColors.surface,
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: zeilen.isEmpty
+                        ? null
+                        : () => _montageGenerieren(context, zeilen),
+                    icon: const Icon(Icons.receipt_long, size: 18),
+                    label: const Text('Montage generieren'),
+                  ),
+                ],
+              ),
+            ),
+            if (zeilen.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('Noch keine Zeiten erfasst.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
+                  itemCount: zeilen.length,
+                  itemBuilder: (ctx, i) {
+                    final a = zeilen[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        onTap: () => _bearbeiten(context, ref, a),
+                        title: Text(
+                          kAufwandKategorien[a.kategorie] ?? a.kategorie,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          '${_ddMMyyyy(a.datum)}'
+                          '${(a.notiz != null && a.notiz!.isNotEmpty) ? ' · ${a.notiz}' : ''}',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('${a.stunden.toStringAsFixed(2)} h',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  color: AppColors.error),
+                              onPressed: () => _loeschen(context, ref, a),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
         );
       },
     );
