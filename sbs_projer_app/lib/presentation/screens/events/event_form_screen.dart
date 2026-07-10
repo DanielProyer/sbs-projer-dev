@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 
@@ -35,6 +36,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
   /// Jüngstes Event des Betriebs mit kleinerem Jahr (nur bei Neu-Anlage).
   EventLocal? _vorjahrEvent;
   bool _uebernehmeVorjahr = true;
+  bool _uebernehmeVorjahrStaende = true;
   int _vorjahrCheckToken = 0;
 
   bool get _isEdit => widget.eventId != null;
@@ -75,9 +77,10 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     if (!mounted || token != _vorjahrCheckToken) return;
 
     setState(() {
-      // Bei neuer Quelle Checkbox wieder auf Default (angehakt) setzen
+      // Bei neuer Quelle Checkboxen wieder auf Default (angehakt) setzen
       if (vorjahr?.serverId != _vorjahrEvent?.serverId) {
         _uebernehmeVorjahr = true;
+        _uebernehmeVorjahrStaende = true;
       }
       _vorjahrEvent = vorjahr;
     });
@@ -139,21 +142,36 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
           : _notizenCtrl.text.trim();
       await EventRepository.save(e);
 
-      var uebernommen = -1;
+      var kontakteUebernommen = -1;
       if (!_isEdit && _uebernehmeVorjahr && _vorjahrEvent != null) {
-        uebernommen = await EventKontaktRepository.uebernehmeVon(
+        kontakteUebernommen = await EventKontaktRepository.uebernehmeVon(
+            _vorjahrEvent!.serverId!, e.serverId!);
+      }
+
+      var staendeUebernommen = -1;
+      if (!_isEdit && _uebernehmeVorjahrStaende && _vorjahrEvent != null) {
+        staendeUebernommen = await EventStandRepository.uebernehmeVon(
             _vorjahrEvent!.serverId!, e.serverId!);
       }
 
       ref.invalidate(eventsProvider);
 
       if (mounted) {
-        if (uebernommen >= 0) {
+        // Kombinierte Snackbar (Singular/Plural je Teil, nur übernommene Teile)
+        final teile = <String>[];
+        if (kontakteUebernommen >= 0) {
+          teile.add(kontakteUebernommen == 1
+              ? '1 Kontakt'
+              : '$kontakteUebernommen Kontakte');
+        }
+        if (staendeUebernommen >= 0) {
+          teile.add(staendeUebernommen == 1
+              ? '1 Stand'
+              : '$staendeUebernommen Stände');
+        }
+        if (teile.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(uebernommen == 1
-                    ? '1 Kontakt übernommen'
-                    : '$uebernommen Kontakte übernommen')),
+            SnackBar(content: Text('${teile.join(', ')} übernommen')),
           );
         }
         if (_isEdit) {
@@ -328,6 +346,18 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                 value: _uebernehmeVorjahr,
                 onChanged: (v) =>
                     setState(() => _uebernehmeVorjahr = v ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(
+                  'Stände aus '
+                  '‹${betriebNamen[_vorjahrEvent!.betriebId] ?? 'Betrieb'} '
+                  '${_vorjahrEvent!.jahr}› übernehmen',
+                ),
+                value: _uebernehmeVorjahrStaende,
+                onChanged: (v) =>
+                    setState(() => _uebernehmeVorjahrStaende = v ?? false),
               ),
             ],
             const SizedBox(height: 24),
