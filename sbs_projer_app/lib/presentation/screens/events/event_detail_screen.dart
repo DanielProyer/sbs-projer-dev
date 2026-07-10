@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_aufwand_slots.dart';
+import 'package:sbs_projer_app/core/util/event_mail_empfaenger.dart';
 import 'package:sbs_projer_app/core/util/event_status.dart';
 import 'package:sbs_projer_app/core/util/inbetriebnahme.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
@@ -30,12 +31,14 @@ import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_abschluss_sheet.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_aufwand_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_einsatz_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_staende_map.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/montagen/montage_form_screen.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
+import 'package:sbs_projer_app/services/pdf/event_abschluss_pdf_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
@@ -99,6 +102,125 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         );
       }
     }
+  }
+
+  /// Sammelt Event-Daten, baut das Abschluss-PDF und öffnet das Versand-Sheet.
+  Future<void> _abschlussMailSenden(EventLocal event, String nameMitJahr) async {
+    final eventId = event.serverId!;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final betriebName =
+          ref.read(betriebNameMapProvider)[event.betriebId] ?? 'Event';
+
+      final staende = await ref.read(eventStaendeProvider(eventId).future);
+      final einsaetze = await ref.read(eventEinsaetzeProvider(eventId).future);
+      final aufwaende = await ref.read(eventAufwaendeProvider(eventId).future);
+      final zuordnungen = await ref.read(eventKontakteProvider(eventId).future);
+      final kontakteMap = <String, KontaktLocal>{
+        for (final k in await ref.read(kontakteProvider.future))
+          if (k.serverId != null) k.serverId!: k,
+      };
+
+      final standDaten = <({String name, String anlagenText, String inbetriebLabel})>[];
+      final standNamen = <String, String>{};
+      var anlagenTotal = 0;
+      var anlagenInBetrieb = 0;
+      for (final s in staende) {
+        if (s.serverId != null) standNamen[s.serverId!] = s.name;
+        final anlagen = await EventStandAnlageRepository.getByStand(s.serverId!);
+        final f = inbetriebnahmeFortschritt(
+            anlagen.map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb)).toList());
+        anlagenTotal += f.total;
+        anlagenInBetrieb += f.inBetrieb;
+        standDaten.add((
+          name: s.name,
+          anlagenText: EventStand.anlagenText(
+              anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList()),
+          inbetriebLabel: f.label,
+        ));
+      }
+
+      final daten = EventAbschlussDaten(
+        eventName: betriebName,
+        zeitraum: _abschlussZeitraum(event),
+        staende: standDaten,
+        anlagenTotal: anlagenTotal,
+        anlagenInBetrieb: anlagenInBetrieb,
+        aufwaende: [
+          for (final a in aufwaende)
+            (datum: a.datum, kategorie: a.kategorie, notiz: a.notiz, stunden: a.stunden),
+        ],
+        einsaetze: [
+          for (final e in einsaetze)
+            (
+              zeitpunkt: e.zeitpunkt.toLocal(),
+              beschreibung: e.beschreibung,
+              material: e.material,
+              standName: e.standId != null ? standNamen[e.standId] : null,
+            ),
+        ],
+      );
+
+      final pdf = await EventAbschlussPdfService.build(daten);
+
+      String? mailVon(String kontaktId) => kontakteMap[kontaktId]?.email;
+      String nameVon(String kontaktId) {
+        final k = kontakteMap[kontaktId];
+        return k == null ? 'Unbekannt' : '${k.vorname} ${k.nachname ?? ''}'.trim();
+      }
+
+      final vorschlaege = abschlussEmpfaenger([
+        for (final z in zuordnungen)
+          (name: nameVon(z.kontaktId), rolle: z.rolle, email: mailVon(z.kontaktId)),
+      ]);
+      final vorschlagRollen = {'event_heineken', 'rsl'};
+      final weitere = <({String name, String email})>[
+        for (final z in zuordnungen)
+          if (!vorschlagRollen.contains(z.rolle) &&
+              (mailVon(z.kontaktId)?.trim().isNotEmpty ?? false))
+            (name: nameVon(z.kontaktId), email: mailVon(z.kontaktId)!.trim()),
+      ];
+
+      if (!mounted) return;
+      Navigator.pop(context); // Ladehinweis schliessen
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => EventAbschlussSheet(
+          eventName: betriebName,
+          jahr: event.jahr,
+          vorschlaege: vorschlaege,
+          weitereKontakte: weitere,
+          pdf: pdf,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Ladehinweis schliessen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  /// Zeitraum-String fürs PDF: „dd.-dd.MM.yyyy" wenn Termin gesetzt, sonst Jahr.
+  String _abschlussZeitraum(EventLocal event) {
+    final von = event.terminVon;
+    final bis = event.terminBis;
+    String z(int v) => v.toString().padLeft(2, '0');
+    if (von != null && bis != null) {
+      return '${z(von.day)}.-${z(bis.day)}.${z(bis.month)}.${bis.year}';
+    }
+    if (von != null) {
+      return '${z(von.day)}.${z(von.month)}.${von.year}';
+    }
+    return '${event.jahr}';
   }
 
   /// Löscht das Event nach Bestätigung — zuerst die Zuordnungen, dann das
@@ -200,6 +322,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   switch (value) {
                     case 'vorjahr':
                       _ausVorjahrUebernehmen(event);
+                    case 'abschluss':
+                      _abschlussMailSenden(event, name);
                     case 'loeschen':
                       _eventLoeschen(event, name);
                   }
@@ -212,6 +336,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                         Icon(Icons.history, size: 20),
                         SizedBox(width: 8),
                         Text('Aus Vorjahr übernehmen'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'abschluss',
+                    child: Row(
+                      children: [
+                        Icon(Icons.mark_email_read_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('Abschluss-Mail senden'),
                       ],
                     ),
                   ),
