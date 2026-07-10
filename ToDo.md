@@ -1,6 +1,12 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.26.0
+**Stand:** 10.07.2026 · **Live:** v0.26.4
+
+---
+
+## 🟢 Karten-Hintergrund + Handy-Standort (live v0.26.1–v0.26.4 · 10.07.2026)
+- [x] ✓ Umschalter **Luftbild ↔ Strassenkarte** (swisstopo) in Betriebe- + Event-Karte (kostenlos/legal, kein Google-Tile-ToS-Verstoss).
+- [x] ✓ **Handy-Standort** als blauer Punkt + weiss/blauer „Mein Standort"-Zentrier-Button; Filter „Inaktive/geschl." entfernt (inaktive/geschlossene auf der Karte generell ausgeblendet).
 
 ---
 
@@ -35,8 +41,6 @@
 - [x] ✓ **PDF:** verwendetes Material der Pikett-Einsätze inkl. Menge in der Einsatz-Tabelle.
 - [x] ✓ **Stand-Kontakt:** bei „Kontakt zuordnen" mit Rolle „Stand" ist der konkrete **Stand auswählbar** (Migration 125: `event_kontakte.stand_id`); die Stand-Karte zeigt den zugeordneten Kontakt (Name · Tel) direkt an.
 - [x] ✓ Qualität: subagent-getrieben (3 + Verifikation), finaler Review **APPROVED**, 244 Tests grün.
-- [ ] **🟡 Weiterhin offen:** Testdaten „Openair Val Lumnezia 2026" löschen + Mail scharfstellen (`eventScharf=true`) NACH deiner Abnahme.
-
 ---
 
 ## 🟢 Events-Feinschliff (live v0.22.0 · 10.07.2026)
@@ -45,8 +49,6 @@
 - [x] ✓ **Professionelleres Abschluss-PDF** (dunkle Sektions-Header, Zusammenfassungs-Box, Zebra-Tabellen mit dunkler Kopfzeile, Fußzeile mit Datum + Seitenzahl).
 - [x] ✓ **Material↔Lager im Pikett-Einsatz** (Migration 124: `event_einsaetze.material_id` + `material_menge`): Lager-Artikel per Autocomplete + Menge; Bestand (`bestand_aktuell`) wird **beim Anlegen** abgebucht (keine Storno-Automatik bei Bearbeiten/Löschen). Freitext-Material bleibt.
 - [x] ✓ Qualität: subagent-getrieben (5 + Verifikation), finaler Review **APPROVED**, 244 Tests grün, visuell geprüft (Menü, Vorschau-Button).
-- [ ] **🟡 Offen:** ⚠️ Bestand kann negativ werden, wenn Menge > Bestand (keine Validierung — bewusst). Testdaten von „Openair Val Lumnezia 2026" löschen + Mail scharfstellen (`eventScharf=true`) NACH deiner PDF-Abnahme.
-
 ---
 
 ## 🟢 Events-Modul — Phase E5 (live v0.21.0 · 10.07.2026) — Events-Modul E1–E5 KOMPLETT
@@ -55,7 +57,6 @@ Spec `docs/superpowers/specs/2026-07-10-events-e5-design.md`. **Abschluss-Mail**
 - [x] ✓ **Empfänger-Sheet** (Menüpunkt „Abschluss-Mail senden" im 3-Punkte-Menü): Eventverantwortlicher (`event_heineken`) + RSL automatisch vorgeschlagen, mit E-Mail vorangehakt, ohne E-Mail ausgegraut; weitere Kontakte + freie Mail-Adresse; Versand kommasepariert in einem Aufruf (`send-pdf-mail`).
 - [x] ✓ **Scharfstellung:** neuer MailConfig-Bereich `event` (`eventScharf=false`) → Testmodus geht an dich (dani.proyer@gmail.com), Sheet zeigt Hinweis. Keine DB-Migration.
 - [x] ✓ Qualität: subagent-getrieben (6 Tasks), finaler Branch-Review **APPROVED**, 244 Tests grün (7 neue). Visueller Web-Test: Menü → Sheet mit RSL-Vorschlag (beat.joerg@heineken.com vorangehakt) + Testmodus-Hinweis, PDF fehlerfrei gebaut.
-- [ ] **🟡 Am Handy testen + scharfstellen:** echten **Testversand** auslösen (geht an dein Postfach) und das **PDF prüfen** (Layout, Sonderzeichen, Inhalt). Danach `eventScharf = true` in `lib/core/config/mail_config.dart` setzen + neu deployen, damit die Mail an die echten Empfänger geht.
 
 ---
 
@@ -64,8 +65,6 @@ Spec `docs/superpowers/specs/2026-07-10-events-e4-design.md`. Event-Detail jetzt
 - [x] ✓ **Zeit-/Spesenerfassung** (neue Sync-Vertikale `event_aufwand`, Migration 123): Zeilen mit Datum + Kategorie (Anfahrt/Inbetriebnahme/Pikett/Spesen) + Notiz + Stunden. Neuer Tab „Zeit" mit Total-Stunden-Chip, Erfassungs-Formular, Bearbeiten/Löschen. Spesen werden als zusätzliche Stunden verrechnet (kein CHF-Feld).
 - [x] ✓ **Auto-Montage-Generierung**: Button „Montage generieren" aggregiert die Zeit-Zeilen **pro Eventtag** (≤5 Slots, >5 Tage → 4 Tage + „Weitere Tage") und öffnet das bestehende Montage-Formular **vorbefüllt** (Typ Anlass, Betrieb = Veranstaltungs-Betrieb, Startdatum, Slots, Stundensatz aus Preisliste). Du prüfst + speicherst → normaler Heineken-Abrechnungsfluss. Pikettdienst ist ein eigener Zeitblock; die E3-Einsätze bleiben reine Doku (nicht separat verrechnet).
 - [x] ✓ Qualität: subagent-getrieben (10 Tasks + Migration), finaler Branch-Review **APPROVED**, 237 Tests grün (5 neue: DTO + 4 Aggregation). Visueller Web-Test: 5 Tabs, Zeit erfassen/Total, „Montage generieren" → Formular korrekt vorbefüllt (Fr 10.7. 16h · Fr 24.7. 8.5h → 24.50h × 80 = 1960 CHF).
-- [ ] **🟡 Am Handy bestätigen (native, live):** Zeit-Live-Refresh (im Web erschien der 2. Eintrag erst nach Reload — Supabase Read-after-Write-Latenz; native/Isar instant); „Montage generieren" real speichern und in der Monatsrechnung prüfen.
-
 - [x] ✓ **UI (v0.20.1):** Event-Tabs füllen die Breite gleichmäßig (kein Scrollen mehr auf dem Handy / Pixel 9), kompaktere Label-Abstände.
 - [x] ✓ **GPS-Fix (v0.20.2):** „Standort erfassen" warf im Web `MissingPluginException` — Ursache war ein veralteter Web-Plugin-Registrant ohne `geolocator_web` (Build-Cache). Fix: `flutter clean` + Neubau (Registrant enthält geolocator wieder). Zusätzlich `ACCESS_FINE/COARSE_LOCATION` in `AndroidManifest.xml` ergänzt (für native Builds).
 
@@ -80,7 +79,6 @@ Spec `docs/superpowers/specs/2026-07-10-events-e3-design.md`. Event-Detail jetzt
 - [x] ✓ **Karten-Umschalter im Stände-Tab** (Liste ↔ Karte): `flutter_map` mit **swisstopo-Luftbild** (SWISSIMAGE WMTS, kein API-Key), Marker pro Stand mit GPS, Tap → Stand. Repaint-Nudge (onMapReady move) gegen CanvasKit-Grau-Kacheln.
 - [x] ✓ **Einsätze-Tab** (Pikett): minimales Formular (Beschreibung*, Material-Freitext, optionaler Stand, Zeitpunkt=jetzt/editierbar), Liste neueste zuerst, bearbeiten/löschen. Volle Sync-Vertikale `event_einsaetze` (Migration 122). Grundlage für E4-Abschluss-Mail.
 - [x] ✓ Qualität: subagent-getrieben (12 Tasks), finaler Branch-Review **APPROVED** (kritischer id-basierter Stand-Save geprüft), 232 Tests grün. Visueller Web-Test: Karte rendert swisstopo sofort, Marker bei Vella; Einsatz anlegen→DB→Liste→löschen; 4 Tabs + FAB-Index korrekt.
-- [ ] **🟡 Am Handy bestätigen (native, live):** **GPS-Standort erfassen** (Browser-Automation kann den nativen Geolocation-Dialog nicht bedienen) → Marker erscheint auf swisstopo-Karte; Einsatz-Live-Refresh (im Web erschien neuer Einsatz erst nach Tab-Wechsel — Supabase Read-after-Write-Latenz; native/Isar instant).
 - [ ] **🟡 Testdaten aufräumen:** Stand **Signina Bar** hat für den Karten-Test gesetzte GPS-Koordinaten (46.7355 / 9.1378, Vella) — vor Ort neu erfassen/überschreiben.
 
 **Nächste Phase:** **E4** Abschluss-Mail (Einsatzliste als PDF an Eventverantwortlichen + RSL, MailConfig-Bereich `event`) · *optional* Verteilung-PDF-KI-Import.
@@ -92,8 +90,6 @@ Spec `docs/superpowers/specs/2026-07-10-events-e2-design.md`. Event-Detail jetzt
 - [x] ✓ **Stände** pro Event-Jahr mit **Schankanlagen** (Typen: Oberthekengerät/OT, Hollandbuffet, Ausschankwagen, Sonstige) — dynamische Anlagen-Zeilen im Stand-Formular, Zusammenfassung „7× OT · 1× Hollandbuffet". Vorjahres-Übernahme (Checkbox im Event-Formular + Menü im Tab, Merge case-insensitive über Stand-Namen).
 - [x] ✓ **Dokument-Ablage** pro Event-Jahr: PDF hochladen (Lageplan, Verteilung …) in privaten Storage-Bucket `event-dokumente`, ansehen (signed URL, PDF-Viewer), löschen. Migration 120 (3 Tabellen + Bucket + RLS).
 - [x] ✓ Qualität: subagent-getrieben (10 Tasks), finaler Branch-Review **APPROVED** (kritischer Tab-Umbau: Kontakte-Tab unverändert; serverId→Anlagen-Kette + Native-Delete W1 sauber), 228 Tests grün (4 neue). Visueller Web-Test: Tabs, Stand+Anlagen anlegen, Dokumente-Tab bestätigt.
-- [ ] **🟡 Am Handy bestätigen:** echter **PDF-Upload** des Lageplans (Datei-Dialog per Web-Automation nicht testbar) + Öffnen/Löschen; sowie ob die Stände-Liste direkt nach dem Anlegen refresht (im Web-Test kam der neue Stand erst nach Tab-Wechsel — evtl. nur Refetch-Latenz, beobachten).
-- [ ] **🟡 Kosmetik offen (aus Review):** Anzahl-Feld korrigiert `_anzahl` intern auf 1, aktualisiert aber die sichtbare Eingabe nicht (kein Datenfehler); redundante Provider-Invalidierung nach Stand-Bearbeiten.
 
 **Nächste Phasen:** **E3** Inbetriebnahme-Checkliste + GPS-Standorte der Stände + Karten-Tab (flutter_map + swisstopo-Luftbild, kein API-Key) + Pikett-Einsätze (Stand + Beschreibung + 1 Material) · **E4** Abschluss-Mail (Einsatzliste als PDF an Eventverantwortlichen + RSL + optional, MailConfig-Bereich `event`) · *optional* Verteilung-PDF-KI-Import.
 
@@ -106,7 +102,6 @@ Spec `docs/superpowers/specs/2026-07-09-events-e1-design.md`, Plan + Ablauf-Kont
 - [x] ✓ **WhatsApp + Anruf** direkt aus der Liste (wa.me mit CH-Normalisierung, getestet: +41 79 885 20 88 → wa.me/41798852088).
 - [x] ✓ Qualität: subagent-getrieben (9 Tasks, je Spec-+Qualitäts-Review), finaler Branch-Review APPROVED, 224 Tests grün (15 neue), visueller Web-Test komplett (Anlegen, Zuordnen, Übernahme, Löschen). Review-Fixes W1+W2 umgesetzt (Native-Delete serverseitig; `KontaktRepository.save` generiert jetzt Client-UUID).
 - [ ] **🟡 Bekanntes Verhalten (Multi-Device, W3):** Legen zwei Geräte offline dasselbe Event-Jahr an, scheitert der zweite Push am UNIQUE-Constraint dauerhaft still (`isSynced=false` bleibt). Bei Ein-Personen-Nutzung akzeptabel; fixen falls je zweites Gerät aktiv schreibt.
-- [ ] **🟡 Kosmetik offen (K1/K3):** Status-Badge/Termin-Format in Liste+Detail dupliziert (gemeinsames Widget lohnenswert bei E2); Web-`getAll` ohne Pagination (irrelevant bei < 1000 Events).
 
 **Nächste Phasen:** **E2** Lageplan-PDF + Stände + Anlagen pro Stand (Beispieldateien in `00_Event/`, nicht versioniert) · **E3** Inbetriebnahme + GPS-Standorte + Karten-Tab (flutter_map + swisstopo-Luftbild, kein API-Key) + Pikett-Einsätze (1 Material-Slot) · **E4** Abschluss-Mail (Einsatzliste als PDF an Eventverantwortlichen + RSL + optional, MailConfig-Bereich `event`).
 
