@@ -1,6 +1,16 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.20.2
+**Stand:** 10.07.2026 · **Live:** v0.21.0
+
+---
+
+## 🟢 Events-Modul — Phase E5 (live v0.21.0 · 10.07.2026) — Events-Modul E1–E5 KOMPLETT
+Spec `docs/superpowers/specs/2026-07-10-events-e5-design.md`. **Abschluss-Mail** nach dem Event:
+- [x] ✓ **Abschlussbericht als PDF** (ohne CHF): Zusammenfassung (Stände/Anlagen-in-Betrieb/Einsätze/Total-Std), Stände mit Anlagen + Inbetriebnahme, Zeit & Aufwand gruppiert nach Kategorie (Anfahrt/Inbetriebnahme/Pikett/Spesen), Pikett-Einsatzliste. Sonderzeichen (`✓`/`–`/`—`) auf ASCII sanitisiert (Helvetica-Font).
+- [x] ✓ **Empfänger-Sheet** (Menüpunkt „Abschluss-Mail senden" im 3-Punkte-Menü): Eventverantwortlicher (`event_heineken`) + RSL automatisch vorgeschlagen, mit E-Mail vorangehakt, ohne E-Mail ausgegraut; weitere Kontakte + freie Mail-Adresse; Versand kommasepariert in einem Aufruf (`send-pdf-mail`).
+- [x] ✓ **Scharfstellung:** neuer MailConfig-Bereich `event` (`eventScharf=false`) → Testmodus geht an dich (dani.proyer@gmail.com), Sheet zeigt Hinweis. Keine DB-Migration.
+- [x] ✓ Qualität: subagent-getrieben (6 Tasks), finaler Branch-Review **APPROVED**, 244 Tests grün (7 neue). Visueller Web-Test: Menü → Sheet mit RSL-Vorschlag (beat.joerg@heineken.com vorangehakt) + Testmodus-Hinweis, PDF fehlerfrei gebaut.
+- [ ] **🟡 Am Handy testen + scharfstellen:** echten **Testversand** auslösen (geht an dein Postfach) und das **PDF prüfen** (Layout, Sonderzeichen, Inhalt). Danach `eventScharf = true` in `lib/core/config/mail_config.dart` setzen + neu deployen, damit die Mail an die echten Empfänger geht.
 
 ---
 
