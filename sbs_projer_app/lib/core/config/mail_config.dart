@@ -23,9 +23,9 @@ class MailConfig {
   static const heigenieScharf = true;
   static const bestellungScharf = false;
   static const mahnwesenScharf = false;
-  // Events-Abschlussmail: startet im Testmodus, nach erfolgreichem Testversand
-  // manuell auf true stellen.
-  static const eventScharf = false;
+  // Events-Abschlussmail: scharfgestellt 10.07.2026 nach erfolgreichem Test —
+  // Versand geht an die echten Empfänger (Eventverantwortlicher/RSL).
+  static const eventScharf = true;
 
   /// Unsichtbare Zeichen, die beim Copy-Paste in E-Mail-Adressen geraten und
   /// z.B. beim Gmail-Versand "Invalid To header" auslösen:

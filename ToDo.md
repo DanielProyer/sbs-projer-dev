@@ -1,6 +1,12 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.23.0
+**Stand:** 10.07.2026 · **Live:** v0.23.1
+
+---
+
+## 🟢 Events-Modul scharfgestellt + Testdaten weg (v0.23.1 · 10.07.2026)
+- [x] ✓ **Testdaten gelöscht:** Event „Openair Val Lumnezia 2026" (+2 Kontakt-Zuordnungen, 3 Stände, 5 Anlagen, 5 Einsätze, 5 Aufwand-Zeilen) per Cascade entfernt; 2 Test-Lager-Abbuchungen zurückgebucht. Globale Kontakte bleiben.
+- [x] ✓ **Abschluss-Mail scharfgestellt:** `eventScharf = true` in `mail_config.dart` — Abschlussbericht geht jetzt an die echten Empfänger (Eventverantwortlicher/RSL). **Events-Modul E1–E5 + Feinschliff produktiv.**
 
 ---
 
