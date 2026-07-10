@@ -7,8 +7,14 @@ import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 
-/// Formular zum Anlegen/Bearbeiten eines Pikett-Einsatzes: Beschreibung,
-/// Material, optionaler Stand und Zeitpunkt (Datum + Zeit).
+/// Freitext-Option im Material-Autocomplete (kein Lager-Artikel).
+class _MaterialFreitext {
+  final String text;
+  const _MaterialFreitext(this.text);
+}
+
+/// Formular zum Anlegen/Bearbeiten eines Pikett-Einsatzes: Stand, Beschreibung,
+/// Material (Lager-Artikel oder Freitext) und Zeitpunkt.
 class EventEinsatzFormScreen extends ConsumerStatefulWidget {
   final String eventId;
   final String? einsatzId; // null = neu
@@ -33,6 +39,7 @@ class _EventEinsatzFormScreenState
 
   final _beschreibungController = TextEditingController();
   final _materialController = TextEditingController();
+  final _materialFocus = FocusNode();
   String? _standId;
   DateTime _zeitpunkt = DateTime.now();
 
@@ -72,8 +79,7 @@ class _EventEinsatzFormScreenState
 
   Future<void> _loadEinsatz() async {
     try {
-      final einsaetze =
-          await EventEinsatzRepository.getByEvent(widget.eventId);
+      final einsaetze = await EventEinsatzRepository.getByEvent(widget.eventId);
       final einsatz = einsaetze
           .where((e) => e.routeId == widget.einsatzId)
           .cast<EventEinsatzLocal?>()
@@ -112,13 +118,8 @@ class _EventEinsatzFormScreenState
     );
     if (zeit == null || !mounted) return;
     setState(() {
-      _zeitpunkt = DateTime(
-        datum.year,
-        datum.month,
-        datum.day,
-        zeit.hour,
-        zeit.minute,
-      );
+      _zeitpunkt =
+          DateTime(datum.year, datum.month, datum.day, zeit.hour, zeit.minute);
     });
   }
 
@@ -175,16 +176,111 @@ class _EventEinsatzFormScreenState
   void dispose() {
     _beschreibungController.dispose();
     _materialController.dispose();
+    _materialFocus.dispose();
     _mengeController.dispose();
     super.dispose();
+  }
+
+  /// Ein Material-Feld: Autocomplete mit Freitext-Option oben + Lager-Artikeln.
+  Widget _materialFeld() {
+    return RawAutocomplete<Object>(
+      textEditingController: _materialController,
+      focusNode: _materialFocus,
+      displayStringForOption: (o) =>
+          o is Lager ? o.name : (o as _MaterialFreitext).text,
+      optionsBuilder: (v) {
+        final q = v.text.trim();
+        final matches = q.isEmpty
+            ? _lagerItems.take(15).toList()
+            : _lagerItems
+                .where((l) => l.name.toLowerCase().contains(q.toLowerCase()))
+                .toList();
+        return [
+          if (q.isNotEmpty) _MaterialFreitext(q),
+          ...matches,
+        ];
+      },
+      onSelected: (o) {
+        setState(() {
+          if (o is Lager) {
+            _selectedLager = o;
+            _materialController.text = o.name;
+          } else {
+            _selectedLager = null;
+            _materialController.text = (o as _MaterialFreitext).text;
+          }
+        });
+      },
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: 'Material',
+            prefixIcon: const Icon(Icons.build),
+            suffixIcon: controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      controller.clear();
+                      setState(() => _selectedLager = null);
+                    },
+                  )
+                : null,
+          ),
+          onChanged: (t) {
+            if (_selectedLager != null && t != _selectedLager!.name) {
+              setState(() => _selectedLager = null);
+            }
+          },
+          onSubmitted: (_) => onSubmitted(),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final list = options.toList();
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240, maxWidth: 400),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: list.length,
+                itemBuilder: (ctx, i) {
+                  final o = list[i];
+                  if (o is _MaterialFreitext) {
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.edit, size: 18),
+                      title: Text('«${o.text}»'),
+                      subtitle: const Text('Freitext (nicht in Liste)'),
+                      onTap: () => onSelected(o),
+                    );
+                  }
+                  final l = o as Lager;
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.inventory_2_outlined, size: 18),
+                    title: Text(l.name),
+                    subtitle: Text(
+                        'Bestand: ${l.bestandAktuell.toStringAsFixed(0)} ${l.einheit}'),
+                    onTap: () => onSelected(o),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_initialLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final staendeAsync = ref.watch(eventStaendeProvider(widget.eventId));
@@ -198,88 +294,11 @@ class _EventEinsatzFormScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextFormField(
-              controller: _beschreibungController,
-              decoration: const InputDecoration(
-                labelText: 'Beschreibung *',
-                prefixIcon: Icon(Icons.description),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 3,
-              textInputAction: TextInputAction.newline,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Beschreibung erforderlich'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _materialController,
-              decoration: const InputDecoration(
-                labelText: 'Material',
-                prefixIcon: Icon(Icons.build),
-              ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
-            if (_lagerItems.isNotEmpty)
-              Autocomplete<Lager>(
-                initialValue:
-                    TextEditingValue(text: _selectedLager?.name ?? ''),
-                displayStringForOption: (l) => l.name,
-                optionsBuilder: (v) {
-                  if (v.text.isEmpty) return _lagerItems.take(15);
-                  final q = v.text.toLowerCase();
-                  return _lagerItems
-                      .where((l) => l.name.toLowerCase().contains(q));
-                },
-                onSelected: (l) => setState(() => _selectedLager = l),
-                fieldViewBuilder:
-                    (context, controller, focusNode, onSubmitted) {
-                  return TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: InputDecoration(
-                      labelText: 'Lager-Artikel (optional)',
-                      prefixIcon: const Icon(Icons.inventory_2_outlined),
-                      suffixIcon: _selectedLager != null
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                controller.clear();
-                                setState(() => _selectedLager = null);
-                              },
-                            )
-                          : null,
-                    ),
-                    onChanged: (t) {
-                      if (t.isEmpty && _selectedLager != null) {
-                        setState(() => _selectedLager = null);
-                      }
-                    },
-                  );
-                },
-              ),
-            if (_selectedLager != null) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _mengeController,
-                decoration: InputDecoration(
-                  labelText: 'Menge',
-                  prefixIcon: const Icon(Icons.numbers),
-                  suffixText: _selectedLager!.einheit,
-                  helperText:
-                      'Bestand aktuell: ${_selectedLager!.bestandAktuell.toStringAsFixed(0)} ${_selectedLager!.einheit}',
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-            ],
-            const SizedBox(height: 16),
+            // Stand ganz oben
             staendeAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('Fehler beim Laden der Stände: $e'),
               data: (staende) {
-                // Gewählter Stand könnte gelöscht sein → auf null zurückfallen.
                 final gueltig = _standId != null &&
                     staende.any((s) => s.serverId == _standId);
                 return DropdownButtonFormField<String?>(
@@ -303,6 +322,37 @@ class _EventEinsatzFormScreenState
                 );
               },
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _beschreibungController,
+              decoration: const InputDecoration(
+                labelText: 'Beschreibung *',
+                prefixIcon: Icon(Icons.description),
+                alignLabelWithHint: true,
+              ),
+              maxLines: 3,
+              textInputAction: TextInputAction.newline,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Beschreibung erforderlich'
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            _materialFeld(),
+            if (_selectedLager != null) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _mengeController,
+                decoration: InputDecoration(
+                  labelText: 'Menge',
+                  prefixIcon: const Icon(Icons.numbers),
+                  suffixText: _selectedLager!.einheit,
+                  helperText:
+                      'Bestand aktuell: ${_selectedLager!.bestandAktuell.toStringAsFixed(0)} ${_selectedLager!.einheit}',
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
             const SizedBox(height: 16),
             InkWell(
               onTap: _zeitpunktWaehlen,
