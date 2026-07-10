@@ -168,6 +168,13 @@ class IsarService {
   static dynamic eventEinsatzPut(dynamic e) => throw UnsupportedError('Isar not available on web');
   static dynamic eventEinsatzDelete(int id) => throw UnsupportedError('Isar not available on web');
 
+  // ─── EventAufwand ───
+  static dynamic eventAufwandFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventAufwandGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventAufwandFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventAufwandPut(dynamic e) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventAufwandDelete(int id) => throw UnsupportedError('Isar not available on web');
+
   // ─── EventStand ───
   static dynamic eventStandFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
   static dynamic eventStandGet(int id) => throw UnsupportedError('Isar not available on web');
