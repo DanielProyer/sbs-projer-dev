@@ -129,6 +129,13 @@ class _BetriebDetailContent extends ConsumerWidget {
             icon: Icons.info_outline,
             children: [
               _InfoRow('Status', betrieb.status),
+              if (betrieb.status == 'geschlossen') ...[
+                _InfoRow('Schliessungsgrund',
+                    _schliessungsgrundLabel(betrieb.schliessungsgrund)),
+                if (betrieb.schliessungsdatum != null)
+                  _InfoRow('Schliessungsdatum',
+                      _formatDate(betrieb.schliessungsdatum!)),
+              ],
               _InfoRow('Zapfsysteme', betrieb.zapfsysteme.isEmpty ? '–' : betrieb.zapfsysteme.join(', ')),
               _InfoRow('Mein Kunde', betrieb.istMeinKunde ? 'Ja' : 'Nein'),
               _InfoRow('Bergkunde', betrieb.istBergkunde ? 'Ja' : 'Nein'),
@@ -331,6 +338,16 @@ class _BetriebDetailContent extends ConsumerWidget {
             .where((s) => s != null && s.isNotEmpty)
             .join(' '),
       );
+
+  String _schliessungsgrundLabel(String? value) {
+    switch (value) {
+      case 'umnutzung': return 'Umnutzung';
+      case 'abbruch': return 'Abbruch';
+      case 'konkurs': return 'Konkurs';
+      case 'sonstiges': return 'Sonstiges';
+      default: return '–';
+    }
+  }
 
   String _rechnungsstellungLabel(String value) {
     switch (value) {
