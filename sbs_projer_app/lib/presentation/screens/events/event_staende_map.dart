@@ -5,7 +5,7 @@ import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 
 /// Karte mit swisstopo-Luftbild und einem Marker je Stand (mit GPS).
 /// Tap auf Marker ruft [onStandTap] mit dem Stand auf.
-class EventStaendeMap extends StatelessWidget {
+class EventStaendeMap extends StatefulWidget {
   final List<EventStandLocal> staende;
   final void Function(EventStandLocal) onStandTap;
 
@@ -13,8 +13,15 @@ class EventStaendeMap extends StatelessWidget {
       {super.key, required this.staende, required this.onStandTap});
 
   @override
+  State<EventStaendeMap> createState() => _EventStaendeMapState();
+}
+
+class _EventStaendeMapState extends State<EventStaendeMap> {
+  final _controller = MapController();
+
+  @override
   Widget build(BuildContext context) {
-    final mitGps = staende
+    final mitGps = widget.staende
         .where((s) => s.latitude != null && s.longitude != null)
         .toList();
     if (mitGps.isEmpty) {
@@ -33,12 +40,23 @@ class EventStaendeMap extends StatelessWidget {
         mitGps.map((s) => LatLng(s.latitude!, s.longitude!)).toList();
 
     return FlutterMap(
+      mapController: _controller,
       options: MapOptions(
         initialCameraFit: CameraFit.coordinates(
           coordinates: punkte,
           padding: const EdgeInsets.all(48),
           maxZoom: 18,
         ),
+        onMapReady: () {
+          // CanvasKit zeichnet die Kacheln sonst erst nach der ersten
+          // Interaktion. Ein minimaler (unsichtbarer) Kamera-Nudge nach dem
+          // ersten Frame erzwingt den Repaint, sodass das Luftbild sofort da ist.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final cam = _controller.camera;
+            _controller.move(cam.center, cam.zoom + 0.02);
+          });
+        },
       ),
       children: [
         TileLayer(
@@ -55,7 +73,7 @@ class EventStaendeMap extends StatelessWidget {
                 width: 40,
                 height: 40,
                 child: GestureDetector(
-                  onTap: () => onStandTap(s),
+                  onTap: () => widget.onStandTap(s),
                   child: const Icon(Icons.location_on,
                       color: Colors.red, size: 40),
                 ),
