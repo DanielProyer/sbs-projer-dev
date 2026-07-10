@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
+import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
+import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 
 /// Formular zum Anlegen/Bearbeiten eines Pikett-Einsatzes: Beschreibung,
@@ -34,15 +36,38 @@ class _EventEinsatzFormScreenState
   String? _standId;
   DateTime _zeitpunkt = DateTime.now();
 
+  List<Lager> _lagerItems = [];
+  Lager? _selectedLager;
+  String? _existingMaterialId; // aus geladenem Einsatz, bis Lager geladen
+  final _mengeController = TextEditingController();
+
   bool get _isEdit => widget.einsatzId != null;
 
   @override
   void initState() {
     super.initState();
+    _loadLager();
     if (_isEdit) {
       _initialLoading = true;
       _loadEinsatz();
     }
+  }
+
+  Future<void> _loadLager() async {
+    try {
+      final items = await LagerRepository.getAll();
+      if (!mounted) return;
+      setState(() {
+        _lagerItems = items;
+        _resolveLager();
+      });
+    } catch (_) {}
+  }
+
+  void _resolveLager() {
+    if (_existingMaterialId == null) return;
+    final match = _lagerItems.where((l) => l.id == _existingMaterialId);
+    if (match.isNotEmpty) _selectedLager = match.first;
   }
 
   Future<void> _loadEinsatz() async {
@@ -63,6 +88,9 @@ class _EventEinsatzFormScreenState
         _materialController.text = einsatz.material ?? '';
         _standId = einsatz.standId;
         _zeitpunkt = einsatz.zeitpunkt.toLocal();
+        _existingMaterialId = einsatz.materialId;
+        _mengeController.text = einsatz.materialMenge?.toString() ?? '';
+        _resolveLager();
         _initialLoading = false;
       });
     } catch (_) {
@@ -108,7 +136,20 @@ class _EventEinsatzFormScreenState
       einsatz.beschreibung = _beschreibungController.text.trim();
       final material = _materialController.text.trim();
       einsatz.material = material.isEmpty ? null : material;
+      einsatz.materialId = _selectedLager?.id;
+      einsatz.materialMenge = _selectedLager != null
+          ? (double.tryParse(_mengeController.text.replaceAll(',', '.')) ?? 0)
+          : null;
       await EventEinsatzRepository.save(einsatz);
+
+      // Bestand nur beim ANLEGEN abbuchen (keine Storno-Automatik bei Bearbeiten).
+      if (!_isEdit &&
+          _selectedLager != null &&
+          (einsatz.materialMenge ?? 0) > 0) {
+        final neu = _selectedLager!.bestandAktuell - einsatz.materialMenge!;
+        await LagerRepository.update(
+            _selectedLager!.id, {'bestand_aktuell': neu});
+      }
 
       ref.invalidate(eventEinsaetzeProvider(widget.eventId));
       if (mounted) {
@@ -134,6 +175,7 @@ class _EventEinsatzFormScreenState
   void dispose() {
     _beschreibungController.dispose();
     _materialController.dispose();
+    _mengeController.dispose();
     super.dispose();
   }
 
@@ -178,6 +220,60 @@ class _EventEinsatzFormScreenState
               ),
               textInputAction: TextInputAction.next,
             ),
+            const SizedBox(height: 16),
+            if (_lagerItems.isNotEmpty)
+              Autocomplete<Lager>(
+                initialValue:
+                    TextEditingValue(text: _selectedLager?.name ?? ''),
+                displayStringForOption: (l) => l.name,
+                optionsBuilder: (v) {
+                  if (v.text.isEmpty) return _lagerItems.take(15);
+                  final q = v.text.toLowerCase();
+                  return _lagerItems
+                      .where((l) => l.name.toLowerCase().contains(q));
+                },
+                onSelected: (l) => setState(() => _selectedLager = l),
+                fieldViewBuilder:
+                    (context, controller, focusNode, onSubmitted) {
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Lager-Artikel (optional)',
+                      prefixIcon: const Icon(Icons.inventory_2_outlined),
+                      suffixIcon: _selectedLager != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                controller.clear();
+                                setState(() => _selectedLager = null);
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (t) {
+                      if (t.isEmpty && _selectedLager != null) {
+                        setState(() => _selectedLager = null);
+                      }
+                    },
+                  );
+                },
+              ),
+            if (_selectedLager != null) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _mengeController,
+                decoration: InputDecoration(
+                  labelText: 'Menge',
+                  prefixIcon: const Icon(Icons.numbers),
+                  suffixText: _selectedLager!.einheit,
+                  helperText:
+                      'Bestand aktuell: ${_selectedLager!.bestandAktuell.toStringAsFixed(0)} ${_selectedLager!.einheit}',
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
             const SizedBox(height: 16),
             staendeAsync.when(
               loading: () => const LinearProgressIndicator(),
