@@ -1,6 +1,20 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.18.0
+**Stand:** 10.07.2026 · **Live:** v0.19.0
+
+---
+
+## 🟢 Events-Modul — Phase E3 (live v0.19.0 · 10.07.2026)
+Spec `docs/superpowers/specs/2026-07-10-events-e3-design.md`. Event-Detail jetzt mit **4 Tabs** (Kontakte | Stände | Einsätze | Dokumente):
+- [x] ✓ **Inbetriebnahme pro Anlage**: Live-Checkbox „in Betrieb" je Schankanlage in der Stand-Karte + Fortschritt-Chip („3/8 in Betrieb" / „✓ komplett"). Stand-Formular speichert Anlagen jetzt **id-basiert** (behält `in_betrieb`/`in_betrieb_am` beim Bearbeiten statt löschen+neu).
+- [x] ✓ **GPS-Standort pro Stand** (`geolocator`): Button „Standort erfassen" an der Stand-Karte, einmaliger `getCurrentPosition` (LocationAccuracy.high), Web + native.
+- [x] ✓ **Karten-Umschalter im Stände-Tab** (Liste ↔ Karte): `flutter_map` mit **swisstopo-Luftbild** (SWISSIMAGE WMTS, kein API-Key), Marker pro Stand mit GPS, Tap → Stand. Repaint-Nudge (onMapReady move) gegen CanvasKit-Grau-Kacheln.
+- [x] ✓ **Einsätze-Tab** (Pikett): minimales Formular (Beschreibung*, Material-Freitext, optionaler Stand, Zeitpunkt=jetzt/editierbar), Liste neueste zuerst, bearbeiten/löschen. Volle Sync-Vertikale `event_einsaetze` (Migration 122). Grundlage für E4-Abschluss-Mail.
+- [x] ✓ Qualität: subagent-getrieben (12 Tasks), finaler Branch-Review **APPROVED** (kritischer id-basierter Stand-Save geprüft), 232 Tests grün. Visueller Web-Test: Karte rendert swisstopo sofort, Marker bei Vella; Einsatz anlegen→DB→Liste→löschen; 4 Tabs + FAB-Index korrekt.
+- [ ] **🟡 Am Handy bestätigen (native, live):** **GPS-Standort erfassen** (Browser-Automation kann den nativen Geolocation-Dialog nicht bedienen) → Marker erscheint auf swisstopo-Karte; Einsatz-Live-Refresh (im Web erschien neuer Einsatz erst nach Tab-Wechsel — Supabase Read-after-Write-Latenz; native/Isar instant).
+- [ ] **🟡 Testdaten aufräumen:** Stand **Signina Bar** hat für den Karten-Test gesetzte GPS-Koordinaten (46.7355 / 9.1378, Vella) — vor Ort neu erfassen/überschreiben.
+
+**Nächste Phase:** **E4** Abschluss-Mail (Einsatzliste als PDF an Eventverantwortlichen + RSL, MailConfig-Bereich `event`) · *optional* Verteilung-PDF-KI-Import.
 
 ---
 
