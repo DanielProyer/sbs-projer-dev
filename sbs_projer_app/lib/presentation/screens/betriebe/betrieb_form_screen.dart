@@ -420,50 +420,52 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               ),
             const SizedBox(height: 16),
 
-            // === Zahlernamen-Aliase (Bank zu Betrieb-Lernen) ===
-            Text('Zahlernamen (Bank)',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
-            const Text(
-              'Namen, unter denen dieser Betrieb Zahlungen überweist. '
-              'Wird beim Bankauszug-Import automatisch gelernt.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            if (_zahlerAliase.isNotEmpty)
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
+            if (_istMeinKunde) ...[
+              // === Zahlernamen-Aliase (Bank zu Betrieb-Lernen) ===
+              Text('Zahlernamen (Bank)',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      )),
+              const Text(
+                'Namen, unter denen dieser Betrieb Zahlungen überweist. '
+                'Wird beim Bankauszug-Import automatisch gelernt.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              if (_zahlerAliase.isNotEmpty)
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final a in _zahlerAliase)
+                      InputChip(
+                        label: Text(a),
+                        onDeleted: () => setState(() => _zahlerAliase.remove(a)),
+                      ),
+                  ],
+                ),
+              Row(
                 children: [
-                  for (final a in _zahlerAliase)
-                    InputChip(
-                      label: Text(a),
-                      onDeleted: () => setState(() => _zahlerAliase.remove(a)),
+                  Expanded(
+                    child: TextField(
+                      controller: _aliasController,
+                      decoration: const InputDecoration(
+                        labelText: 'Zahlername hinzufügen',
+                        prefixIcon: Icon(Icons.account_balance),
+                      ),
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _aliasHinzufuegen(),
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Hinzufügen',
+                    onPressed: _aliasHinzufuegen,
+                  ),
                 ],
               ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _aliasController,
-                    decoration: const InputDecoration(
-                      labelText: 'Zahlername hinzufügen',
-                      prefixIcon: Icon(Icons.account_balance),
-                    ),
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _aliasHinzufuegen(),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  tooltip: 'Hinzufügen',
-                  onPressed: _aliasHinzufuegen,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
 
             // === Adresse ===
             Text('Adresse',
