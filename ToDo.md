@@ -1,6 +1,16 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.25.0
+**Stand:** 10.07.2026 · **Live:** v0.26.0
+
+---
+
+## 🟢 Betrieb-Lifecycle & Auto-„mein Kunde" (live v0.26.0 · 10.07.2026)
+- [x] ✓ **Auto-„mein Kunde"**: reine Funktion `istMeinKundeVorschlag(status, zapfsysteme)` — inaktiv/geschlossen → false, sonst Konventionell/Orion → true. Greift im Formular bei Status-/Zapfsystem-Wechsel (manueller Override bleibt).
+- [x] ✓ **Bereinigung (Migration 127)**: Clavadeleralp & Weissfluhjoch (Saisonbetriebe, fälschlich inaktiv) → aktiv; AMERON, Valentinos + 104 geschlossene → mein Kunde=false. Saisonbetriebe geschützt.
+- [x] ✓ **Dauerhafte Schliessung**: Status „geschlossen" im Formular + Schliessungsgrund (Umnutzung/Abbruch/Konkurs/Sonstiges) + -datum; im Detail angezeigt.
+- [x] ✓ **Sichtbarkeit**: Betriebe-Liste default nur aktive; Karte nur aktive/saisonpause + Filter-Chip „Inaktive/geschl.".
+- [x] ✓ Qualität: subagent-getrieben, neue TDD-Suite (7 Tests), **263 Tests grün**, Web-Build sauber.
+- [ ] **🟡 Live prüfen** (auth-/datenabhängig): Formular Status-Wechsel schaltet „mein Kunde" korrekt + Override bleibt; Schliessungsfelder nur bei „geschlossen"; Liste/Karte blenden inaktive/geschlossene aus (Karten-Chip zeigt sie).
 
 ---
 
