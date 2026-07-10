@@ -31,7 +31,6 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   bool _karteAktiv = false;
   bool _karteNurMeine = false;
   bool _karteNurFaellig = false;
-  bool _karteZeigeInaktiv = false;
   String? _karteRegionId; // null = alle Regionen
 
   @override
@@ -269,11 +268,8 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
         s == FaelligkeitsStatus.baldFaellig;
 
     final gefiltert = alle.where((b) {
-      if (!_karteZeigeInaktiv &&
-          b.status != 'aktiv' &&
-          b.status != 'saisonpause') {
-        return false;
-      }
+      // Inaktive/geschlossene Betriebe werden auf der Karte nicht angezeigt.
+      if (b.status != 'aktiv' && b.status != 'saisonpause') return false;
       if (_karteNurMeine && !b.istMeinKunde) return false;
       if (_karteRegionId != null && b.regionId != _karteRegionId) return false;
       if (_karteNurFaellig && !istFaellig(statusFuer(b))) return false;
@@ -304,12 +300,6 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
                 label: const Text('Nur fällige'),
                 selected: _karteNurFaellig,
                 onSelected: (v) => setState(() => _karteNurFaellig = v),
-              ),
-              const SizedBox(width: 8),
-              FilterChip(
-                label: const Text('Inaktive/geschl.'),
-                selected: _karteZeigeInaktiv,
-                onSelected: (v) => setState(() => _karteZeigeInaktiv = v),
               ),
               const SizedBox(width: 8),
               if (regionen.isNotEmpty)

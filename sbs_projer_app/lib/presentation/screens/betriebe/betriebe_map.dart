@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/util/swisstopo.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/basemap_umschalter.dart';
+import 'package:sbs_projer_app/services/gps/gps_service.dart';
 
 /// Ein Betrieb mit seiner aggregierten Fälligkeit für die Karte.
 class BetriebMarkerData {
@@ -35,9 +36,36 @@ class BetriebeMap extends StatefulWidget {
 class _BetriebeMapState extends State<BetriebeMap> {
   final _controller = MapController();
   bool _luftbild = true;
+  LatLng? _meinStandort;
+  bool _standortLaedt = false;
 
   // Mittelpunkt Schweiz als Fallback (0 Marker).
   static final _schweiz = LatLng(46.8, 8.23);
+
+  @override
+  void initState() {
+    super.initState();
+    _ladeStandort();
+  }
+
+  /// Holt die aktuelle Handy-Position und zeigt sie als Marker.
+  /// Bei [zentrieren] wird die Karte zusätzlich darauf zentriert.
+  Future<void> _ladeStandort({bool zentrieren = false}) async {
+    setState(() => _standortLaedt = true);
+    try {
+      final pos = await GpsService.aktuellePosition();
+      if (!mounted) return;
+      setState(() => _meinStandort = LatLng(pos.latitude, pos.longitude));
+      if (zentrieren) _controller.move(_meinStandort!, 14);
+    } catch (e) {
+      if (mounted && zentrieren) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Standort: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _standortLaedt = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +122,27 @@ class _BetriebeMapState extends State<BetriebeMap> {
                   ),
               ],
             ),
+            if (_meinStandort != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: _meinStandort!,
+                    width: 24,
+                    height: 24,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withAlpha(70), blurRadius: 4),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             const RichAttributionWidget(
               attributions: [TextSourceAttribution('© swisstopo')],
             ),
@@ -103,6 +152,22 @@ class _BetriebeMapState extends State<BetriebeMap> {
           left: 8,
           bottom: 8,
           child: _Legende(),
+        ),
+        Positioned(
+          right: 8,
+          bottom: 34,
+          child: FloatingActionButton.small(
+            heroTag: 'betriebe_standort',
+            onPressed:
+                _standortLaedt ? null : () => _ladeStandort(zentrieren: true),
+            tooltip: 'Mein Standort',
+            child: _standortLaedt
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location),
+          ),
         ),
         Positioned(
           top: 8,
