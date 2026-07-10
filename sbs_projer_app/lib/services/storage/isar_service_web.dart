@@ -154,6 +154,27 @@ class IsarService {
   static dynamic eventKontaktPut(dynamic e) => throw UnsupportedError('Isar not available on web');
   static dynamic eventKontaktDelete(int id) => throw UnsupportedError('Isar not available on web');
 
+  // ─── EventDokument ───
+  static dynamic eventDokumentFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventDokumentGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventDokumentFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventDokumentPut(dynamic d) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventDokumentDelete(int id) => throw UnsupportedError('Isar not available on web');
+
+  // ─── EventStand ───
+  static dynamic eventStandFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandPut(dynamic s) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandDelete(int id) => throw UnsupportedError('Isar not available on web');
+
+  // ─── EventStandAnlage ───
+  static dynamic eventStandAnlageFindByStand(String standId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandAnlageGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandAnlageFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandAnlagePut(dynamic a) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventStandAnlageDelete(int id) => throw UnsupportedError('Isar not available on web');
+
   // ─── Termin ───
   static dynamic terminFindAll() => throw UnsupportedError('Isar not available on web');
   static dynamic terminWatchAll() => throw UnsupportedError('Isar not available on web');
