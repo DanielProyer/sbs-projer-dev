@@ -350,7 +350,9 @@ class _BetriebDetailContent extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Betrieb löschen'),
         content: Text(
-          '«${betrieb.name}» und alle zugehörigen Anlagen, Reinigungen, Störungen, Kontakte und Rechnungsadressen werden unwiderruflich gelöscht.',
+          '«${betrieb.name}» wird gelöscht. Das ist nur möglich, wenn keine verknüpften Daten '
+          '(Anlagen, Reinigungen, Rechnungen, Kontakte …) mehr vorhanden sind — sonst wird das '
+          'Löschen mit einem Hinweis abgebrochen und nichts entfernt.',
         ),
         actions: [
           TextButton(
@@ -371,10 +373,16 @@ class _BetriebDetailContent extends ConsumerWidget {
         await BetriebRepository.delete(betrieb.routeId);
         ref.invalidate(betriebeStreamProvider);
         if (context.mounted) context.go('/betriebe');
+      } on BetriebLoeschException catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message), duration: const Duration(seconds: 6)),
+          );
+        }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Löschen nur mit Internetverbindung möglich')),
+            const SnackBar(content: Text('Löschen fehlgeschlagen — bitte Internetverbindung prüfen')),
           );
         }
       }

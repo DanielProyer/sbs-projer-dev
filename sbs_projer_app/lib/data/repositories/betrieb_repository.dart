@@ -80,15 +80,45 @@ class BetriebRepository {
     await IsarService.betriebPut(betrieb);
   }
 
+  /// Verknüpfte Datensätze, die einem Löschen im Weg stehen (Kategorie → Anzahl).
+  /// Leere Map = Betrieb ist löschbar. [betriebServerId] ist die Supabase-UUID.
+  static Future<Map<String, int>> loeschHindernisse(
+      String betriebServerId) async {
+    final res = await SupabaseService.client.rpc(
+      'betrieb_loesch_hindernisse',
+      params: {'p_betrieb_id': betriebServerId},
+    );
+    final map = <String, int>{};
+    if (res is Map) {
+      res.forEach((k, v) {
+        final n = v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+        if (n > 0) map['$k'] = n;
+      });
+    }
+    return map;
+  }
+
+  /// Wirft [BetriebLoeschException], falls der Betrieb noch verknüpfte Daten hat.
+  static Future<void> _pruefeLoeschbar(String betriebServerId) async {
+    final hindernisse = await loeschHindernisse(betriebServerId);
+    if (hindernisse.isNotEmpty) {
+      throw BetriebLoeschException(hindernisse);
+    }
+  }
+
   static Future<void> delete(String id) async {
     if (kIsWeb) {
+      // id ist auf Web die Server-UUID (routeId == serverId).
+      await _pruefeLoeschbar(id);
       await SupabaseService.client.from('betriebe').delete().eq('id', id);
       return;
     }
-    // Native: Supabase löscht mit CASCADE, dann Isar aufräumen
+    // Native: erst Server-seitig prüfen + löschen, dann Isar aufräumen.
     final local = await IsarService.betriebGet(int.parse(id));
-    if (local?.serverId != null) {
-      await SupabaseService.client.from('betriebe').delete().eq('id', local!.serverId!);
+    final serverId = local?.serverId;
+    if (serverId != null) {
+      await _pruefeLoeschbar(serverId);
+      await SupabaseService.client.from('betriebe').delete().eq('id', serverId);
     }
     await IsarService.betriebDeleteCascade(int.parse(id));
   }
@@ -138,4 +168,23 @@ class BetriebRepository {
     await save(ziel);
     return AliasLernResultat.gelernt;
   }
+}
+
+/// Wird geworfen, wenn ein Betrieb wegen verknüpfter Daten nicht löschbar ist.
+class BetriebLoeschException implements Exception {
+  /// Kategorie → Anzahl der verknüpften Datensätze.
+  final Map<String, int> hindernisse;
+
+  BetriebLoeschException(this.hindernisse);
+
+  /// Benutzerfreundliche Meldung, welche Daten dem Löschen im Weg stehen.
+  String get message {
+    final teile =
+        hindernisse.entries.map((e) => '${e.value} ${e.key}').join(', ');
+    return 'Betrieb kann nicht gelöscht werden — es existieren noch: $teile. '
+        'Bitte diese Daten zuerst entfernen.';
+  }
+
+  @override
+  String toString() => message;
 }
