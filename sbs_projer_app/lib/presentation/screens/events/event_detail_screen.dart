@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_status.dart';
+import 'package:sbs_projer_app/core/util/inbetriebnahme.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
@@ -19,6 +20,7 @@ import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
@@ -759,6 +761,8 @@ class _StandCard extends ConsumerWidget {
     final anlagen = anlagenAsync.valueOrNull ?? [];
     final untertitel = EventStand.anlagenText(
         anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList());
+    final fortschritt = inbetriebnahmeFortschritt(
+        anlagen.map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb)).toList());
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -792,6 +796,30 @@ class _StandCard extends ConsumerWidget {
                   ),
                 ),
               ),
+            if (fortschritt.total > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: (fortschritt.komplett
+                          ? AppColors.success
+                          : AppColors.textSecondary)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  fortschritt.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: fortschritt.komplett
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         subtitle: Text(
@@ -828,6 +856,19 @@ class _StandCard extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
                     children: [
+                      Checkbox(
+                        value: a.inBetrieb,
+                        visualDensity: VisualDensity.compact,
+                        onChanged: (v) async {
+                          a
+                            ..inBetrieb = v ?? false
+                            ..inBetriebAm =
+                                (v ?? false) ? DateTime.now().toUtc() : null;
+                          await EventStandAnlageRepository.save(a);
+                          ref.invalidate(
+                              eventStandAnlagenProvider(stand.serverId!));
+                        },
+                      ),
                       const Icon(Icons.sports_bar,
                           size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 8),
