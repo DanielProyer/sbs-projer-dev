@@ -1,6 +1,16 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.21.0
+**Stand:** 10.07.2026 · **Live:** v0.22.0
+
+---
+
+## 🟢 Events-Feinschliff (live v0.22.0 · 10.07.2026)
+- [x] ✓ **„Montage generieren"** vom Zeit-Tab ins **3-Punkte-Menü** oben rechts verschoben (Zeit-Tab zeigt nur noch Total-Chip).
+- [x] ✓ **PDF-Vorschau vor Versand** im Abschluss-Sheet (Button „PDF-Vorschau", `Printing.layoutPdf`).
+- [x] ✓ **Professionelleres Abschluss-PDF** (dunkle Sektions-Header, Zusammenfassungs-Box, Zebra-Tabellen mit dunkler Kopfzeile, Fußzeile mit Datum + Seitenzahl).
+- [x] ✓ **Material↔Lager im Pikett-Einsatz** (Migration 124: `event_einsaetze.material_id` + `material_menge`): Lager-Artikel per Autocomplete + Menge; Bestand (`bestand_aktuell`) wird **beim Anlegen** abgebucht (keine Storno-Automatik bei Bearbeiten/Löschen). Freitext-Material bleibt.
+- [x] ✓ Qualität: subagent-getrieben (5 + Verifikation), finaler Review **APPROVED**, 244 Tests grün, visuell geprüft (Menü, Vorschau-Button).
+- [ ] **🟡 Offen:** ⚠️ Bestand kann negativ werden, wenn Menge > Bestand (keine Validierung — bewusst). Testdaten von „Openair Val Lumnezia 2026" löschen + Mail scharfstellen (`eventScharf=true`) NACH deiner PDF-Abnahme.
 
 ---
 
