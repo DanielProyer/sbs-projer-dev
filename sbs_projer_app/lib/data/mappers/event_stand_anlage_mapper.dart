@@ -10,6 +10,8 @@ class EventStandAnlageMapper {
     local.typ = dto.typ;
     local.anzahl = dto.anzahl;
     local.sortierung = dto.sortierung;
+    local.inBetrieb = dto.inBetrieb;
+    local.inBetriebAm = dto.inBetriebAm;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -24,6 +26,8 @@ class EventStandAnlageMapper {
       'typ': local.typ,
       'anzahl': local.anzahl,
       'sortierung': local.sortierung,
+      'in_betrieb': local.inBetrieb,
+      'in_betrieb_am': local.inBetriebAm?.toIso8601String(),
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

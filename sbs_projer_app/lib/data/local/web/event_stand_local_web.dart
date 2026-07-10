@@ -16,6 +16,8 @@ class EventStandLocal {
   String? standnummer;
   int sortierung = 0;
   String? notizen;
+  double? latitude;
+  double? longitude;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

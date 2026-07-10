@@ -9,6 +9,8 @@ class EventStand {
   final String? standnummer;
   final int sortierung;
   final String? notizen;
+  final double? latitude;
+  final double? longitude;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -20,6 +22,8 @@ class EventStand {
     this.standnummer,
     this.sortierung = 0,
     this.notizen,
+    this.latitude,
+    this.longitude,
     this.createdAt,
     this.updatedAt,
   });
@@ -33,6 +37,8 @@ class EventStand {
       standnummer: json['standnummer'],
       sortierung: json['sortierung'] ?? 0,
       notizen: json['notizen'],
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -47,6 +53,8 @@ class EventStand {
       'standnummer': standnummer,
       'sortierung': sortierung,
       'notizen': notizen,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 

@@ -15,6 +15,8 @@ class EventStandAnlageLocal {
   String typ = '';
   int anzahl = 1;
   int sortierung = 0;
+  bool inBetrieb = false;
+  DateTime? inBetriebAm;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

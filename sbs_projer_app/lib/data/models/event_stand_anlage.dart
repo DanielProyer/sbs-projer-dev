@@ -6,6 +6,8 @@ class EventStandAnlage {
   final String typ;
   final int anzahl;
   final int sortierung;
+  final bool inBetrieb;
+  final DateTime? inBetriebAm;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -16,6 +18,8 @@ class EventStandAnlage {
     required this.typ,
     this.anzahl = 1,
     this.sortierung = 0,
+    this.inBetrieb = false,
+    this.inBetriebAm,
     this.createdAt,
     this.updatedAt,
   });
@@ -28,6 +32,8 @@ class EventStandAnlage {
       typ: json['typ'],
       anzahl: json['anzahl'] ?? 1,
       sortierung: json['sortierung'] ?? 0,
+      inBetrieb: json['in_betrieb'] ?? false,
+      inBetriebAm: json['in_betrieb_am'] != null ? DateTime.parse(json['in_betrieb_am']) : null,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -41,6 +47,8 @@ class EventStandAnlage {
       'typ': typ,
       'anzahl': anzahl,
       'sortierung': sortierung,
+      'in_betrieb': inBetrieb,
+      'in_betrieb_am': inBetriebAm?.toIso8601String(),
     };
   }
 
