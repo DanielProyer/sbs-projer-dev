@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/swisstopo.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/basemap_umschalter.dart';
 
 /// Ein Betrieb mit seiner aggregierten Fälligkeit für die Karte.
 class BetriebMarkerData {
@@ -32,6 +34,7 @@ class BetriebeMap extends StatefulWidget {
 
 class _BetriebeMapState extends State<BetriebeMap> {
   final _controller = MapController();
+  bool _luftbild = true;
 
   // Mittelpunkt Schweiz als Fallback (0 Marker).
   static final _schweiz = LatLng(46.8, 8.23);
@@ -70,8 +73,8 @@ class _BetriebeMapState extends State<BetriebeMap> {
           ),
           children: [
             TileLayer(
-              urlTemplate:
-                  'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
+              key: ValueKey(_luftbild),
+              urlTemplate: _luftbild ? swisstopoLuftbild : swisstopoKarte,
               userAgentPackageName: 'ch.sbsprojer.app',
               maxZoom: 19,
             ),
@@ -100,6 +103,14 @@ class _BetriebeMapState extends State<BetriebeMap> {
           left: 8,
           bottom: 8,
           child: _Legende(),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: BasemapUmschalter(
+            luftbild: _luftbild,
+            onChanged: (v) => setState(() => _luftbild = v),
+          ),
         ),
       ],
     );
