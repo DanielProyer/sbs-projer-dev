@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/core/util/google_maps_route.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
@@ -64,6 +65,15 @@ class _BetriebDetailContent extends ConsumerWidget {
       appBar: AppBar(
         title: Text(betrieb.name),
         actions: [
+          if (_routeUrl(betrieb) != null)
+            IconButton(
+              icon: const Icon(Icons.directions),
+              tooltip: 'Route in Google Maps',
+              onPressed: () => launchUrl(
+                Uri.parse(_routeUrl(betrieb)!),
+                mode: LaunchMode.externalApplication,
+              ),
+            ),
           if (!SupabaseService.isGuest) ...[
             IconButton(
               icon: const Icon(Icons.edit),
@@ -313,6 +323,14 @@ class _BetriebDetailContent extends ConsumerWidget {
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
+
+  String? _routeUrl(BetriebLocal betrieb) => googleMapsRouteUrl(
+        latitude: betrieb.latitude,
+        longitude: betrieb.longitude,
+        adresse: [betrieb.strasse, betrieb.nr, betrieb.plz, betrieb.ort]
+            .where((s) => s != null && s.isNotEmpty)
+            .join(' '),
+      );
 
   String _rechnungsstellungLabel(String value) {
     switch (value) {
