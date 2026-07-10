@@ -13,7 +13,6 @@ class EventStandAnlageLocal {
   String userId = '';
   String standId = '';
   String typ = '';
-  String? bezeichnung;
   int anzahl = 1;
   int sortierung = 0;
   DateTime? createdAt;

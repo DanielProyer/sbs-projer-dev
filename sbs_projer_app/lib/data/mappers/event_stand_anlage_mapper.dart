@@ -8,7 +8,6 @@ class EventStandAnlageMapper {
     local.userId = dto.userId;
     local.standId = dto.standId;
     local.typ = dto.typ;
-    local.bezeichnung = dto.bezeichnung;
     local.anzahl = dto.anzahl;
     local.sortierung = dto.sortierung;
     local.createdAt = dto.createdAt;
@@ -23,7 +22,6 @@ class EventStandAnlageMapper {
       'user_id': local.userId,
       'stand_id': local.standId,
       'typ': local.typ,
-      'bezeichnung': local.bezeichnung,
       'anzahl': local.anzahl,
       'sortierung': local.sortierung,
     };

@@ -4,7 +4,6 @@ class EventStandAnlage {
   final String userId;
   final String standId;
   final String typ;
-  final String? bezeichnung;
   final int anzahl;
   final int sortierung;
   final DateTime? createdAt;
@@ -15,7 +14,6 @@ class EventStandAnlage {
     required this.userId,
     required this.standId,
     required this.typ,
-    this.bezeichnung,
     this.anzahl = 1,
     this.sortierung = 0,
     this.createdAt,
@@ -28,7 +26,6 @@ class EventStandAnlage {
       userId: json['user_id'],
       standId: json['stand_id'],
       typ: json['typ'],
-      bezeichnung: json['bezeichnung'],
       anzahl: json['anzahl'] ?? 1,
       sortierung: json['sortierung'] ?? 0,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
@@ -42,7 +39,6 @@ class EventStandAnlage {
       'user_id': userId,
       'stand_id': standId,
       'typ': typ,
-      'bezeichnung': bezeichnung,
       'anzahl': anzahl,
       'sortierung': sortierung,
     };

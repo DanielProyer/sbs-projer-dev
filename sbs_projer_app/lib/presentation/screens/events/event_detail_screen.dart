@@ -11,7 +11,6 @@ import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
-import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
@@ -834,7 +833,7 @@ class _StandCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _anlageZeile(a),
+                          EventStandAnlage.typLabel(a.typ),
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),
@@ -865,14 +864,6 @@ class _StandCard extends ConsumerWidget {
     );
   }
 
-  /// «Oberthekengerät» bzw. «Oberthekengerät – Bezeichnung».
-  String _anlageZeile(EventStandAnlageLocal a) {
-    final label = EventStandAnlage.typLabel(a.typ);
-    if (a.bezeichnung != null && a.bezeichnung!.isNotEmpty) {
-      return '$label – ${a.bezeichnung!}';
-    }
-    return label;
-  }
 }
 
 /// Dokumente-Tab: PDF-Liste pro Event-Jahr, Tap öffnet den nativen PDF-Viewer

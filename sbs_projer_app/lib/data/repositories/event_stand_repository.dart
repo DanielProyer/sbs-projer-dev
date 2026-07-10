@@ -90,7 +90,6 @@ class EventStandRepository {
         final a = EventStandAnlageLocal()
           ..standId = s.serverId!
           ..typ = qa.typ
-          ..bezeichnung = qa.bezeichnung
           ..anzahl = qa.anzahl
           ..sortierung = qa.sortierung;
         await EventStandAnlageRepository.save(a);

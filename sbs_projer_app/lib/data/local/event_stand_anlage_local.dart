@@ -22,7 +22,6 @@ class EventStandAnlageLocal {
   @Index()
   late String standId;
   late String typ;
-  String? bezeichnung;
   int anzahl = 1;
   int sortierung = 0;
   DateTime? createdAt;

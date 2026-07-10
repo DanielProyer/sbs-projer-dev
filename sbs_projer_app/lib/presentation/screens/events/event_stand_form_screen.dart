@@ -10,7 +10,7 @@ import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 
 /// Formular zum Anlegen/Bearbeiten eines Event-Stands mit dynamischen
-/// Schankanlagen-Zeilen (Typ + Bezeichnung + Anzahl).
+/// Schankanlagen-Zeilen (Typ + Anzahl).
 class EventStandFormScreen extends ConsumerStatefulWidget {
   final String eventId;
   final String? standId; // null = neu
@@ -39,7 +39,6 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
   // Dynamische Anlagen-Zeilen (Parallel-Arrays). [_zeilenKeys] hält den
   // Widget-State (z. B. Anzahl-Feld) beim Entfernen einer Zeile stabil.
   final List<String> _typen = [];
-  final List<TextEditingController> _bezCtrl = [];
   final List<int> _anzahl = [];
   final List<UniqueKey> _zeilenKeys = [];
 
@@ -75,7 +74,6 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
         _notizenController.text = stand.notizen ?? '';
         for (final a in anlagen) {
           _typen.add(a.typ);
-          _bezCtrl.add(TextEditingController(text: a.bezeichnung ?? ''));
           _anzahl.add(a.anzahl);
           _zeilenKeys.add(UniqueKey());
         }
@@ -89,7 +87,6 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
   void _anlageHinzufuegen() {
     setState(() {
       _typen.add(EventStandAnlage.typen.first);
-      _bezCtrl.add(TextEditingController());
       _anzahl.add(1);
       _zeilenKeys.add(UniqueKey());
     });
@@ -97,9 +94,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
 
   void _anlageEntfernen(int i) {
     setState(() {
-      _bezCtrl[i].dispose();
       _typen.removeAt(i);
-      _bezCtrl.removeAt(i);
       _anzahl.removeAt(i);
       _zeilenKeys.removeAt(i);
     });
@@ -124,10 +119,8 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
       // Anlagen ersetzen (Reihenfolge = Zeilen-Reihenfolge).
       final anlagen = <EventStandAnlageLocal>[];
       for (var i = 0; i < _typen.length; i++) {
-        final bez = _bezCtrl[i].text.trim();
         anlagen.add(EventStandAnlageLocal()
           ..typ = _typen[i]
-          ..bezeichnung = bez.isEmpty ? null : bez
           ..anzahl = _anzahl[i]);
       }
       await EventStandAnlageRepository.replaceForStand(
@@ -158,9 +151,6 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
     _nameController.dispose();
     _standnummerController.dispose();
     _notizenController.dispose();
-    for (final c in _bezCtrl) {
-      c.dispose();
-    }
     super.dispose();
   }
 
@@ -269,63 +259,47 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-          child: Column(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _typen[i],
-                      decoration: const InputDecoration(
-                        labelText: 'Typ',
-                        isDense: true,
-                      ),
-                      items: EventStandAnlage.typen
-                          .map((t) => DropdownMenuItem(
-                                value: t,
-                                child: Text(EventStandAnlage.typLabel(t)),
-                              ))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _typen[i] = v);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 64,
-                    child: TextFormField(
-                      initialValue: _anzahl[i].toString(),
-                      decoration: const InputDecoration(
-                        labelText: 'Anz.',
-                        isDense: true,
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) {
-                        final n = int.tryParse(v);
-                        _anzahl[i] = (n == null || n < 1) ? 1 : n;
-                      },
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, size: 20),
-                    tooltip: 'Anlage entfernen',
-                    onPressed: () => _anlageEntfernen(i),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: TextFormField(
-                  controller: _bezCtrl[i],
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _typen[i],
                   decoration: const InputDecoration(
-                    labelText: 'Bezeichnung',
+                    labelText: 'Typ',
                     isDense: true,
                   ),
-                  textInputAction: TextInputAction.next,
+                  items: EventStandAnlage.typen
+                      .map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(EventStandAnlage.typLabel(t)),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _typen[i] = v);
+                  },
                 ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 64,
+                child: TextFormField(
+                  initialValue: _anzahl[i].toString(),
+                  decoration: const InputDecoration(
+                    labelText: 'Anz.',
+                    isDense: true,
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    final n = int.tryParse(v);
+                    _anzahl[i] = (n == null || n < 1) ? 1 : n;
+                  },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline, size: 20),
+                tooltip: 'Anlage entfernen',
+                onPressed: () => _anlageEntfernen(i),
               ),
             ],
           ),
