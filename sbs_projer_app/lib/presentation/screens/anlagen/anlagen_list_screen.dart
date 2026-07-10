@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/anlage_pdf_util.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -44,6 +45,9 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
       return true;
     }).toList();
 
+    // Kennzahlen aus ALLEN Anlagen (nicht der gefilterten Liste)
+    final kennzahlen = anlagenKennzahlen(anlagen, DateTime.now());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Anlagen'),
@@ -64,6 +68,22 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
       ),
       body: Column(
         children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                _KennzahlChip('${kennzahlen.gesamt} aktiv', Icons.propane_tank_outlined),
+                for (final e in kennzahlen.nachTyp.entries)
+                  _KennzahlChip('${e.value}× ${e.key}', Icons.category_outlined),
+                if (kennzahlen.ueberfaellig > 0)
+                  _KennzahlChip('${kennzahlen.ueberfaellig} überfällig',
+                      Icons.warning_amber, color: AppColors.error),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: SearchBar(
@@ -256,5 +276,33 @@ class _AnlageListItem extends StatelessWidget {
       default:
         return AppColors.textSecondary;
     }
+  }
+}
+
+class _KennzahlChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color? color;
+  const _KennzahlChip(this.label, this.icon, {this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: c.withAlpha(20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.withAlpha(60)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: c),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: c, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
   }
 }

@@ -195,6 +195,11 @@ class _WeitereSection extends ConsumerWidget {
           onTap: () => context.push('/pikett'),
         ),
         _MenuListTile(
+          icon: Icons.propane_tank_outlined,
+          label: 'Anlagen',
+          onTap: () => context.push('/anlagen'),
+        ),
+        _MenuListTile(
           icon: Icons.landscape,
           label: 'Bergkundenpauschalen',
           onTap: () => context.push('/bergkundenpauschalen'),
