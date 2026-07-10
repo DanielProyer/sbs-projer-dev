@@ -68,12 +68,12 @@ class _AnlageDetailContent extends ConsumerWidget {
             icon: const Icon(Icons.picture_as_pdf_outlined),
             tooltip: 'Steckbrief',
             onSelected: (v) {
-              if (v == 'teilen') _steckbriefTeilen(context, anlage);
+              if (v == 'oeffnen') _steckbriefOeffnen(context, anlage);
               if (v == 'rsl') _steckbriefAnRsl(context, anlage);
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'teilen', child: Text('Steckbrief teilen')),
-              PopupMenuItem(value: 'rsl', child: Text('Steckbrief an RSL')),
+              PopupMenuItem(value: 'oeffnen', child: Text('Öffnen')),
+              PopupMenuItem(value: 'rsl', child: Text('Mail RSL')),
             ],
           ),
           if (!SupabaseService.isGuest) ...[
@@ -248,13 +248,13 @@ class _AnlageDetailContent extends ConsumerWidget {
     );
   }
 
-  Future<void> _steckbriefTeilen(BuildContext context, AnlageLocal anlage) async {
+  Future<void> _steckbriefOeffnen(BuildContext context, AnlageLocal anlage) async {
     try {
       final betrieb = await BetriebRepository.getByServerId(anlage.betriebId);
       final pdf = await _buildSteckbrief(anlage);
-      await Printing.sharePdf(
-        bytes: pdf,
-        filename: anlageSteckbriefDateiname(betrieb?.name ?? '', anlage.bezeichnung ?? ''),
+      await Printing.layoutPdf(
+        onLayout: (_) => pdf,
+        name: anlageSteckbriefDateiname(betrieb?.name ?? '', anlage.bezeichnung ?? ''),
       );
     } catch (e) {
       if (context.mounted) {
