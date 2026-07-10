@@ -3,12 +3,14 @@ import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_aufwand_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
 
@@ -53,4 +55,12 @@ final eventStaendeProvider =
 final eventStandAnlagenProvider =
     FutureProvider.family<List<EventStandAnlageLocal>, String>((ref, standId) async {
   return EventStandAnlageRepository.getByStand(standId);
+});
+
+/// Zeit-/Spesen-Zeilen eines Event-Jahres (nach Datum aufsteigend).
+final eventAufwaendeProvider =
+    FutureProvider.family<List<EventAufwandLocal>, String>((ref, eventId) async {
+  final list = await EventAufwandRepository.getByEvent(eventId);
+  list.sort((a, b) => a.datum.compareTo(b.datum));
+  return list;
 });

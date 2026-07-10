@@ -24,16 +24,32 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
+/// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
+class MontageVorbefuellung {
+  final String montageTyp;
+  final String? betriebId;
+  final DateTime datum;
+  final List<({String text, double stunden})> slots;
+  const MontageVorbefuellung({
+    required this.montageTyp,
+    required this.betriebId,
+    required this.datum,
+    required this.slots,
+  });
+}
+
 class MontageFormScreen extends ConsumerStatefulWidget {
   final String? montageId; // null = neu
   final String? anlageId;
   final String? betriebId;
+  final MontageVorbefuellung? vorbefuellung;
 
   const MontageFormScreen({
     super.key,
     this.montageId,
     this.anlageId,
     this.betriebId,
+    this.vorbefuellung,
   });
 
   @override
@@ -105,6 +121,20 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     super.initState();
     _datum = DateTime.now();
     _betriebId = widget.betriebId;
+    final vb = widget.vorbefuellung;
+    if (vb != null && !_isEdit) {
+      _montageTyp = vb.montageTyp;
+      _datum = vb.datum;
+      if (vb.betriebId != null) _betriebId = vb.betriebId;
+      for (var i = 0; i < 5 && i < vb.slots.length; i++) {
+        final s = vb.slots[i];
+        // Bei Anlass ist die "material_id" der Freitext.
+        _materialIds[i] = s.text;
+        _materialControllers[i].text = s.text;
+        _materialMengen[i] = s.stunden;
+        _materialMengenControllers[i].text = s.stunden.toStringAsFixed(2);
+      }
+    }
     _loadLager();
     _loadStundensatz();
     _loadHeigeniePreise();
