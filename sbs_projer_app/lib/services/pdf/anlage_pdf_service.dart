@@ -100,30 +100,34 @@ class AnlagePdfService {
           ]),
         );
 
-    // Fotos in 2×2-Raster.
-    final fotoRows = <pw.Widget>[];
-    for (var i = 0; i < fotos.length; i += 2) {
-      pw.Widget box(Uint8List? b) => pw.Expanded(
-            child: pw.Container(
-              height: 155,
-              alignment: pw.Alignment.center,
-              padding: const pw.EdgeInsets.all(2),
-              decoration: pw.BoxDecoration(
-                border: b == null ? null : pw.Border.all(color: _linie),
-                color: b == null ? null : PdfColors.grey50,
-              ),
-              // contain = ganzes Foto, kein Beschnitt/Verzerrung.
-              child: b == null
-                  ? pw.SizedBox()
-                  : pw.Image(pw.MemoryImage(b), fit: pw.BoxFit.contain),
+    // Fotos in 2×2-Raster; die Reihen füllen den restlichen Seitenplatz
+    // (Expanded) -> Fotos so gross wie möglich, aber garantiert eine Seite.
+    pw.Widget fotoBox(Uint8List? b) => pw.Expanded(
+          child: pw.Container(
+            alignment: pw.Alignment.center,
+            padding: const pw.EdgeInsets.all(2),
+            decoration: pw.BoxDecoration(
+              border: b == null ? null : pw.Border.all(color: _linie),
+              color: b == null ? null : PdfColors.grey50,
             ),
-          );
-      fotoRows.add(pw.Row(children: [
-        box(fotos[i]),
-        pw.SizedBox(width: 8),
-        box(i + 1 < fotos.length ? fotos[i + 1] : null),
-      ]));
-      if (i + 2 < fotos.length) fotoRows.add(pw.SizedBox(height: 8));
+            // contain = ganzes Foto, kein Beschnitt/Verzerrung.
+            child: b == null
+                ? pw.SizedBox()
+                : pw.Image(pw.MemoryImage(b), fit: pw.BoxFit.contain),
+          ),
+        );
+    final fotoZeilen = <pw.Widget>[];
+    for (var i = 0; i < fotos.length; i += 2) {
+      fotoZeilen.add(pw.Expanded(
+        child: pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 4),
+          child: pw.Row(children: [
+            fotoBox(fotos[i]),
+            pw.SizedBox(width: 8),
+            fotoBox(i + 1 < fotos.length ? fotos[i + 1] : null),
+          ]),
+        ),
+      ));
     }
 
     doc.addPage(pw.Page(
@@ -217,13 +221,14 @@ class AnlagePdfService {
             ),
           ],
 
-          // ── Fotos (2×2) ──
-          if (fotoRows.isNotEmpty) ...[
+          // ── Fotos (2×2, füllen den restlichen Seitenplatz) ──
+          if (fotoZeilen.isNotEmpty) ...[
             sektion('Fotos'),
-            ...fotoRows,
-          ],
+            pw.Expanded(child: pw.Column(children: fotoZeilen)),
+          ] else
+            pw.Spacer(),
 
-          pw.Spacer(),
+          pw.SizedBox(height: 6),
           pw.Container(height: 0.8, color: _linie),
           pw.SizedBox(height: 4),
           pw.Text('SBS Projer GmbH · Anlagen-Steckbrief · ${dt(DateTime.now())}',
