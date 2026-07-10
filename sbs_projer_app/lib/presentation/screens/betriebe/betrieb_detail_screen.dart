@@ -123,7 +123,8 @@ class _BetriebDetailContent extends ConsumerWidget {
               _InfoRow('Mein Kunde', betrieb.istMeinKunde ? 'Ja' : 'Nein'),
               _InfoRow('Bergkunde', betrieb.istBergkunde ? 'Ja' : 'Nein'),
               _InfoRow('Saisonbetrieb', betrieb.istSaisonbetrieb ? 'Ja' : 'Nein'),
-              _InfoRow('Rechnungsstellung', _rechnungsstellungLabel(betrieb.rechnungsstellung)),
+              if (betrieb.istMeinKunde)
+                _InfoRow('Rechnungsstellung', _rechnungsstellungLabel(betrieb.rechnungsstellung)),
               if (betrieb.regionId != null)
                 FutureBuilder(
                   future: RegionRepository.getByServerId(betrieb.regionId!),
