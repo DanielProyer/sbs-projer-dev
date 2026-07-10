@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_status.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
+import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
@@ -13,6 +17,7 @@ import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/data/models/event_stand.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
+import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
@@ -20,6 +25,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
+import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
 /// Dokumente. Der FAB wechselt je nach aktivem Tab (E2).
@@ -239,7 +245,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   children: [
                     _KontakteTab(eventServerId: eventServerId),
                     _StaendeTab(event: event),
-                    const _DokumenteTab(),
+                    _DokumenteTab(eventServerId: eventServerId),
                   ],
                 ),
               ),
@@ -251,7 +257,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen,
-  /// 2 Dokument hochladen (Task 9). Für 2 vorerst kein FAB.
+  /// 2 Dokument hochladen.
   Widget? _buildFab(String eventServerId) {
     switch (_tabController.index) {
       case 0:
@@ -266,6 +272,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           icon: const Icon(Icons.add_business),
           label: const Text('Stand hinzufügen'),
         );
+      case 2:
+        return FloatingActionButton.extended(
+          onPressed: () => _dokumentHochladen(eventServerId),
+          icon: const Icon(Icons.upload_file),
+          label: const Text('Dokument hochladen'),
+        );
       default:
         return null;
     }
@@ -279,6 +291,103 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       ),
     );
     ref.invalidate(eventStaendeProvider(eventServerId));
+  }
+
+  /// PDF wählen (file_picker), Bezeichnung erfragen, in den Storage-Bucket
+  /// laden und den Datensatz anlegen (Muster Eingangsrechnung-Upload).
+  Future<void> _dokumentHochladen(String eventServerId) async {
+    Uint8List? bytes;
+    String? dateiname;
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        withData: true,
+      );
+      if (picked == null || picked.files.single.bytes == null) return;
+      bytes = picked.files.single.bytes!;
+      dateiname = picked.files.single.name;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Datei konnte nicht ausgewählt werden: $e')),
+        );
+      }
+      return;
+    }
+    if (bytes.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Datei ist leer')),
+        );
+      }
+      return;
+    }
+
+    // Vorschlag = Dateiname ohne .pdf-Endung.
+    final vorschlag = dateiname.toLowerCase().endsWith('.pdf')
+        ? dateiname.substring(0, dateiname.length - 4)
+        : dateiname;
+    final bezeichnung = await _bezeichnungAbfragen(vorschlag);
+    if (bezeichnung == null || bezeichnung.isEmpty) return;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dokument wird hochgeladen …')),
+      );
+    }
+    try {
+      final pfad = await EventDokumentStorage.upload(eventServerId, bytes);
+      await EventDokumentRepository.save(
+        EventDokumentLocal()
+          ..eventId = eventServerId
+          ..bezeichnung = bezeichnung
+          ..dateiPfad = pfad,
+      );
+      ref.invalidate(eventDokumenteProvider(eventServerId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('«$bezeichnung» hochgeladen')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler beim Hochladen: $e')),
+        );
+      }
+    }
+  }
+
+  /// Dialog zur Eingabe der Dokument-Bezeichnung (Vorschlag = Dateiname).
+  Future<String?> _bezeichnungAbfragen(String vorschlag) {
+    final ctrl = TextEditingController(text: vorschlag);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bezeichnung'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Bezeichnung',
+            hintText: 'z. B. Lageplan',
+          ),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Hochladen'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -766,17 +875,126 @@ class _StandCard extends ConsumerWidget {
   }
 }
 
-/// Dokumente-Tab (Platzhalter — folgt in Task 9).
-class _DokumenteTab extends StatelessWidget {
-  const _DokumenteTab();
+/// Dokumente-Tab: PDF-Liste pro Event-Jahr, Tap öffnet den nativen PDF-Viewer
+/// über eine signierte URL, Trailing löscht Datei + Datensatz (E2).
+class _DokumenteTab extends ConsumerWidget {
+  final String eventServerId;
+
+  const _DokumenteTab({required this.eventServerId});
+
+  /// Öffnet das PDF über eine signierte URL im externen Viewer.
+  Future<void> _dokumentOeffnen(
+      BuildContext context, EventDokumentLocal dok) async {
+    try {
+      final url = await EventDokumentStorage.getSignedUrl(dok.dateiPfad);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Dokument konnte nicht geöffnet werden: $e')),
+        );
+      }
+    }
+  }
+
+  /// Löscht ein Dokument nach Bestätigung — zuerst die Storage-Datei,
+  /// dann den Datensatz.
+  Future<void> _dokumentLoeschen(
+      BuildContext context, WidgetRef ref, EventDokumentLocal dok) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Dokument löschen'),
+        content: Text('«${dok.bezeichnung}» wirklich löschen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await EventDokumentStorage.delete(dok.dateiPfad);
+      await EventDokumentRepository.delete(dok.routeId);
+      ref.invalidate(eventDokumenteProvider(eventServerId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${dok.bezeichnung} gelöscht')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Dokumente — folgt',
-        style: TextStyle(color: AppColors.textSecondary),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dokumenteAsync = ref.watch(eventDokumenteProvider(eventServerId));
+
+    return dokumenteAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Fehler: $e')),
+      data: (dokumente) {
+        if (dokumente.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 32),
+            child: Column(
+              children: [
+                Icon(Icons.picture_as_pdf,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Noch keine Dokumente.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+          itemCount: dokumente.length,
+          itemBuilder: (ctx, i) {
+            final dok = dokumente[i];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 4),
+              child: ListTile(
+                leading: const Icon(Icons.picture_as_pdf,
+                    color: AppColors.error),
+                title: Text(
+                  dok.bezeichnung,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: dok.createdAt != null
+                    ? Text('Hochgeladen ${_ddMMyyyy(dok.createdAt!.toLocal())}')
+                    : null,
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      size: 20, color: AppColors.error),
+                  tooltip: 'Löschen',
+                  onPressed: () => _dokumentLoeschen(context, ref, dok),
+                ),
+                onTap: () => _dokumentOeffnen(context, dok),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
