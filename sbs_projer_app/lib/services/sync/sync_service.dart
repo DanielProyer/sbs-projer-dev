@@ -30,6 +30,7 @@ import 'package:sbs_projer_app/data/local/event_dokument_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local.dart';
 import 'package:sbs_projer_app/data/local/event_einsatz_local.dart';
+import 'package:sbs_projer_app/data/local/event_aufwand_local.dart';
 
 // DTOs
 import 'package:sbs_projer_app/data/models/region.dart';
@@ -53,6 +54,7 @@ import 'package:sbs_projer_app/data/models/event_dokument.dart';
 import 'package:sbs_projer_app/data/models/event_stand.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/models/event_einsatz.dart';
+import 'package:sbs_projer_app/data/models/event_aufwand.dart';
 
 // Mappers
 import 'package:sbs_projer_app/data/mappers/region_mapper.dart';
@@ -76,6 +78,7 @@ import 'package:sbs_projer_app/data/mappers/event_dokument_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_stand_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_stand_anlage_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_einsatz_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_aufwand_mapper.dart';
 
 enum SyncState { idle, syncing, error }
 
@@ -163,6 +166,7 @@ class SyncService {
           () => _syncEventKontakte(userId),
           () => _syncEventDokumente(userId),
           () => _syncEventStaende(userId),
+          () => _syncEventAufwand(userId),
         ],
         // Tier 4: → Betrieb/Anlage/Stand
         [
@@ -531,6 +535,36 @@ class SyncService {
       await _isar.writeTxn(() => _isar.eventDokumentLocals.putAll(toSave));
     }
     await _updateMeta('event_dokumente');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  // Event-Aufwand / Zeit (Tier 3: → Event)
+  static Future<({int pushed, int pulled})> _syncEventAufwand(String uid) async {
+    final unsynced =
+        await _isar.eventAufwandLocals.filter().isSyncedEqualTo(false).findAll();
+    final pushed = await _pushToSupabase<EventAufwandLocal>(
+      'event_aufwand', unsynced, EventAufwandMapper.toJson,
+      (l, id) { l.serverId ??= id; l.isSynced = true; },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventAufwandLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows('event_aufwand', 'event_aufwand', uid);
+    final toSave = <EventAufwandLocal>[];
+    for (final row in rows) {
+      final dto = EventAufwand.fromJson(row);
+      final ex = await _isar.eventAufwandLocals.filter().serverIdEqualTo(dto.id).findFirst();
+      if (ex != null && !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
+        continue;
+      }
+      toSave.add(EventAufwandMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventAufwandLocals.putAll(toSave));
+    }
+    await _updateMeta('event_aufwand');
     return (pushed: pushed.length, pulled: toSave.length);
   }
 
