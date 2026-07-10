@@ -7,13 +7,19 @@ import 'package:sbs_projer_app/core/util/event_status.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
+import 'package:sbs_projer_app/data/models/event_stand.dart';
+import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
 /// Dokumente. Der FAB wechselt je nach aktivem Tab (E2).
@@ -232,7 +238,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   controller: _tabController,
                   children: [
                     _KontakteTab(eventServerId: eventServerId),
-                    const _StaendeTab(),
+                    _StaendeTab(event: event),
                     const _DokumenteTab(),
                   ],
                 ),
@@ -244,8 +250,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     );
   }
 
-  /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen (Task 8),
-  /// 2 Dokument hochladen (Task 9). Für 1/2 vorerst kein FAB.
+  /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen,
+  /// 2 Dokument hochladen (Task 9). Für 2 vorerst kein FAB.
   Widget? _buildFab(String eventServerId) {
     switch (_tabController.index) {
       case 0:
@@ -254,9 +260,25 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           icon: const Icon(Icons.person_add),
           label: const Text('Kontakt zuordnen'),
         );
+      case 1:
+        return FloatingActionButton.extended(
+          onPressed: () => _standHinzufuegen(eventServerId),
+          icon: const Icon(Icons.add_business),
+          label: const Text('Stand hinzufügen'),
+        );
       default:
         return null;
     }
+  }
+
+  /// Öffnet das Stand-Formular (neu) und aktualisiert danach die Stände-Liste.
+  Future<void> _standHinzufuegen(String eventServerId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventStandFormScreen(eventId: eventServerId),
+      ),
+    );
+    ref.invalidate(eventStaendeProvider(eventServerId));
   }
 }
 
@@ -459,18 +481,288 @@ class _KontakteTab extends ConsumerWidget {
   }
 }
 
-/// Stände-Tab (Platzhalter — folgt in Task 8).
-class _StaendeTab extends StatelessWidget {
-  const _StaendeTab();
+/// Stände-Tab: Liste der Event-Stände (aufklappbar mit Anlagen + Notizen),
+/// Bearbeiten/Löschen je Stand, «Aus Vorjahr übernehmen» im Kopf (E2).
+class _StaendeTab extends ConsumerWidget {
+  final EventLocal event;
 
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Stände — folgt',
-        style: TextStyle(color: AppColors.textSecondary),
+  const _StaendeTab({required this.event});
+
+  /// Übernimmt die Stände (inkl. Anlagen) aus dem Vorjahres-Event.
+  Future<void> _ausVorjahrUebernehmen(
+      BuildContext context, WidgetRef ref) async {
+    try {
+      final vorjahr =
+          await EventRepository.getVorjahr(event.betriebId, event.jahr);
+      if (vorjahr == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Kein Vorjahres-Event vorhanden')),
+          );
+        }
+        return;
+      }
+      final n = await EventStandRepository.uebernehmeVon(
+          vorjahr.serverId!, event.serverId!);
+      ref.invalidate(eventStaendeProvider(event.serverId!));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text(n == 1 ? '1 Stand übernommen' : '$n Stände übernommen')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _standLoeschen(
+      BuildContext context, WidgetRef ref, EventStandLocal stand) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Stand löschen'),
+        content: Text('«${stand.name}» wirklich löschen?\n\n'
+            'Alle zugeordneten Schankanlagen werden mit entfernt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Löschen'),
+          ),
+        ],
       ),
     );
+    if (confirmed != true) return;
+
+    try {
+      await EventStandRepository.delete(stand.routeId);
+      ref.invalidate(eventStaendeProvider(event.serverId!));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${stand.name} gelöscht')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _standBearbeiten(
+      BuildContext context, WidgetRef ref, EventStandLocal stand) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EventStandFormScreen(
+          eventId: event.serverId!,
+          standId: stand.routeId,
+        ),
+      ),
+    );
+    ref.invalidate(eventStaendeProvider(event.serverId!));
+    ref.invalidate(eventStandAnlagenProvider(stand.serverId!));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final staendeAsync = ref.watch(eventStaendeProvider(event.serverId!));
+
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+            child: TextButton.icon(
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('Aus Vorjahr übernehmen'),
+              onPressed: () => _ausVorjahrUebernehmen(context, ref),
+            ),
+          ),
+        ),
+        Expanded(
+          child: staendeAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('Fehler: $e')),
+            data: (staende) {
+              if (staende.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 32),
+                  child: Column(
+                    children: [
+                      Icon(Icons.storefront,
+                          size: 64,
+                          color:
+                              AppColors.textSecondary.withValues(alpha: 0.4)),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Noch keine Stände.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
+                itemCount: staende.length,
+                itemBuilder: (ctx, i) => _StandCard(
+                  stand: staende[i],
+                  onEdit: () => _standBearbeiten(context, ref, staende[i]),
+                  onDelete: () => _standLoeschen(context, ref, staende[i]),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Aufklappbare Karte für einen Stand: Titel + Standnummer-Chip,
+/// Untertitel = Anlagen-Zusammenfassung, aufgeklappt Anlagen + Notizen.
+class _StandCard extends ConsumerWidget {
+  final EventStandLocal stand;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _StandCard({
+    required this.stand,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final anlagenAsync = ref.watch(eventStandAnlagenProvider(stand.serverId!));
+    final anlagen = anlagenAsync.valueOrNull ?? [];
+    final untertitel = EventStand.anlagenText(
+        anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList());
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                stand.name,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (stand.standnummer != null && stand.standnummer!.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Nr. ${stand.standnummer!}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          untertitel,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, size: 20),
+              tooltip: 'Bearbeiten',
+              onPressed: onEdit,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline,
+                  size: 20, color: AppColors.error),
+              tooltip: 'Löschen',
+              onPressed: onDelete,
+            ),
+          ],
+        ),
+        children: [
+          if (anlagen.isEmpty)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Keine Anlagen erfasst.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+            )
+          else
+            ...anlagen.map((a) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sports_bar,
+                          size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _anlageZeile(a),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        '×${a.anzahl}',
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                )),
+          if (stand.notizen != null && stand.notizen!.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(height: 1),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                stand.notizen!,
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// «Oberthekengerät» bzw. «Oberthekengerät – Bezeichnung».
+  String _anlageZeile(EventStandAnlageLocal a) {
+    final label = EventStandAnlage.typLabel(a.typ);
+    if (a.bezeichnung != null && a.bezeichnung!.isNotEmpty) {
+      return '$label – ${a.bezeichnung!}';
+    }
+    return label;
   }
 }
 
