@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/util/swisstopo.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/basemap_umschalter.dart';
+import 'package:sbs_projer_app/presentation/widgets/mein_standort_marker.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 
 /// Ein Betrieb mit seiner aggregierten Fälligkeit für die Karte.
@@ -123,26 +124,7 @@ class _BetriebeMapState extends State<BetriebeMap> {
               ],
             ),
             if (_meinStandort != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: _meinStandort!,
-                    width: 24,
-                    height: 24,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withAlpha(70), blurRadius: 4),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              MarkerLayer(markers: [meinStandortMarker(_meinStandort!)]),
             const RichAttributionWidget(
               attributions: [TextSourceAttribution('© swisstopo')],
             ),
