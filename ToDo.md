@@ -1,6 +1,16 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.24.1
+**Stand:** 10.07.2026 · **Live:** v0.25.0
+
+---
+
+## 🟢 Betrieb-Paket (live v0.25.0 · 10.07.2026)
+- [x] ✓ **B — kundenabhängige Felder:** Rechnungsstellung + Zahlernamen erscheinen im Formular und Detail nur bei „mein Kunde".
+- [x] ✓ **A — Google-Datenübernahme:** Button „Aus Google übernehmen" im Betrieb-Formular → Bestätigungs-Dialog (alle Häkchen default an) → übernimmt Adresse/Telefon/Website/Koordinaten/Öffnungszeiten. Edge-Function `betrieb-google-lookup` deployed (Key server-seitig).
+- [x] ✓ **C — Betriebe-Karte:** Umschalter Liste↔Karte, Marker farbig nach Fälligkeit (schlimmste Anlage), Filter (meine Kunden/Region/nur fällige), Legende, Popup „Öffnen"/„Route", Zähler „X ohne Standort" → Formular.
+- [x] ✓ **D — Route:** „Route in Google Maps"-Button im Betrieb-Detail und im Karten-Popup.
+- [x] ✓ Qualität: subagent-getrieben, 3 neue TDD-Suites, **256 Tests grün**, Web-Build sauber.
+- [ ] **🔴 OFFEN — Google-API-Key setzen:** Damit „Aus Google übernehmen" funktioniert, muss `GOOGLE_PLACES_KEY` als Supabase-Secret gesetzt werden (`supabase secrets set GOOGLE_PLACES_KEY=…`). Bis dahin liefert die Edge-Function `GOOGLE_PLACES_KEY not configured`. Danach greift A automatisch (kein Redeploy nötig).
 
 ---
 
