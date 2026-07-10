@@ -59,6 +59,10 @@ class AnlagePdfService {
     ];
     final haelfte = (felder.length / 2).ceil();
 
+    // Bierleitungen aufsteigend nach Leitungsnummer.
+    final leitungenSortiert = [...bierleitungen]
+      ..sort((x, y) => x.leitungsNummer.compareTo(y.leitungsNummer));
+
     // Eine Label/Wert-Zeile mit feiner Trennlinie darunter.
     pw.Widget feldZeile(String label, String wert) => pw.Container(
           padding: const pw.EdgeInsets.symmetric(vertical: 3),
@@ -208,7 +212,7 @@ class AnlagePdfService {
               cellAlignment: pw.Alignment.centerLeft,
               headers: const ['Nr.', 'Biersorte', 'Hahn', 'Niederdruck', 'FOB', 'Gekoppelt'],
               data: [
-                for (final b in bierleitungen)
+                for (final b in leitungenSortiert)
                   [
                     b.leitungsNummer.toString(),
                     s(b.biersorte),
