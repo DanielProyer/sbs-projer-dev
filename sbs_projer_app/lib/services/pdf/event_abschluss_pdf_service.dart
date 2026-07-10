@@ -33,6 +33,15 @@ class EventAbschlussPdfService {
     'spesen': 'Spesen',
   };
 
+  /// Ersetzt Zeichen, die die Standard-Helvetica im pdf-Paket nicht rendert,
+  /// durch ASCII-Äquivalente (sonst leere Stellen im PDF).
+  static String _s(String t) => t
+      .replaceAll('✓', 'OK')
+      .replaceAll('–', '-')
+      .replaceAll('—', '-')
+      .replaceAll('‹', '<')
+      .replaceAll('›', '>');
+
   static Future<Uint8List> build(EventAbschlussDaten d) async {
     final doc = pw.Document();
     final totalStunden = d.aufwaende.fold<double>(0, (s, a) => s + a.stunden);
@@ -42,7 +51,7 @@ class EventAbschlussPdfService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (context) => [
-          BerichtPdfCommon.kopf('Abschlussbericht', '${d.eventName} · ${d.zeitraum}'),
+          BerichtPdfCommon.kopf('Abschlussbericht', _s('${d.eventName} · ${d.zeitraum}')),
           pw.SizedBox(height: 12),
           _abschnitt('Zusammenfassung'),
           _infoZeile('Stände', '${d.staende.length}'),
@@ -60,10 +69,10 @@ class EventAbschlussPdfService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Expanded(
-                        child: pw.Text('${s.name} — ${s.anlagenText}',
+                        child: pw.Text(_s('${s.name} - ${s.anlagenText}'),
                             style: const pw.TextStyle(fontSize: 9)),
                       ),
-                      pw.Text(s.inbetriebLabel, style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text(_s(s.inbetriebLabel), style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),
                 )),
@@ -145,7 +154,7 @@ class EventAbschlussPdfService {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Expanded(child: pw.Text(links, style: const pw.TextStyle(fontSize: 8.5))),
+              pw.Expanded(child: pw.Text(_s(links), style: const pw.TextStyle(fontSize: 8.5))),
               pw.Text('${z.stunden.toStringAsFixed(2)} h', style: const pw.TextStyle(fontSize: 8.5)),
             ],
           ),
@@ -175,9 +184,9 @@ class EventAbschlussPdfService {
         ),
         ...sorted.map((e) => pw.TableRow(children: [
               _zelle(_ddMMHHmm(e.zeitpunkt)),
-              _zelle(e.beschreibung),
-              _zelle(e.material ?? '—'),
-              _zelle(e.standName ?? '—'),
+              _zelle(_s(e.beschreibung)),
+              _zelle(_s(e.material ?? '-')),
+              _zelle(_s(e.standName ?? '-')),
             ])),
       ],
     );
