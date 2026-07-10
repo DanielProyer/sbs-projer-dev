@@ -10,7 +10,7 @@
 - [x] ✓ **C — Betriebe-Karte:** Umschalter Liste↔Karte, Marker farbig nach Fälligkeit (schlimmste Anlage), Filter (meine Kunden/Region/nur fällige), Legende, Popup „Öffnen"/„Route", Zähler „X ohne Standort" → Formular.
 - [x] ✓ **D — Route:** „Route in Google Maps"-Button im Betrieb-Detail und im Karten-Popup.
 - [x] ✓ Qualität: subagent-getrieben, 3 neue TDD-Suites, **256 Tests grün**, Web-Build sauber.
-- [ ] **🔴 OFFEN — Google-API-Key setzen:** Damit „Aus Google übernehmen" funktioniert, muss `GOOGLE_PLACES_KEY` als Supabase-Secret gesetzt werden (`supabase secrets set GOOGLE_PLACES_KEY=…`). Bis dahin liefert die Edge-Function `GOOGLE_PLACES_KEY not configured`. Danach greift A automatisch (kein Redeploy nötig).
+- [x] ✓ **Google-API-Key gesetzt** (10.07.2026): `GOOGLE_PLACES_KEY` als Supabase-Secret hinterlegt, Edge-Function per echtem Testbetrieb verifiziert (Adresse/Telefon/Website/Koordinaten/Öffnungszeiten kommen zurück). Baustein A produktiv.
 
 ---
 
