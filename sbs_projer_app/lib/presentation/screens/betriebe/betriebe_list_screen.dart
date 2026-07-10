@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/betrieb_faelligkeit.dart';
+import 'package:sbs_projer_app/core/util/google_maps_route.dart';
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
+import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_map.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class BetriebeListScreen extends ConsumerStatefulWidget {
   const BetriebeListScreen({super.key});
@@ -21,10 +27,33 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   Set<String> _selectedZapfsysteme = {};
   Set<String> _selectedRegionIds = {};
 
+  // Karten-Ansicht
+  bool _karteAktiv = false;
+  bool _karteNurMeine = false;
+  bool _karteNurFaellig = false;
+  String? _karteRegionId; // null = alle Regionen
+
   @override
   Widget build(BuildContext context) {
     final betriebe = ref.watch(betriebeProvider);
     final regionen = ref.watch(regionenProvider);
+
+    // Fälligkeit je Betrieb aus allen Anlagen aggregieren
+    final anlagen = ref.watch(anlagenProvider);
+    final anlagenNachBetrieb = <String, List<AnlageLocal>>{};
+    for (final a in anlagen) {
+      (anlagenNachBetrieb[a.betriebId] ??= []).add(a);
+    }
+    final jetzt = DateTime.now();
+    FaelligkeitsStatus statusFuer(BetriebLocal b) {
+      final sid = b.serverId;
+      final list = sid == null
+          ? const <AnlageLocal>[]
+          : (anlagenNachBetrieb[sid] ?? const []);
+      return betriebFaelligkeit(
+        list.map((a) => getFaelligkeit(a, jetzt, betrieb: b)).toList(),
+      );
+    }
 
     // Filter anwenden
     final filtered = betriebe.where((b) {
@@ -65,6 +94,26 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
       ),
       body: Column(
         children: [
+          // Umschalter Liste ↔ Karte
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.list),
+                    label: Text('Liste')),
+                ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.map),
+                    label: Text('Karte')),
+              ],
+              selected: {_karteAktiv},
+              onSelectionChanged: (s) =>
+                  setState(() => _karteAktiv = s.first),
+            ),
+          ),
+
           // Suchleiste
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -120,21 +169,23 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
             ),
           ),
 
-          // Liste
+          // Liste bzw. Karte
           Expanded(
-            child: filtered.isEmpty
-                ? _buildEmpty()
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      return _BetriebListItem(
-                        betrieb: filtered[index],
-                        onTap: () => context.push(
-                          '/betriebe/${filtered[index].routeId}',
-                        ),
-                      );
-                    },
-                  ),
+            child: _karteAktiv
+                ? _buildKarte(statusFuer)
+                : (filtered.isEmpty
+                    ? _buildEmpty()
+                    : ListView.builder(
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          return _BetriebListItem(
+                            betrieb: filtered[index],
+                            onTap: () => context.push(
+                              '/betriebe/${filtered[index].routeId}',
+                            ),
+                          );
+                        },
+                      )),
           ),
         ],
       ),
@@ -197,6 +248,132 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
         ],
       ),
     );
+  }
+
+  // ─── Karten-Ansicht ───
+
+  Widget _buildKarte(FaelligkeitsStatus Function(BetriebLocal) statusFuer) {
+    final alle = ref.read(betriebeProvider);
+    final regionen = ref.read(regionenProvider);
+
+    bool istFaellig(FaelligkeitsStatus s) =>
+        s == FaelligkeitsStatus.ueberfaellig ||
+        s == FaelligkeitsStatus.faellig ||
+        s == FaelligkeitsStatus.baldFaellig;
+
+    final gefiltert = alle.where((b) {
+      if (_karteNurMeine && !b.istMeinKunde) return false;
+      if (_karteRegionId != null && b.regionId != _karteRegionId) return false;
+      if (_karteNurFaellig && !istFaellig(statusFuer(b))) return false;
+      return true;
+    }).toList();
+
+    final mitKoord = gefiltert
+        .where((b) => b.latitude != null && b.longitude != null)
+        .map((b) => BetriebMarkerData(b, statusFuer(b)))
+        .toList();
+    final ohneKoord = gefiltert
+        .where((b) => b.latitude == null || b.longitude == null)
+        .toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            children: [
+              FilterChip(
+                label: const Text('Meine Kunden'),
+                selected: _karteNurMeine,
+                onSelected: (v) => setState(() => _karteNurMeine = v),
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Nur fällige'),
+                selected: _karteNurFaellig,
+                onSelected: (v) => setState(() => _karteNurFaellig = v),
+              ),
+              const SizedBox(width: 8),
+              if (regionen.isNotEmpty)
+                DropdownButton<String?>(
+                  value: _karteRegionId,
+                  hint: const Text('Region'),
+                  items: [
+                    const DropdownMenuItem(
+                        value: null, child: Text('Alle Regionen')),
+                    for (final r in regionen)
+                      if (r.serverId != null)
+                        DropdownMenuItem(
+                            value: r.serverId, child: Text(r.name)),
+                  ],
+                  onChanged: (v) => setState(() => _karteRegionId = v),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: BetriebeMap(
+            eintraege: mitKoord,
+            onOeffnen: (b) => context.push('/betriebe/${b.routeId}'),
+            onRoute: (b) => _oeffneRoute(b),
+          ),
+        ),
+        if (ohneKoord.isNotEmpty)
+          TextButton.icon(
+            onPressed: () => _zeigeOhneStandort(ohneKoord),
+            icon: const Icon(Icons.wrong_location_outlined, size: 18),
+            label: Text('${ohneKoord.length} Betriebe ohne Standort'),
+          ),
+      ],
+    );
+  }
+
+  void _zeigeOhneStandort(List<BetriebLocal> ohne) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Betriebe ohne Standort',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            for (final b in ohne)
+              ListTile(
+                title: Text(b.name),
+                subtitle: b.ort != null ? Text(b.ort!) : null,
+                trailing: const Icon(Icons.edit_location_alt),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/betriebe/${b.routeId}/bearbeiten');
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _oeffneRoute(BetriebLocal b) async {
+    final url = googleMapsRouteUrl(
+      latitude: b.latitude,
+      longitude: b.longitude,
+      adresse: [b.strasse, b.nr, b.plz, b.ort]
+          .where((s) => s != null && s.isNotEmpty)
+          .join(' '),
+    );
+    if (url == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Keine Adresse/Koordinaten für Route.')),
+        );
+      }
+      return;
+    }
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 }
 
