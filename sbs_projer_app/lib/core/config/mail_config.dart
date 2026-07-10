@@ -23,6 +23,9 @@ class MailConfig {
   static const heigenieScharf = true;
   static const bestellungScharf = false;
   static const mahnwesenScharf = false;
+  // Events-Abschlussmail: startet im Testmodus, nach erfolgreichem Testversand
+  // manuell auf true stellen.
+  static const eventScharf = false;
 
   /// Unsichtbare Zeichen, die beim Copy-Paste in E-Mail-Adressen geraten und
   /// z.B. beim Gmail-Versand "Invalid To header" auslösen:
@@ -50,6 +53,8 @@ class MailConfig {
         if (!bestellungScharf) return bereinige(testEmpfaenger);
       case 'mahnwesen':
         if (!mahnwesenScharf) return bereinige(testEmpfaenger);
+      case 'event':
+        if (!eventScharf) return bereinige(testEmpfaenger);
     }
 
     return bereinige(echterEmpfaenger ?? testEmpfaenger);
@@ -73,6 +78,8 @@ class MailConfig {
         return bestellungScharf;
       case 'mahnwesen':
         return mahnwesenScharf;
+      case 'event':
+        return eventScharf;
     }
     return true;
   }
