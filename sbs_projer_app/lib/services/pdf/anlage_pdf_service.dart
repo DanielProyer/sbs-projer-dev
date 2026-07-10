@@ -105,11 +105,17 @@ class AnlagePdfService {
     for (var i = 0; i < fotos.length; i += 2) {
       pw.Widget box(Uint8List? b) => pw.Expanded(
             child: pw.Container(
-              height: 92,
+              height: 120,
+              alignment: pw.Alignment.center,
+              padding: const pw.EdgeInsets.all(2),
               decoration: pw.BoxDecoration(
                 border: b == null ? null : pw.Border.all(color: _linie),
+                color: b == null ? null : PdfColors.grey50,
               ),
-              child: b == null ? pw.SizedBox() : pw.Image(pw.MemoryImage(b), fit: pw.BoxFit.cover),
+              // contain = ganzes Foto, kein Beschnitt/Verzerrung.
+              child: b == null
+                  ? pw.SizedBox()
+                  : pw.Image(pw.MemoryImage(b), fit: pw.BoxFit.contain),
             ),
           );
       fotoRows.add(pw.Row(children: [
