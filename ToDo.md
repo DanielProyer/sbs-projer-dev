@@ -10,7 +10,7 @@
 - [x] ✓ **Dauerhafte Schliessung**: Status „geschlossen" im Formular + Schliessungsgrund (Umnutzung/Abbruch/Konkurs/Sonstiges) + -datum; im Detail angezeigt.
 - [x] ✓ **Sichtbarkeit**: Betriebe-Liste default nur aktive; Karte nur aktive/saisonpause + Filter-Chip „Inaktive/geschl.".
 - [x] ✓ Qualität: subagent-getrieben, neue TDD-Suite (7 Tests), **263 Tests grün**, Web-Build sauber.
-- [ ] **🟡 Live prüfen** (auth-/datenabhängig): Formular Status-Wechsel schaltet „mein Kunde" korrekt + Override bleibt; Schliessungsfelder nur bei „geschlossen"; Liste/Karte blenden inaktive/geschlossene aus (Karten-Chip zeigt sie).
+- [x] ✓ **Live geprüft** (10.07.2026): Formular-Auto-„mein Kunde" + Override, Schliessungsfelder, Liste/Karte-Sichtbarkeit — alles funktioniert.
 
 ---
 
