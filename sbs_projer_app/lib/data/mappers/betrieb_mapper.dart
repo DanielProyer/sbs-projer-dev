@@ -34,6 +34,8 @@ class BetriebMapper {
     local.zapfsysteme = dto.zapfsysteme;
     local.zahlerAliase = dto.zahlerAliase;
     local.rechnungsstellung = dto.rechnungsstellung;
+    local.schliessungsgrund = dto.schliessungsgrund;
+    local.schliessungsdatum = dto.schliessungsdatum;
     local.latitude = dto.latitude;
     local.longitude = dto.longitude;
     local.ferienStart = dto.ferienStart;
@@ -92,6 +94,9 @@ class BetriebMapper {
       'zapfsysteme': local.zapfsysteme,
       'zahler_aliase': local.zahlerAliase,
       'rechnungsstellung': local.rechnungsstellung,
+      'schliessungsgrund': local.schliessungsgrund,
+      'schliessungsdatum':
+          local.schliessungsdatum?.toIso8601String().split('T').first,
       'latitude': local.latitude,
       'longitude': local.longitude,
       'ferien_start': local.ferienStart?.toIso8601String().split('T').first,

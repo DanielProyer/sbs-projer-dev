@@ -28,6 +28,8 @@ class Betrieb {
   final List<String> zapfsysteme;
   final List<String> zahlerAliase;
   final String rechnungsstellung;
+  final String? schliessungsgrund;
+  final DateTime? schliessungsdatum;
   final double? latitude;
   final double? longitude;
   final DateTime? ferienStart;
@@ -80,6 +82,8 @@ class Betrieb {
     this.zapfsysteme = const [],
     this.zahlerAliase = const [],
     this.rechnungsstellung = 'rechnung_mail',
+    this.schliessungsgrund,
+    this.schliessungsdatum,
     this.latitude,
     this.longitude,
     this.ferienStart,
@@ -140,6 +144,10 @@ class Betrieb {
           ? List<String>.from(json['zahler_aliase'])
           : [],
       rechnungsstellung: json['rechnungsstellung'] ?? 'rechnung_mail',
+      schliessungsgrund: json['schliessungsgrund'],
+      schliessungsdatum: json['schliessungsdatum'] != null
+          ? DateTime.parse(json['schliessungsdatum'])
+          : null,
       latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
       longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
       ferienStart: json['ferien_start'] != null ? DateTime.parse(json['ferien_start']) : null,
@@ -197,6 +205,8 @@ class Betrieb {
       'zapfsysteme': zapfsysteme,
       'zahler_aliase': zahlerAliase,
       'rechnungsstellung': rechnungsstellung,
+      'schliessungsgrund': schliessungsgrund,
+      'schliessungsdatum': schliessungsdatum?.toIso8601String().split('T').first,
       'latitude': latitude,
       'longitude': longitude,
       'ferien_start': ferienStart?.toIso8601String().split('T').first,

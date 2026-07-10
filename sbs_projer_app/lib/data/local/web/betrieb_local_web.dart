@@ -37,6 +37,8 @@ class BetriebLocal {
   List<String> zapfsysteme = [];
   List<String> zahlerAliase = [];
   String rechnungsstellung = 'rechnung_mail';
+  String? schliessungsgrund;
+  DateTime? schliessungsdatum;
   double? latitude;
   double? longitude;
   DateTime? ferienStart;
