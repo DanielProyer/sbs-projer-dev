@@ -23,7 +23,9 @@ swisstopo-Karte (flutter_map) stammt aus E3.
 - **C Farben:** volle Fälligkeits-Skala (bestehende `getFaelligkeit`).
 - **C Scope:** alle Betriebe mit Filter-Leiste (meine Kunden / Region / nur fällige).
 - **C ohne Koordinaten:** Zähler + Liste, von dort direkt der Google-Abgleich (A) zum Nachtragen.
-- **Reihenfolge:** B → A → C. **Deploy als v0.25.0.**
+- **D Route-Button:** Betrieb-Detail (und Karten-Popup) bekommen „Route in Google Maps"
+  (öffnet die Navigation zum Betrieb).
+- **Reihenfolge:** B → A → C → D. **Deploy als v0.25.0.**
 
 ## Datenmodell
 
@@ -98,6 +100,16 @@ vorgesehen (YAGNI).
 - Unter/über der Karte ein **Zähler „X Betriebe ohne Standort"** → tippbar → Liste dieser
   Betriebe → je Eintrag „Standort ergänzen" öffnet das Betrieb-Formular bzw. direkt den
   **Google-Abgleich (A)**, der Koordinaten nachträgt. So werden A und C verzahnt.
+
+## Baustein D — „Route in Google Maps"
+
+- **Betrieb-Detail:** Button/Icon **„Route"** (Navigation). Öffnet Google Maps mit dem Betrieb
+  als Ziel:
+  - mit Koordinaten: `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lng>`
+  - sonst Adresse: `https://www.google.com/maps/dir/?api=1&destination=<URL-encodierte Adresse>`
+  - via `url_launcher` `launchUrl(..., mode: LaunchMode.externalApplication)` (bestehendes Muster).
+    Ohne Koordinaten UND ohne Adresse → Button ausgeblendet.
+- **Karten-Popup (C.3):** zusätzlich zu „Öffnen" ein „Route"-Button mit derselben Logik.
 
 ## Abgrenzung
 
