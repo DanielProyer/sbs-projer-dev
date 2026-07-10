@@ -1064,7 +1064,9 @@ class _StandCard extends ConsumerWidget {
     };
     final standKontakte = [
       for (final z in zuordnungen)
-        if (z.standId == stand.serverId && kontakteMap[z.kontaktId] != null)
+        if (stand.serverId != null &&
+            z.standId == stand.serverId &&
+            kontakteMap[z.kontaktId] != null)
           kontakteMap[z.kontaktId]!,
     ];
     final kontaktText = standKontakte.isEmpty
