@@ -159,7 +159,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
             (
               zeitpunkt: e.zeitpunkt.toLocal(),
               beschreibung: e.beschreibung,
-              material: e.material,
+              material: _einsatzMaterialText(e),
               standName: e.standId != null ? standNamen[e.standId] : null,
             ),
         ],
@@ -1055,6 +1055,24 @@ class _StandCard extends ConsumerWidget {
         anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList());
     final fortschritt = inbetriebnahmeFortschritt(
         anlagen.map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb)).toList());
+    final zuordnungen =
+        ref.watch(eventKontakteProvider(stand.eventId)).valueOrNull ??
+            <EventKontaktLocal>[];
+    final kontakteMap = <String, KontaktLocal>{
+      for (final k in ref.watch(kontakteProvider).valueOrNull ?? <KontaktLocal>[])
+        if (k.serverId != null) k.serverId!: k,
+    };
+    final standKontakte = [
+      for (final z in zuordnungen)
+        if (z.standId == stand.serverId && kontakteMap[z.kontaktId] != null)
+          kontakteMap[z.kontaktId]!,
+    ];
+    final kontaktText = standKontakte.isEmpty
+        ? null
+        : standKontakte
+            .map((k) => ('${k.vorname} ${k.nachname ?? ''}').trim() +
+                ((k.telefon != null && k.telefon!.isNotEmpty) ? ' · ${k.telefon}' : ''))
+            .join(', ');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1114,9 +1132,32 @@ class _StandCard extends ConsumerWidget {
             ],
           ],
         ),
-        subtitle: Text(
-          untertitel,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              untertitel,
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.textSecondary),
+            ),
+            if (kontaktText != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person,
+                        size: 13, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(kontaktText,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1801,6 +1842,7 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
   String _suchText = '';
   KontaktLocal? _ausgewaehlt;
   String _rolle = 'stand';
+  String? _standId;
   final _bemerkungCtrl = TextEditingController();
   bool _speichert = false;
 
@@ -1859,6 +1901,7 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
         ..eventId = widget.eventServerId
         ..kontaktId = kontakt.serverId!
         ..rolle = _rolle
+        ..standId = _rolle == 'stand' ? _standId : null
         ..bemerkung = bemerkung.isEmpty ? null : bemerkung;
       await EventKontaktRepository.save(z);
 
@@ -2026,9 +2069,35 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
                         ))
                     .toList(),
                 onChanged: (v) {
-                  if (v != null) setState(() => _rolle = v);
+                  if (v != null) setState(() { _rolle = v; if (v != 'stand') _standId = null; });
                 },
               ),
+              if (_rolle == 'stand') ...[
+                const SizedBox(height: 12),
+                ref.watch(eventStaendeProvider(widget.eventServerId)).when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, _) => const SizedBox.shrink(),
+                  data: (staende) => DropdownButtonFormField<String?>(
+                    initialValue: _standId,
+                    decoration: const InputDecoration(
+                      labelText: 'Stand',
+                      prefixIcon: Icon(Icons.storefront),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('— (kein bestimmter Stand)'),
+                      ),
+                      for (final s in staende)
+                        DropdownMenuItem<String?>(
+                          value: s.serverId,
+                          child: Text(s.name),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _standId = v),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _bemerkungCtrl,
@@ -2076,6 +2145,16 @@ String _zwei(int v) => v.toString().padLeft(2, '0');
 String _ddMM(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.';
 
 String _ddMMyyyy(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.${d.year}';
+
+/// Material-Text für das PDF: Freitext/Lager-Name + optional Menge.
+String? _einsatzMaterialText(EventEinsatzLocal e) {
+  final m = e.material;
+  if (m == null || m.isEmpty) return null;
+  final menge = e.materialMenge;
+  if (menge == null || menge <= 0) return m;
+  final mengeStr = menge % 1 == 0 ? menge.toStringAsFixed(0) : menge.toString();
+  return '$m x$mengeStr';
+}
 
 String _ddMMHHmm(DateTime d) =>
     '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';
