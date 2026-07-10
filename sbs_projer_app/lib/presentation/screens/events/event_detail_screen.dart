@@ -15,8 +15,8 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 
-/// Event-Detail: Kopf mit Termin/Status, Kontaktliste gruppiert nach Rollen,
-/// Kontakt-Zuordnung per Sheet, WhatsApp/Anruf-Schnellaktionen (E1).
+/// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
+/// Dokumente. Der FAB wechselt je nach aktivem Tab (E2).
 class EventDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
 
@@ -26,7 +26,26 @@ class EventDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
 }
 
-class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
+class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    // FAB je Tab neu aufbauen.
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   /// Übernimmt Kontakte aus dem Vorjahres-Event (PopupMenu-Aktion).
   Future<void> _ausVorjahrUebernehmen(EventLocal event) async {
     try {
@@ -105,46 +124,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     }
   }
 
-  /// Entfernt eine Kontakt-Zuordnung nach Bestätigung (nicht den Kontakt).
-  Future<bool> _zuordnungEntfernen(
-      EventKontaktLocal z, String name, String eventServerId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Zuordnung entfernen'),
-        content: Text(
-          '«$name» aus der Kontaktliste entfernen?\n\n'
-          'Nur die Zuordnung wird entfernt, nicht der Kontakt.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Entfernen'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return false;
-
-    try {
-      await EventKontaktRepository.delete(z.routeId);
-      ref.invalidate(eventKontakteProvider(eventServerId));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
-      }
-    }
-    // false: Liste wird über den Provider neu geladen, nicht per Dismiss-Animation
-    return false;
-  }
-
   /// Öffnet das Zuordnungs-Sheet (Kontakt wählen → Rolle + Bemerkung).
   void _zeigeZuordnenSheet(String eventServerId) {
     showModalBottomSheet(
@@ -179,12 +158,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         final name =
             '${betriebNamen[event.betriebId] ?? 'Unbekannter Betrieb'} ${event.jahr}';
         final eventServerId = event.serverId!;
-        final zuordnungenAsync = ref.watch(eventKontakteProvider(eventServerId));
-        final kontakteMap = <String, KontaktLocal>{
-          for (final k in ref.watch(kontakteProvider).valueOrNull ??
-              <KontaktLocal>[])
-            if (k.serverId != null) k.serverId!: k,
-        };
 
         return Scaffold(
           appBar: AppBar(
@@ -235,48 +208,140 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               ),
             ],
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _zeigeZuordnenSheet(eventServerId),
-            icon: const Icon(Icons.person_add),
-            label: const Text('Kontakt zuordnen'),
-          ),
-          body: zuordnungenAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Fehler: $e')),
-            data: (zuordnungen) {
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
-                children: [
-                  _KopfCard(
-                    event: event,
-                    name: name,
-                    ort: betriebOrte[event.betriebId],
-                  ),
-                  const SizedBox(height: 12),
-                  if (zuordnungen.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 32),
-                      child: Column(
-                        children: [
-                          Icon(Icons.contacts,
-                              size: 64,
-                              color: AppColors.textSecondary
-                                  .withValues(alpha: 0.4)),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Noch keine Kontakte zugeordnet.',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ..._buildRollenGruppen(
-                        zuordnungen, kontakteMap, eventServerId),
+          floatingActionButton: _buildFab(eventServerId),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _KopfCard(
+                  event: event,
+                  name: name,
+                  ort: betriebOrte[event.betriebId],
+                ),
+              ),
+              TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Kontakte'),
+                  Tab(text: 'Stände'),
+                  Tab(text: 'Dokumente'),
                 ],
-              );
-            },
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _KontakteTab(eventServerId: eventServerId),
+                    const _StaendeTab(),
+                    const _DokumenteTab(),
+                  ],
+                ),
+              ),
+            ],
           ),
+        );
+      },
+    );
+  }
+
+  /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen (Task 8),
+  /// 2 Dokument hochladen (Task 9). Für 1/2 vorerst kein FAB.
+  Widget? _buildFab(String eventServerId) {
+    switch (_tabController.index) {
+      case 0:
+        return FloatingActionButton.extended(
+          onPressed: () => _zeigeZuordnenSheet(eventServerId),
+          icon: const Icon(Icons.person_add),
+          label: const Text('Kontakt zuordnen'),
+        );
+      default:
+        return null;
+    }
+  }
+}
+
+/// Kontakte-Tab: Kontaktliste gruppiert nach Rollen, WhatsApp/Anruf-
+/// Schnellaktionen, Wisch-/Longpress-Entfernen der Zuordnung (E1, unverändert).
+class _KontakteTab extends ConsumerWidget {
+  final String eventServerId;
+
+  const _KontakteTab({required this.eventServerId});
+
+  /// Entfernt eine Kontakt-Zuordnung nach Bestätigung (nicht den Kontakt).
+  Future<bool> _zuordnungEntfernen(BuildContext context, WidgetRef ref,
+      EventKontaktLocal z, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Zuordnung entfernen'),
+        content: Text(
+          '«$name» aus der Kontaktliste entfernen?\n\n'
+          'Nur die Zuordnung wird entfernt, nicht der Kontakt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Entfernen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+
+    try {
+      await EventKontaktRepository.delete(z.routeId);
+      ref.invalidate(eventKontakteProvider(eventServerId));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+    // false: Liste wird über den Provider neu geladen, nicht per Dismiss-Animation
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final zuordnungenAsync = ref.watch(eventKontakteProvider(eventServerId));
+    final kontakteMap = <String, KontaktLocal>{
+      for (final k in ref.watch(kontakteProvider).valueOrNull ??
+          <KontaktLocal>[])
+        if (k.serverId != null) k.serverId!: k,
+    };
+
+    return zuordnungenAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Fehler: $e')),
+      data: (zuordnungen) {
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+          children: [
+            if (zuordnungen.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 32),
+                child: Column(
+                  children: [
+                    Icon(Icons.contacts,
+                        size: 64,
+                        color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Noch keine Kontakte zugeordnet.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._buildRollenGruppen(context, ref, zuordnungen, kontakteMap),
+          ],
         );
       },
     );
@@ -284,9 +349,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
   /// Baut pro Rolle (feste Reihenfolge) Abschnittstitel + Kontakt-Zeilen.
   List<Widget> _buildRollenGruppen(
+    BuildContext context,
+    WidgetRef ref,
     List<EventKontaktLocal> zuordnungen,
     Map<String, KontaktLocal> kontakteMap,
-    String eventServerId,
   ) {
     String anzeigeName(EventKontaktLocal z) {
       final k = kontakteMap[z.kontaktId];
@@ -296,11 +362,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
     final widgets = <Widget>[];
     for (final rolle in EventKontakt.rollenReihenfolge) {
-      final inGruppe =
-          zuordnungen.where((z) => z.rolle == rolle).toList()
-            ..sort((a, b) => anzeigeName(a)
-                .toLowerCase()
-                .compareTo(anzeigeName(b).toLowerCase()));
+      final inGruppe = zuordnungen.where((z) => z.rolle == rolle).toList()
+        ..sort((a, b) => anzeigeName(a)
+            .toLowerCase()
+            .compareTo(anzeigeName(b).toLowerCase()));
       if (inGruppe.isEmpty) continue;
 
       widgets.add(Padding(
@@ -348,7 +413,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             child: const Icon(Icons.delete, color: Colors.white),
           ),
           confirmDismiss: (_) =>
-              _zuordnungEntfernen(z, name, eventServerId),
+              _zuordnungEntfernen(context, ref, z, name),
           child: Card(
             margin: const EdgeInsets.only(bottom: 4),
             child: ListTile(
@@ -357,8 +422,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
               title: Text(
                 name,
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: (z.bemerkung != null && z.bemerkung!.isNotEmpty)
@@ -383,13 +448,44 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                     ),
                 ],
               ),
-              onLongPress: () => _zuordnungEntfernen(z, name, eventServerId),
+              onLongPress: () =>
+                  _zuordnungEntfernen(context, ref, z, name),
             ),
           ),
         ));
       }
     }
     return widgets;
+  }
+}
+
+/// Stände-Tab (Platzhalter — folgt in Task 8).
+class _StaendeTab extends StatelessWidget {
+  const _StaendeTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'Stände — folgt',
+        style: TextStyle(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+/// Dokumente-Tab (Platzhalter — folgt in Task 9).
+class _DokumenteTab extends StatelessWidget {
+  const _DokumenteTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'Dokumente — folgt',
+        style: TextStyle(color: AppColors.textSecondary),
+      ),
+    );
   }
 }
 
