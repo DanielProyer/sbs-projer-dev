@@ -83,6 +83,73 @@ class AppFilterSheetButton extends AppFilterItem {
   }
 }
 
+/// Eine Option einer [AppMultiToggleChips]-Gruppe (optional farbig).
+class AppMultiOption<T> {
+  final T value;
+  final String label;
+  final Color? color;
+  const AppMultiOption(this.value, this.label, {this.color});
+}
+
+/// Gruppe von Mehrfach-Auswahl-Chips (optional farbig), im Wrap. Für
+/// Filter mit mehreren gleichzeitig aktivierbaren Werten (z.B. Fälligkeit).
+class AppMultiToggleChips<T> extends StatelessWidget {
+  final List<AppMultiOption<T>> options;
+  final Set<T> selected;
+  final ValueChanged<Set<T>> onChanged;
+  final double spacing;
+  const AppMultiToggleChips({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+    this.spacing = 6,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: spacing,
+      runSpacing: 4,
+      children: [
+        for (final o in options)
+          FilterChip(
+            label: Text(
+              o.label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: o.color != null && selected.contains(o.value)
+                    ? o.color
+                    : null,
+              ),
+            ),
+            selected: selected.contains(o.value),
+            showCheckmark: false,
+            selectedColor: o.color?.withAlpha(30),
+            side: o.color != null
+                ? BorderSide(
+                    color: selected.contains(o.value)
+                        ? o.color!.withAlpha(120)
+                        : Colors.transparent)
+                : null,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onSelected: (v) {
+              final updated = Set<T>.from(selected);
+              if (v) {
+                updated.add(o.value);
+              } else {
+                updated.remove(o.value);
+              }
+              onChanged(updated);
+            },
+          ),
+      ],
+    );
+  }
+}
+
 /// Einheitliche Filter-Leiste (unter der SearchBar).
 class AppFilterBar extends StatelessWidget {
   final List<AppFilterItem> items;

@@ -38,6 +38,27 @@ void main() {
     expect(gewaehlt, 'zu');
   });
 
+  testWidgets('AppMultiToggleChips: mehrere gleichzeitig wählbar', (t) async {
+    Set<String> sel = {'a'};
+    await t.pumpWidget(_wrap(StatefulBuilder(
+      builder: (c, setState) => AppMultiToggleChips<String>(
+        options: const [
+          AppMultiOption('a', 'Alpha'),
+          AppMultiOption('b', 'Beta'),
+        ],
+        selected: sel,
+        onChanged: (s) => setState(() => sel = s),
+      ),
+    )));
+    expect(find.text('Alpha'), findsOneWidget);
+    await t.tap(find.text('Beta'));
+    await t.pumpAndSettle();
+    expect(sel, {'a', 'b'});
+    await t.tap(find.text('Alpha'));
+    await t.pumpAndSettle();
+    expect(sel, {'b'});
+  });
+
   testWidgets('AppActiveFilters: leer -> shrink, sonst löschbar', (t) async {
     await t.pumpWidget(_wrap(const AppActiveFilters(chips: [])));
     expect(find.byType(Chip), findsNothing);

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
@@ -1129,41 +1130,14 @@ class _InlineFilterLeiste extends StatelessWidget {
           // Fälligkeit
           _filterZeile(
             label: 'Fälligkeit',
-            child: Row(
-              children: _faelligStatuses.map((s) {
-                final selected = selectedFaelligkeit.contains(s);
-                final color = faelligkeitFarbe(s);
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: FilterChip(
-                    label: Text(faelligkeitLabel(s),
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: selected ? color : AppColors.textSecondary,
-                            fontWeight: FontWeight.w600)),
-                    selected: selected,
-                    showCheckmark: false,
-                    backgroundColor: AppColors.surface,
-                    selectedColor: color.withAlpha(25),
-                    side: BorderSide(
-                        color: selected
-                            ? color.withAlpha(120)
-                            : AppColors.textSecondary.withAlpha(50)),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    onSelected: (v) {
-                      final updated =
-                          Set<FaelligkeitsStatus>.from(selectedFaelligkeit);
-                      if (v) {
-                        updated.add(s);
-                      } else {
-                        updated.remove(s);
-                      }
-                      onFaelligkeitChanged(updated);
-                    },
-                  ),
-                );
-              }).toList(),
+            child: AppMultiToggleChips<FaelligkeitsStatus>(
+              options: [
+                for (final s in _faelligStatuses)
+                  AppMultiOption(s, faelligkeitLabel(s),
+                      color: faelligkeitFarbe(s)),
+              ],
+              selected: selectedFaelligkeit,
+              onChanged: onFaelligkeitChanged,
             ),
           ),
           if (regionen.isNotEmpty) const SizedBox(height: 4),
@@ -1171,42 +1145,14 @@ class _InlineFilterLeiste extends StatelessWidget {
           if (regionen.isNotEmpty)
             _filterZeile(
               label: 'Region',
-              child: Row(
-                children: regionen.map((r) {
-                  final id = r.routeId as String;
-                  final selected = selectedRegionen.contains(id);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: FilterChip(
-                      label: Text(r.name as String,
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: selected
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary,
-                              fontWeight: FontWeight.w600)),
-                      selected: selected,
-                      showCheckmark: false,
-                      backgroundColor: AppColors.surface,
-                      selectedColor: AppColors.primary.withAlpha(25),
-                      side: BorderSide(
-                          color: selected
-                              ? AppColors.primary.withAlpha(120)
-                              : AppColors.textSecondary.withAlpha(50)),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      onSelected: (v) {
-                        final updated = Set<String>.from(selectedRegionen);
-                        if (v) {
-                          updated.add(id);
-                        } else {
-                          updated.remove(id);
-                        }
-                        onRegionenChanged(updated);
-                      },
-                    ),
-                  );
-                }).toList(),
+              child: AppMultiToggleChips<String>(
+                options: [
+                  for (final r in regionen)
+                    AppMultiOption(r.routeId as String, r.name as String,
+                        color: AppColors.primary),
+                ],
+                selected: selectedRegionen,
+                onChanged: onRegionenChanged,
               ),
             ),
         ],
