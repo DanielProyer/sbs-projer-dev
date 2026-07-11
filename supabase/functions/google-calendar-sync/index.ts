@@ -323,12 +323,24 @@ async function applyTags(
   let tagged = 0;
   const errors: Any[] = [];
   const nowIso = new Date().toISOString();
+  const DEFAULT_REM = { useDefault: true, overrides: [] };
   for (const it of items) {
     const eventId = it.event_id;
     const betriebId = it.betrieb_id;
     if (!eventId || !betriebId) continue;
-    // NUR PATCH mit colorId/reminders/extendedProperties — summary/description
-    // /start/end werden NICHT gesendet und bleiben unangetastet.
+
+    // 1) Originalzustand (Farbe/Erinnerung) lesen, um Untag exakt umkehrbar zu machen.
+    let origColor: string | null = null;
+    let origReminders: Any = null;
+    const getRes = await gfetch(token, `${CAL}/${eventId}`, "GET");
+    if (getRes.ok) {
+      const cur = await getRes.json();
+      origColor = cur.colorId ?? null;
+      origReminders = cur.reminders ?? null;
+    }
+
+    // 2) Taggen — NUR PATCH mit colorId/reminders/extendedProperties.
+    // summary/description/start/end werden NIE gesendet -> bleiben unangetastet.
     const ev = {
       colorId: "1", // Lavendel
       reminders: { useDefault: false, overrides: ALLDAY },
@@ -345,17 +357,31 @@ async function applyTags(
       errors.push({ event_id: eventId, fehler: (await res.text()).substring(0, 200) });
       continue;
     }
-    await admin.from("google_calendar_events").upsert({
-      user_id: userId,
-      entity_type: "betrieb_manuell",
-      entity_id: eventId,
-      google_event_id: eventId,
-      synced_at: nowIso,
-      status: "ok",
-      fehler: null,
-      updated_at: nowIso,
-    }, { onConflict: "user_id,entity_type,entity_id" });
-    tagged++;
+
+    // 3) Mapping + Originalzustand persistieren. Scheitert die DB, den Google-Tag
+    // sofort zurücknehmen (keine Waisen-Tags, die untag nie erreicht).
+    try {
+      await admin.from("google_calendar_events").upsert({
+        user_id: userId,
+        entity_type: "betrieb_manuell",
+        entity_id: eventId,
+        google_event_id: eventId,
+        original_color_id: origColor,
+        original_reminders: origReminders,
+        synced_at: nowIso,
+        status: "ok",
+        fehler: null,
+        updated_at: nowIso,
+      }, { onConflict: "user_id,entity_type,entity_id" });
+      tagged++;
+    } catch (dbErr) {
+      await gfetch(token, `${CAL}/${eventId}`, "PATCH", {
+        colorId: origColor,
+        reminders: origReminders ?? DEFAULT_REM,
+        extendedProperties: { private: { app: null, entity_type: null, betrieb_id: null } },
+      });
+      errors.push({ event_id: eventId, fehler: "db: " + (dbErr as Error).message });
+    }
   }
   return { tagged, errors };
 }
@@ -374,18 +400,26 @@ async function untagManual(
   const { data: mappings } = await q;
   let untagged = 0;
   const errors: Any[] = [];
+  const DEFAULT_REM = { useDefault: true, overrides: [] };
   for (const m of mappings ?? []) {
     const evId = m.google_event_id ?? m.entity_id;
-    // Zurücksetzen: Farbe auf Default (null), Erinnerung auf Default,
-    // app-Properties entfernen (null löscht den Key). Titel/Notiz unangetastet.
-    const ev = {
-      colorId: null,
-      reminders: { useDefault: true, overrides: [] },
-      extendedProperties: {
-        private: { app: null, entity_type: null, betrieb_id: null },
-      },
+    // Ursprungszustand wiederherstellen: Original-Farbe (oder null = kein Color),
+    // Original-Erinnerung (oder Default), app-Properties entfernen (null löscht Key).
+    // Titel/Notiz/Datum unangetastet.
+    const ev: Any = {
+      colorId: m.original_color_id ?? null,
+      reminders: m.original_reminders ?? DEFAULT_REM,
+      extendedProperties: { private: { app: null, entity_type: null, betrieb_id: null } },
     };
-    const res = await gfetch(token, `${CAL}/${evId}`, "PATCH", ev);
+    let res = await gfetch(token, `${CAL}/${evId}`, "PATCH", ev);
+    // Sicherheitsnetz: falls colorId:null abgelehnt wird, ohne colorId erneut
+    // patchen — so wird der app-Tag garantiert gelöst (Termin wieder scanbar).
+    if (!res.ok && res.status !== 404 && res.status !== 410) {
+      res = await gfetch(token, `${CAL}/${evId}`, "PATCH", {
+        reminders: ev.reminders,
+        extendedProperties: ev.extendedProperties,
+      });
+    }
     if (res.ok || res.status === 404 || res.status === 410) {
       await admin.from("google_calendar_events").delete().eq("id", m.id);
       untagged++;
