@@ -533,6 +533,7 @@ class _TagesplanListe extends StatelessWidget {
   Widget build(BuildContext context) {
     return ReorderableListView.builder(
       padding: const EdgeInsets.only(top: 4, bottom: 16),
+      buildDefaultDragHandles: false,
       itemCount: eintraege.length,
       onReorder: onReorder,
       proxyDecorator: (child, index, animation) {
@@ -671,13 +672,18 @@ class _TourEintragKarte extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      // Drag Handle
+                      // Grosser Greif-Griff (leicht zu treffen)
                       ReorderableDragStartListener(
                         index: position - 1,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(Icons.drag_handle,
-                              color: AppColors.textSecondary, size: 20),
+                        child: Container(
+                          width: 48,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: AppColors.textSecondary.withAlpha(15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.drag_indicator,
+                              color: AppColors.textSecondary, size: 28),
                         ),
                       ),
                     ],

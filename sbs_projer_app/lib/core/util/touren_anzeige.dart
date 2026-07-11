@@ -1,7 +1,7 @@
-/// Reine Anzeige-Helfer für die Tourenplanung (ohne Flutter-Abhängigkeiten).
-///
-/// Ruhetage werden am Betrieb als volle Wochentagsnamen gespeichert
-/// (`'Montag'` … `'Sonntag'`), passend zu `isBetriebOffen` in tour_providers.
+// Reine Anzeige-Helfer für die Tourenplanung (ohne Flutter-Abhängigkeiten).
+//
+// Ruhetage werden am Betrieb als volle Wochentagsnamen gespeichert
+// ('Montag' … 'Sonntag'), passend zu `isBetriebOffen` in tour_providers.
 
 const List<String> _wochentageVoll = [
   'Montag',
