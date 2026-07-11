@@ -185,7 +185,7 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 - [ ] camt-Regeln beobachten/verengen: `'abschluss'` (Substring breit); Lohn „daniel proyer" ggf. → IBAN `CH7909000000870500683`; Heineken „heineken" → „heineken switzerland".
 - [ ] Saldo-Parsing-Bug (vorbestehend): `OPBD/CLBD` als 0 gelesen (`CdOrPrtry` liegt unter `Tp`). Pipeline nutzt es nicht, aber falsch.
 - [ ] Phase 0a Follow-up: 11 alte camt-Vorlagen `ist_aktiv=true` (FK-Schutz) — optional Regeln auf neue Geschäftsfälle umhängen, dann Alt-Vorlagen deaktivieren (tauchen sonst im manuellen Dropdown auf).
-- [ ] Hub: toter Code `forderungenProvider` / `mahnwesenDashboardProvider` entfernen (invalidate auf `rechnungenStreamProvider` umbiegen).
+- [x] ✓ Hub: toter Code `forderungenProvider` / `mahnwesenDashboardProvider` bereits entfernt (Grep 11.07.2026: keine Vorkommen mehr).
 - [ ] **App-weite UI-Vereinheitlichung** (Filter/Dropdowns) — eigener grösserer Durchgang. Referenz-Stil: schlichte `DropdownButton` im `Wrap`.
 
 ---
