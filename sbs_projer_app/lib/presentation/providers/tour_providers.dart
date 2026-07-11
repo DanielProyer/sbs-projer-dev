@@ -335,6 +335,8 @@ class TourEintrag {
   final DateTime? datum;
   final List<String> ruhetage;
   final String? servicezeit;
+  final bool istAutoTermin;
+  final DateTime? zielDatum;
 
   const TourEintrag({
     required this.typ,
@@ -349,7 +351,25 @@ class TourEintrag {
     this.datum,
     this.ruhetage = const [],
     this.servicezeit,
+    this.istAutoTermin = false,
+    this.zielDatum,
   });
+
+  /// Version für den gespeicherten Plan (kein Auto-Marker mehr).
+  TourEintrag alsPlanEintrag() => TourEintrag(
+        typ: typ,
+        id: id,
+        betriebId: betriebId,
+        anlageId: anlageId,
+        betriebName: betriebName,
+        betriebOrt: betriebOrt,
+        regionId: regionId,
+        beschreibung: beschreibung,
+        faelligkeit: faelligkeit,
+        datum: datum,
+        ruhetage: ruhetage,
+        servicezeit: servicezeit,
+      );
 }
 
 // ─── Filter-State ───
@@ -471,6 +491,89 @@ final faelligeEintraegeProvider =
   });
 
   return eintraege;
+});
+
+// ─── Automatische Saison-Termine (Endreinigung/Eröffnung am Ziel-Tag) ───
+
+final autoTermineProvider =
+    Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
+  final betriebe = ref.watch(betriebeProvider);
+  final betriebMap = _buildBetriebMap(betriebe);
+  final anlagen = ref.watch(anlagenProvider);
+  final reinigungen = ref.watch(reinigungenProvider);
+  final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
+  final imPlan = ref.watch(tagesplanProvider).map((e) => e.id).toSet();
+  final tag = DateTime(datum.year, datum.month, datum.day);
+  final result = <TourEintrag>[];
+
+  for (final a in anlagen) {
+    if (a.status != 'aktiv') continue;
+    final betrieb = betriebMap[a.betriebId];
+    if (betrieb == null) continue;
+    final hatUebergaenge =
+        betrieb.istSaisonbetrieb || ferienStarts(betrieb).isNotEmpty;
+    if (!hatUebergaenge) continue;
+
+    final id = 'r_${a.routeId}';
+    if (imPlan.contains(id)) continue;
+
+    final letzteServiceArt =
+        a.serverId != null ? serviceArtMap[a.serverId!] : null;
+
+    // Endreinigung: letzter offener Tag vor der nächsten Schliessung
+    if (letzteServiceArt != 'endreinigung') {
+      final s = qualifizierteSchliessung(betrieb, tag);
+      if (s != null) {
+        final ziel = naechsterOffenerTag(betrieb, s.datum, rueckwaerts: true);
+        if (ziel != null && ziel == tag) {
+          result.add(TourEintrag(
+            typ: TourEintragTyp.reinigung,
+            id: id,
+            betriebId: a.betriebId,
+            anlageId: a.routeId,
+            betriebName: betrieb.name,
+            betriebOrt: betrieb.ort,
+            regionId: betrieb.regionId,
+            beschreibung: 'Endreinigung · ${a.typAnlage}',
+            faelligkeit: FaelligkeitsStatus.endreinigungFaellig,
+            ruhetage: betrieb.ruhetage,
+            servicezeit: _servicezeitAus(betrieb),
+            istAutoTermin: true,
+            zielDatum: ziel,
+          ));
+          continue;
+        }
+      }
+    }
+
+    // Eröffnung: erster offener Tag ab Wiedereröffnung (Anlage ist geschlossen)
+    if (letzteServiceArt == 'endreinigung') {
+      final ab = a.letzteReinigung ?? tag.subtract(const Duration(days: 365));
+      final oeffnung = oeffnungNach(betrieb, ab);
+      if (oeffnung != null) {
+        final ziel = naechsterOffenerTag(betrieb, oeffnung, rueckwaerts: false);
+        if (ziel != null && ziel == tag) {
+          result.add(TourEintrag(
+            typ: TourEintragTyp.reinigung,
+            id: id,
+            betriebId: a.betriebId,
+            anlageId: a.routeId,
+            betriebName: betrieb.name,
+            betriebOrt: betrieb.ort,
+            regionId: betrieb.regionId,
+            beschreibung: 'Eröffnungsservice · ${a.typAnlage}',
+            faelligkeit: FaelligkeitsStatus.eroeffnungFaellig,
+            ruhetage: betrieb.ruhetage,
+            servicezeit: _servicezeitAus(betrieb),
+            istAutoTermin: true,
+            zielDatum: ziel,
+          ));
+        }
+      }
+    }
+  }
+
+  return result;
 });
 
 String _montageTypLabel(String typ) {
