@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class MaterialienListScreen extends ConsumerStatefulWidget {
@@ -32,10 +33,21 @@ class _MaterialienListScreenState
       kategorieNames[k.id] = k.name;
     }
 
+    // In Materialien tatsächlich verwendete Kategorien (für den Filter).
+    final usedIds =
+        materialien.map((m) => m.kategorieId).whereType<String>().toSet();
+    final usedKategorien =
+        kategorien.where((k) => usedIds.contains(k.id)).toList();
+    // Zombie-Schutz: gewählte Kategorie nur, wenn sie noch als Option existiert.
+    final effektiveKategorie =
+        usedKategorien.any((k) => k.id == _kategorieFilter)
+            ? _kategorieFilter
+            : 'alle';
+
     // Filter
     final filtered = materialien.where((l) {
       if (_nurNiedrig && l.bestandNiedrig != true) return false;
-      if (_kategorieFilter != 'alle' && l.kategorieId != _kategorieFilter) {
+      if (effektiveKategorie != 'alle' && l.kategorieId != effektiveKategorie) {
         return false;
       }
       if (_searchQuery.isNotEmpty) {
@@ -66,26 +78,6 @@ class _MaterialienListScreenState
             tooltip: 'Materialbestellung',
             onPressed: () => context.push('/materialien/bestellen'),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Kategorie',
-            onSelected: (value) =>
-                setState(() => _kategorieFilter = value),
-            itemBuilder: (context) {
-              final usedIds = materialien
-                  .map((m) => m.kategorieId)
-                  .whereType<String>()
-                  .toSet();
-              final used = kategorien
-                  .where((k) => usedIds.contains(k.id))
-                  .toList();
-              return [
-                _filterItem('alle', 'Alle Kategorien'),
-                const PopupMenuDivider(),
-                ...used.map((k) => _filterItem(k.id, k.name)),
-              ];
-            },
-          ),
         ],
       ),
       body: Column(
@@ -102,27 +94,22 @@ class _MaterialienListScreenState
                   setState(() => _searchQuery = value),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                FilterChip(
-                  label: const Text('Nur niedrig'),
-                  selected: _nurNiedrig,
-                  onSelected: (v) => setState(() => _nurNiedrig = v),
-                ),
-                if (_kategorieFilter != 'alle') ...[
-                  const SizedBox(width: 8),
-                  Chip(
-                    label: Text(
-                        kategorieNames[_kategorieFilter] ?? 'Kategorie'),
-                    onDeleted: () =>
-                        setState(() => _kategorieFilter = 'alle'),
-                    deleteIcon: const Icon(Icons.close, size: 16),
-                  ),
+          AppFilterBar(
+            items: [
+              AppFilterDropdown<String>(
+                hint: 'Alle Kategorien',
+                value: effektiveKategorie == 'alle' ? null : effektiveKategorie,
+                options: [
+                  for (final k in usedKategorien) (k.id, k.name),
                 ],
-              ],
-            ),
+                onChanged: (v) => setState(() => _kategorieFilter = v ?? 'alle'),
+              ),
+              AppFilterToggle(
+                label: 'Nur niedrig',
+                value: _nurNiedrig,
+                onChanged: (v) => setState(() => _nurNiedrig = v),
+              ),
+            ],
           ),
           Padding(
             padding:
@@ -166,21 +153,6 @@ class _MaterialienListScreenState
     );
   }
 
-  PopupMenuItem<String> _filterItem(String value, String label) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          if (_kategorieFilter == value)
-            const Icon(Icons.check, size: 18)
-          else
-            const SizedBox(width: 18),
-          const SizedBox(width: 8),
-          Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
-        ],
-      ),
-    );
-  }
 
   Widget _buildEmpty() {
     return Center(

@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/util/anlage_pdf_util.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 
 class AnlagenListScreen extends ConsumerStatefulWidget {
   const AnlagenListScreen({super.key});
@@ -51,20 +52,6 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Anlagen'),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Filter',
-            onSelected: (value) => setState(() => _statusFilter = value),
-            itemBuilder: (context) => [
-              _filterItem('alle', 'Alle'),
-              _filterItem('aktiv', 'Aktiv'),
-              _filterItem('inaktiv', 'Inaktiv'),
-              _filterItem('stillgelegt', 'Stillgelegt'),
-              _filterItem('demontiert', 'Demontiert'),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -95,19 +82,23 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
-          if (_statusFilter != 'alle')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Chip(
-                    label: Text(_statusFilter),
-                    onDeleted: () => setState(() => _statusFilter = 'alle'),
-                    deleteIcon: const Icon(Icons.close, size: 16),
-                  ),
+          AppFilterBar(
+            items: [
+              AppFilterDropdown<String>(
+                hint: 'Alle Status',
+                nullable: false,
+                value: _statusFilter,
+                options: const [
+                  ('alle', 'Alle Status'),
+                  ('aktiv', 'Aktiv'),
+                  ('inaktiv', 'Inaktiv'),
+                  ('stillgelegt', 'Stillgelegt'),
+                  ('demontiert', 'Demontiert'),
                 ],
+                onChanged: (v) => setState(() => _statusFilter = v ?? 'alle'),
               ),
-            ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Align(
@@ -142,23 +133,10 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
     );
   }
 
-  PopupMenuItem<String> _filterItem(String value, String label) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          if (_statusFilter == value)
-            const Icon(Icons.check, size: 18)
-          else
-            const SizedBox(width: 18),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
-      ),
-    );
-  }
 
   Widget _buildEmpty() {
+    // Such- oder Status-Filter aktiv? Dann kein "noch keine Anlagen".
+    final gefiltert = _searchQuery.isNotEmpty || _statusFilter != 'alle';
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -167,15 +145,15 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
               size: 64, color: AppColors.textSecondary.withAlpha(100)),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty ? 'Keine Ergebnisse' : 'Noch keine Anlagen',
+            gefiltert ? 'Keine Ergebnisse' : 'Noch keine Anlagen',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'Versuche einen anderen Suchbegriff'
+            gefiltert
+                ? 'Passe Suche oder Filter an'
                 : 'Erstelle Anlagen über den jeweiligen Betrieb',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,

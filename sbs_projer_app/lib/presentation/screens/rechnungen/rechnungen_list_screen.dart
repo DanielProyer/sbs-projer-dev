@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -132,26 +133,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Forderungen'),
-        actions: [
-          PopupMenuButton<String>(
-              icon: const Icon(Icons.filter_list),
-              tooltip: 'Status-Filter',
-              onSelected: (value) => setState(() => _statusFilter = value),
-              itemBuilder: (context) => [
-                _filterItem('alle', 'Alle'),
-                const PopupMenuDivider(),
-                _filterItem('mahnfaellig', 'Mahnfällig'),
-                const PopupMenuDivider(),
-                _filterItem('offen', 'Offen'),
-                _filterItem('erinnert', 'Erinnert'),
-                _filterItem('mahnung_1', 'Mahnung 1'),
-                _filterItem('mahnung_2', 'Mahnung 2'),
-                const PopupMenuDivider(),
-                _filterItem('bezahlt', 'Bezahlt'),
-                _filterItem('abgeschrieben', 'Abgeschrieben'),
-              ],
-            ),
-        ],
       ),
       body: Column(
         children: [
@@ -169,6 +150,27 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
+          ),
+          // Status-Filter (einheitliche Filter-Leiste statt AppBar-Popup)
+          AppFilterBar(
+            items: [
+              AppFilterDropdown<String>(
+                hint: 'Alle Status',
+                nullable: false,
+                value: _statusFilter,
+                options: const [
+                  ('alle', 'Alle Status'),
+                  ('mahnfaellig', 'Mahnfällig'),
+                  ('offen', 'Offen'),
+                  ('erinnert', 'Erinnert'),
+                  ('mahnung_1', 'Mahnung 1'),
+                  ('mahnung_2', 'Mahnung 2'),
+                  ('bezahlt', 'Bezahlt'),
+                  ('abgeschrieben', 'Abgeschrieben'),
+                ],
+                onChanged: (v) => setState(() => _statusFilter = v ?? 'alle'),
+              ),
+            ],
           ),
           // Summary Card
           if (_statusFilter == 'alle' || _statusFilter == 'offen' ||
@@ -286,20 +288,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               ],
             ),
           ),
-          if (_statusFilter != 'alle')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Chip(
-                    label: Text(_statusLabel(_statusFilter)),
-                    onDeleted: () =>
-                        setState(() => _statusFilter = 'alle'),
-                    deleteIcon: const Icon(Icons.close, size: 16),
-                  ),
-                ],
-              ),
-            ),
           Expanded(
             child: filtered.isEmpty
                 ? _buildEmpty()
@@ -603,22 +591,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                       fontSize: 11,
                     )),
           ],
-        ],
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _filterItem(String value, String label) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          if (_statusFilter == value)
-            const Icon(Icons.check, size: 18)
-          else
-            const SizedBox(width: 18),
-          const SizedBox(width: 8),
-          Text(label),
         ],
       ),
     );
