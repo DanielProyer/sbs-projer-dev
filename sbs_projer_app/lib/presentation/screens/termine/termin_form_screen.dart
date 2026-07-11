@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/erinnerung_util.dart';
 import 'package:sbs_projer_app/data/local/termin_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
+import 'package:sbs_projer_app/data/models/termin_erinnerung.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
-import 'package:sbs_projer_app/services/notification/reminder_service_export.dart';
-import 'package:sbs_projer_app/services/notification/reminder_time.dart';
 
 class TerminFormScreen extends ConsumerStatefulWidget {
   final String? terminId;
@@ -42,8 +43,8 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
   late final _notizenController = TextEditingController();
   String _status = 'geplant';
   int _erinnerungTage = 3;
-  bool _erinnerungAktiv = false;
   int _erinnerungVorlauf = 1440;
+  List<TerminErinnerung> _erinnerungen = [];
 
   bool get _isEditing => widget.terminId != null;
 
@@ -81,8 +82,8 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
       _notizenController.text = termin.notizen ?? '';
       _status = termin.status;
       _erinnerungTage = termin.erinnerungTage;
-      _erinnerungAktiv = termin.erinnerungAktiv;
       _erinnerungVorlauf = termin.erinnerungVorlaufMinuten;
+      _erinnerungen = parseErinnerungen(termin.erinnerungenJson);
     });
   }
 
@@ -146,8 +147,11 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
           _notizenController.text.trim().isEmpty ? null : _notizenController.text.trim();
       termin.status = _status;
       termin.erinnerungTage = _erinnerungTage;
-      termin.erinnerungAktiv = _erinnerungAktiv;
-      termin.erinnerungVorlaufMinuten = _erinnerungVorlauf;
+      termin.erinnerungenJson = erinnerungenToJson(_erinnerungen);
+      // Legacy-Felder als Fallback konsistent halten (bis G4)
+      termin.erinnerungAktiv = _erinnerungen.isNotEmpty;
+      termin.erinnerungVorlaufMinuten =
+          _erinnerungen.isNotEmpty ? _erinnerungen.first.minuten : _erinnerungVorlauf;
 
       await TerminRepository.save(termin);
       ref.invalidate(termineStreamProvider);
@@ -478,47 +482,9 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Erinnerung
-                  _buildSectionHeader('Erinnerung'),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Erinnerung aktiv'),
-                    subtitle: const Text('Benachrichtigung vor dem Termin'),
-                    secondary: const Icon(Icons.notifications_active),
-                    value: _erinnerungAktiv,
-                    onChanged: (v) async {
-                      if (v) {
-                        final ok = await ReminderService.requestPermission();
-                        if (!ok && mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Benachrichtigungen nicht erlaubt — Erinnerung wird gespeichert, aber evtl. nicht angezeigt.'),
-                            ),
-                          );
-                        }
-                      }
-                      setState(() => _erinnerungAktiv = v);
-                    },
-                  ),
-                  if (_erinnerungAktiv) ...[
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<int>(
-                      initialValue: _erinnerungVorlauf,
-                      decoration: const InputDecoration(
-                        labelText: 'Vorlaufzeit',
-                        prefixIcon: Icon(Icons.schedule),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: erinnerungVorlaufOptionen.entries
-                          .map((e) => DropdownMenuItem(
-                              value: e.key, child: Text(e.value)))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _erinnerungVorlauf = v);
-                      },
-                    ),
-                  ],
+                  // Erinnerungen
+                  _buildSectionHeader('Erinnerungen'),
+                  _buildErinnerungenEditor(),
 
                   const SizedBox(height: 32),
 
@@ -543,6 +509,92 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  static const _minutenPresets = <int>[0, 10, 30, 60, 120, 1440, 2880, 10080];
+
+  Widget _buildErinnerungenEditor() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < _erinnerungen.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 110,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _erinnerungen[i].methode,
+                    isDense: true,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'popup', child: Text('Popup')),
+                      DropdownMenuItem(value: 'email', child: Text('E-Mail')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _erinnerungen[i] = TerminErinnerung(
+                          methode: v, minuten: _erinnerungen[i].minuten));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue:
+                        _minutenPresets.contains(_erinnerungen[i].minuten)
+                            ? _erinnerungen[i].minuten
+                            : 60,
+                    isDense: true,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    ),
+                    items: _minutenPresets
+                        .map((m) => DropdownMenuItem(
+                            value: m, child: Text(minutenLabel(m))))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _erinnerungen[i] = TerminErinnerung(
+                          methode: _erinnerungen[i].methode, minuten: v));
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  color: AppColors.error,
+                  tooltip: 'Entfernen',
+                  onPressed: () => setState(() => _erinnerungen.removeAt(i)),
+                ),
+              ],
+            ),
+          ),
+        if (_erinnerungen.length < 5)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Erinnerung hinzufügen'),
+              onPressed: () => setState(() => _erinnerungen.add(
+                  const TerminErinnerung(methode: 'popup', minuten: 60))),
+            ),
+          ),
+        if (_erinnerungen.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text('Keine Erinnerung',
+                style:
+                    TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          ),
+      ],
     );
   }
 
