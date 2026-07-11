@@ -11,6 +11,16 @@ final _betriebe = <BetriebKandidat>[
   const BetriebKandidat(betriebId: 'b-bernina-bar', name: 'Bernina Bar', ort: 'Thusis'),
   const BetriebKandidat(betriebId: 'b-raetia-ilanz', name: 'Rätia', ort: 'Ilanz'),
   const BetriebKandidat(betriebId: 'b-braema', name: 'Bräma', ort: 'Davos Platz'),
+  // Echte Fälle aus dem Live-Test (Gattungswort, abweichender/fehlender Ort):
+  const BetriebKandidat(betriebId: 'b-pagiger', name: 'Pagigerstübli', ort: 'Arosa'),
+  const BetriebKandidat(betriebId: 'b-loewen-gd', name: 'Gasthof Löwen', ort: 'Grossdietwil'),
+  const BetriebKandidat(betriebId: 'b-loewen-mf', name: 'Löwen', ort: 'Maienfeld'),
+  const BetriebKandidat(betriebId: 'b-paradies', name: 'Pizzeria Paradies', ort: 'Bad Ragaz'),
+  const BetriebKandidat(betriebId: 'b-fasan', name: 'Fasan', ort: 'Seewis Dorf'),
+  const BetriebKandidat(betriebId: 'b-oa-lumnezia', name: 'Openair Val Lumnezia', ort: 'Vella'),
+  const BetriebKandidat(betriebId: 'b-oa-gampel', name: 'Openair Gampel', ort: 'Steg'),
+  const BetriebKandidat(betriebId: 'b-seehof', name: 'Seehof', ort: 'Davos'),
+  const BetriebKandidat(betriebId: 'b-chesa', name: 'Chesa', ort: 'Davos Dorf'),
 ];
 
 void main() {
@@ -83,5 +93,68 @@ void main() {
     expect(normalisiereOrt('Klosters-Serneus'), 'klosters');
     expect(normalisiereOrt('Davos Platz'), 'davos');
     expect(normalisiereOrt('Disentis/Mustér'), 'disentis');
+  });
+
+  // ── Fälle aus dem Live-Test ───────────────────────────────────
+  test('Gattungswort-Präfix + Ort: Grossdietwil - Löwen -> Gasthof Löwen', () {
+    final m = matcheTitel('Grossdietwil - Löwen', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-loewen-gd');
+  });
+
+  test('Gattungswort + zusammengeschriebener Ort: BadRagaz - Paradies', () {
+    final m = matcheTitel('BadRagaz - Paradies', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-paradies');
+  });
+
+  test('Eindeutiger Name, abweichender Ort im Titel: Pagig - Pagigerstübli', () {
+    final m = matcheTitel('Pagig - Pagigerstübli', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-pagiger');
+  });
+
+  test('Eindeutiger Name, falscher Ort: Grüsch - Fasan', () {
+    final m = matcheTitel('Grüsch - Fasan', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-fasan');
+  });
+
+  test('Fehlendes Mittelwort: Openair Lumnezia -> Openair Val Lumnezia', () {
+    final m = matcheTitel('Openair Lumnezia', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-oa-lumnezia');
+  });
+
+  test('Openair Gampel eindeutig (Ort fehlt)', () {
+    final m = matcheTitel('Openair Gampel', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-oa-gampel');
+  });
+
+  test('Zwei Betriebe in einem Eintrag: Davos - Seehof und Chesa -> mehrdeutig', () {
+    final m = matcheTitel('Davos - Seehof und Chesa', _betriebe);
+    expect(m.bucket, MatchBucket.mehrdeutig);
+    final ids = m.kandidaten.map((k) => k.betriebId).toSet();
+    expect(ids, containsAll(['b-seehof', 'b-chesa']));
+  });
+
+  test('Geburtstag -> privat', () {
+    expect(matcheTitel('Geburtstag Lorena', _betriebe).bucket, MatchBucket.privat);
+    expect(matcheTitel('Mama Geburi', _betriebe).bucket, MatchBucket.privat);
+  });
+
+  test('Ferien -> privat', () {
+    expect(matcheTitel('Ferien Lorena', _betriebe).bucket, MatchBucket.privat);
+  });
+
+  test('Pikett -> pikett', () {
+    expect(matcheTitel('Pikett KW 32', _betriebe).bucket, MatchBucket.pikett);
+  });
+
+  test('Kurzname ohne Ort, aber nicht eindeutig (Löwen) -> kein Treffer', () {
+    // "Löwen" gibt es in Grossdietwil UND Maienfeld -> ohne Ort nicht auflösbar
+    final m = matcheTitel('Znacht im Löwen', _betriebe);
+    expect(m.bucket, MatchBucket.keinTreffer);
   });
 }

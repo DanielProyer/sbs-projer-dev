@@ -1,7 +1,8 @@
 // Reine Matching-Logik für Google-Kalender K2: ordnet einen Termin-Titel
-// konservativ einem Betrieb zu (Name + harte Ort-Bestätigung).
+// konservativ einem Betrieb zu (Anker-Name + Ort, mit Gattungswort-Toleranz),
+// und klassifiziert Privates (Geburtstag/Ferien) sowie Pikett vorab.
 
-enum MatchBucket { eindeutig, mehrdeutig, keinTreffer }
+enum MatchBucket { eindeutig, mehrdeutig, keinTreffer, privat, pikett }
 
 class BetriebKandidat {
   final String betriebId; // serverId
@@ -26,6 +27,19 @@ class TerminMatch {
     required this.grund,
   });
 }
+
+/// Gattungswörter, die für das Matching NICHT als unterscheidend zählen
+/// (Betrieb heisst „Gasthof Löwen", Kalender-Titel oft nur „Löwen").
+const _stopwords = {
+  'restaurant', 'hotel', 'gasthof', 'gasthaus', 'pizzeria', 'cafe', 'kaffee',
+  'pension', 'hostellerie', 'bistro', 'osteria', 'trattoria', 'taverne',
+  'motel', 'openair', 'beizli',
+};
+
+/// Titel-Stichwörter, die einen Eintrag als privat/ausgeschlossen markieren.
+const _privatKeywords = [
+  'geburtstag', 'geburi', 'birthday', 'ferien', 'urlaub',
+];
 
 /// Umlaut-/Akzent-Faltung auf ASCII-Basis.
 String _falte(String s) {
@@ -83,6 +97,7 @@ int _levenshtein(String a, String b) {
 /// Kommt [needle] (normalisiert, Token-Folge) im [haystackTokens] vor — exakt
 /// oder mit ≤[maxDist] Editierdistanz über ein gleitendes Fenster?
 bool _enthaelt(List<String> haystackTokens, String needle, int maxDist) {
+  if (needle.isEmpty) return false;
   final needleTokens = needle.split(' ');
   final n = needleTokens.length;
   if (n == 0 || haystackTokens.length < n) return false;
@@ -94,42 +109,123 @@ bool _enthaelt(List<String> haystackTokens, String needle, int maxDist) {
   return false;
 }
 
-int _maxTippfehler(String normName) =>
-    normName.replaceAll(' ', '').length <= 6 ? 1 : 2;
+int _maxTippfehler(String s) => s.replaceAll(' ', '').length <= 6 ? 1 : 2;
 
-/// Matcht einen Titel gegen die Betriebe. Konservativ:
-/// Name (exakt/≤Tippfehler) UND Ort (exakt/≤1) müssen im Titel stehen.
+/// Unterscheidende Namens-Tokens (ohne Gattungswörter, Länge ≥ 3).
+List<String> _distinctiveTokens(String name) {
+  final norm = normalisiereText(name);
+  if (norm.isEmpty) return const [];
+  final toks = norm.split(' ');
+  final dist =
+      toks.where((t) => t.length >= 3 && !_stopwords.contains(t)).toList();
+  if (dist.isEmpty) {
+    return toks.where((t) => t.length >= 3).toList();
+  }
+  return dist;
+}
+
+/// Anker = längstes unterscheidendes Token (>= 3 Zeichen), sonst null.
+String? _anchor(String name) {
+  final dist = _distinctiveTokens(name);
+  if (dist.isEmpty) return null;
+  dist.sort((a, b) => b.length.compareTo(a.length));
+  return dist.first;
+}
+
+String _distinctiveName(String name) => _distinctiveTokens(name).join(' ');
+
+bool _istPrivat(String normTitle) =>
+    _privatKeywords.any((k) => normTitle.contains(k));
+
+bool _ortImTitel(String ort, List<String> titleTokens, String compactTitle) {
+  final normOrt = normalisiereOrt(ort);
+  if (normOrt.isEmpty) return false;
+  if (_enthaelt(titleTokens, normOrt, 1)) return true;
+  final compactOrt = normOrt.replaceAll(' ', '');
+  if (compactOrt.length >= 4 && compactTitle.contains(compactOrt)) return true;
+  return false;
+}
+
+class _Kand {
+  final BetriebKandidat b;
+  final bool ortOk;
+  final bool nameStark; // voller unterscheidender Name zusammenhängend im Titel
+  final bool unique; // Anker-Token global eindeutig
+  _Kand(this.b, this.ortOk, this.nameStark, this.unique);
+}
+
+/// Matcht einen Titel gegen die Betriebe. Reihenfolge: privat → pikett →
+/// Anker-Name + Ort. Ohne Ort nur bei global eindeutigem Namen.
 TerminMatch matcheTitel(String titel, List<BetriebKandidat> betriebe) {
-  final normTitel = normalisiereText(titel);
-  if (normTitel.isEmpty) {
-    return const TerminMatch(
-        bucket: MatchBucket.keinTreffer, grund: 'Leerer Titel');
+  final normTitle = normalisiereText(titel);
+  if (normTitle.isEmpty) {
+    return const TerminMatch(bucket: MatchBucket.keinTreffer, grund: 'Leerer Titel');
   }
-  final titelTokens = normTitel.split(' ');
-  final gueltig = <BetriebKandidat>[];
+  if (_istPrivat(normTitle)) {
+    return const TerminMatch(
+        bucket: MatchBucket.privat, grund: 'Privat (ausgeschlossen)');
+  }
+  if (normTitle.contains('pikett')) {
+    return const TerminMatch(bucket: MatchBucket.pikett, grund: 'Pikett');
+  }
+
+  final titleTokens = normTitle.split(' ');
+  final compactTitle = normTitle.replaceAll(' ', '');
+
+  final anchorCount = <String, int>{};
   for (final b in betriebe) {
-    final normName = normalisiereText(b.name);
-    if (normName.isEmpty) continue;
-    if (!_enthaelt(titelTokens, normName, _maxTippfehler(normName))) continue;
-    final normOrt = normalisiereOrt(b.ort);
-    if (normOrt.isEmpty) continue;
-    if (!_enthaelt(titelTokens, normOrt, 1)) continue;
-    gueltig.add(b);
+    final a = _anchor(b.name);
+    if (a != null) anchorCount[a] = (anchorCount[a] ?? 0) + 1;
   }
-  if (gueltig.isEmpty) {
+
+  final treffer = <_Kand>[];
+  for (final b in betriebe) {
+    final a = _anchor(b.name);
+    if (a == null) continue;
+    if (!_enthaelt(titleTokens, a, _maxTippfehler(a))) continue;
+    final ortOk = _ortImTitel(b.ort, titleTokens, compactTitle);
+    final dist = _distinctiveName(b.name);
+    final nameStark = _enthaelt(titleTokens, dist, _maxTippfehler(dist));
+    treffer.add(_Kand(b, ortOk, nameStark, anchorCount[a] == 1));
+  }
+
+  if (treffer.isEmpty) {
     return const TerminMatch(
-        bucket: MatchBucket.keinTreffer,
-        grund: 'Kein Betrieb mit Name + Ort erkannt');
+        bucket: MatchBucket.keinTreffer, grund: 'Kein Betrieb erkannt');
   }
-  if (gueltig.length == 1) {
+
+  final withOrt = treffer.where((k) => k.ortOk).toList();
+  if (withOrt.isNotEmpty) {
+    final stark = withOrt.where((k) => k.nameStark).toList();
+    if (stark.length == 1) {
+      return TerminMatch(
+          bucket: MatchBucket.eindeutig,
+          treffer: stark.first.b,
+          kandidaten: [stark.first.b],
+          grund: 'Name + Ort');
+    }
+    if (withOrt.length == 1) {
+      return TerminMatch(
+          bucket: MatchBucket.eindeutig,
+          treffer: withOrt.first.b,
+          kandidaten: [withOrt.first.b],
+          grund: 'Name + Ort');
+    }
+    return TerminMatch(
+        bucket: MatchBucket.mehrdeutig,
+        kandidaten: withOrt.map((k) => k.b).toList(),
+        grund: '${withOrt.length} mögliche Betriebe');
+  }
+
+  // Kein Ort im Titel: nur bei genau 1 Kandidat mit global eindeutigem Namen.
+  if (treffer.length == 1 && treffer.first.unique) {
     return TerminMatch(
         bucket: MatchBucket.eindeutig,
-        treffer: gueltig.first,
-        kandidaten: gueltig,
-        grund: 'Name + Ort eindeutig');
+        treffer: treffer.first.b,
+        kandidaten: [treffer.first.b],
+        grund: 'Name eindeutig (Ort fehlt im Titel)');
   }
-  return TerminMatch(
-      bucket: MatchBucket.mehrdeutig,
-      kandidaten: gueltig,
-      grund: '${gueltig.length} mögliche Betriebe');
+  return const TerminMatch(
+      bucket: MatchBucket.keinTreffer,
+      grund: 'Name erkannt, Ort fehlt/mehrdeutig');
 }

@@ -29,6 +29,7 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
   String? _fehler;
   List<_EintragVorschau>? _eintraege;
   int _skippedTagged = 0;
+  int _privatCount = 0;
 
   Future<void> _scan() async {
     setState(() {
@@ -48,10 +49,16 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
       );
       final rawEvents = (res['events'] as List?) ?? [];
       final out = <_EintragVorschau>[];
+      var privat = 0;
       for (final e in rawEvents) {
         final m = e as Map;
         final titel = (m['summary'] as String?) ?? '';
         final match = matcheTitel(titel, kandidaten);
+        // Private/ausgeschlossene Termine (Geburtstag/Ferien) nicht anzeigen.
+        if (match.bucket == MatchBucket.privat) {
+          privat++;
+          continue;
+        }
         out.add(_EintragVorschau(
             titel, m['start'] as String?, m['is_all_day'] == true, match));
       }
@@ -59,6 +66,7 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
       setState(() {
         _eintraege = out;
         _skippedTagged = (res['skipped_tagged'] as int?) ?? 0;
+        _privatCount = privat;
       });
     } catch (e) {
       setState(() => _fehler = '$e');
@@ -124,7 +132,10 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
             ],
             if (e != null) ...[
               const SizedBox(height: 12),
-              _Statistik(eintraege: e, skippedTagged: _skippedTagged),
+              _Statistik(
+                  eintraege: e,
+                  skippedTagged: _skippedTagged,
+                  privatCount: _privatCount),
               const SizedBox(height: 8),
               Expanded(child: _Liste(eintraege: e, df: df)),
             ],
@@ -138,10 +149,15 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
 class _Statistik extends StatelessWidget {
   final List<_EintragVorschau> eintraege;
   final int skippedTagged;
-  const _Statistik({required this.eintraege, required this.skippedTagged});
+  final int privatCount;
+  const _Statistik({
+    required this.eintraege,
+    required this.skippedTagged,
+    required this.privatCount,
+  });
   @override
   Widget build(BuildContext context) {
-    int eind = 0, mehr = 0, kein = 0;
+    int eind = 0, mehr = 0, kein = 0, pik = 0;
     for (final x in eintraege) {
       switch (x.match.bucket) {
         case MatchBucket.eindeutig:
@@ -150,20 +166,31 @@ class _Statistik extends StatelessWidget {
         case MatchBucket.mehrdeutig:
           mehr++;
           break;
+        case MatchBucket.pikett:
+          pik++;
+          break;
         case MatchBucket.keinTreffer:
           kein++;
           break;
+        case MatchBucket.privat:
+          break; // ausgeblendet
       }
     }
-    return Wrap(spacing: 8, children: [
+    return Wrap(spacing: 8, runSpacing: 4, children: [
       Chip(
           label: Text('$eind eindeutig'),
           backgroundColor: Colors.green.shade100),
       Chip(
           label: Text('$mehr mehrdeutig'),
           backgroundColor: Colors.orange.shade100),
+      if (pik > 0)
+        Chip(
+            label: Text('$pik Pikett'),
+            backgroundColor: Colors.red.shade100),
       Chip(label: Text('$kein ohne Treffer')),
       if (skippedTagged > 0) Chip(label: Text('$skippedTagged bereits SBS')),
+      if (privatCount > 0)
+        Chip(label: Text('$privatCount privat ausgeblendet')),
     ]);
   }
 }
@@ -190,6 +217,16 @@ class _Liste extends StatelessWidget {
               Icons.help_outline,
               Colors.orange,
               'mehrdeutig: ${m.kandidaten.map((k) => '${k.name} (${k.ort})').join(' / ')}'
+            ),
+          MatchBucket.pikett => (
+              Icons.notifications_active,
+              Colors.red,
+              'Pikett (kein Betrieb)'
+            ),
+          MatchBucket.privat => (
+              Icons.lock_outline,
+              Colors.grey,
+              'privat'
             ),
           MatchBucket.keinTreffer => (
               Icons.remove_circle_outline,
