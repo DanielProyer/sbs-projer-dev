@@ -1,5 +1,5 @@
-/// Reine Matching-Logik für Google-Kalender K2: ordnet einen Termin-Titel
-/// konservativ einem Betrieb zu (Name + harte Ort-Bestätigung).
+// Reine Matching-Logik für Google-Kalender K2: ordnet einen Termin-Titel
+// konservativ einem Betrieb zu (Name + harte Ort-Bestätigung).
 
 enum MatchBucket { eindeutig, mehrdeutig, keinTreffer }
 

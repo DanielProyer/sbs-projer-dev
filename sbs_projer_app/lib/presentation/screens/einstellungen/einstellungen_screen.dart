@@ -99,6 +99,14 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             ),
           ),
           Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.event_available, size: 18),
+              label: const Text('Bestehende Termine zuordnen'),
+              onPressed: () => context.push('/google-termine'),
+            ),
+          ),
+          Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               icon: const Icon(Icons.link_off, size: 18),

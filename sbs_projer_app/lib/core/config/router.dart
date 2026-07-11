@@ -61,6 +61,7 @@ import 'package:sbs_projer_app/presentation/screens/events/event_detail_screen.d
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/einstellungen_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/google_kalender/google_termine_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/preis_version_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/biersorten_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/jahresrechnung/jahresrechnung_generate_screen.dart';
@@ -631,6 +632,12 @@ final router = GoRouter(
     GoRoute(
       path: '/spesen',
       builder: (context, state) => const SpesenScannerScreen(),
+    ),
+
+    // Google-Kalender: bestehende Termine zuordnen (K2)
+    GoRoute(
+      path: '/google-termine',
+      builder: (context, state) => const GoogleTermineScreen(),
     ),
 
   ],
