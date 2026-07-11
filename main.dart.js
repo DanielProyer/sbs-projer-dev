@@ -188235,7 +188235,10 @@ p=A.D(a).ok.y
 q=A.bU(A.e(q,n,n,n,n,p==null?n:p.b7(B.y),n,n,n),n,n)}else q=A.f_(n,new A.bRs(s),q,n,!1)
 return A.bX(m,n,A.ag(A.a([new A.G(B.e3,r,n),A.al(q,1)],t.p),B.t,B.q,B.r,0,B.z),n)}}
 A.bRo.prototype={
-$1(a){return a.b!=null&&a.cx!=="inaktiv"},
+$1(a){var s
+if(a.b!=null){s=a.cx
+s=s==="aktiv"||s==="saisonpause"}else s=!1
+return s},
 $S:18}
 A.bRp.prototype={
 $2(a,b){return B.j.aQ(a.f,b.f)},
