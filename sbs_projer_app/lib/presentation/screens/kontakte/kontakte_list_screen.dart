@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anruf_log_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/services/phone_contact_service.dart';
 
 class KontakteListScreen extends ConsumerStatefulWidget {
@@ -302,41 +303,21 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
                 ),
               ),
 
-              // Filter-Chips (nur wenn kein betriebId-Filter)
+              // Kategorie-Filter (nur wenn kein betriebId-Filter)
               if (widget.betriebId == null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'Alle',
-                        selected: _filterKategorie == 'alle',
-                        onTap: () => setState(() => _filterKategorie = 'alle'),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Betrieb',
-                        selected: _filterKategorie == 'betrieb',
-                        onTap: () => setState(() => _filterKategorie = 'betrieb'),
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Heineken',
-                        selected: _filterKategorie == 'heineken',
-                        onTap: () => setState(() => _filterKategorie = 'heineken'),
-                        color: Colors.blue.shade700,
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Event',
-                        selected: _filterKategorie == 'event',
-                        onTap: () => setState(() => _filterKategorie = 'event'),
-                        color: Colors.orange.shade700,
-                      ),
+                AppFilterBar(items: [
+                  AppFilterDropdown<String>(
+                    hint: 'Alle Kategorien',
+                    value: _filterKategorie == 'alle' ? null : _filterKategorie,
+                    options: const [
+                      ('betrieb', 'Betrieb'),
+                      ('heineken', 'Heineken'),
+                      ('event', 'Event'),
                     ],
+                    onChanged: (v) =>
+                        setState(() => _filterKategorie = v ?? 'alle'),
                   ),
-                ),
+                ]),
 
               // Liste
               Expanded(
@@ -412,45 +393,6 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
   };
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color? color;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = color ?? AppColors.textSecondary;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? c.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? c : AppColors.textSecondary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? c : AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _KontaktCard extends StatelessWidget {
   final KontaktLocal kontakt;
