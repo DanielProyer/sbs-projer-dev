@@ -132,6 +132,23 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tourenplanung'),
+        actions: [
+          // Region-Filter oben rechts (kompakter Mehrfach-Dropdown)
+          if (regionen.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: AppFilterMultiDropdown<String>(
+                label: 'Regionen',
+                options: [
+                  for (final r in regionen) (r.routeId, r.name),
+                ],
+                selected: selectedRegionen,
+                onChanged: (updated) {
+                  ref.read(selectedRegionenProvider.notifier).state = updated;
+                },
+              ).build(context),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -162,14 +179,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             ],
           ),
 
-          // Inline-Filter (Region + Fälligkeit, immer sichtbar)
+          // Inline-Filter Fälligkeit (einzeilig, ohne Label — Region: AppBar)
           _InlineFilterLeiste(
-            regionen: regionen,
-            selectedRegionen: selectedRegionen,
             selectedFaelligkeit: selectedFaelligkeit,
-            onRegionenChanged: (updated) {
-              ref.read(selectedRegionenProvider.notifier).state = updated;
-            },
             onFaelligkeitChanged: (updated) {
               ref.read(selectedFaelligkeitProvider.notifier).state = updated;
             },
@@ -1093,20 +1105,14 @@ class _FaelligEintragKarte extends StatelessWidget {
   }
 }
 
-// ─── Inline-Filter-Leiste (Region + Fälligkeit getrennt) ───
+// ─── Inline-Filter-Leiste (Fälligkeit — einzeilig, farbige Chips) ───
 
 class _InlineFilterLeiste extends StatelessWidget {
-  final List<dynamic> regionen;
-  final Set<String> selectedRegionen;
   final Set<FaelligkeitsStatus> selectedFaelligkeit;
-  final void Function(Set<String>) onRegionenChanged;
   final void Function(Set<FaelligkeitsStatus>) onFaelligkeitChanged;
 
   const _InlineFilterLeiste({
-    required this.regionen,
-    required this.selectedRegionen,
     required this.selectedFaelligkeit,
-    required this.onRegionenChanged,
     required this.onFaelligkeitChanged,
   });
 
@@ -1118,68 +1124,24 @@ class _InlineFilterLeiste extends StatelessWidget {
     FaelligkeitsStatus.eroeffnungFaellig,
   ];
 
+  // Kurz-Label nur für die Filter-Chips (global bleibt faelligkeitLabel).
+  static String _kurz(FaelligkeitsStatus s) =>
+      s == FaelligkeitsStatus.baldFaellig ? 'Bald' : faelligkeitLabel(s);
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Fälligkeit
-          _filterZeile(
-            label: 'Fälligkeit',
-            child: AppMultiToggleChips<FaelligkeitsStatus>(
-              options: [
-                for (final s in _faelligStatuses)
-                  AppMultiOption(s, faelligkeitLabel(s),
-                      color: faelligkeitFarbe(s)),
-              ],
-              selected: selectedFaelligkeit,
-              onChanged: onFaelligkeitChanged,
-            ),
-          ),
-          if (regionen.isNotEmpty) const SizedBox(height: 4),
-          // Region — kompakter Mehrfach-Dropdown (kein horizontales Scrollen)
-          if (regionen.isNotEmpty)
-            _filterZeile(
-              label: 'Region',
-              child: AppFilterMultiDropdown<String>(
-                label: 'Regionen',
-                options: [
-                  for (final r in regionen)
-                    (r.routeId as String, r.name as String),
-                ],
-                selected: selectedRegionen,
-                onChanged: onRegionenChanged,
-              ).build(context),
-            ),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: AppMultiToggleChips<FaelligkeitsStatus>(
+        spacing: 4,
+        options: [
+          for (final s in _faelligStatuses)
+            AppMultiOption(s, _kurz(s), color: faelligkeitFarbe(s)),
         ],
-      ),
-    );
-  }
-
-  Widget _filterZeile({required String label, required Widget child}) {
-    // Kein horizontales Scrollen: Chips brechen um, der Dropdown passt ohnehin.
-    return Padding(
-      padding: const EdgeInsets.only(left: 12, right: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8, top: 6),
-            child: SizedBox(
-              width: 62,
-              child: Text(label,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary)),
-            ),
-          ),
-          Expanded(child: child),
-        ],
+        selected: selectedFaelligkeit,
+        onChanged: onFaelligkeitChanged,
       ),
     );
   }
