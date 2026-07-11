@@ -70,6 +70,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final dayCounts = ref.watch(tagesCountsProvider(_weekStart));
     final faelligeEintraege =
         ref.watch(faelligeEintraegeProvider(_selectedDate));
+    final autoTermine = ref.watch(autoTermineProvider(_selectedDate));
 
     // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag
     final gespeichertAsync =
@@ -191,6 +192,21 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                             .befuellenAusFaellig(angezeigtFaellig);
                       },
                     ),
+                    if (autoTermine.isNotEmpty)
+                      _AutoTermineSektion(
+                        eintraege: autoTermine,
+                        onUebernehmen: (e) => ref
+                            .read(tagesplanProvider.notifier)
+                            .hinzufuegen(e.alsPlanEintrag()),
+                        onAlleUebernehmen: () {
+                          final notifier =
+                              ref.read(tagesplanProvider.notifier);
+                          for (final e in autoTermine) {
+                            notifier.hinzufuegen(e.alsPlanEintrag());
+                          }
+                        },
+                        onTap: _navigateToDetail,
+                      ),
                     Expanded(
                       child: angezeigtTagesplan.isEmpty
                           ? _buildEmpty(
@@ -721,6 +737,127 @@ class _TourEintragKarte extends StatelessWidget {
       case TourEintragTyp.heigenie:
         return Icons.build;
     }
+  }
+}
+
+// ─── Automatische Termine (Saison) ───
+
+class _AutoTermineSektion extends StatelessWidget {
+  final List<TourEintrag> eintraege;
+  final void Function(TourEintrag) onUebernehmen;
+  final VoidCallback onAlleUebernehmen;
+  final void Function(TourEintrag) onTap;
+
+  const _AutoTermineSektion({
+    required this.eintraege,
+    required this.onUebernehmen,
+    required this.onAlleUebernehmen,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      decoration: BoxDecoration(
+        color: AppColors.info.withAlpha(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.info.withAlpha(50)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 4, 2),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome, size: 16, color: AppColors.info),
+                const SizedBox(width: 6),
+                Text('Automatische Termine (${eintraege.length})',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.info)),
+                const Spacer(),
+                TextButton(
+                  onPressed: onAlleUebernehmen,
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: const Text('Alle übernehmen',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          ...eintraege.map((e) => _AutoTerminKarte(
+                eintrag: e,
+                onUebernehmen: () => onUebernehmen(e),
+                onTap: () => onTap(e),
+              )),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+}
+
+class _AutoTerminKarte extends StatelessWidget {
+  final TourEintrag eintrag;
+  final VoidCallback onUebernehmen;
+  final VoidCallback onTap;
+
+  const _AutoTerminKarte({
+    required this.eintrag,
+    required this.onUebernehmen,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = eintrag.faelligkeit != null
+        ? faelligkeitFarbe(eintrag.faelligkeit!)
+        : AppColors.info;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(eintrag.betriebName,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13),
+                      overflow: TextOverflow.ellipsis),
+                  Text(eintrag.beschreibung,
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary),
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline,
+                  color: AppColors.primary),
+              onPressed: onUebernehmen,
+              tooltip: 'Zum Tagesplan',
+              iconSize: 22,
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
