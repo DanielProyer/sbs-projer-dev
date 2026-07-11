@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.07.2026 · **Live:** v0.37.0
+**Stand:** 11.07.2026 · **Live:** v0.37.1
 
 ---
 
@@ -139,6 +139,7 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
     - [x] ✓ **Matching v2** (v0.36.0, nach Live-Test kalibriert): Anker-Token statt Vollname (Gattungswörter Gasthof/Pizzeria/Openair toleriert), kompakte Orte (BadRagaz↔Bad Ragaz), Unique-Name-ohne-Ort (matcht auch wenn Ort im Titel fehlt/abweicht, sofern Name global eindeutig — z.B. Pagigerstübli, Fasan, Openair Val Lumnezia), Bernina/Bernina Bar via Vollname-Tiebreak getrennt; **Privat ausgeblendet** (Geburtstag/Ferien), **Pikett erkannt** (eigener Chip). 23 TDD-Tests (echte Fälle). **Daten-Hinweis:** einige Betriebe haben abweichende Orte ggü. Kalender (Pagigerstübli=Arosa, Fasan=Seewis Dorf) — matcht trotzdem, ggf. Ort in Stammdaten prüfen.
     - **🟡 Offen (User):** erneut scannen + Buckets prüfen → dann K2b.
     - [x] ✓ **K2b — Taggen + Rückgängig** (live v0.37.0 · 11.07.2026): Migration 133 (`entity_type` `betrieb_manuell`) + 134 (`original_color_id`/`original_reminders`). Edge-Aktionen `apply_tags` (**nur PATCH**: colorId 1 Lavendel + Erinnerung email+popup 1440 + `extendedProperties`-Tag; Titel/Notizen/Datum NIE) + `untag_manual` (**voll reversibel** — Original-Farbe/-Erinnerung werden beim Taggen gesichert und beim Untag exakt wiederhergestellt). Häkchen-Freigabe-UI: eindeutige vorangehakt, mehrdeutige mit Betrieb-Dropdown, kein-Treffer/Pikett ausgegraut; „X Termine taggen" + „Tags entfernen"; getaggte verschwinden aus der Liste. **Adversarial verifiziert** (4-Lens-Workflow): Titel/Notiz-Sicherheit + Client-Logik sauber; die anfänglich gefundene Reversibilitäts-Lücke (Original nicht gesichert), PATCH-vor-Mapping-Waisen und colorId:null-Kopplung wurden vor Deploy gefixt (Rollback bei DB-Fehler, colorId-Retry-Netz). **🟡 Offen (User-Live-Test):** eindeutige taggen → Lavendel+Erinnerung in Google prüfen; „Tags entfernen" → Ursprungszustand zurück; Spezialfall colorId:null (Termin ohne Original-Farbe) beim Untag beobachten.
+    - [x] ✓ **Feinschliff (v0.37.1):** Fuzzy-Anker-Fix (Token „crusch"~„grusch" machte Ustria Crusch Alva zum Geister-Kandidat → „Grüsch - Fasan" jetzt eindeutig; Unique-Name-ohne-Ort zählt nur EXAKTE Anker); mehrdeutige Einträge (z.B. „Davos - Seehof und Chesa") per **FilterChips mehrfach wählbar** → beide Betriebe taggbar (betrieb_id kommasepariert in extendedProperties).
 
 ---
 
