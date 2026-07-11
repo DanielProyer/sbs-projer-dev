@@ -21,10 +21,15 @@ Für denselben Zweck existieren **drei Chip-Implementierungen**: Material-`Filte
 1. **Kanonische Komponente: Hybrid** — Dropdowns im Wrap für Mehr-Optionen-Auswahl, `FilterChip` nur für echte An/Aus-Toggles; `SegmentedButton` nur für Ansichts-Modi (Liste/Karte).
 2. **Scope: nur Ansicht-Filter** — Formular-`DropdownButtonFormField` bleiben (separater, späterer Scope).
 3. **AppBar-Popup-Filter abschaffen** — Status-/Kategorie-Filter von Anlagen/Materialien/Rechnungen wandern in die `AppFilterBar`; PopupMenuButton nur noch für echte Aktions-/Overflow-Menüs.
-4. **Region-Mehrfachauswahl: Bottom-Sheet** mit Checkbox-Liste (`AppFilterSheet`), aktive Auswahl darunter als löschbare Chips.
+4. **Region-Mehrfachauswahl: kompakter Mehrfach-Dropdown** (`AppFilterMultiDropdown`) — Präzisierung 11.07.2026 (ersetzt die ursprünglich gewählte Bottom-Sheet-Variante): zeigt „Alle Regionen" bzw. „Regionen (n)" und öffnet ein Checkbox-Menü, das beim Mehrfach-Tippen offen bleibt. Kein horizontales Chip-Scrollen. (`AppFilterSheet` bleibt als Baustein für Fälle mit sehr vielen Optionen verfügbar.)
+
+**Grundsatz: Smartphone-first / einhändig (Google Pixel 9)** — die App wird hauptsächlich am Handy bedient. Deshalb:
+- **Horizontales Scrollen vermeiden**, wo immer möglich. Chip-Reihen, die nicht in eine Zeile passen, **umbrechen** (Wrap) statt horizontal scrollen — oder besser durch (Mehrfach-)Dropdowns ersetzen.
+- **Kompakte (Mehrfach-)Dropdowns nebeneinander** (2–3) sind übersichtlicher als lange Chip-Reihen. Chips (`AppMultiToggleChips`) nur, wenn sie **ohne Scrollen** passen (wenige, kurze Optionen wie Fälligkeit).
+- Bedienelemente daumenfreundlich; Menüs dürfen **vertikal** scrollen (das ist ok), Filter-Leisten nicht horizontal.
 
 Weitere (Default) Festlegungen:
-- **Rollout inkrementell** nach Prio-Liste; jeder Screen einzeln deploybar und vom User im Browser visuell geprüft.
+- **Rollout inkrementell** nach Prio-Liste; jeder Screen einzeln deploybar und vom User (am Handy) visuell geprüft.
 - **Nur Optik** — das Filter-Verhalten jedes Screens (live-apply vs. Anwenden-Button, Filter-Logik, Provider-Invalidierung) bleibt **unverändert**.
 - **Styling gekapselt in den Shared-Widgets**, kein globaler `ChipThemeData`-Eingriff (vermeidet Theme-Nebenwirkungen auf unbeteiligte Chips/Screens). Ein zentrales Theme kann später separat folgen.
 

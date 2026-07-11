@@ -45,6 +45,70 @@ class AppFilterDropdown<T> extends AppFilterItem {
   }
 }
 
+/// Mehrfach-Auswahl-Dropdown (kompakt, einhändig): zeigt 'Alle …' bzw.
+/// '… (n)' und öffnet ein Checkbox-Menü, das beim Mehrfach-Tippen offen bleibt.
+/// Vertikales Scrollen im Menü ist ok; horizontales Chip-Scrollen wird vermieden.
+class AppFilterMultiDropdown<T> extends AppFilterItem {
+  final String label; // z.B. 'Regionen'
+  final List<(T, String)> options;
+  final Set<T> selected;
+  final ValueChanged<Set<T>> onChanged;
+  AppFilterMultiDropdown({
+    required this.label,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  String _kurz(T v) =>
+      options.firstWhere((o) => o.$1 == v, orElse: () => (v, label)).$2;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        );
+    final anzeige = selected.isEmpty
+        ? 'Alle $label'
+        : selected.length == 1
+            ? _kurz(selected.first)
+            : '$label (${selected.length})';
+    return MenuAnchor(
+      menuChildren: [
+        for (final (v, l) in options)
+          MenuItemButton(
+            closeOnActivate: false,
+            leadingIcon: Icon(
+              selected.contains(v)
+                  ? Icons.check_box
+                  : Icons.check_box_outline_blank,
+              size: 20,
+              color: selected.contains(v) ? AppColors.primary : null,
+            ),
+            onPressed: () {
+              final u = Set<T>.from(selected);
+              if (!u.add(v)) u.remove(v);
+              onChanged(u);
+            },
+            child: Text(l),
+          ),
+      ],
+      builder: (context, controller, _) => TextButton.icon(
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        icon: Text(anzeige, style: style),
+        label: const Icon(Icons.arrow_drop_down, size: 20),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          visualDensity: VisualDensity.compact,
+          foregroundColor: AppColors.textPrimary,
+        ),
+      ),
+    );
+  }
+}
+
 /// Binärer An/Aus-Filter als schlichter FilterChip.
 class AppFilterToggle extends AppFilterItem {
   final String label;

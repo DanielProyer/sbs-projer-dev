@@ -1141,19 +1141,19 @@ class _InlineFilterLeiste extends StatelessWidget {
             ),
           ),
           if (regionen.isNotEmpty) const SizedBox(height: 4),
-          // Region
+          // Region — kompakter Mehrfach-Dropdown (kein horizontales Scrollen)
           if (regionen.isNotEmpty)
             _filterZeile(
               label: 'Region',
-              child: AppMultiToggleChips<String>(
+              child: AppFilterMultiDropdown<String>(
+                label: 'Regionen',
                 options: [
                   for (final r in regionen)
-                    AppMultiOption(r.routeId as String, r.name as String,
-                        color: AppColors.primary),
+                    (r.routeId as String, r.name as String),
                 ],
                 selected: selectedRegionen,
                 onChanged: onRegionenChanged,
-              ),
+              ).build(context),
             ),
         ],
       ),
@@ -1161,28 +1161,26 @@ class _InlineFilterLeiste extends StatelessWidget {
   }
 
   Widget _filterZeile({required String label, required Widget child}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 12, right: 8),
-          child: SizedBox(
-            width: 62,
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary)),
+    // Kein horizontales Scrollen: Chips brechen um, der Dropdown passt ohnehin.
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, right: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8, top: 6),
+            child: SizedBox(
+              width: 62,
+              child: Text(label,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary)),
+            ),
           ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(right: 12),
-            child: child,
-          ),
-        ),
-      ],
+          Expanded(child: child),
+        ],
+      ),
     );
   }
 }

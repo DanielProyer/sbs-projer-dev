@@ -38,6 +38,26 @@ void main() {
     expect(gewaehlt, 'zu');
   });
 
+  testWidgets('AppFilterMultiDropdown: Mehrfachauswahl im Menü', (t) async {
+    Set<String> sel = {};
+    await t.pumpWidget(_wrap(StatefulBuilder(
+      builder: (c, setState) => AppFilterBar(items: [
+        AppFilterMultiDropdown<String>(
+          label: 'Regionen',
+          options: const [('chur', 'Chur'), ('davos', 'Davos')],
+          selected: sel,
+          onChanged: (s) => setState(() => sel = s),
+        ),
+      ]),
+    )));
+    expect(find.text('Alle Regionen'), findsOneWidget);
+    await t.tap(find.text('Alle Regionen')); // Menü öffnen
+    await t.pumpAndSettle();
+    await t.tap(find.text('Chur'));
+    await t.pumpAndSettle();
+    expect(sel, {'chur'});
+  });
+
   testWidgets('AppMultiToggleChips: mehrere gleichzeitig wählbar', (t) async {
     Set<String> sel = {'a'};
     await t.pumpWidget(_wrap(StatefulBuilder(
