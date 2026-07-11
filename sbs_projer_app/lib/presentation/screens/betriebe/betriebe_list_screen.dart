@@ -13,6 +13,11 @@ import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_map.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// Ein Betrieb ist "operativ", wenn er betreut wird: aktiv oder in Saisonpause
+/// (aktiv, aber Pause). Inaktiv/geschlossen erscheinen nur bei explizitem Filter.
+bool istBetriebOperativ(String status) =>
+    status == 'aktiv' || status == 'saisonpause';
+
 class BetriebeListScreen extends ConsumerStatefulWidget {
   const BetriebeListScreen({super.key});
 
@@ -22,7 +27,9 @@ class BetriebeListScreen extends ConsumerStatefulWidget {
 
 class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   String _searchQuery = '';
-  String _statusFilter = 'aktiv'; // nur Liste
+  // 'operativ' (aktiv+saisonpause, Default) | aktiv | saisonpause | inaktiv |
+  // geschlossen | alle — nur Liste
+  String _statusFilter = 'operativ';
   String _kundenFilter = 'alle'; // 'alle', 'meine', 'fremde' — beide Ansichten
   Set<String> _selectedZapfsysteme = {}; // nur Liste
   // Region gilt für Liste UND Karte (gemeinsamer State).
@@ -73,7 +80,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
     final filtered = betriebe.where((b) {
       if (_kundenFilter == 'meine' && !b.istMeinKunde) return false;
       if (_kundenFilter == 'fremde' && b.istMeinKunde) return false;
-      if (_statusFilter != 'alle' && b.status != _statusFilter) return false;
+      if (!_statusPasst(b.status)) return false;
       if (_selectedZapfsysteme.isNotEmpty &&
           !_selectedZapfsysteme.any((z) => b.zapfsysteme.contains(z))) {
         return false;
@@ -154,13 +161,15 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
                   nullable: false,
                   value: _statusFilter,
                   options: const [
-                    ('alle', 'Alle Status'),
-                    ('aktiv', 'Aktiv'),
+                    ('operativ', 'Aktiv + Pause'),
+                    ('aktiv', 'Nur aktiv'),
+                    ('saisonpause', 'Saisonpause'),
                     ('inaktiv', 'Inaktiv'),
                     ('geschlossen', 'Geschlossen'),
+                    ('alle', 'Alle'),
                   ],
                   onChanged: (v) =>
-                      setState(() => _statusFilter = v ?? 'aktiv'),
+                      setState(() => _statusFilter = v ?? 'operativ'),
                 ),
               // Zapfsysteme — nur Liste
               if (!_karteAktiv)
@@ -240,6 +249,17 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
     );
   }
 
+  bool _statusPasst(String status) {
+    switch (_statusFilter) {
+      case 'operativ':
+        return istBetriebOperativ(status);
+      case 'alle':
+        return true;
+      default:
+        return status == _statusFilter;
+    }
+  }
+
   Widget _buildEmpty() {
     return Center(
       child: Column(
@@ -284,8 +304,9 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
     // oben), "Nur fällige" ist karten-spezifisch.
     final query = _searchQuery.toLowerCase();
     final gefiltert = alle.where((b) {
-      // Inaktive/geschlossene Betriebe werden auf der Karte nicht angezeigt.
-      if (b.status != 'aktiv' && b.status != 'saisonpause') return false;
+      // Nur operative Betriebe (aktiv + Saisonpause). Inaktiv/geschlossen
+      // erscheinen auf der Karte nicht.
+      if (!istBetriebOperativ(b.status)) return false;
       if (_kundenFilter == 'meine' && !b.istMeinKunde) return false;
       if (_kundenFilter == 'fremde' && b.istMeinKunde) return false;
       if (aktiveRegionIds.isNotEmpty &&
