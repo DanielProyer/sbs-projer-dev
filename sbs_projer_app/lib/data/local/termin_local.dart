@@ -31,6 +31,7 @@ class TerminLocal {
   int erinnerungTage = 3;
   bool erinnerungAktiv = false;
   int erinnerungVorlaufMinuten = 1440;
+  String erinnerungenJson = '[]';
   DateTime? createdAt;
   DateTime? updatedAt;
 }

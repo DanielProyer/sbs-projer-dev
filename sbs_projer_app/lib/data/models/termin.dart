@@ -1,3 +1,6 @@
+import 'package:sbs_projer_app/core/util/erinnerung_util.dart';
+import 'package:sbs_projer_app/data/models/termin_erinnerung.dart';
+
 class Termin {
   final String id;
   final String userId;
@@ -13,6 +16,7 @@ class Termin {
   final int erinnerungTage;
   final bool erinnerungAktiv;
   final int erinnerungVorlaufMinuten;
+  final List<TerminErinnerung> erinnerungen;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -31,6 +35,7 @@ class Termin {
     this.erinnerungTage = 3,
     this.erinnerungAktiv = false,
     this.erinnerungVorlaufMinuten = 1440,
+    this.erinnerungen = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -51,6 +56,7 @@ class Termin {
       erinnerungTage: json['erinnerung_tage'] ?? 3,
       erinnerungAktiv: json['erinnerung_aktiv'] ?? false,
       erinnerungVorlaufMinuten: json['erinnerung_vorlauf_minuten'] ?? 1440,
+      erinnerungen: parseErinnerungen(json['erinnerungen']),
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -72,6 +78,7 @@ class Termin {
       'erinnerung_tage': erinnerungTage,
       'erinnerung_aktiv': erinnerungAktiv,
       'erinnerung_vorlauf_minuten': erinnerungVorlaufMinuten,
+      'erinnerungen': erinnerungen.map((e) => e.toJson()).toList(),
     };
   }
 }

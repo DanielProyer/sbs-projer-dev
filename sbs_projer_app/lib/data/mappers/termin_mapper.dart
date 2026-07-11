@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/erinnerung_util.dart';
 import 'package:sbs_projer_app/data/local/termin_local_export.dart';
 import 'package:sbs_projer_app/data/models/termin.dart';
 
@@ -18,6 +19,7 @@ class TerminMapper {
     local.erinnerungTage = dto.erinnerungTage;
     local.erinnerungAktiv = dto.erinnerungAktiv;
     local.erinnerungVorlaufMinuten = dto.erinnerungVorlaufMinuten;
+    local.erinnerungenJson = erinnerungenToJson(dto.erinnerungen);
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -40,6 +42,9 @@ class TerminMapper {
       'erinnerung_tage': local.erinnerungTage,
       'erinnerung_aktiv': local.erinnerungAktiv,
       'erinnerung_vorlauf_minuten': local.erinnerungVorlaufMinuten,
+      'erinnerungen': parseErinnerungen(local.erinnerungenJson)
+          .map((e) => e.toJson())
+          .toList(),
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;
