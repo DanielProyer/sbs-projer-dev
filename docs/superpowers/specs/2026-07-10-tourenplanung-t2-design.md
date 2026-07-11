@@ -44,6 +44,8 @@ robuster/korrekter machen; (2) **Eröffnung/Endreinigung-Termine automatisch im 
   (`_langeSchliessungTage = 21`). Kurze Ferien → keine Endreinigung.
 - **Ziel-Tag:** Endreinigung = **letzter offener Tag vor** Schliessung; Eröffnung = **erster offener
   Tag ab** Wiedereröffnung. **Ruhetage + Ferientage werden übersprungen**.
+- **Vorlauf:** Endreinigung/Eröffnung werden **7 Tage** vor dem Übergang fällig — bestehende Konstante
+  `_saisonVorlaufTage` wird von 14 auf **7** gesenkt.
 - **Schwellen:** unverändert.
 - Keine DB-Migration. Deploy **v0.30.0**.
 
@@ -71,11 +73,11 @@ Neue Datei `lib/core/util/touren_saison.dart` (nur `BetriebLocal`-Abhängigkeit,
 `_getSaisonFaelligkeit` (bzw. Ersatz) nutzt Baustein A statt `letzteServiceArt`-Heuristik:
 
 - **Endreinigung fällig**, wenn `qualifizierteSchliessung(betrieb, datum)` existiert und ihr
-  Vorlauf `schliessung.datum.difference(datum).inDays <= _saisonVorlaufTage` (bestehende 14 Tage),
+  Vorlauf `schliessung.datum.difference(datum).inDays <= _saisonVorlaufTage` (**neu: 7 Tage**),
   **und** noch nicht erledigt: keine Reinigung dieser Anlage mit `serviceArt=='endreinigung'` seit
   Beginn der aktuellen Offen-Periode (via `anlage.letzteReinigung` + `letzteServiceArt`).
 - **Eröffnung fällig**, wenn der Betrieb an/nach einer solchen Schliessung wieder öffnet
-  (`oeffnungNach`) und die Öffnung ≤14 Tage bevorsteht **oder** bereits war, **und** noch kein
+  (`oeffnungNach`) und die Öffnung ≤7 Tage bevorsteht **oder** bereits war, **und** noch kein
   Eröffnungsservice/Standardservice seit der Wiedereröffnung erfasst ist.
 - `letzteServiceArt` bleibt als **Bestätigung „erledigt"**, ist aber nicht mehr alleiniger Auslöser.
 - Reguläre Rhythmus-Logik + Schwellen unverändert. Saison-Fälligkeit behält Vorrang.
