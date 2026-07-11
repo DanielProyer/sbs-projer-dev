@@ -21,8 +21,10 @@ class _EintragVorschau {
 }
 
 class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
-  DateTime _von = DateTime(DateTime.now().year, DateTime.now().month - 3, 1);
-  DateTime _bis = DateTime(DateTime.now().year + 1, DateTime.now().month, 1);
+  DateTime _von =
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  DateTime _bis = DateTime(
+      DateTime.now().year + 2, DateTime.now().month, DateTime.now().day);
   bool _laden = false;
   String? _fehler;
   List<_EintragVorschau>? _eintraege;
