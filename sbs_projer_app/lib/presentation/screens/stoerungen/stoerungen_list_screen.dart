@@ -181,14 +181,15 @@ class _StoerungenListScreenState
                 ],
                 onChanged: (v) => setState(() => _anlagenTypFilter = v),
               ),
+              // Art des Eintrags: normale Störung vs. reine Kilometerabrechnung
               AppFilterDropdown<String>(
-                hint: 'Km',
+                hint: 'Alle Arten',
                 nullable: false,
                 value: _kmFilter,
                 options: const [
-                  ('alle', 'Alle Km'),
-                  ('mit', 'Nur mit Km'),
-                  ('ohne', 'Nur ohne Km'),
+                  ('ohne', 'Störung'),
+                  ('mit', 'Kilometerabrechnung'),
+                  ('alle', 'Alle Arten'),
                 ],
                 onChanged: (v) => setState(() => _kmFilter = v ?? 'alle'),
               ),
