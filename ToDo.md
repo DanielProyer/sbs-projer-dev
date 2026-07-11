@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.07.2026 · **Live:** v0.36.0
+**Stand:** 11.07.2026 · **Live:** v0.37.0
 
 ---
 
@@ -138,7 +138,7 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
     - [x] ✓ **K2a — Kalibrier-Scan** (live v0.34.0 · 11.07.2026): read-only Edge-Aktion `scan_manual` (`events.list`, paginiert, `singleEvents`, überspringt SBS-getaggte) + reine Matching-Funktion `google_termin_match.dart` (Name + **harte Ort-Bestätigung**, Umlaut-/Slash-/Davos-Normalisierung, Tippfehler-Toleranz, nur genau-1-Treffer = eindeutig; 12 TDD-Tests aus echten Kollisionen Alpina×4/Calanda/Bernina-Bar). Neuer Screen (Einstellungen → „Bestehende Termine zuordnen"): Zeitraum (Default heute…+2 Jahre), Scan-Button, Statistik-Chips, Bucket-Liste. **Ändert nichts in Google.**
     - [x] ✓ **Matching v2** (v0.36.0, nach Live-Test kalibriert): Anker-Token statt Vollname (Gattungswörter Gasthof/Pizzeria/Openair toleriert), kompakte Orte (BadRagaz↔Bad Ragaz), Unique-Name-ohne-Ort (matcht auch wenn Ort im Titel fehlt/abweicht, sofern Name global eindeutig — z.B. Pagigerstübli, Fasan, Openair Val Lumnezia), Bernina/Bernina Bar via Vollname-Tiebreak getrennt; **Privat ausgeblendet** (Geburtstag/Ferien), **Pikett erkannt** (eigener Chip). 23 TDD-Tests (echte Fälle). **Daten-Hinweis:** einige Betriebe haben abweichende Orte ggü. Kalender (Pagigerstübli=Arosa, Fasan=Seewis Dorf) — matcht trotzdem, ggf. Ort in Stammdaten prüfen.
     - **🟡 Offen (User):** erneut scannen + Buckets prüfen → dann K2b.
-    - [ ] **K2b — Taggen + Rückgängig** (nach K2a-Kalibrierung): Migration 133 (`entity_type` `betrieb_manuell`), Edge-Aktionen `apply_tags` (PATCH nur colorId 1 + Erinnerung + `extendedProperties`-Tag, Titel/Notizen NIE) + `untag_manual` (reversibel), Häkchen-Freigabe-UI (eindeutige vorangehakt, mehrdeutige mit Dropdown, kein-Treffer ausgegraut). Deploy v0.35.0.
+    - [x] ✓ **K2b — Taggen + Rückgängig** (live v0.37.0 · 11.07.2026): Migration 133 (`entity_type` `betrieb_manuell`) + 134 (`original_color_id`/`original_reminders`). Edge-Aktionen `apply_tags` (**nur PATCH**: colorId 1 Lavendel + Erinnerung email+popup 1440 + `extendedProperties`-Tag; Titel/Notizen/Datum NIE) + `untag_manual` (**voll reversibel** — Original-Farbe/-Erinnerung werden beim Taggen gesichert und beim Untag exakt wiederhergestellt). Häkchen-Freigabe-UI: eindeutige vorangehakt, mehrdeutige mit Betrieb-Dropdown, kein-Treffer/Pikett ausgegraut; „X Termine taggen" + „Tags entfernen"; getaggte verschwinden aus der Liste. **Adversarial verifiziert** (4-Lens-Workflow): Titel/Notiz-Sicherheit + Client-Logik sauber; die anfänglich gefundene Reversibilitäts-Lücke (Original nicht gesichert), PATCH-vor-Mapping-Waisen und colorId:null-Kopplung wurden vor Deploy gefixt (Rollback bei DB-Fehler, colorId-Retry-Netz). **🟡 Offen (User-Live-Test):** eindeutige taggen → Lavendel+Erinnerung in Google prüfen; „Tags entfernen" → Ursprungszustand zurück; Spezialfall colorId:null (Termin ohne Original-Farbe) beim Untag beobachten.
 
 ---
 
