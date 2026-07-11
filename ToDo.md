@@ -179,11 +179,11 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 
 ### camt / Code-Politur (klein, unkritisch)
 - [ ] Import: statische Überschrift „Kundenzahlungen" bleibt nach „Alle verbuchen" stehen.
-- [ ] Import-Archiv-Dateiname hart `camt.xml` (nur Anzeige; `picked.name` mitführen).
+- [x] ✓ Import-Archiv-Dateiname: echter `picked.name` wird jetzt mitgeführt (Fallback `camt.xml`). (11.07.2026)
 - [ ] `verbuche` nicht in echte DB-Transaktion geklammert (durch Idempotenz-Guard abgesichert).
 - [ ] camt I2: Netzfehler nach Buchung vor Rechnung-Update → verwirrender Prüflisten-Eintrag (kein Doppelbuchen) — Transaktionalität verbessern.
 - [ ] camt-Regeln beobachten/verengen: `'abschluss'` (Substring breit); Lohn „daniel proyer" ggf. → IBAN `CH7909000000870500683`; Heineken „heineken" → „heineken switzerland".
-- [ ] Saldo-Parsing-Bug (vorbestehend): `OPBD/CLBD` als 0 gelesen (`CdOrPrtry` liegt unter `Tp`). Pipeline nutzt es nicht, aber falsch.
+- [x] ✓ Saldo-Parsing-Bug gefixt (11.07.2026): `OPBD/CLBD` werden jetzt über `Bal>Tp>CdOrPrtry>Cd` gelesen (vorher immer 0). Feld weiterhin ungenutzt, aber korrekt; 2 Tests ergänzt.
 - [ ] Phase 0a Follow-up: 11 alte camt-Vorlagen `ist_aktiv=true` (FK-Schutz) — optional Regeln auf neue Geschäftsfälle umhängen, dann Alt-Vorlagen deaktivieren (tauchen sonst im manuellen Dropdown auf).
 - [x] ✓ Hub: toter Code `forderungenProvider` / `mahnwesenDashboardProvider` bereits entfernt (Grep 11.07.2026: keine Vorkommen mehr).
 - [ ] **App-weite UI-Vereinheitlichung** (Filter/Dropdowns) — eigener grösserer Durchgang. Referenz-Stil: schlichte `DropdownButton` im `Wrap`.

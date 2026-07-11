@@ -45,6 +45,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   int _step = 0; // 0=Datei wählen, 1=Bestätigen, 2=Ergebnis
   CamtStatement? _statement;
   String? _xmlRoh;
+  String? _dateiname; // echter Name der gewählten Datei (fürs Archiv)
   List<CamtVorschlag> _vorschlaege = []; // Bereich 2: zu bestätigen
   int _prueflisteCount = 0;
   int _uebersprungen = 0;
@@ -157,6 +158,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       setState(() {
         _statement = statement;
         _xmlRoh = xmlString;
+        _dateiname = picked.name;
         _automatisierbarCount = automatisierbar;
         _step = 1;
         _loading = false;
@@ -310,7 +312,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       final gutAnzahl = stmt.transactions.where((t) => t.isCredit).length;
       // Archiv-Kopie (UTF-8-normalisiert).
       await CamtDateiRepository.speichern(
-        CamtDatei(id: '', userId: '', dateiname: 'camt.xml',
+        CamtDatei(id: '', userId: '', dateiname: _dateiname ?? 'camt.xml',
           zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
           anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
         Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
@@ -494,6 +496,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                 _abgleich = null;
                 _automatisierbarCount = 0;
                 _xmlRoh = null;
+                _dateiname = null;
                 _alleOffenen = [];
                 _betriebName = {};
               }),

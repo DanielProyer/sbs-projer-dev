@@ -56,4 +56,28 @@ void main() {
     final keys = stmt.transactions.map((t) => t.txKey).toSet();
     expect(keys.length, 2, reason: 'beide Transaktionen müssen eindeutige txKeys haben');
   });
+
+  test('Salden OPBD/CLBD werden aus Bal>Tp>CdOrPrtry gelesen', () {
+    const xml = '''<?xml version="1.0"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.04"><BkToCstmrStmt><Stmt>
+<Id>T</Id><Acct><Id><IBAN>CH66</IBAN></Id><Ccy>CHF</Ccy><Ownr><Nm>X</Nm></Ownr></Acct>
+<FrToDt><FrDtTm>2026-07-01T00:00:00</FrDtTm><ToDtTm>2026-07-31T23:59:59</ToDtTm></FrToDt>
+<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="CHF">1000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd></Bal>
+<Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="CHF">1500.50</Amt><CdtDbtInd>CRDT</CdtDbtInd></Bal>
+</Stmt></BkToCstmrStmt></Document>''';
+    final stmt = Camt053Parser.parse(xml);
+    expect(stmt.openingBalance, 1000.00);
+    expect(stmt.closingBalance, 1500.50);
+  });
+
+  test('Debit-Saldo (CLBD DBIT) wird negativ gelesen', () {
+    const xml = '''<?xml version="1.0"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.04"><BkToCstmrStmt><Stmt>
+<Id>T</Id><Acct><Id><IBAN>CH66</IBAN></Id><Ccy>CHF</Ccy><Ownr><Nm>X</Nm></Ownr></Acct>
+<FrToDt><FrDtTm>2026-07-01T00:00:00</FrDtTm><ToDtTm>2026-07-31T23:59:59</ToDtTm></FrToDt>
+<Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="CHF">42.00</Amt><CdtDbtInd>DBIT</CdtDbtInd></Bal>
+</Stmt></BkToCstmrStmt></Document>''';
+    final stmt = Camt053Parser.parse(xml);
+    expect(stmt.closingBalance, -42.00);
+  });
 }

@@ -33,7 +33,9 @@ class Camt053Parser {
     double openingBalance = 0;
     double closingBalance = 0;
     for (final bal in _findElements(stmt, 'Bal')) {
-      final code = _text(_findElement(_findElement(bal, 'CdOrPrtry'), 'Cd'));
+      // CdOrPrtry liegt unter Tp (Bal > Tp > CdOrPrtry > Cd), nicht direkt unter Bal.
+      final code = _text(
+          _findElement(_findElement(_findElement(bal, 'Tp'), 'CdOrPrtry'), 'Cd'));
       final amount = double.tryParse(_attr(_findElement(bal, 'Amt')) ?? '0') ?? 0;
       final isCredit = _text(_findElement(bal, 'CdtDbtInd')) == 'CRDT';
       final signed = isCredit ? amount : -amount;
