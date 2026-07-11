@@ -85,11 +85,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                     .read(tagesplanProvider.notifier)
                     .setFromGespeichert(gespeichert);
               } else {
-                final vorschlag =
-                    ref.read(tourVorschlagErweitertProvider(_selectedDate));
-                ref
-                    .read(tagesplanProvider.notifier)
-                    .setFromVorschlag(vorschlag);
+                ref.read(tagesplanProvider.notifier).resetLeer();
               }
             });
           }
@@ -99,9 +95,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           _loadedForDate = _selectedDate;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            final vorschlag =
-                ref.read(tourVorschlagErweitertProvider(_selectedDate));
-            ref.read(tagesplanProvider.notifier).setFromVorschlag(vorschlag);
+            ref.read(tagesplanProvider.notifier).resetLeer();
           });
         },
       );
@@ -225,37 +219,12 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                   children: [
                     _TagesplanHeader(
                       datum: _selectedDate,
-                      istGespeichert: ref.read(tagesplanProvider.notifier).gespeichert,
                       onLeeren: () =>
                           ref.read(tagesplanProvider.notifier).leeren(),
                       onAusFaelligBefuellen: () {
-                        final faellige = ref
-                            .read(faelligeEintraegeProvider(_selectedDate));
                         ref
                             .read(tagesplanProvider.notifier)
-                            .befuellenAusFaellig(faellige);
-                      },
-                      onSpeichern: () async {
-                        try {
-                          await tagesplanSpeichern(
-                              _selectedDate, tagesplan);
-                          ref.read(tagesplanProvider.notifier).markGespeichert();
-                          ref.invalidate(gespeicherterTagesplanProvider);
-                          if (mounted) {
-                            setState(() {});
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Tagesplan gespeichert')),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Fehler: $e')),
-                            );
-                          }
-                        }
+                            .befuellenAusFaellig(angezeigtFaellig);
                       },
                     ),
                     Expanded(
@@ -703,17 +672,13 @@ class _DayChips extends StatelessWidget {
 
 class _TagesplanHeader extends StatelessWidget {
   final DateTime datum;
-  final bool istGespeichert;
   final VoidCallback onLeeren;
   final VoidCallback onAusFaelligBefuellen;
-  final VoidCallback onSpeichern;
 
   const _TagesplanHeader({
     required this.datum,
-    required this.istGespeichert,
     required this.onLeeren,
     required this.onAusFaelligBefuellen,
-    required this.onSpeichern,
   });
 
   @override
@@ -732,26 +697,12 @@ class _TagesplanHeader extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          if (istGespeichert)
-            const Padding(
-              padding: EdgeInsets.only(left: 6),
-              child: Icon(Icons.cloud_done, size: 16, color: AppColors.success),
-            ),
           const Spacer(),
-          IconButton(
-            onPressed: onSpeichern,
-            icon: Icon(
-              istGespeichert ? Icons.save : Icons.save_outlined,
-              size: 20,
-              color: istGespeichert ? AppColors.success : AppColors.primary,
-            ),
-            tooltip: 'Tagesplan speichern',
-            visualDensity: VisualDensity.compact,
-          ),
           TextButton.icon(
             onPressed: onAusFaelligBefuellen,
             icon: const Icon(Icons.playlist_add, size: 18),
-            label: const Text('Fällige', style: TextStyle(fontSize: 12)),
+            label: const Text('Fällige übernehmen',
+                style: TextStyle(fontSize: 12)),
             style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8),
