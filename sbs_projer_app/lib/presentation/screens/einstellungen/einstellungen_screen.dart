@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/presentation/providers/google_calendar_providers.
 import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/geschaeft_form.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/mwst_saetze_section.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auth_service.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 
 class EinstellungenScreen extends ConsumerStatefulWidget {
   const EinstellungenScreen({super.key});
@@ -75,6 +76,28 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.sync, size: 18),
+              label: const Text('Jetzt abgleichen'),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Kalender wird abgeglichen …')),
+                );
+                try {
+                  final r = await GoogleCalendarSyncService.reconcile();
+                  messenger.showSnackBar(SnackBar(
+                    content: Text(
+                        'Abgeglichen: ${r['pushed'] ?? 0} gesendet, ${r['deleted'] ?? 0} entfernt'),
+                  ));
+                } catch (e) {
+                  messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+                }
+              },
+            ),
+          ),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(

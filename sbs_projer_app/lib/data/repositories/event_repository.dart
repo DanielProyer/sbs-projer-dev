@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/models/event.dart';
 import 'package:sbs_projer_app/data/mappers/event_mapper.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -42,6 +43,7 @@ class EventRepository {
     if (kIsWeb) {
       final json = EventMapper.toJson(event);
       await SupabaseService.client.from('events').upsert(json);
+      await GoogleCalendarSyncService.push('event', event.serverId!);
       return;
     }
     event.isSynced = false;
@@ -52,6 +54,7 @@ class EventRepository {
   static Future<void> delete(String id) async {
     if (kIsWeb) {
       await SupabaseService.client.from('events').delete().eq('id', id);
+      await GoogleCalendarSyncService.push('event', id);
       return;
     }
     // Native: zuerst serverseitig löschen (CASCADE räumt event_kontakte ab),

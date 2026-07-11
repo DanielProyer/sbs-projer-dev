@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/models/pikett_dienst.dart';
 import 'package:sbs_projer_app/data/mappers/pikett_dienst_mapper.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -44,9 +46,11 @@ class PikettDienstRepository {
 
   static Future<void> save(PikettDienstLocal pikett) async {
     pikett.userId = SupabaseService.currentUser!.id;
+    pikett.serverId ??= const Uuid().v4();
     if (kIsWeb) {
       final json = PikettDienstMapper.toJson(pikett);
       await SupabaseService.client.from('pikett_dienste').upsert(json);
+      await GoogleCalendarSyncService.push('pikett', pikett.serverId!);
       return;
     }
     pikett.isSynced = false;
@@ -57,6 +61,7 @@ class PikettDienstRepository {
   static Future<void> delete(String id) async {
     if (kIsWeb) {
       await SupabaseService.client.from('pikett_dienste').delete().eq('id', id);
+      await GoogleCalendarSyncService.push('pikett', id);
       return;
     }
     final local = await IsarService.pikettDienstGet(int.parse(id));

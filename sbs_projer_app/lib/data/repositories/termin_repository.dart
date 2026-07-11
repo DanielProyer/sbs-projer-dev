@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 import 'package:sbs_projer_app/services/notification/reminder_service_export.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -89,6 +90,9 @@ class TerminRepository {
       }
       final json = TerminMapper.toJson(termin);
       await SupabaseService.client.from('termine').upsert(json);
+      if (termin.status == 'geplant') {
+        await GoogleCalendarSyncService.push('termin', termin.serverId!);
+      }
     } else {
       termin.isSynced = false;
       termin.lastModifiedAt = DateTime.now().toUtc();
@@ -106,6 +110,9 @@ class TerminRepository {
     final toCancel = await getById(id);
     if (kIsWeb) {
       await SupabaseService.client.from('termine').delete().eq('id', id);
+      if (toCancel?.status == 'geplant') {
+        await GoogleCalendarSyncService.push('termin', id);
+      }
     } else {
       final local = await IsarService.terminGet(int.parse(id));
       if (local?.serverId != null) {
