@@ -217,7 +217,9 @@ class AnlagePdfService {
                     b.leitungsNummer.toString(),
                     s(b.biersorte),
                     s(b.hahnTyp),
-                    b.niederdruckBar?.toString() ?? '-',
+                    b.niederdruckBar != null
+                        ? b.niederdruckBar!.toStringAsFixed(1)
+                        : '-',
                     jn(b.hatFobStop),
                     jn(b.istGekoppelt),
                   ],
