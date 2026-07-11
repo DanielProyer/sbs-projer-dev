@@ -186,7 +186,11 @@
 
     function redirectToVersion(ver) {
       clearAllCaches().then(function() {
-        window.location.replace(window.location.pathname + '?v=' + ver);
+        // Bestehende Query-Parameter ERHALTEN (z.B. OAuth ?code/?state von Google),
+        // nur den Cache-Buster v= setzen/aktualisieren.
+        var params = new URLSearchParams(window.location.search);
+        params.set('v', ver);
+        window.location.replace(window.location.pathname + '?' + params.toString());
       });
     }
 
