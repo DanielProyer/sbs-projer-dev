@@ -21,6 +21,12 @@ final _betriebe = <BetriebKandidat>[
   const BetriebKandidat(betriebId: 'b-oa-gampel', name: 'Openair Gampel', ort: 'Steg'),
   const BetriebKandidat(betriebId: 'b-seehof', name: 'Seehof', ort: 'Davos'),
   const BetriebKandidat(betriebId: 'b-chesa', name: 'Chesa', ort: 'Davos Dorf'),
+  const BetriebKandidat(betriebId: 'b-oldtimer', name: 'Oldtimer', ort: 'Chur'),
+  const BetriebKandidat(betriebId: 'b-twelve', name: 'Twelve', ort: 'Chur'),
+  const BetriebKandidat(betriebId: 'b-schuetzenhaus', name: 'Schützenhaus', ort: 'Chur'),
+  const BetriebKandidat(betriebId: 'b-schuetzenmatt', name: 'Schützenmatt', ort: 'Inwil'),
+  // Betrieb, dessen Name = Ort (darf "Chur - X"-Titel nicht kapern):
+  const BetriebKandidat(betriebId: 'b-hotelchur', name: 'Hotel Chur', ort: 'Chur'),
 ];
 
 void main() {
@@ -156,5 +162,23 @@ void main() {
     // "Löwen" gibt es in Grossdietwil UND Maienfeld -> ohne Ort nicht auflösbar
     final m = matcheTitel('Znacht im Löwen', _betriebe);
     expect(m.bucket, MatchBucket.keinTreffer);
+  });
+
+  test('Chur - Oldtimer -> eindeutig', () {
+    final m = matcheTitel('Chur - Oldtimer', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-oldtimer');
+  });
+
+  test('Chur - Twelve -> eindeutig', () {
+    final m = matcheTitel('Chur - Twelve', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-twelve');
+  });
+
+  test('Chur - Schützenhaus -> eindeutig (nicht Schützenmatt)', () {
+    final m = matcheTitel('Chur - Schützenhaus', _betriebe);
+    expect(m.bucket, MatchBucket.eindeutig);
+    expect(m.treffer!.betriebId, 'b-schuetzenhaus');
   });
 }

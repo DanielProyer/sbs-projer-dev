@@ -124,9 +124,14 @@ List<String> _distinctiveTokens(String name) {
   return dist;
 }
 
-/// Anker = längstes unterscheidendes Token (>= 3 Zeichen), sonst null.
-String? _anchor(String name) {
-  final dist = _distinctiveTokens(name);
+/// Anker = längstes unterscheidendes Token (>= 3 Zeichen), das NICHT gleich dem
+/// eigenen Ort ist. Sonst null. So kapert z.B. „Hotel Chur" (Ort Chur) keine
+/// „Chur - X"-Titel, weil sein einziges Token = der Ort ist.
+String? _anchor(String name, String ort) {
+  final ortTokens = normalisiereText(ort).split(' ').toSet();
+  final dist = _distinctiveTokens(name)
+      .where((t) => !ortTokens.contains(t))
+      .toList();
   if (dist.isEmpty) return null;
   dist.sort((a, b) => b.length.compareTo(a.length));
   return dist.first;
@@ -174,13 +179,13 @@ TerminMatch matcheTitel(String titel, List<BetriebKandidat> betriebe) {
 
   final anchorCount = <String, int>{};
   for (final b in betriebe) {
-    final a = _anchor(b.name);
+    final a = _anchor(b.name, b.ort);
     if (a != null) anchorCount[a] = (anchorCount[a] ?? 0) + 1;
   }
 
   final treffer = <_Kand>[];
   for (final b in betriebe) {
-    final a = _anchor(b.name);
+    final a = _anchor(b.name, b.ort);
     if (a == null) continue;
     if (!_enthaelt(titleTokens, a, _maxTippfehler(a))) continue;
     final ortOk = _ortImTitel(b.ort, titleTokens, compactTitle);
