@@ -65,11 +65,15 @@ class AppFilterMultiDropdown<T> extends AppFilterItem {
   final List<(T, String)> options;
   final Set<T> selected;
   final ValueChanged<Set<T>> onChanged;
+
+  /// Füllt die verfügbare Breite (für gleich breite Spalten in einer Row).
+  final bool isExpanded;
   AppFilterMultiDropdown({
     required this.label,
     required this.options,
     required this.selected,
     required this.onChanged,
+    this.isExpanded = false,
   });
 
   String _kurz(T v) =>
@@ -106,20 +110,40 @@ class AppFilterMultiDropdown<T> extends AppFilterItem {
             child: Text(l),
           ),
       ],
-      builder: (context, controller, _) => TextButton.icon(
-        onPressed: () =>
-            controller.isOpen ? controller.close() : controller.open(),
-        icon: Text(anzeige, style: style),
-        label: const Icon(Icons.arrow_drop_down, size: 20),
-        style: TextButton.styleFrom(
+      builder: (context, controller, _) {
+        void toggle() =>
+            controller.isOpen ? controller.close() : controller.open();
+        final buttonStyle = TextButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           visualDensity: VisualDensity.compact,
           foregroundColor: AppColors.textPrimary,
           backgroundColor: AppColors.surfaceCard,
           side: FilterChrome.side,
           shape: RoundedRectangleBorder(borderRadius: FilterChrome.radius),
-        ),
-      ),
+        );
+        // isExpanded: füllt die Spalte (Label links, Pfeil rechts, Ellipsis).
+        if (isExpanded) {
+          return TextButton(
+            onPressed: toggle,
+            style: buttonStyle,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(anzeige,
+                      style: style, overflow: TextOverflow.ellipsis),
+                ),
+                const Icon(Icons.arrow_drop_down, size: 20),
+              ],
+            ),
+          );
+        }
+        return TextButton.icon(
+          onPressed: toggle,
+          icon: Text(anzeige, style: style),
+          label: const Icon(Icons.arrow_drop_down, size: 20),
+          style: buttonStyle,
+        );
+      },
     );
   }
 }

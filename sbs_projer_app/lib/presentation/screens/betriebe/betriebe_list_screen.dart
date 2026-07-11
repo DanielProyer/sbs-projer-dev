@@ -153,60 +153,85 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
             ),
           ),
 
-          // Einheitliche Filter-Leiste (kontextabhängig: Liste vs. Karte)
-          AppFilterBar(
-            items: [
-              // Kunden — beide Ansichten
-              AppFilterDropdown<String>(
-                hint: 'Alle Kunden',
-                value: _kundenFilter == 'alle' ? null : _kundenFilter,
-                options: const [
-                  ('meine', 'Meine Kunden'),
-                  ('fremde', 'Fremde Kunden'),
+          // Filter-Leiste (Region-Filter ist in der AppBar oben rechts):
+          // Liste = drei gleich breite Spalten (Kunden · Status · Zapfsysteme),
+          // Karte = Kunden + „Nur fällige".
+          if (!_karteAktiv)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AppFilterDropdown<String>(
+                      hint: 'Alle Kunden',
+                      isExpanded: true,
+                      value: _kundenFilter == 'alle' ? null : _kundenFilter,
+                      options: const [
+                        ('meine', 'Meine Kunden'),
+                        ('fremde', 'Fremde Kunden'),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _kundenFilter = v ?? 'alle'),
+                    ).build(context),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppFilterDropdown<String>(
+                      hint: 'Status',
+                      isExpanded: true,
+                      nullable: false,
+                      value: _statusFilter,
+                      options: const [
+                        ('operativ', 'Aktiv + Pause'),
+                        ('aktiv', 'Nur aktiv'),
+                        ('saisonpause', 'Saisonpause'),
+                        ('inaktiv', 'Inaktiv'),
+                        ('geschlossen', 'Geschlossen'),
+                        ('alle', 'Alle'),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _statusFilter = v ?? 'operativ'),
+                    ).build(context),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppFilterMultiDropdown<String>(
+                      label: 'Zapfsysteme',
+                      isExpanded: true,
+                      options: const [
+                        ('David', 'David'),
+                        ('Konventionell', 'Konventionell'),
+                        ('Higenie', 'Higenie'),
+                        ('Orion', 'Orion'),
+                        ('Veranstaltungen', 'Veranstaltungen'),
+                      ],
+                      selected: _selectedZapfsysteme,
+                      onChanged: (s) =>
+                          setState(() => _selectedZapfsysteme = s),
+                    ).build(context),
+                  ),
                 ],
-                onChanged: (v) => setState(() => _kundenFilter = v ?? 'alle'),
               ),
-              // Status — nur Liste
-              if (!_karteAktiv)
+            )
+          else
+            AppFilterBar(
+              items: [
                 AppFilterDropdown<String>(
-                  hint: 'Status',
-                  nullable: false,
-                  value: _statusFilter,
+                  hint: 'Alle Kunden',
+                  value: _kundenFilter == 'alle' ? null : _kundenFilter,
                   options: const [
-                    ('operativ', 'Aktiv + Pause'),
-                    ('aktiv', 'Nur aktiv'),
-                    ('saisonpause', 'Saisonpause'),
-                    ('inaktiv', 'Inaktiv'),
-                    ('geschlossen', 'Geschlossen'),
-                    ('alle', 'Alle'),
+                    ('meine', 'Meine Kunden'),
+                    ('fremde', 'Fremde Kunden'),
                   ],
-                  onChanged: (v) =>
-                      setState(() => _statusFilter = v ?? 'operativ'),
+                  onChanged: (v) => setState(() => _kundenFilter = v ?? 'alle'),
                 ),
-              // Zapfsysteme — nur Liste
-              if (!_karteAktiv)
-                AppFilterMultiDropdown<String>(
-                  label: 'Zapfsysteme',
-                  options: const [
-                    ('David', 'David'),
-                    ('Konventionell', 'Konventionell'),
-                    ('Higenie', 'Higenie'),
-                    ('Orion', 'Orion'),
-                    ('Veranstaltungen', 'Veranstaltungen'),
-                  ],
-                  selected: _selectedZapfsysteme,
-                  onChanged: (s) => setState(() => _selectedZapfsysteme = s),
-                ),
-              // Region-Filter ist in der AppBar (oben rechts).
-              // Nur fällige — nur Karte
-              if (_karteAktiv)
                 AppFilterToggle(
                   label: 'Nur fällige',
                   value: _karteNurFaellig,
                   onChanged: (v) => setState(() => _karteNurFaellig = v),
                 ),
-            ],
-          ),
+              ],
+            ),
 
           // Anzahl (nur Liste)
           if (!_karteAktiv)
