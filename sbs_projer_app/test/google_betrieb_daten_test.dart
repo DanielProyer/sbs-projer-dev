@@ -85,4 +85,52 @@ void main() {
       expect(d.ort, 'Chur');
     });
   });
+
+  group('oeffnungszeitenAusWebsiteJson', () {
+    test('mappt Öffnungszeiten und Ruhetage aus AI-JSON', () {
+      final d = oeffnungszeitenAusWebsiteJson({
+        'oeffnungszeiten': {
+          'Mo': [
+            {'von': '11:30', 'bis': '14:00'},
+            {'von': '18:00', 'bis': '23:00'},
+          ],
+          'Sa': [
+            {'von': '18:00', 'bis': '23:30'},
+          ],
+        },
+        'ruhetage': ['Di', 'Mi'],
+      });
+      expect(d.oeffnungszeiten['Mo'], [
+        {'von': '11:30', 'bis': '14:00'},
+        {'von': '18:00', 'bis': '23:00'},
+      ]);
+      expect(d.oeffnungszeiten['Sa'], [
+        {'von': '18:00', 'bis': '23:30'},
+      ]);
+      expect(d.oeffnungszeiten['Do'], isEmpty);
+      expect(d.ruhetage, ['Di', 'Mi']);
+    });
+
+    test('leeres/fehlendes JSON -> leere Zeiten, keine Ruhetage', () {
+      final d = oeffnungszeitenAusWebsiteJson({});
+      expect(d.oeffnungszeiten.values.every((l) => l.isEmpty), isTrue);
+      expect(d.ruhetage, isEmpty);
+    });
+
+    test('ignoriert ungültige Slots (kein von) und unbekannte Ruhetage', () {
+      final d = oeffnungszeitenAusWebsiteJson({
+        'oeffnungszeiten': {
+          'Fr': [
+            {'bis': '22:00'},
+            {'von': '09:00', 'bis': '12:00'},
+          ],
+        },
+        'ruhetage': ['Di', 'Feiertag'],
+      });
+      expect(d.oeffnungszeiten['Fr'], [
+        {'von': '09:00', 'bis': '12:00'},
+      ]);
+      expect(d.ruhetage, ['Di']);
+    });
+  });
 }

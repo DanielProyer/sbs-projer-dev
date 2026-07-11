@@ -72,6 +72,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   double? _latitude;
   double? _longitude;
   bool _googleLoading = false;
+  bool _websiteLoading = false;
   List<String> _zapfsysteme = [];
   List<String> _zahlerAliase = [];
   final _aliasController = TextEditingController();
@@ -215,12 +216,40 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     }
   }
 
+  Future<void> _oeffnungszeitenVonWebsite() async {
+    final website = _websiteController.text.trim();
+    if (website.isEmpty) {
+      _snack('Bitte zuerst eine Website eintragen (oder aus Google übernehmen).');
+      return;
+    }
+    setState(() => _websiteLoading = true);
+    try {
+      final daten = await BetriebGoogleService.oeffnungszeitenVonWebsite(
+        website,
+        name: _nameController.text.trim(),
+      );
+      if (!mounted) return;
+      if (!daten.oeffnungszeiten.values.any((l) => l.isNotEmpty)) {
+        _snack('Auf der Website keine Öffnungszeiten gefunden.');
+        return;
+      }
+      await _zeigeUebernahmeDialog(daten, titel: 'Öffnungszeiten von Website');
+    } on BetriebGoogleException catch (e) {
+      if (mounted) _snack(e.message);
+    } catch (e) {
+      if (mounted) _snack('Website-Auslesen fehlgeschlagen: $e');
+    } finally {
+      if (mounted) setState(() => _websiteLoading = false);
+    }
+  }
+
   void _snack(String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _zeigeUebernahmeDialog(GoogleBetriebDaten d) async {
+  Future<void> _zeigeUebernahmeDialog(GoogleBetriebDaten d,
+      {String titel = 'Google-Daten übernehmen'}) async {
     final hatOeffnungszeiten =
         d.oeffnungszeiten.values.any((l) => l.isNotEmpty);
     final kandidaten = <_GoogleFeld>[
@@ -288,7 +317,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Google-Daten übernehmen'),
+          title: Text(titel),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView(
@@ -551,6 +580,17 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.travel_explore),
               label: const Text('Aus Google übernehmen'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _websiteLoading ? null : _oeffnungszeitenVonWebsite,
+              icon: _websiteLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.schedule),
+              label: const Text('Öffnungszeiten von Website'),
             ),
             const SizedBox(height: 8),
 

@@ -115,3 +115,40 @@ GoogleBetriebDaten betriebAusGooglePlace(Map place) {
     ruhetage: ruhetage,
   );
 }
+
+/// Baut [GoogleBetriebDaten] (nur Öffnungszeiten + Ruhetage) aus dem JSON der
+/// Edge-Function `parse-oeffnungszeiten` (Website-Fallback via AI).
+/// Erwartetes Format: `{'oeffnungszeiten': {'Mo': [{'von','bis'}], ...},
+/// 'ruhetage': ['Di', ...]}`. Ruhetage werden NICHT aus leeren Tagen abgeleitet
+/// (nur was die KI explizit als geschlossen meldet).
+GoogleBetriebDaten oeffnungszeitenAusWebsiteJson(Map json) {
+  final oeffnungszeiten = <String, List<Map<String, String>>>{
+    for (final t in _wochentage) t: [],
+  };
+  final rawOz = json['oeffnungszeiten'];
+  if (rawOz is Map) {
+    for (final t in _wochentage) {
+      final slots = rawOz[t];
+      if (slots is! List) continue;
+      for (final s in slots) {
+        if (s is! Map) continue;
+        final von = s['von']?.toString() ?? '';
+        final bis = s['bis']?.toString() ?? '';
+        if (von.isEmpty) continue;
+        oeffnungszeiten[t]!.add({'von': von, 'bis': bis});
+      }
+    }
+  }
+  final ruhetage = <String>[];
+  final rawRuhe = json['ruhetage'];
+  if (rawRuhe is List) {
+    for (final r in rawRuhe) {
+      final t = r.toString();
+      if (_wochentage.contains(t)) ruhetage.add(t);
+    }
+  }
+  return GoogleBetriebDaten(
+    oeffnungszeiten: oeffnungszeiten,
+    ruhetage: ruhetage,
+  );
+}
