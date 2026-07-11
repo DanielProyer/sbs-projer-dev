@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/app.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_auth_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/connectivity/connectivity_service.dart';
@@ -32,6 +33,11 @@ Future<void> main() async {
     } catch (_) {
       await SupabaseService.client.auth.signOut();
     }
+  }
+
+  // OAuth-Redirect von Google verarbeiten (Web)
+  if (kIsWeb && SupabaseService.isAuthenticated) {
+    await GoogleCalendarAuthService.verarbeiteRedirect();
   }
 
   if (!kIsWeb) {
