@@ -129,40 +129,6 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tourenplanung'),
-        actions: [
-          // Regionen-Filter Button
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.filter_list),
-                tooltip: 'Filter',
-                onPressed: () => _showFilterPicker(context, regionen,
-                    selectedRegionen, selectedFaelligkeit),
-              ),
-              if (selectedRegionen.isNotEmpty ||
-                  selectedFaelligkeit.isNotEmpty)
-                Positioned(
-                  right: 6,
-                  top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '${selectedRegionen.length + selectedFaelligkeit.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -193,21 +159,18 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             ],
           ),
 
-          // Filter-Chips (Fälligkeit + Regionen)
-          if (selectedFaelligkeit.isNotEmpty || selectedRegionen.isNotEmpty)
-            _FilterChips(
-              selectedFaelligkeit: selectedFaelligkeit,
-              selectedRegionen: selectedRegionen,
-              regionen: regionen,
-              onFaelligkeitChanged: (updated) {
-                ref.read(selectedFaelligkeitProvider.notifier).state =
-                    updated;
-              },
-              onRegionenChanged: (updated) {
-                ref.read(selectedRegionenProvider.notifier).state =
-                    updated;
-              },
-            ),
+          // Inline-Filter (Region + Fälligkeit, immer sichtbar)
+          _InlineFilterLeiste(
+            regionen: regionen,
+            selectedRegionen: selectedRegionen,
+            selectedFaelligkeit: selectedFaelligkeit,
+            onRegionenChanged: (updated) {
+              ref.read(selectedRegionenProvider.notifier).state = updated;
+            },
+            onFaelligkeitChanged: (updated) {
+              ref.read(selectedFaelligkeitProvider.notifier).state = updated;
+            },
+          ),
 
           // Tab Content
           Expanded(
@@ -331,184 +294,6 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         break;
     }
   }
-
-  void _showFilterPicker(
-    BuildContext context,
-    List<dynamic> regionen,
-    Set<String> selectedRegionen,
-    Set<FaelligkeitsStatus> selectedFaelligkeit,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setModalState) {
-          final currentRegionen = ref.read(selectedRegionenProvider);
-          final currentFaelligkeit = ref.read(selectedFaelligkeitProvider);
-          final hasAnyFilter =
-              currentRegionen.isNotEmpty || currentFaelligkeit.isNotEmpty;
-
-          return DraggableScrollableSheet(
-            initialChildSize: 0.55,
-            minChildSize: 0.3,
-            maxChildSize: 0.85,
-            expand: false,
-            builder: (_, scrollController) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const Text('Filter',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600)),
-                        const Spacer(),
-                        if (hasAnyFilter)
-                          TextButton(
-                            onPressed: () {
-                              ref
-                                  .read(selectedRegionenProvider.notifier)
-                                  .state = {};
-                              ref
-                                  .read(
-                                      selectedFaelligkeitProvider.notifier)
-                                  .state = {};
-                              Navigator.pop(ctx);
-                            },
-                            child: const Text('Alle zurücksetzen'),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ListView(
-                      controller: scrollController,
-                      children: [
-                        // ─── Fälligkeit ───
-                        const Padding(
-                          padding:
-                              EdgeInsets.fromLTRB(16, 12, 16, 4),
-                          child: Text('Fälligkeit',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary)),
-                        ),
-                        ..._faelligkeitsOptionen.map((opt) {
-                          final isChecked =
-                              currentFaelligkeit.contains(opt.status);
-                          return CheckboxListTile(
-                            title: Row(
-                              children: [
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  margin:
-                                      const EdgeInsets.only(right: 8),
-                                  decoration: BoxDecoration(
-                                    color: opt.color,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                Text(opt.label),
-                              ],
-                            ),
-                            value: isChecked,
-                            dense: true,
-                            onChanged: (checked) {
-                              final updated =
-                                  Set<FaelligkeitsStatus>.from(
-                                      currentFaelligkeit);
-                              if (checked == true) {
-                                updated.add(opt.status);
-                              } else {
-                                updated.remove(opt.status);
-                              }
-                              ref
-                                  .read(
-                                      selectedFaelligkeitProvider.notifier)
-                                  .state = updated;
-                              setModalState(() {});
-                            },
-                          );
-                        }),
-                        const Divider(height: 16),
-                        // ─── Regionen ───
-                        const Padding(
-                          padding:
-                              EdgeInsets.fromLTRB(16, 4, 16, 4),
-                          child: Text('Regionen',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary)),
-                        ),
-                        ...regionen.map((r) {
-                          final isChecked =
-                              currentRegionen.contains(r.routeId);
-                          return CheckboxListTile(
-                            title: Text(r.name),
-                            value: isChecked,
-                            dense: true,
-                            onChanged: (checked) {
-                              final updated =
-                                  Set<String>.from(currentRegionen);
-                              if (checked == true) {
-                                updated.add(r.routeId);
-                              } else {
-                                updated.remove(r.routeId);
-                              }
-                              ref
-                                  .read(selectedRegionenProvider.notifier)
-                                  .state = updated;
-                              setModalState(() {});
-                            },
-                          );
-                        }),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        });
-      },
-    );
-  }
-
-  static const _faelligkeitsOptionen = [
-    _FaelligkeitsOption(
-      status: FaelligkeitsStatus.ueberfaellig,
-      label: 'Überfällig',
-      color: AppColors.error,
-    ),
-    _FaelligkeitsOption(
-      status: FaelligkeitsStatus.faellig,
-      label: 'Fällig',
-      color: AppColors.warning,
-    ),
-    _FaelligkeitsOption(
-      status: FaelligkeitsStatus.baldFaellig,
-      label: 'Bald fällig',
-      color: AppColors.success,
-    ),
-    _FaelligkeitsOption(
-      status: FaelligkeitsStatus.endreinigungFaellig,
-      label: 'Endreinigung',
-      color: Color(0xFFEA580C),
-    ),
-    _FaelligkeitsOption(
-      status: FaelligkeitsStatus.eroeffnungFaellig,
-      label: 'Eröffnung',
-      color: AppColors.info,
-    ),
-  ];
 }
 
 // ─── Wochen-Navigation ───
@@ -1086,127 +871,151 @@ class _FaelligEintragKarte extends StatelessWidget {
   }
 }
 
-// ─── Fälligkeits-Option (für Filter-Picker) ───
+// ─── Inline-Filter-Leiste (Region + Fälligkeit getrennt) ───
 
-class _FaelligkeitsOption {
-  final FaelligkeitsStatus status;
-  final String label;
-  final Color color;
-
-  const _FaelligkeitsOption({
-    required this.status,
-    required this.label,
-    required this.color,
-  });
-}
-
-// ─── Filter-Chips (Fälligkeit + Regionen) ───
-
-class _FilterChips extends StatelessWidget {
-  final Set<FaelligkeitsStatus> selectedFaelligkeit;
-  final Set<String> selectedRegionen;
+class _InlineFilterLeiste extends StatelessWidget {
   final List<dynamic> regionen;
-  final void Function(Set<FaelligkeitsStatus>) onFaelligkeitChanged;
+  final Set<String> selectedRegionen;
+  final Set<FaelligkeitsStatus> selectedFaelligkeit;
   final void Function(Set<String>) onRegionenChanged;
+  final void Function(Set<FaelligkeitsStatus>) onFaelligkeitChanged;
 
-  const _FilterChips({
-    required this.selectedFaelligkeit,
-    required this.selectedRegionen,
+  const _InlineFilterLeiste({
     required this.regionen,
-    required this.onFaelligkeitChanged,
+    required this.selectedRegionen,
+    required this.selectedFaelligkeit,
     required this.onRegionenChanged,
+    required this.onFaelligkeitChanged,
   });
 
-  static const _labels = {
-    FaelligkeitsStatus.ueberfaellig: ('Überfällig', AppColors.error),
-    FaelligkeitsStatus.faellig: ('Fällig', AppColors.warning),
-    FaelligkeitsStatus.baldFaellig: ('Bald fällig', AppColors.success),
-    FaelligkeitsStatus.endreinigungFaellig:
-        ('Endreinigung', Color(0xFFEA580C)),
-    FaelligkeitsStatus.eroeffnungFaellig: ('Eröffnung', AppColors.info),
-  };
+  static const _faelligStatuses = [
+    FaelligkeitsStatus.ueberfaellig,
+    FaelligkeitsStatus.faellig,
+    FaelligkeitsStatus.baldFaellig,
+    FaelligkeitsStatus.endreinigungFaellig,
+    FaelligkeitsStatus.eroeffnungFaellig,
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       color: AppColors.surface,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ActionChip(
-                avatar: const Icon(Icons.close, size: 14),
-                label: const Text('Filter',
-                    style: TextStyle(fontSize: 12)),
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize:
-                    MaterialTapTargetSize.shrinkWrap,
-                onPressed: () {
-                  onFaelligkeitChanged({});
-                  onRegionenChanged({});
-                },
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Fälligkeit
+          _filterZeile(
+            label: 'Fälligkeit',
+            child: Row(
+              children: _faelligStatuses.map((s) {
+                final selected = selectedFaelligkeit.contains(s);
+                final color = faelligkeitFarbe(s);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(faelligkeitLabel(s),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: selected ? color : AppColors.textSecondary,
+                            fontWeight: FontWeight.w600)),
+                    selected: selected,
+                    showCheckmark: false,
+                    backgroundColor: AppColors.surface,
+                    selectedColor: color.withAlpha(25),
+                    side: BorderSide(
+                        color: selected
+                            ? color.withAlpha(120)
+                            : AppColors.textSecondary.withAlpha(50)),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    onSelected: (v) {
+                      final updated =
+                          Set<FaelligkeitsStatus>.from(selectedFaelligkeit);
+                      if (v) {
+                        updated.add(s);
+                      } else {
+                        updated.remove(s);
+                      }
+                      onFaelligkeitChanged(updated);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          if (regionen.isNotEmpty) const SizedBox(height: 4),
+          // Region
+          if (regionen.isNotEmpty)
+            _filterZeile(
+              label: 'Region',
+              child: Row(
+                children: regionen.map((r) {
+                  final id = r.routeId as String;
+                  final selected = selectedRegionen.contains(id);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: FilterChip(
+                      label: Text(r.name as String,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
+                              fontWeight: FontWeight.w600)),
+                      selected: selected,
+                      showCheckmark: false,
+                      backgroundColor: AppColors.surface,
+                      selectedColor: AppColors.primary.withAlpha(25),
+                      side: BorderSide(
+                          color: selected
+                              ? AppColors.primary.withAlpha(120)
+                              : AppColors.textSecondary.withAlpha(50)),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onSelected: (v) {
+                        final updated = Set<String>.from(selectedRegionen);
+                        if (v) {
+                          updated.add(id);
+                        } else {
+                          updated.remove(id);
+                        }
+                        onRegionenChanged(updated);
+                      },
+                    ),
+                  );
+                }).toList(),
               ),
             ),
-            ...selectedFaelligkeit.map((s) {
-              final (label, color) = _labels[s]!;
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Chip(
-                  label: Text(label,
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: color,
-                          fontWeight: FontWeight.w600)),
-                  backgroundColor: color.withAlpha(20),
-                  side: BorderSide(color: color.withAlpha(60)),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize:
-                      MaterialTapTargetSize.shrinkWrap,
-                  deleteIcon: Icon(Icons.close, size: 14, color: color),
-                  onDeleted: () {
-                    final updated =
-                        Set<FaelligkeitsStatus>.from(selectedFaelligkeit);
-                    updated.remove(s);
-                    onFaelligkeitChanged(updated);
-                  },
-                ),
-              );
-            }),
-            ...selectedRegionen.map((regionId) {
-              final region = regionen.cast<dynamic>().where(
-                  (r) => r.routeId == regionId).toList();
-              final name = region.isNotEmpty ? region.first.name : regionId;
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Chip(
-                  avatar: const Icon(Icons.map, size: 14, color: AppColors.primary),
-                  label: Text(name,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600)),
-                  backgroundColor: AppColors.primary.withAlpha(20),
-                  side: BorderSide(color: AppColors.primary.withAlpha(60)),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize:
-                      MaterialTapTargetSize.shrinkWrap,
-                  deleteIcon: const Icon(Icons.close, size: 14,
-                      color: AppColors.primary),
-                  onDeleted: () {
-                    final updated = Set<String>.from(selectedRegionen);
-                    updated.remove(regionId);
-                    onRegionenChanged(updated);
-                  },
-                ),
-              );
-            }),
-          ],
-        ),
+        ],
       ),
+    );
+  }
+
+  Widget _filterZeile({required String label, required Widget child}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 12, right: 8),
+          child: SizedBox(
+            width: 62,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary)),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(right: 12),
+            child: child,
+          ),
+        ),
+      ],
     );
   }
 }
