@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
+import 'package:sbs_projer_app/core/util/touren_saison.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
@@ -102,101 +103,37 @@ Map<String, String?> _buildLetzteServiceArtMap(
 
 // ─── Saisonale Fälligkeit ───
 
-const _saisonVorlaufTage = 14; // 2 Wochen
+const _saisonVorlaufTage = 7; // 1 Woche
 
-/// Nächstes Schliessungsdatum (Saisonende oder Ferienstart)
-/// nur wenn der Betrieb JETZT offen ist.
-DateTime? _naechsteSchliessung(BetriebLocal betrieb, DateTime datum) {
-  DateTime? naechste;
-
-  // Saisonende: nur wenn aktuell IN dieser Saison
-  if (betrieb.istSaisonbetrieb) {
-    if (betrieb.sommerSaisonAktiv &&
-        betrieb.sommerStartDatum != null &&
-        betrieb.sommerEndeDatum != null) {
-      if (!datum.isBefore(betrieb.sommerStartDatum!) &&
-          !datum.isAfter(betrieb.sommerEndeDatum!)) {
-        naechste = betrieb.sommerEndeDatum!;
-      }
-    }
-    if (betrieb.winterSaisonAktiv &&
-        betrieb.winterStartDatum != null &&
-        betrieb.winterEndeDatum != null) {
-      if (!datum.isBefore(betrieb.winterStartDatum!) &&
-          !datum.isAfter(betrieb.winterEndeDatum!)) {
-        final e = betrieb.winterEndeDatum!;
-        if (naechste == null || e.isBefore(naechste)) naechste = e;
-      }
-    }
-  }
-
-  // Ferienstart: Ferien die noch kommen
-  for (final fs in ferienStarts(betrieb)) {
-    if (fs.isAfter(datum)) {
-      if (naechste == null || fs.isBefore(naechste)) naechste = fs;
-    }
-  }
-
-  return naechste;
-}
-
-/// Nächstes Öffnungsdatum (Saisonstart oder Tag nach Ferienende).
-/// Gibt auch vergangene Öffnungen zurück wenn sie nach letzteReinigung liegen.
-DateTime? _naechsteOeffnung(
-    BetriebLocal betrieb, DateTime datum, DateTime? letzteReinigung) {
-  DateTime? naechste;
-
-  // Saisonstart
-  if (betrieb.istSaisonbetrieb) {
-    for (final s in [
-      if (betrieb.sommerSaisonAktiv) betrieb.sommerStartDatum,
-      if (betrieb.winterSaisonAktiv) betrieb.winterStartDatum,
-    ]) {
-      if (s != null &&
-          (letzteReinigung == null || s.isAfter(letzteReinigung))) {
-        if (naechste == null || s.isBefore(naechste)) naechste = s;
-      }
-    }
-  }
-
-  // Ferienende + 1 Tag
-  for (final fe in ferienEnden(betrieb)) {
-    final reopen = fe.add(const Duration(days: 1));
-    if (letzteReinigung == null || reopen.isAfter(letzteReinigung)) {
-      if (naechste == null || reopen.isBefore(naechste)) naechste = reopen;
-    }
-  }
-
-  return naechste;
-}
-
-/// Prüft ob eine saisonale Fälligkeit vorliegt (Endreinigung / Eröffnung).
+/// Prüft ob eine saisonale Fälligkeit vorliegt (Endreinigung / Eröffnung),
+/// abgeleitet aus den Saison-/Ferien-Übergängen des Betriebs.
 FaelligkeitsStatus? _getSaisonFaelligkeit(
   AnlageLocal anlage,
   DateTime datum,
   BetriebLocal betrieb,
   String? letzteServiceArt,
 ) {
-  // --- Endreinigung: Schliessung innerhalb von 2 Wochen ---
+  // --- Endreinigung: qualifizierte Schliessung im Vorlauf, noch nicht erledigt ---
   if (letzteServiceArt != 'endreinigung') {
-    final schliessung = _naechsteSchliessung(betrieb, datum);
-    if (schliessung != null &&
-        schliessung.difference(datum).inDays <= _saisonVorlaufTage) {
-      return FaelligkeitsStatus.endreinigungFaellig;
+    final s = qualifizierteSchliessung(betrieb, datum);
+    if (s != null) {
+      final tage = s.datum.difference(datum).inDays;
+      if (tage >= 0 && tage <= _saisonVorlaufTage) {
+        return FaelligkeitsStatus.endreinigungFaellig;
+      }
     }
   }
 
-  // --- Eröffnungsservice: Öffnung bald oder gerade erst geöffnet ---
+  // --- Eröffnungsservice: Wiedereröffnung bald oder gerade erst geöffnet ---
   if (letzteServiceArt == 'endreinigung' || letzteServiceArt == null) {
-    final oeffnung =
-        _naechsteOeffnung(betrieb, datum, anlage.letzteReinigung);
+    final ab =
+        anlage.letzteReinigung ?? datum.subtract(const Duration(days: 365));
+    final oeffnung = oeffnungNach(betrieb, ab);
     if (oeffnung != null) {
       final tage = oeffnung.difference(datum).inDays;
-      // Öffnung in ≤14 Tagen (Zukunft)
       if (tage >= 0 && tage <= _saisonVorlaufTage) {
         return FaelligkeitsStatus.eroeffnungFaellig;
       }
-      // Öffnung bereits vorbei, Eröffnungsservice noch nicht gemacht
       if (tage < 0 && letzteServiceArt == 'endreinigung') {
         return FaelligkeitsStatus.eroeffnungFaellig;
       }
@@ -260,47 +197,9 @@ FaelligkeitsStatus getFaelligkeit(
 
 // ─── Betrieb "offen" Check ───
 
-bool isBetriebOffen(BetriebLocal b, DateTime datum) {
-  if (b.status != 'aktiv') return false;
-
-  // Ferien-Check
-  if (istInFerien(b, datum)) return false;
-
-  // Saison-Check
-  if (b.istSaisonbetrieb) {
-    bool inAktiverSaison = false;
-
-    if (b.winterSaisonAktiv &&
-        b.winterStartDatum != null &&
-        b.winterEndeDatum != null) {
-      if (!datum.isBefore(b.winterStartDatum!) &&
-          !datum.isAfter(b.winterEndeDatum!)) {
-        inAktiverSaison = true;
-      }
-    }
-
-    if (b.sommerSaisonAktiv &&
-        b.sommerStartDatum != null &&
-        b.sommerEndeDatum != null) {
-      if (!datum.isBefore(b.sommerStartDatum!) &&
-          !datum.isAfter(b.sommerEndeDatum!)) {
-        inAktiverSaison = true;
-      }
-    }
-
-    if (!inAktiverSaison) return false;
-  }
-
-  // Ruhetag-Check
-  const wochentage = [
-    'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag',
-    'Freitag', 'Samstag', 'Sonntag',
-  ];
-  final wochentag = wochentage[datum.weekday - 1];
-  if (b.ruhetage.contains(wochentag)) return false;
-
-  return true;
-}
+/// Betrieb an diesem Tag betrieblich offen (aktiv, keine Ferien, in Saison,
+/// kein Ruhetag). Delegiert an den kanonischen Helfer in touren_saison.
+bool isBetriebOffen(BetriebLocal b, DateTime datum) => istOffenerTag(b, datum);
 
 // ─── Betrieb "aktiv" Check (ohne Ruhetag, für Fällig-Tab) ───
 
