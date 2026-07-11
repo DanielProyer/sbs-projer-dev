@@ -1,7 +1,8 @@
 // Supabase Edge Function: parse-beleg
 // Analysiert Kassenzettel-Bilder via Claude Haiku 4.5 und extrahiert Beleg-Daten.
-// Deploy: supabase functions deploy parse-beleg --no-verify-jwt
+// Deploy: supabase functions deploy parse-beleg (verify_jwt=true via config.toml)
 // Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,20 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Nur echte eingeloggte User dürfen die KI auslösen (Credit-Schutz).
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+    );
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: "unauthorized" }),
+        { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+      );
+    }
+
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       return new Response(

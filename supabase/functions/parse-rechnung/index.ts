@@ -3,8 +3,9 @@
 // Sonnet 4.6 (höhere Ziffern-/Layout-Genauigkeit) und extrahiert strukturierte
 // Daten für die Kreditoren-Buchhaltung.
 // Liest die im QR-Zahlteil GEDRUCKTEN Felder (Klartext) — dekodiert NICHT den QR-Code.
-// Deploy: supabase functions deploy parse-rechnung --no-verify-jwt
+// Deploy: supabase functions deploy parse-rechnung (verify_jwt=true via config.toml)
 // Secret: ANTHROPIC_API_KEY (bereits gesetzt für parse-beleg)
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -72,6 +73,20 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Nur echte eingeloggte User dürfen die KI auslösen (Credit-Schutz).
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+    );
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: "unauthorized" }),
+        { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+      );
+    }
+
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       return new Response(
