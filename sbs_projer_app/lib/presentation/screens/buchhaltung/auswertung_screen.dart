@@ -221,7 +221,8 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
         ? (total - prev.total(_brutto)) / prev.total(_brutto) * 100
         : null;
 
-    return Row(
+    return IntrinsicHeight(
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
@@ -276,6 +277,7 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
           ),
         ),
       ],
+      ),
     );
   }
 
