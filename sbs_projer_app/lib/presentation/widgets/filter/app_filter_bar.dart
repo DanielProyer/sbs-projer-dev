@@ -181,43 +181,43 @@ class AppMultiToggleChips<T> extends StatelessWidget {
       spacing: spacing,
       runSpacing: 4,
       alignment: alignment,
-      children: [
-        for (final o in options)
-          FilterChip(
-            label: Text(
-              o.label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: o.color != null && selected.contains(o.value)
-                    ? o.color
-                    : null,
-              ),
-            ),
-            selected: selected.contains(o.value),
-            showCheckmark: false,
-            selectedColor: o.color?.withAlpha(30),
-            // Dezenter Rahmen auch im nicht-gewählten Zustand (leichte Tönung
-            // der Kategorie-Farbe), im gewählten Zustand kräftiger.
-            side: o.color != null
-                ? BorderSide(
-                    color: selected.contains(o.value)
-                        ? o.color!.withAlpha(120)
-                        : o.color!.withAlpha(50))
-                : null,
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            onSelected: (v) {
-              final updated = Set<T>.from(selected);
-              if (v) {
-                updated.add(o.value);
-              } else {
-                updated.remove(o.value);
-              }
-              onChanged(updated);
-            },
-          ),
-      ],
+      children: [for (final o in options) _chip(o)],
+    );
+  }
+
+  Widget _chip(AppMultiOption<T> o) {
+    final istAktiv = selected.contains(o.value);
+    final farbe = o.color ?? AppColors.primary;
+    return FilterChip(
+      label: Text(
+        o.label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          // Aktiv: kräftige Kategorie-Farbe. Inaktiv: neutral grau.
+          color: istAktiv ? farbe : AppColors.textSecondary,
+        ),
+      ),
+      selected: istAktiv,
+      showCheckmark: false,
+      // Aktiv: farbige Tönung als Füllung. Inaktiv: keine Füllung.
+      selectedColor: farbe.withAlpha(45),
+      // Aktiv: kräftiger farbiger Rand (1.5px). Inaktiv: dezenter grauer Rand.
+      side: BorderSide(
+        color: istAktiv ? farbe : AppColors.divider,
+        width: istAktiv ? 1.5 : 1.0,
+      ),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      onSelected: (v) {
+        final updated = Set<T>.from(selected);
+        if (v) {
+          updated.add(o.value);
+        } else {
+          updated.remove(o.value);
+        }
+        onChanged(updated);
+      },
     );
   }
 }
