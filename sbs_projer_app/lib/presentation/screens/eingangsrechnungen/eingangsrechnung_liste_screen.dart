@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/data/models/eingangsrechnung.dart';
 import 'package:sbs_projer_app/data/models/eingangsrechnung_kategorie.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -89,18 +90,25 @@ class _EingangsrechnungListeScreenState
     List<EingangsrechnungKategorie> kategorien,
     Map<String, String> katLabels,
   ) {
+    // Zombie-Schutz: gewählte Kategorie nur, wenn sie noch als Option existiert.
+    final gueltigeCodes = {for (final k in kategorien) k.code};
+    final effektiveKat =
+        (_katFilter == null || gueltigeCodes.contains(_katFilter))
+            ? _katFilter
+            : null;
+
     // 1) Ansicht-Filter: Rechnungen vs. Ablage.
     var gefiltert = rechnungen
         .where((e) => _ansicht == 'ablage' ? _istAblage(e) : !_istAblage(e))
         .toList();
     // 2) Kategorie-Filter (optional).
-    if (_katFilter != null) {
-      gefiltert = gefiltert.where((e) => e.kategorie == _katFilter).toList();
+    if (effektiveKat != null) {
+      gefiltert = gefiltert.where((e) => e.kategorie == effektiveKat).toList();
     }
 
     return Column(
       children: [
-        _filterLeiste(kategorien),
+        _filterLeiste(kategorien, effektiveKat),
         Expanded(
           child: rechnungen.isEmpty
               ? const _LeerHinweis(
@@ -117,13 +125,16 @@ class _EingangsrechnungListeScreenState
     );
   }
 
-  Widget _filterLeiste(List<EingangsrechnungKategorie> kategorien) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SegmentedButton<String>(
+  Widget _filterLeiste(
+    List<EingangsrechnungKategorie> kategorien,
+    String? effektiveKat,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          child: SegmentedButton<String>(
             segments: const [
               ButtonSegment(
                 value: 'rechnungen',
@@ -137,32 +148,23 @@ class _EingangsrechnungListeScreenState
               ),
             ],
             selected: {_ansicht},
-            onSelectionChanged: (s) =>
-                setState(() => _ansicht = s.first),
+            onSelectionChanged: (s) => setState(() => _ansicht = s.first),
           ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String?>(
-            initialValue: _katFilter,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Kategorie',
-              isDense: true,
+        ),
+        // Kategorie-Filter (einheitlicher Dropdown-Stil)
+        AppFilterBar(
+          items: [
+            AppFilterDropdown<String>(
+              hint: 'Alle Kategorien',
+              value: effektiveKat,
+              options: [
+                for (final k in kategorien) (k.code, k.bezeichnung),
+              ],
+              onChanged: (v) => setState(() => _katFilter = v),
             ),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('Alle'),
-              ),
-              for (final k in kategorien)
-                DropdownMenuItem<String?>(
-                  value: k.code,
-                  child: Text(k.bezeichnung),
-                ),
-            ],
-            onChanged: (v) => setState(() => _katFilter = v),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 

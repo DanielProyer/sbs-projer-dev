@@ -101,18 +101,14 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> {
 
           return Column(
             children: [
-              // Suchfeld
+              // Suchfeld (einheitlicher SearchBar-Stil)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Suche nach Betrieb, Ort, Jahr...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                child: SearchBar(
+                  hintText: 'Suche nach Betrieb, Ort, Jahr...',
+                  leading: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.search, size: 20),
                   ),
                   onChanged: (v) => setState(() => _suchText = v),
                 ),
