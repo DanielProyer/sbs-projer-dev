@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
@@ -326,8 +327,11 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
               children: [
                 const Text('Jahr: ', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
-                DropdownButton<int>(
+                FilterChrome(
+                  child: DropdownButton<int>(
                   value: _jahr,
+                  isDense: true,
+                  underline: const SizedBox.shrink(),
                   items: List.generate(5, (i) {
                     final y = DateTime.now().year - 2 + i;
                     return DropdownMenuItem(value: y, child: Text('$y'));
@@ -345,6 +349,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
                             });
                           }
                         },
+                  ),
                 ),
               ],
             ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 
 class BuchungenListScreen extends ConsumerStatefulWidget {
   final int? filterKontonummer;
@@ -112,39 +113,52 @@ class _BuchungenListScreenState extends ConsumerState<BuchungenListScreen> {
                   runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    DropdownButton<int?>(
-                      value: _filterJahr,
-                      hint: const Text('Alle Jahre'),
-                      items: [
-                        const DropdownMenuItem<int?>(
-                            value: null, child: Text('Alle Jahre')),
-                        for (int y = DateTime.now().year; y >= 2019; y--)
-                          DropdownMenuItem<int?>(value: y, child: Text('$y')),
-                      ],
-                      onChanged: (v) => setState(() => _filterJahr = v),
+                    FilterChrome(
+                      child: DropdownButton<int?>(
+                        value: _filterJahr,
+                        hint: const Text('Alle Jahre'),
+                        isDense: true,
+                        underline: const SizedBox.shrink(),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                              value: null, child: Text('Alle Jahre')),
+                          for (int y = DateTime.now().year; y >= 2019; y--)
+                            DropdownMenuItem<int?>(value: y, child: Text('$y')),
+                        ],
+                        onChanged: (v) => setState(() => _filterJahr = v),
+                      ),
                     ),
-                    DropdownButton<int?>(
-                      value: _filterMonat,
-                      hint: const Text('Ganzes Jahr'),
-                      items: [
-                        const DropdownMenuItem<int?>(
-                            value: null, child: Text('Ganzes Jahr')),
-                        for (int m = 1; m <= 12; m++)
-                          DropdownMenuItem<int?>(
-                              value: m, child: Text(_monatName(m))),
-                      ],
-                      onChanged: (v) => setState(() => _filterMonat = v),
+                    FilterChrome(
+                      child: DropdownButton<int?>(
+                        value: _filterMonat,
+                        hint: const Text('Ganzes Jahr'),
+                        isDense: true,
+                        underline: const SizedBox.shrink(),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                              value: null, child: Text('Ganzes Jahr')),
+                          for (int m = 1; m <= 12; m++)
+                            DropdownMenuItem<int?>(
+                                value: m, child: Text(_monatName(m))),
+                        ],
+                        onChanged: (v) => setState(() => _filterMonat = v),
+                      ),
                     ),
                     if (_filterKonto != null)
-                      DropdownButton<String>(
-                        value: _seite,
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'alle', child: Text('Alle Buchungen')),
-                          DropdownMenuItem(value: 'soll', child: Text('Soll')),
-                          DropdownMenuItem(value: 'haben', child: Text('Haben')),
-                        ],
-                        onChanged: (v) => setState(() => _seite = v ?? 'alle'),
+                      FilterChrome(
+                        child: DropdownButton<String>(
+                          value: _seite,
+                          isDense: true,
+                          underline: const SizedBox.shrink(),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'alle', child: Text('Alle Buchungen')),
+                            DropdownMenuItem(value: 'soll', child: Text('Soll')),
+                            DropdownMenuItem(
+                                value: 'haben', child: Text('Haben')),
+                          ],
+                          onChanged: (v) => setState(() => _seite = v ?? 'alle'),
+                        ),
                       ),
                   ],
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/data/models/lohn_einstellungen.dart';
 import 'package:sbs_projer_app/data/models/lohn_abrechnung.dart';
 import 'package:sbs_projer_app/data/repositories/lohn_repository.dart';
@@ -47,14 +48,16 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('$_jahr',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
-                  const Icon(Icons.arrow_drop_down),
-                ],
+              child: FilterChrome(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('$_jahr',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Icon(Icons.arrow_drop_down),
+                  ],
+                ),
               ),
             ),
           ),

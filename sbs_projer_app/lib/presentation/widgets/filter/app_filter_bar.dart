@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 
 /// Ein Element der [AppFilterBar].
 abstract class AppFilterItem {
@@ -32,23 +33,26 @@ class AppFilterDropdown<T> extends AppFilterItem {
           fontWeight: FontWeight.w600,
         );
     final overflow = isExpanded ? TextOverflow.ellipsis : null;
-    return DropdownButton<T?>(
-      value: value,
-      hint: Text(hint, style: style, overflow: overflow),
-      isDense: true,
-      isExpanded: isExpanded,
-      underline: const SizedBox.shrink(),
-      style: style,
-      borderRadius: BorderRadius.circular(8),
-      items: [
-        if (nullable)
-          DropdownMenuItem<T?>(
-              value: null, child: Text(hint, style: style, overflow: overflow)),
-        for (final (v, label) in options)
-          DropdownMenuItem<T?>(
-              value: v, child: Text(label, style: style, overflow: overflow)),
-      ],
-      onChanged: onChanged,
+    return FilterChrome(
+      child: DropdownButton<T?>(
+        value: value,
+        hint: Text(hint, style: style, overflow: overflow),
+        isDense: true,
+        isExpanded: isExpanded,
+        underline: const SizedBox.shrink(),
+        style: style,
+        borderRadius: BorderRadius.circular(8),
+        items: [
+          if (nullable)
+            DropdownMenuItem<T?>(
+                value: null,
+                child: Text(hint, style: style, overflow: overflow)),
+          for (final (v, label) in options)
+            DropdownMenuItem<T?>(
+                value: v, child: Text(label, style: style, overflow: overflow)),
+        ],
+        onChanged: onChanged,
+      ),
     );
   }
 }
@@ -108,9 +112,12 @@ class AppFilterMultiDropdown<T> extends AppFilterItem {
         icon: Text(anzeige, style: style),
         label: const Icon(Icons.arrow_drop_down, size: 20),
         style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           visualDensity: VisualDensity.compact,
           foregroundColor: AppColors.textPrimary,
+          backgroundColor: AppColors.surfaceCard,
+          side: FilterChrome.side,
+          shape: RoundedRectangleBorder(borderRadius: FilterChrome.radius),
         ),
       ),
     );

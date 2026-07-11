@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 
@@ -26,8 +27,19 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
         actions: [
           TextButton(
             onPressed: _pickJahr,
-            child: Text('$_jahr',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+            child: FilterChrome(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('$_jahr',
+                      style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16)),
+                  const Icon(Icons.arrow_drop_down, size: 20),
+                ],
+              ),
+            ),
           ),
         ],
       ),

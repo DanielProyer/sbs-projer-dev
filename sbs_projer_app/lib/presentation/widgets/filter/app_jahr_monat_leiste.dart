@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 
 /// Einheitliche Jahr/Monat-Filterzeile (borderlose Dropdowns + optionaler
 /// Trailing-Text rechts, z.B. Anzahl/Summe).
@@ -56,33 +57,37 @@ class AppJahrMonatLeiste extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          DropdownButton<int>(
-            value: jahrValue,
-            underline: const SizedBox.shrink(),
-            isDense: true,
-            style: style,
-            items: [
-              for (final y in jahre)
-                DropdownMenuItem(value: y, child: Text('$y')),
-            ],
-            onChanged: (y) {
-              if (y != null) onJahrChanged(y);
-            },
+          FilterChrome(
+            child: DropdownButton<int>(
+              value: jahrValue,
+              underline: const SizedBox.shrink(),
+              isDense: true,
+              style: style,
+              items: [
+                for (final y in jahre)
+                  DropdownMenuItem(value: y, child: Text('$y')),
+              ],
+              onChanged: (y) {
+                if (y != null) onJahrChanged(y);
+              },
+            ),
           ),
           const SizedBox(width: 8),
-          DropdownButton<int>(
-            value: selectedMonat,
-            underline: const SizedBox.shrink(),
-            isDense: true,
-            style: style,
-            items: [
-              const DropdownMenuItem(value: 0, child: Text('Alle Monate')),
-              for (int m = 1; m <= 12; m++)
-                DropdownMenuItem(value: m, child: Text(monatNamen[m])),
-            ],
-            onChanged: (m) {
-              if (m != null) onMonatChanged(m);
-            },
+          FilterChrome(
+            child: DropdownButton<int>(
+              value: selectedMonat,
+              underline: const SizedBox.shrink(),
+              isDense: true,
+              style: style,
+              items: [
+                const DropdownMenuItem(value: 0, child: Text('Alle Monate')),
+                for (int m = 1; m <= 12; m++)
+                  DropdownMenuItem(value: m, child: Text(monatNamen[m])),
+              ],
+              onChanged: (m) {
+                if (m != null) onMonatChanged(m);
+              },
+            ),
           ),
           const Spacer(),
           if (trailing != null) trailing!,

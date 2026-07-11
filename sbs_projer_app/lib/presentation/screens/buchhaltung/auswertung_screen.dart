@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/presentation/providers/auswertung_providers.dart';
 import 'package:sbs_projer_app/services/auswertung/auswertung_aggregat.dart';
 import 'package:sbs_projer_app/services/auswertung/auswertung_modell.dart';
@@ -172,12 +173,7 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
     required List<(T, String)> items,
     required ValueChanged<T> onChanged,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.divider),
-        borderRadius: BorderRadius.circular(9),
-      ),
+    return FilterChrome(
       child: DropdownButton<T>(
         value: value,
         underline: const SizedBox.shrink(),

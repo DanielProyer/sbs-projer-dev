@@ -13,6 +13,10 @@ class AppColors {
   static const textSecondary = Color(0xFF6B7280);
   static const divider = Color(0xFFE5E7EB);
 
+  /// Etwas kräftigeres Grau als [divider] – für die dezente Umrahmung von
+  /// Filter-Bedienelementen, damit sie sich vom Seitenhintergrund abheben.
+  static const filterBorder = Color(0xFFD1D5DB);
+
   // Status-Farben
   static const success = Color(0xFF16A34A);
   static const warning = Color(0xFFF59E0B);

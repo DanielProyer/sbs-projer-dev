@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 
 final _df = DateFormat('dd.MM.yyyy');
 DateTime _d(DateTime x) => DateTime(x.year, x.month, x.day);
@@ -27,16 +28,20 @@ class StichtagPicker extends StatelessWidget {
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          DropdownButton<int>(
-            value: jahr31,
-            hint: const Text('Geschäftsjahr'),
-            items: [
-              for (int y = jetzt.year; y >= 2019; y--)
-                DropdownMenuItem(value: y, child: Text('Geschäftsjahr $y')),
-            ],
-            onChanged: (y) {
-              if (y != null) onChanged(DateTime(y, 12, 31));
-            },
+          FilterChrome(
+            child: DropdownButton<int>(
+              value: jahr31,
+              hint: const Text('Geschäftsjahr'),
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              items: [
+                for (int y = jetzt.year; y >= 2019; y--)
+                  DropdownMenuItem(value: y, child: Text('Geschäftsjahr $y')),
+              ],
+              onChanged: (y) {
+                if (y != null) onChanged(DateTime(y, 12, 31));
+              },
+            ),
           ),
           ActionChip(
             label: const Text('Heute'),
@@ -99,35 +104,43 @@ class ZeitraumPicker extends StatelessWidget {
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          DropdownButton<int>(
-            value: jahr,
-            items: [
-              for (int y = jetzt.year; y >= 2019; y--)
-                DropdownMenuItem(value: y, child: Text('Geschäftsjahr $y')),
-            ],
-            onChanged: (y) {
-              if (y == null) return;
-              // Quartals-/Ganzes-Jahr-Auswahl beibehalten (schneller Jahresvergleich);
-              // bei eigenem Zeitraum (null) auf ganzes Jahr fallen.
-              onChanged(auswahl == null || auswahl == 0
-                  ? _ganzesJahr(y)
-                  : _quartal(y, auswahl));
-            },
+          FilterChrome(
+            child: DropdownButton<int>(
+              value: jahr,
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              items: [
+                for (int y = jetzt.year; y >= 2019; y--)
+                  DropdownMenuItem(value: y, child: Text('Geschäftsjahr $y')),
+              ],
+              onChanged: (y) {
+                if (y == null) return;
+                // Quartals-/Ganzes-Jahr-Auswahl beibehalten (schneller Jahresvergleich);
+                // bei eigenem Zeitraum (null) auf ganzes Jahr fallen.
+                onChanged(auswahl == null || auswahl == 0
+                    ? _ganzesJahr(y)
+                    : _quartal(y, auswahl));
+              },
+            ),
           ),
-          DropdownButton<int>(
-            value: auswahl,
-            hint: const Text('Eigener Zeitraum'),
-            items: const [
-              DropdownMenuItem(value: 0, child: Text('Ganzes Jahr')),
-              DropdownMenuItem(value: 1, child: Text('Q1')),
-              DropdownMenuItem(value: 2, child: Text('Q2')),
-              DropdownMenuItem(value: 3, child: Text('Q3')),
-              DropdownMenuItem(value: 4, child: Text('Q4')),
-            ],
-            onChanged: (q) {
-              if (q == null) return;
-              onChanged(q == 0 ? _ganzesJahr(jahr) : _quartal(jahr, q));
-            },
+          FilterChrome(
+            child: DropdownButton<int>(
+              value: auswahl,
+              hint: const Text('Eigener Zeitraum'),
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('Ganzes Jahr')),
+                DropdownMenuItem(value: 1, child: Text('Q1')),
+                DropdownMenuItem(value: 2, child: Text('Q2')),
+                DropdownMenuItem(value: 3, child: Text('Q3')),
+                DropdownMenuItem(value: 4, child: Text('Q4')),
+              ],
+              onChanged: (q) {
+                if (q == null) return;
+                onChanged(q == 0 ? _ganzesJahr(jahr) : _quartal(jahr, q));
+              },
+            ),
           ),
           OutlinedButton(
             onPressed: () async {
