@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +35,27 @@ String _n(num v) {
       );
   return v < 0 ? '-$s' : s;
 }
+
+/// „Schöne" Y-Achse: liefert (maxY, interval) mit runden Schritten (1/2/5×10ⁿ).
+(double, double) _achse(double maxV) {
+  if (maxV <= 0) return (1, 1);
+  final rough = maxV * 1.1 / 4;
+  final mag = math.pow(10, (math.log(rough) / math.ln10).floor()).toDouble();
+  final norm = rough / mag;
+  final nice = norm < 1.5
+      ? 1.0
+      : norm < 3
+          ? 2.0
+          : norm < 7
+              ? 5.0
+              : 10.0;
+  final interval = nice * mag;
+  final maxY = (maxV * 1.05 / interval).ceil() * interval;
+  return (maxY, interval);
+}
+
+String _achsenLabel(double v) =>
+    v >= 1000 ? '${(v / 1000).round()}k' : v.round().toString();
 
 class AuswertungScreen extends ConsumerStatefulWidget {
   const AuswertungScreen({super.key});
@@ -107,13 +130,19 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
               _dropdown<int>(
                 value: _jahr,
                 items: [for (final j in jahre.reversed) (j, '$j')],
-                onChanged: (v) => setState(() => _jahr = v),
+                onChanged: (v) => setState(() {
+                  _jahr = v;
+                  _expand = -1;
+                }),
               )
             else if (_modus == _Modus.monatsvergleich)
               _dropdown<int>(
                 value: _monat,
                 items: [for (int m = 1; m <= 12; m++) (m, _monatKurz[m])],
-                onChanged: (v) => setState(() => _monat = v),
+                onChanged: (v) => setState(() {
+                  _monat = v;
+                  _expand = -1;
+                }),
               )
             else
               const SizedBox(),
@@ -308,9 +337,8 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
     );
   }
 
-  FlTitlesData _titles(double maxY, List<String> unten,
+  FlTitlesData _titles(double interval, List<String> unten,
       {double bottomInterval = 1}) {
-    final step = maxY <= 0 ? 1.0 : maxY / 4;
     return FlTitlesData(
       topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
       rightTitles:
@@ -318,9 +346,9 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
       leftTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
-          reservedSize: 30,
-          interval: step,
-          getTitlesWidget: (v, meta) => Text('${(v / 1000).round()}k',
+          reservedSize: 32,
+          interval: interval,
+          getTitlesWidget: (v, meta) => Text(_achsenLabel(v),
               style: const TextStyle(
                   fontSize: 9, color: AppColors.textSecondary)),
         ),
@@ -345,10 +373,10 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
     );
   }
 
-  FlGridData _grid(double maxY) => FlGridData(
+  FlGridData _grid(double interval) => FlGridData(
         show: true,
         drawVerticalLine: false,
-        horizontalInterval: maxY <= 0 ? 1 : maxY / 4,
+        horizontalInterval: interval,
         getDrawingHorizontalLine: (v) =>
             const FlLine(color: AppColors.divider, strokeWidth: 1, dashArray: [2, 4]),
       );
@@ -370,15 +398,15 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
       ...prev.map((e) => e.y),
       1.0,
     ].reduce((a, b) => a > b ? a : b);
-    final maxY = maxV * 1.15;
+    final (maxY, interval) = _achse(maxV);
     return LineChart(LineChartData(
       minX: 0,
       maxX: 11,
       minY: 0,
       maxY: maxY,
-      gridData: _grid(maxY),
+      gridData: _grid(interval),
       borderData: FlBorderData(show: false),
-      titlesData: _titles(maxY, [for (int m = 1; m <= 12; m++) _monatKurz[m][0]]),
+      titlesData: _titles(interval, [for (int m = 1; m <= 12; m++) _monatKurz[m][0]]),
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
           getTooltipItems: (spots) => spots
@@ -415,12 +443,12 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
 
   Widget _barChart(List<(String, double)> daten, {bool highlightLast = false}) {
     final maxV = [...daten.map((e) => e.$2), 1.0].reduce((a, b) => a > b ? a : b);
-    final maxY = maxV * 1.15;
+    final (maxY, interval) = _achse(maxV);
     return BarChart(BarChartData(
       maxY: maxY,
-      gridData: _grid(maxY),
+      gridData: _grid(interval),
       borderData: FlBorderData(show: false),
-      titlesData: _titles(maxY, [for (final d in daten) d.$1]),
+      titlesData: _titles(interval, [for (final d in daten) d.$1]),
       barTouchData: BarTouchData(
         touchTooltipData: BarTouchTooltipData(
           getTooltipItem: (g, gi, r, ri) => BarTooltipItem(
@@ -450,9 +478,9 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
     MonatsWerte summe;
     if (_modus == _Modus.jahr) {
       titel = 'Monatsübersicht $_jahr';
+      final monate = daten.monateVon(_jahr);
       zeilen = [
-        for (int i = 0; i < 12; i++)
-          (_monatKurz[i + 1], daten.monateVon(_jahr)[i], true),
+        for (int i = 0; i < 12; i++) (_monatKurz[i + 1], monate[i], true),
       ];
       summe = daten.jahresWerte(_jahr);
     } else if (_modus == _Modus.jahre) {
@@ -588,7 +616,7 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
             ),
           ),
         ),
-        if (offen) _breakdown(w),
+        if (offen && !leer) _breakdown(w),
       ],
     );
   }
