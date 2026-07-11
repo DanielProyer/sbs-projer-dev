@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.07.2026 · **Live:** v0.28.0
+**Stand:** 11.07.2026 · **Live:** v0.33.0
 
 ---
 
@@ -128,8 +128,8 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
 - [ ] **Termine — komplette Überarbeitung = Google-Kalender-Hybrid** (Recherche+Entscheidungen in `docs/superpowers/specs/2026-07-10-google-kalender-recherche.md`). Teil-Pakete:
   - [x] ✓ **G1 — Verbindung & Datenmodell** (live v0.31.1 · 11.07.2026, **verbunden verifiziert** mit dani.proyer@gmail.com, Refresh-Token gespeichert): OAuth serverseitig (Edge Functions `google-oauth-exchange`/`google-calendar-disconnect`, PKCE, Token nur in `google_calendar_tokens` RLS-gesperrt, Status-Tabelle), Einstellungen „Google Kalender verbinden/trennen", `Termin`-Mehrfach-Erinnerungen (jsonb + Reminder-Editor, 16 Tests). Fix unterwegs: `index.html`-Cache-Buster erhält jetzt OAuth-`?code/?state`. **🟡 Offen:** realer Erinnerungs-Empfang wird mit G2 getestet (sobald Events geschrieben werden).
   - [x] ✓ **G2 — Push App→Google** (live v0.32.0 · 11.07.2026): Mapping-Tabelle `google_calendar_events`, Edge Function `google-calendar-sync` (Access-Token-Refresh, push + reconcile, Waisen löschen), Sofort-Push nach Speichern/Löschen (Termin nur `status=geplant`, Pikett/Event), Ziel = **Haupt-Kalender** (Präfix „SBS · ", Termin grün / Pikett rot / Event gelb), Erinnerungen (Termin aus Array, Pikett/Event email+popup 1 Tag), Button „Jetzt abgleichen" in Einstellungen. **Abweichung:** kein pg_cron (bräuchte service_role-Key/Secret) — reconcile per Button; Auto-Cron optional dokumentiert. **🟡 Offen:** Live-Test (Termin/Pikett/Event → Google, ändern/löschen, Erinnerungs-Empfang Pixel 9).
-  - [ ] **G3 — Import Google→App:** freie Termine via `syncToken` (410-Fallback), read-only; `Termin.betriebId` optional.
-  - [ ] **G4 — Termine-UI-Politur:** Kalender-Screen, alte Einzel-Erinnerungsfelder entfernen.
+  - [x] ✓ **K1 — App-Kalender abgelöst → Google Kalender** (live v0.33.0 · 11.07.2026): Entscheidung des Users — Google Kalender wird **der eine Kalender** (App-Kalender-Design überzeugte nicht). Komplettes **Termin-Modul entfernt** (Screens/Formular/Repo/Provider/Mapper/DTO/Locals/Web-Stubs/Export + `ReminderService`/`ReminderTime`/`erinnerung_util` + 3 Routen + Sync-Tier + Isar-Methoden + Schema), Dashboard-Kachel „Termine" → **„Google Kalender"** (öffnet calendar.google.com). Pikett & Events bleiben Geschäftsobjekte und pushen weiter (G2). Neu: beim **Speichern eines Betriebs mit Saison/Ferien** kommt ein **Bestätigungs-Dialog** (Eröffnung/Endreinigung, Häkchen default an) → nach Bestätigung landen die Reinigungen im Google Kalender (grün, Erinnerung E-Mail+Popup 1 Tag vorher). Reine Funktion `betriebReinigungen` (7 TDD-Tests), Edge-Function-Aktion `sync_reinigungen` (entity_type `betrieb_reinigung`, Migration 132 entity_id→text), reconcile lässt Reinigungen unangetastet. 311 Tests grün, analyze/Web-Build sauber. **🟡 Offen (Live-Test, User):** Betrieb mit Saison/Ferien speichern → Dialog erscheint → in Google eintragen → Termine + Erinnerung prüfen; Betrieb ohne Google-Verbindung → kein Dialog; Dashboard-Kachel öffnet Google Kalender.
+  - [ ] **K2 — Bestehende Google-Termine normalisieren** (Folge-Paket, noch nicht spec't): manuell eingetragene Kalender-Einträge (Format „Ort - Betrieb Notiz", inkonsistent) über **Name+Ort** den Betrieben zuordnen — nur **klar erkannte** bekommen Farbe/Erinnerung/Betrieb-Tag (Titel/Notizen unangetastet), **Vorschau + Batch-Freigabe** vor jeder Änderung. Riskantester Teil (fasst hunderte echte Events an, auch private) → bewusst separat, preview-gated.
 
 ---
 
