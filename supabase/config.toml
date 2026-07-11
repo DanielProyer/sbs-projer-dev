@@ -394,3 +394,11 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./declarative"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# Edge Functions: JWT-Verifizierung erzwingen (schützt API-Credits gegen offene
+# Endpoint-Aufrufe — die App sendet ohnehin das User-JWT via functions.invoke).
+[functions.parse-rechnung]
+verify_jwt = true
+
+[functions.parse-beleg]
+verify_jwt = true
