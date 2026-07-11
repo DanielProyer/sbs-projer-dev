@@ -11,11 +11,13 @@ import 'package:sbs_projer_app/data/models/google_betrieb_daten.dart';
 import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
-import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/google_calendar_providers.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
 import 'package:sbs_projer_app/core/util/betrieb_kunde.dart';
+import 'package:sbs_projer_app/core/util/betrieb_reinigung.dart';
+import 'package:sbs_projer_app/presentation/screens/betriebe/widgets/saison_reinigung_dialog.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 
 class BetriebFormScreen extends ConsumerStatefulWidget {
   final String? betriebId; // null = neu erstellen
@@ -405,15 +407,28 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
       await BetriebRepository.save(betrieb);
 
-      // Saison-/Ferien-Termine im Kalender für diesen Betrieb aktualisieren
-      // (veraltete Auto-Vorschläge entfernen, neue erstellen).
+      // Saison-/Ferien-Reinigungen optional in den Google Kalender eintragen
+      // (mit Bestätigungs-Dialog, nur wenn Google verbunden).
       final betriebSid = betrieb.serverId;
-      if (betriebSid != null && betriebSid.isNotEmpty) {
-        try {
-          await TerminRepository.synchronisiereVorschlaege(
-              nurBetriebId: betriebSid);
-        } catch (e) {
-          debugPrint('[Termin-Sync] fehlgeschlagen: $e');
+      final reinigungen = betriebReinigungen(betrieb);
+      if (mounted &&
+          reinigungen.isNotEmpty &&
+          betriebSid != null &&
+          betriebSid.isNotEmpty) {
+        final status = await ref.read(googleCalendarStatusProvider.future);
+        if (status.connected && mounted) {
+          final items = await showDialog<List<Map<String, dynamic>>>(
+            context: context,
+            builder: (_) => SaisonReinigungDialog(reinigungen: reinigungen),
+          );
+          if (items != null) {
+            try {
+              await GoogleCalendarSyncService.syncBetriebReinigungen(
+                  betriebSid, reinigungen.first.label, items);
+            } catch (e) {
+              debugPrint('[GCal-Reinigung] fehlgeschlagen: $e');
+            }
+          }
         }
       }
 
@@ -425,7 +440,6 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
         );
         if (kIsWeb) {
           ref.invalidate(betriebeStreamProvider);
-          ref.invalidate(termineStreamProvider);
         }
         context.pop();
       }
