@@ -19,6 +19,8 @@ class AnlagenListScreen extends ConsumerStatefulWidget {
 class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
   String _searchQuery = '';
   String _statusFilter = 'alle';
+  // null = alle Typen; sonst Warmanstich/Kaltanstich/Buffetanstich/Orion
+  String? _typFilter;
   Set<String> _selectedRegionIds = {};
 
   @override
@@ -48,6 +50,7 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
     // Filter
     final filtered = anlagen.where((a) {
       if (_statusFilter != 'alle' && a.status != _statusFilter) return false;
+      if (_typFilter != null && a.typAnlage != _typFilter) return false;
       if (aktiveRegionIds.isNotEmpty) {
         final regId = betriebRegionMap[a.betriebId];
         if (regId == null || !aktiveRegionIds.contains(regId)) return false;
@@ -130,6 +133,18 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
                 ],
                 onChanged: (v) => setState(() => _statusFilter = v ?? 'alle'),
               ),
+              // Anlagentyp
+              AppFilterDropdown<String>(
+                hint: 'Alle Typen',
+                value: _typFilter,
+                options: const [
+                  ('Warmanstich', 'Warmanstich'),
+                  ('Kaltanstich', 'Kaltanstich'),
+                  ('Buffetanstich', 'Buffetanstich'),
+                  ('Orion', 'Orion'),
+                ],
+                onChanged: (v) => setState(() => _typFilter = v),
+              ),
             ],
           ),
           Padding(
@@ -171,6 +186,7 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
     // Such- oder Status-Filter aktiv? Dann kein "noch keine Anlagen".
     final gefiltert = _searchQuery.isNotEmpty ||
         _statusFilter != 'alle' ||
+        _typFilter != null ||
         _selectedRegionIds.isNotEmpty;
     return Center(
       child: Column(
