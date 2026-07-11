@@ -60,6 +60,15 @@ Deno.serve(async (req: Request) => {
       if (!time_min || !time_max) return json({ error: "missing params" }, 400);
       return json({ ok: true, ...(await scanManual(token, time_min, time_max)) });
     }
+    if (action === "apply_tags") {
+      const { items } = body;
+      if (!Array.isArray(items)) return json({ error: "missing params" }, 400);
+      return json({ ok: true, ...(await applyTags(admin, token, user.id, items)) });
+    }
+    if (action === "untag_manual") {
+      const { event_ids } = body;
+      return json({ ok: true, ...(await untagManual(admin, token, user.id, event_ids)) });
+    }
     const { entity_type, entity_id } = body;
     if (!entity_type || !entity_id) return json({ error: "missing params" }, 400);
     await pushOne(admin, token, user.id, entity_type, entity_id);
@@ -302,4 +311,87 @@ async function scanManual(token: string, timeMin: string, timeMax: string) {
     pageToken = data.nextPageToken;
   } while (pageToken);
   return { events, scanned: events.length, skipped_tagged: skippedTagged };
+}
+
+// ── K2b: Termine taggen (PATCH: nur Farbe/Erinnerung/Tag) ──────
+async function applyTags(
+  admin: Any,
+  token: string,
+  userId: string,
+  items: Any[],
+) {
+  let tagged = 0;
+  const errors: Any[] = [];
+  const nowIso = new Date().toISOString();
+  for (const it of items) {
+    const eventId = it.event_id;
+    const betriebId = it.betrieb_id;
+    if (!eventId || !betriebId) continue;
+    // NUR PATCH mit colorId/reminders/extendedProperties — summary/description
+    // /start/end werden NICHT gesendet und bleiben unangetastet.
+    const ev = {
+      colorId: "1", // Lavendel
+      reminders: { useDefault: false, overrides: ALLDAY },
+      extendedProperties: {
+        private: {
+          app: "sbs_projer",
+          entity_type: "betrieb_manuell",
+          betrieb_id: betriebId,
+        },
+      },
+    };
+    const res = await gfetch(token, `${CAL}/${eventId}`, "PATCH", ev);
+    if (!res.ok) {
+      errors.push({ event_id: eventId, fehler: (await res.text()).substring(0, 200) });
+      continue;
+    }
+    await admin.from("google_calendar_events").upsert({
+      user_id: userId,
+      entity_type: "betrieb_manuell",
+      entity_id: eventId,
+      google_event_id: eventId,
+      synced_at: nowIso,
+      status: "ok",
+      fehler: null,
+      updated_at: nowIso,
+    }, { onConflict: "user_id,entity_type,entity_id" });
+    tagged++;
+  }
+  return { tagged, errors };
+}
+
+async function untagManual(
+  admin: Any,
+  token: string,
+  userId: string,
+  eventIds?: string[],
+) {
+  let q = admin.from("google_calendar_events").select("*")
+    .eq("user_id", userId).eq("entity_type", "betrieb_manuell");
+  if (Array.isArray(eventIds) && eventIds.length > 0) {
+    q = q.in("entity_id", eventIds);
+  }
+  const { data: mappings } = await q;
+  let untagged = 0;
+  const errors: Any[] = [];
+  for (const m of mappings ?? []) {
+    const evId = m.google_event_id ?? m.entity_id;
+    // Zurücksetzen: Farbe auf Default (null), Erinnerung auf Default,
+    // app-Properties entfernen (null löscht den Key). Titel/Notiz unangetastet.
+    const ev = {
+      colorId: null,
+      reminders: { useDefault: true, overrides: [] },
+      extendedProperties: {
+        private: { app: null, entity_type: null, betrieb_id: null },
+      },
+    };
+    const res = await gfetch(token, `${CAL}/${evId}`, "PATCH", ev);
+    if (res.ok || res.status === 404 || res.status === 410) {
+      await admin.from("google_calendar_events").delete().eq("id", m.id);
+      untagged++;
+    } else {
+      errors.push({ event_id: evId, fehler: (await res.text()).substring(0, 200) });
+    }
+  }
+  return { untagged, errors };
 }

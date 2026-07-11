@@ -58,4 +58,34 @@ class GoogleCalendarSyncService {
     final d = res.data;
     return d is Map ? Map<String, dynamic>.from(d) : {};
   }
+
+  /// K2b: Ausgewählte Termine taggen (Lavendel + Erinnerung + Betrieb-Tag,
+  /// nur PATCH — Titel/Notizen bleiben). [items] = [{event_id, betrieb_id}].
+  /// Rückgabe: {tagged, errors}. Wirft bei Fehler.
+  static Future<Map<String, dynamic>> applyTags(
+    List<Map<String, String>> items,
+  ) async {
+    final res = await SupabaseService.client.functions.invoke(
+      'google-calendar-sync',
+      body: {'action': 'apply_tags', 'items': items},
+    );
+    final d = res.data;
+    return d is Map ? Map<String, dynamic>.from(d) : {};
+  }
+
+  /// K2b: K2-Tags wieder entfernen (Farbe/Erinnerung/Tag zurücksetzen).
+  /// [eventIds] leer/null = alle. Rückgabe: {untagged, errors}. Wirft bei Fehler.
+  static Future<Map<String, dynamic>> untagManuelle([
+    List<String>? eventIds,
+  ]) async {
+    final res = await SupabaseService.client.functions.invoke(
+      'google-calendar-sync',
+      body: {
+        'action': 'untag_manual',
+        if (eventIds != null) 'event_ids': eventIds,
+      },
+    );
+    final d = res.data;
+    return d is Map ? Map<String, dynamic>.from(d) : {};
+  }
 }
