@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
@@ -197,6 +198,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                               'Wechsle zum Tab "Fällig" um Einträge\nzum Tagesplan hinzuzufügen.',
                             )
                           : _TagesplanListe(
+                              datum: _selectedDate,
                               eintraege: angezeigtTagesplan,
                               onReorder: (old, neu) => ref
                                   .read(tagesplanProvider.notifier)
@@ -223,6 +225,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                           final e = angezeigtFaellig[i];
                           final imPlan = bereitsImPlan.contains(e.id);
                           return _FaelligEintragKarte(
+                            datum: _selectedDate,
                             eintrag: e,
                             imPlan: imPlan,
                             onAdd: () {
@@ -512,12 +515,14 @@ class _TagesplanHeader extends StatelessWidget {
 // ─── Tagesplan-Liste (ReorderableListView) ───
 
 class _TagesplanListe extends StatelessWidget {
+  final DateTime datum;
   final List<TourEintrag> eintraege;
   final void Function(int, int) onReorder;
   final void Function(String) onDismiss;
   final void Function(TourEintrag) onTap;
 
   const _TagesplanListe({
+    required this.datum,
     required this.eintraege,
     required this.onReorder,
     required this.onDismiss,
@@ -551,6 +556,7 @@ class _TagesplanListe extends StatelessWidget {
           ),
           onDismissed: (_) => onDismiss(eintrag.id),
           child: _TourEintragKarte(
+            datum: datum,
             eintrag: eintrag,
             position: index + 1,
             onTap: () => onTap(eintrag),
@@ -564,11 +570,13 @@ class _TagesplanListe extends StatelessWidget {
 // ─── Tour-Eintrag Karte ───
 
 class _TourEintragKarte extends StatelessWidget {
+  final DateTime datum;
   final TourEintrag eintrag;
   final int position;
   final VoidCallback onTap;
 
   const _TourEintragKarte({
+    required this.datum,
     required this.eintrag,
     required this.position,
     required this.onTap,
@@ -658,6 +666,7 @@ class _TourEintragKarte extends StatelessWidget {
                                 _StatusBadge(eintrag: eintrag),
                               ],
                             ),
+                            _TourInfoZeile(datum: datum, eintrag: eintrag),
                           ],
                         ),
                       ),
@@ -706,6 +715,72 @@ class _TourEintragKarte extends StatelessWidget {
       case TourEintragTyp.heigenie:
         return Icons.build;
     }
+  }
+}
+
+// ─── Info-Zeile: Ruhetage / Servicezeiten / Ruhetag-Warnung ───
+
+class _TourInfoZeile extends StatelessWidget {
+  final DateTime datum;
+  final TourEintrag eintrag;
+
+  const _TourInfoZeile({required this.datum, required this.eintrag});
+
+  @override
+  Widget build(BuildContext context) {
+    final heuteRuhetag = istRuhetag(eintrag.ruhetage, datum);
+    final ruheTxt = ruhetageText(eintrag.ruhetage);
+    final zeitTxt = eintrag.servicezeit;
+
+    // Nichts anzuzeigen
+    if (!heuteRuhetag && ruheTxt.isEmpty && (zeitTxt == null)) {
+      return const SizedBox.shrink();
+    }
+
+    final children = <Widget>[];
+
+    if (heuteRuhetag) {
+      children.add(Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.block, size: 13, color: AppColors.error),
+          SizedBox(width: 3),
+          Text('Heute Ruhetag',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w700)),
+        ],
+      ));
+    } else if (ruheTxt.isNotEmpty) {
+      children.add(_infoChip(Icons.event_busy, 'Ruhetag: $ruheTxt'));
+    }
+
+    if (zeitTxt != null) {
+      children.add(_infoChip(Icons.schedule, zeitTxt));
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 2,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: AppColors.textSecondary),
+        const SizedBox(width: 3),
+        Text(text,
+            style: const TextStyle(
+                fontSize: 11, color: AppColors.textSecondary)),
+      ],
+    );
   }
 }
 
@@ -768,12 +843,14 @@ class _StatusBadge extends StatelessWidget {
 // ─── Fällig-Eintrag Karte (im Fällig-Tab) ───
 
 class _FaelligEintragKarte extends StatelessWidget {
+  final DateTime datum;
   final TourEintrag eintrag;
   final bool imPlan;
   final VoidCallback onAdd;
   final VoidCallback onTap;
 
   const _FaelligEintragKarte({
+    required this.datum,
     required this.eintrag,
     required this.imPlan,
     required this.onAdd,
@@ -839,6 +916,7 @@ class _FaelligEintragKarte extends StatelessWidget {
                                   color: AppColors.textSecondary),
                               overflow: TextOverflow.ellipsis,
                             ),
+                            _TourInfoZeile(datum: datum, eintrag: eintrag),
                           ],
                         ),
                       ),
