@@ -145,6 +145,11 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
 
 ## 🔴 OFFEN — relevant
 
+### Auswertung Umsatz/Arbeiten (Buchhaltung) — NEU 11.07.2026
+Spec `docs/superpowers/specs/2026-07-11-buchhaltung-auswertung-design.md`. App-Pendant zum Excel-Blatt „Auswertung" (`00_SBS_Projer_70`).
+- [ ] **Phase 1 (in Arbeit):** Neuer Screen `/buchhaltung/auswertung` — Umsatz/Arbeiten nach Jahr+Monat, 3 Modi (Jahr / Jahre / **Monatsvergleich über Jahre**), Charts (`fl_chart`, grün dezent), **netto/brutto umschaltbar**, professionelle Tabelle (Monat·Anzahl·Kunde·Heineken·Total, Zeile aufklappbar → Kategorien). Rein **live** aus App-Daten (Reinigung volle Historie 2019+, übrige Kategorien + Heineken-Split ab Dez 2025). Kunde/Heineken-Split via `betrieb.rechnungsstellung=='heineken'`. TDD gegen Excel-Zahlen (Überlappung Dez 2025).
+- [ ] **Phase 2 (später, eigenes Projekt):** Historie backfillen — historische **Heineken-Aufträge** (Störung/Montage/Eigenauftrag/BK-Pauschale/Eröffnung+Endreinigung) aus Excel als **echte** App-Einträge importieren **+** historische **Heineken-Monatsrechnungen** nacherfassen & abgleichen. Danach füllt sich die Auswertung rückwirkend **ohne Screen-Umbau**.
+
 ### Buchhaltung-Aufräumen
 - [x] ✓ **camt-Screens in „Bankauszug Import" integriert** (v0.16.19): Prüfliste, Regeln, Dateien sind jetzt Tabs im Import-Screen (4 Tabs unter einem Host `CamtBankauszugScreen`), Dashboard von 4 camt-Kacheln auf **eine** reduziert. Alte Routen als Redirects (`?tab=`), FAB nur im Regeln-Tab, „Zur Prüfliste" = Tab-Wechsel. Subagent-getrieben (3 Implementer) + adversariale Review (3 Lenses, 0 Bugs — Extraktion zeilengenau treu gegen Originale). Widget-Test (4 Tabs, FAB-Gate). Spec/Plan in docs/superpowers.
 - [ ] **🟡 Visueller Check camt-Tabs (bei Gelegenheit):** kurz im Browser durchklicken — v.a. der **Import-Tab** (hatte historisch Render-Eigenheiten: GestureDetector statt Material-Buttons), Tab-Wechsel, FAB nur bei „Regeln", Download im Dateien-Tab, „Regel anlegen" aus der Prüfliste, Direktaufruf alter URLs landet im richtigen Tab.
