@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.07.2026 · **Live:** v0.37.1
+**Stand:** 11.07.2026 · **Live:** v0.44.0
 
 ---
 
@@ -126,7 +126,7 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
 **Aus Paket 06 inzwischen erledigt:** Betriebe (Ferien-Zeile + Google-Übernahme v0.25), Reinigung (Service-Art/Zeiterfassung/Protokoll-Chip), Störungen/Eigenaufträge-Filter, Kontakte (Stardrinks + Event-Struktur), **Events-Feature komplett** (E1–E5: Kontakte/Telefonliste, Einsätze+Material, Abschluss-Mail an RSL/Eventverantwortlichen).
 
 **🔴 Aus Paket 06 noch offen (echte Restpunkte):**
-- [x] ✓ **Anlagen-Screen + Steckbrief-PDF** (live v0.27.0 · 10.07.2026): Dashboard-Kachel „Anlagen" + Kennzahlen-Kopf (aktiv/nach Typ/überfällig) im vorhandenen `/anlagen`-Screen; **Steckbrief-PDF pro Anlage** (Grunddaten + Fotos aus `anlagen_fotos` + Bierleitungen) mit **Teilen** + **Mail an RSL** (neue Heineken-Zuweisung `rsl`, MailConfig-Bereich `anlage`). Subagent-getrieben, 271 Tests grün. **🟡 Offen:** RSL-Kontakt in „Heineken-Zuweisungen" setzen + Steckbrief-Mail testen, dann `anlageScharf=true`.
+- [x] ✓ **Anlagen-Screen + Steckbrief-PDF** (live v0.27.0 · 10.07.2026): Dashboard-Kachel „Anlagen" + Kennzahlen-Kopf (aktiv/nach Typ/überfällig) im vorhandenen `/anlagen`-Screen; **Steckbrief-PDF pro Anlage** (Grunddaten + Fotos aus `anlagen_fotos` + Bierleitungen) mit **Teilen** + **Mail an RSL** (neue Heineken-Zuweisung `rsl`, MailConfig-Bereich `anlage`). Subagent-getrieben, 271 Tests grün. **✓ Scharf** (11.07.2026, User bestätigt „Steckbrief ist schon scharf"; funktioniert). Niederdruck im PDF jetzt mit 1 Kommastelle (v0.43.1).
 - [x] ✓ **Reinigung QR-Firmenkonto-Link** (live v0.28.0 · 10.07.2026): Button „QR-Zahlung" im Reinigungs-Formular → Dialog mit Swiss-QR aufs Firmenkonto (Schweizerkreuz), Betrag aus `preisBrutto` vorbefüllt+editierbar. Reine Funktion `swissQrPayload` (TDD) — Rechnungs-QR nutzt sie byte-identisch. **🟡 Offen:** realer Scan-Test mit Banking-App.
 - [x] ✓ **Tourenplanung T1 — UX & Verhalten** (live v0.29.0 · 10.07.2026): Tagesplan startet **default leer** (Fällig-Liste default überfällig/fällig, andere Kategorien per Filter; Button „Fällige übernehmen"); **Auto-Speicherung** (Speicherbutton entfällt, entprellt); **Ruhetage + Servicezeiten** auf jeder Karte + **Ruhetag-Warnung**; **Inline-Filter** Region + Fälligkeit getrennt (kein Sheet); **grosser Drag-Griff**. Reine Helfer `touren_anzeige.dart` (16 Unit-Tests). **🟡 Offen:** visueller Live-Check `/touren` (Preview-Harness konnte canvaskit nicht rendern).
 - [x] ✓ **Tourenplanung T2 — Fälligkeits-Logik & Auto-Termine** (live v0.30.0 · 10.07.2026): Endreinigung/Eröffnung aus Saison-/Ferien-Übergängen des Betriebs abgeleitet (`touren_saison.dart`, kanonischer „offen"-Begriff, 16 Unit-Tests); Endreinigung nur bei Saisonende / Ferien ≥ 21 Tage; Vorlauf 7 Tage; Sektion „Automatische Termine" im Tagesplan-Tab (letzter offener Tag vor Schliessung / erster nach Öffnung, Ruhetage/Ferien übersprungen) mit +übernehmen/alle übernehmen. **🟡 Offen:** visueller Live-Check `/touren` (Saisonübergänge).
@@ -186,7 +186,7 @@ Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.
 - [x] ✓ Saldo-Parsing-Bug gefixt (11.07.2026): `OPBD/CLBD` werden jetzt über `Bal>Tp>CdOrPrtry>Cd` gelesen (vorher immer 0). Feld weiterhin ungenutzt, aber korrekt; 2 Tests ergänzt.
 - [ ] Phase 0a Follow-up: 11 alte camt-Vorlagen `ist_aktiv=true` (FK-Schutz) — optional Regeln auf neue Geschäftsfälle umhängen, dann Alt-Vorlagen deaktivieren (tauchen sonst im manuellen Dropdown auf).
 - [x] ✓ Hub: toter Code `forderungenProvider` / `mahnwesenDashboardProvider` bereits entfernt (Grep 11.07.2026: keine Vorkommen mehr).
-- [ ] **App-weite UI-Vereinheitlichung** (Filter/Dropdowns) — eigener grösserer Durchgang. Referenz-Stil: schlichte `DropdownButton` im `Wrap`.
+- [x] ✓ **App-weite UI-Vereinheitlichung** (Filter/Dropdowns) KOMPLETT (v0.38–v0.44 · 11.07.2026): einheitliche Filter-Bausteine (`widgets/filter/`: `AppFilterBar`/`AppFilterDropdown`/`AppFilterMultiDropdown`/`AppMultiToggleChips`/`AppJahrMonatLeiste`), **Region-Filter oben rechts (AppBar)** auf allen betrieb-bezogenen Listen (Touren/Betriebe/Anlagen/Reinigungen/Störungen), kompakte (Mehrfach-)Dropdowns statt Chip-Reihen/Sheets/AppBar-Popups, **Zombie-Schutz** überall, **Betrieb-Status-Semantik** (operativ=aktiv+saisonpause via `istBetriebOperativ`), gemeinsames **`AppJahrMonatLeiste`** (8 Screens, −285 Zeilen). Prio 1–5 alle deployed, je adversarial gereviewt (mehrere echte Bugs vorab gefixt). Zusätzlich: **Anlagen-Typ-Filter** (Warmanstich/Kaltanstich/Buffetanstich/Orion), **Steckbrief-Niederdruck** mit 1 Kommastelle, Reinigung-Betrieb-Auswahl nur meine Kunden (operativ).
 
 ---
 
