@@ -6,8 +6,10 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/google_calendar_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/geschaeft_form.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/mwst_saetze_section.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_auth_service.dart';
 
 class EinstellungenScreen extends ConsumerStatefulWidget {
   const EinstellungenScreen({super.key});
@@ -51,6 +53,63 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     }
   }
 
+  Widget _buildGoogleKalender(GoogleCalendarStatus status) {
+    if (status.connected) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle,
+                  color: AppColors.success, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                    'Verbunden${status.email != null ? ' · ${status.email}' : ''}'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Termine, Pikett und Events werden künftig automatisch in deinen Google Kalender geschrieben (folgt in einem nächsten Schritt).',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              icon: const Icon(Icons.link_off, size: 18),
+              label: const Text('Trennen'),
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              onPressed: () async {
+                await GoogleCalendarAuthService.trennen();
+                ref.invalidate(googleCalendarStatusProvider);
+              },
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Verbinde deinen Google Kalender, um Erinnerungen und Termin-Sync zu nutzen.',
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.event_available, size: 18),
+            label: const Text('Mit Google Kalender verbinden'),
+            onPressed: () => GoogleCalendarAuthService.verbinden(),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final aktuellePreise = ref.watch(aktuellePreiseProvider);
@@ -79,6 +138,29 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                   error: (e, _) => Text('Fehler: $e'),
                   data: (g) => GeschaeftForm(key: ValueKey(g.id), geschaeft: g),
                 ),
+              ],
+            ),
+          ),
+
+          // Google Kalender
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ExpansionTile(
+              leading: const Icon(Icons.event, color: AppColors.primary),
+              title: const Text('Google Kalender',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Verbindung für Termine & Erinnerungen'),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              children: [
+                ref.watch(googleCalendarStatusProvider).when(
+                      data: (status) => _buildGoogleKalender(status),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => Text('Fehler: $e',
+                          style: const TextStyle(color: AppColors.error)),
+                    ),
               ],
             ),
           ),
