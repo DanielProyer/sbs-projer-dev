@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_monat_leiste.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 const _monatNamen = [
@@ -92,55 +93,19 @@ class _PikettDiensteListScreenState
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                DropdownButton<int>(
-                  value: _selectedYear,
-                  underline: const SizedBox.shrink(),
-                  isDense: true,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                  items: jahre
-                      .map((y) =>
-                          DropdownMenuItem(value: y, child: Text('$y')))
-                      .toList(),
-                  onChanged: (y) {
-                    if (y != null) setState(() => _selectedYear = y);
-                  },
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<int>(
-                  value: _selectedMonth,
-                  underline: const SizedBox.shrink(),
-                  isDense: true,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                  items: [
-                    const DropdownMenuItem(
-                        value: 0, child: Text('Alle Monate')),
-                    for (int m = 1; m <= 12; m++)
-                      DropdownMenuItem(value: m, child: Text(_monatNamen[m])),
-                  ],
-                  onChanged: (m) {
-                    if (m != null) setState(() => _selectedMonth = m);
-                  },
-                ),
-                const Spacer(),
-                Text(
-                  jahrSumme > 0
-                      ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
-                      : '${filtered.length} Pikett-Dienste',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ],
+          AppJahrMonatLeiste(
+            jahre: jahre,
+            selectedJahr: _selectedYear,
+            onJahrChanged: (y) => setState(() => _selectedYear = y),
+            selectedMonat: _selectedMonth,
+            onMonatChanged: (m) => setState(() => _selectedMonth = m),
+            trailing: Text(
+              jahrSumme > 0
+                  ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                  : '${filtered.length} Pikett-Dienste',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
             ),
           ),
           Expanded(
