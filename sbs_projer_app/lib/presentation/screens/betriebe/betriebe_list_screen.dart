@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_faelligkeit.dart';
+import 'package:sbs_projer_app/core/util/betrieb_status.dart';
 import 'package:sbs_projer_app/core/util/google_maps_route.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -12,11 +13,6 @@ import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_map.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-/// Ein Betrieb ist "operativ", wenn er betreut wird: aktiv oder in Saisonpause
-/// (aktiv, aber Pause). Inaktiv/geschlossen erscheinen nur bei explizitem Filter.
-bool istBetriebOperativ(String status) =>
-    status == 'aktiv' || status == 'saisonpause';
 
 class BetriebeListScreen extends ConsumerStatefulWidget {
   const BetriebeListScreen({super.key});

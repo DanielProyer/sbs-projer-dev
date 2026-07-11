@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/betrieb_status.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 
 /// Betriebsauswahl-Screen für neue Reinigungen.
@@ -21,7 +22,7 @@ class _ReinigungBetriebAuswahlScreenState
   @override
   Widget build(BuildContext context) {
     final betriebe = ref.watch(betriebeProvider)
-        .where((b) => b.serverId != null && b.status != 'inaktiv')
+        .where((b) => b.serverId != null && istBetriebOperativ(b.status))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
