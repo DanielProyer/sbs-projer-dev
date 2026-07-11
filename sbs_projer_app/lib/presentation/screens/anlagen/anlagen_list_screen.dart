@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/util/anlage_pdf_util.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 
 class AnlagenListScreen extends ConsumerStatefulWidget {
@@ -18,23 +19,39 @@ class AnlagenListScreen extends ConsumerStatefulWidget {
 class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
   String _searchQuery = '';
   String _statusFilter = 'alle';
+  Set<String> _selectedRegionIds = {};
 
   @override
   Widget build(BuildContext context) {
     final anlagen = ref.watch(anlagenProvider);
     final betriebe = ref.watch(betriebeProvider);
+    final regionen = ref.watch(regionenProvider);
 
-    // Betrieb Lookup
+    // Betrieb Lookup (Name/Ort + Region je Betrieb)
     final betriebMap = <String, ({String name, String? ort})>{};
+    final betriebRegionMap = <String, String?>{};
     for (final b in betriebe) {
       if (b.serverId != null) {
         betriebMap[b.serverId!] = (name: b.name, ort: b.ort);
+        betriebRegionMap[b.serverId!] = b.regionId;
       }
     }
+
+    // Region-Filter (Anlage -> Betrieb -> Region). Zombie-Schutz: nur nach
+    // Regionen filtern, die aktuell als Option existieren.
+    final regionOptionIds = {
+      for (final r in regionen)
+        if (r.serverId != null) r.serverId!,
+    };
+    final aktiveRegionIds = _selectedRegionIds.intersection(regionOptionIds);
 
     // Filter
     final filtered = anlagen.where((a) {
       if (_statusFilter != 'alle' && a.status != _statusFilter) return false;
+      if (aktiveRegionIds.isNotEmpty) {
+        final regId = betriebRegionMap[a.betriebId];
+        if (regId == null || !aktiveRegionIds.contains(regId)) return false;
+      }
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final betriebName = betriebMap[a.betriebId]?.name.toLowerCase() ?? '';
@@ -52,6 +69,22 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Anlagen'),
+        actions: [
+          // Region-Filter oben rechts (Anlage über ihren Betrieb)
+          if (regionen.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: AppFilterMultiDropdown<String>(
+                label: 'Regionen',
+                options: [
+                  for (final r in regionen)
+                    if (r.serverId != null) (r.serverId!, r.name),
+                ],
+                selected: aktiveRegionIds,
+                onChanged: (s) => setState(() => _selectedRegionIds = s),
+              ).build(context),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -136,7 +169,9 @@ class _AnlagenListScreenState extends ConsumerState<AnlagenListScreen> {
 
   Widget _buildEmpty() {
     // Such- oder Status-Filter aktiv? Dann kein "noch keine Anlagen".
-    final gefiltert = _searchQuery.isNotEmpty || _statusFilter != 'alle';
+    final gefiltert = _searchQuery.isNotEmpty ||
+        _statusFilter != 'alle' ||
+        _selectedRegionIds.isNotEmpty;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
