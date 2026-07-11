@@ -156,6 +156,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/berichte'),
           ),
           _NavTile(
+            icon: Icons.insights,
+            title: 'Auswertung',
+            subtitle: 'Umsatz & Arbeiten nach Jahr/Monat',
+            onTap: () => context.push('/buchhaltung/auswertung'),
+          ),
+          _NavTile(
             icon: Icons.account_balance,
             title: 'MwSt-Abrechnung',
             subtitle: 'Quartals-Abrechnung ESTV',
