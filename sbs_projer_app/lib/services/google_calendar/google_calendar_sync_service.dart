@@ -42,4 +42,20 @@ class GoogleCalendarSyncService {
     final d = res.data;
     return d is Map ? Map<String, dynamic>.from(d) : {};
   }
+
+  /// K2a: Bestehende Google-Termine im Zeitraum scannen (read-only).
+  /// [timeMin]/[timeMax] = RFC3339 (z.B. DateTime.toUtc().toIso8601String()).
+  /// Rückgabe enthält 'events' (Liste {event_id, summary, start, is_all_day}),
+  /// 'scanned', 'skipped_tagged'. Wirft bei Fehler.
+  static Future<Map<String, dynamic>> scanManuelleTermine(
+    String timeMin,
+    String timeMax,
+  ) async {
+    final res = await SupabaseService.client.functions.invoke(
+      'google-calendar-sync',
+      body: {'action': 'scan_manual', 'time_min': timeMin, 'time_max': timeMax},
+    );
+    final d = res.data;
+    return d is Map ? Map<String, dynamic>.from(d) : {};
+  }
 }
