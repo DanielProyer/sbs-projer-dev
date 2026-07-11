@@ -32,6 +32,7 @@ class _StoerungenListScreenState
   String _searchQuery = '';
   String? _anlagenTypFilter; // null = alle, 'ohne' = ohne Anlagentyp
   String _kmFilter = 'alle'; // 'alle' | 'mit' | 'ohne'
+  int? _bereichFilter; // null = alle; 1..5 = Störungsbereich
   Set<String> _selectedRegionIds = {};
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
@@ -92,6 +93,10 @@ class _StoerungenListScreenState
       }
       if (_kmFilter == 'mit' && !s.istKilometerabrechnung) return false;
       if (_kmFilter == 'ohne' && s.istKilometerabrechnung) return false;
+      if (_bereichFilter != null &&
+          !(s.stoerungBereiche?.contains(_bereichFilter) ?? false)) {
+        return false;
+      }
       if (aktiveRegionIds.isNotEmpty) {
         final regionId =
             s.betriebId != null ? betriebRegionIds[s.betriebId!] : null;
@@ -170,31 +175,59 @@ class _StoerungenListScreenState
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
-          // Filter-Leiste (Anlagentyp + Km) statt AppBar-Sheet
-          AppFilterBar(
-            items: [
-              AppFilterDropdown<String>(
-                hint: 'Alle Anlagentypen',
-                value: effektiverTyp,
-                options: [
-                  for (final t in anlagenTypen) (t, _typLabel(t)),
-                  if (hatOhneTyp) ('ohne', 'Ohne Anlagentyp'),
-                ],
-                onChanged: (v) => setState(() => _anlagenTypFilter = v),
-              ),
-              // Art des Eintrags: normale Störung vs. reine Kilometerabrechnung
-              AppFilterDropdown<String>(
-                hint: 'Alle Arten',
-                nullable: false,
-                value: _kmFilter,
-                options: const [
-                  ('ohne', 'Störung'),
-                  ('mit', 'Kilometerabrechnung'),
-                  ('alle', 'Alle Arten'),
-                ],
-                onChanged: (v) => setState(() => _kmFilter = v ?? 'alle'),
-              ),
-            ],
+          // Drei gleich breite, zentrierte Filter-Spalten (Pixel 9):
+          // Anlagentyp · Art · Störungsbereich
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: AppFilterDropdown<String>(
+                    hint: 'Alle Typen',
+                    isExpanded: true,
+                    value: effektiverTyp,
+                    options: [
+                      for (final t in anlagenTypen) (t, _typLabel(t)),
+                      if (hatOhneTyp) ('ohne', 'Ohne Typ'),
+                    ],
+                    onChanged: (v) => setState(() => _anlagenTypFilter = v),
+                  ).build(context),
+                ),
+                const SizedBox(width: 8),
+                // Art des Eintrags: Störung vs. reine Kilometerabrechnung
+                Expanded(
+                  child: AppFilterDropdown<String>(
+                    hint: 'Alle Arten',
+                    isExpanded: true,
+                    nullable: false,
+                    value: _kmFilter,
+                    options: const [
+                      ('ohne', 'Störung'),
+                      ('mit', 'Kilometerabrechnung'),
+                      ('alle', 'Alle Arten'),
+                    ],
+                    onChanged: (v) => setState(() => _kmFilter = v ?? 'alle'),
+                  ).build(context),
+                ),
+                const SizedBox(width: 8),
+                // Störungsbereich (1..5) – zeigt Störungen mit diesem Bereich.
+                Expanded(
+                  child: AppFilterDropdown<int>(
+                    hint: 'Alle Bereiche',
+                    isExpanded: true,
+                    value: _bereichFilter,
+                    options: const [
+                      (1, 'Zapfhahn'),
+                      (2, 'Leitung'),
+                      (3, 'Kühler'),
+                      (4, 'Zapfkopf'),
+                      (5, 'Gas'),
+                    ],
+                    onChanged: (v) => setState(() => _bereichFilter = v),
+                  ).build(context),
+                ),
+              ],
+            ),
           ),
           AppJahrMonatLeiste(
             jahre: jahre,

@@ -116,6 +116,7 @@ Spec `docs/superpowers/specs/2026-07-09-events-e1-design.md`, Plan + Ablauf-Kont
 Optimierungspaket 06 (`Prompts/06_Optimierung_App_2026_07_07.txt`), Spec/Plan in `docs/superpowers`. P1 = 7 Quick-Wins:
 - [x] ✓ **Eigenaufträge:** Status-Filter entfernt.
 - [x] ✓ **Störungen:** Filter-Sheet nur noch **Anlagentyp + Km-Abrechnung** (Status raus, auf Wunsch), Badge-Zähler, Anlagentyp-Chips kapitalisiert.
+  - [x] ✓ *(v0.45.3 · 11.07.2026)* Dritter Filter **Störungsbereich** (Zapfhahn/Leitung/Kühler/Zapfkopf/Gas) ergänzt; die drei Dropdowns (Typ · Art · Bereich) jetzt als **gleich breite, zentrierte Spalten** (`Expanded`+`isExpanded`, Ellipsis) — Pixel-9-optimiert, kein Überlauf. Isoliert am Web-Build (390px, Worst-Case) verifiziert.
 - [x] ✓ **Reinigung:** Chip „Protokoll" statt „Foto"; **Service-Art** (Klartext) statt rohem `serviceTyp`; Zeiterfassung **kompakt einzeilig** (Datum/Start/Ende) in **Formular UND Detail-Übersicht**.
 - [x] ✓ **Kontakte:** Heineken-Rolle **„Stardrinks"** (Migration 117).
 - [x] ✓ **Betriebsferien:** 3 → **5 Slots** (Migration 118); Formular dynamisch (nur belegte Zeilen + „Weitere Ferien"); Detail zeigt Ferien 1–5; zentraler `betrieb_ferien.dart`-Util + **Bugfix** (`isBetriebOffen`/`_isBetriebAktiv` prüften bisher nur Ferien 1) → Touren/Termine/Heineken-Raster umgestellt; 8 neue Unit-Tests.

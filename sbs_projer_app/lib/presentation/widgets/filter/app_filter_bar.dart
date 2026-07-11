@@ -13,12 +13,16 @@ class AppFilterDropdown<T> extends AppFilterItem {
   final List<(T, String)> options;
   final ValueChanged<T?> onChanged;
   final bool nullable;
+
+  /// Füllt die verfügbare Breite (für gleich breite Spalten in einer Row).
+  final bool isExpanded;
   AppFilterDropdown({
     required this.hint,
     required this.value,
     required this.options,
     required this.onChanged,
     this.nullable = true,
+    this.isExpanded = false,
   });
 
   @override
@@ -27,18 +31,22 @@ class AppFilterDropdown<T> extends AppFilterItem {
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w600,
         );
+    final overflow = isExpanded ? TextOverflow.ellipsis : null;
     return DropdownButton<T?>(
       value: value,
-      hint: Text(hint, style: style),
+      hint: Text(hint, style: style, overflow: overflow),
       isDense: true,
+      isExpanded: isExpanded,
       underline: const SizedBox.shrink(),
       style: style,
       borderRadius: BorderRadius.circular(8),
       items: [
         if (nullable)
-          DropdownMenuItem<T?>(value: null, child: Text(hint, style: style)),
+          DropdownMenuItem<T?>(
+              value: null, child: Text(hint, style: style, overflow: overflow)),
         for (final (v, label) in options)
-          DropdownMenuItem<T?>(value: v, child: Text(label, style: style)),
+          DropdownMenuItem<T?>(
+              value: v, child: Text(label, style: style, overflow: overflow)),
       ],
       onChanged: onChanged,
     );
