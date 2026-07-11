@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.07.2026 · **Live:** v0.34.0
+**Stand:** 11.07.2026 · **Live:** v0.35.0
 
 ---
 
@@ -17,6 +17,11 @@
 - [x] ✓ **Sichtbarkeit**: Betriebe-Liste default nur aktive; Karte nur aktive/saisonpause + Filter-Chip „Inaktive/geschl.".
 - [x] ✓ Qualität: subagent-getrieben, neue TDD-Suite (7 Tests), **263 Tests grün**, Web-Build sauber.
 - [x] ✓ **Live geprüft** (10.07.2026): Formular-Auto-„mein Kunde" + Override, Schliessungsfelder, Liste/Karte-Sichtbarkeit — alles funktioniert.
+
+---
+
+## 🟢 Öffnungszeiten von Website (live v0.35.0 · 11.07.2026)
+- [x] ✓ **AI-Website-Fallback für Öffnungszeiten:** Google Places hat für viele kleine Betriebe keine Öffnungszeiten (verifiziert: Pagigerstübli → Adresse/Tel/Website/Koordinaten ja, aber keine `regularOpeningHours`). Neuer Button **„Öffnungszeiten von Website"** im Betrieb-Formular → Edge-Function `parse-oeffnungszeiten` liest Startseite + Kontakt-/Öffnungszeiten-Unterseiten, Claude extrahiert Öffnungszeiten + Ruhetage ins App-Format → derselbe Bestätigungs-Dialog wie bei Google (Häkchen). Reine Funktion `oeffnungszeitenAusWebsiteJson` (TDD, 3 Tests). Smoke-Test Pagigerstübli: Mi–Sa 09–22, So 09–21, Ruhetage Mo+Di (Konfidenz 1). **🟡 Offen:** an weiteren Betrieben mit Öffnungszeiten-Seite durchprobieren; ggf. Prompt nachschärfen bei Mittagspausen/Sonderzeiten.
 
 ---
 
