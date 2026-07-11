@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -696,39 +698,57 @@ final aktiverTagesplanTagProvider = StateProvider<DateTime?>((ref) => null);
 
 final tagesplanProvider =
     StateNotifierProvider<TagesplanNotifier, List<TourEintrag>>((ref) {
-  return TagesplanNotifier();
+  return TagesplanNotifier(ref);
 });
 
 class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
-  TagesplanNotifier() : super([]);
+  TagesplanNotifier(this._ref) : super([]);
 
-  bool _gespeichert = false;
-  bool get gespeichert => _gespeichert;
+  final Ref _ref;
+  Timer? _saveTimer;
 
-  void setFromVorschlag(List<TourEintrag> eintraege) {
-    state = List.of(eintraege);
-    _gespeichert = false;
+  /// Speichert den aktuellen Stand entprellt für den aktiven Tag.
+  void _scheduleSave() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 600), () {
+      final tag = _ref.read(aktiverTagesplanTagProvider);
+      if (tag == null) return;
+      tagesplanSpeichern(tag, state);
+    });
   }
 
+  void _cancelSave() {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+  }
+
+  /// Gespeicherten Plan laden — löst KEINE Speicherung aus.
   void setFromGespeichert(List<TourEintrag> eintraege) {
+    _cancelSave();
     state = List.of(eintraege);
-    _gespeichert = true;
+  }
+
+  /// Tag ohne gespeicherten Plan → leer starten (KEINE Speicherung).
+  void resetLeer() {
+    _cancelSave();
+    state = [];
   }
 
   void hinzufuegen(TourEintrag eintrag) {
     if (state.any((e) => e.id == eintrag.id)) return;
     state = [...state, eintrag];
-    _gespeichert = false;
+    _scheduleSave();
   }
 
   void entfernen(String id) {
     state = state.where((e) => e.id != id).toList();
-    _gespeichert = false;
+    _scheduleSave();
   }
 
+  /// User-Aktion „Leeren" → persistiert den leeren Plan.
   void leeren() {
     state = [];
-    _gespeichert = false;
+    _scheduleSave();
   }
 
   void reorder(int oldIndex, int newIndex) {
@@ -737,18 +757,21 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
     final item = items.removeAt(oldIndex);
     items.insert(newIndex, item);
     state = items;
-    _gespeichert = false;
+    _scheduleSave();
   }
 
   void befuellenAusFaellig(List<TourEintrag> faellige) {
     final existing = state.map((e) => e.id).toSet();
     final neue = faellige.where((e) => !existing.contains(e.id)).toList();
+    if (neue.isEmpty) return;
     state = [...state, ...neue];
-    _gespeichert = false;
+    _scheduleSave();
   }
 
-  void markGespeichert() {
-    _gespeichert = true;
+  @override
+  void dispose() {
+    _saveTimer?.cancel();
+    super.dispose();
   }
 }
 
