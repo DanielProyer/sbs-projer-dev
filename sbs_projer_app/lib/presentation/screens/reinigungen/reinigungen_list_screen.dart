@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
-import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 final _nf = NumberFormat('#,##0', 'de_CH');
@@ -41,6 +41,13 @@ class _ReinigungenListScreenState
     final betriebRegionIds = ref.watch(betriebRegionIdMapProvider);
     final regionen = ref.watch(regionenProvider);
 
+    // Region-Filter (Zombie-Schutz: nur vorhandene Regionen wirken).
+    final regionOptionIds = {
+      for (final r in regionen)
+        if (r.serverId != null) r.serverId!,
+    };
+    final aktiveRegionIds = _selectedRegionIds.intersection(regionOptionIds);
+
     // Verfügbare Jahre
     final jahreSet = <int>{};
     for (final r in reinigungen) {
@@ -62,9 +69,11 @@ class _ReinigungenListScreenState
     final filtered = sorted.where((r) {
       if (r.datum.year != _selectedYear) return false;
       if (_selectedMonth != 0 && r.datum.month != _selectedMonth) return false;
-      if (_selectedRegionIds.isNotEmpty) {
+      if (aktiveRegionIds.isNotEmpty) {
         final regionId = betriebRegionIds[r.betriebId];
-        if (regionId == null || !_selectedRegionIds.contains(regionId)) return false;
+        if (regionId == null || !aktiveRegionIds.contains(regionId)) {
+          return false;
+        }
       }
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
@@ -99,11 +108,19 @@ class _ReinigungenListScreenState
       appBar: AppBar(
         title: const Text('Reinigungen'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Regionen',
-            onPressed: () => _showRegionFilter(regionen),
-          ),
+          if (regionen.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: AppFilterMultiDropdown<String>(
+                label: 'Regionen',
+                options: [
+                  for (final r in regionen)
+                    if (r.serverId != null) (r.serverId!, r.name),
+                ],
+                selected: aktiveRegionIds,
+                onChanged: (s) => setState(() => _selectedRegionIds = s),
+              ).build(context),
+            ),
         ],
       ),
       body: Column(
@@ -170,27 +187,6 @@ class _ReinigungenListScreenState
               ],
             ),
           ),
-          if (_selectedRegionIds.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: _selectedRegionIds.map((id) {
-                  final name = regionen
-                      .where((r) => r.serverId == id)
-                      .map((r) => r.name)
-                      .firstOrNull ?? id;
-                  return Chip(
-                    label: Text(name),
-                    onDeleted: () => setState(() {
-                      _selectedRegionIds = {..._selectedRegionIds}..remove(id);
-                    }),
-                    deleteIcon: const Icon(Icons.close, size: 16),
-                  );
-                }).toList(),
-              ),
-            ),
           Expanded(
             child: filtered.isEmpty
                 ? _buildEmpty()
@@ -325,92 +321,6 @@ class _ReinigungenListScreenState
                     )),
           ],
         ],
-      ),
-    );
-  }
-
-  void _showRegionFilter(List<RegionLocal> regionen) {
-    var tempIds = {..._selectedRegionIds};
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.textSecondary.withAlpha(50),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final colWidth = constraints.maxWidth / 2;
-                    return Wrap(
-                      children: regionen.map((r) {
-                        final selected = tempIds.contains(r.serverId);
-                        return SizedBox(
-                          width: colWidth, height: 32,
-                          child: InkWell(
-                            onTap: () => setSheetState(() {
-                              if (selected) {
-                                tempIds.remove(r.serverId);
-                              } else if (r.serverId != null) {
-                                tempIds.add(r.serverId!);
-                              }
-                            }),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 24, height: 24,
-                                  child: Checkbox(
-                                    value: selected,
-                                    onChanged: (v) => setSheetState(() {
-                                      if (v == true && r.serverId != null) {
-                                        tempIds.add(r.serverId!);
-                                      } else {
-                                        tempIds.remove(r.serverId);
-                                      }
-                                    }),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(r.name,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      setState(() => _selectedRegionIds = tempIds);
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('Filter anwenden'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

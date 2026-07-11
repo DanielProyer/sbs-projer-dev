@@ -6,6 +6,8 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 final _nf = NumberFormat('#,##0', 'de_CH');
@@ -29,6 +31,7 @@ class _StoerungenListScreenState
   String _searchQuery = '';
   String? _anlagenTypFilter; // null = alle, 'ohne' = ohne Anlagentyp
   String _kmFilter = 'alle'; // 'alle' | 'mit' | 'ohne'
+  Set<String> _selectedRegionIds = {};
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
 
@@ -37,6 +40,32 @@ class _StoerungenListScreenState
     final stoerungen = ref.watch(stoerungenProvider);
     final betriebNames = ref.watch(betriebNameMapProvider);
     final betriebOrte = ref.watch(betriebOrtMapProvider);
+    final betriebRegionIds = ref.watch(betriebRegionIdMapProvider);
+    final regionen = ref.watch(regionenProvider);
+
+    // Anlagentyp-Optionen (dynamisch) + Zombie-Schutz gegen weggefallene Typen.
+    final anlagenTypen = stoerungen
+        .map((s) => s.anlageTyp)
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+    final hatOhneTyp = stoerungen.any((s) => s.anlageTyp == null);
+    final gueltigeTypen = {
+      ...anlagenTypen,
+      if (hatOhneTyp) 'ohne',
+    };
+    final effektiverTyp = (_anlagenTypFilter == null ||
+            gueltigeTypen.contains(_anlagenTypFilter))
+        ? _anlagenTypFilter
+        : null;
+
+    // Region-Filter (Störung -> Betrieb -> Region), Zombie-Schutz.
+    final regionOptionIds = {
+      for (final r in regionen)
+        if (r.serverId != null) r.serverId!,
+    };
+    final aktiveRegionIds = _selectedRegionIds.intersection(regionOptionIds);
 
     // Verfügbare Jahre
     final jahreSet = <int>{};
@@ -53,15 +82,22 @@ class _StoerungenListScreenState
     final filtered = sorted.where((s) {
       if (s.datum.year != _selectedYear) return false;
       if (_selectedMonth != 0 && s.datum.month != _selectedMonth) return false;
-      if (_anlagenTypFilter != null) {
-        if (_anlagenTypFilter == 'ohne') {
+      if (effektiverTyp != null) {
+        if (effektiverTyp == 'ohne') {
           if (s.anlageTyp != null) return false;
-        } else if (s.anlageTyp != _anlagenTypFilter) {
+        } else if (s.anlageTyp != effektiverTyp) {
           return false;
         }
       }
       if (_kmFilter == 'mit' && !s.istKilometerabrechnung) return false;
       if (_kmFilter == 'ohne' && s.istKilometerabrechnung) return false;
+      if (aktiveRegionIds.isNotEmpty) {
+        final regionId =
+            s.betriebId != null ? betriebRegionIds[s.betriebId!] : null;
+        if (regionId == null || !aktiveRegionIds.contains(regionId)) {
+          return false;
+        }
+      }
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         final betriebName =
@@ -104,15 +140,20 @@ class _StoerungenListScreenState
       appBar: AppBar(
         title: const Text('Störungen'),
         actions: [
-          IconButton(
-            tooltip: 'Filter',
-            onPressed: () => _showFilterSheet(stoerungen),
-            icon: Badge.count(
-              count: _aktiveFilterAnzahl,
-              isLabelVisible: _aktiveFilterAnzahl > 0,
-              child: const Icon(Icons.filter_list),
+          // Region-Filter oben rechts (Störung über ihren Betrieb)
+          if (regionen.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: AppFilterMultiDropdown<String>(
+                label: 'Regionen',
+                options: [
+                  for (final r in regionen)
+                    if (r.serverId != null) (r.serverId!, r.name),
+                ],
+                selected: aktiveRegionIds,
+                onChanged: (s) => setState(() => _selectedRegionIds = s),
+              ).build(context),
             ),
-          ),
         ],
       ),
       body: Column(
@@ -127,6 +168,31 @@ class _StoerungenListScreenState
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
+          ),
+          // Filter-Leiste (Anlagentyp + Km) statt AppBar-Sheet
+          AppFilterBar(
+            items: [
+              AppFilterDropdown<String>(
+                hint: 'Alle Anlagentypen',
+                value: effektiverTyp,
+                options: [
+                  for (final t in anlagenTypen) (t, _typLabel(t)),
+                  if (hatOhneTyp) ('ohne', 'Ohne Anlagentyp'),
+                ],
+                onChanged: (v) => setState(() => _anlagenTypFilter = v),
+              ),
+              AppFilterDropdown<String>(
+                hint: 'Km',
+                nullable: false,
+                value: _kmFilter,
+                options: const [
+                  ('alle', 'Alle Km'),
+                  ('mit', 'Nur mit Km'),
+                  ('ohne', 'Nur ohne Km'),
+                ],
+                onChanged: (v) => setState(() => _kmFilter = v ?? 'alle'),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -351,102 +417,9 @@ class _StoerungenListScreenState
     );
   }
 
-  int get _aktiveFilterAnzahl =>
-      (_anlagenTypFilter != null ? 1 : 0) + (_kmFilter != 'alle' ? 1 : 0);
-
   String _typLabel(String typ) =>
       typ.isEmpty ? typ : typ[0].toUpperCase() + typ.substring(1);
 
-  void _showFilterSheet(List<StoerungLocal> stoerungen) {
-    final anlagenTypen = stoerungen
-        .map((s) => s.anlageTyp)
-        .whereType<String>()
-        .toSet()
-        .toList()
-      ..sort();
-    final hatOhneTyp = stoerungen.any((s) => s.anlageTyp == null);
-
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          void apply(VoidCallback fn) {
-            setSheetState(fn);
-            setState(() {});
-          }
-
-          Widget section(String titel) => Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Text(titel,
-                    style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        )),
-              );
-
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  section('Anlagentyp'),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Alle'),
-                          selected: _anlagenTypFilter == null,
-                          onSelected: (_) =>
-                              apply(() => _anlagenTypFilter = null),
-                        ),
-                        for (final typ in anlagenTypen)
-                          ChoiceChip(
-                            label: Text(_typLabel(typ)),
-                            selected: _anlagenTypFilter == typ,
-                            onSelected: (_) =>
-                                apply(() => _anlagenTypFilter = typ),
-                          ),
-                        if (hatOhneTyp)
-                          ChoiceChip(
-                            label: const Text('Ohne Anlagentyp'),
-                            selected: _anlagenTypFilter == 'ohne',
-                            onSelected: (_) =>
-                                apply(() => _anlagenTypFilter = 'ohne'),
-                          ),
-                      ],
-                    ),
-                  ),
-                  section('Km-Abrechnung'),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final e in const [
-                          ('alle', 'Alle'),
-                          ('mit', 'Nur mit Km'),
-                          ('ohne', 'Nur ohne Km'),
-                        ])
-                          ChoiceChip(
-                            label: Text(e.$2),
-                            selected: _kmFilter == e.$1,
-                            onSelected: (_) => apply(() => _kmFilter = e.$1),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }
 
 class _MonatsGruppe {
