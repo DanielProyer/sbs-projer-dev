@@ -55,6 +55,11 @@ Deno.serve(async (req: Request) => {
         ...(await syncReinigungen(admin, token, user.id, betrieb_id, label ?? "", reinigungen)),
       });
     }
+    if (action === "scan_manual") {
+      const { time_min, time_max } = body;
+      if (!time_min || !time_max) return json({ error: "missing params" }, 400);
+      return json({ ok: true, ...(await scanManual(token, time_min, time_max)) });
+    }
     const { entity_type, entity_id } = body;
     if (!entity_type || !entity_id) return json({ error: "missing params" }, 400);
     await pushOne(admin, token, user.id, entity_type, entity_id);
@@ -262,4 +267,39 @@ async function syncReinigungen(
     pushed++;
   }
   return { pushed, deleted };
+}
+
+// ── K2: bestehende Termine scannen (read-only) ─────────────────
+async function scanManual(token: string, timeMin: string, timeMax: string) {
+  const events: Any[] = [];
+  let skippedTagged = 0;
+  let pageToken: string | undefined = undefined;
+  do {
+    const p = new URLSearchParams({
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "250",
+      timeMin,
+      timeMax,
+    });
+    if (pageToken) p.set("pageToken", pageToken);
+    const res = await gfetch(token, `${CAL}?${p.toString()}`, "GET");
+    if (!res.ok) throw new Error(`events.list ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    for (const ev of data.items ?? []) {
+      if (ev.status === "cancelled") continue;
+      if (ev.extendedProperties?.private?.app === "sbs_projer") {
+        skippedTagged++;
+        continue;
+      }
+      events.push({
+        event_id: ev.id,
+        summary: ev.summary ?? "",
+        start: ev.start?.date ?? ev.start?.dateTime ?? null,
+        is_all_day: !!ev.start?.date,
+      });
+    }
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return { events, scanned: events.length, skipped_tagged: skippedTagged };
 }
