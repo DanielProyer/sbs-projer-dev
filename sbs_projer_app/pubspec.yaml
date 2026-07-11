@@ -1,7 +1,7 @@
 name: sbs_projer_app
 description: "SBS Projer - Service-Management App für Zapfanlagen-Service"
 publish_to: 'none'
-version: 0.31.1+511
+version: 0.32.0+512
 
 environment:
   sdk: ^3.11.0
