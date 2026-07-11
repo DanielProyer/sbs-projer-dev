@@ -162,12 +162,17 @@ class AppMultiToggleChips<T> extends StatelessWidget {
   final Set<T> selected;
   final ValueChanged<Set<T>> onChanged;
   final double spacing;
+
+  /// Verteilung der Chips innerhalb der Zeile. `spaceBetween` verteilt den
+  /// freien Platz gleichmässig (bricht bei Bedarf trotzdem um).
+  final WrapAlignment alignment;
   const AppMultiToggleChips({
     super.key,
     required this.options,
     required this.selected,
     required this.onChanged,
     this.spacing = 6,
+    this.alignment = WrapAlignment.start,
   });
 
   @override
@@ -175,6 +180,7 @@ class AppMultiToggleChips<T> extends StatelessWidget {
     return Wrap(
       spacing: spacing,
       runSpacing: 4,
+      alignment: alignment,
       children: [
         for (final o in options)
           FilterChip(
@@ -191,11 +197,13 @@ class AppMultiToggleChips<T> extends StatelessWidget {
             selected: selected.contains(o.value),
             showCheckmark: false,
             selectedColor: o.color?.withAlpha(30),
+            // Dezenter Rahmen auch im nicht-gewählten Zustand (leichte Tönung
+            // der Kategorie-Farbe), im gewählten Zustand kräftiger.
             side: o.color != null
                 ? BorderSide(
                     color: selected.contains(o.value)
                         ? o.color!.withAlpha(120)
-                        : Colors.transparent)
+                        : o.color!.withAlpha(50))
                 : null,
             visualDensity: VisualDensity.compact,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

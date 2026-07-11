@@ -1136,6 +1136,7 @@ class _InlineFilterLeiste extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: AppMultiToggleChips<FaelligkeitsStatus>(
         spacing: 4,
+        alignment: WrapAlignment.spaceBetween,
         options: [
           for (final s in _faelligStatuses)
             AppMultiOption(s, _kurz(s), color: faelligkeitFarbe(s)),
