@@ -101,6 +101,22 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
           onPressed: () => context.pop(),
         ),
         title: const Text('Betriebe'),
+        actions: [
+          // Region-Filter oben rechts (gilt für Liste + Karte)
+          if (regionen.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: AppFilterMultiDropdown<String>(
+                label: 'Regionen',
+                options: [
+                  for (final r in regionen)
+                    if (r.serverId != null) (r.serverId!, r.name),
+                ],
+                selected: aktiveRegionIds,
+                onChanged: (s) => setState(() => _selectedRegionIds = s),
+              ).build(context),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -181,17 +197,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
                   selected: _selectedZapfsysteme,
                   onChanged: (s) => setState(() => _selectedZapfsysteme = s),
                 ),
-              // Region — beide Ansichten (gemeinsamer State)
-              if (regionen.isNotEmpty)
-                AppFilterMultiDropdown<String>(
-                  label: 'Regionen',
-                  options: [
-                    for (final r in regionen)
-                      if (r.serverId != null) (r.serverId!, r.name),
-                  ],
-                  selected: aktiveRegionIds,
-                  onChanged: (s) => setState(() => _selectedRegionIds = s),
-                ),
+              // Region-Filter ist in der AppBar (oben rechts).
               // Nur fällige — nur Karte
               if (_karteAktiv)
                 AppFilterToggle(

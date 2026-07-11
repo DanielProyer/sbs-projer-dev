@@ -22,7 +22,8 @@ class _ReinigungBetriebAuswahlScreenState
   @override
   Widget build(BuildContext context) {
     final betriebe = ref.watch(betriebeProvider)
-        .where((b) => b.serverId != null && istBetriebOperativ(b.status))
+        .where((b) =>
+            b.serverId != null && istBetriebOperativ(b.status) && b.istMeinKunde)
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
