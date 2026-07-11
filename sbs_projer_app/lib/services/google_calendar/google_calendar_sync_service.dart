@@ -22,4 +22,24 @@ class GoogleCalendarSyncService {
     final d = res.data;
     return d is Map ? Map<String, dynamic>.from(d) : {};
   }
+
+  /// Betriebs-Reinigungen (Saison/Ferien) synchronisieren. [reinigungen] =
+  /// Liste von {slot_key, art, datum (yyyy-MM-dd), aktiv}. Wirft bei Fehler.
+  static Future<Map<String, dynamic>> syncBetriebReinigungen(
+    String betriebId,
+    String label,
+    List<Map<String, dynamic>> reinigungen,
+  ) async {
+    final res = await SupabaseService.client.functions.invoke(
+      'google-calendar-sync',
+      body: {
+        'action': 'sync_reinigungen',
+        'betrieb_id': betriebId,
+        'label': label,
+        'reinigungen': reinigungen,
+      },
+    );
+    final d = res.data;
+    return d is Map ? Map<String, dynamic>.from(d) : {};
+  }
 }
