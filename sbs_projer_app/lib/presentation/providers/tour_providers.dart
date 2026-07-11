@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
@@ -431,6 +432,8 @@ class TourEintrag {
   final String beschreibung;
   final FaelligkeitsStatus? faelligkeit;
   final DateTime? datum;
+  final List<String> ruhetage;
+  final String? servicezeit;
 
   const TourEintrag({
     required this.typ,
@@ -443,6 +446,8 @@ class TourEintrag {
     required this.beschreibung,
     this.faelligkeit,
     this.datum,
+    this.ruhetage = const [],
+    this.servicezeit,
   });
 }
 
@@ -461,6 +466,17 @@ Map<String, BetriebLocal> _buildBetriebMap(List<BetriebLocal> betriebe) {
     if (b.serverId != null) map[b.serverId!] = b;
   }
   return map;
+}
+
+String? _servicezeitAus(BetriebLocal? b) {
+  if (b == null) return null;
+  final t = servicezeitText(
+    b.servicezeitMorgenAb,
+    b.servicezeitMorgenBis,
+    b.servicezeitNachmittagAb,
+    b.servicezeitNachmittagBis,
+  );
+  return t.isEmpty ? null : t;
 }
 
 // ─── Vereinigte Fällig-Liste (alle Typen) ───
@@ -492,6 +508,8 @@ final faelligeEintraegeProvider =
       faelligkeit: getFaelligkeit(a, datum,
           betrieb: betrieb, letzteServiceArt: serviceArt),
       datum: a.naechsteReinigung,
+      ruhetage: betrieb?.ruhetage ?? const [],
+      servicezeit: _servicezeitAus(betrieb),
     ));
   }
 
@@ -511,6 +529,8 @@ final faelligeEintraegeProvider =
       regionId: betrieb?.regionId,
       beschreibung: s.problemBeschreibung,
       datum: s.datum,
+      ruhetage: betrieb?.ruhetage ?? const [],
+      servicezeit: _servicezeitAus(betrieb),
     ));
   }
 
@@ -531,6 +551,8 @@ final faelligeEintraegeProvider =
       regionId: betrieb?.regionId,
       beschreibung: '${_montageTypLabel(m.montageTyp)} · ${m.beschreibung}',
       datum: m.datum,
+      ruhetage: betrieb?.ruhetage ?? const [],
+      servicezeit: _servicezeitAus(betrieb),
     ));
   }
 
@@ -613,6 +635,8 @@ final tourVorschlagErweitertProvider =
                   : null)
           : null,
       datum: r.datum,
+      ruhetage: betrieb?.ruhetage ?? const [],
+      servicezeit: _servicezeitAus(betrieb),
     ));
   }
 
@@ -632,6 +656,8 @@ final tourVorschlagErweitertProvider =
       regionId: betrieb?.regionId,
       beschreibung: s.problemBeschreibung,
       datum: s.datum,
+      ruhetage: betrieb?.ruhetage ?? const [],
+      servicezeit: _servicezeitAus(betrieb),
     ));
   }
 
@@ -656,6 +682,8 @@ final tourVorschlagErweitertProvider =
       regionId: betrieb?.regionId,
       beschreibung: '${_montageTypLabel(m.montageTyp)} · ${m.beschreibung}',
       datum: m.datum,
+      ruhetage: betrieb?.ruhetage ?? const [],
+      servicezeit: _servicezeitAus(betrieb),
     ));
   }
 
@@ -735,6 +763,8 @@ Map<String, dynamic> _tourEintragToJson(TourEintrag e) => {
       'betriebOrt': e.betriebOrt,
       'regionId': e.regionId,
       'beschreibung': e.beschreibung,
+      'ruhetage': e.ruhetage,
+      'servicezeit': e.servicezeit,
     };
 
 TourEintrag _tourEintragFromJson(Map<String, dynamic> j) => TourEintrag(
@@ -748,6 +778,11 @@ TourEintrag _tourEintragFromJson(Map<String, dynamic> j) => TourEintrag(
       betriebOrt: j['betriebOrt'] as String?,
       regionId: j['regionId'] as String?,
       beschreibung: j['beschreibung'] as String? ?? '',
+      ruhetage: (j['ruhetage'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      servicezeit: j['servicezeit'] as String?,
     );
 
 final gespeicherterTagesplanProvider =
