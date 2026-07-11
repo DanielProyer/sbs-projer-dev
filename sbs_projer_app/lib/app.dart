@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
-import 'package:sbs_projer_app/services/notification/reminder_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
-/// Globaler Messenger-Key, damit Termin-Erinnerungen (Web) einen In-App-Hinweis
-/// anzeigen koennen, ohne einen konkreten BuildContext zu kennen.
+/// Globaler Messenger-Key für In-App-Hinweise ohne konkreten BuildContext.
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class SbsProjerApp extends StatefulWidget {
@@ -39,29 +36,6 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
         _triggerPasswordDialog();
       }
     });
-
-    _initReminders();
-  }
-
-  /// Termin-Erinnerungen beim App-Start neu planen.
-  /// Web: In-App-Hinweis ueber den globalen Messenger. Native: System-Notifications.
-  Future<void> _initReminders() async {
-    if (!SupabaseService.isAuthenticated) return;
-    ReminderService.onInApp = (titel, body) {
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Text('Erinnerung: $titel ($body)'),
-          duration: const Duration(seconds: 10),
-        ),
-      );
-    };
-    try {
-      await ReminderService.init();
-      final termine = await TerminRepository.getAll();
-      await ReminderService.rescheduleAll(termine);
-    } catch (e) {
-      debugPrint('[ReminderService] rescheduleAll fehlgeschlagen: $e');
-    }
   }
 
   void _triggerPasswordDialog() {

@@ -15,7 +15,6 @@ import 'package:sbs_projer_app/data/local/lager_local.dart';
 import 'package:sbs_projer_app/data/local/preis_local.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
-import 'package:sbs_projer_app/data/local/termin_local.dart';
 import 'package:sbs_projer_app/data/local/event_local.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local.dart';
@@ -56,7 +55,6 @@ class IsarService {
         LagerLocalSchema,
         PreisLocalSchema,
         EroeffnungsreinigungLocalSchema,
-        TerminLocalSchema,
         EventLocalSchema,
         EventKontaktLocalSchema,
         EventDokumentLocalSchema,
@@ -404,28 +402,6 @@ class IsarService {
       instance.eroeffnungsreinigungLocals.filter().betriebIdEqualTo(betriebId).findAll();
   static Stream<List<EroeffnungsreinigungLocal>> eroeffnungsreinigungWatchByBetrieb(String betriebId) =>
       instance.eroeffnungsreinigungLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
-
-  // ─── Termin ───
-  static Future<List<TerminLocal>> terminFindAll() =>
-      instance.terminLocals.where().findAll();
-  static Stream<List<TerminLocal>> terminWatchAll() =>
-      instance.terminLocals.where().watch(fireImmediately: true);
-  static Future<int> terminCount() =>
-      instance.terminLocals.count();
-  static Future<TerminLocal?> terminGet(int id) =>
-      instance.terminLocals.get(id);
-  static Future<void> terminPut(TerminLocal t) =>
-      instance.writeTxn(() => instance.terminLocals.put(t));
-  static Future<void> terminDelete(int id) =>
-      instance.writeTxn(() => instance.terminLocals.delete(id));
-  static Future<TerminLocal?> terminFindByServerId(String serverId) =>
-      instance.terminLocals.filter().serverIdEqualTo(serverId).findFirst();
-  static Future<List<TerminLocal>> terminFilterByBetrieb(String betriebId) =>
-      instance.terminLocals.filter().betriebIdEqualTo(betriebId).findAll();
-  static Stream<List<TerminLocal>> terminWatchByBetrieb(String betriebId) =>
-      instance.terminLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
-  static Future<List<TerminLocal>> terminFilterByDatumRange(DateTime von, DateTime bis) =>
-      instance.terminLocals.filter().datumBetween(von, bis).findAll();
 
   // ─── Cascade Deletes ───
   static Future<void> anlageDeleteCascade(int id) async {

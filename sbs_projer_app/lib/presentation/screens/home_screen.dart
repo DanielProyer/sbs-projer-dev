@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
@@ -143,9 +144,12 @@ class _KachelGrid extends ConsumerWidget {
         ),
         _DashboardTile(
           icon: Icons.calendar_month,
-          label: 'Termine',
+          label: 'Google Kalender',
           color: Colors.deepOrange,
-          onTap: () => context.push('/termine'),
+          onTap: () => launchUrl(
+            Uri.parse('https://calendar.google.com'),
+            mode: LaunchMode.externalApplication,
+          ),
         ),
         _DashboardTile(
           icon: Icons.route,

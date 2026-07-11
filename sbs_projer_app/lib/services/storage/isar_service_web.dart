@@ -189,18 +189,6 @@ class IsarService {
   static dynamic eventStandAnlagePut(dynamic a) => throw UnsupportedError('Isar not available on web');
   static dynamic eventStandAnlageDelete(int id) => throw UnsupportedError('Isar not available on web');
 
-  // ─── Termin ───
-  static dynamic terminFindAll() => throw UnsupportedError('Isar not available on web');
-  static dynamic terminWatchAll() => throw UnsupportedError('Isar not available on web');
-  static dynamic terminGet(int id) => throw UnsupportedError('Isar not available on web');
-  static dynamic terminFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
-  static dynamic terminFilterByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
-  static dynamic terminWatchByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
-  static dynamic terminFilterByDatumRange(DateTime von, DateTime bis) => throw UnsupportedError('Isar not available on web');
-  static dynamic terminCount() => throw UnsupportedError('Isar not available on web');
-  static dynamic terminPut(dynamic t) => throw UnsupportedError('Isar not available on web');
-  static dynamic terminDelete(int id) => throw UnsupportedError('Isar not available on web');
-
   // ─── Preis ───
   static dynamic preisFindAll() => throw UnsupportedError('Isar not available on web');
   static dynamic preisGet(int id) => throw UnsupportedError('Isar not available on web');

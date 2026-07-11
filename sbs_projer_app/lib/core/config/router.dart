@@ -67,8 +67,6 @@ import 'package:sbs_projer_app/presentation/screens/jahresrechnung/jahresrechnun
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohnlauf_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohn_einstellungen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/spesen/spesen_scanner_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/termine/termine_kalender_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/termine/termin_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_zuweisungen_screen.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -633,27 +631,6 @@ final router = GoRouter(
     GoRoute(
       path: '/spesen',
       builder: (context, state) => const SpesenScannerScreen(),
-    ),
-
-    // Termine
-    GoRoute(
-      path: '/termine',
-      builder: (context, state) => const TermineKalenderScreen(),
-    ),
-    GoRoute(
-      path: '/termine/neu',
-      builder: (context, state) {
-        final betriebId = state.uri.queryParameters['betriebId'];
-        final datum = state.uri.queryParameters['datum'];
-        return TerminFormScreen(betriebId: betriebId, datum: datum);
-      },
-    ),
-    GoRoute(
-      path: '/termine/:id/bearbeiten',
-      builder: (context, state) {
-        final id = state.pathParameters['id']!;
-        return TerminFormScreen(terminId: id);
-      },
     ),
 
   ],

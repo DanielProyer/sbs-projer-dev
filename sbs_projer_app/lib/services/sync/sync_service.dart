@@ -23,7 +23,6 @@ import 'package:sbs_projer_app/data/local/stoerung_local.dart';
 import 'package:sbs_projer_app/data/local/montage_local.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local.dart';
-import 'package:sbs_projer_app/data/local/termin_local.dart';
 import 'package:sbs_projer_app/data/local/event_local.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local.dart';
@@ -47,7 +46,6 @@ import 'package:sbs_projer_app/data/models/stoerung.dart';
 import 'package:sbs_projer_app/data/models/montage.dart';
 import 'package:sbs_projer_app/data/models/eigenauftrag.dart';
 import 'package:sbs_projer_app/data/models/eroeffnungsreinigung.dart';
-import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/models/event.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/data/models/event_dokument.dart';
@@ -71,7 +69,6 @@ import 'package:sbs_projer_app/data/mappers/stoerung_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/montage_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/eigenauftrag_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/eroeffnungsreinigung_mapper.dart';
-import 'package:sbs_projer_app/data/mappers/termin_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_kontakt_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_dokument_mapper.dart';
@@ -172,7 +169,6 @@ class SyncService {
         [
           () => _syncEigenauftraege(userId),
           () => _syncEroeffnungsreinigungen(userId),
-          () => _syncTermine(userId),
           () => _syncEventStandAnlagen(userId),
           () => _syncEventEinsaetze(userId),
         ],
@@ -901,32 +897,4 @@ class SyncService {
     return (pushed: pushed.length, pulled: toSave.length);
   }
 
-  static Future<({int pushed, int pulled})> _syncTermine(String uid) async {
-    final unsynced =
-        await _isar.terminLocals.filter().isSyncedEqualTo(false).findAll();
-    final pushed = await _pushToSupabase<TerminLocal>(
-      'termine', unsynced, TerminMapper.toJson,
-      (l, id) { l.serverId ??= id; l.isSynced = true; },
-    );
-    if (pushed.isNotEmpty) {
-      await _isar.writeTxn(() => _isar.terminLocals.putAll(pushed));
-    }
-
-    final rows = await _pullRows('termine', 'termine', uid);
-    final toSave = <TerminLocal>[];
-    for (final row in rows) {
-      final dto = Termin.fromJson(row);
-      final ex = await _isar.terminLocals.filter().serverIdEqualTo(dto.id).findFirst();
-      if (ex != null && !ex.isSynced &&
-          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ?? false)) {
-        continue;
-      }
-      toSave.add(TerminMapper.fromDto(dto, existing: ex));
-    }
-    if (toSave.isNotEmpty) {
-      await _isar.writeTxn(() => _isar.terminLocals.putAll(toSave));
-    }
-    await _updateMeta('termine');
-    return (pushed: pushed.length, pulled: toSave.length);
-  }
 }
