@@ -11,6 +11,13 @@ import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 
+/// Betriebs-Anzeige inkl. Ort zur Unterscheidung gleichnamiger Betriebe
+/// (z.B. "Calanda, Chur" vs. "Calanda, Felsberg").
+String _betriebLabel(BetriebLocal b) {
+  final ort = b.ort?.trim() ?? '';
+  return ort.isEmpty ? b.name : '${b.name}, $ort';
+}
+
 class TerminFormScreen extends ConsumerStatefulWidget {
   final String? terminId;
   final String? betriebId;
@@ -235,8 +242,8 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                                   .where((b) =>
                                       (b.serverId ?? b.id.toString()) ==
                                       _betriebId)
-                                  .firstOrNull
-                                  ?.name ??
+                                  .map(_betriebLabel)
+                                  .firstOrNull ??
                               '')
                           : '',
                     ),
@@ -244,12 +251,12 @@ class _TerminFormScreenState extends ConsumerState<TerminFormScreen> {
                       if (textEditingValue.text.isEmpty) {
                         return betriebe.take(20);
                       }
-                      return betriebe.where((b) => b.name
-                          .toLowerCase()
-                          .contains(
-                              textEditingValue.text.toLowerCase()));
+                      final q = textEditingValue.text.toLowerCase();
+                      return betriebe.where((b) =>
+                          b.name.toLowerCase().contains(q) ||
+                          (b.ort ?? '').toLowerCase().contains(q));
                     },
-                    displayStringForOption: (b) => b.name,
+                    displayStringForOption: _betriebLabel,
                     onSelected: (betrieb) {
                       setState(() {
                         _betriebId =
