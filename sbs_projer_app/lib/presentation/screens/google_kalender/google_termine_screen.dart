@@ -19,19 +19,22 @@ class _EintragVorschau {
   final bool ganztags;
   final TerminMatch match;
   bool selected;
-  String? chosenBetriebId; // gewählter Betrieb (eindeutig fix, mehrdeutig wählbar)
+  // Gewählte Betriebe: eindeutig fix, mehrdeutig ein ODER mehrere wählbar.
+  final Set<String> chosenBetriebIds;
   _EintragVorschau(this.eventId, this.titel, this.start, this.ganztags,
       this.match)
       : selected = match.bucket == MatchBucket.eindeutig,
-        chosenBetriebId = switch (match.bucket) {
-          MatchBucket.eindeutig => match.treffer!.betriebId,
-          MatchBucket.mehrdeutig => match.kandidaten.first.betriebId,
-          _ => null,
+        chosenBetriebIds = switch (match.bucket) {
+          MatchBucket.eindeutig => {match.treffer!.betriebId},
+          MatchBucket.mehrdeutig => {match.kandidaten.first.betriebId},
+          _ => <String>{},
         };
 
   bool get taggbar =>
       match.bucket == MatchBucket.eindeutig ||
       match.bucket == MatchBucket.mehrdeutig;
+
+  bool get effektiv => taggbar && selected && chosenBetriebIds.isNotEmpty;
 }
 
 class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
@@ -90,18 +93,19 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
   }
 
   int get _auswahlAnzahl =>
-      _eintraege?.where((x) => x.taggbar && x.selected).length ?? 0;
+      _eintraege?.where((x) => x.effektiv).length ?? 0;
 
   Future<void> _taggen() async {
-    final zuTaggen = (_eintraege ?? [])
-        .where((x) => x.taggbar && x.selected && x.chosenBetriebId != null)
-        .toList();
+    final zuTaggen = (_eintraege ?? []).where((x) => x.effektiv).toList();
     if (zuTaggen.isEmpty) return;
     setState(() => _tagge = true);
     try {
       final items = [
         for (final x in zuTaggen)
-          {'event_id': x.eventId, 'betrieb_id': x.chosenBetriebId!},
+          {
+            'event_id': x.eventId,
+            'betrieb_id': x.chosenBetriebIds.join(','),
+          },
       ];
       final res = await GoogleCalendarSyncService.applyTags(items);
       final tagged = (res['tagged'] as int?) ?? 0;
@@ -362,33 +366,38 @@ class _Liste extends StatelessWidget {
               title: Text(x.titel.isEmpty ? '(ohne Titel)' : x.titel),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Row(children: [
-                  Expanded(
-                    child: DropdownButton<String>(
-                      isDense: true,
-                      isExpanded: true,
-                      value: x.chosenBetriebId,
-                      items: [
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      datum.isEmpty
+                          ? 'Betrieb(e) wählen — mehrere möglich:'
+                          : '$datum · Betrieb(e) wählen — mehrere möglich:',
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 2,
+                      children: [
                         for (final k in m.kandidaten)
-                          DropdownMenuItem(
-                            value: k.betriebId,
-                            child: Text('${k.name}, ${k.ort}',
-                                overflow: TextOverflow.ellipsis),
+                          FilterChip(
+                            label: Text('${k.name}, ${k.ort}'),
+                            selected: x.chosenBetriebIds.contains(k.betriebId),
+                            onSelected: (sel) {
+                              if (sel) {
+                                x.chosenBetriebIds.add(k.betriebId);
+                              } else {
+                                x.chosenBetriebIds.remove(k.betriebId);
+                              }
+                              onChanged();
+                            },
                           ),
                       ],
-                      onChanged: (val) {
-                        x.chosenBetriebId = val;
-                        onChanged();
-                      },
                     ),
-                  ),
-                  if (datum.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Text(datum,
-                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    ),
-                ]),
+                  ],
+                ),
               ),
             );
           case MatchBucket.pikett:

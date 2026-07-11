@@ -27,6 +27,9 @@ final _betriebe = <BetriebKandidat>[
   const BetriebKandidat(betriebId: 'b-schuetzenmatt', name: 'Schützenmatt', ort: 'Inwil'),
   // Betrieb, dessen Name = Ort (darf "Chur - X"-Titel nicht kapern):
   const BetriebKandidat(betriebId: 'b-hotelchur', name: 'Hotel Chur', ort: 'Chur'),
+  // Fuzzy-Kollision: Token "crusch" ~ "grusch" (Ort in "Grüsch - Fasan"):
+  const BetriebKandidat(
+      betriebId: 'b-ustria', name: 'Ustria Crusch Alva', ort: 'Tavanasa'),
 ];
 
 void main() {

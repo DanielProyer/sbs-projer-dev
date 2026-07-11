@@ -94,6 +94,17 @@ int _levenshtein(String a, String b) {
   return prev[b.length];
 }
 
+/// Kommt [needle] als EXAKTE Token-Folge im [haystackTokens] vor?
+bool _enthaeltExakt(List<String> haystackTokens, String needle) {
+  if (needle.isEmpty) return false;
+  final nt = needle.split(' ');
+  final n = nt.length;
+  for (var i = 0; i + n <= haystackTokens.length; i++) {
+    if (haystackTokens.sublist(i, i + n).join(' ') == needle) return true;
+  }
+  return false;
+}
+
 /// Kommt [needle] (normalisiert, Token-Folge) im [haystackTokens] vor — exakt
 /// oder mit ≤[maxDist] Editierdistanz über ein gleitendes Fenster?
 bool _enthaelt(List<String> haystackTokens, String needle, int maxDist) {
@@ -156,7 +167,8 @@ class _Kand {
   final bool ortOk;
   final bool nameStark; // voller unterscheidender Name zusammenhängend im Titel
   final bool unique; // Anker-Token global eindeutig
-  _Kand(this.b, this.ortOk, this.nameStark, this.unique);
+  final bool anchorExakt; // Anker exakt (nicht nur fuzzy) im Titel
+  _Kand(this.b, this.ortOk, this.nameStark, this.unique, this.anchorExakt);
 }
 
 /// Matcht einen Titel gegen die Betriebe. Reihenfolge: privat → pikett →
@@ -187,11 +199,12 @@ TerminMatch matcheTitel(String titel, List<BetriebKandidat> betriebe) {
   for (final b in betriebe) {
     final a = _anchor(b.name, b.ort);
     if (a == null) continue;
-    if (!_enthaelt(titleTokens, a, _maxTippfehler(a))) continue;
+    final exakt = _enthaeltExakt(titleTokens, a);
+    if (!exakt && !_enthaelt(titleTokens, a, _maxTippfehler(a))) continue;
     final ortOk = _ortImTitel(b.ort, titleTokens, compactTitle);
     final dist = _distinctiveName(b.name);
     final nameStark = _enthaelt(titleTokens, dist, _maxTippfehler(dist));
-    treffer.add(_Kand(b, ortOk, nameStark, anchorCount[a] == 1));
+    treffer.add(_Kand(b, ortOk, nameStark, anchorCount[a] == 1, exakt));
   }
 
   if (treffer.isEmpty) {
@@ -222,12 +235,14 @@ TerminMatch matcheTitel(String titel, List<BetriebKandidat> betriebe) {
         grund: '${withOrt.length} mögliche Betriebe');
   }
 
-  // Kein Ort im Titel: nur bei genau 1 Kandidat mit global eindeutigem Namen.
-  if (treffer.length == 1 && treffer.first.unique) {
+  // Kein Ort im Titel: nur EXAKTE Anker-Treffer zählen (Fuzzy-Rauschen wie
+  // "crusch"~"grusch" ignorieren), und nur bei genau 1 mit global eindeutigem Namen.
+  final exakteTreffer = treffer.where((k) => k.anchorExakt).toList();
+  if (exakteTreffer.length == 1 && exakteTreffer.first.unique) {
     return TerminMatch(
         bucket: MatchBucket.eindeutig,
-        treffer: treffer.first.b,
-        kandidaten: [treffer.first.b],
+        treffer: exakteTreffer.first.b,
+        kandidaten: [exakteTreffer.first.b],
         grund: 'Name eindeutig (Ort fehlt im Titel)');
   }
   return const TerminMatch(
