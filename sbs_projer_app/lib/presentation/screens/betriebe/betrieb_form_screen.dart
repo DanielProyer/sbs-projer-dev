@@ -303,6 +303,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               }
             });
           },
+          detail: _oeffnungszeitenDetail(d.oeffnungszeiten, d.ruhetage),
         ),
     ];
 
@@ -337,12 +338,16 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     value: auswahl[k],
                     onChanged: (v) =>
                         setDialogState(() => auswahl[k] = v ?? false),
-                    title: Text('${k.label}: ${k.wert}'),
-                    subtitle: k.aktuell.isNotEmpty
-                        ? Text('ersetzt: ${k.aktuell}',
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey))
-                        : null,
+                    title: Text(k.detail != null
+                        ? k.label
+                        : '${k.label}: ${k.wert}'),
+                    subtitle: k.detail != null
+                        ? Text(k.detail!, style: const TextStyle(fontSize: 12))
+                        : (k.aktuell.isNotEmpty
+                            ? Text('ersetzt: ${k.aktuell}',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.grey))
+                            : null),
                   ),
               ],
             ),
@@ -374,6 +379,22 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
         .where((t) => (oz[t] ?? []).isNotEmpty)
         .toList();
     return '${tage.length} Tag(e) mit Zeiten';
+  }
+
+  /// Öffnungszeiten pro Tag (Mo–So) inkl. Ruhetag, mehrzeilig — zur Kontrolle.
+  String _oeffnungszeitenDetail(
+      Map<String, List<Map<String, String>>> oz, List<String> ruhetage) {
+    const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    return [
+      for (final t in tage)
+        () {
+          final slots = oz[t] ?? [];
+          if (slots.isNotEmpty) {
+            return '$t: ${slots.map((s) => '${s['von']}–${s['bis']}').join(', ')}';
+          }
+          return '$t: ${ruhetage.contains(t) ? 'Ruhetag' : '—'}';
+        }(),
+    ].join('\n');
   }
 
   Future<void> _save() async {
@@ -1326,7 +1347,11 @@ class _GoogleFeld {
   final String wert;
   final String aktuell;
   final void Function() uebernehmen;
-  _GoogleFeld(this.label, this.wert, this.aktuell, this.uebernehmen);
+
+  /// Optionale mehrzeilige Detailansicht (z.B. Öffnungszeiten pro Tag).
+  final String? detail;
+  _GoogleFeld(this.label, this.wert, this.aktuell, this.uebernehmen,
+      {this.detail});
 }
 
 class _DatePickerField extends StatelessWidget {
