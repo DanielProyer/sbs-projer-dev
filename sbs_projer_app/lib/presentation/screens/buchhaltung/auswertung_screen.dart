@@ -332,7 +332,7 @@ class _AuswertungScreenState extends ConsumerState<AuswertungScreen> {
               style: const TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w700)),
         ),
-        SizedBox(height: 180, child: chart),
+        SizedBox(height: 180, width: double.infinity, child: chart),
       ],
     );
   }
