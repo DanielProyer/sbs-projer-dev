@@ -811,6 +811,11 @@ Map<String, dynamic> _tourEintragToJson(TourEintrag e) => {
       'beschreibung': e.beschreibung,
       'ruhetage': e.ruhetage,
       'servicezeit': e.servicezeit,
+      // Fälligkeit + Daten mitspeichern, damit geladene Einträge ihren Status
+      // (Farbe, Sortierung) behalten und nicht durch Filter verschwinden.
+      'faelligkeit': e.faelligkeit?.name,
+      'datum': e.datum?.toIso8601String(),
+      'zielDatum': e.zielDatum?.toIso8601String(),
     };
 
 TourEintrag _tourEintragFromJson(Map<String, dynamic> j) => TourEintrag(
@@ -829,6 +834,15 @@ TourEintrag _tourEintragFromJson(Map<String, dynamic> j) => TourEintrag(
               .toList() ??
           const [],
       servicezeit: j['servicezeit'] as String?,
+      faelligkeit: j['faelligkeit'] != null
+          ? FaelligkeitsStatus.values.firstWhere(
+              (f) => f.name == j['faelligkeit'],
+              orElse: () => FaelligkeitsStatus.nichtFaellig)
+          : null,
+      datum: j['datum'] != null ? DateTime.tryParse(j['datum'] as String) : null,
+      zielDatum: j['zielDatum'] != null
+          ? DateTime.tryParse(j['zielDatum'] as String)
+          : null,
     );
 
 final gespeicherterTagesplanProvider =

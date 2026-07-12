@@ -105,16 +105,17 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       );
     }
 
-    // Filter-Funktion (Region + Fälligkeit)
-    bool passesFilter(TourEintrag e) {
-      // Region-Filter
-      if (selectedRegionen.isNotEmpty &&
+    // Region-Filter (gilt für beide Ansichten).
+    bool passesRegion(TourEintrag e) {
+      return !(selectedRegionen.isNotEmpty &&
           e.regionId != null &&
-          !selectedRegionen.contains(e.regionId)) {
-        return false;
-      }
-      // Fälligkeits-Filter (nur auf Reinigungen anwenden;
-      // Störungen/Montagen immer durchlassen)
+          !selectedRegionen.contains(e.regionId));
+    }
+
+    // Region + Fälligkeit — für die „Fällig"-Liste.
+    bool passesFilter(TourEintrag e) {
+      if (!passesRegion(e)) return false;
+      // Fälligkeits-Filter nur auf Reinigungen; Störungen/Montagen durchlassen.
       if (selectedFaelligkeit.isNotEmpty &&
           e.typ == TourEintragTyp.reinigung) {
         if (e.faelligkeit == null ||
@@ -125,7 +126,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       return true;
     }
 
-    final angezeigtTagesplan = tagesplan.where(passesFilter).toList();
+    // Tagesplan: NUR Region-Filter — die committeten Einträge bleiben sichtbar,
+    // unabhängig vom Fälligkeits-Filter (der triagiert nur die Fällig-Liste).
+    final angezeigtTagesplan = tagesplan.where(passesRegion).toList();
     final angezeigtFaellig = faelligeEintraege.where(passesFilter).toList();
 
     final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
