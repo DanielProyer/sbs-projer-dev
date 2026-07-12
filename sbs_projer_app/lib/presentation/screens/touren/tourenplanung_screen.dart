@@ -105,16 +105,15 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       );
     }
 
-    // Region-Filter (gilt für beide Ansichten).
-    bool passesRegion(TourEintrag e) {
-      return !(selectedRegionen.isNotEmpty &&
-          e.regionId != null &&
-          !selectedRegionen.contains(e.regionId));
-    }
-
-    // Region + Fälligkeit — für die „Fällig"-Liste.
+    // Filter (Region + Fälligkeit) — nur für die „Fällig"-Liste (Auswahl,
+    // was in den Plan übernommen wird).
     bool passesFilter(TourEintrag e) {
-      if (!passesRegion(e)) return false;
+      // Region-Filter
+      if (selectedRegionen.isNotEmpty &&
+          e.regionId != null &&
+          !selectedRegionen.contains(e.regionId)) {
+        return false;
+      }
       // Fälligkeits-Filter nur auf Reinigungen; Störungen/Montagen durchlassen.
       if (selectedFaelligkeit.isNotEmpty &&
           e.typ == TourEintragTyp.reinigung) {
@@ -126,9 +125,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       return true;
     }
 
-    // Tagesplan: NUR Region-Filter — die committeten Einträge bleiben sichtbar,
-    // unabhängig vom Fälligkeits-Filter (der triagiert nur die Fällig-Liste).
-    final angezeigtTagesplan = tagesplan.where(passesRegion).toList();
+    // Tagesplan: KEIN Filter — zeigt den vollständigen Plan in EXAKT der
+    // Eingabe-/manuellen Reihenfolge. Ein Filter würde die Anzeige-Indizes
+    // gegenüber dem State verschieben → Drag-Reorder träfe die falschen
+    // Einträge und die Reihenfolge ginge kaputt.
+    final angezeigtTagesplan = tagesplan;
     final angezeigtFaellig = faelligeEintraege.where(passesFilter).toList();
 
     final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
