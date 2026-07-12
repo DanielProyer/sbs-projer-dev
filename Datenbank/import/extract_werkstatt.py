@@ -139,7 +139,7 @@ def build_eigenauftraege(rows, aliase):
         netto = _num(r.iloc[8])
         vals.append("(" + ",".join([
             "gen_random_uuid()", _q(USER_ID), _q(bid), _q(d.date().isoformat()),
-            _q(_txt(r.iloc[6]) or "-"), _q(_txt(r.iloc[3])), "'behoben'",
+            _q(_txt(r.iloc[6]) or "-"), _q(_txt(r.iloc[3]) or "-"), "'behoben'",
             ("NULL" if netto is None else str(netto)),
             "true", "'excel_import'", _q(extern),
         ]) + ")")
@@ -166,12 +166,12 @@ def build_ee(rows, aliase):
         preis = _num(r.iloc[8])
         vals.append("(" + ",".join([
             "gen_random_uuid()", _q(USER_ID), _q(bid), _q(d.date().isoformat()),
-            _q(art), ("true" if berg else "false"),
+            _q(_txt(r.iloc[3]) or "-"), _q(art), ("true" if berg else "false"),
             ("NULL" if preis is None else str(preis)),
             "true", "'excel_import'", _q(extern),
         ]) + ")")
     head = ("INSERT INTO eroeffnungsreinigungen (id,user_id,betrieb_id,datum,"
-            "art,ist_bergkunde,preis,abgerechnet,quelle,extern_id) VALUES\n")
+            "stoerungsnummer,art,ist_bergkunde,preis,abgerechnet,quelle,extern_id) VALUES\n")
     return head, vals
 
 
