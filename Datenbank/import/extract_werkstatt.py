@@ -51,6 +51,15 @@ def _bid(name, ort, rows, aliase):
     return b
 
 
+def _uniq(seen, key):
+    """Deterministisch eindeutiger extern_id: manche Excel-IDs (Betrieb_Datum)
+    sind nicht eindeutig (2 Aufträge selber Betrieb/Tag). 1. Vorkommen = key,
+    weitere = key#2, key#3 … Reihenfolge stabil (Blatt-Reihenfolge) -> idempotent.
+    """
+    seen[key] = seen.get(key, 0) + 1
+    return key if seen[key] == 1 else f"{key}#{seen[key]}"
+
+
 def _rows_before_cutoff(sheet, datum_col):
     """Alle Excel-Zeilen des Blatts mit gueltigem Datum < CUTOFF (als DataFrame-Iter)."""
     df = pd.read_excel(XLSM, sheet_name=sheet, header=0, engine="openpyxl")
@@ -69,10 +78,12 @@ def _rows_before_cutoff(sheet, datum_col):
 def build_stoerungen(rows, aliase):
     """-> (head_sql, [value_tuple_str, ...]). Netto = 'Total Störung' (col 11)."""
     vals = []
+    seen = {}
     for d, r in _rows_before_cutoff("Störung", 2):
         extern = _txt(r.iloc[0])
         if extern is None:
             continue
+        extern = _uniq(seen, extern)
         bid = _bid(_txt(r.iloc[3]), _txt(r.iloc[4]), rows, aliase)
         typ = ANLAGE_TYP.get((_txt(r.iloc[9]) or "").lower())
         netto = _num(r.iloc[11])
@@ -92,10 +103,12 @@ def build_stoerungen(rows, aliase):
 def build_montagen(rows, aliase):
     """Netto = 'Betrag' (col 10) -> kosten_arbeit. montage_typ Pflicht."""
     vals = []
+    seen = {}
     for d, r in _rows_before_cutoff("Montage", 2):
         extern = _txt(r.iloc[0])
         if extern is None:
             continue
+        extern = _uniq(seen, extern)
         typ = MONTAGE_TYP.get((_txt(r.iloc[6]) or "").lower(), "abaenderung")
         bid = _bid(_txt(r.iloc[4]), _txt(r.iloc[5]), rows, aliase)
         netto = _num(r.iloc[10])
@@ -116,10 +129,12 @@ def build_montagen(rows, aliase):
 def build_eigenauftraege(rows, aliase):
     """Netto = 'Total' (col 8) -> pauschale. problem_beschreibung Pflicht."""
     vals = []
+    seen = {}
     for d, r in _rows_before_cutoff("Eigenauftrag", 2):
         extern = _txt(r.iloc[0])
         if extern is None:
             continue
+        extern = _uniq(seen, extern)
         bid = _bid(_txt(r.iloc[4]), _txt(r.iloc[5]), rows, aliase)
         netto = _num(r.iloc[8])
         vals.append("(" + ",".join([
@@ -137,10 +152,12 @@ def build_eigenauftraege(rows, aliase):
 def build_ee(rows, aliase):
     """Netto = 'Rechnungsbetrag' (col 8) -> preis. art Pflicht (eroeffnung/endreinigung)."""
     vals = []
+    seen = {}
     for d, r in _rows_before_cutoff("EE_Reinigung", 2):
         extern = _txt(r.iloc[0])
         if extern is None:
             continue
+        extern = _uniq(seen, extern)
         art = EE_ART.get((_txt(r.iloc[7]) or "").lower())
         if art is None:
             continue  # ohne gueltige Art nicht importierbar (art NOT NULL)
@@ -161,10 +178,12 @@ def build_ee(rows, aliase):
 def build_pikett(rows, aliase):
     """Netto = 'Betrag' (col 4) -> pauschale_gesamt. Datum col 1 -> datum_start/-ende."""
     vals = []
+    seen = {}
     for d, r in _rows_before_cutoff("Pikett", 1):
         extern = _txt(r.iloc[0])
         if extern is None:
             continue
+        extern = _uniq(seen, extern)
         betrag = _num(r.iloc[4])
         feiertage = _num(r.iloc[3])
         ft = 0 if feiertage is None else int(feiertage)
