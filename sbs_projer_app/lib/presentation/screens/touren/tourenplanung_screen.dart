@@ -73,33 +73,34 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         ref.watch(faelligeEintraegeProvider(_selectedDate));
     final autoTermine = ref.watch(autoTermineProvider(_selectedDate));
 
-    // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag
+    // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag.
     final gespeichertAsync =
         ref.watch(gespeicherterTagesplanProvider(_selectedDate));
     if (_loadedForDate != _selectedDate) {
+      final tag = _selectedDate;
+      void anwenden(List<TourEintrag>? gespeichert) {
+        _loadedForDate = tag;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final notifier = ref.read(tagesplanProvider.notifier);
+          // Race-Schutz: hat der User diesen Tag inzwischen bereits bearbeitet,
+          // seinen Stand NICHT mit dem (evtl. älteren) Lade-Fetch überschreiben.
+          if (notifier.datum == tag) return;
+          if (gespeichert != null) {
+            notifier.setFromGespeichert(tag, gespeichert);
+          } else {
+            notifier.resetLeer(tag);
+          }
+        });
+      }
+
       gespeichertAsync.when(
         data: (gespeichert) {
-          if (_loadedForDate != _selectedDate) {
-            _loadedForDate = _selectedDate;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              if (gespeichert != null) {
-                ref
-                    .read(tagesplanProvider.notifier)
-                    .setFromGespeichert(gespeichert);
-              } else {
-                ref.read(tagesplanProvider.notifier).resetLeer();
-              }
-            });
-          }
+          if (_loadedForDate != tag) anwenden(gespeichert);
         },
         loading: () {},
         error: (_, _) {
-          _loadedForDate = _selectedDate;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            ref.read(tagesplanProvider.notifier).resetLeer();
-          });
+          if (_loadedForDate != tag) anwenden(null);
         },
       );
     }

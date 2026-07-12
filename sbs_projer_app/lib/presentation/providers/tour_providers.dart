@@ -712,13 +712,29 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
   final Ref _ref;
   Timer? _saveTimer;
 
+  /// Tag, dem der aktuelle State „gehört" bzw. den der User zuletzt bearbeitet
+  /// hat. Schützt davor, dass ein verspätet eintreffender Lade-Fetch die
+  /// gerade getätigten Änderungen überschreibt (Race).
+  DateTime? _datum;
+  DateTime? get datum => _datum;
+
   /// Speichert den aktuellen Stand entprellt für den aktiven Tag.
   void _scheduleSave() {
+    // Aktiven Tag SOFORT beanspruchen (nicht erst wenn der Timer feuert),
+    // damit ein spät eintreffender Lade-Fetch diesen Tag nicht überschreibt.
+    _datum = _ref.read(aktiverTagesplanTagProvider);
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 600), () {
-      final tag = _ref.read(aktiverTagesplanTagProvider);
+    _saveTimer = Timer(const Duration(milliseconds: 600), () async {
+      final tag = _datum;
       if (tag == null) return;
-      tagesplanSpeichern(tag, state);
+      try {
+        await tagesplanSpeichern(tag, state);
+        // Cache invalidieren, damit erneutes Öffnen des Tags den frischen
+        // Stand lädt (sonst käme der veraltete gecachte Stand zurück).
+        _ref.invalidate(gespeicherterTagesplanProvider(tag));
+      } catch (e) {
+        debugPrint('[Tagesplan] Speichern fehlgeschlagen: $e');
+      }
     });
   }
 
@@ -728,14 +744,16 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
   }
 
   /// Gespeicherten Plan laden — löst KEINE Speicherung aus.
-  void setFromGespeichert(List<TourEintrag> eintraege) {
+  void setFromGespeichert(DateTime datum, List<TourEintrag> eintraege) {
     _cancelSave();
+    _datum = datum;
     state = List.of(eintraege);
   }
 
   /// Tag ohne gespeicherten Plan → leer starten (KEINE Speicherung).
-  void resetLeer() {
+  void resetLeer(DateTime datum) {
     _cancelSave();
+    _datum = datum;
     state = [];
   }
 
