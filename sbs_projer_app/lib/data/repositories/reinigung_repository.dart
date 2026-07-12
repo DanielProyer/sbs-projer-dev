@@ -9,17 +9,51 @@ class ReinigungRepository {
   static String get _userId => SupabaseService.currentUser!.id;
 
   /// Holt ALLE Zeilen seitenweise (PostgREST deckelt sonst bei 1000).
+  ///
+  /// Performance: Bei grossen Ergebnissen (volle Historie, ~8600 Reinigungen)
+  /// werden die Folgeseiten NICHT mehr sequenziell geladen, sondern in
+  /// parallelen Wellen (`Future.wait`) — das spart die aufsummierten
+  /// Round-Trips (statt 9 nacheinander nur noch 2 Wellen). Kleine Ergebnisse
+  /// (z.B. je Anlage/Betrieb) brauchen weiterhin nur 1 Request.
+  ///
+  /// Der zusätzliche `.order('id')`-Tiebreaker macht die Seitengrenzen
+  /// deterministisch (kein Doppeln/Verlieren von Zeilen mit gleichem `datum`).
   static Future<List<Map<String, dynamic>>> _pagedByUser({String? col, String? val}) async {
-    final all = <Map<String, dynamic>>[];
     const pageSize = 1000;
-    int from = 0;
-    while (true) {
-      var q = SupabaseService.client.from('reinigungen').select().eq('user_id', _userId);
+
+    Future<List<Map<String, dynamic>>> fetchPage(int page) {
+      var q = SupabaseService.client
+          .from('reinigungen')
+          .select()
+          .eq('user_id', _userId);
       if (col != null) q = q.eq(col, val!);
-      final rows = await q.order('datum', ascending: false).range(from, from + pageSize - 1);
-      all.addAll(rows);
-      if (rows.length < pageSize) break;
-      from += pageSize;
+      return q
+          .order('datum', ascending: false)
+          .order('id')
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .then((rows) => List<Map<String, dynamic>>.from(rows));
+    }
+
+    final all = <Map<String, dynamic>>[];
+    // Erste Seite separat — kleine Ergebnisse sind damit nach 1 Request fertig.
+    final first = await fetchPage(0);
+    all.addAll(first);
+    if (first.length < pageSize) return all;
+
+    // Grosse Ergebnisse: restliche Seiten in parallelen Wellen laden.
+    const batch = 8;
+    int nextPage = 1;
+    while (true) {
+      final pages = await Future.wait(
+        [for (int i = 0; i < batch; i++) fetchPage(nextPage + i)],
+      );
+      for (final rows in pages) {
+        all.addAll(rows);
+      }
+      // Die Seite mit dem höchsten Offset entscheidet: kürzer als pageSize ->
+      // es folgen keine weiteren Zeilen mehr.
+      if (pages.last.length < pageSize) break;
+      nextPage += batch;
     }
     return all;
   }
