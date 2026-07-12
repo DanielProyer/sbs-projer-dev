@@ -31,6 +31,17 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   // Region gilt für Liste UND Karte (gemeinsamer State).
   Set<String> _selectedRegionIds = {};
 
+  /// Sentinel-Wert für die Filter-Kategorie „Keine Region" (Betriebe ohne
+  /// zugewiesene Region).
+  static const _keineRegionId = '__keine_region__';
+
+  /// Passt der Betrieb zum aktiven Regionenfilter? „Keine Region" trifft
+  /// Betriebe ohne regionId.
+  static bool _regionPasst(String? regionId, Set<String> aktiv) =>
+      regionId == null
+          ? aktiv.contains(_keineRegionId)
+          : aktiv.contains(regionId);
+
   // Karten-Ansicht
   bool _karteAktiv = false;
   bool _karteNurFaellig = false; // nur Karte
@@ -46,6 +57,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
     final regionOptionIds = {
       for (final r in regionen)
         if (r.serverId != null) r.serverId!,
+      _keineRegionId, // Kategorie „Keine Region" ist immer eine gültige Option.
     };
     final aktiveRegionIds = _selectedRegionIds.intersection(regionOptionIds);
 
@@ -82,7 +94,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
         return false;
       }
       if (aktiveRegionIds.isNotEmpty &&
-          (b.regionId == null || !aktiveRegionIds.contains(b.regionId))) {
+          !_regionPasst(b.regionId, aktiveRegionIds)) {
         return false;
       }
       if (_searchQuery.isNotEmpty) {
@@ -111,6 +123,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
                 options: [
                   for (final r in regionen)
                     if (r.serverId != null) (r.serverId!, r.name),
+                  (_keineRegionId, 'Keine Region'),
                 ],
                 selected: aktiveRegionIds,
                 onChanged: (s) => setState(() => _selectedRegionIds = s),
@@ -337,7 +350,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
       if (_kundenFilter == 'meine' && !b.istMeinKunde) return false;
       if (_kundenFilter == 'fremde' && b.istMeinKunde) return false;
       if (aktiveRegionIds.isNotEmpty &&
-          (b.regionId == null || !aktiveRegionIds.contains(b.regionId))) {
+          !_regionPasst(b.regionId, aktiveRegionIds)) {
         return false;
       }
       if (_karteNurFaellig && !istFaellig(statusFuer(b))) return false;
