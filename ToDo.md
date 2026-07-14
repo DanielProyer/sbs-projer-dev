@@ -1,21 +1,24 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.07.2026 · **Live:** v0.44.0
+**Stand:** 14.07.2026 · **Live:** v0.46.26
 
 ---
 
-## 🟢 camt-Abgleich Verbesserungs-Paket (LIVE v0.46.21 · 14.07.2026 — Test durch Daniel ausstehend)
-Alle Anmerkungen aus dem camt-Test vom 14.07. gebündelt umgesetzt (TDD, 383 Tests grün, deployed). Bis dahin wurde nichts gebucht. **Offen:** Daniel lädt die camt-Datei neu und prüft die 4 Punkte live; echtes HAPIMAG-Betreff-Beispiel zur Format-Bestätigung.
+## 🟢 camt-Abgleich Verbesserungs-Paket (LIVE v0.46.26 · 14.07.2026 — Test-Daten zurückgerollt, Re-Test morgen)
+Ganztägige Iteration am camt-Kundenzahlungs-Abgleich (v0.46.21 → v0.46.26), TDD (28 camt-Tests grün). **Test-Buchungen abends komplett zurückgerollt** (8 Buchungen gelöscht, 7 Rechnungen auf Baseline, 6 gelernte Aliase + 9 camt_dateien + 1 Prüflisten-Eintrag entfernt) — DB sauber am Baseline, bereit für Re-Test.
 
-**1. Matcher-Härtung — Auto nur bei sicheren Quellen.** Problem: unscharfe Namens-Treffer (`CamtBetriebMatcher.findBestMatch`, Wort-Overlap ab **1** Wort ≥6 Zeichen) dürfen auto-buchen — und bei `_autoLernen=true` den Zahlernamen als Alias **festschreiben**. Fehlmatch: „Edelweiss Davos AG" (betreibt Concordia + Dischma in Davos) → Betrieb „Edelweiss" in **Vals**, Ort ignoriert. **Entscheidung:** Auto NUR bei QR/SCOR-Referenz + **exaktem Namen** + **gelerntem Alias** (`matchByAlias`). Alle unscharfen → **manuell** (mit Vorschlag). Umsetzung (TDD): in `ForderungsAbgleichService.abgleich` Betrieb-Auflösung nach Vertrauensstufe trennen — nur sicher-aufgelöste Betriebe auto-fähig (Subset-Summe), fuzzy → `ManuellFall`. `findBestMatch` nur noch als Vorschlag.
+**Umgesetzt & live:**
+1. **Matcher-Härtung:** Auto NUR bei QR/SCOR-Referenz + exaktem Namen + gelerntem Alias; alle unscharfen Namens-Treffer → manuell (kein Fehl-Auto wie „Edelweiss Davos AG" → Vals; kein Alias-Festschreiben).
+2. **Zahlungseingänge nach Datum absteigend** (Manuell-Dialog + ⚪-Liste).
+3. **Vermerk-Parser** (`vermerk_parser.dart`, TDD): erkennt (a) Rechnungsnummer `YYYY-MM-NNNN` (Bindestriche, direkter Forderungs-Match), (b) **Betriebnummer** `NNNN_yyyy_MM_dd` (Davos Klosters, z. B. `0151_2026_04_04` = Heineken-Nr 0151 = Armando) → Routing über `matchByNummer` inkl. **`heineken_nr`**, Datum wählt Forderung vor. Nur Vorauswahl, kein Auto.
+4. **Mehr Zahlungs-Infos** (Einzahler/Adresse/Bemerkung) + **PDF-Link** zur erfassten Rechnung (Manuell/⚪) bzw. Beleg (Übriges/Kreditor).
+5. **Nicht-zugeordnet gruppiert** nach Einzahler (Ausnahme Davos Klosters/Weisse Arena einzeln); Gruppen-Kopf tippbar → **Mehrfach-Zahlungen + Suche**-Dialog.
+6. **Migration 139** (Rundungs-Trigger 5-Rappen, Backfill Live-Periode) + **Migration 140** (`beleg_typ='camt053'` erlaubt → Übriges-Buchung ohne PostgrestException).
 
-**2. Zahlungseingänge nach Datum absteigend** sortieren (Manuell-Dialog + ⚪-Liste, neueste zuoberst).
-
-**3. Betreff/Vermerk auswerten → nur VORAUSWÄHLEN (kein Auto).** Reine Parser (TDD) `vermerk_parser.dart`: Datum (HAPIMAG, z.B. „…04.04.2026") + `Nummer_yyyy_MM_dd` (Davos Klosters/Weisse Arena, z.B. `0151_2026_04_04`). Im Manuell-Dialog die passende Forderung (Datum ≈ `rechnungsdatum`) **vorhäkeln + hervorheben**; Betriebnummer gegen `nr`/`we_nummer`/`ag_nummer` auflösen. Echter QR-Code bleibt der einzige Auto-Weg (Referenz-Stufe). **Mehrbetriebs-Zahler-Alias-Umbau bewusst NICHT** (YAGNI — QR mit Betrieb+Reinigungsdatum löst es langfristig).
-
-**4. Mehr Zahlungs-Infos** in Manuell-/Zuordnen-Dialog: Einzahler + Adresse, Bemerkung/Betreff, und **„Rechnung ansehen" (PDF-Link)** auf der Forderungs-Zeile, falls `pdf_url` erfasst.
-
-**Frage offen an Daniel:** echtes HAPIMAG-Betreff-Beispiel zur Bestätigung des Datums-Formats (Pre-Select ist ungefährlich — bei Fehlparse einfach kein Vorschlag).
+**Offen / morgen (Re-Test):**
+- Prüfen: routen die 3 „Davos Klosters"-Zahlungen jetzt via `heineken_nr` zum richtigen Betrieb? Falls welche in „Nicht zugeordnet" bleiben → **genaue Bemerkung** an Claude (drittes Format).
+- Optional: Davos Klosters/Weisse Arena auch als tippbare Gruppe (Mehrfach-Dialog) statt einzeln — 1-Zeiler, auf Wunsch.
+- Reparaturplan Buchhaltung (Excel-Zahlungen/camt-Import) via `/buchhaltungsplan` — nach abgeschlossenem camt-Test.
 
 ---
 

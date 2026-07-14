@@ -2,11 +2,12 @@
 
 **Projekt**: Service-Management App für Zapfanlagen-Service
 **Kunde**: Daniel Projer, SBS Projer GmbH
-**Stand**: 10.07.2026
+**Stand**: 14.07.2026
 **Tech-Stack**: Flutter + Supabase
-**Version**: 0.24.1+491
+**Version**: 0.46.26+573
 
 > Detaillierter aktueller Stand & offene Punkte: **`ToDo.md`** (Projekt-Root) + Memory.
+> Zuletzt (14.07.2026): **camt-Kundenzahlungs-Abgleich überarbeitet** (v0.46.21–v0.46.26): Matcher-Härtung (Auto nur bei Referenz/exaktem Namen/gelerntem Alias, unscharf → manuell), Vermerk-Parser (Rechnungsnummer + Davos-Klosters-Betriebnummer via `heineken_nr`, nur Vorauswahl), mehr Zahlungs-Infos + PDF-/Beleg-Links, „Nicht zugeordnet" nach Einzahler gruppiert + Mehrfach-Zuordnungs-Dialog. **Migration 139** (Preis-Trigger auf 5-Rappen-Rundung + Backfill Live-Periode) + **Migration 140** (`beleg_typ='camt053'`). camt-Test-Buchungen am Abend vollständig zurückgerollt (Baseline). Re-Test morgen. Details `ToDo.md`.
 > Zuletzt (10.07.2026): **Events-Modul Phase E5** (v0.21.0) — **Events-Modul E1–E5 komplett**: **Abschluss-Mail** nach dem Event. Menüpunkt „Abschluss-Mail senden" → **PDF-Abschlussbericht** (ohne CHF: Zusammenfassung, Stände/Inbetriebnahme, Zeit & Aufwand nach Kategorie, Pikett-Einsätze) + **Empfänger-Sheet** (Eventverantwortlicher + RSL automatisch vorgeschlagen, freie Mail hinzufügbar, kommaseparierter Versand via `send-pdf-mail`). MailConfig-Bereich `event` (`eventScharf=false` → Testmodus). Keine DB-Migration. Scharfstellen (`eventScharf=true`) nach Handy-Testversand.
 > Zuvor (10.07.2026): **Events-Modul Phase E4** (v0.20.0): Event-Detail auf **5 Tabs** (Kontakte | Stände | Einsätze | **Zeit** | Dokumente). **Zeit-/Spesenerfassung** (neue Sync-Vertikale `event_aufwand`, Migration 123): Zeilen mit Datum/Kategorie (Anfahrt/Inbetriebnahme/Pikett/Spesen)/Notiz/Stunden, Total-Chip. **Auto-Montage-Generierung**: „Montage generieren" aggregiert pro Eventtag (≤5 Slots) und öffnet das Montage-Formular (Typ Anlass, Veranstaltungs-Betrieb) vorbefüllt → normaler Heineken-Abrechnungsfluss. Spesen als zusätzliche Stunden. Nächste Phase E5 (Abschluss-Mail Einsatzliste + Zeiten/Spesen als PDF).
 > Zuvor (10.07.2026): **Events-Modul Phase E3** (v0.19.0): Event-Detail auf **4 Tabs** (Kontakte | Stände | Einsätze | Dokumente). **Inbetriebnahme pro Anlage** (Live-Checkbox + Fortschritt-Chip, id-basierter Stand-Save). **GPS-Standort pro Stand** (geolocator). **Karten-Umschalter im Stände-Tab** mit swisstopo-Luftbild (flutter_map, kein API-Key), Marker pro Stand. **Pikett-Einsätze** (neuer Tab, minimales Formular; Migration 122 `event_einsaetze` + Stand-lat/lng + Anlage-in_betrieb). Nächste Phase E4 (Abschluss-Mail Einsatzliste als PDF).
