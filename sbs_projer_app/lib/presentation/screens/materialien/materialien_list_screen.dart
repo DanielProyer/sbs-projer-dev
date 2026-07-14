@@ -54,6 +54,7 @@ class _MaterialienListScreenState
         final query = _searchQuery.toLowerCase();
         return l.name.toLowerCase().contains(query) ||
             (l.dboNr?.toLowerCase().contains(query) ?? false) ||
+            (l.sapNr?.toLowerCase().contains(query) ?? false) ||
             (l.beschreibung?.toLowerCase().contains(query) ?? false) ||
             (l.notizen?.toLowerCase().contains(query) ?? false) ||
             (l.lieferant?.toLowerCase().contains(query) ?? false);
@@ -240,6 +241,7 @@ class _MaterialListItem extends StatelessWidget {
   String _buildSubtitle() {
     final parts = <String>[];
     if (lager.dboNr != null) parts.add('DBO ${lager.dboNr}');
+    if (lager.sapNr != null) parts.add('SAP ${lager.sapNr}');
     if (kategorieName != null) parts.add(kategorieName!);
     return parts.join(' · ');
   }

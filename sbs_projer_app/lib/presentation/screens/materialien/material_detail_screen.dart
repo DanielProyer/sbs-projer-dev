@@ -266,6 +266,8 @@ class _MaterialDetailContentState
               _InfoRow('Stück/Packung', '${_lager.stueckProPackung}'),
             if (_lager.dboNr != null)
               _InfoRow('DBO-Nr.', _lager.dboNr!),
+            if (_lager.sapNr != null)
+              _InfoRow('SAP-Nr.', _lager.sapNr!),
             if (_lager.beschreibung != null &&
                 _lager.beschreibung!.isNotEmpty)
               _InfoRow('Beschreibung', _lager.beschreibung!),

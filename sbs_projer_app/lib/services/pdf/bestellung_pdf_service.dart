@@ -216,10 +216,11 @@ class BestellungPdfService {
   static pw.Widget _buildPositionenTabelle(List<MaterialBestellposition> pos) {
     return pw.Table(
       columnWidths: {
-        0: const pw.FixedColumnWidth(60),
-        1: const pw.FlexColumnWidth(3),
-        2: const pw.FixedColumnWidth(60),
+        0: const pw.FixedColumnWidth(55),
+        1: const pw.FixedColumnWidth(60),
+        2: const pw.FlexColumnWidth(3),
         3: const pw.FixedColumnWidth(50),
+        4: const pw.FixedColumnWidth(45),
       },
       border: pw.TableBorder(
         horizontalInside: pw.BorderSide(color: _lineGrey, width: 0.5),
@@ -228,6 +229,7 @@ class BestellungPdfService {
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: _lightGrey),
           children: [
+            _headerCell('SAP-Nr.'),
             _headerCell('DBO-Nr.'),
             _headerCell('Artikel'),
             _headerCell('Menge', align: pw.Alignment.centerRight),
@@ -236,6 +238,7 @@ class BestellungPdfService {
         ),
         ...pos.map((p) => pw.TableRow(
               children: [
+                _dataCell(p.sapNr ?? '-'),
                 _dataCell(p.dboNr ?? '-'),
                 _dataCell(p.name),
                 _dataCell(p.menge.toStringAsFixed(0),

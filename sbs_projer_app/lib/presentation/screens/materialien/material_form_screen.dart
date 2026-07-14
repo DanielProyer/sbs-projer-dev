@@ -36,6 +36,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
   String? _kategorieId;
   String? _materialId;
   String? _dboNr;
+  String? _sapNr;
   String? _linkedArtikelName;
 
   List<MaterialKategorie> _kategorien = [];
@@ -77,6 +78,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
       _kategorieId = lager.kategorieId;
       _materialId = lager.materialId;
       _dboNr = lager.dboNr;
+      _sapNr = lager.sapNr;
       _bestandAktuellController.text =
           lager.bestandAktuell.toStringAsFixed(0);
       _bestandMindestController.text =
@@ -105,6 +107,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
         'kategorie_id': _kategorieId,
         'material_id': _materialId,
         'dbo_nr': _dboNr,
+        'sap_nr': _sapNr,
         'bestand_aktuell':
             double.tryParse(_bestandAktuellController.text) ?? 0,
         'bestand_mindest':
@@ -273,12 +276,14 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.link),
                   title: Text(_linkedArtikelName ?? _dboNr!),
-                  subtitle: Text('DBO $_dboNr'),
+                  subtitle: Text(
+                      'DBO $_dboNr${_sapNr != null ? '  ·  SAP $_sapNr' : ''}'),
                   trailing: IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => setState(() {
                       _materialId = null;
                       _dboNr = null;
+                      _sapNr = null;
                       _linkedArtikelName = null;
                     }),
                   ),
@@ -393,6 +398,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
       setState(() {
         _materialId = result.id;
         _dboNr = result.dboNr;
+        _sapNr = result.sapNr;
         _linkedArtikelName = result.name;
         // Volle Heineken-Bezeichnung → Beschreibung
         _beschreibungController.text = result.name;
@@ -471,7 +477,8 @@ class _ArtikelPickerDialogState extends State<_ArtikelPickerDialog> {
                                   title: Text(a.name,
                                       style:
                                           const TextStyle(fontSize: 13)),
-                                  subtitle: Text('DBO ${a.dboNr}',
+                                  subtitle: Text(
+                                      'DBO ${a.dboNr}${a.sapNr != null ? '  ·  SAP ${a.sapNr}' : ''}',
                                       style:
                                           const TextStyle(fontSize: 11)),
                                   onTap: () =>

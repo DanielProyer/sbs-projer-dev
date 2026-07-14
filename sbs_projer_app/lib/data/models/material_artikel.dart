@@ -3,6 +3,7 @@ class MaterialArtikel {
   final String userId;
   final String? kategorieId;
   final String dboNr;
+  final String? sapNr;
   final String name;
   final String? beschreibung;
   final String einheit;
@@ -20,6 +21,7 @@ class MaterialArtikel {
     required this.userId,
     this.kategorieId,
     required this.dboNr,
+    this.sapNr,
     required this.name,
     this.beschreibung,
     this.einheit = 'Stück',
@@ -39,6 +41,7 @@ class MaterialArtikel {
       userId: json['user_id'],
       kategorieId: json['kategorie_id'],
       dboNr: json['dbo_nr'],
+      sapNr: json['sap_nr'],
       name: json['name'],
       beschreibung: json['beschreibung'],
       einheit: json['einheit'] ?? 'Stück',
@@ -59,6 +62,7 @@ class MaterialArtikel {
       'user_id': userId,
       'kategorie_id': kategorieId,
       'dbo_nr': dboNr,
+      'sap_nr': sapNr,
       'name': name,
       'beschreibung': beschreibung,
       'einheit': einheit,

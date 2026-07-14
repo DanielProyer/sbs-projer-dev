@@ -67,6 +67,7 @@ class MaterialBestellposition {
   final String bestellungId;
   final String? lagerId;
   final String? dboNr;
+  final String? sapNr;
   final String name;
   final String einheit;
   final double menge;
@@ -80,6 +81,7 @@ class MaterialBestellposition {
     required this.bestellungId,
     this.lagerId,
     this.dboNr,
+    this.sapNr,
     required this.name,
     this.einheit = 'Stück',
     this.menge = 1,
@@ -95,6 +97,7 @@ class MaterialBestellposition {
       bestellungId: json['bestellung_id'],
       lagerId: json['lager_id'],
       dboNr: json['dbo_nr'],
+      sapNr: json['sap_nr'],
       name: json['name'],
       einheit: json['einheit'] ?? 'Stück',
       menge: double.tryParse(json['menge'].toString()) ?? 1,
@@ -114,6 +117,7 @@ class MaterialBestellposition {
       'bestellung_id': bestellungId,
       'lager_id': lagerId,
       'dbo_nr': dboNr,
+      'sap_nr': sapNr,
       'name': name,
       'einheit': einheit,
       'menge': menge,
