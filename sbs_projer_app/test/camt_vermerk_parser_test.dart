@@ -13,17 +13,19 @@ void main() {
       expect(parseVermerk('Zahlung Rechnung ABC').istLeer, isTrue);
     });
 
-    test('Sequenz-Format 0151_2026_04_04 → Rechnungsnummer 2026-04-0151', () {
+    test('Betriebnummer-Format 0151_2026_04_04 (führende Zahl = Betriebnummer)', () {
+      // 0151 ist die (Heineken-)Betriebnummer, KEINE Rechnungssequenz.
       final h = parseVermerk('0151_2026_04_04');
-      expect(h.rechnungsnummer, '2026-04-0151');
       expect(h.betriebNummer, '0151');
       expect(h.datum, DateTime(2026, 4, 4));
+      expect(h.rechnungsnummer, isNull);
     });
 
-    test('Davos Klosters real: „04.04.2026 0151_2026_04_04"', () {
+    test('Davos Klosters real: „04.04.2026 0151_2026_04_04" → Betriebnummer+Datum', () {
       final h = parseVermerk('04.04.2026 0151_2026_04_04');
-      expect(h.rechnungsnummer, '2026-04-0151');
+      expect(h.betriebNummer, '0151');
       expect(h.datum, DateTime(2026, 4, 4));
+      expect(h.rechnungsnummer, isNull);
     });
 
     test('strukturiert mit Text drumherum + gemischten Trennern', () {

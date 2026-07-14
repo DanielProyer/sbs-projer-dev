@@ -44,7 +44,7 @@ void main() {
   final betriebe = [
     {'id': 'b_edel', 'name': 'Edelweiss', 'ort': 'Vals', 'aliase': '', 'nr': ''},
     {'id': 'b_alp', 'name': 'Hotel Alpina', 'ort': 'Chur', 'aliase': 'alpina gastro ag', 'nr': ''},
-    {'id': 'b_dk', 'name': 'Bergrestaurant Weissfluh', 'ort': 'Davos', 'aliase': '', 'nr': '0151'},
+    {'id': 'b_dk', 'name': 'Armando', 'ort': 'Klosters', 'aliase': '', 'nr': '21', 'heineken_nr': '0151'},
   ];
 
   test('exakter Name + eindeutiger Betrag → AUTO', () {

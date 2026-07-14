@@ -44,10 +44,10 @@ VermerkHinweis parseVermerk(String? remittanceInfo) {
     s = s.replaceRange(rn.start, rn.end, ' ');
   }
 
-  // 2. Strukturiert: <Sequenz>_<yyyy>_<MM>_<dd> (Davos Klosters Bergbahnen,
-  //    z.B. „0151_2026_04_04"). Die führende Zahl ist die Rechnungsnummer-
-  //    Sequenz → rekonstruiere die Rechnungsnummer yyyy-MM-NNNN (4-stellig).
-  //    Zusätzlich als betriebNummer merken (Fallback, falls doch Betriebnummer).
+  // 2. Strukturiert: <Betriebnummer>_<yyyy>_<MM>_<dd> (Davos Klosters
+  //    Bergbahnen, z.B. „0151_2026_04_04"). Die führende Zahl ist die
+  //    (Heineken-)Betriebnummer — NICHT die Rechnungssequenz. Sie dient dem
+  //    Routing zum Betrieb (matchByNummer), das Datum wählt die Forderung vor.
   String? betriebNummer;
   DateTime? datum;
   final strukt =
@@ -59,9 +59,6 @@ VermerkHinweis parseVermerk(String? remittanceInfo) {
     if (d != null) {
       betriebNummer = strukt.group(1);
       datum = d;
-      rechnungsnummer ??= '${strukt.group(2)}'
-          '-${strukt.group(3)!.padLeft(2, '0')}'
-          '-${strukt.group(1)!.padLeft(4, '0')}';
     }
   }
 

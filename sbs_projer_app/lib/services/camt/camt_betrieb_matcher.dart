@@ -64,9 +64,10 @@ class CamtBetriebMatcher {
   }
 
   /// Matcht eine im Verwendungszweck genannte **Betriebnummer** (z.B. Davos
-  /// Klosters Bergbahnen / Weisse Arena AG: `0151_2026_04_04`) gegen die
-  /// Nummern-Felder `nr` / `we_nummer` / `ag_nummer`. Leading-Zero-tolerant
-  /// (Zahlvergleich). Nur bei EINDEUTIGKEIT ein Treffer, sonst null.
+  /// Klosters Bergbahnen: `0151_2026_04_04` → Heineken-Nr. 0151 = Armando
+  /// Klosters) gegen die Nummern-Felder `nr` / `we_nummer` / `ag_nummer` /
+  /// `heineken_nr`. Leading-Zero-tolerant (Zahlvergleich). Nur bei
+  /// EINDEUTIGKEIT ein Treffer, sonst null.
   static Map<String, String>? matchByNummer(
     String? nummer,
     List<Map<String, String>> betriebe,
@@ -75,7 +76,12 @@ class CamtBetriebMatcher {
     if (norm == null) return null;
     Map<String, String>? treffer;
     for (final b in betriebe) {
-      final kandidaten = [b['nr'], b['we_nummer'], b['ag_nummer']];
+      final kandidaten = [
+        b['nr'],
+        b['we_nummer'],
+        b['ag_nummer'],
+        b['heineken_nr']
+      ];
       if (kandidaten.any((k) => _normNr(k) == norm)) {
         if (treffer != null) return null; // mehrdeutig
         treffer = b;

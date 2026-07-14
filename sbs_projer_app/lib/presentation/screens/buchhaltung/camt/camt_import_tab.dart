@@ -329,6 +329,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                 'nr': b.nr ?? '',
                 'we_nummer': b.weNummer ?? '',
                 'ag_nummer': b.agNummer ?? '',
+                'heineken_nr': b.betriebNr ?? '',
               })
           .toList();
       final alleRechnungen = await RechnungRepository.getAll();
