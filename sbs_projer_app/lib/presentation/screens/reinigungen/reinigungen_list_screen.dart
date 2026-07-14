@@ -36,7 +36,6 @@ class _ReinigungenListScreenState
 
   @override
   Widget build(BuildContext context) {
-    final reinigungen = ref.watch(reinigungenProvider);
     final betriebNames = ref.watch(betriebNameMapProvider);
     final betriebOrte = ref.watch(betriebOrtMapProvider);
     final betriebRegionIds = ref.watch(betriebRegionIdMapProvider);
@@ -49,14 +48,16 @@ class _ReinigungenListScreenState
     };
     final aktiveRegionIds = _selectedRegionIds.intersection(regionOptionIds);
 
-    // Verfügbare Jahre
-    final jahreSet = <int>{};
-    for (final r in reinigungen) {
-      jahreSet.add(r.datum.year);
-    }
-    final jahre = jahreSet.toList()..sort((a, b) => b.compareTo(a));
-    if (jahre.isEmpty) jahre.add(DateTime.now().year);
+    // Verfügbare Jahre (schlanker Provider, lädt nur die Datums-Spalte).
+    final jahreRoh =
+        ref.watch(reinigungJahreProvider).valueOrNull ?? const <int>[];
+    final jahre = jahreRoh.isEmpty ? <int>[DateTime.now().year] : jahreRoh;
     if (!jahre.contains(_selectedYear)) _selectedYear = jahre.first;
+
+    // Nur das gewählte Jahr laden (server-seitig gefiltert = schnell).
+    final reinigungenAsync = ref.watch(reinigungenByJahrProvider(_selectedYear));
+    final reinigungen = reinigungenAsync.valueOrNull ?? const <ReinigungLocal>[];
+    final ladend = reinigungenAsync.isLoading;
 
     final sorted = List<ReinigungLocal>.from(reinigungen)
       ..sort((a, b) {
@@ -68,7 +69,7 @@ class _ReinigungenListScreenState
       });
 
     final filtered = sorted.where((r) {
-      if (r.datum.year != _selectedYear) return false;
+      // Jahr wird server-seitig geladen; hier nur noch Monat/Region/Suche.
       if (_selectedMonth != 0 && r.datum.month != _selectedMonth) return false;
       if (aktiveRegionIds.isNotEmpty) {
         final regionId = betriebRegionIds[r.betriebId];
@@ -153,9 +154,11 @@ class _ReinigungenListScreenState
             ),
           ),
           Expanded(
-            child: filtered.isEmpty
-                ? _buildEmpty()
-                : ListView.builder(
+            child: ladend && reinigungen.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                    ? _buildEmpty()
+                    : ListView.builder(
                     itemCount: _listItemCount(groups),
                     itemBuilder: (context, index) {
                       final item = _listItemAt(groups, index);

@@ -290,6 +290,8 @@ class _ReinigungDetailContent extends ConsumerWidget {
 
         await ReinigungRepository.delete(reinigung.routeId);
         ref.invalidate(reinigungenStreamProvider);
+        ref.invalidate(reinigungenByJahrProvider);
+        ref.invalidate(reinigungJahreProvider);
         ref.invalidate(anlagenStreamProvider);
         ref.invalidate(rechnungenStreamProvider);
         ref.invalidate(buchungenStreamProvider);

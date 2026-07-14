@@ -771,6 +771,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         );
         if (kIsWeb) {
           ref.invalidate(reinigungenStreamProvider);
+          ref.invalidate(reinigungenByJahrProvider);
+          ref.invalidate(reinigungJahreProvider);
           ref.invalidate(anlagenStreamProvider);
           if (abschliessen || buchungKorrigiert) {
             ref.invalidate(rechnungenStreamProvider);
