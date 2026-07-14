@@ -180,9 +180,22 @@ Spec `docs/superpowers/specs/2026-07-11-buchhaltung-auswertung-design.md`. App-P
 
 ### Scharfstellung / Live-Betrieb (Buchhaltung 01.07.2026)
 Strategie: **Voll-Übernahme** (kein Clean-Start) — Historie lückenlos 27.03.2019→heute im System, Bilanz geht an allen Jahresenden auf, Salden laufen weiter. „Scharfstellen" = nur noch:
-- [ ] **Mail-Bereiche scharfstellen:** `bestellungScharf` + `mahnwesenScharf` in `mail_config.dart` (stehen noch auf Test-Empfänger).
-- [ ] **camt-Auto-Buchung produktiv** ab Stichtag 01.07.2026 (gebaut, geht automatisch scharf). **Erster Echtlauf Anfang August** (Juli-camt): Ergebnis-Report + Prüfliste durchgehen, neue wiederkehrende Empfänger als Regel anlegen.
+- [ ] **Mail-Bereiche scharfstellen:** `mahnwesenScharf` in `mail_config.dart` (steht noch auf Test-Empfänger; `bestellungScharf` seit 14.07. scharf).
+- [ ] **camt-Auto-Buchung produktiv** — ⚠️ Korrektur 14.07.: technischer Code-Stichtag ist **11.03.2026** (hardcoded `camt_stichtag.dart`, exakt Excel-Bankende), NICHT 01.07.; „01.07." war nur organisatorisch. Bestätigungs-Flow gebaut, aber **0 von 270 TX gebucht**.
 - [ ] **2026 gezielt** auf vereinzelte Test-Buchungen durchsehen (NICHT pauschal; echte Live-Buchungen bleiben).
+
+### Buchhaltung-Vollcheck 14.07.2026 (5-Agenten-Audit App↔Excel↔camt) — Reparaturplan Voll-Übernahme
+Befunde komplett in Memory `buchhaltung_vollcheck_2026_07.md`. Positiv: Import 2019–Nov 2025 journalgetreu (ER-Jahre ±0.12 CHF), Live-Ertragsseite ab Dez 2025 vollständig (CHF 0 fehlt), keine Excel↔Live-Doppelbuchung. Kritisch ist die **Geldseite**:
+- [ ] **(1) Delta-Import 220 Zahlungseingänge** aus Excel-Journal (01.12.2025–11.03.2026, CHF 55'191.70: 217× 1020/1100 + 3× 1020/1000) — fehlen komplett in DB → Bank-Saldo DB −51'869.44 statt real +3'322.26 (per 11.03., camt-verifiziert). id_bs vorhanden → idempotent per belegnummer. Vorher 1 Zeile klären: `020_2025_12_05_XXX_00007460` (74.60, „UNKLAR welcher Betrieb").
+- [ ] **(2) Frischer GKB-camt-Export ab 20.06.2026** ziehen + importieren — ab 21.06. fehlen sogar Rohdaten (24-Tage-Loch, der 01.07. liegt mittendrin). Dedup via txKey, überlappend ok.
+- [ ] **(3) Die 270 camt-TX (12.03.–20.06.) im Bestätigungs-Flow verbuchen** (Credits 51'775.75 / Debits 47'694.04): Kundenzahlungen-Abgleich gegen 1'526 offene Rechnungen, Ausgaben-Regeln bestätigen. Prüfliste: die 2 Heineken-Gutschriften (7'104.98 + 5'794.81) matchen jetzt EXAKT auf die heute erstellten Feb+März-Monatsrechnungen.
+- [ ] **(4) Zahlungsstatus-Pflege**: 532 Live-Rechnungen ab Dez 2025 (54'571.83) nie auf bezahlt gesetzt (414 Tresen = längst bezahlt) — via camt-Abgleich bzw. Tresen pauschal abhaken (Entscheidung Daniel).
+- [ ] **(5) MwSt-Aufsetzpunkt** (Entscheidung Daniel): 2200/1171/1170-DB-Salden sind für die Alt-Ära unbrauchbar (Excel buchte MwSt nur im Hauptbuch-Sheet, nie im Journal → nie importiert; Alt-Ertrag steht brutto, ~83'430 MwSt-Anteil 2019–2025). Empfehlung: Aufsetzkorrektur per 31.12.2025 mit Excel-Bilanzwerten (2200: 17'223.38 / 1171: 1'148.11 / 1170: 3'654.08).
+- [ ] **(6) EK/Gewinnvortrag** (Entscheidung Daniel): 13 Jahresabschluss-Buchungen (9000/9100/2970/2980) wurden als storniert importiert → Gewinnvortrag 35'319.11 fehlt, Bilanzgleichung geht nie auf. Entstornieren/nachbuchen ODER dokumentiert als reine Verkehrszahlen-Buchhaltung lassen.
+- [ ] **(7) Prozesse ab Stichtag scharf**: Heineken **Juni-Rechnung überfällig** (wartet: mind. 402.14 Reinigungen + 1'620 Pauschalen); Eingangsrechnungs-Scan produktiv nutzen (23 Scans alle „verworfen", Aufwand seit 08.06. NIRGENDS erfasst); Lohnlauf ab Juli via App (`lohn_abrechnungen` leer, bisher nur Excel).
+- [ ] **(8) Excel einfrieren**: Journal offiziell per 11.03.2026 (Bank) / faktisch tot seit 08.06.; die 90 Zeilen ohne „Gebucht=X" sind seit 20.06. in der DB → X nachtragen oder Datei archivieren (sonst Doppelimport-Risiko).
+- [ ] **(9) Klärungen klein**: 14 Ertrags-Belegvarianten Excel↔App (1'510.30, Rundung/Datum/Preis — Liste beim Audit); Kassenbestand real prüfen (DB 1000 = 23'477.48, ungewöhnlich hoch); `abgerechnet`-Flags 42 Pauschalen + 22 Heineken-Reinigungen Dez–Mai auf true (kosmetisch, verifiziert enthalten).
+- [ ] **(10) Hygiene/Code**: 8 von 9 camt_dateien-Duplikat-Archivzeilen löschen; Forderungs-Abgleich-Filter um Mahnstatus erweitern (aktuell nur offen/gesendet); beleg_id-Doppelsemantik dokumentieren (815× reinigungen.id vs. 6× rechnungen.id bei beleg_typ='rechnung'); Heineken 04/2026 Netto/Brutto-2-Rappen (netto als brutto−mwst ableiten).
 
 ### Buchhaltung — Fachfragen / Sichtprüfung (Daniel)
 - [ ] **B1:** Lohnaufwand 5000 liegt ~1–2k/Jahr über Lohnausweis-Brutto — klären (AG-Beiträge/Spesen drin? oder überbucht?). Relevant für AHV-/Steuerbasis.
