@@ -52568,7 +52568,7 @@ cGX(a,b){var s,r,q,p,o,n,m=A.coX(a)
 if(m==null)return null
 for(s=b.length,r=t.g,q=null,p=0;p<b.length;b.length===s||(0,A.B)(b),++p){o=b[p]
 n=J.a1(o)
-if(B.e.dL(A.a([n.h(o,"nr"),n.h(o,"we_nummer"),n.h(o,"ag_nummer")],r),new A.aLX(m))){if(q!=null)return null
+if(B.e.dL(A.a([n.h(o,"nr"),n.h(o,"we_nummer"),n.h(o,"ag_nummer"),n.h(o,"heineken_nr")],r),new A.aLX(m))){if(q!=null)return null
 q=o}}return q},
 coX(a){var s,r=a==null?null:B.j.W(a)
 if(r==null)r=""
@@ -52857,15 +52857,8 @@ k=A.dc(k,f)
 j=r[4]
 j.toString
 i=A.clp(l,k,A.dc(j,f))
-if(i!=null){l=r[1]
-n=l
-if(q==null){k=r[2]
-r=r[3]
-r.toString
-r=B.j.a9(r,2,"0")
-l=l
-l.toString
-q=A.h(k)+"-"+r+"-"+B.j.a9(l,4,"0")}m=i}}if(m==null){h=A.be("(\\d{4})[_./-](\\d{1,2})[_./-](\\d{1,2})",!0,!1,!1).h0(p)
+if(i!=null){n=r[1]
+m=i}}if(m==null){h=A.be("(\\d{4})[_./-](\\d{1,2})[_./-](\\d{1,2})",!0,!1,!1).h0(p)
 if(h!=null){r=h.b
 l=r[1]
 l.toString
@@ -176292,8 +176285,8 @@ A.bwW.prototype={
 $1(a){return a.b!=null},
 $S:19}
 A.bwX.prototype={
-$1(a){var s,r,q,p,o,n,m,l=a.b
-l.toString
+$1(a){var s,r,q,p,o,n,m,l,k=a.b
+k.toString
 s=a.f
 r=a.y
 if(r==null)r=""
@@ -176304,8 +176297,10 @@ o=a.ch
 if(o==null)o=""
 n=a.CW
 if(n==null)n=""
-m=t.N
-return A.Z(["id",l,"name",s,"ort",r,"aliase",q,"nr",p,"we_nummer",o,"ag_nummer",n],m,m)},
+m=a.ay
+if(m==null)m=""
+l=t.N
+return A.Z(["id",k,"name",s,"ort",r,"aliase",q,"nr",p,"we_nummer",o,"ag_nummer",n,"heineken_nr",m],l,l)},
 $S:1217}
 A.bwY.prototype={
 $1(a){var s
