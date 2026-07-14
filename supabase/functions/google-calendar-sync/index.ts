@@ -245,6 +245,10 @@ async function reconcile(admin: Any, token: string, userId: string) {
   for (const m of mappings ?? []) {
     if (!worthy.has(m.entity_type + ":" + m.entity_id)) { await deleteMapping(admin, token, m); deleted++; }
   }
+  // Zeitstempel des Vollabgleichs festhalten (Trigger + Anzeige für den
+  // täglichen Auto-Sync der App).
+  await admin.from("google_calendar_status")
+    .update({ last_sync_at: new Date().toISOString() }).eq("user_id", userId);
   return { pushed, deleted };
 }
 

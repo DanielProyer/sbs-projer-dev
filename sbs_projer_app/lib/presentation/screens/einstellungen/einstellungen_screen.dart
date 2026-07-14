@@ -72,9 +72,37 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Termine, Pikett und Events werden künftig automatisch in deinen Google Kalender geschrieben (folgt in einem nächsten Schritt).',
+            'Pikett, Events und Saison-/Ferien-Reinigungen werden automatisch täglich in deinen Google Kalender geschrieben.',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
+          const SizedBox(height: 4),
+          Builder(builder: (_) {
+            final last = status.lastSyncAt?.toLocal();
+            if (last == null) {
+              return const Text(
+                'Noch nicht abgeglichen — läuft automatisch beim nächsten Öffnen.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              );
+            }
+            final veraltet = DateTime.now().difference(last).inDays >= 2;
+            final farbe =
+                veraltet ? AppColors.warning : AppColors.textSecondary;
+            return Row(
+              children: [
+                Icon(veraltet ? Icons.warning_amber : Icons.sync,
+                    size: 14, color: farbe),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Zuletzt abgeglichen: '
+                    '${DateFormat('dd.MM.yyyy, HH:mm').format(last)}'
+                    '${veraltet ? ' — Verbindung prüfen' : ''}',
+                    style: TextStyle(fontSize: 12, color: farbe),
+                  ),
+                ),
+              ],
+            );
+          }),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,

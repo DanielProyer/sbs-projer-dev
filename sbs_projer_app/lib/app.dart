@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_auto_sync.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Globaler Messenger-Key für In-App-Hinweise ohne konkreten BuildContext.
@@ -27,6 +28,10 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
       if (data.event == AuthChangeEvent.passwordRecovery) {
         _triggerPasswordDialog();
       }
+      // Nach dem Login den täglichen Kalender-Abgleich (neu) anstossen.
+      if (data.event == AuthChangeEvent.signedIn) {
+        GoogleCalendarAutoSync.start();
+      }
     });
 
     // Flag prüfen (Event kam schon vor runApp)
@@ -36,6 +41,9 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
         _triggerPasswordDialog();
       }
     });
+
+    // Täglicher Google-Kalender-Vollabgleich (prüft selbst Session + Verbindung).
+    GoogleCalendarAutoSync.start();
   }
 
   void _triggerPasswordDialog() {
@@ -49,6 +57,7 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
   @override
   void dispose() {
     _authSub.cancel();
+    GoogleCalendarAutoSync.stop();
     super.dispose();
   }
 
