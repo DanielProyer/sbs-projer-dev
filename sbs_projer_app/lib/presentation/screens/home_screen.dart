@@ -64,11 +64,14 @@ class _KachelGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final betriebCount = ref.watch(betriebCountProvider);
-    final reinigungCount = ref.watch(reinigungCountProvider);
-    final stoerungCount = ref.watch(stoerungCountProvider);
+    // Werkstatt-/Reinigungs-Kacheln zeigen die Anzahl des AKTUELLEN JAHRES
+    // (nicht die Gesamt-Historie) — analog Montage.
+    final reinigungCount = ref.watch(reinigungCountAktuellesJahrProvider);
+    final stoerungCount = ref.watch(stoerungCountAktuellesJahrProvider);
     final faelligeCount = ref.watch(faelligeAnlagenCountProvider);
-    final eigenauftragCount = ref.watch(eigenauftragCountProvider);
-    final eroeffnungsreinigungCount = ref.watch(eroeffnungsreinigungCountProvider);
+    final eigenauftragCount = ref.watch(eigenauftragCountAktuellesJahrProvider);
+    final eroeffnungsreinigungCount =
+        ref.watch(eroeffnungsreinigungCountAktuellesJahrProvider);
     final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
     final kontaktCount = ref.watch(kontakteProvider).valueOrNull?.length ?? 0;
     final eventCount = ref
