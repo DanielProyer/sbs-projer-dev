@@ -3,16 +3,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_leiste.dart';
 
-class HeinekenRechnungenListScreen extends ConsumerWidget {
+class HeinekenRechnungenListScreen extends ConsumerStatefulWidget {
   const HeinekenRechnungenListScreen({super.key});
 
+  @override
+  ConsumerState<HeinekenRechnungenListScreen> createState() =>
+      _HeinekenRechnungenListScreenState();
+}
+
+class _HeinekenRechnungenListScreenState
+    extends ConsumerState<HeinekenRechnungenListScreen> {
   static final _monatFormat = DateFormat('MMMM yyyy', 'de_CH');
   static final _dateFormat = DateFormat('dd.MM.yyyy');
+  static final _nf = NumberFormat('#,##0.00', 'de_CH');
+
+  int _selectedYear = DateTime.now().year;
+
+  /// Sortier-Datum: primär der Monat, sonst das Rechnungsdatum.
+  DateTime _sortDatum(Rechnung r) => r.heinekenMonat ?? r.rechnungsdatum;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final rechnungen = ref.watch(heinekenRechnungenProvider);
 
     return Scaffold(
@@ -36,74 +51,126 @@ class HeinekenRechnungenListScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Fehler: $e')),
         data: (list) {
           if (list.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.receipt_long, size: 64, color: AppColors.textSecondary),
-                    SizedBox(height: 16),
-                    Text(
-                      'Noch keine Heineken-Rechnungen',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Erstelle eine neue Monatsrechnung über den + Button.',
-                      style: TextStyle(color: AppColors.textSecondary),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
+            return _buildEmpty();
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: list.length,
-            itemBuilder: (context, index) {
-              final r = list[index];
-              final monat = r.heinekenMonat;
-              final monatsName = monat != null
-                  ? _monatFormat.format(monat)
-                  : 'Unbekannt';
+          // Verfügbare Jahre (absteigend), Auswahl absichern.
+          final jahre = (list.map((r) => _sortDatum(r).year).toSet().toList()
+                ..sort((a, b) => b.compareTo(a)));
+          if (jahre.isEmpty) jahre.add(DateTime.now().year);
+          if (!jahre.contains(_selectedYear)) _selectedYear = jahre.first;
 
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: _statusColor(r.zahlungsstatus).withAlpha(30),
-                    child: Icon(
-                      _statusIcon(r.zahlungsstatus),
-                      color: _statusColor(r.zahlungsstatus),
-                    ),
-                  ),
-                  title: Text(monatsName),
-                  subtitle: Text(
-                    '${_dateFormat.format(r.rechnungsdatum)} · ${_chf(r.betragBrutto)} CHF',
-                  ),
-                  trailing: Chip(
-                    label: Text(
-                      _statusLabel(r.zahlungsstatus),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _statusColor(r.zahlungsstatus),
+          // Absteigend sortieren (neuste zuoberst).
+          final sorted = List<Rechnung>.from(list)
+            ..sort((a, b) => _sortDatum(b).compareTo(_sortDatum(a)));
+
+          final filtered = sorted
+              .where((r) => _sortDatum(r).year == _selectedYear)
+              .toList();
+
+          final jahrSumme =
+              filtered.fold(0.0, (sum, r) => sum + r.betragBrutto);
+
+          return Column(
+            children: [
+              AppJahrLeiste(
+                jahre: jahre,
+                selectedJahr: _selectedYear,
+                onJahrChanged: (y) => setState(() => _selectedYear = y),
+                trailing: Text(
+                  jahrSumme > 0
+                      ? '${filtered.length} – ${_chf(jahrSumme)} CHF'
+                      : '${filtered.length} Rechnungen',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                    ),
-                    backgroundColor: _statusColor(r.zahlungsstatus).withAlpha(20),
-                    side: BorderSide.none,
-                  ),
-                  onTap: () => context.push('/heineken/${r.id}'),
                 ),
-              );
-            },
+              ),
+              Expanded(
+                child: filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Keine Rechnungen für $_selectedYear',
+                          style: const TextStyle(
+                              color: AppColors.textSecondary),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final r = filtered[index];
+                          final monat = r.heinekenMonat;
+                          final monatsName = monat != null
+                              ? _monatFormat.format(monat)
+                              : 'Unbekannt';
+
+                          return Card(
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    _statusColor(r.zahlungsstatus)
+                                        .withAlpha(30),
+                                child: Icon(
+                                  _statusIcon(r.zahlungsstatus),
+                                  color: _statusColor(r.zahlungsstatus),
+                                ),
+                              ),
+                              title: Text(monatsName),
+                              subtitle: Text(
+                                '${_dateFormat.format(r.rechnungsdatum)} · ${_chf(r.betragBrutto)} CHF',
+                              ),
+                              trailing: Chip(
+                                label: Text(
+                                  _statusLabel(r.zahlungsstatus),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _statusColor(r.zahlungsstatus),
+                                  ),
+                                ),
+                                backgroundColor:
+                                    _statusColor(r.zahlungsstatus)
+                                        .withAlpha(20),
+                                side: BorderSide.none,
+                              ),
+                              onTap: () => context.push('/heineken/${r.id}'),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/heineken/neu'),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.receipt_long, size: 64, color: AppColors.textSecondary),
+            SizedBox(height: 16),
+            Text(
+              'Noch keine Heineken-Rechnungen',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Erstelle eine neue Monatsrechnung über den + Button.',
+              style: TextStyle(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -145,6 +212,6 @@ class HeinekenRechnungenListScreen extends ConsumerWidget {
   }
 
   String _chf(double value) {
-    return value.toStringAsFixed(2);
+    return _nf.format(value);
   }
 }
