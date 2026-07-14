@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/core/util/rechnungsadresse_resolver.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -128,6 +129,32 @@ class _RechnungDetailContentState
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Frühwarnung: erstellt, aber nicht versendet
+          if (rechnungNichtVersendet(_rechnung)) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.error.withAlpha(80)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.mark_email_unread,
+                      color: AppColors.error, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Diese Rechnung wurde erstellt, aber nicht versendet. '
+                      'Unten über „Rechnung erneut senden" nachholen.',
+                      style: TextStyle(color: AppColors.error, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           // Status
           _SectionCard(
             children: [

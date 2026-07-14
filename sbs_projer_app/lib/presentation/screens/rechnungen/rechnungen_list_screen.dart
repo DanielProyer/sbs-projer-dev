@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -88,7 +89,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       if (_selectedMonth != 0 && r.rechnungsdatum.month != _selectedMonth) {
         return false;
       }
-      if (_statusFilter == 'mahnfaellig') {
+      if (_statusFilter == 'nicht_versendet') {
+        if (!rechnungNichtVersendet(r)) return false;
+      } else if (_statusFilter == 'mahnfaellig') {
         if (!ForderungService.istMahnfaellig(r)) return false;
       } else if (_statusFilter != 'alle' && r.zahlungsstatus != _statusFilter) {
         return false;
@@ -131,6 +134,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     final ueberfaellige = offene.where(
         (r) => r.faelligkeitsdatum.isBefore(DateTime.now())).length;
 
+    // Erzeugt, aber nie versendet (Versand fehlgeschlagen) — über alle Jahre.
+    final nichtVersendetCount = rechnungen.where(rechnungNichtVersendet).length;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Forderungen'),
@@ -159,20 +165,59 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                 hint: 'Alle Status',
                 nullable: false,
                 value: _statusFilter,
-                options: const [
-                  ('alle', 'Alle Status'),
-                  ('mahnfaellig', 'Mahnfällig'),
-                  ('offen', 'Offen'),
-                  ('erinnert', 'Erinnert'),
-                  ('mahnung_1', 'Mahnung 1'),
-                  ('mahnung_2', 'Mahnung 2'),
-                  ('bezahlt', 'Bezahlt'),
-                  ('abgeschrieben', 'Abgeschrieben'),
+                options: [
+                  const ('alle', 'Alle Status'),
+                  const ('mahnfaellig', 'Mahnfällig'),
+                  (
+                    'nicht_versendet',
+                    nichtVersendetCount > 0
+                        ? 'Nicht versendet ($nichtVersendetCount)'
+                        : 'Nicht versendet'
+                  ),
+                  const ('offen', 'Offen'),
+                  const ('erinnert', 'Erinnert'),
+                  const ('mahnung_1', 'Mahnung 1'),
+                  const ('mahnung_2', 'Mahnung 2'),
+                  const ('bezahlt', 'Bezahlt'),
+                  const ('abgeschrieben', 'Abgeschrieben'),
                 ],
                 onChanged: (v) => setState(() => _statusFilter = v ?? 'alle'),
               ),
             ],
           ),
+          // Frühwarnung: erzeugte, aber nicht versendete Mail-/Post-Rechnungen
+          if (nichtVersendetCount > 0 && _statusFilter != 'nicht_versendet')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: InkWell(
+                onTap: () => setState(() => _statusFilter = 'nicht_versendet'),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.error.withAlpha(80)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.mark_email_unread,
+                          color: AppColors.error, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '$nichtVersendetCount Rechnung(en) erstellt, aber nicht versendet — antippen zum Anzeigen.',
+                          style: const TextStyle(
+                              color: AppColors.error, fontSize: 13),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right,
+                          color: AppColors.error, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           // Summary Card
           if (_statusFilter == 'alle' || _statusFilter == 'offen' ||
               _statusFilter == 'erinnert' || _statusFilter == 'mahnung_1' ||
@@ -624,18 +669,40 @@ class _RechnungListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _statusColor(rechnung.zahlungsstatus);
     final naechster = _naechsterStatus(rechnung.zahlungsstatus);
+    final nichtVersendet = rechnungNichtVersendet(rechnung);
 
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: color.withAlpha(25),
-          child: Icon(Icons.receipt_long, color: color, size: 20),
+          backgroundColor:
+              (nichtVersendet ? AppColors.error : color).withAlpha(25),
+          child: Icon(
+            nichtVersendet ? Icons.mark_email_unread : Icons.receipt_long,
+            color: nichtVersendet ? AppColors.error : color,
+            size: 20,
+          ),
         ),
         title: Text(
           rechnung.rechnungsnummer ?? 'Entwurf',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(_buildSubtitle()),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_buildSubtitle()),
+            if (nichtVersendet)
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Text(
+                  '⚠ Nicht versendet',
+                  style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+          ],
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
