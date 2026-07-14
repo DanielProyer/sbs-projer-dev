@@ -698,6 +698,21 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           }
         } catch (e) {
           debugPrint('Rechnungs-/Buchungserstellung fehlgeschlagen: $e');
+          // Fehler NICHT verschlucken: der Nutzer muss sehen, dass Rechnung/Mail
+          // nicht erstellt wurden (sonst steht nur "abgeschlossen" da).
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.error,
+                content: Text(
+                    'RECHNUNG/MAIL FEHLGESCHLAGEN: $e\n'
+                    'Reinigung ist abgeschlossen. Rechnung/Mail über das '
+                    'Rechnungs-Menü im Detail nachholen.',
+                    style: const TextStyle(color: Colors.white)),
+                duration: const Duration(seconds: 12),
+              ),
+            );
+          }
         }
       }
 

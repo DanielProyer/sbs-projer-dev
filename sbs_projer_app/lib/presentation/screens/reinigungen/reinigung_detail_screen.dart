@@ -5,16 +5,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
+import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 
@@ -60,6 +64,14 @@ class _ReinigungDetailContent extends ConsumerWidget {
         title: Text('Reinigung ${_formatDate(reinigung.datum)}'),
         actions: [
           if (!SupabaseService.isGuest) ...[
+              if (reinigung.status == 'abgeschlossen' &&
+                  !reinigung.istKulanz &&
+                  !reinigung.istHeinekenMonteur)
+                IconButton(
+                  icon: const Icon(Icons.receipt_long),
+                  tooltip: 'Rechnung erstellen & senden',
+                  onPressed: () => _rechnungErstellenUndSenden(context, ref),
+                ),
               IconButton(
                 icon: const Icon(Icons.edit),
                 tooltip: 'Bearbeiten',
@@ -289,6 +301,105 @@ class _ReinigungDetailContent extends ConsumerWidget {
           );
         }
       }
+    }
+  }
+
+  /// Erstellt (falls nötig) die Kundenrechnung zur Reinigung und versendet sie
+  /// per Post/Mail — inkl. sichtbarer Erfolgs-/Fehlermeldung. Recovery-Weg für
+  /// abgeschlossene Reinigungen, bei denen der automatische Versand beim
+  /// Abschluss fehlschlug.
+  Future<void> _rechnungErstellenUndSenden(
+      BuildContext context, WidgetRef ref) async {
+    final betrieb = await BetriebRepository.getByServerId(reinigung.betriebId);
+    if (!context.mounted) return;
+    if (betrieb == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Betrieb nicht gefunden.')),
+      );
+      return;
+    }
+
+    final rs = betrieb.rechnungsstellung;
+    if (rs != 'rechnung_post' && rs != 'rechnung_mail') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Verrechnungsart „$rs" — kein automatischer Mailversand.')),
+      );
+      return;
+    }
+
+    // Bereits vorhandene Rechnung? (dann erneuter Versand statt Doppel-Erfassung)
+    String? vorhandeneId;
+    if (reinigung.serverId != null) {
+      vorhandeneId = await RechnungsPositionRepository.getRechnungIdByServiceId(
+          reinigung.serverId!);
+    }
+    if (!context.mounted) return;
+
+    final ziel =
+        rs == 'rechnung_post' ? MailConfig.testEmpfaenger : 'die Kundenadresse';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rechnung erstellen & senden'),
+        content: Text(
+          vorhandeneId != null
+              ? 'Für diese Reinigung existiert bereits eine Rechnung. Erneut an $ziel senden?'
+              : 'Rechnung erstellen und an $ziel senden (Rechnung + Reinigungsprotokoll)?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => ctx.pop(true),
+            child: const Text('Senden'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    // Fortschritts-Dialog (nicht abbrechbar)
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final erg =
+          await ReinigungRechnungVersand.erstelleUndSende(reinigung, betrieb);
+      // Automatische Buchung nachziehen (idempotent — Duplikat-Check via Beleg).
+      try {
+        await ReinigungBuchungService.createFromReinigung(reinigung, betrieb);
+      } catch (e) {
+        debugPrint('[Detail-Versand] Buchung fehlgeschlagen: $e');
+      }
+      ref.invalidate(rechnungenStreamProvider);
+      ref.invalidate(buchungenStreamProvider);
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Fortschritt schliessen
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: erg.keineKundenadresse ? AppColors.warning : null,
+          content: Text(erg.meldung),
+          duration: Duration(seconds: erg.keineKundenadresse ? 8 : 4),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Fortschritt schliessen
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text('RECHNUNG/MAIL FEHLGESCHLAGEN: $e',
+              style: const TextStyle(color: Colors.white)),
+          duration: const Duration(seconds: 12),
+        ),
+      );
     }
   }
 }
