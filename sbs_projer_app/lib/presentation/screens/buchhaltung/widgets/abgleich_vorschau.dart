@@ -708,6 +708,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         for (final r in gefiltert)
                           CheckboxListTile(
                             dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
                             value: gewaehlt.contains(r),
                             title: Text('${_dateFormat.format(r.rechnungsdatum)} — '
                                 '${r.betragBrutto.toStringAsFixed(2)} CHF'),
