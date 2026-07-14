@@ -71,6 +71,14 @@ class ForderungsAbgleichService {
     // ist auto-fähig; UNSCHARF (findBestMatch Contains/Wort-Overlap) dient nur
     // als Betrieb-Vorschlag und wird NIE automatisch verbucht (Schutz gegen
     // Fehlmatch wie „Edelweiss Davos AG" → Betrieb „Edelweiss" in Vals).
+    // Index offener Forderungen nach Rechnungsnummer (für Bemerkung-Match, z.B.
+    // Davos Klosters Bergbahnen nennt die Rechnungsnummer im Verwendungszweck).
+    final fordByNr = <String, Rechnung>{};
+    for (final r in offeneAktiv) {
+      final nr = r.rechnungsnummer;
+      if (nr != null && nr.isNotEmpty && r.betriebId != null) fordByNr[nr] = r;
+    }
+
     final gutProBetrieb = <String, List<CamtTransaction>>{};
     final unscharfeGuts = <CamtTransaction>{};
     for (final g in gutschriftenAktiv.where((g) => g.isCredit)) {
@@ -79,15 +87,18 @@ class ForderungsAbgleichService {
           ? null
           : (CamtBetriebMatcher.matchByAlias(name, betriebe) ??
               CamtBetriebMatcher.matchExakt(name, betriebe));
-      // Auflösungs-Reihenfolge: sicher → Vermerk-Betriebnummer (Betreiber-
-      // Sammelzahlung) → unscharfer Name. Nur „sicher" ist auto-fähig; alles
-      // andere landet als Vorschlag in der manuellen Prüfung.
+      // Auflösungs-Reihenfolge: sicher → Bemerkung-Rechnungsnummer (direkte
+      // Forderung) → Vermerk-Betriebnummer → unscharfer Name. Nur „sicher" ist
+      // auto-fähig; alles andere landet als Vorschlag in der manuellen Prüfung.
       final vermerk = parseVermerk(g.remittanceInfo);
-      final match = sicher ??
-          CamtBetriebMatcher.matchByNummer(vermerk.betriebNummer, betriebe) ??
-          (name == null ? null : CamtBetriebMatcher.findBestMatch(name, betriebe));
-      if (match == null) continue;
-      gutProBetrieb.putIfAbsent(match['id']!, () => []).add(g);
+      final refFord =
+          vermerk.rechnungsnummer == null ? null : fordByNr[vermerk.rechnungsnummer!];
+      final zielId = sicher?['id'] ??
+          refFord?.betriebId ??
+          CamtBetriebMatcher.matchByNummer(vermerk.betriebNummer, betriebe)?['id'] ??
+          (name == null ? null : CamtBetriebMatcher.findBestMatch(name, betriebe)?['id']);
+      if (zielId == null) continue;
+      gutProBetrieb.putIfAbsent(zielId, () => []).add(g);
       if (sicher == null) unscharfeGuts.add(g);
     }
 

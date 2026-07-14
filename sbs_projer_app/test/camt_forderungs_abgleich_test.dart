@@ -26,10 +26,12 @@ Rechnung _ford({
   required String betriebId,
   required double betrag,
   String? qr,
+  String? nr,
 }) =>
     Rechnung(
       id: id,
       userId: 'u',
+      rechnungsnummer: nr,
       rechnungstyp: 'kundenrechnung',
       rechnungsdatum: DateTime(2026, 4, 1),
       faelligkeitsdatum: DateTime(2026, 5, 1),
@@ -93,6 +95,26 @@ void main() {
     expect(erg.auto, isEmpty);
     expect(erg.manuell.length, 1);
     expect(erg.manuell.first.betriebId, 'b_dk');
+  });
+
+  test('Bemerkung nennt Rechnungsnummer → Routing zum richtigen Betrieb (manuell)', () {
+    // Davos Klosters Bergbahnen zahlt für Bolgen Plaza, Bemerkung enthält die
+    // Rechnungsnummer 2026-04-0505 → Forderung r_bp → Betrieb b_bp.
+    final erg = ForderungsAbgleichService.abgleich(
+      gutschriften: [
+        _gut(betrag: 145.95, name: 'Davos Klosters Bergbahnen AG', vermerk: '01.05.2026 2026-04-0505'),
+      ],
+      offeneForderungen: [
+        _ford(id: 'r_bp', betriebId: 'b_bp', betrag: 145.95, nr: '2026-04-0505'),
+      ],
+      betriebe: [
+        ...betriebe,
+        {'id': 'b_bp', 'name': 'Bolgen Plaza', 'ort': 'Davos', 'aliase': '', 'nr': '26'},
+      ],
+    );
+    expect(erg.auto, isEmpty);
+    expect(erg.manuell.length, 1);
+    expect(erg.manuell.first.betriebId, 'b_bp');
   });
 
   test('QR-/SCOR-Referenz → AUTO (unabhängig vom Namen)', () {

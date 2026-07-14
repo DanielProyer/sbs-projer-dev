@@ -390,10 +390,18 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // Betreiber-Sammelzahlung) entspricht, wird vorgehäkelt + hervorgehoben.
     final vorschlagFordIds = <String>{};
     for (final g in gutschriftenSortiert) {
-      final d = parseVermerk(g.remittanceInfo).datum;
-      if (d == null) continue;
-      final treffer =
-          f.forderungen.where((r) => _sameDay(r.rechnungsdatum, d)).toList();
+      final v = parseVermerk(g.remittanceInfo);
+      // Rechnungsnummer aus der Bemerkung exakt (stärkstes Signal), sonst Datum.
+      var treffer = v.rechnungsnummer == null
+          ? const <Rechnung>[]
+          : f.forderungen
+              .where((r) => r.rechnungsnummer == v.rechnungsnummer)
+              .toList();
+      if (treffer.isEmpty && v.datum != null) {
+        treffer = f.forderungen
+            .where((r) => _sameDay(r.rechnungsdatum, v.datum!))
+            .toList();
+      }
       if (treffer.length == 1 && !vorschlagFordIds.contains(treffer.first.id)) {
         vorschlagFordIds.add(treffer.first.id);
         gewaehlteGutschriften.add(g);
@@ -487,7 +495,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           '${r.betragBrutto.toStringAsFixed(2)} CHF',
                         ),
                         subtitle: Text(vorschlagFordIds.contains(r.id)
-                            ? 'Rechnung ${r.rechnungsnummer ?? '?'} · 📌 Datum aus Vermerk'
+                            ? 'Rechnung ${r.rechnungsnummer ?? '?'} · 📌 laut Bemerkung'
                             : 'Rechnung ${r.rechnungsnummer ?? '?'}'),
                         secondary: _forderungPdfLink(r),
                         onChanged: (sel) => setDialogState(() {

@@ -20,6 +20,8 @@ import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dar
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_regel_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eingangsrechnung_repository.dart';
+import 'package:sbs_projer_app/services/camt/zahlername.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
 import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
@@ -515,8 +517,39 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     );
   }
 
-  /// Eine Bereich-2-Vorschlagszeile (Betrag · Buchungs-Ziel · Verbuchen).
+  /// Zusatz-Infos zu einer Bereich-2-Zahlung: Zahlungsempfänger + Adresse +
+  /// Bemerkung (Verwendungszweck). Null, wenn nichts Brauchbares da ist.
+  String? _vorschlagInfo(CamtVorschlag v) {
+    final teile = <String>[];
+    final name = effektiverZahlername(
+        partyName: v.tx.partyName, additionalInfo: v.tx.additionalInfo);
+    if (name != null) teile.add(name);
+    final adr = v.tx.partyAddress.trim();
+    if (adr.isNotEmpty) teile.add(adr);
+    final remit = v.tx.remittanceInfo?.trim();
+    if (remit != null && remit.isNotEmpty) teile.add('Bemerkung: $remit');
+    return teile.isEmpty ? null : teile.join(' · ');
+  }
+
+  /// Öffnet den erfassten Beleg (PDF/Bild) einer Eingangsrechnung (frisch signiert).
+  Future<void> _oeffneBeleg(String belegPfad) async {
+    try {
+      final url = await EingangsrechnungRepository.signedBelegUrl(belegPfad);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Beleg konnte nicht geöffnet werden: $e')));
+      }
+    }
+  }
+
+  /// Eine Bereich-2-Vorschlagszeile (Betrag · Ziel · Zahler/Bemerkung · Beleg · Verbuchen).
   Widget _vorschlagZeile(CamtVorschlag v) {
+    final info = _vorschlagInfo(v);
+    final belegPfad = v.typ == CamtVorschlagTyp.kreditor
+        ? v.eingangsrechnung?.belegPfad
+        : null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
       child: Row(
@@ -536,10 +569,37 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                   style: const TextStyle(
                       fontSize: 13, color: AppColors.textSecondary),
                 ),
+                if (info != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    info,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          if (belegPfad != null && belegPfad.isNotEmpty)
+            GestureDetector(
+              onTap: () => _oeffneBeleg(belegPfad),
+              behavior: HitTestBehavior.opaque,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.picture_as_pdf, size: 16, color: AppColors.primary),
+                  SizedBox(width: 3),
+                  Text('Beleg',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+          const SizedBox(width: 8),
           _tapButton('Verbuchen', () => _bucheVorschlag(v), primaer: true),
         ],
       ),

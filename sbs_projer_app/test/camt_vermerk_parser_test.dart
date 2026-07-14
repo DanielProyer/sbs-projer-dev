@@ -53,5 +53,23 @@ void main() {
     test('31.02. (nicht existent) → verworfen', () {
       expect(parseVermerk('31.02.2026').istLeer, isTrue);
     });
+
+    test('Rechnungsnummer YYYY-MM-NNNN wird erkannt (Davos Klosters real)', () {
+      // Bemerkung: „01.05.2026 2026-04-0505" — Datum + Rechnungsnummer.
+      final h = parseVermerk('01.05.2026 2026-04-0505');
+      expect(h.rechnungsnummer, '2026-04-0505');
+      expect(h.datum, DateTime(2026, 5, 1)); // 01.05. NICHT aus der Rg-Nr geparst
+      expect(h.betriebNummer, isNull);
+    });
+
+    test('nur Rechnungsnummer → kein Datum aus deren Ziffern', () {
+      final h = parseVermerk('Zahlung 2026-04-0505');
+      expect(h.rechnungsnummer, '2026-04-0505');
+      expect(h.datum, isNull);
+    });
+
+    test('3-stellige Rechnungsnummer-Sequenz', () {
+      expect(parseVermerk('2025-12-007').rechnungsnummer, '2025-12-007');
+    });
   });
 }
