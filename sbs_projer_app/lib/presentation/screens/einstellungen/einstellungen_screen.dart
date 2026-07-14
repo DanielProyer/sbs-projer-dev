@@ -282,6 +282,20 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                     ),
                   ),
 
+                  // Regionen verwalten
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: const Icon(Icons.map, color: AppColors.primary),
+                      title: const Text('Regionen',
+                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text(
+                          'Gebiete für Filter, Touren und Karte'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/einstellungen/regionen'),
+                    ),
+                  ),
+
                   // Heineken
                   _SectionCard(
                     title: 'Heineken',

@@ -65,6 +65,7 @@ import 'package:sbs_projer_app/presentation/screens/einstellungen/einstellungen_
 import 'package:sbs_projer_app/presentation/screens/google_kalender/google_termine_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/preis_version_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/biersorten_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/einstellungen/regionen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/jahresrechnung/jahresrechnung_generate_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohnlauf_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohn_einstellungen_screen.dart';
@@ -625,6 +626,10 @@ final router = GoRouter(
     GoRoute(
       path: '/einstellungen/biersorten',
       builder: (context, state) => const BiersortenScreen(),
+    ),
+    GoRoute(
+      path: '/einstellungen/regionen',
+      builder: (context, state) => const RegionenScreen(),
     ),
 
     // Jahresrechnung

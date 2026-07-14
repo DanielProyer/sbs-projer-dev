@@ -65,4 +65,38 @@ class RegionRepository {
     }
     await IsarService.regionDelete(int.parse(id));
   }
+
+  /// Neue Region anlegen (nur Name; id/user_id serverseitig bzw. via [save]).
+  ///
+  /// Hinweis Franchise-Zukunft: Regionen sind heute pro Nutzer (`user_id` +
+  /// RLS-Isolation). Sobald mehrere Franchisenehmer sich Regionen TEILEN,
+  /// wird `regionen` zu einem zentral gepflegten, geteilten Katalog (Ownership
+  /// weg von `user_id`, Admin-Rolle schreibt, Franchisenehmer wählen nur aus).
+  /// Der Wechsel bleibt dank dieser Kapselung lokal in diesem Repository +
+  /// RLS — Screens/Referenzen (`betriebe.region_id`) bleiben unverändert.
+  static Future<void> createName(String name) async {
+    if (kIsWeb) {
+      await SupabaseService.client
+          .from('regionen')
+          .insert({'user_id': _userId, 'name': name});
+      return;
+    }
+    final r = RegionLocal()..name = name;
+    await save(r);
+  }
+
+  /// Region umbenennen.
+  static Future<void> renameRegion(String id, String name) async {
+    if (kIsWeb) {
+      await SupabaseService.client
+          .from('regionen')
+          .update({'name': name}).eq('id', id);
+      return;
+    }
+    final r = await IsarService.regionGet(int.parse(id));
+    if (r != null) {
+      r.name = name;
+      await save(r);
+    }
+  }
 }

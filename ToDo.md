@@ -221,6 +221,7 @@ Befunde komplett in Memory `buchhaltung_vollcheck_2026_07.md`. Positiv: Import 2
 
 ## 🟢 BACKLOG (kein Zeitdruck)
 - [ ] **GIS Regionen-Polygone** für 15 Regionen (KML/GeoJSON, WGS84/EPSG:4326). Tools: QGIS / Google Earth Pro / My Maps.
+- [ ] **Franchise: geteilte zentrale Regionen (ferne Zukunft).** Heute sind Regionen pro Nutzer (`regionen.user_id` + RLS `user_isolation`), erfassbar über Einstellungen → Regionen (v0.46.20). Sobald mehrere Franchisenehmer sich Regionen **teilen** (N:M Franchisenehmer↔Region, User-Wunsch 14.07.2026): `regionen` zu **zentral gepflegtem, geteiltem Katalog** umbauen — Ownership weg von `user_id`, **Admin-Rolle** schreibt, Franchisenehmer wählen nur aus (`RegionenScreen._kannBearbeiten=false` für Nicht-Admins). Umsetzung bleibt lokal in `RegionRepository` + RLS; `betriebe.region_id`-FK stabil halten (bestehende 14 Regionen in Katalog migrieren, IDs behalten). Zuordnung Franchisenehmer→genutzte Regionen via Verknüpfungstabelle. Erst angehen, wenn 2. Franchisenehmer real ansteht (YAGNI).
 - [ ] **Beta-Testing-Phase** (echte Geräte, Real-World, Offline-Modus Bergkunden).
 - [ ] **Beleg-Foto** Ausrichtung/Zuschnitt optimieren (Deskew, Crop, Kontrast).
 - [ ] **Bulk-Sync Handy-Kontakte ↔ App** (App-Kontakte priorisiert, Matching über normalisierte Nr., Bestätigung vor Übernahme).
