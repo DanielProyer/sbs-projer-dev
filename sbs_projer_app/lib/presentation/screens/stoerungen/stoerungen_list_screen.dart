@@ -14,6 +14,10 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 final _nf = NumberFormat('#,##0', 'de_CH');
 String _chf(double v) => '${_nf.format(v.round())} CHF';
 
+/// Anlagentyp kapitalisiert (z.B. 'warmanstich' → 'Warmanstich').
+String _anlageTypLabel(String typ) =>
+    typ.isEmpty ? typ : typ[0].toUpperCase() + typ.substring(1);
+
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
@@ -187,7 +191,7 @@ class _StoerungenListScreenState
                     isExpanded: true,
                     value: effektiverTyp,
                     options: [
-                      for (final t in anlagenTypen) (t, _typLabel(t)),
+                      for (final t in anlagenTypen) (t, _anlageTypLabel(t)),
                       if (hatOhneTyp) ('ohne', 'Ohne Typ'),
                     ],
                     onChanged: (v) => setState(() => _anlagenTypFilter = v),
@@ -416,9 +420,6 @@ class _StoerungenListScreenState
     );
   }
 
-  String _typLabel(String typ) =>
-      typ.isEmpty ? typ : typ[0].toUpperCase() + typ.substring(1);
-
 }
 
 class _MonatsGruppe {
@@ -466,17 +467,37 @@ class _StoerungListItem extends StatelessWidget {
                     )
                   : Icon(Icons.warning_amber, color: _statusColor, size: 20),
         ),
-        title: Text(
-          stoerung.istKilometerabrechnung
-              ? stoerung.problemBeschreibung
-              : betriebOrt != null
-                  ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
-                  : betriebName ?? stoerung.stoerungsnummer ?? 'Störung',
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        title: Row(
+          children: [
+            // Bergkunde: erdiges Bergsymbol vorne, höhenneutral (1 Zeile).
+            if (stoerung.istBergkunde) ...[
+              const Icon(Icons.terrain,
+                  size: 15, color: Color(0xFF8D6E63)),
+              const SizedBox(width: 4),
+            ],
+            Expanded(
+              child: Text(
+                stoerung.istKilometerabrechnung
+                    ? stoerung.problemBeschreibung
+                    : betriebOrt != null
+                        ? '$betriebOrt – ${betriebName ?? 'Unbekannt'}'
+                        : betriebName ??
+                            stoerung.stoerungsnummer ??
+                            'Störung',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
-        subtitle: Text(stoerung.istKilometerabrechnung
-            ? _buildKmSubtitle()
-            : _buildSubtitle()),
+        subtitle: Text(
+          stoerung.istKilometerabrechnung
+              ? _buildKmSubtitle()
+              : _buildSubtitle(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -520,6 +541,9 @@ class _StoerungListItem extends StatelessWidget {
 
   String _buildSubtitle() {
     final parts = <String>[];
+    if (stoerung.anlageTyp != null) {
+      parts.add(_anlageTypLabel(stoerung.anlageTyp!));
+    }
     if (stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty) {
       parts.add('Bereich ${stoerung.stoerungBereiche!.join(', ')}');
     }
