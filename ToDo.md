@@ -4,8 +4,8 @@
 
 ---
 
-## 🟡 camt-Abgleich Verbesserungs-Paket (entschieden 14.07.2026 — 1 Umsetzung für nächsten Test)
-Alle Anmerkungen aus dem camt-Test vom 14.07. gebündelt. Bis dahin wurde nichts gebucht.
+## 🟢 camt-Abgleich Verbesserungs-Paket (LIVE v0.46.21 · 14.07.2026 — Test durch Daniel ausstehend)
+Alle Anmerkungen aus dem camt-Test vom 14.07. gebündelt umgesetzt (TDD, 383 Tests grün, deployed). Bis dahin wurde nichts gebucht. **Offen:** Daniel lädt die camt-Datei neu und prüft die 4 Punkte live; echtes HAPIMAG-Betreff-Beispiel zur Format-Bestätigung.
 
 **1. Matcher-Härtung — Auto nur bei sicheren Quellen.** Problem: unscharfe Namens-Treffer (`CamtBetriebMatcher.findBestMatch`, Wort-Overlap ab **1** Wort ≥6 Zeichen) dürfen auto-buchen — und bei `_autoLernen=true` den Zahlernamen als Alias **festschreiben**. Fehlmatch: „Edelweiss Davos AG" (betreibt Concordia + Dischma in Davos) → Betrieb „Edelweiss" in **Vals**, Ort ignoriert. **Entscheidung:** Auto NUR bei QR/SCOR-Referenz + **exaktem Namen** + **gelerntem Alias** (`matchByAlias`). Alle unscharfen → **manuell** (mit Vorschlag). Umsetzung (TDD): in `ForderungsAbgleichService.abgleich` Betrieb-Auflösung nach Vertrauensstufe trennen — nur sicher-aufgelöste Betriebe auto-fähig (Subset-Summe), fuzzy → `ManuellFall`. `findBestMatch` nur noch als Vorschlag.
 
