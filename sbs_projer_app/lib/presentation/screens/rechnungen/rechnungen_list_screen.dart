@@ -6,8 +6,6 @@ import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
-import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_nachtrag.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
@@ -142,20 +140,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Forderungen'),
-        actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Weitere Aktionen',
-            onSelected: (v) {
-              if (v == 'buchungen_nachtrag') _buchungenNachtragen();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'buchungen_nachtrag',
-                child: Text('Fehlende Buchungen nachtragen'),
-              ),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -346,85 +330,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         ],
       ),
     );
-  }
-
-  /// Trägt fehlende Reinigungs-Buchungen nach (idempotent, ohne Rechnung/Mail).
-  /// Sicherheits-Stichtag 01.12.2025 — davor deckt der Voll-Import alles ab.
-  Future<void> _buchungenNachtragen() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-    ReinigungBuchungNachtragErgebnis vorschau;
-    try {
-      vorschau = await ReinigungBuchungNachtrag.nachtragen(dryRun: true);
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Prüfung fehlgeschlagen: $e')));
-      return;
-    }
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pop();
-
-    if (vorschau.kandidaten == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Keine fehlenden Reinigungs-Buchungen — alles ist gebucht.')));
-      return;
-    }
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Buchungen nachtragen'),
-        content: Text(
-          '${vorschau.kandidaten} abgeschlossene Reinigung(en) ab 01.12.2025 '
-          'ohne Buchung gefunden.\n\n'
-          'Jetzt sauber nachbuchen? Es wird keine Rechnung erzeugt und keine '
-          'Mail versendet — nur die Buchhaltung.',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => ctx.pop(false),
-              child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () => ctx.pop(true),
-              child: const Text('Nachbuchen')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-    try {
-      final erg = await ReinigungBuchungNachtrag.nachtragen();
-      ref.invalidate(buchungenStreamProvider);
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        duration: const Duration(seconds: 8),
-        content: Text(
-          '${erg.gebucht} Buchung(en) nachgetragen'
-          '${erg.uebersprungen > 0 ? ', ${erg.uebersprungen} übersprungen' : ''}'
-          '${erg.fehler > 0 ? ', ${erg.fehler} Fehler' : ''}.',
-        ),
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: AppColors.error,
-        content: Text('Nachtrag fehlgeschlagen: $e',
-            style: const TextStyle(color: Colors.white)),
-      ));
-    }
   }
 
   Future<void> _showStatusDialog(Rechnung rechnung) async {
