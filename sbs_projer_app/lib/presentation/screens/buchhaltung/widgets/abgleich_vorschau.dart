@@ -134,17 +134,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           summe: erg.unbekannteGutschriften.isEmpty ? null : unbekanntSumme,
           farbe: AppColors.textSecondary,
           initiallyExpanded: true,
-          children: [
-            for (final g in ([...erg.unbekannteGutschriften]
-              ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate))))
-              ListTile(
-                title: Text('${g.amount.toStringAsFixed(2)} CHF — '
-                    '${effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo) ?? '?'}'),
-                subtitle: Text(_dateFormat.format(g.bookingDate)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _ordneZu(g),
-              ),
-          ],
+          children: _unbekanntZeilen(erg.unbekannteGutschriften),
         ),
 
         // 🔴 Keine Zahlung gefunden (standardmäßig zugeklappt, Deckel 50 Zeilen)
@@ -911,6 +901,76 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                   fontWeight: FontWeight.w600)),
         ]),
       ),
+    );
+  }
+
+  // Zahler, die für MEHRERE Betriebe zahlen → in „Nicht zugeordnet" NICHT
+  // gruppieren (jede Zahlung geht an einen anderen Kunden).
+  static const _mehrKundenZahler = ['davos klosters', 'weisse arena'];
+
+  bool _istMehrKundenZahler(String? name) {
+    if (name == null) return false;
+    final n = name.toLowerCase();
+    return _mehrKundenZahler.any(n.contains);
+  }
+
+  /// „Nicht zugeordnet": Zahlungen gleicher Einzahler gruppieren (Header +
+  /// Zeilen); Mehr-Kunden-Zahler (Davos Klosters, Weisse Arena) bleiben einzeln.
+  List<Widget> _unbekanntZeilen(List<CamtTransaction> guts) {
+    final sortiert = [...guts]
+      ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
+    final gruppen = <String, List<CamtTransaction>>{};
+    final einzeln = <CamtTransaction>[];
+    for (final g in sortiert) {
+      final name = effektiverZahlername(
+          partyName: g.partyName, additionalInfo: g.additionalInfo);
+      if (name == null || _istMehrKundenZahler(name)) {
+        einzeln.add(g);
+      } else {
+        gruppen.putIfAbsent(zahlernameNorm(name), () => []).add(g);
+      }
+    }
+    final widgets = <Widget>[];
+    gruppen.forEach((_, list) {
+      if (list.length >= 2) {
+        final name = effektiverZahlername(
+                partyName: list.first.partyName,
+                additionalInfo: list.first.additionalInfo) ??
+            '?';
+        final summe = list.fold<double>(0, (s, g) => s + g.amount);
+        widgets.add(Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+          child: Text(
+            '$name · ${list.length} Zahlungen · ${summe.toStringAsFixed(2)} CHF',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+        ));
+        for (final g in list) {
+          widgets.add(_unbekanntZeile(g, eingerueckt: true));
+        }
+      } else {
+        widgets.add(_unbekanntZeile(list.first));
+      }
+    });
+    for (final g in einzeln) {
+      widgets.add(_unbekanntZeile(g));
+    }
+    return widgets;
+  }
+
+  Widget _unbekanntZeile(CamtTransaction g, {bool eingerueckt = false}) {
+    final remit = g.remittanceInfo?.trim();
+    final sub = [
+      _dateFormat.format(g.bookingDate),
+      if (remit != null && remit.isNotEmpty) remit,
+    ].join(' · ');
+    return ListTile(
+      contentPadding: EdgeInsets.only(left: eingerueckt ? 32 : 16, right: 8),
+      title: Text('${g.amount.toStringAsFixed(2)} CHF — '
+          '${effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo) ?? '?'}'),
+      subtitle: Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _ordneZu(g),
     );
   }
 }

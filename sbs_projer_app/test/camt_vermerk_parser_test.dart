@@ -13,9 +13,16 @@ void main() {
       expect(parseVermerk('Zahlung Rechnung ABC').istLeer, isTrue);
     });
 
-    test('strukturiert Nummer_yyyy_MM_dd (Davos Klosters Bergbahnen)', () {
+    test('Sequenz-Format 0151_2026_04_04 → Rechnungsnummer 2026-04-0151', () {
       final h = parseVermerk('0151_2026_04_04');
+      expect(h.rechnungsnummer, '2026-04-0151');
       expect(h.betriebNummer, '0151');
+      expect(h.datum, DateTime(2026, 4, 4));
+    });
+
+    test('Davos Klosters real: „04.04.2026 0151_2026_04_04"', () {
+      final h = parseVermerk('04.04.2026 0151_2026_04_04');
+      expect(h.rechnungsnummer, '2026-04-0151');
       expect(h.datum, DateTime(2026, 4, 4));
     });
 
