@@ -220,7 +220,7 @@ class BestellungPdfService {
         1: const pw.FixedColumnWidth(60),
         2: const pw.FlexColumnWidth(3),
         3: const pw.FixedColumnWidth(50),
-        4: const pw.FixedColumnWidth(45),
+        4: const pw.FixedColumnWidth(56),
       },
       border: pw.TableBorder(
         horizontalInside: pw.BorderSide(color: _lineGrey, width: 0.5),
@@ -244,7 +244,7 @@ class BestellungPdfService {
                 _dataCell(p.menge.toStringAsFixed(0),
                     align: pw.Alignment.centerRight,
                     bold: true),
-                _dataCell(p.einheit),
+                _dataCell(p.einheit, nowrap: true),
               ],
             )),
       ],
@@ -264,11 +264,13 @@ class BestellungPdfService {
   }
 
   static pw.Widget _dataCell(String text,
-      {pw.Alignment? align, bool bold = false}) {
+      {pw.Alignment? align, bool bold = false, bool nowrap = false}) {
     return pw.Container(
       alignment: align ?? pw.Alignment.centerLeft,
       padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       child: pw.Text(text,
+          softWrap: nowrap ? false : null,
+          maxLines: nowrap ? 1 : null,
           style: pw.TextStyle(
               fontSize: 9,
               fontWeight: bold ? pw.FontWeight.bold : null)),

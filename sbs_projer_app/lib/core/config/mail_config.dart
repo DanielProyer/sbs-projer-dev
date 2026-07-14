@@ -21,7 +21,9 @@ class MailConfig {
   static const heinekenScharf = true;
   static const montageScharf = true;
   static const heigenieScharf = true;
-  static const bestellungScharf = false;
+  // Scharfgestellt 14.07.2026: Materialbestellungen gehen an den echten
+  // Heineken-Kontakt (Daniel Mani) statt an den Testempfänger.
+  static const bestellungScharf = true;
   static const mahnwesenScharf = false;
   // Events-Abschlussmail: scharfgestellt 10.07.2026 nach erfolgreichem Test —
   // Versand geht an die echten Empfänger (Eventverantwortlicher/RSL).
