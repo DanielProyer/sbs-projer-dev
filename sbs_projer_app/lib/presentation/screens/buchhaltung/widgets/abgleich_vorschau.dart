@@ -938,11 +938,23 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 additionalInfo: list.first.additionalInfo) ??
             '?';
         final summe = list.fold<double>(0, (s, g) => s + g.amount);
-        widgets.add(Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-          child: Text(
-            '$name · ${list.length} Zahlungen · ${summe.toStringAsFixed(2)} CHF',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        widgets.add(InkWell(
+          onTap: () => _ordneZuGruppe(list),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 12, 2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$name · ${list.length} Zahlungen · ${summe.toStringAsFixed(2)} CHF',
+                    style:
+                        const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                ),
+                const Icon(Icons.playlist_add_check,
+                    size: 18, color: AppColors.primary),
+              ],
+            ),
           ),
         ));
         for (final g in list) {
@@ -972,6 +984,175 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _ordneZu(g),
     );
+  }
+
+  /// Zuordnung mehrerer Zahlungseingänge gleicher Einzahler: oben die Zahlungen
+  /// (Mehrfachauswahl), unten Suche über den offenen Forderungs-Pool — wie die
+  /// Manuelle Zuordnung, aber ohne fixen Betrieb.
+  Future<void> _ordneZuGruppe(List<CamtTransaction> guts) async {
+    final sortiertGuts = [...guts]
+      ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
+    final gewaehlteGuts = <CamtTransaction>{if (guts.length == 1) guts.first};
+    final gewaehlteForderungen = <Rechnung>{};
+    var suche = '';
+    final name = effektiverZahlername(
+            partyName: guts.first.partyName,
+            additionalInfo: guts.first.additionalInfo) ??
+        '?';
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final gefiltert = widget.alleOffenen.where((r) {
+            if (suche.isEmpty) return true;
+            final q = suche.toLowerCase();
+            return (r.rechnungsnummer ?? '').toLowerCase().contains(q) ||
+                (widget.betriebName[r.betriebId] ?? '').toLowerCase().contains(q);
+          }).toList()
+            ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+          final zahlSumme =
+              gewaehlteGuts.fold<double>(0, (s, g) => s + g.amount);
+          final fordSumme = gewaehlteForderungen.fold<double>(
+              0, (s, r) => s + r.betragBrutto);
+          final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
+          final kannVerbuchen =
+              gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
+          return AlertDialog(
+            title: Text('Zuordnen — $name'),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Zahlungseingänge',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    for (final g in sortiertGuts)
+                      CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: gewaehlteGuts.contains(g),
+                        title: Text('${_dateFormat.format(g.bookingDate)} — '
+                            '${g.amount.toStringAsFixed(2)} CHF'),
+                        subtitle: _zahlungInfoText(g),
+                        onChanged: (sel) => setDialogState(() {
+                          if (sel == true) {
+                            gewaehlteGuts.add(g);
+                          } else {
+                            gewaehlteGuts.remove(g);
+                          }
+                        }),
+                      ),
+                    const SizedBox(height: 12),
+                    const Text('Offene Forderungen',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Suche (Rechnungsnr. oder Betrieb)',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (v) => setDialogState(() => suche = v),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final r in gefiltert.take(50))
+                      CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: gewaehlteForderungen.contains(r),
+                        title: Text('${_dateFormat.format(r.rechnungsdatum)} — '
+                            '${r.betragBrutto.toStringAsFixed(2)} CHF'),
+                        subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
+                            '${widget.betriebName[r.betriebId] ?? '?'}'),
+                        secondary: _forderungPdfLink(r),
+                        onChanged: (sel) => setDialogState(() {
+                          if (sel == true) {
+                            gewaehlteForderungen.add(r);
+                          } else {
+                            gewaehlteForderungen.remove(r);
+                          }
+                        }),
+                      ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Zahlung: CHF ${zahlSumme.toStringAsFixed(2)}\n'
+                      'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    if (diff.abs() >= 0.01)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          diff < 0
+                              ? 'Unterzahlung CHF ${diff.abs().toStringAsFixed(2)} → Debitorenverlust (3805)'
+                              : 'Mehrzahlung CHF ${diff.toStringAsFixed(2)} → a.o. Ertrag (8000)',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: diff < 0
+                                  ? AppColors.warning
+                                  : AppColors.success),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Abbrechen')),
+              FilledButton(
+                onPressed: kannVerbuchen
+                    ? () async {
+                        try {
+                          await ForderungsAbgleichService.verbuche(
+                            zahlbetrag: zahlSumme,
+                            datum: gewaehlteGuts.first.bookingDate,
+                            forderungen: gewaehlteForderungen.toList(),
+                            camtTxKey: gewaehlteGuts.first.txKey,
+                          );
+                          if (ctx.mounted) Navigator.pop(ctx, true);
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                content: Text('Verbuchungs-Fehler: $e')));
+                          }
+                        }
+                      }
+                    : null,
+                child: const Text('Verbuchen'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (ok == true) {
+      final betriebIds =
+          gewaehlteForderungen.map((r) => r.betriebId).whereType<String>().toSet();
+      if (betriebIds.length == 1) {
+        await _lerneAlias(betriebIds.first, gewaehlteGuts.first);
+      }
+      ref.invalidate(rechnungenStreamProvider);
+      ref.invalidate(buchungenStreamProvider);
+      if (!mounted) return;
+      setState(() {
+        final gebuchteIds = gewaehlteForderungen.map((r) => r.id).toSet();
+        widget.ergebnis.unbekannteGutschriften
+            .removeWhere((g) => gewaehlteGuts.contains(g));
+        widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
+        widget.ergebnis.keineZahlung
+            .removeWhere((r) => gebuchteIds.contains(r.id));
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+      }
+    }
   }
 }
 
