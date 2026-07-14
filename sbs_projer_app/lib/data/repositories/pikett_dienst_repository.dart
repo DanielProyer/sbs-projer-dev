@@ -10,11 +10,44 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 class PikettDienstRepository {
   static String get _userId => SupabaseService.dataUserId;
 
+  /// Holt ALLE Zeilen seitenweise (PostgREST deckelt sonst bei 1000).
+  static Future<List<Map<String, dynamic>>> _pagedByUser() async {
+    const pageSize = 1000;
+
+    Future<List<Map<String, dynamic>>> fetchPage(int page) {
+      return SupabaseService.client
+          .from('pikett_dienste')
+          .select()
+          .eq('user_id', _userId)
+          .order('datum_start', ascending: false)
+          .order('id')
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .then((rows) => List<Map<String, dynamic>>.from(rows));
+    }
+
+    final all = <Map<String, dynamic>>[];
+    final first = await fetchPage(0);
+    all.addAll(first);
+    if (first.length < pageSize) return all;
+
+    const batch = 4;
+    int nextPage = 1;
+    while (true) {
+      final pages = await Future.wait(
+        [for (int i = 0; i < batch; i++) fetchPage(nextPage + i)],
+      );
+      for (final rows in pages) {
+        all.addAll(rows);
+      }
+      if (pages.last.length < pageSize) break;
+      nextPage += batch;
+    }
+    return all;
+  }
+
   static Future<List<PikettDienstLocal>> getAll() async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('pikett_dienste').select().eq('user_id', _userId)
-          .order('datum_start', ascending: false);
+      final rows = await _pagedByUser();
       return rows.map((r) => PikettDienstMapper.fromDto(PikettDienst.fromJson(r))).toList();
     }
     return IsarService.pikettDienstFindAll();
@@ -37,9 +70,7 @@ class PikettDienstRepository {
 
   static Future<int> count() async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('pikett_dienste').select('id').eq('user_id', _userId);
-      return rows.length;
+      return (await _pagedByUser()).length;
     }
     return IsarService.pikettDienstCount();
   }

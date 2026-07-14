@@ -8,10 +8,47 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 class EroeffnungsreinigungRepository {
   static String get _userId => SupabaseService.currentUser!.id;
 
+  /// Holt ALLE Zeilen seitenweise (PostgREST deckelt sonst bei 1000).
+  static Future<List<Map<String, dynamic>>> _pagedByUser(
+      {String? col, String? val}) async {
+    const pageSize = 1000;
+
+    Future<List<Map<String, dynamic>>> fetchPage(int page) {
+      var q = SupabaseService.client
+          .from('eroeffnungsreinigungen')
+          .select()
+          .eq('user_id', _userId);
+      if (col != null) q = q.eq(col, val!);
+      return q
+          .order('datum', ascending: false)
+          .order('id')
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .then((rows) => List<Map<String, dynamic>>.from(rows));
+    }
+
+    final all = <Map<String, dynamic>>[];
+    final first = await fetchPage(0);
+    all.addAll(first);
+    if (first.length < pageSize) return all;
+
+    const batch = 4;
+    int nextPage = 1;
+    while (true) {
+      final pages = await Future.wait(
+        [for (int i = 0; i < batch; i++) fetchPage(nextPage + i)],
+      );
+      for (final rows in pages) {
+        all.addAll(rows);
+      }
+      if (pages.last.length < pageSize) break;
+      nextPage += batch;
+    }
+    return all;
+  }
+
   static Future<List<EroeffnungsreinigungLocal>> getAll() async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('eroeffnungsreinigungen').select().eq('user_id', _userId);
+      final rows = await _pagedByUser();
       return rows.map((r) => EroeffnungsreinigungMapper.fromDto(Eroeffnungsreinigung.fromJson(r))).toList();
     }
     return IsarService.eroeffnungsreinigungFindAll();
@@ -34,8 +71,7 @@ class EroeffnungsreinigungRepository {
 
   static Future<List<EroeffnungsreinigungLocal>> getByBetrieb(String betriebId) async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('eroeffnungsreinigungen').select().eq('user_id', _userId).eq('betrieb_id', betriebId);
+      final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
       return rows.map((r) => EroeffnungsreinigungMapper.fromDto(Eroeffnungsreinigung.fromJson(r))).toList();
     }
     return IsarService.eroeffnungsreinigungFilterByBetrieb(betriebId);
@@ -48,9 +84,7 @@ class EroeffnungsreinigungRepository {
 
   static Future<int> count() async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('eroeffnungsreinigungen').select('id').eq('user_id', _userId);
-      return rows.length;
+      return (await _pagedByUser()).length;
     }
     return IsarService.eroeffnungsreinigungCount();
   }
