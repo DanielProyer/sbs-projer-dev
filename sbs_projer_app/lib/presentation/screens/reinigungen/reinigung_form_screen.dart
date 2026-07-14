@@ -541,10 +541,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       bool buchungVerbucht = false;
       String? buchungTypLabel;
       if (abschliessen && kIsWeb && !_istKulanz && !_istHeinekenMonteur) {
-        try {
-          final betrieb = _betrieb ??
-              await BetriebRepository.getByServerId(r.betriebId);
-          if (betrieb != null) {
+        final betrieb = _betrieb ??
+            await BetriebRepository.getByServerId(r.betriebId);
+        if (betrieb != null) {
+          // 1. Rechnung + Mail — eigener try/catch; ein Fehler hier darf die
+          //    Buchung (Schritt 2) NICHT verhindern.
+          try {
             final rechnung = await RechnungService.createFromReinigung(r, betrieb);
 
             // Mail versenden wenn rechnung_mail
@@ -687,31 +689,48 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               }
             }
 
-            // Automatische Buchung (Barzahlung oder Rechnung)
-            final buchung = await ReinigungBuchungService.createFromReinigung(r, betrieb);
+          } catch (e) {
+            debugPrint('Rechnungs-/Mailerstellung fehlgeschlagen: $e');
+            // Fehler NICHT verschlucken: der Nutzer muss sehen, dass Rechnung/
+            // Mail nicht erstellt wurden (sonst steht nur "abgeschlossen" da).
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: AppColors.error,
+                  content: Text(
+                      'RECHNUNG/MAIL FEHLGESCHLAGEN: $e\n'
+                      'Reinigung ist abgeschlossen. Rechnung/Mail über das '
+                      'Rechnungs-Menü im Detail nachholen.',
+                      style: const TextStyle(color: Colors.white)),
+                  duration: const Duration(seconds: 12),
+                ),
+              );
+            }
+          }
+
+          // 2. Automatische Buchung — UNABHÄNGIG vom Rechnungs-/Mailversand,
+          //    damit eine gescheiterte Rechnung NIE die Buchhaltung verhindert.
+          try {
+            final buchung =
+                await ReinigungBuchungService.createFromReinigung(r, betrieb);
             if (buchung != null) {
               buchungVerbucht = true;
               buchungTypLabel = betrieb.rechnungsstellung == 'barzahlung'
                   ? 'Barzahlung'
                   : 'Rechnung';
             }
-          }
-        } catch (e) {
-          debugPrint('Rechnungs-/Buchungserstellung fehlgeschlagen: $e');
-          // Fehler NICHT verschlucken: der Nutzer muss sehen, dass Rechnung/Mail
-          // nicht erstellt wurden (sonst steht nur "abgeschlossen" da).
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: AppColors.error,
-                content: Text(
-                    'RECHNUNG/MAIL FEHLGESCHLAGEN: $e\n'
-                    'Reinigung ist abgeschlossen. Rechnung/Mail über das '
-                    'Rechnungs-Menü im Detail nachholen.',
-                    style: const TextStyle(color: Colors.white)),
-                duration: const Duration(seconds: 12),
-              ),
-            );
+          } catch (e) {
+            debugPrint('[Buchung] Fehler: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: AppColors.error,
+                  content: Text('BUCHUNG FEHLGESCHLAGEN: $e',
+                      style: const TextStyle(color: Colors.white)),
+                  duration: const Duration(seconds: 10),
+                ),
+              );
+            }
           }
         }
       }
