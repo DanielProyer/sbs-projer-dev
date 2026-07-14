@@ -43,6 +43,56 @@ class CamtBetriebMatcher {
     return treffer;
   }
 
+  /// „Sicherer" exakter Namens-Treffer: Parteiname == Betriebsname (getrimmt,
+  /// case-insensitive). Liefert nur bei EINDEUTIGKEIT den Betrieb, sonst null
+  /// (0 oder mehrere gleichnamige). Anders als [findBestMatch] rein exakt —
+  /// dient (neben [matchByAlias]) als auto-fähige Vertrauensquelle.
+  static Map<String, String>? matchExakt(
+    String? partyName,
+    List<Map<String, String>> betriebe,
+  ) {
+    if (partyName == null || partyName.trim().isEmpty) return null;
+    final p = partyName.toLowerCase().trim();
+    Map<String, String>? treffer;
+    for (final b in betriebe) {
+      if (b['name']!.toLowerCase().trim() == p) {
+        if (treffer != null) return null; // mehrdeutig → nicht sicher
+        treffer = b;
+      }
+    }
+    return treffer;
+  }
+
+  /// Matcht eine im Verwendungszweck genannte **Betriebnummer** (z.B. Davos
+  /// Klosters Bergbahnen / Weisse Arena AG: `0151_2026_04_04`) gegen die
+  /// Nummern-Felder `nr` / `we_nummer` / `ag_nummer`. Leading-Zero-tolerant
+  /// (Zahlvergleich). Nur bei EINDEUTIGKEIT ein Treffer, sonst null.
+  static Map<String, String>? matchByNummer(
+    String? nummer,
+    List<Map<String, String>> betriebe,
+  ) {
+    final norm = _normNr(nummer);
+    if (norm == null) return null;
+    Map<String, String>? treffer;
+    for (final b in betriebe) {
+      final kandidaten = [b['nr'], b['we_nummer'], b['ag_nummer']];
+      if (kandidaten.any((k) => _normNr(k) == norm)) {
+        if (treffer != null) return null; // mehrdeutig
+        treffer = b;
+      }
+    }
+    return treffer;
+  }
+
+  /// Normalisiert eine Nummer für den Vergleich: führende Nullen egal
+  /// (`0151` == `151`), sonst getrimmt/kleingeschrieben. Null bei leer.
+  static String? _normNr(String? s) {
+    final t = s?.trim() ?? '';
+    if (t.isEmpty) return null;
+    final n = int.tryParse(t);
+    return n != null ? n.toString() : t.toLowerCase();
+  }
+
   /// Findet den besten Betrieb-Match für einen Parteinamen.
   static Map<String, String>? findBestMatch(
     String? partyName,

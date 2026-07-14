@@ -11,6 +11,9 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/auto_match_tile.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
+import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Wiederverwendbare Ergebnis-Vorschau für den camt-Forderungsabgleich:
 /// Kopf-Übersicht (KPIs) + vier klappbare Gruppen (🟢 Auto / 🟡 Manuell /
@@ -132,7 +135,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           farbe: AppColors.textSecondary,
           initiallyExpanded: true,
           children: [
-            for (final g in erg.unbekannteGutschriften)
+            for (final g in ([...erg.unbekannteGutschriften]
+              ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate))))
               ListTile(
                 title: Text('${g.amount.toStringAsFixed(2)} CHF — '
                     '${effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo) ?? '?'}'),
@@ -255,8 +259,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final name = effektiverZahlername(
         partyName: g.partyName, additionalInfo: g.additionalInfo);
     if (name != null) teile.add(name);
+    final adr = g.partyAddress.trim();
+    if (adr.isNotEmpty) teile.add(adr);
     final remit = g.remittanceInfo?.trim();
-    if (remit != null && remit.isNotEmpty) teile.add(remit);
+    if (remit != null && remit.isNotEmpty) teile.add('Bemerkung: $remit');
     // Kein Name extrahierbar (z.B. Schalter-/Automaten-/Posteinzahlung) →
     // rohen AddtlNtryInf-Text zeigen (enthält bei Automaten Ort/Datum/Zeit).
     if (name == null) {
@@ -376,6 +382,25 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // einem anderen Betrieb, z.B. Betreiber-/Ketten-Name).
     CamtTransaction? umleiten;
 
+    // Zahlungseingänge neueste zuoberst.
+    final gutschriftenSortiert = [...f.gutschriften]
+      ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
+    // Vermerk-basierte Vorauswahl (nur Vorschlag, kein Auto): Forderung, deren
+    // Rechnungsdatum dem im Zahlungs-Vermerk genannten Datum (HAPIMAG /
+    // Betreiber-Sammelzahlung) entspricht, wird vorgehäkelt + hervorgehoben.
+    final vorschlagFordIds = <String>{};
+    for (final g in gutschriftenSortiert) {
+      final d = parseVermerk(g.remittanceInfo).datum;
+      if (d == null) continue;
+      final treffer =
+          f.forderungen.where((r) => _sameDay(r.rechnungsdatum, d)).toList();
+      if (treffer.length == 1 && !vorschlagFordIds.contains(treffer.first.id)) {
+        vorschlagFordIds.add(treffer.first.id);
+        gewaehlteGutschriften.add(g);
+        gewaehlteForderungen.add(treffer.first);
+      }
+    }
+
     final verbucht = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -405,7 +430,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     // Zahlungseingänge (Gutschriften) als Mehrfachauswahl.
                     const Text('Zahlungseingänge',
                         style: TextStyle(fontWeight: FontWeight.w700)),
-                    for (final g in f.gutschriften)
+                    for (final g in gutschriftenSortiert)
                       CheckboxListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
@@ -453,12 +478,18 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
+                        tileColor: vorschlagFordIds.contains(r.id)
+                            ? AppColors.success.withAlpha(20)
+                            : null,
                         value: gewaehlteForderungen.contains(r),
                         title: Text(
                           '${_dateFormat.format(r.rechnungsdatum)} — '
                           '${r.betragBrutto.toStringAsFixed(2)} CHF',
                         ),
-                        subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'}'),
+                        subtitle: Text(vorschlagFordIds.contains(r.id)
+                            ? 'Rechnung ${r.rechnungsnummer ?? '?'} · 📌 Datum aus Vermerk'
+                            : 'Rechnung ${r.rechnungsnummer ?? '?'}'),
+                        secondary: _forderungPdfLink(r),
                         onChanged: (sel) => setDialogState(() {
                           if (sel == true) {
                             gewaehlteForderungen.add(r);
@@ -682,6 +713,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                                 '${r.betragBrutto.toStringAsFixed(2)} CHF'),
                             subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
                                 '${widget.betriebName[r.betriebId] ?? '?'}'),
+                            secondary: _forderungPdfLink(r),
                             onChanged: (sel) => setDialogState(() {
                               if (sel == true) {
                                 gewaehlt.add(r);
@@ -815,6 +847,61 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     } catch (_) {
       // Lernen ist Best-Effort; Verbuchung darf dadurch nicht scheitern.
     }
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// Öffnet die erfasste Rechnung (PDF). Gespeicherte signierte Storage-URLs
+  /// sind abgelaufen → Pfad extrahieren und frisch signieren.
+  Future<void> _oeffneRechnungPdf(String pdfUrl) async {
+    try {
+      var url = pdfUrl;
+      const marker = '/object/sign/';
+      final idx = pdfUrl.indexOf(marker);
+      if (idx != -1) {
+        var rest = pdfUrl.substring(idx + marker.length);
+        final q = rest.indexOf('?');
+        if (q != -1) rest = rest.substring(0, q);
+        final slash = rest.indexOf('/');
+        if (slash != -1) {
+          final bucket = rest.substring(0, slash);
+          final path = Uri.decodeComponent(rest.substring(slash + 1));
+          url = await SupabaseService.client.storage
+              .from(bucket)
+              .createSignedUrl(path, 3600);
+        }
+      }
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('PDF konnte nicht geöffnet werden: $e')));
+      }
+    }
+  }
+
+  /// „Rechnung ansehen"-Link für eine Forderung mit erfasstem PDF (GestureDetector,
+  /// da Material-Buttons in CanvasKit teils nicht rendern). Null ohne PDF.
+  Widget? _forderungPdfLink(Rechnung r) {
+    final pdf = r.pdfUrl;
+    if (pdf == null || pdf.isEmpty) return null;
+    return GestureDetector(
+      onTap: () => _oeffneRechnungPdf(pdf),
+      behavior: HitTestBehavior.opaque,
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.picture_as_pdf, size: 16, color: AppColors.primary),
+          SizedBox(width: 3),
+          Text('Rechnung',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
   }
 }
 

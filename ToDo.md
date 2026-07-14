@@ -4,6 +4,21 @@
 
 ---
 
+## 🟡 camt-Abgleich Verbesserungs-Paket (entschieden 14.07.2026 — 1 Umsetzung für nächsten Test)
+Alle Anmerkungen aus dem camt-Test vom 14.07. gebündelt. Bis dahin wurde nichts gebucht.
+
+**1. Matcher-Härtung — Auto nur bei sicheren Quellen.** Problem: unscharfe Namens-Treffer (`CamtBetriebMatcher.findBestMatch`, Wort-Overlap ab **1** Wort ≥6 Zeichen) dürfen auto-buchen — und bei `_autoLernen=true` den Zahlernamen als Alias **festschreiben**. Fehlmatch: „Edelweiss Davos AG" (betreibt Concordia + Dischma in Davos) → Betrieb „Edelweiss" in **Vals**, Ort ignoriert. **Entscheidung:** Auto NUR bei QR/SCOR-Referenz + **exaktem Namen** + **gelerntem Alias** (`matchByAlias`). Alle unscharfen → **manuell** (mit Vorschlag). Umsetzung (TDD): in `ForderungsAbgleichService.abgleich` Betrieb-Auflösung nach Vertrauensstufe trennen — nur sicher-aufgelöste Betriebe auto-fähig (Subset-Summe), fuzzy → `ManuellFall`. `findBestMatch` nur noch als Vorschlag.
+
+**2. Zahlungseingänge nach Datum absteigend** sortieren (Manuell-Dialog + ⚪-Liste, neueste zuoberst).
+
+**3. Betreff/Vermerk auswerten → nur VORAUSWÄHLEN (kein Auto).** Reine Parser (TDD) `vermerk_parser.dart`: Datum (HAPIMAG, z.B. „…04.04.2026") + `Nummer_yyyy_MM_dd` (Davos Klosters/Weisse Arena, z.B. `0151_2026_04_04`). Im Manuell-Dialog die passende Forderung (Datum ≈ `rechnungsdatum`) **vorhäkeln + hervorheben**; Betriebnummer gegen `nr`/`we_nummer`/`ag_nummer` auflösen. Echter QR-Code bleibt der einzige Auto-Weg (Referenz-Stufe). **Mehrbetriebs-Zahler-Alias-Umbau bewusst NICHT** (YAGNI — QR mit Betrieb+Reinigungsdatum löst es langfristig).
+
+**4. Mehr Zahlungs-Infos** in Manuell-/Zuordnen-Dialog: Einzahler + Adresse, Bemerkung/Betreff, und **„Rechnung ansehen" (PDF-Link)** auf der Forderungs-Zeile, falls `pdf_url` erfasst.
+
+**Frage offen an Daniel:** echtes HAPIMAG-Betreff-Beispiel zur Bestätigung des Datums-Formats (Pre-Select ist ungefährlich — bei Fehlparse einfach kein Vorschlag).
+
+---
+
 ## 🟢 Karten-Hintergrund + Handy-Standort (live v0.26.1–v0.26.4 · 10.07.2026)
 - [x] ✓ Umschalter **Luftbild ↔ Strassenkarte** (swisstopo) in Betriebe- + Event-Karte (kostenlos/legal, kein Google-Tile-ToS-Verstoss).
 - [x] ✓ **Handy-Standort** als blauer Punkt + weiss/blauer „Mein Standort"-Zentrier-Button; Filter „Inaktive/geschl." entfernt (inaktive/geschlossene auf der Karte generell ausgeblendet).

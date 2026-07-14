@@ -33,4 +33,30 @@ void main() {
     expect(CamtBetriebMatcher.matchByAlias(null, betriebe), isNull);
     expect(CamtBetriebMatcher.matchByAlias('   ', betriebe), isNull);
   });
+
+  test('matchExakt: exakter, eindeutiger Name', () {
+    expect(CamtBetriebMatcher.matchExakt(' hotel alpina ', betriebe)?['id'], 'b1');
+    expect(CamtBetriebMatcher.matchExakt('Hotel Alpina AG', betriebe), isNull); // nicht exakt
+  });
+
+  final mitNr = [
+    {'id': 'b1', 'name': 'A', 'nr': '0151', 'we_nummer': '', 'ag_nummer': ''},
+    {'id': 'b2', 'name': 'B', 'nr': '', 'we_nummer': '77', 'ag_nummer': ''},
+  ];
+
+  test('matchByNummer: leading-zero-tolerant über nr/we/ag', () {
+    expect(CamtBetriebMatcher.matchByNummer('151', mitNr)?['id'], 'b1');
+    expect(CamtBetriebMatcher.matchByNummer('0151', mitNr)?['id'], 'b1');
+    expect(CamtBetriebMatcher.matchByNummer('77', mitNr)?['id'], 'b2');
+    expect(CamtBetriebMatcher.matchByNummer('999', mitNr), isNull);
+    expect(CamtBetriebMatcher.matchByNummer(null, mitNr), isNull);
+  });
+
+  test('matchByNummer: mehrdeutig → null', () {
+    final ambig = [
+      {'id': 'b1', 'name': 'A', 'nr': '5'},
+      {'id': 'b2', 'name': 'B', 'nr': '5'},
+    ];
+    expect(CamtBetriebMatcher.matchByNummer('5', ambig), isNull);
+  });
 }

@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.da
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
+import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
 import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 
 /// Ein eindeutiger Auto-Treffer: eine Gutschrift schliesst eine/mehrere Forderungen.
@@ -66,15 +67,28 @@ class ForderungsAbgleichService {
         .toList();
 
     // 1. Gutschriften pro Betrieb gruppieren (über effektiven Zahlernamen).
+    // Vertrauensstufe je Gutschrift: SICHER (gelernter Alias ODER exakter Name)
+    // ist auto-fähig; UNSCHARF (findBestMatch Contains/Wort-Overlap) dient nur
+    // als Betrieb-Vorschlag und wird NIE automatisch verbucht (Schutz gegen
+    // Fehlmatch wie „Edelweiss Davos AG" → Betrieb „Edelweiss" in Vals).
     final gutProBetrieb = <String, List<CamtTransaction>>{};
+    final unscharfeGuts = <CamtTransaction>{};
     for (final g in gutschriftenAktiv.where((g) => g.isCredit)) {
       final name = effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo);
-      if (name == null) continue;
-      // Stufe 2 (gelernter Alias) vor Stufe 3 (unscharf).
-      final match = CamtBetriebMatcher.matchByAlias(name, betriebe) ??
-          CamtBetriebMatcher.findBestMatch(name, betriebe);
+      final sicher = name == null
+          ? null
+          : (CamtBetriebMatcher.matchByAlias(name, betriebe) ??
+              CamtBetriebMatcher.matchExakt(name, betriebe));
+      // Auflösungs-Reihenfolge: sicher → Vermerk-Betriebnummer (Betreiber-
+      // Sammelzahlung) → unscharfer Name. Nur „sicher" ist auto-fähig; alles
+      // andere landet als Vorschlag in der manuellen Prüfung.
+      final vermerk = parseVermerk(g.remittanceInfo);
+      final match = sicher ??
+          CamtBetriebMatcher.matchByNummer(vermerk.betriebNummer, betriebe) ??
+          (name == null ? null : CamtBetriebMatcher.findBestMatch(name, betriebe));
       if (match == null) continue;
       gutProBetrieb.putIfAbsent(match['id']!, () => []).add(g);
+      if (sicher == null) unscharfeGuts.add(g);
     }
 
     // 2. Offene Forderungen pro Betrieb gruppieren.
@@ -107,8 +121,11 @@ class ForderungsAbgleichService {
         continue;
       }
 
-      // Pro Gutschrift eindeutige Subset-Summe der noch offenen Forderungen.
+      // Pro SICHER aufgelöster Gutschrift eindeutige Subset-Summe der noch
+      // offenen Forderungen. Unscharfe Gutschriften bleiben für die manuelle
+      // Prüfung (nie automatisch verbucht).
       for (final g in List<CamtTransaction>.from(guts)) {
+        if (unscharfeGuts.contains(g)) continue;
         final m = RechnungMatcher.match(zahlbetrag: g.amount, offeneRechnungen: offen);
         if (m.eindeutig) {
           auto.add(AutoTreffer(g, m.rechnungen));
