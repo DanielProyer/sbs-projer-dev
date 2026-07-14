@@ -106,11 +106,21 @@ class RechnungRepository {
             .select();
         return Rechnung.fromJson(rows.first);
       } on PostgrestException catch (e) {
-        // Nur bei Referenz-Kollision (eigene Vergabe) mit anderem Suffix erneut.
-        final refKonflikt = e.code == '23505' &&
+        final istDuplikat = e.code == '23505';
+        // Referenz-Kollision (eigene Vergabe) → mit anderem Suffix erneut.
+        final refKonflikt = istDuplikat &&
             (e.message.contains('qr_referenz') ||
                 (e.details?.toString().contains('qr_referenz') ?? false));
-        if (!eigeneRef && refKonflikt && suffix < 50) continue;
+        // rechnungsnummer wird per DB-Trigger aus einer Sequenz vergeben. Hinkt
+        // die Sequenz hinter bereits vergebenen Nummern her, kollidiert der
+        // Insert — ein Neuversuch erzeugt die nächste Sequenznummer und heilt
+        // die Lücke selbst.
+        final nummerKonflikt = istDuplikat &&
+            (e.message.contains('rechnungsnummer') ||
+                (e.details?.toString().contains('rechnungsnummer') ?? false));
+        if (((!eigeneRef && refKonflikt) || nummerKonflikt) && suffix < 50) {
+          continue;
+        }
         rethrow;
       }
     }
