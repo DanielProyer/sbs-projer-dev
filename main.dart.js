@@ -55461,71 +55461,71 @@ case 6:case 1:return A.k(q,r)
 case 2:return A.j(o.at(-1),r)}})
 return A.l($async$ahM,r)},
 n_(a,b,c){return A.cMO(a,b,c)},
-cMO(b8,b9,c0){var s=0,r=A.m(t.io),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6,b7
-var $async$n_=A.i(function(c1,c2){if(c1===1){o.push(c2)
-s=p}for(;;)switch(s){case 0:b6=J.a1(c0)
-if(b6.gY(c0))throw A.n(A.dD("Keine Reinigungen zum Abrechnen vorhanden"))
+cMO(b7,b8,b9){var s=0,r=A.m(t.io),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6
+var $async$n_=A.i(function(c0,c1){if(c0===1){o.push(c1)
+s=p}for(;;)switch(s){case 0:b5=J.a1(b9)
+if(b5.gY(b9))throw A.n(A.dD("Keine Reinigungen zum Abrechnen vorhanden"))
 s=3
-return A.c(A.aZt(A.aK(b9,12,31,0,0,0,0)),$async$n_)
+return A.c(A.aZt(A.aK(b8,12,31,0,0,0,0)),$async$n_)
 case 3:i=A.eo("dd.MM.yyyy",null)
-h=b8.ay
-g=""+b9+"-JR-"+B.j.a9(h==null?"0000":h,4,"0")
+h=b7.ay
+g=""+b8+"-JR-"+B.j.a9(h==null?"0000":h,4,"0")
 f=A.a([],t.H7)
-for(h=t.N,e=t.z,d=0,c=0;c<b6.gu(c0);){b=b6.h(c0,c)
+for(h=t.N,e=t.z,d=0,c=0;c<b5.gu(b9);){b=b5.h(b9,c)
 a=A.aZv(b)
 a0=B.f.bv(a*$.aZu*100)/100
 d+=a;++c
-f.push(A.X(["position",c,"beschreibung","Reinigung "+i.b6(b.w),"betrag_netto",a,"mwst_satz",$.cto,"mwst_betrag",a0,"betrag_brutto",B.f.bv((a+a0)*100)/100,"service_typ","reinigung","service_id",b.b],h,e))}a1=B.f.bv(d*$.aZu*100)/100
-a2=B.f.bv((d+a1)*20)/20
-a3=A.aK(b9,12,31,0,0,0,0)
-a4=A.aK(b9+1,1,30,0,0,0,0)
+f.push(A.X(["position",c,"beschreibung","Reinigung "+i.b6(b.w),"betrag_netto",a,"mwst_satz",$.cto,"mwst_betrag",a0,"betrag_brutto",B.f.bv((a+a0)*100)/100,"service_typ","reinigung","service_id",b.b],h,e))}a1=B.f.bv(d*(1+$.aZu)*20)/20
+a2=B.f.bv((a1-d)*100)
+a3=A.aK(b8,12,31,0,0,0,0)
+a4=A.aK(b8+1,1,30,0,0,0,0)
 s=4
-return A.c(A.ZW(A.X(["rechnungsnummer",g,"rechnungstyp","jahresrechnung","betrieb_id",b8.b,"rechnungsdatum",B.e.gI(a3.aB().split("T")),"faelligkeitsdatum",B.e.gI(a4.aB().split("T")),"betrag_netto",d,"mwst_betrag",a1,"betrag_brutto",a2,"zahlungsstatus","offen","versandart","jahresrechnung"],h,e)),$async$n_)
-case 4:n=c2
-for(a5=f.length,a6=0;a6<f.length;f.length===a5||(0,A.B)(f),++a6)J.b8(f[a6],"rechnung_id",n.a)
+return A.c(A.ZW(A.X(["rechnungsnummer",g,"rechnungstyp","jahresrechnung","betrieb_id",b7.b,"rechnungsdatum",B.e.gI(a3.aB().split("T")),"faelligkeitsdatum",B.e.gI(a4.aB().split("T")),"betrag_netto",d,"mwst_betrag",a2/100,"betrag_brutto",a1,"zahlungsstatus","offen","versandart","jahresrechnung"],h,e)),$async$n_)
+case 4:n=c1
+for(a2=f.length,a5=0;a5<f.length;f.length===a2||(0,A.B)(f),++a5)J.b8(f[a5],"rechnung_id",n.a)
 s=5
 return A.c(A.ZY(f),$async$n_)
-case 5:a7=c2
-a5=b8.b
-if(a5==null)a5.toString
+case 5:a6=c1
+a2=b7.b
+if(a2==null)a2.toString
 s=6
-return A.c(A.q_(a5),$async$n_)
-case 6:a8=c2
-if(a8!=null){a5=a8.b
-if(a5==null)a5=""
-a9=a8.e
-b0=b8.b
-if(b0==null)b0=""
-b1=new A.ub(a5,a9,b0,a8.r,a8.w,a8.x,a8.y,a8.z,a8.Q,a8.as,a8.at,a8.ax,null,null)}else b1=null
+return A.c(A.q_(a2),$async$n_)
+case 6:a7=c1
+if(a7!=null){a2=a7.b
+if(a2==null)a2=""
+a8=a7.e
+a9=b7.b
+if(a9==null)a9=""
+b0=new A.ub(a2,a8,a9,a7.r,a7.w,a7.x,a7.y,a7.z,a7.Q,a7.as,a7.at,a7.ax,null,null)}else b0=null
 s=7
 return A.c(A.ES(),$async$n_)
-case 7:b2=c2
-a5=A.eQ(b2.c)
-if(a5==null)a5="SBS Projer GmbH"
-a9=A.eQ(b2.d)
-if(a9==null)a9="Via Rezia 8"
-b0=A.eQ(b2.e)
-if(b0==null)b0="7013 Domat/Ems"
+case 7:b1=c1
+a2=A.eQ(b1.c)
+if(a2==null)a2="SBS Projer GmbH"
+a8=A.eQ(b1.d)
+if(a8==null)a8="Via Rezia 8"
+a9=A.eQ(b1.e)
+if(a9==null)a9="7013 Domat/Ems"
 s=8
-return A.c(A.ZV(b8,b2.gwI(),a5,b0,a9,a7,n,b1),$async$n_)
-case 8:b3=c2
+return A.c(A.ZV(b7,b1.gwI(),a2,a9,a8,a6,n,b0),$async$n_)
+case 8:b2=c1
 s=9
-return A.c(A.Oc(n.a,b3),$async$n_)
+return A.c(A.Oc(n.a,b2),$async$n_)
 case 9:s=10
 return A.c(A.Ob(n.a),$async$n_)
-case 10:b4=c2
+case 10:b3=c1
 s=11
-return A.c(A.k3(n.a,A.X(["pdf_url",b4],h,e)),$async$n_)
+return A.c(A.k3(n.a,A.X(["pdf_url",b3],h,e)),$async$n_)
 case 11:m=0
 p=13
 s=16
-return A.c(A.ahN(c0),$async$n_)
-case 16:l=c2
+return A.c(A.ahN(b9),$async$n_)
+case 16:l=c1
 s=J.d8(l)?17:18
 break
 case 17:s=19
-return A.c(A.cjP(l,b8.f,b9),$async$n_)
-case 19:k=c2
+return A.c(A.cjP(l,b7.f,b8),$async$n_)
+case 19:k=c1
 s=20
 return A.c(A.bao(n.a,k),$async$n_)
 case 20:m=J.aH(l)
@@ -55533,14 +55533,14 @@ case 18:p=2
 s=15
 break
 case 13:p=12
-b7=o.pop()
-j=A.N(b7)
+b6=o.pop()
+j=A.N(b6)
 A.bO().$1("Protokolle-PDF Fehler (nicht kritisch): "+A.h(j))
 s=15
 break
 case 12:s=2
 break
-case 15:A.bO().$1("Jahresrechnung "+g+" erstellt: "+b6.gu(c0)+" Reinigungen, "+A.h(m)+" Protokolle, Total CHF "+A.h(a2))
+case 15:A.bO().$1("Jahresrechnung "+g+" erstellt: "+b5.gu(b9)+" Reinigungen, "+A.h(m)+" Protokolle, Total CHF "+A.h(a1))
 q=n
 s=1
 break
@@ -61415,12 +61415,13 @@ l=""+A.T(m)+"-"+B.j.a9(B.i.j(A.aj(m)),2,"0")+"-"+B.j.a9(B.i.j(A.au(m)),2,"0")+"-
 k=A.cPH(b2)
 j=0
 for(a3=k,a4=a3.length,a5=0;a5<a3.length;a3.length===a4||(0,A.B)(a3),++a5){i=a3[a5]
-j+=A.f9(J.v(i,"betrag_netto"))}h=B.f.bv(j*$.bat*100)/100
-g=B.f.bv((j+h)*100)/100
+j+=A.f9(J.v(i,"betrag_netto"))}j=B.f.bv(j*100)/100
+h=B.f.bv(j*(1+$.bat)*20)/20
+g=B.f.bv((h-j)*100)/100
 a3=t.N
 a4=t.z
 s=8
-return A.c(A.ZW(A.X(["rechnungsnummer",l,"rechnungstyp","kundenrechnung","betrieb_id",b3.b,"rechnungsdatum",B.e.gI(m.aB().split("T")),"faelligkeitsdatum",B.e.gI(m.cT(2592e9).aB().split("T")),"betrag_netto",j,"mwst_betrag",h,"betrag_brutto",g,"zahlungsstatus","offen","versandart",b3.k4],a3,a4)),$async$oc)
+return A.c(A.ZW(A.X(["rechnungsnummer",l,"rechnungstyp","kundenrechnung","betrieb_id",b3.b,"rechnungsdatum",B.e.gI(m.aB().split("T")),"faelligkeitsdatum",B.e.gI(m.cT(2592e9).aB().split("T")),"betrag_netto",j,"mwst_betrag",g,"betrag_brutto",h,"zahlungsstatus","offen","versandart",b3.k4],a3,a4)),$async$oc)
 case 8:f=b5
 for(a6=k,a7=a6.length,a5=0;a5<a6.length;a6.length===a7||(0,A.B)(a6),++a5){e=a6[a5]
 J.b8(e,"rechnung_id",f.a)}s=9
