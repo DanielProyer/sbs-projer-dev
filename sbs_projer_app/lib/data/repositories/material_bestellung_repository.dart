@@ -95,6 +95,27 @@ class MaterialBestellungRepository {
         .eq('id', id);
   }
 
+  /// Bucht die Abholung **atomar** (Bestände +, `menge_erhalten`, Status
+  /// 'abgeholt'). [mengen]: positionId → erhaltene Menge (aus `abholPayload`).
+  /// Wirft, wenn die Bestellung nicht im Status 'gesendet' ist — dann wurde
+  /// nichts geschrieben (Transaktion).
+  static Future<void> abholen(
+      String bestellungId, Map<String, double> mengen) async {
+    await SupabaseService.client.rpc('material_bestellung_abholen', params: {
+      'p_bestellung_id': bestellungId,
+      'p_mengen': mengen,
+    });
+  }
+
+  /// Macht die Abholung **atomar** rückgängig (Bestände −, `menge_erhalten`
+  /// gelöscht, Status zurück auf 'gesendet').
+  static Future<void> abholungRueckgaengig(String bestellungId) async {
+    await SupabaseService.client.rpc(
+      'material_bestellung_abholung_rueckgaengig',
+      params: {'p_bestellung_id': bestellungId},
+    );
+  }
+
   static Future<void> setPdfPath(String id, String path) async {
     await SupabaseService.client
         .from('material_bestellungen')
