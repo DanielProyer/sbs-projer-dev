@@ -8,6 +8,7 @@ class MaterialBestellung {
   final String status;
   final String? pdfStoragePath;
   final String? notizen;
+  final DateTime? abgeholtAm;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<MaterialBestellposition> positionen;
@@ -22,6 +23,7 @@ class MaterialBestellung {
     this.status = 'entwurf',
     this.pdfStoragePath,
     this.notizen,
+    this.abgeholtAm,
     this.createdAt,
     this.updatedAt,
     this.positionen = const [],
@@ -38,6 +40,9 @@ class MaterialBestellung {
       status: json['status'] ?? 'entwurf',
       pdfStoragePath: json['pdf_storage_path'],
       notizen: json['notizen'],
+      abgeholtAm: json['abgeholt_am'] != null
+          ? DateTime.parse(json['abgeholt_am'])
+          : null,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,
@@ -58,6 +63,7 @@ class MaterialBestellung {
       'status': status,
       'pdf_storage_path': pdfStoragePath,
       'notizen': notizen,
+      'abgeholt_am': abgeholtAm?.toIso8601String().substring(0, 10),
     };
   }
 }
@@ -73,6 +79,8 @@ class MaterialBestellposition {
   final double menge;
   final double? bestandAktuell;
   final double? bestandOptimal;
+  /// Tatsächlich erhaltene Menge (null = noch nicht abgeholt/gebucht).
+  final double? mengeErhalten;
   final String? kategorieName;
   final int sortierung;
 
@@ -87,6 +95,7 @@ class MaterialBestellposition {
     this.menge = 1,
     this.bestandAktuell,
     this.bestandOptimal,
+    this.mengeErhalten,
     this.kategorieName,
     this.sortierung = 0,
   });
@@ -107,6 +116,9 @@ class MaterialBestellposition {
       bestandOptimal: json['bestand_optimal'] != null
           ? double.tryParse(json['bestand_optimal'].toString())
           : null,
+      mengeErhalten: json['menge_erhalten'] != null
+          ? double.tryParse(json['menge_erhalten'].toString())
+          : null,
       kategorieName: json['kategorie_name'],
       sortierung: json['sortierung'] ?? 0,
     );
@@ -123,6 +135,7 @@ class MaterialBestellposition {
       'menge': menge,
       'bestand_aktuell': bestandAktuell,
       'bestand_optimal': bestandOptimal,
+      'menge_erhalten': mengeErhalten,
       'kategorie_name': kategorieName,
       'sortierung': sortierung,
     };
