@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -100,9 +101,26 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Zeigt die Version des GELADENEN Bundles — nicht die des
+              // Servers. Nur so ist erkennbar, ob wirklich der neue Code läuft.
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(25),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text('App-Version: $kAppVersion',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 8),
               Text('Summe: ${probe.summe.toStringAsFixed(2)} CHF · '
                   'werden als am Reinigungstag abgegeben markiert. '
                   'Keine Buchung, keine Mail.'),
+              const SizedBox(height: 4),
+              const Text(
+                  'Pfeil = Rechnungsbetrag weicht von der Reinigung ab.',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
               const SizedBox(height: 12),
               Flexible(
                 child: SingleChildScrollView(

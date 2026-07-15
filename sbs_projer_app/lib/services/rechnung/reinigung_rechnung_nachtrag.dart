@@ -21,6 +21,10 @@ class NachtragKandidat {
   /// Der Rechnungs-Service hat bewusst null geliefert (kein Rechnungs-Betrieb).
   bool uebersprungen = false;
 
+  /// Betrag, den die Rechnung bekommen WIRD — im Trockenlauf vorausberechnet
+  /// mit demselben Code, der ihn danach schreibt.
+  double? berechnetBrutto;
+
   NachtragKandidat({
     required this.reinigungId,
     required this.datum,
@@ -29,10 +33,17 @@ class NachtragKandidat {
     required this.brutto,
   });
 
-  String get zeile =>
-      '${datum.day.toString().padLeft(2, '0')}.'
-      '${datum.month.toString().padLeft(2, '0')}.${datum.year} · '
-      '$betriebName · ${brutto.toStringAsFixed(2)} CHF';
+  String get zeile {
+    final d = '${datum.day.toString().padLeft(2, '0')}.'
+        '${datum.month.toString().padLeft(2, '0')}.${datum.year}';
+    final b = berechnetBrutto;
+    // Weicht der berechnete Betrag von der Reinigung ab, muss man das SEHEN,
+    // bevor 38 Rechnungen entstehen.
+    final betrag = b == null || b == brutto
+        ? '${brutto.toStringAsFixed(2)} CHF'
+        : '${brutto.toStringAsFixed(2)} → ${b.toStringAsFixed(2)} CHF  ⚠';
+    return '$d · $betriebName · $betrag';
+  }
 }
 
 class NachtragErgebnis {
@@ -145,7 +156,18 @@ class ReinigungRechnungNachtrag {
       reinigungen[sid] = [r, betrieb];
     }
 
-    if (dryRun) return NachtragErgebnis(kandidaten);
+    if (dryRun) {
+      // Betrag mit demselben Code vorausberechnen, der ihn danach schreibt.
+      for (final k in kandidaten) {
+        final paar = reinigungen[k.reinigungId] as List;
+        try {
+          k.berechnetBrutto = await RechnungService.vorschauBrutto(paar[0]);
+        } catch (e) {
+          k.fehler = e.toString();
+        }
+      }
+      return NachtragErgebnis(kandidaten);
+    }
 
     // 4. Rechnungen erzeugen — Fehler pro Fall festhalten, nicht abbrechen.
     for (final k in kandidaten) {

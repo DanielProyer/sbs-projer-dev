@@ -36,6 +36,23 @@ class RechnungService {
   static bool brauchtRechnung(String? rechnungsstellung) =>
       _invoiceRechnungsstellungen.contains(rechnungsstellung);
 
+  /// Rechnet den Bruttobetrag aus, den [createFromReinigung] für diese
+  /// Reinigung erzeugen würde — ohne etwas zu schreiben. Nutzt exakt dieselben
+  /// Schritte, damit eine Vorschau nicht lügen kann.
+  static Future<double> vorschauBrutto(ReinigungLocal reinigung) async {
+    await _loadMwst(datum: reinigung.datum);
+    return bruttoKundenrechnung(_nettoSumme(_buildPositionen(reinigung)),
+        _mwstFaktor);
+  }
+
+  static double _nettoSumme(List<Map<String, dynamic>> positionen) {
+    var netto = 0.0;
+    for (final p in positionen) {
+      netto += (p['betrag_netto'] as double);
+    }
+    return _round2(netto);
+  }
+
   /// Erstellt eine Kundenrechnung aus einer abgeschlossenen Reinigung.
   /// Gibt null zurück wenn der Betrieb keine Rechnung benötigt.
   static Future<Rechnung?> createFromReinigung(
@@ -63,15 +80,13 @@ class RechnungService {
 
       // 2. Positionen aufbauen
       final positionen = _buildPositionen(reinigung);
-      var netto = 0.0;
-      for (final p in positionen) {
-        netto += (p['betrag_netto'] as double);
-      }
       // Kundenrechnungen sind IMMER auf 5 Rappen gerundet (nur die
       // Heineken-Monatsrechnung ist ungerundet — die entsteht woanders).
       // Zuerst das Brutto runden, dann die MwSt als Differenz ableiten, damit
-      // Netto + MwSt exakt das Brutto ergibt.
-      netto = _round2(netto);
+      // Netto + MwSt exakt das Brutto ergibt. Dieselben Aufrufe wie in
+      // [vorschauBrutto] — sonst könnte die Vorschau etwas anderes zeigen als
+      // am Ende gebucht wird.
+      final netto = _nettoSumme(positionen);
       final brutto = bruttoKundenrechnung(netto, _mwstFaktor);
       final mwst = _round2(brutto - netto);
 
