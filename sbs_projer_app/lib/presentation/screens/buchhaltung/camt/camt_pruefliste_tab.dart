@@ -102,11 +102,16 @@ class CamtPrueflisteTab extends ConsumerWidget {
               eintrag: e,
               onErledigt: () => _setStatus(context, ref, e, 'erledigt'),
               onIgnorieren: () => _setStatus(context, ref, e, 'ignoriert'),
+              // Regel anlegen bucht diese Zahlung gleich mit: Der Eintrag
+              // blockiert seinen txKey dauerhaft, die neue Regel würde ihn
+              // sonst nie erfassen und die Zahlung bliebe ungebucht.
               onRegelAnlegen: regelKategorien.contains(e.kategorie)
                   ? () => showRegelDialog(
                         context,
                         ref,
                         vorausgefuelltMatchName: e.parteiName,
+                        vorausgefuellteIban: e.parteiIban,
+                        buchenFuer: e,
                       )
                   : null,
             );

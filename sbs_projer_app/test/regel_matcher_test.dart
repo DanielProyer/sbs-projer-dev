@@ -25,6 +25,32 @@ void main() {
       regeln: [_r('zzz', 'V3', iban: 'CH123')]);
     expect(vid, 'V3');
   });
+  test('IBAN mit Leerzeichen/Kleinschreibung trifft trotzdem', () {
+    // Auf Rechnungen steht die IBAN gruppiert („CH04 3000 0001 …"), im camt
+    // kompakt. Ohne Normalisierung würde die Regel nie greifen.
+    final vid = RegelMatcher.matchVorlageId(
+      partyName: 'Gemeinde Flims',
+      partyIban: 'CH0430000001700007355',
+      additionalInfo: null,
+      regeln: [_r('zzz', 'V4', iban: 'ch04 3000 0001 7000 0735 5')]);
+    expect(vid, 'V4');
+  });
+  test('andere IBAN trifft nicht', () {
+    final vid = RegelMatcher.matchVorlageId(
+      partyName: 'Gemeinde Flims',
+      partyIban: 'CH0430000001700007355',
+      additionalInfo: null,
+      regeln: [_r('zzz', 'V5', iban: 'CH8830154001085747001')]);
+    expect(vid, isNull);
+  });
+  test('Regel-IBAN gesetzt, Transaktion ohne IBAN → kein Treffer', () {
+    final vid = RegelMatcher.matchVorlageId(
+      partyName: 'Gemeinde Flims',
+      partyIban: null,
+      additionalInfo: null,
+      regeln: [_r('zzz', 'V6', iban: 'CH0430000001700007355')]);
+    expect(vid, isNull);
+  });
   test('Kein Treffer → null', () {
     final vid = RegelMatcher.matchVorlageId(
       partyName: 'Unbekannt AG', additionalInfo: null,

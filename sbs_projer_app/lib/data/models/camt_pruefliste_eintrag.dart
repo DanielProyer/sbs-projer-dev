@@ -5,6 +5,13 @@ class CamtPrueflisteEintrag {
   final double betrag;
   final bool istGutschrift;
   final String? parteiName;
+
+  /// IBAN der Gegenpartei aus camt — Vorbefüllung für `camt_regel.match_iban`.
+  final String? parteiIban;
+
+  /// AcctSvcrRef — wird beim Buchen aus der Prüfliste zur Belegnummer.
+  final String? belegRef;
+
   final String? referenz;
   final String kategorie;
   final Map<String, dynamic>? vorschlag;
@@ -18,6 +25,8 @@ class CamtPrueflisteEintrag {
     required this.betrag,
     required this.istGutschrift,
     this.parteiName,
+    this.parteiIban,
+    this.belegRef,
     this.referenz,
     required this.kategorie,
     this.vorschlag,
@@ -33,6 +42,8 @@ class CamtPrueflisteEintrag {
         betrag: (j['betrag'] as num).toDouble(),
         istGutschrift: j['ist_gutschrift'],
         parteiName: j['partei_name'],
+        parteiIban: j['partei_iban'],
+        belegRef: j['beleg_ref'],
         referenz: j['referenz'],
         kategorie: j['kategorie'],
         vorschlag: j['vorschlag_json'] != null
@@ -49,6 +60,8 @@ class CamtPrueflisteEintrag {
         'betrag': betrag,
         'ist_gutschrift': istGutschrift,
         'partei_name': parteiName,
+        'partei_iban': parteiIban,
+        'beleg_ref': belegRef,
         'referenz': referenz,
         'kategorie': kategorie,
         'vorschlag_json': vorschlag,

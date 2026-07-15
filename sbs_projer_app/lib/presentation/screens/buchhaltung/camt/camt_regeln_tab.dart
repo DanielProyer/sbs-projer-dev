@@ -1,19 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
+import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/models/camt_regel.dart';
+import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_regel_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchungs_vorlage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_regel_providers.dart';
+import 'package:sbs_projer_app/services/camt/camt_ausgabe_booker.dart';
+import 'package:sbs_projer_app/services/camt/pruefliste_buchung.dart';
+import 'package:sbs_projer_app/services/camt/regel_matcher.dart';
 
 /// Dialog zum Anlegen einer neuen camt-Regel.
 ///
 /// Als Top-Level-Funktion, damit auch die Prüfliste den Dialog mit
-/// vorausgefülltem Match-Namen öffnen kann.
+/// vorausgefülltem Match-Namen und vorausgefüllter IBAN öffnen kann.
+///
+/// Wird [buchenFuer] gesetzt (Aufruf aus der Prüfliste), bucht der Dialog nach
+/// dem Speichern der Regel diese eine Transaktion direkt mit der gewählten
+/// Vorlage und hakt den Prüflisten-Eintrag ab. Das ist kein Komfort, sondern
+/// nötig: Eine Transaktion in der Prüfliste wird bei jedem weiteren Import über
+/// ihren txKey übersprungen — die neue Regel würde sie also nie erfassen, und
+/// die Zahlung bliebe für immer ungebucht.
 Future<void> showRegelDialog(
   BuildContext context,
   WidgetRef ref, {
   String? vorausgefuelltMatchName,
+  String? vorausgefuellteIban,
+  CamtPrueflisteEintrag? buchenFuer,
 }) async {
   final vorlagen = ref.read(buchungsVorlagenProvider);
   final bezeichnungController = TextEditingController(
@@ -22,10 +39,13 @@ Future<void> showRegelDialog(
   final matchNameController = TextEditingController(
     text: vorausgefuelltMatchName ?? '',
   );
-  final ibanController = TextEditingController();
+  final ibanController = TextEditingController(
+    text: vorausgefuellteIban ?? '',
+  );
   String? selectedVorlageId =
       vorlagen.isNotEmpty ? vorlagen.first.id : null;
   String? hint;
+  bool speichertGerade = false;
 
   await showDialog<void>(
     context: context,
@@ -39,6 +59,23 @@ Future<void> showRegelDialog(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (buchenFuer != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Diese Zahlung wird beim Speichern gleich mit der '
+                        'gewählten Vorlage gebucht: '
+                        '${buchenFuer.parteiName ?? 'Unbekannt'} · '
+                        '${buchenFuer.betrag.toStringAsFixed(2)} CHF',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextField(
                     controller: bezeichnungController,
                     decoration: const InputDecoration(
@@ -97,7 +134,9 @@ Future<void> showRegelDialog(
                 child: const Text('Abbrechen'),
               ),
               FilledButton(
-                onPressed: () async {
+                onPressed: speichertGerade
+                    ? null
+                    : () async {
                   final bezeichnung = bezeichnungController.text.trim();
                   final matchName = matchNameController.text.trim();
                   final iban = ibanController.text.trim();
@@ -111,31 +150,53 @@ Future<void> showRegelDialog(
                     });
                     return;
                   }
+                  setState(() {
+                    speichertGerade = true;
+                    hint = null;
+                  });
 
                   try {
                     await CamtRegelRepository.insert(
                       CamtRegel(
                         bezeichnung: bezeichnung,
                         matchName: matchName.isEmpty ? null : matchName,
-                        matchIban: iban.isEmpty ? null : iban,
+                        // Normalisiert speichern, damit die Regel auch dann
+                        // greift, wenn die IBAN gruppiert eingetippt wurde.
+                        matchIban: RegelMatcher.normIban(iban),
                         buchungsVorlageId: selectedVorlageId!,
                         prioritaet: 10,
                       ),
                     );
                     ref.invalidate(camtRegelnProvider);
+
+                    var meldung = 'Regel gespeichert';
+                    if (buchenFuer != null) {
+                      meldung = await _bucheAusPruefliste(
+                        ref: ref,
+                        eintrag: buchenFuer,
+                        vorlage: vorlagen
+                            .firstWhere((v) => v.id == selectedVorlageId),
+                      );
+                    }
+
                     if (dialogContext.mounted) {
                       Navigator.of(dialogContext).pop();
                     }
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Regel gespeichert')),
+                        SnackBar(content: Text(meldung)),
                       );
                     }
                   } catch (err) {
-                    setState(() => hint = 'Fehler: $err');
+                    setState(() {
+                      speichertGerade = false;
+                      hint = 'Fehler: $err';
+                    });
                   }
                 },
-                child: const Text('Speichern'),
+                child: Text(
+                  buchenFuer != null ? 'Speichern & buchen' : 'Speichern',
+                ),
               ),
             ],
           );
@@ -143,6 +204,30 @@ Future<void> showRegelDialog(
       );
     },
   );
+}
+
+/// Bucht die Transaktion eines Prüflisten-Eintrags mit [vorlage] und hakt den
+/// Eintrag ab. Liefert die Meldung für die SnackBar.
+///
+/// Wirft bei einem Fehler weiter — der Eintrag bleibt dann bewusst offen,
+/// damit die Zahlung nicht still aus der Buchhaltung verschwindet.
+Future<String> _bucheAusPruefliste({
+  required WidgetRef ref,
+  required CamtPrueflisteEintrag eintrag,
+  required BuchungsVorlage vorlage,
+}) async {
+  // Schutz vor einer zweiten Buchung derselben Zahlung.
+  if (await BuchungRepository.existiertCamtTxKey(eintrag.txKey)) {
+    await CamtPrueflisteRepository.setStatus(eintrag.id!, 'erledigt');
+    ref.invalidate(camtPrueflisteProvider);
+    return 'Regel gespeichert — Zahlung war bereits gebucht, Eintrag abgehakt';
+  }
+
+  await CamtAusgabeBooker.book(txAusPrueflisteEintrag(eintrag), vorlage);
+  await CamtPrueflisteRepository.setStatus(eintrag.id!, 'erledigt');
+  ref.invalidate(camtPrueflisteProvider);
+  return 'Regel gespeichert und ${eintrag.betrag.toStringAsFixed(2)} CHF '
+      'auf ${vorlage.sollKonto} gebucht';
 }
 
 class CamtRegelnTab extends ConsumerWidget {

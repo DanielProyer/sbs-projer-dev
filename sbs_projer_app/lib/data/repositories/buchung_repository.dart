@@ -143,6 +143,18 @@ class BuchungRepository {
     return (rows as List).map((r) => r['camt_tx_key'] as String).toSet();
   }
 
+  /// Ist diese camt-Transaktion bereits aktiv verbucht? Schützt vor einer
+  /// zweiten Buchung derselben Zahlung (z.B. beim Buchen aus der Prüfliste).
+  static Future<bool> existiertCamtTxKey(String txKey) async {
+    final rows = await SupabaseService.client
+        .from('buchungen')
+        .select('id')
+        .eq('camt_tx_key', txKey)
+        .eq('ist_storniert', false)
+        .limit(1);
+    return (rows as List).isNotEmpty;
+  }
+
   /// Löscht alle Buchungen die zu einem Beleg gehören.
   static Future<void> deleteByBeleg(String belegId) async {
     await SupabaseService.client
