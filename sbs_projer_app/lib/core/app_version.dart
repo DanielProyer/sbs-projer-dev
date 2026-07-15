@@ -7,4 +7,4 @@
 /// eine alte Fassung lief weiter, ohne dass es jemand sehen konnte.
 ///
 /// MUSS bei jedem Bump von `pubspec.yaml` Zeile 4 mitgezogen werden.
-const String kAppVersion = '0.48.3';
+const String kAppVersion = '0.48.4';

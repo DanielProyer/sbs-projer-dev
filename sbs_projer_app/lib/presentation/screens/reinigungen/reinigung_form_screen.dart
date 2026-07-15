@@ -732,6 +732,27 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               );
             }
           }
+        } else {
+          // Ohne Betrieb entstehen WEDER Rechnung NOCH Buchung — bisher völlig
+          // lautlos. Das ist der letzte Zweig hier, der ohne Ausnahme und ohne
+          // Spur aussteigt, und damit der Hauptverdächtige für die 38 fehlenden
+          // Rechnungen vom 26.06.–13.07.: kein Insert (Sequenz unberührt), kein
+          // Fehler, keine Meldung. Ab jetzt sichtbar.
+          debugPrint('[Rechnung] BETRIEB NULL — betriebId="${r.betriebId}", '
+              '_betrieb=${_betrieb?.serverId}, widget.betriebId=${widget.betriebId}');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.error,
+                content: Text(
+                    'BETRIEB NICHT GELADEN — KEINE RECHNUNG, KEINE BUCHUNG!\n'
+                    'Reinigung ist gespeichert. Bitte Daniel melden.\n'
+                    'betriebId="${r.betriebId}"',
+                    style: const TextStyle(color: Colors.white)),
+                duration: const Duration(seconds: 30),
+              ),
+            );
+          }
         }
       }
 
