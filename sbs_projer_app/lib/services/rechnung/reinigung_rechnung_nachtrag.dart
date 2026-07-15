@@ -3,6 +3,7 @@ import 'package:sbs_projer_app/data/mappers/reinigung_mapper.dart';
 import 'package:sbs_projer_app/data/models/reinigung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -71,8 +72,11 @@ class ReinigungRechnungNachtrag {
   /// abgedeckt, ein Nachtrag würde doppelt erfassen.
   static const stichtag = '2026-06-26';
 
-  /// Diese Versandarten werden NICHT nachgetragen (siehe Klassenkommentar).
-  static const _nichtNachtragen = {'rechnung_mail'};
+  /// NUR Tresen. Bei `rechnung_mail`/`rechnung_post` merkt Daniel den Ausfall
+  /// sofort selbst (keine Mail ging raus, nichts zu drucken) — und
+  /// `versendet_am = Reinigungsdatum` wäre dort schlicht gelogen, weil nichts
+  /// übergeben wurde. Der belegte Ausfall betrifft ohnehin nur Tresen.
+  static const _nurNachtragen = {'rechnung_tresen'};
 
   static Future<NachtragErgebnis> nachtragen({bool dryRun = true}) async {
     final client = SupabaseService.client;
@@ -90,16 +94,28 @@ class ReinigungRechnungNachtrag {
     );
 
     // 2. Bereits verrechnete Reinigungen (Verknüpfung läuft über die Position).
+    //    GEZIELT für genau diese Reinigungen abfragen — ein `select()` über die
+    //    ganze Tabelle liefert nur die ersten 1000 Zeilen (PostgREST-Limit), und
+    //    alles darüber hinaus gälte fälschlich als unverrechnet. Bei ~5000
+    //    Positionen hätte das echte Doppelrechnungen erzeugt.
+    final alleIds = rows
+        .map((r) => r['id']?.toString())
+        .whereType<String>()
+        .toList();
     final verrechnet = <String>{};
-    final posRows = List<Map<String, dynamic>>.from(
-      await client
-          .from('rechnungs_positionen')
-          .select('service_id')
-          .eq('service_typ', 'reinigung'),
-    );
-    for (final p in posRows) {
-      final id = p['service_id']?.toString();
-      if (id != null && id.isNotEmpty) verrechnet.add(id);
+    for (var i = 0; i < alleIds.length; i += 200) {
+      final teil = alleIds.sublist(i, (i + 200).clamp(0, alleIds.length));
+      final posRows = List<Map<String, dynamic>>.from(
+        await client
+            .from('rechnungs_positionen')
+            .select('service_id')
+            .eq('service_typ', 'reinigung')
+            .inFilter('service_id', teil),
+      );
+      for (final p in posRows) {
+        final id = p['service_id']?.toString();
+        if (id != null && id.isNotEmpty) verrechnet.add(id);
+      }
     }
 
     // 3. Lücken sammeln.
@@ -115,7 +131,7 @@ class ReinigungRechnungNachtrag {
       if (betrieb == null) continue;
       final art = betrieb.rechnungsstellung;
       if (!RechnungService.brauchtRechnung(art)) continue;
-      if (_nichtNachtragen.contains(art)) continue;
+      if (!_nurNachtragen.contains(art)) continue;
 
       kandidaten.add(NachtragKandidat(
         reinigungId: sid,
@@ -135,6 +151,17 @@ class ReinigungRechnungNachtrag {
     for (final k in kandidaten) {
       final paar = reinigungen[k.reinigungId] as List;
       try {
+        // Letzter Schutz vor einer Doppelrechnung: unmittelbar vor dem Anlegen
+        // nochmals gezielt für GENAU diese Reinigung prüfen. Die Mengenabfrage
+        // oben kann irren (sie tat es bereits, siehe 1000-Zeilen-Limit) — diese
+        // Einzelabfrage kann es nicht.
+        final schon = await RechnungsPositionRepository.getRechnungIdByServiceId(
+            k.reinigungId);
+        if (schon != null) {
+          k.uebersprungen = true;
+          continue;
+        }
+
         final rechnung =
             await RechnungService.createFromReinigung(paar[0], paar[1]);
         if (rechnung == null) {
