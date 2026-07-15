@@ -75,6 +75,11 @@ class _MaterialienListScreenState
         title: const Text('Material'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: 'Bestellungen',
+            onPressed: () => context.push('/materialien/bestellungen'),
+          ),
+          IconButton(
             icon: const Icon(Icons.shopping_cart),
             tooltip: 'Materialbestellung',
             onPressed: () => context.push('/materialien/bestellen'),
