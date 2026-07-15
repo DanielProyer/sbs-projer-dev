@@ -10,8 +10,6 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
-// TEMPORÄR (15.07.2026) — mit dem Nachtrag-Menüpunkt wieder entfernen.
-import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_nachtrag.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_monat_leiste.dart';
@@ -70,110 +68,67 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
 
-  // TEMPORÄR (15.07.2026) — Nachtrag der Tresen-Rechnungen 26.06.–13.07.
-  // Nach dem Lauf zusammen mit dem Menüpunkt und dem Service entfernen.
-  Future<void> _zeigeRechnungsNachtrag() async {
-    NachtragErgebnis probe;
-    try {
-      probe = await ReinigungRechnungNachtrag.nachtragen(dryRun: true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Trockenlauf fehlgeschlagen: $e')));
-      return;
-    }
-    if (!mounted) return;
 
-    if (probe.kandidaten.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Keine Reinigung ohne Rechnung gefunden')),
-      );
-      return;
-    }
+  /// Frühwarnung: abgeschlossene Reinigungen ohne Rechnung. Stumm, solange
+  /// nichts fehlt — nur so fällt der Ernstfall auf. Meldet, repariert nicht:
+  /// Nachholen geht über das Rechnungs-Menü im Reinigungs-Detail.
+  Widget _warnungOhneRechnung() {
+    final async = ref.watch(reinigungenOhneRechnungProvider);
+    final offen = async.valueOrNull;
+    if (offen == null || offen.isEmpty) return const SizedBox.shrink();
 
-    final los = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('${probe.kandidaten.length} Rechnungen nachtragen?'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Zeigt die Version des GELADENEN Bundles — nicht die des
-              // Servers. Nur so ist erkennbar, ob wirklich der neue Code läuft.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(25),
-                  borderRadius: BorderRadius.circular(4),
+    final summe = offen.fold<double>(0, (s, e) => s + e.brutto);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('${offen.length} Reinigungen ohne Rechnung'),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Text(
+                  '${offen.map((e) => e.zeile).join('\n')}\n\n'
+                  'Nachholen: Reinigung öffnen → Rechnungs-Menü.',
+                  style: const TextStyle(fontSize: 12),
                 ),
-                child: Text('App-Version: $kAppVersion',
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700)),
               ),
-              const SizedBox(height: 8),
-              Text('Summe: ${probe.summe.toStringAsFixed(2)} CHF · '
-                  'werden als am Reinigungstag abgegeben markiert. '
-                  'Keine Buchung, keine Mail.'),
-              const SizedBox(height: 4),
-              const Text(
-                  'Pfeil = Rechnungsbetrag weicht von der Reinigung ab.',
-                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-              const SizedBox(height: 12),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Text(
-                    probe.kandidaten.map((k) => k.zeile).join('\n'),
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.error.withAlpha(25),
+            border: Border.all(color: AppColors.error.withAlpha(90)),
+            borderRadius: BorderRadius.circular(8),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Nachtragen'),
-          ),
-        ],
-      ),
-    );
-    if (los != true || !mounted) return;
-
-    final erg = await ReinigungRechnungNachtrag.nachtragen(dryRun: false);
-    ref.invalidate(rechnungenProvider);
-    if (!mounted) return;
-
-    final fehler = erg.fehlgeschlagen;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(fehler.isEmpty ? 'Fertig' : 'Teilweise fehlgeschlagen'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Text(
-              '${erg.erstellt} Rechnungen erstellt.\n'
-              '${erg.uebersprungen} übersprungen.\n'
-              '${fehler.length} fehlgeschlagen.'
-              '${fehler.isEmpty ? '' : '\n\n${fehler.map((k) => '${k.zeile}\n→ ${k.fehler}').join('\n\n')}'}',
-              style: const TextStyle(fontSize: 12),
-            ),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: AppColors.error, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${offen.length} abgeschlossene Reinigungen ohne Rechnung · '
+                  '${summe.toStringAsFixed(2)} CHF',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.error),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.error, size: 20),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }
@@ -250,25 +205,15 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Forderungen'),
-        actions: [
-          // TEMPORÄR (15.07.2026): Nachtrag der 38 Tresen-Rechnungen
-          // 26.06.–13.07. Nach dem Lauf wieder entfernen.
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'nachtrag') _zeigeRechnungsNachtrag();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'nachtrag',
-                child: Text('Fehlende Rechnungen nachtragen'),
-              ),
-            ],
-          ),
-        ],
+        // Version des GELADENEN Bundles — nicht die des Servers. Am 15.07. war
+        // stundenlang nicht feststellbar, welcher Code im Browser läuft; das
+        // hat mehrere Fehldiagnosen verursacht. Ab jetzt steht es da.
+        title: Text('Forderungen  ·  v$kAppVersion',
+            style: const TextStyle(fontSize: 18)),
       ),
       body: Column(
         children: [
+          _warnungOhneRechnung(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: DebitorenHeader(),
