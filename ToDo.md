@@ -1,6 +1,23 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 14.07.2026 · **Live:** v0.46.26
+**Stand:** 15.07.2026 · **Live:** v0.47.0
+
+---
+
+## 🟢 Material abgeholt → Bestände in einem Klick (live v0.47.0 · 15.07.2026 — Live-Test durch Daniel ausstehend)
+Spec `docs/superpowers/specs/2026-07-15-material-abgeholt-bestand-design.md`, Plan `docs/superpowers/plans/2026-07-15-material-abgeholt.md`. Subagenten-getrieben, 400 Tests grün, 0 Analyze-Fehler.
+
+- **Neue Bestellungen-Liste** `/materialien/bestellungen` (AppBar-Icon 🧾 auf `/materialien`). Schliesst die Lücke, dass gesendete Bestellungen + ihre PDFs bisher **gar nicht mehr auffindbar** waren (`getAll()`/`getById()` waren toter Code). Status-Badge, PDF öffnen, aufklappbar mit „bestellt X · erhalten Y".
+- **„Material abgeholt"** (nur bei Status `gesendet`) → Kontroll-Dialog: nach Kategorie gruppiert wie die Bestellung, Checkbox links (default an), Menge vorbefüllt + korrigierbar, Freitext-Positionen ohne `lager_id` ausgegraut → **„Bestände buchen"**. Stimmt alles: einfach bestätigen.
+- **„Buchung rückgängig"** (bei `abgeholt`) → Bestände zurück, Status wieder `gesendet`.
+- **Restmengen** brauchen keine Extra-Mechanik: der Artikel bleibt unter Mindestbestand und steht via Generated Column `bestand_niedrig` automatisch wieder auf der nächsten Bestellliste. Teillieferungs-Verfolgung bewusst NICHT gebaut (YAGNI).
+- **Migration 141:** Status `abgeholt`, `abgeholt_am`, `menge_erhalten numeric(10,2)` + zwei **atomare RPCs** (`material_bestellung_abholen`/`_rueckgaengig`, SECURITY INVOKER, relatives `bestand_aktuell + delta`).
+
+**Wichtigster Fund im Review:** Der Status-Guard war zuerst ein nacktes `SELECT` → TOCTOU-Race: zwei gleichzeitige Aufrufe (Doppeltap) hätten beide passiert und die Bestände **doppelt gezählt** (lautlos, Rückgängig nimmt nur die Hälfte). Gefixt mit `FOR UPDATE` auf der Bestellzeile. Zusätzlich geschlossen: stille Null-Buchung bei falschen `p_mengen`-Keys, stiller 0-Zeilen-Update bei nicht zugreifbarer `lager_id`, ungeschützter Positions-Ladefehler (Netz weg im Heineken-Lager), und „angehakt aber nicht gebucht" bei Komma-Eingabe (Gboard liefert `1,5`).
+
+**Bekannte Grenzen (bewusst):** `digitsOnly` im Mengenfeld → keine Dezimalmengen (deckt sich mit dem bestehenden Bestell-Screen); `GREATEST(0,…)` beim Rückgängig klemmt lautlos bei 0; `p_mengen=NULL` würde den Key-Guard umgehen (vom Dart-Client aus unmöglich, da `abholPayload` immer eine Map liefert).
+
+**Offen:** Live-Test durch Daniel (siehe Plan, Task 7 Step 9).
 
 ---
 
