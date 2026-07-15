@@ -6,23 +6,52 @@
 -- halbem Durchlauf abbrechen → einige Bestände erhöht, Status noch 'gesendet'
 -- → der zweite Klick würde doppelt zählen (stiller Lagerfehler).
 -- SECURITY INVOKER: die bestehenden RLS-Policies (user_isolation) greifen.
+--
+-- Der Status-Guard sperrt die Bestellzeile per FOR UPDATE. Ein reines SELECT
+-- reicht NICHT: unter READ COMMITTED würde ein zweiter, gleichzeitiger Aufruf
+-- (Doppeltap, Client-Retry nach Timeout) auf seinem eigenen Snapshot noch
+-- 'gesendet' sehen, den Guard passieren und beim UPDATE lager die bereits
+-- erhöhte Zeilenversion lesen → doppelt gebucht, während Rückgängig nur einmal
+-- zurücknimmt. Mit FOR UPDATE wird die WHERE-Bedingung nach Sperrerwerb gegen
+-- die neue Zeilenversion neu bewertet → 0 Zeilen → saubere Exception.
 
 ALTER TABLE material_bestellungen DROP CONSTRAINT IF EXISTS material_bestellungen_status_check;
 ALTER TABLE material_bestellungen ADD CONSTRAINT material_bestellungen_status_check
   CHECK (status IN ('entwurf','gesendet','abgeholt','storniert'));
 
 ALTER TABLE material_bestellungen     ADD COLUMN IF NOT EXISTS abgeholt_am date;
-ALTER TABLE material_bestellpositionen ADD COLUMN IF NOT EXISTS menge_erhalten numeric;
+ALTER TABLE material_bestellpositionen ADD COLUMN IF NOT EXISTS menge_erhalten numeric(10,2);
+
+-- Typ-Angleichung: menge und lager.bestand_aktuell sind numeric(10,2). Nur so
+-- ist Buchen/Rückgängig verlustfrei symmetrisch. Separates ALTER, weil die
+-- Spalte auf Prod bereits ohne Präzision existiert (ADD COLUMN IF NOT EXISTS
+-- greift dann nicht mehr).
+ALTER TABLE material_bestellpositionen
+  ALTER COLUMN menge_erhalten TYPE numeric(10,2);
 
 -- Bucht die Abholung atomar. p_mengen: {"<positionId>": <menge>, …}
 CREATE OR REPLACE FUNCTION material_bestellung_abholen(
   p_bestellung_id uuid, p_mengen jsonb)
-RETURNS void LANGUAGE plpgsql SECURITY INVOKER AS $$
+RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$
 DECLARE r record;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM material_bestellungen
-                 WHERE id = p_bestellung_id AND status = 'gesendet') THEN
+  -- FOR UPDATE sperrt die Bestellzeile → serialisiert konkurrierende Aufrufe.
+  PERFORM 1 FROM material_bestellungen
+   WHERE id = p_bestellung_id AND status = 'gesendet'
+     FOR UPDATE;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'Bestellung ist nicht im Status "gesendet" (bereits gebucht?)';
+  END IF;
+
+  -- Unbekannte Keys hart ablehnen: ein fehlender Key ergäbe via ->> NULL,
+  -- NULL > 0 ist NULL → die Zeile würde still verworfen und der Status ginge
+  -- trotzdem auf 'abgeholt'. Schickt der Client z.B. lager_id statt
+  -- position_id, würde lautlos nichts gebucht.
+  IF EXISTS (SELECT 1 FROM jsonb_object_keys(p_mengen) k
+             WHERE NOT EXISTS (SELECT 1 FROM material_bestellpositionen p
+                               WHERE p.bestellung_id = p_bestellung_id
+                                 AND p.id::text = k)) THEN
+    RAISE EXCEPTION 'p_mengen enthält Keys, die zu keiner Position dieser Bestellung gehören';
   END IF;
 
   FOR r IN SELECT p.id, p.lager_id, (p_mengen ->> p.id::text)::numeric AS menge
@@ -34,22 +63,33 @@ BEGIN
     -- Relativ: mehrere Positionen auf denselben Lager-Artikel summieren sich
     -- dadurch automatisch korrekt.
     UPDATE lager SET bestand_aktuell = bestand_aktuell + r.menge WHERE id = r.lager_id;
+    -- RLS kann die Zeile wegfiltern (fremde/ungültige lager_id) → 0 Zeilen,
+    -- kein Fehler, menge_erhalten würde trotzdem geschrieben.
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Lager-Artikel % nicht gefunden oder nicht zugreifbar', r.lager_id;
+    END IF;
     UPDATE material_bestellpositionen SET menge_erhalten = r.menge WHERE id = r.id;
   END LOOP;
 
+  -- DB läuft auf UTC: CURRENT_DATE ergäbe für eine Buchung nach Mitternacht
+  -- CH-Zeit noch das Vortagsdatum.
   UPDATE material_bestellungen
-     SET status = 'abgeholt', abgeholt_am = CURRENT_DATE, updated_at = now()
+     SET status = 'abgeholt',
+         abgeholt_am = (now() AT TIME ZONE 'Europe/Zurich')::date,
+         updated_at = now()
    WHERE id = p_bestellung_id;
 END; $$;
 
 -- Macht die Abholung atomar rückgängig.
 CREATE OR REPLACE FUNCTION material_bestellung_abholung_rueckgaengig(
   p_bestellung_id uuid)
-RETURNS void LANGUAGE plpgsql SECURITY INVOKER AS $$
+RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp AS $$
 DECLARE r record;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM material_bestellungen
-                 WHERE id = p_bestellung_id AND status = 'abgeholt') THEN
+  PERFORM 1 FROM material_bestellungen
+   WHERE id = p_bestellung_id AND status = 'abgeholt'
+     FOR UPDATE;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'Bestellung ist nicht im Status "abgeholt"';
   END IF;
 
@@ -63,6 +103,9 @@ BEGIN
     -- Buchen bereits Material verbraucht wurde).
     UPDATE lager SET bestand_aktuell = GREATEST(0, bestand_aktuell - r.menge)
      WHERE id = r.lager_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Lager-Artikel % nicht gefunden oder nicht zugreifbar', r.lager_id;
+    END IF;
     UPDATE material_bestellpositionen SET menge_erhalten = NULL WHERE id = r.id;
   END LOOP;
 
