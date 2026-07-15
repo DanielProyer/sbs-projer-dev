@@ -9,6 +9,8 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
+// TEMPORÄR (15.07.2026) — mit dem Nachtrag-Menüpunkt wieder entfernen.
+import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_nachtrag.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_monat_leiste.dart';
@@ -66,6 +68,97 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   String _statusFilter = 'alle';
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = 0;
+
+  // TEMPORÄR (15.07.2026) — Nachtrag der Tresen-Rechnungen 26.06.–13.07.
+  // Nach dem Lauf zusammen mit dem Menüpunkt und dem Service entfernen.
+  Future<void> _zeigeRechnungsNachtrag() async {
+    NachtragErgebnis probe;
+    try {
+      probe = await ReinigungRechnungNachtrag.nachtragen(dryRun: true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Trockenlauf fehlgeschlagen: $e')));
+      return;
+    }
+    if (!mounted) return;
+
+    if (probe.kandidaten.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keine Reinigung ohne Rechnung gefunden')),
+      );
+      return;
+    }
+
+    final los = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${probe.kandidaten.length} Rechnungen nachtragen?'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Summe: ${probe.summe.toStringAsFixed(2)} CHF · '
+                  'werden als am Reinigungstag abgegeben markiert. '
+                  'Keine Buchung, keine Mail.'),
+              const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Text(
+                    probe.kandidaten.map((k) => k.zeile).join('\n'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Nachtragen'),
+          ),
+        ],
+      ),
+    );
+    if (los != true || !mounted) return;
+
+    final erg = await ReinigungRechnungNachtrag.nachtragen(dryRun: false);
+    ref.invalidate(rechnungenProvider);
+    if (!mounted) return;
+
+    final fehler = erg.fehlgeschlagen;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(fehler.isEmpty ? 'Fertig' : 'Teilweise fehlgeschlagen'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Text(
+              '${erg.erstellt} Rechnungen erstellt.\n'
+              '${erg.uebersprungen} übersprungen.\n'
+              '${fehler.length} fehlgeschlagen.'
+              '${fehler.isEmpty ? '' : '\n\n${fehler.map((k) => '${k.zeile}\n→ ${k.fehler}').join('\n\n')}'}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +233,21 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Forderungen'),
+        actions: [
+          // TEMPORÄR (15.07.2026): Nachtrag der 38 Tresen-Rechnungen
+          // 26.06.–13.07. Nach dem Lauf wieder entfernen.
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              if (v == 'nachtrag') _zeigeRechnungsNachtrag();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'nachtrag',
+                child: Text('Fehlende Rechnungen nachtragen'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [

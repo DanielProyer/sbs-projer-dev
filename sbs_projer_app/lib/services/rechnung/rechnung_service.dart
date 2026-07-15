@@ -29,6 +29,12 @@ class RechnungService {
     'rechnung_tresen',
   ];
 
+  /// Löst diese Rechnungsstellung eine Kundenrechnung pro Reinigung aus?
+  /// (`heineken` läuft über den Monatslauf, `barzahlung`/`jahresrechnung`
+  /// bekommen keine Einzelrechnung.)
+  static bool brauchtRechnung(String? rechnungsstellung) =>
+      _invoiceRechnungsstellungen.contains(rechnungsstellung);
+
   /// Erstellt eine Kundenrechnung aus einer abgeschlossenen Reinigung.
   /// Gibt null zurück wenn der Betrieb keine Rechnung benötigt.
   static Future<Rechnung?> createFromReinigung(
