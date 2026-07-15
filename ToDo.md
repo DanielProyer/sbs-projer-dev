@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 15.07.2026 (Abend) · **Live:** v0.48.3
+**Stand:** 15.07.2026 (Abend) · **Live:** v0.48.4
 
 ---
 
@@ -33,10 +33,28 @@ Rechnung UND Buchung standen darin, `createFromReinigung` machte `rethrow` → b
 - **Nicht `betriebe.updated_at`:** trennt die Gruppen nicht.
 - **Neue Spur:** Am 26.06. um 06:10 ging **v0.16.3 „Eingangsrechnungen (Scan→KI→Kreditoren-Buchung, TP-0..2)"** live — der Morgen des ersten Ausfalltags.
 
-**Nächster Schritt (eng umrissen, zwei Vergleichsgruppen vorhanden):**
-1. Was unterscheidet die **37 Ausfall-Betriebe** von den **5 funktionierenden**? (Spescha, Hemingway, Hotel Alpenblick Weggis, Bolgenschanze, Hotel Sportcenter Fünf Dörfer). Felder systematisch durchgehen.
-2. Was hat **v0.16.3** am Rechnungspfad angefasst? (`git diff` gegen den Vorgänger.)
-3. Kann `BetriebRepository.getByServerId(r.betriebId)` für bestimmte Betriebe null liefern?
+### Stand der Jagd (15.07. spätabends) — statische Analyse ERSCHÖPFT
+
+**Der Fehler ist vermutlich NOCH AKTIV.** `fbca510` (14.07.) hat nur die try/catch-Struktur umgebaut — Betrieb-Laden und Bedingung sind unverändert, es wurde nichts repariert. Am 14.07. gab es schlicht **keine** Tresen-Reinigung, und seither gibt es genau **einen** Datenpunkt: Postresidenz am 15.07. (erfolgreich — wie Spescha/Hemingway damals auch). Bei 38:3 löst die nächste Tresen-Reinigung ihn mit hoher Wahrscheinlichkeit wieder aus.
+
+**Weiter ausgeschlossen (15.07. spätabends):**
+- **Kein anderer Abschluss-Weg:** `r.status='abgeschlossen'` wird NUR in `reinigung_form_screen.dart:427` gesetzt, an derselben `abschliessen`-Bedingung wie der Rechnungsblock.
+- **Keine Datenunterschiede:** 38 Ausfälle vs. 3 Treffer sind in ALLEN Feldern identisch (preisliste_id, anlage_id, anlage_ids, service_art, service_typ, Unterschrift, Foto, Checkliste, hahn_temperaturen, ist_synced).
+- **Nicht tageweise:** Am 30.06. fielen Lenzerhorn (07:51) und Grotto (09:31) aus, **Spescha (10:20) gelang** (Rechnung 336 ms später), Cafe Bar (12:12) fiel wieder aus. Gleicher Tag, gleicher Code → keine kaputte Sitzung, kein kaputter Deploy-Stand.
+- **Alle Reinigungen gleich erfasst:** `uhrzeit_ende` = Minute von `created_at` → alle in einem Zug erfasst UND abgeschlossen, kein Draft-vs-Sofort-Unterschied.
+- **Die drei Schritte vor dem Insert können NICHT werfen:** `_loadMwst` behält bei fehlender Preisliste den Default (kein `!`), `_buildPositionen` ist null-geguarded, der Nummernbau nutzt `?? '0000'`.
+
+**Damit bleibt GENAU EIN Zweig übrig:**
+```dart
+final betrieb = _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
+if (betrieb != null) { … }   // null -> weder Rechnung noch Buchung, lautlos
+```
+Das erklärt jede Beobachtung: kein Insert (Sequenz unberührt), keine Ausnahme, keine Meldung, und dass Rechnung UND Buchung gemeinsam fehlten. Warum `betrieb` null sein sollte (dreifach geladen: Provider synchron in `initState`, in `_loadReinigung`, async in `_loadPreisData`) ist offen.
+
+**v0.48.4 macht diesen Zweig laut** (30 Sek. rote SnackBar + `debugPrint` mit `betriebId`, `_betrieb`, `widget.betriebId`).
+
+**NÄCHSTER SCHRITT = warten auf die nächste Tresen-Reinigung.** Fällt sie aus, sagt die App endlich, ob es `betrieb == null` ist oder doch eine Ausnahme. Daniel soll die Meldung fotografieren.
+Falls das zu lange dauert: kontrollierte Reproduktion (Test-Reinigung bei einem der 37 Ausfall-Betriebe abschliessen, danach zurückrollen).
 
 ---
 
