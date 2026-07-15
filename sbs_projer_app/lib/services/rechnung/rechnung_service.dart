@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
@@ -62,12 +63,17 @@ class RechnungService {
 
       // 2. Positionen aufbauen
       final positionen = _buildPositionen(reinigung);
-      double netto = 0;
+      var netto = 0.0;
       for (final p in positionen) {
         netto += (p['betrag_netto'] as double);
       }
-      final mwst = _round2(netto * _mwstFaktor);
-      final brutto = _round2(netto + mwst);
+      // Kundenrechnungen sind IMMER auf 5 Rappen gerundet (nur die
+      // Heineken-Monatsrechnung ist ungerundet — die entsteht woanders).
+      // Zuerst das Brutto runden, dann die MwSt als Differenz ableiten, damit
+      // Netto + MwSt exakt das Brutto ergibt.
+      netto = _round2(netto);
+      final brutto = bruttoKundenrechnung(netto, _mwstFaktor);
+      final mwst = _round2(brutto - netto);
 
       // 3. Rechnung erstellen
       final rechnung = await RechnungRepository.create({

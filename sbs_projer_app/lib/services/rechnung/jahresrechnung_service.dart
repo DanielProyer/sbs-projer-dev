@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -18,7 +19,6 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class JahresrechnungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
-  static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
 
   static double _mwstFaktor = 0.081;
   static double _mwstSatzProzent = 8.10;
@@ -160,8 +160,11 @@ class JahresrechnungService {
       });
     }
 
-    final mwstTotal = _round2(totalNetto * _mwstFaktor);
-    final bruttoTotal = _round5Rappen(totalNetto + mwstTotal);
+    // Auch die Jahresrechnung ist eine Kundenrechnung → 5 Rappen. Die MwSt wird
+    // aus dem gerundeten Brutto abgeleitet, sonst ergibt Netto + MwSt nicht
+    // exakt das Brutto (Differenz bis 1 Rappen).
+    final bruttoTotal = bruttoKundenrechnung(totalNetto, _mwstFaktor);
+    final mwstTotal = _round2(bruttoTotal - totalNetto);
 
     // Rechnungsdatum: 31.12. des Jahres
     final rechnungsdatum = DateTime(jahr, 12, 31);
