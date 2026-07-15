@@ -1,6 +1,57 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 15.07.2026 · **Live:** v0.47.0
+**Stand:** 15.07.2026 (Abend) · **Live:** v0.48.3
+
+---
+
+## 🔴 OFFEN: Warum fehlten 38 Rechnungen (26.06.–13.07.)? — Ursache UNGEKLÄRT
+**Das ist der nächste Arbeitspunkt.** Hat mit der Rundung NICHTS zu tun (das war ein zweiter, eigener Fehler).
+
+**Symptom:** 38 abgeschlossene Tresen-Reinigungen (26.06.–13.07., CHF 3'656.05) bekamen beim Abschluss keine Rechnung. Nur bei Tresen aufgefallen, weil dort Protokoll + QR direkt aus der Reinigung kommen und ohne Rechnung funktionieren — bei `rechnung_mail`/`rechnung_post` merkte Daniel es sofort und holte es manuell nach (deshalb sahen diese Kategorien „sauber" aus, waren es aber nicht).
+
+**Was BEWIESEN ausgeschlossen ist:**
+- **Sequenz-Kollision** (meine Diagnose vom 14.07. in `fbca510` — FALSCH): Zwischen 26.06. und 30.06. stieg `rechnungsnummer_seq` um genau 1, obwohl 8 Fälle ausfielen → es wurde gar kein Insert versucht. Die „verbrannten" Nummern 645→1002 stammen vom Excel-Import am 13.06.
+- **Referenz-Kollision:** Keine der 38 Wunsch-Referenzen war belegt (geprüft).
+- **`kIsWeb`/Android:** Daniel schliesst im Browser ab.
+- **Cache/Service Worker:** Fehler trat auch im Inkognito auf.
+
+**Beste verbliebene Spur:** Die Ausfälle beginnen exakt am **26.06.** — einen Tag nach dem SCOR-Deploy. Am 25.06. war zwischen **15:40 (v0.13.0 „TP-C QR-Referenz")** und **16:10 (v0.13.2 „QR-Referenz-Kollisions-Fix")** eine Fassung live, die bei Kollision eine `PostgrestException` warf statt es erneut zu versuchen (`d3f4fa1` zeigt den Diff). Damals stand die Buchung im SELBEN try-Block → beides fiel aus, was zum Befund passt (die 38 hatten weder Rechnung noch Buchung; letztere kam erst per Nachtrag am 14.07.).
+**Widerspruch dazu:** Ein fehlgeschlagener Insert hätte eine Sequenznummer verbrannt — hat er nicht. Also passt auch diese Spur noch nicht lückenlos.
+
+**Nächste Schritte:** `d3f4fa1`/`6d6422f` genau lesen (was warf WO — vor oder nach dem Insert?); prüfen, ob `_loadMwst`/`_buildPositionen` werfen können; ggf. kontrollierte Reproduktion.
+
+---
+
+## 🔴 OFFEN: Zugesagt, noch nicht gebaut
+- **Warnung „Reinigungen ohne Rechnung"** (von Daniel freigegeben: Warnung ja, Reparatur-Tool nein). Ein Zähler/Hinweis in den Forderungen. Hätte die 38 Fälle nach einem Tag statt nach drei Wochen sichtbar gemacht.
+- **Nachtrag wieder entfernen:** `services/rechnung/reinigung_rechnung_nachtrag.dart`, der PopupMenu-Eintrag in `rechnungen_list_screen.dart` (AppBar) und `_zeigeRechnungsNachtrag()` + der Import. Alles mit `TEMPORÄR (15.07.2026)` markiert. **`RechnungService.vorschauBrutto`/`_nettoSumme` und `core/app_version.dart` BLEIBEN.**
+- **camt-Test fortsetzen:** 🟡 Manuell (v. a. Davos Klosters → Routing über `heineken_nr`, 0151 = Armando Klosters), ⚪ Nicht zugeordnet, Übriges (Buchung müsste seit Migration 140 gehen).
+- **Backups aufräumen** (erst nach Daniels OK): `_bak_nachtrag_20260715_rechnungen`, `_bak_nachtrag_20260715_positionen`, `_bak_camt_20260715_*`.
+- **`kAppVersion` in `core/app_version.dart` bei jedem Version-Bump mitziehen** (aktuell manuell, Duplikat zu `pubspec.yaml` Zeile 4).
+
+---
+
+## 🟢 38 fehlende Tresen-Rechnungen nachgetragen (15.07.2026, CHF 3'656.05)
+Ausgelöst durch Daniels Frage, warum die Reinigung Alpenblick Arosa (26.06.) nicht in den Forderungen steht. Alle 38 sind erledigt: 0 krumm, 0 Abweichung zur Reinigung, Summe 3'656.05 = 3'656.05, `versendet_am` = Reinigungsdatum (bei Tresen wird die Rechnung vor Ort abgegeben), QR-Referenz identisch mit der, die sie am Reinigungstag bekommen hätten (hängt nur an Datum + Betriebnummer). PDF stichprobenweise geprüft: 138.35. Keine Doppelbuchung (`createFromReinigung` bucht nicht).
+
+**Zwei eigene Fehler, beide vom Trockenlauf gefangen — nicht von Tests oder Analyse:**
+1. **v0.48.0 zeigte 45 statt 38.** Die bereits verrechneten Reinigungen wurden mit EINEM `select()` über `rechnungs_positionen` geladen → PostgREST liefert max. 1000 Zeilen, bei 4971 blieben 3971 unsichtbar und galten als unverrechnet. 7 Reinigungen mit bestehender Rechnung standen auf der Liste → ein Klick hätte 7 **Doppelrechnungen** erzeugt. Gefixt: gezielte Abfrage per `inFilter` + Einzelcheck unmittelbar vor jedem Anlegen.
+2. **30 von 38 Rechnungen krumm** (74.59 statt 74.60) — siehe nächster Abschnitt.
+
+---
+
+## 🟢 Rundung: Der Rechnungsbetrag kommt vom TRIGGER, nicht von der App (Migration 143 · 15.07.2026)
+**Der teuerste Irrtum des Tages.** `update_rechnung_summen()` auf `rechnungs_positionen` summiert `betrag_brutto` bei JEDEM Positions-Insert aus den Positionen und überschreibt damit den App-Wert (App schrieb 138.35, Trigger machte 138.37 daraus).
+
+Deshalb waren **Migration 139** (Reinigungs-Trigger, 14.07.) und der **Dart-Fix in `rechnung_service`** (v0.48.2) beide wirkungslos — sie sassen auf der falschen Ebene. Mein Backfill vom 14.07. hat nur Symptome beseitigt; der Nachtrag reproduzierte den Fehler prompt.
+
+**Vier falsche Diagnosen, bis der Trigger gefunden war:** Sequenz-Kollision, Referenz-Kollision, `kIsWeb`, Service-Worker/Cache. Beweislage, die keinen Sinn ergab: `vorschauBrutto` zeigte 138.35, der Insert schrieb 138.35 (RETURNING), Hash lokal == gh-pages == live — und die DB hatte 138.37. Auflösung: Ich hatte nur Trigger auf `rechnungen` geprüft, nie auf `rechnungs_positionen`.
+
+**Regel (Daniel):** Kundenrechnungen IMMER auf 5 Rappen, **nur `heineken_monat` ungerundet**. Migration 143 setzt das im Trigger um (MwSt aus dem gerundeten Brutto abgeleitet → Netto + MwSt = Brutto exakt). Die 38 wurden dadurch in der DB selbst korrigiert, ohne neuen Lauf.
+
+**Die Dart-Rundung bleibt nötig:** Das PDF entsteht aus dem Rechnungs-Objekt VOR dem Trigger. Beide Seiten runden jetzt gleich, sonst laufen PDF und Datenbank auseinander. Zentral in `core/util/rundung.dart` (9 Tests) statt wie bisher 5× dupliziert — und die alten Kopien rundeten ausgerechnet erst bei der **Anzeige** (`rechnungen_list_screen:853`, `rechnung_detail_screen:269`): gespeichert 74.59, angezeigt 74.60. Genau deshalb war der Fehler monatelang unsichtbar.
+
+**Lehre fürs Nächste:** Bei falschen Werten in der DB zuerst fragen, WER den Wert schreibt — App, Trigger auf der Zieltabelle, oder Trigger auf einer abhängigen Tabelle. Und: Sichtbarkeit (Versionsanzeige, Betragsvorschau) hätte die Frage in Minuten statt Stunden beantwortet.
 
 ---
 
@@ -18,6 +69,16 @@ Spec `docs/superpowers/specs/2026-07-15-material-abgeholt-bestand-design.md`, Pl
 **Bekannte Grenzen (bewusst):** `digitsOnly` im Mengenfeld → keine Dezimalmengen (deckt sich mit dem bestehenden Bestell-Screen); `GREATEST(0,…)` beim Rückgängig klemmt lautlos bei 0; `p_mengen=NULL` würde den Key-Guard umgehen (vom Dart-Client aus unmöglich, da `abholPayload` immer eine Map liefert).
 
 **Offen:** Live-Test durch Daniel (siehe Plan, Task 7 Step 9).
+
+---
+
+## 🟢 camt-Test 15.07. zurückgerollt — Gelerntes BLEIBT (Abend 15.07.2026)
+Rollback ausgeführt und verifiziert: camt-Buchungen 0, Rechnungs-Status auf Baseline (bezahlt 3508), camt-Dateien 12, Prüfliste 4 mit zurückgesetztem Status.
+**Bewusst erhalten (Entscheid Daniel):** 4 gelernte Zahlernamen (`betriebe.zahler_aliase`) UND 16 camt-Regeln (14 Baseline + 2 neue) — beides ist Wissen, das jeden weiteren Import einfacher macht. Die 38 nachgetragenen Rechnungen hat das Rollback nicht angefasst (Versanddatum intakt).
+Runbook: `scratchpad/ROLLBACK_camt_20260715.md`.
+
+**Neu an der Prüfliste (v0.47.2):** „Regel anlegen" befüllt die IBAN vor (Migration 142: `camt_pruefliste.partei_iban` + `beleg_ref` — der Parser las sie, die Tabelle speicherte sie nie) und **bucht die Zahlung mit** („Speichern & buchen"). Das ist nötig, nicht bequem: `bereitsVerarbeitet` enthält ALLE Prüflisten-txKeys unabhängig vom Status → die Transaktion ist dauerhaft blockiert, eine neue Regel hätte sie NIE erfasst; bloss ausblenden = Zahlung still nie gebucht. Ausserdem: IBAN-Vergleich normalisiert (`RegelMatcher.normIban`) — eine gruppiert eingetippte IBAN („CH04 3000 …") hätte vorher nie gematcht.
+**Zu wissen:** Sind Name UND IBAN gesetzt, gilt **oder**, nicht und — die Regel feuert schon beim Namens-Treffer.
 
 ---
 
