@@ -18,7 +18,25 @@
 **Beste verbliebene Spur:** Die Ausfälle beginnen exakt am **26.06.** — einen Tag nach dem SCOR-Deploy. Am 25.06. war zwischen **15:40 (v0.13.0 „TP-C QR-Referenz")** und **16:10 (v0.13.2 „QR-Referenz-Kollisions-Fix")** eine Fassung live, die bei Kollision eine `PostgrestException` warf statt es erneut zu versuchen (`d3f4fa1` zeigt den Diff). Damals stand die Buchung im SELBEN try-Block → beides fiel aus, was zum Befund passt (die 38 hatten weder Rechnung noch Buchung; letztere kam erst per Nachtrag am 14.07.).
 **Widerspruch dazu:** Ein fehlgeschlagener Insert hätte eine Sequenznummer verbrannt — hat er nicht. Also passt auch diese Spur noch nicht lückenlos.
 
-**Nächste Schritte:** `d3f4fa1`/`6d6422f` genau lesen (was warf WO — vor oder nach dem Insert?); prüfen, ob `_loadMwst`/`_buildPositionen` werfen können; ggf. kontrollierte Reproduktion.
+**WARUM es unsichtbar blieb — GEFUNDEN (15.07. abends):** Der Block hatte einen komplett stummen catch:
+```dart
+} catch (e) { debugPrint('Rechnungs-/Buchungserstellung fehlgeschlagen: $e'); }
+```
+Rechnung UND Buchung standen darin, `createFromReinigung` machte `rethrow` → beides fiel gemeinsam und spurlos aus. Seit `fbca510` (14.07.) gibt es eine rote SnackBar und getrennte try-Blöcke — eine SnackBar, die nach 12 Sek. verschwindet, hätte die 38 Fälle aber nicht verhindert. Deshalb die zugesagte Warnung (siehe unten).
+
+**Weiter eingegrenzt (15.07. abends):**
+- **Nicht Betriebs-inhärent:** 36 der 37 betroffenen Betriebe bekamen VOR dem 26.06. problemlos automatische Rechnungen.
+- **Saubere Trennung ab 26.06.:** 37 Betriebe danach NIE wieder automatisch erfolgreich, 5 Betriebe durchgehend erfolgreich — **kein einziger gemischt**. Also kein Zufalls-/Netzwerkfehler, sondern ein deterministisches Merkmal.
+- **Nicht der SCOR-Code:** `scor_referenz.dart` seit 26.06. unverändert; die Suffix-Retry-Schleife war am 26.06. bereits drin (Fix `d3f4fa1` kam am 25.06. um 16:09, also VOR dem ersten Ausfall). Damit ist auch die „kaputte Zwischenversion 15:40–16:10"-Spur entwertet.
+- **Derselbe Code funktioniert heute:** Der Nachtrag hat alle 38 über `createFromReinigung` fehlerfrei verarbeitet.
+- **Kein Insert wurde versucht** (Sequenz unberührt) → Abbruch vor dem Insert, ODER gar keine Ausnahme: `if (betrieb != null)` umschloss den ganzen Block, `betrieb == null` überspringt alles lautlos.
+- **Nicht `betriebe.updated_at`:** trennt die Gruppen nicht.
+- **Neue Spur:** Am 26.06. um 06:10 ging **v0.16.3 „Eingangsrechnungen (Scan→KI→Kreditoren-Buchung, TP-0..2)"** live — der Morgen des ersten Ausfalltags.
+
+**Nächster Schritt (eng umrissen, zwei Vergleichsgruppen vorhanden):**
+1. Was unterscheidet die **37 Ausfall-Betriebe** von den **5 funktionierenden**? (Spescha, Hemingway, Hotel Alpenblick Weggis, Bolgenschanze, Hotel Sportcenter Fünf Dörfer). Felder systematisch durchgehen.
+2. Was hat **v0.16.3** am Rechnungspfad angefasst? (`git diff` gegen den Vorgänger.)
+3. Kann `BetriebRepository.getByServerId(r.betriebId)` für bestimmte Betriebe null liefern?
 
 ---
 
