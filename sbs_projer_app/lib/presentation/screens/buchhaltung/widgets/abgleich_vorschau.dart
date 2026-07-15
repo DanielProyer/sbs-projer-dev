@@ -262,15 +262,40 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     return teile.isEmpty ? null : teile.join(' · ');
   }
 
-  /// Untertitel-Widget mit [_zahlungInfo] (oder null, wenn nichts vorhanden).
+  /// Wie [_zahlungInfo], aber ohne die Adresse. In den Zuordnungs-Dialogen ist
+  /// der Platz knapp und die Adresse hilft beim Zuordnen nicht — entscheidend
+  /// sind Zahlername und Bemerkung (Rechnungsnummer/Datum/Betriebnummer).
+  String? _zahlungInfoKurz(CamtTransaction g) {
+    final teile = <String>[];
+    final name = effektiverZahlername(
+        partyName: g.partyName, additionalInfo: g.additionalInfo);
+    if (name != null) teile.add(name);
+    final remit = g.remittanceInfo?.trim();
+    if (remit != null && remit.isNotEmpty) teile.add('Bemerkung: $remit');
+    if (name == null) {
+      final addtl = g.additionalInfo?.trim();
+      if (addtl != null && addtl.isNotEmpty) teile.add(addtl);
+    }
+    return teile.isEmpty ? null : teile.join(' · ');
+  }
+
+  /// Untertitel-Widget für die Zuordnungs-Dialoge: kompakte Kurzfassung,
+  /// der vollständige Text (inkl. Adresse) steckt im Tooltip — langer Druck
+  /// bzw. Maus-Hover zeigt ihn, ohne dass die Zeile höher wird.
   Widget? _zahlungInfoText(CamtTransaction g) {
-    final info = _zahlungInfo(g);
-    if (info == null) return null;
-    return Text(
-      info,
-      style: const TextStyle(fontSize: 12),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+    final kurz = _zahlungInfoKurz(g);
+    if (kurz == null) return null;
+    final voll = _zahlungInfo(g) ?? kurz;
+    return Tooltip(
+      message: voll,
+      triggerMode: TooltipTriggerMode.longPress,
+      showDuration: const Duration(seconds: 12),
+      child: Text(
+        kurz,
+        style: const TextStyle(fontSize: 12),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 
@@ -417,6 +442,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
               ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
 
             return AlertDialog(
+              // Schmaler Rand → auf dem Handy zählt jeder Pixel Textbreite.
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+              contentPadding:
+                  const EdgeInsets.fromLTRB(16, 16, 16, 8),
               title: Text('Manuelle Zuordnung — ${f.betriebName}'),
               content: SizedBox(
                 width: 420,
@@ -442,21 +472,23 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         // Gehört zu einem anderen Betrieb? Über alle Betriebe
                         // neu zuordnen (+ Alias lernen). GestureDetector, da
                         // Material-Buttons in CanvasKit teils nicht rendern.
-                        secondary: GestureDetector(
-                          onTap: () {
-                            umleiten = g;
-                            Navigator.pop(ctx, false);
-                          },
-                          behavior: HitTestBehavior.opaque,
-                          child: const Padding(
-                            padding:
-                                EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                            child: Text('anders\nzuordnen',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600)),
+                        secondary: Tooltip(
+                          message: 'Anders zuordnen',
+                          child: GestureDetector(
+                            onTap: () {
+                              umleiten = g;
+                              Navigator.pop(ctx, false);
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            // Icon statt zweizeiligem Label: schmaler (mehr
+                            // Platz für den Text) und die Zeile wird nicht
+                            // vom Button hochgedrückt. 44px = Tippfläche.
+                            child: const SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Icon(Icons.swap_horiz,
+                                  size: 22, color: AppColors.primary),
+                            ),
                           ),
                         ),
                         onChanged: (sel) => setDialogState(() {
@@ -1019,6 +1051,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           final kannVerbuchen =
               gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
           return AlertDialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+            contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             title: Text('Zuordnen — $name'),
             content: SizedBox(
               width: 420,
