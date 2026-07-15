@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/bestand_buchung.dart';
@@ -162,24 +163,38 @@ class _AbholDialogState extends State<_AbholDialog> {
           overflow: TextOverflow.ellipsis),
       subtitle: Text('bestellt: ${p.menge.toStringAsFixed(0)} ${p.einheit}',
           style: const TextStyle(fontSize: 11)),
-      secondary: SizedBox(
-        width: 64,
-        height: 40,
-        child: TextFormField(
-          controller: _controller[p.id],
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          decoration: InputDecoration(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-            isDense: true,
+      secondary: Builder(builder: (_) {
+        final ungueltig = _gewaehlt.contains(p.id) &&
+            (double.tryParse(_controller[p.id]?.text ?? '') ?? 0) <= 0;
+        return SizedBox(
+          width: 64,
+          height: 40,
+          child: TextFormField(
+            controller: _controller[p.id],
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: ungueltig ? AppColors.error : null),
+            decoration: InputDecoration(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide(
+                    color: ungueltig ? AppColors.error : Colors.grey,
+                    width: ungueltig ? 2 : 1),
+              ),
+              isDense: true,
+            ),
+            onChanged: (_) => setState(() {}),
           ),
-          onChanged: (_) => setState(() {}), // Zähler im Button aktualisieren
-        ),
-      ),
+        );
+      }),
     );
   }
 }

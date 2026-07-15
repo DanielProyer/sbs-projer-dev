@@ -73,8 +73,21 @@ class _MaterialBestellungenScreenState
   }
 
   Future<void> _abholen(MaterialBestellung b) async {
-    final positionen = await _ladePositionen(b.id);
+    setState(() => _busy = true);
+    final List<MaterialBestellposition> positionen;
+    try {
+      positionen = await _ladePositionen(b.id);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Positionen konnten nicht geladen werden: $e')));
+      }
+      return;
+    }
     if (!mounted) return;
+    setState(() => _busy = false);
+
     final payload = await zeigeAbholDialog(context,
         bestellung: b, positionen: positionen);
     if (payload == null || payload.isEmpty) return;
@@ -82,8 +95,8 @@ class _MaterialBestellungenScreenState
     setState(() => _busy = true);
     try {
       await MaterialBestellungRepository.abholen(b.id, payload);
-      ref.invalidate(materialienStreamProvider); // Bestände sind neu
       if (!mounted) return;
+      ref.invalidate(materialienStreamProvider); // Bestände sind neu
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
               '${payload.length} Artikel gebucht — Bestände aktualisiert.')));
@@ -121,8 +134,8 @@ class _MaterialBestellungenScreenState
     setState(() => _busy = true);
     try {
       await MaterialBestellungRepository.abholungRueckgaengig(b.id);
-      ref.invalidate(materialienStreamProvider);
       if (!mounted) return;
+      ref.invalidate(materialienStreamProvider);
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Buchung rückgängig gemacht.')));
       await _load();
