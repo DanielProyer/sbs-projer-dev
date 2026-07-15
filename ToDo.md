@@ -53,17 +53,47 @@ Das erklärt jede Beobachtung: kein Insert (Sequenz unberührt), keine Ausnahme,
 
 **v0.48.4 macht diesen Zweig laut** (30 Sek. rote SnackBar + `debugPrint` mit `betriebId`, `_betrieb`, `widget.betriebId`).
 
-**NÄCHSTER SCHRITT = warten auf die nächste Tresen-Reinigung.** Fällt sie aus, sagt die App endlich, ob es `betrieb == null` ist oder doch eine Ausnahme. Daniel soll die Meldung fotografieren.
-Falls das zu lange dauert: kontrollierte Reproduktion (Test-Reinigung bei einem der 37 Ausfall-Betriebe abschliessen, danach zurückrollen).
+### REPRODUKTION VERSUCHT — BEIDE MALE FEHLGESCHLAGEN (15.07. spätabends)
+Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide liefen sauber durch**, danach exakt auf Baseline zurückgerollt (Sequenz per `setval` auf 1290).
+
+| Test | Betrieb | Ergebnis |
+|---|---|---|
+| Desktop-Browser | Espresso Bar Landquart | Rechnung 2026-07-1291 + 2 Buchungen ✅ |
+| **Handy + sofortige Bildschirmsperre** | Hotel Chur | Rechnung 2026-07-1292 + 2 Buchungen ✅ |
+
+**Damit ist der Fehler heute unter keiner Bedingung reproduzierbar** — nicht am Rechner, nicht am Handy, nicht mit eingefrorenem Tab. Er hängt nicht an Daten, Betrieb, Gerät oder Ablauf. Zwischen dem 13. und 15.07. hat ihn etwas behoben; was, ist unbekannt.
+
+### Ehrliche Bilanz: SECHS Hypothesen, alle widerlegt
+1. Sequenz-Kollision (Diagnose 14.07., `fbca510`) — Sequenz stieg um 1 bei 6 Ausfällen.
+2. Referenz-Kollision — keine der 38 Wunsch-Referenzen war belegt.
+3. `kIsWeb`/Android — Daniel schliesst im Browser ab.
+4. Service Worker / Cache — Fehler trat auch im Inkognito auf; Hash lokal == gh-pages == live.
+5. Stummer catch als Ursache — war nur der Stand vom 26.06.; die rote Meldung kam im Ausfallfenster dazu, Daniel sah nie eine.
+6. Eingefrorener Tab beim Handy-Einstecken — Test widerlegt.
+
+**Konsequenz:** Statt der siebten Hypothese → **Erkennung gebaut** (Warnung, siehe unten). Der Fehler kostete 3 Wochen und CHF 3'656, weil ihn niemand SAH — nicht, weil er unauffindbar war.
+
+**Falls er wiederkommt:** Die Warnung zeigt es am nächsten Tag. Zusätzlich meldet sich seit v0.48.4 der `betrieb == null`-Zweig laut (30 Sek. rote SnackBar + `debugPrint` mit `betriebId`) — der einzige Zweig, der ohne Ausnahme und ohne Spur aussteigen kann. Dann: **Meldung fotografieren**, das entscheidet die Frage in einer Minute.
 
 ---
 
-## 🔴 OFFEN: Zugesagt, noch nicht gebaut
-- **Warnung „Reinigungen ohne Rechnung"** (von Daniel freigegeben: Warnung ja, Reparatur-Tool nein). Ein Zähler/Hinweis in den Forderungen. Hätte die 38 Fälle nach einem Tag statt nach drei Wochen sichtbar gemacht.
-- **Nachtrag wieder entfernen:** `services/rechnung/reinigung_rechnung_nachtrag.dart`, der PopupMenu-Eintrag in `rechnungen_list_screen.dart` (AppBar) und `_zeigeRechnungsNachtrag()` + der Import. Alles mit `TEMPORÄR (15.07.2026)` markiert. **`RechnungService.vorschauBrutto`/`_nettoSumme` und `core/app_version.dart` BLEIBEN.**
+## 🔴 OFFEN: Nächste Schritte
+- **10 Reinigungen ohne Rechnung entscheiden (~CHF 1'011)** — die neue Warnung zeigt sie beim ersten Öffnen. Sartons Valbella (3×), Dieschen (2×), Rössli Cham (2×), Seerestaurant Immensee (2×), Central Bad Ragaz. Leistungen Dez 2025 – Apr 2026, alle Tresen, **alle im April nacherfasst** (`created_at` 22.–27.04. bei Leistungsdatum Monate davor) → eigenes Muster, nichts mit den 38 zu tun. **Daniel entscheidet, ob noch verrechnet wird** — nichts angefasst.
 - **camt-Test fortsetzen:** 🟡 Manuell (v. a. Davos Klosters → Routing über `heineken_nr`, 0151 = Armando Klosters), ⚪ Nicht zugeordnet, Übriges (Buchung müsste seit Migration 140 gehen).
-- **Backups aufräumen** (erst nach Daniels OK): `_bak_nachtrag_20260715_rechnungen`, `_bak_nachtrag_20260715_positionen`, `_bak_camt_20260715_*`.
-- **`kAppVersion` in `core/app_version.dart` bei jedem Version-Bump mitziehen** (aktuell manuell, Duplikat zu `pubspec.yaml` Zeile 4).
+- **Backups aufräumen** (erst nach Daniels OK): `_bak_nachtrag_20260715_rechnungen`, `_bak_nachtrag_20260715_positionen`, `_bak_camt_20260715_*`, ggf. `_bak_rundung_*_20260714`.
+- **`kAppVersion` in `core/app_version.dart` bei jedem Version-Bump mitziehen** (manuell, Duplikat zu `pubspec.yaml` Zeile 4). Steht jetzt im Forderungen-Titel — wenn er nicht zur erwarteten Version passt, läuft alter Code.
+
+---
+
+## 🟢 Warnung „Reinigungen ohne Rechnung" (live v0.49.0 · 15.07.2026)
+Die Antwort auf einen Fehler, den wir nicht finden konnten — und deshalb die einzige, die trägt: Sie fragt **nicht nach dem Warum**, sondern zeigt, **dass** eine Rechnung fehlt. Wirkt bei jeder Ursache, auch bei einer, die nie verstanden wird. Hätte aus drei Wochen und CHF 3'656 einen Tag und eine Reinigung gemacht.
+
+- `services/rechnung/reinigungen_ohne_rechnung.dart` + `reinigungenOhneRechnungProvider`, rote Leiste in den Forderungen, antippen → Liste.
+- **Stumm, solange nichts fehlt** — eine Warnung, die immer leuchtet, wird ignoriert. Deshalb Stichtag **01.12.2025** + `quelle != 'excel_import'`: die 1519 Excel-Zeilen sind über den Voll-Import abgedeckt und hätten sie dauerhaft auf Alarm gestellt.
+- **Meldet, repariert nicht** (Vorgabe Daniel): Nachholen über das Rechnungs-Menü im Reinigungs-Detail.
+- Positionen werden gezielt in 200er-Blöcken abgefragt (`inFilter`) — **nie** `select()` über die ganze Tabelle (1000-Zeilen-Limit, siehe unten).
+- **Version im Forderungen-Titel** (`Forderungen · v0.49.0`) — dass stundenlang nicht feststellbar war, welcher Code im Browser läuft, hat am 15.07. drei Fehldiagnosen verursacht.
+- Temporärer Nachtrag (Service + Menüpunkt + Dialog) wieder entfernt, wie zugesagt.
 
 ---
 
