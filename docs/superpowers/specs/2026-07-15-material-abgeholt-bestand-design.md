@@ -53,13 +53,13 @@ Datei `lib/core/util/bestand_buchung.dart`, Test `test/bestand_buchung_test.dart
 Die Funktion bereitet die Buchung auf (Dialog-Logik + Nutzlast der RPC); die Arithmetik auf dem Bestand macht die RPC relativ.
 
 ```dart
-/// Verdichtet die im Kontroll-Dialog erfassten Mengen zu Bestands-Deltas
-/// pro Lager-Artikel — die Nutzlast für die Abhol-RPC.
+/// Filtert die im Kontroll-Dialog erfassten Mengen auf die tatsächlich
+/// buchbaren Positionen — die Nutzlast für die Abhol-RPC.
 ///
 /// [positionen]: Positionen der Bestellung.
 /// [mengen]: positionId → erhaltene Menge (fehlend/<=0 → Position übersprungen).
-/// Rückgabe: lagerId → summierte erhaltene Menge (nur buchbare Positionen).
-Map<String, double> bestandsDeltas({
+/// Rückgabe: **positionId → Menge** (genau das `p_mengen`-jsonb der RPC).
+Map<String, double> abholPayload({
   required List<MaterialBestellposition> positionen,
   required Map<String, double> mengen,
 });
@@ -69,11 +69,13 @@ Map<String, double> bestandsDeltas({
 bool istBuchbar(MaterialBestellposition p);
 ```
 
+**Warum positionId-basiert (nicht lagerId):** Die RPC muss `menge_erhalten` **pro Position** schreiben, braucht also den Positions-Bezug. Treffen mehrere Positionen denselben Lager-Artikel, summiert die RPC automatisch korrekt, weil sie **relativ** bucht (`bestand_aktuell + menge` je Position) — eine Aggregation in Dart wäre nicht nur überflüssig, sondern würde den Positions-Bezug zerstören.
+
 **Regeln (= Testfälle):**
-- Position **ohne `lagerId`** → übersprungen (Freitext-Position, kein Lager-Bezug); `istBuchbar` = false.
-- Menge **fehlt / 0 / negativ** → übersprungen (= „nicht erhalten").
-- Mehrere Positionen auf **denselben `lagerId`** → Mengen werden **summiert** (ein Delta pro Lager-Artikel).
-- Leere Eingabe → leere Map (Dialog deaktiviert „Bestände buchen").
+- Position **ohne `lagerId`** → nicht im Payload (Freitext-Position, kein Lager-Bezug); `istBuchbar` = false.
+- Menge **fehlt / 0 / negativ** → nicht im Payload (= „nicht erhalten").
+- Buchbare Position mit Menge > 0 → im Payload mit exakt dieser Menge.
+- Leere Eingabe / nichts gewählt → **leere Map** (Dialog deaktiviert „Bestände buchen").
 
 ---
 
@@ -202,7 +204,7 @@ static Future<void> abholungRueckgaengig(String bestellungId) =>
 
 ## Verifikation
 
-- **TDD (Dart):** `bestand_buchung_test.dart` deckt die Dialog-/Delta-Regeln ab — Position ohne `lagerId` übersprungen, Menge fehlt/0/negativ übersprungen, gleiches Lager summiert, leere Eingabe → leere Map, `istBuchbar`.
-- **SQL-seitig** (Atomarität, Status-Guard, Klemmung bei 0) direkt auf der Prod-DB gegen eine Testbestellung geprüft: buchen → Bestände +, Status `abgeholt`; erneutes Buchen → Exception (kein Doppelzählen); rückgängig → Bestände exakt wie vorher, Status `gesendet`.
+- **TDD (Dart):** `bestand_buchung_test.dart` deckt die Payload-Regeln ab — Position ohne `lagerId` nicht im Payload, Menge fehlt/0/negativ nicht im Payload, buchbare Position mit Menge > 0 im Payload, leere Eingabe → leere Map, `istBuchbar`.
+- **SQL-seitig** (Atomarität, Status-Guard, Summierung gleicher Lager, Klemmung bei 0) direkt auf der Prod-DB gegen eine Testbestellung geprüft: buchen → Bestände +, Status `abgeholt`; erneutes Buchen → Exception (kein Doppelzählen); rückgängig → Bestände exakt wie vorher, Status `gesendet`.
 - `flutter analyze` 0 Fehler, volle Test-Suite grün.
 - **Live-Test durch Daniel:** Bestellung `gesendet` → „Material abgeholt" → Mengen prüfen (inkl. einer Abweichung + einer abgewählten Zeile) → buchen → Lager-Bestände kontrollieren → „Buchung rückgängig" → Bestände wieder wie vorher.
