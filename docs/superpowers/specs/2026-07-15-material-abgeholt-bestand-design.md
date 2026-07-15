@@ -159,20 +159,36 @@ static Future<void> abholungRueckgaengig(String bestellungId) =>
 
 ---
 
-## UI (`material_bestellung_screen.dart`)
+## UI
 
-**Bestellung im Status `gesendet`:** Button **„Material abgeholt"**.
+### Befund: es fehlt der Ort für den Button
 
-**Kontroll-Dialog „Material abgeholt":**
+`MaterialBestellungScreen` (`/materialien/bestellen`) ist ein reiner **Erfassungs-Wizard**: erstellen → PDF → mailen → `context.pop()`. Es gibt **keine Ansicht gesendeter Bestellungen**; `MaterialBestellungRepository.getAll()` / `getById()` sind vorhanden, werden aber **von keinem Screen genutzt** (toter Code). Auch das Bestell-PDF ist nach dem Versand nicht mehr auffindbar. Entscheidung Daniel: **neue Bestellungen-Liste** (statt nur einer Karte auf dem Lager-Screen) — schliesst zugleich die Historie-/PDF-Lücke und macht den toten Code nutzbar.
+
+### Neuer Screen `material_bestellungen_screen.dart` — Route `/materialien/bestellungen`
+
+- **Einstieg:** AppBar-Action auf `/materialien` (`MaterialienListScreen`), Icon `Icons.receipt_long`, Tooltip „Bestellungen".
+- **Liste** (`getAll()`, neueste zuoberst): pro Bestellung eine Karte mit **Bestell-Nr · Datum**, **Status-Badge** (`gesendet` = blau, `abgeholt` = grün mit „abgeholt am TT.MM.JJJJ", `entwurf`/`storniert` = grau), Anzahl Positionen.
+- **Aktionen pro Karte:**
+  - **PDF öffnen** (falls `pdf_storage_path` gesetzt) → `getSignedPdfUrl` + `launchUrl`.
+  - Status `gesendet` → **„Material abgeholt"** → Kontroll-Dialog (unten).
+  - Status `abgeholt` → **„Buchung rückgängig"** (mit Sicherheitsabfrage) → `abholungRueckgaengig` → Status wieder `gesendet`.
+- **Leerzustand:** „Noch keine Bestellungen."
+- Der Erfassungs-Wizard (`material_bestellung_screen.dart`) bleibt **unverändert**.
+
+- **Aufklappbar** (`ExpansionTile`): zeigt die Positionen — bei `abgeholt` als **„bestellt X · erhalten Y"** (Abweichung hervorgehoben), sonst nur die bestellte Menge. Macht die gebuchte Abholung nachvollziehbar.
+
+### Kontroll-Dialog „Material abgeholt"
+
 - Titel: Bestell-Nr + Datum.
+- **Nach Kategorie gruppiert — gleiche Gliederung/Reihenfolge wie die Bestellung** (Gruppen-Kopf = `kategorie_name`, innerhalb nach `sortierung`; Positionen ohne Kategorie unter „Übrige" am Schluss). Daniel kennt die Reihenfolge vom Bestell-PDF → schnelleres Abhaken.
 - Pro Position eine Zeile: **Checkbox links** (erhalten, default **an**), Name + `SAP/DBO`, **Mengenfeld** (vorbefüllt = bestellte Menge, editierbar, numerisch), Einheit; darunter klein „bestellt: X".
 - Positionen **ohne `lager_id`**: ausgegraut, nicht wählbar, Hinweis „kein Lager-Bezug — wird nicht gebucht".
 - Fusszeile: Anzahl zu buchender Positionen + Button **„Bestände buchen"** (deaktiviert, wenn nichts gewählt).
 - Stimmt alles → nur bestätigen (= der gewünschte Ein-Klick-Fall).
+- Nach Erfolg: Liste neu laden + `materialienStreamProvider` invalidieren (Lager-Bestände sind neu).
 
-**Bestellung im Status `abgeholt`:** Badge „abgeholt am TT.MM.JJJJ"; Positionen zeigen „bestellt X · erhalten Y" (Abweichung hervorgehoben). Menüpunkt **„Buchung rückgängig"** (mit Sicherheitsabfrage) → `abholungRueckgaengig` → Status wieder `gesendet`, Button „Material abgeholt" erscheint erneut.
-
-**Doppelbuchungs-Schutz:** „Material abgeholt" existiert nur bei `gesendet`. Ein `abgeholt`-Datensatz ist nicht erneut buchbar.
+**Doppelbuchungs-Schutz:** „Material abgeholt" erscheint nur bei `gesendet`; zusätzlich prüft die RPC den Status serverseitig → auch Doppelklick/Retry kann nicht doppelt buchen.
 
 **CanvasKit-Falle:** Aktions-Buttons im Material-/Bestell-Bereich als `GestureDetector`+`Container` (Material-Buttons rendern dort teils nicht) — bestehendes Projekt-Muster.
 
