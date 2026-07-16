@@ -117,6 +117,10 @@ class ReinigungenOhneRechnung {
       if (sid == null) continue;
       if (r.istKulanz || r.istHeinekenMonteur) continue;
 
+      // Früh-Ausstieg ohne Betrieb-Fetch: mit Rechnung UND Buchung liefert
+      // warnungsGrund immer null — unabhängig von Art/Betrieb.
+      if (verrechnet.contains(sid) && hatBuchung.contains(sid)) continue;
+
       final betrieb = await BetriebRepository.getByServerId(r.betriebId);
       if (betrieb == null) continue;
 
