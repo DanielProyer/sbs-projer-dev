@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -601,7 +602,9 @@ class ReinigungPdfService {
     BetriebLocal? betrieb,
     DateFormat dateFormat,
   ) {
-    final isBarzahlung = betrieb?.rechnungsstellung == 'barzahlung';
+    final isBarzahlung =
+        resolveZahlungsart(r.zahlungsart, betrieb?.rechnungsstellung) ==
+            'barzahlung';
     final datumStr = dateFormat.format(r.datum);
 
     return pw.Row(

@@ -848,11 +848,13 @@ class _PreisCard extends StatelessWidget {
 
   const _PreisCard({required this.reinigung});
 
-  /// Echte Verrechnungsart aus dem Betrieb (rechnungsstellung); Kulanz-Override.
+  /// Fixierte Zahlungsart der Reinigung (nicht die aktuelle Betriebs-Einstellung);
+  /// Kulanz-Override.
   Future<String> _ladeVerrechnungsart() async {
     if (reinigung.istKulanz) return 'Kulanz (keine Verrechnung)';
     final b = await BetriebRepository.getByServerId(reinigung.betriebId);
-    return _rechnungsstellungLabel(b?.rechnungsstellung ?? 'rechnung_mail');
+    final art = resolveZahlungsart(reinigung.zahlungsart, b?.rechnungsstellung);
+    return _rechnungsstellungLabel(art);
   }
 
   static String _rechnungsstellungLabel(String v) => switch (v) {
