@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -82,7 +83,7 @@ class ReinigungRechnungVersand {
     }
 
     // 3. Versand je nach Rechnungsstellung
-    final rs = betrieb.rechnungsstellung;
+    final rs = resolveZahlungsart(r.zahlungsart, betrieb.rechnungsstellung);
     final datumStr = '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
     final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
         ? '${betrieb.name} ${betrieb.ort}'
@@ -184,7 +185,8 @@ class ReinigungRechnungVersand {
     );
   }
 
-  /// Echte Kunden-Email: 1. betrieb_rechnungsadressen.email  2. betriebe.email.
+  /// Versand IMMER via betrieb_rechnungsadressen.email — betriebe.email ist
+  /// reine Info (Entscheid Daniel 16.07.2026).
   static Future<String?> _kundenEmail(BetriebLocal betrieb) async {
     try {
       final adrRows = await SupabaseService.client
@@ -199,9 +201,7 @@ class ReinigungRechnungVersand {
     } catch (e) {
       debugPrint('[ReinigungVersand] Rechnungsadresse-Query fehlgeschlagen: $e');
     }
-    return (betrieb.email != null && betrieb.email!.isNotEmpty)
-        ? betrieb.email
-        : null;
+    return null;
   }
 
   static String _monatName(int monat) {

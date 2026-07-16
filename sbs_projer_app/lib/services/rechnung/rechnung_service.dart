@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -59,7 +60,8 @@ class RechnungService {
     ReinigungLocal reinigung,
     BetriebLocal betrieb,
   ) async {
-    if (!_invoiceRechnungsstellungen.contains(betrieb.rechnungsstellung)) {
+    final art = resolveZahlungsart(reinigung.zahlungsart, betrieb.rechnungsstellung);
+    if (!_invoiceRechnungsstellungen.contains(art)) {
       return null;
     }
 
@@ -105,7 +107,7 @@ class RechnungService {
         'mwst_betrag': mwst,
         'betrag_brutto': brutto,
         'zahlungsstatus': 'offen',
-        'versandart': betrieb.rechnungsstellung,
+        'versandart': art,
       });
 
       // 4. Positionen mit rechnung_id erstellen

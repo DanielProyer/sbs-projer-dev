@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -321,7 +322,7 @@ class _ReinigungDetailContent extends ConsumerWidget {
       return;
     }
 
-    final rs = betrieb.rechnungsstellung;
+    final rs = resolveZahlungsart(reinigung.zahlungsart, betrieb.rechnungsstellung);
     // Tresen erstellt die Rechnung (mit EZS) OHNE Versand — der Kunde bekommt
     // sie vor Ort. Nur echte Nicht-Rechnungs-Arten (Barzahlung/Heineken/
     // Jahresrechnung) abweisen, für die hier keine Kundenrechnung entsteht.

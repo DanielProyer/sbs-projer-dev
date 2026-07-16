@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
@@ -544,15 +545,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         final betrieb = _betrieb ??
             await BetriebRepository.getByServerId(r.betriebId);
         if (betrieb != null) {
+          final zahlungsart =
+              resolveZahlungsart(r.zahlungsart, betrieb.rechnungsstellung);
           // 1. Rechnung + Mail — eigener try/catch; ein Fehler hier darf die
           //    Buchung (Schritt 2) NICHT verhindern.
           try {
             final rechnung = await RechnungService.createFromReinigung(r, betrieb);
 
             // Mail versenden wenn rechnung_mail
-            if (rechnung != null && betrieb.rechnungsstellung == 'rechnung_mail') {
+            if (rechnung != null && zahlungsart == 'rechnung_mail') {
               try {
-                // Echte Kunden-Email: 1. betrieb_rechnungsadressen.email  2. Fallback betriebe.email
+                // Kunden-Email NUR aus betrieb_rechnungsadressen — betriebe.email
+                // ist reine Info.
                 String? kundenEmail;
                 try {
                   final adrRows = await SupabaseService.client
@@ -567,9 +571,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 } catch (e) {
                   debugPrint('[ServiceMail] Rechnungsadresse-Query fehlgeschlagen: $e');
                 }
-                kundenEmail ??= (betrieb.email != null && betrieb.email!.isNotEmpty)
-                    ? betrieb.email
-                    : null;
                 final keineKundenadresse = kundenEmail == null;
                 final empfaenger = MailConfig.empfaenger(kundenEmail, bereich: 'reinigung');
                 final datumStr = '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
@@ -637,8 +638,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             // Bei "Per Post": Rechnung per Mail an Daniel selbst (zum Ausdrucken
             // und Versand per Post). Geht immer an dani.proyer@gmail.com.
             // Versanddatum = Abschlusstag (Annahme: Postversand erfolgt zeitnah).
-            else if (rechnung != null &&
-                betrieb.rechnungsstellung == 'rechnung_post') {
+            else if (rechnung != null && zahlungsart == 'rechnung_post') {
               try {
                 final datumStr =
                     '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
@@ -715,7 +715,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 await ReinigungBuchungService.createFromReinigung(r, betrieb);
             if (buchung != null) {
               buchungVerbucht = true;
-              buchungTypLabel = betrieb.rechnungsstellung == 'barzahlung'
+              buchungTypLabel = zahlungsart == 'barzahlung'
                   ? 'Barzahlung'
                   : 'Rechnung';
             }

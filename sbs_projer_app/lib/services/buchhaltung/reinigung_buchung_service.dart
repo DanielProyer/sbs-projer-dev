@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
@@ -56,7 +57,9 @@ class ReinigungBuchungService {
     final preis = await PreisRepository.getAktuell(datum: reinigung.datum);
     if (preis != null) _mwstFaktor = preis.mwstFaktor;
 
-    final rs = betrieb.rechnungsstellung;
+    // Massgebend ist die Zahlungsart der REINIGUNG (Ursache der 38: hier stand
+    // betrieb.rechnungsstellung — heineken fiel lautlos durch, Cache veraltete).
+    final rs = resolveZahlungsart(reinigung.zahlungsart, betrieb.rechnungsstellung);
     final istBar = rs == 'barzahlung';
     final istRechnung = _rechnungsTypen.contains(rs);
 
