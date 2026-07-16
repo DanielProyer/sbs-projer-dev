@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
@@ -48,9 +49,10 @@ class ReinigungKorrekturService {
 
       String? buchungTypLabel;
       if (buchung != null) {
-        buchungTypLabel = betrieb.rechnungsstellung == 'barzahlung'
-            ? 'Barzahlung'
-            : 'Rechnung';
+        final artKorrektur =
+            resolveZahlungsart(reinigung.zahlungsart, betrieb.rechnungsstellung);
+        buchungTypLabel =
+            artKorrektur == 'barzahlung' ? 'Barzahlung' : 'Rechnung';
       }
 
       debugPrint('KorrekturService: Rechnung/Buchungen neu erstellt');
