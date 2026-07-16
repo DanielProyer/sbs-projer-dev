@@ -64,10 +64,17 @@ explizit (Checkbox) statt still.
   - `barzahlung` → „Bar kassiert → Kasse, keine Rechnung"
   - `heineken` → „Keine Einzelrechnung — läuft über die Heineken-Monatsabrechnung"
   - `jahresrechnung` → „Keine Einzelrechnung — läuft über die Jahresrechnung"
-- **Mail ohne Kunden-E-Mail** (weder `betrieb_rechnungsadressen.email` noch
-  `betriebe.email`): Warnhinweis im Dialog + Textfeld, um die E-Mail sofort zu
-  erfassen (gespeichert in `betriebe.email`). Abschluss mit Mail bleibt möglich,
-  aber die Lücke ist sichtbar und direkt behebbar.
+- **Mail ohne Rechnungsadresse-E-Mail** (Entscheid Daniel 16.07.): Der
+  Mail-Versand läuft **immer über `betrieb_rechnungsadressen.email`** —
+  `betriebe.email` ist reine Info und wird NICHT mehr als Versand-Fallback
+  benutzt. Fehlt die Rechnungsadresse-E-Mail, zeigt der Dialog einen Warnhinweis
+  + Textfeld zum Sofort-Erfassen. Beim Speichern wird die **Rechnungsadresse
+  angelegt bzw. ergänzt**: existiert keine, entsteht sie vorbefüllt aus den
+  Betriebsdaten (Firma = Betriebsname, Strasse/Nr/PLZ/Ort vom Betrieb) plus der
+  eingegebenen E-Mail — so bleibt der Adressblock auf dem Rechnungs-PDF korrekt;
+  existiert eine ohne E-Mail, wird nur die E-Mail ergänzt. Abschluss mit Mail
+  bleibt auch ohne Eingabe möglich (Rechnung geht dann sichtbar an den
+  Test-Empfänger, wie heute), aber die Lücke ist sichtbar und direkt behebbar.
 
 ## 3. Verbuchung & Rechnung lesen die Reinigung
 
@@ -76,8 +83,14 @@ explizit (Checkbox) statt still.
 - `RechnungService.createFromReinigung`: ebenso.
 - `reinigung_form_screen` (Mail-/Post-Versandzweige) und
   `reinigung_detail_screen` (Recovery-Knopf): ebenso, mit Fallback-Kette für Altbestand.
-- Der Betrieb wird in diesen Pfaden nur noch für Name/Adresse/E-Mail gebraucht —
+- Der Betrieb wird in diesen Pfaden nur noch für Name/Adresse gebraucht —
   nie mehr für die Entscheidung, WAS gebucht wird.
+- **Versand-E-Mail-Kette** (beide Mail-Pfade: Inline-Versand im Formular und
+  `ReinigungRechnungVersand._kundenEmail`): NUR `betrieb_rechnungsadressen.email`.
+  Der bisherige Fallback auf `betriebe.email` entfällt — fehlt die
+  Rechnungsadresse-E-Mail, geht die Mail wie bisher sichtbar markiert an den
+  Test-Empfänger (`keineKundenadresse = true`), und der Abschluss-Dialog hat die
+  Erfassung ja bereits angeboten.
 
 ## 4. Sicherheitsnetz — nie wieder lautlos
 
@@ -98,6 +111,10 @@ explizit (Checkbox) statt still.
   01.12.2025 (quelle ≠ excel_import) mit 0 Buchungen, nicht Kulanz/Heineken-Monteur,
   aktueller Betrieb ≠ heineken → Liste an Daniel zur Entscheidung (Migration läuft,
   es können seit 14.07. weitere Fälle entstanden sein).
+- **Zweiter einmaliger Suchlauf:** alle Betriebe mit `rechnungsstellung =
+  'rechnung_mail'` OHNE `betrieb_rechnungsadressen.email` → Liste an Daniel
+  (nach dem Fallback-Entfall würde deren Rechnung an den Test-Empfänger gehen;
+  Daniel ergänzt die Rechnungsadressen gezielt).
 
 ## 5. camt-Bezug
 
