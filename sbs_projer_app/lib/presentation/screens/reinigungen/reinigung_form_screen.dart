@@ -99,6 +99,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   String _status = 'offen';
   BetriebLocal? _betrieb;
   String? _rechnungsstellung;
+  // true sobald der User im Abschluss-Dialog eine Zahlungsart BESTÄTIGT hat —
+  // nur dann darf _rechnungsstellung den frischen Betriebs-Default übersteuern
+  // (beim Erstöffnen stammt _rechnungsstellung aus dem evtl. veralteten Cache).
+  bool _zahlungsartManuellGewaehlt = false;
 
   // Multi-Anlagen-Auswahl
   List<AnlageLocal> _anlagenDesBetrieb = [];
@@ -825,6 +829,22 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       return;
     }
 
+    // Doppeltap-Guard: vor showDialog laufen zwei awaits — währenddessen wäre
+    // der Button sonst weiter tappbar → zwei parallele Dialoge → zwei _save →
+    // Doppelrechnung + Doppelbuchung. _isLoading bleibt bis nach dem
+    // (awaiteten) _save gesetzt; _saves eigenes setState(true) ist dabei
+    // idempotent (bereits true), sein finally + unser finally setzen beide
+    // zurück — kein Deadlock, da _save keinen eigenen _isLoading-Guard hat.
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      await _abschlussDialogFlow();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _abschlussDialogFlow() async {
     // Betrieb FRISCH laden — der Formular-Cache kann veraltet sein (4 der 38
     // fehlenden Rechnungen entstanden genau so).
     BetriebLocal? betrieb = _betrieb;
@@ -839,7 +859,21 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     }
     if (!mounted) return;
 
-    var selected = resolveZahlungsart(null, betrieb?.rechnungsstellung);
+    // Vorbelegung, Priorität:
+    // (1) bereits auf der Reinigung fixierte Zahlungsart (Edit/Retry einer
+    //     bestehenden Reinigung — _save hat r.zahlungsart schon gesetzt),
+    // (2) letzte im Dialog BESTÄTIGTE User-Wahl (Retry bei neuer Reinigung,
+    //     wo _existing noch null ist),
+    // (3) frischer Betriebs-Default.
+    // _rechnungsstellung allein taugt NICHT als Override: beim Erstöffnen
+    // stammt er aus dem evtl. veralteten Formular-Cache — nur nach expliziter
+    // Bestätigung (_zahlungsartManuellGewaehlt) darf er den frischen
+    // Betriebs-Default übersteuern.
+    var selected = resolveZahlungsart(
+      _existing?.zahlungsart ??
+          (_zahlungsartManuellGewaehlt ? _rechnungsstellung : null),
+      betrieb?.rechnungsstellung,
+    );
     var alsStandard = false;
 
     // Rechnungsadresse-E-Mail (Versand läuft NUR darüber; betriebe.email = Info).
@@ -960,6 +994,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         await BetriebRechnungsadresseRepository.save(ra);
       } catch (e) {
         debugPrint('[Abschluss] Rechnungsadresse speichern fehlgeschlagen: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text(
+              'Rechnungs-E-Mail konnte nicht gespeichert werden: $e\n'
+              'Bitte in der Rechnungsadresse nachtragen.',
+              style: const TextStyle(color: Colors.white),
+            ),
+            duration: const Duration(seconds: 8),
+          ));
+        }
       }
     }
 
@@ -972,8 +1017,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       if (kIsWeb && mounted) ref.invalidate(betriebeStreamProvider);
     }
 
-    setState(() => _rechnungsstellung = selected);
-    _save(abschliessen: true);
+    setState(() {
+      _rechnungsstellung = selected;
+      _zahlungsartManuellGewaehlt = true; // ab jetzt gilt die User-Wahl (Retry)
+    });
+    await _save(abschliessen: true);
   }
 
   String? _emptyToNull(String text) {
