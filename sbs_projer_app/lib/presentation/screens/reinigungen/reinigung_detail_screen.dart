@@ -322,14 +322,22 @@ class _ReinigungDetailContent extends ConsumerWidget {
     }
 
     final rs = betrieb.rechnungsstellung;
-    if (rs != 'rechnung_post' && rs != 'rechnung_mail') {
+    // Tresen erstellt die Rechnung (mit EZS) OHNE Versand — der Kunde bekommt
+    // sie vor Ort. Nur echte Nicht-Rechnungs-Arten (Barzahlung/Heineken/
+    // Jahresrechnung) abweisen, für die hier keine Kundenrechnung entsteht.
+    // Bis v0.49.0 brach Tresen hier ab → Tresen-Rechnungen liessen sich gar
+    // nicht von Hand nacherstellen (Grund, warum die 38 nur per Sonder-Tool
+    // gerettet werden konnten).
+    const rechnungsArten = {'rechnung_post', 'rechnung_mail', 'rechnung_tresen'};
+    if (!rechnungsArten.contains(rs)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
-                'Verrechnungsart „$rs" — kein automatischer Mailversand.')),
+                'Verrechnungsart „$rs" — hier wird keine Kundenrechnung erstellt.')),
       );
       return;
     }
+    final istTresen = rs == 'rechnung_tresen';
 
     // Bereits vorhandene Rechnung? (dann erneuter Versand statt Doppel-Erfassung)
     String? vorhandeneId;
@@ -344,11 +352,17 @@ class _ReinigungDetailContent extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rechnung erstellen & senden'),
+        title: Text(
+            istTresen ? 'Rechnung / EZS erstellen' : 'Rechnung erstellen & senden'),
         content: Text(
-          vorhandeneId != null
-              ? 'Für diese Reinigung existiert bereits eine Rechnung. Erneut an $ziel senden?'
-              : 'Rechnung erstellen und an $ziel senden (Rechnung + Reinigungsprotokoll)?',
+          istTresen
+              ? (vorhandeneId != null
+                  ? 'Für diese Reinigung existiert bereits eine Rechnung.'
+                  : 'Rechnung mit Einzahlungsschein erstellen? Kein Versand — '
+                      'Übergabe am Tresen.')
+              : (vorhandeneId != null
+                  ? 'Für diese Reinigung existiert bereits eine Rechnung. Erneut an $ziel senden?'
+                  : 'Rechnung erstellen und an $ziel senden (Rechnung + Reinigungsprotokoll)?'),
         ),
         actions: [
           TextButton(
@@ -357,7 +371,7 @@ class _ReinigungDetailContent extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => ctx.pop(true),
-            child: const Text('Senden'),
+            child: Text(istTresen ? 'Erstellen' : 'Senden'),
           ),
         ],
       ),
