@@ -11,6 +11,8 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -427,6 +429,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       if (abschliessen) {
         r.status = 'abgeschlossen';
         r.uhrzeitEnde ??= _formatTime(TimeOfDay.now());
+        // Zahlungsart auf der Reinigung fixieren — ab hier ist NUR dieser Wert
+        // massgebend (nie mehr die Betriebs-Einstellung zum Buchungszeitpunkt).
+        r.zahlungsart = _rechnungsstellung ?? 'rechnung_tresen';
       } else {
         r.status = _status;
       }
@@ -814,55 +819,111 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   }
 
   Future<void> _showAbschlussDialog() async {
-    // Heineken-Monteur: direkt abschliessen ohne Rechnungsdialog
+    // Heineken-Monteur/Kulanz: direkt abschliessen ohne Rechnungsdialog
     if (_istHeinekenMonteur || _istKulanz) {
       _save(abschliessen: true);
       return;
     }
 
-    var selectedRechnungsstellung = _rechnungsstellung ?? 'rechnung_tresen';
+    // Betrieb FRISCH laden — der Formular-Cache kann veraltet sein (4 der 38
+    // fehlenden Rechnungen entstanden genau so).
+    BetriebLocal? betrieb = _betrieb;
+    final betriebId = widget.betriebId ?? _existing?.betriebId;
+    if (betriebId != null && betriebId.isNotEmpty) {
+      try {
+        final frisch = await BetriebRepository.getByServerId(betriebId);
+        if (frisch != null) betrieb = frisch;
+      } catch (e) {
+        debugPrint('[Abschluss] Betrieb-Refresh fehlgeschlagen: $e');
+      }
+    }
+    if (!mounted) return;
+
+    var selected = resolveZahlungsart(null, betrieb?.rechnungsstellung);
+    var alsStandard = false;
+
+    // Rechnungsadresse-E-Mail (Versand läuft NUR darüber; betriebe.email = Info).
+    String? raEmail;
+    try {
+      final ra = betriebId == null
+          ? null
+          : await BetriebRechnungsadresseRepository.getByBetrieb(betriebId);
+      raEmail = (ra?.email != null && ra!.email!.isNotEmpty) ? ra.email : null;
+    } catch (e) {
+      debugPrint('[Abschluss] Rechnungsadresse-Load fehlgeschlagen: $e');
+    }
+    if (!mounted) return;
+    final emailCtrl = TextEditingController();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('Reinigung abschliessen'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Rechnungsart für diesen Service:'),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedRechnungsstellung,
-                decoration: const InputDecoration(
-                  labelText: 'Rechnungsstellung',
-                  prefixIcon: Icon(Icons.receipt),
-                  isDense: true,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Zahlungsart für DIESE Reinigung:'),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selected,
+                  decoration: const InputDecoration(
+                    labelText: 'Zahlungsart',
+                    prefixIcon: Icon(Icons.receipt),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'rechnung_mail', child: Text('Per E-Mail')),
+                    DropdownMenuItem(value: 'rechnung_post', child: Text('Per Post')),
+                    DropdownMenuItem(value: 'rechnung_tresen', child: Text('Rechnung Tresen (EZS)')),
+                    DropdownMenuItem(value: 'barzahlung', child: Text('Barzahlung')),
+                    DropdownMenuItem(value: 'jahresrechnung', child: Text('Jahresrechnung')),
+                    DropdownMenuItem(value: 'heineken', child: Text('Via Heineken (monatlich)')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setDialogState(() => selected = v);
+                  },
                 ),
-                items: const [
-                  DropdownMenuItem(
-                      value: 'rechnung_mail', child: Text('Per E-Mail')),
-                  DropdownMenuItem(
-                      value: 'rechnung_post', child: Text('Per Post')),
-                  DropdownMenuItem(
-                      value: 'rechnung_tresen',
-                      child: Text('Rechnung Tresen')),
-                  DropdownMenuItem(
-                      value: 'barzahlung', child: Text('Barzahlung')),
-                  DropdownMenuItem(
-                      value: 'jahresrechnung',
-                      child: Text('Jahresrechnung')),
-                  DropdownMenuItem(
-                      value: 'heineken', child: Text('Via Heineken')),
+                const SizedBox(height: 8),
+                // Klartext: WAS löst der Abschluss aus? (Die 38 fehlenden
+                // Rechnungen blieben unsichtbar, weil das nirgends stand.)
+                Text(
+                  zahlungsartKlartext(selected, kundenEmail: raEmail),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: selected == 'rechnung_mail' && raEmail == null
+                        ? AppColors.error
+                        : AppColors.textSecondary,
+                  ),
+                ),
+                // Mail ohne Rechnungsadresse-E-Mail: sofort erfassen können.
+                if (selected == 'rechnung_mail' && raEmail == null) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Rechnungs-E-Mail jetzt erfassen',
+                      prefixIcon: Icon(Icons.alternate_email, size: 18),
+                      isDense: true,
+                    ),
+                  ),
                 ],
-                onChanged: (v) {
-                  if (v != null) {
-                    setDialogState(() => selectedRechnungsstellung = v);
-                  }
-                },
-              ),
-            ],
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: alsStandard,
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Auch als Standard für diesen Betrieb übernehmen',
+                      style: TextStyle(fontSize: 13)),
+                  onChanged: (v) => setDialogState(() => alsStandard = v ?? false),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -879,17 +940,40 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       ),
     );
 
-    if (confirmed == true) {
-      // Rechnungsstellung am Betrieb aktualisieren wenn geändert
-      if (_betrieb != null &&
-          selectedRechnungsstellung != _betrieb!.rechnungsstellung) {
-        _betrieb!.rechnungsstellung = selectedRechnungsstellung;
-        await BetriebRepository.save(_betrieb!);
-        if (kIsWeb && mounted) ref.invalidate(betriebeStreamProvider);
+    if (confirmed != true) return;
+
+    // Neu erfasste Rechnungs-E-Mail speichern: Rechnungsadresse anlegen
+    // (vorbefüllt aus Betriebsdaten, damit der PDF-Adressblock stimmt) bzw.
+    // nur die E-Mail ergänzen.
+    final neueEmail = emailCtrl.text.trim();
+    if (selected == 'rechnung_mail' && raEmail == null && neueEmail.isNotEmpty &&
+        betriebId != null) {
+      try {
+        var ra = await BetriebRechnungsadresseRepository.getByBetrieb(betriebId);
+        ra ??= BetriebRechnungsadresseLocal()
+          ..betriebId = betriebId
+          ..nachname = betrieb?.name ?? ''
+          ..strasse = betrieb?.strasse ?? ''
+          ..plz = betrieb?.plz ?? ''
+          ..ort = betrieb?.ort ?? '';
+        ra.email = neueEmail;
+        await BetriebRechnungsadresseRepository.save(ra);
+      } catch (e) {
+        debugPrint('[Abschluss] Rechnungsadresse speichern fehlgeschlagen: $e');
       }
-      setState(() => _rechnungsstellung = selectedRechnungsstellung);
-      _save(abschliessen: true);
     }
+
+    // Betriebs-Default NUR auf expliziten Wunsch aktualisieren (Checkbox) —
+    // der frühere STILLE Rückschreib-Effekt hat zu den 38 beigetragen.
+    if (alsStandard && betrieb != null &&
+        selected != betrieb.rechnungsstellung) {
+      betrieb.rechnungsstellung = selected;
+      await BetriebRepository.save(betrieb);
+      if (kIsWeb && mounted) ref.invalidate(betriebeStreamProvider);
+    }
+
+    setState(() => _rechnungsstellung = selected);
+    _save(abschliessen: true);
   }
 
   String? _emptyToNull(String text) {
