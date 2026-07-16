@@ -109,4 +109,71 @@ void main() {
       expect(ref, contains('202606260000'));
     });
   });
+
+  group('warnungsGrund', () {
+    test('Kasse gebucht -> nie flaggen (bar erledigt, egal welche Art)', () {
+      expect(
+        warnungsGrund(
+          art: 'rechnung_tresen',
+          hatRechnung: false,
+          hatBuchung: true,
+          kasseGebucht: true,
+        ),
+        isNull,
+      );
+    });
+    test('heineken/jahresrechnung -> nie flaggen', () {
+      expect(
+        warnungsGrund(
+          art: 'heineken',
+          hatRechnung: false,
+          hatBuchung: false,
+          kasseGebucht: false,
+        ),
+        isNull,
+      );
+      expect(
+        warnungsGrund(
+          art: 'jahresrechnung',
+          hatRechnung: false,
+          hatBuchung: false,
+          kasseGebucht: false,
+        ),
+        isNull,
+      );
+    });
+    test('Rechnungsart ohne Rechnung -> ohneRechnung', () {
+      expect(
+        warnungsGrund(
+          art: 'rechnung_tresen',
+          hatRechnung: false,
+          hatBuchung: true,
+          kasseGebucht: false,
+        ),
+        WarnungsGrund.ohneRechnung,
+      );
+    });
+    test('gar keine Buchung -> ohneBuchung (auch bei barzahlung)', () {
+      expect(
+        warnungsGrund(
+          art: 'barzahlung',
+          hatRechnung: false,
+          hatBuchung: false,
+          kasseGebucht: false,
+        ),
+        WarnungsGrund.ohneBuchung,
+      );
+    });
+    test('alles da -> null', () {
+      expect(
+        warnungsGrund(
+          art: 'rechnung_mail',
+          hatRechnung: true,
+          hatBuchung: true,
+          kasseGebucht: false,
+        ),
+        isNull,
+      );
+    });
+  });
 }

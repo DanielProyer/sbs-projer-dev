@@ -76,3 +76,21 @@ String? qrReferenzFuerReinigung({
       '${datum.day.toString().padLeft(2, '0')}-$nr';
   return qrReferenzAusNummer('kundenrechnung', nummer);
 }
+
+enum WarnungsGrund { ohneRechnung, ohneBuchung }
+
+/// Entscheidet, ob eine abgeschlossene Reinigung in der Warnung erscheint.
+/// Kasse-Buchung (1000) = bar erledigt -> nie flaggen, egal was die heutige
+/// Betriebs-Einstellung sagt (die 10 Fehlalarme vom 16.07.).
+WarnungsGrund? warnungsGrund({
+  required String art,
+  required bool hatRechnung,
+  required bool hatBuchung,
+  required bool kasseGebucht,
+}) {
+  if (art == 'heineken' || art == 'jahresrechnung') return null;
+  if (kasseGebucht) return null;
+  if (!hatBuchung) return WarnungsGrund.ohneBuchung;
+  if (istRechnungsart(art) && !hatRechnung) return WarnungsGrund.ohneRechnung;
+  return null;
+}
