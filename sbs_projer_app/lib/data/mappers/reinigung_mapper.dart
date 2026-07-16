@@ -55,6 +55,7 @@ class ReinigungMapper {
     local.istHeinekenMonteur = dto.istHeinekenMonteur;
     local.protokollFotoPfad = dto.protokollFotoPfad;
     local.serviceArt = dto.serviceArt;
+    local.zahlungsart = dto.zahlungsart;
     local.anlageIds = dto.anlageIds;
     local.istAbgerechnet = dto.istAbgerechnet;
     local.anlageIdsJson = dto.anlageIds.isNotEmpty ? jsonEncode(dto.anlageIds) : null;
@@ -118,6 +119,7 @@ class ReinigungMapper {
       'ist_heineken_monteur': local.istHeinekenMonteur,
       'protokoll_foto_pfad': local.protokollFotoPfad,
       'service_art': local.serviceArt,
+      'zahlungsart': local.zahlungsart,
       'anlage_ids': local.anlageIdsJson != null
           ? jsonDecode(local.anlageIdsJson!)
           : local.anlageIds.isNotEmpty

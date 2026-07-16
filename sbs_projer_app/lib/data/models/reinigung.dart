@@ -53,6 +53,7 @@ class Reinigung {
   final bool istHeinekenMonteur;
   final String? protokollFotoPfad;
   final String? serviceArt;
+  final String? zahlungsart;
   final List<String> anlageIds;
   final bool istAbgerechnet;
   final String status;
@@ -109,6 +110,7 @@ class Reinigung {
     this.istHeinekenMonteur = false,
     this.protokollFotoPfad,
     this.serviceArt,
+    this.zahlungsart,
     this.anlageIds = const [],
     this.istAbgerechnet = false,
     this.status = 'offen',
@@ -169,6 +171,7 @@ class Reinigung {
       istHeinekenMonteur: json['ist_heineken_monteur'] ?? false,
       protokollFotoPfad: json['protokoll_foto_pfad'],
       serviceArt: json['service_art'],
+      zahlungsart: json['zahlungsart'],
       anlageIds: json['anlage_ids'] != null
           ? List<String>.from(json['anlage_ids'])
           : [],
@@ -229,6 +232,7 @@ class Reinigung {
       'ist_heineken_monteur': istHeinekenMonteur,
       'protokoll_foto_pfad': protokollFotoPfad,
       'service_art': serviceArt,
+      'zahlungsart': zahlungsart,
       'anlage_ids': anlageIds.isNotEmpty ? anlageIds : null,
       'abgerechnet': istAbgerechnet,
       'status': status,

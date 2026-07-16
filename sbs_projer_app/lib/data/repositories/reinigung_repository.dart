@@ -30,7 +30,7 @@ class ReinigungRepository {
       'preis_zusatz_haehne, bergkunden_zuschlag, preis_netto, mwst_satz, '
       'preis_mwst, preis_brutto, status, ist_synced, created_at, updated_at, '
       'checkliste_notizen, protokoll_foto_pfad, ist_kulanz, '
-      'ist_heineken_monteur, service_art, wasser_kuehler_gewechselt, '
+      'ist_heineken_monteur, service_art, zahlungsart, wasser_kuehler_gewechselt, '
       'anlage_ids, abgerechnet, abrechnungs_monat, quelle, extern_id';
 
   /// Holt Zeilen seitenweise (PostgREST deckelt sonst bei 1000).

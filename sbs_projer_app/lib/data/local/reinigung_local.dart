@@ -71,6 +71,9 @@ class ReinigungLocal {
   bool istHeinekenMonteur = false;
   String? protokollFotoPfad;
   String? serviceArt;
+
+  /// Zahlungsart dieser Reinigung (beim Abschluss fixiert; null = Altbestand).
+  String? zahlungsart;
   List<String> anlageIds = [];
   String? anlageIdsJson;
   bool istAbgerechnet = false;
