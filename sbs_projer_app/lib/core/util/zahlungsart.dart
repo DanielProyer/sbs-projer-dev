@@ -6,21 +6,31 @@
 library;
 
 const zahlungsarten = [
-  'rechnung_mail', 'rechnung_post', 'rechnung_tresen',
-  'barzahlung', 'jahresrechnung', 'heineken',
+  'rechnung_mail',
+  'rechnung_post',
+  'rechnung_tresen',
+  'barzahlung',
+  'jahresrechnung',
+  'heineken',
 ];
 
 /// Arten, die eine EINZELrechnung mit QR erzeugen (camt-abgleichbar).
 const rechnungsarten = {'rechnung_tresen', 'rechnung_mail', 'rechnung_post'};
 
 String resolveZahlungsart(String? reinigungsWert, String? betriebsWert) {
-  if (reinigungsWert != null && reinigungsWert.isNotEmpty) return reinigungsWert;
+  if (reinigungsWert != null && reinigungsWert.isNotEmpty) {
+    return reinigungsWert;
+  }
   if (betriebsWert != null && betriebsWert.isNotEmpty) return betriebsWert;
   // Sicherster Default: erzeugt Rechnung + Buchung — lieber eine Rechnung zu
   // viel (sichtbar, stornierbar) als eine lautlos fehlende.
   return 'rechnung_tresen';
 }
 
+/// ACHTUNG: NICHT für die Buchungs-Entscheidung verwenden — dort zählt
+/// 'jahresrechnung' zusätzlich als Rechnungs-Typ (Debitor-Buchung ohne
+/// Einzelrechnung, siehe ReinigungBuchungService._rechnungsTypen).
+/// Diese Funktion beantwortet nur: "erzeugt diese Art eine EINZELrechnung?"
 bool istRechnungsart(String? art) => rechnungsarten.contains(art);
 
 /// Erklärt VOR dem Abschluss, was die gewählte Art auslöst — die 38 fehlenden
