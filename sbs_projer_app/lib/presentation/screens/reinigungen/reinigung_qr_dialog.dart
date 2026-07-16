@@ -10,6 +10,7 @@ class ReinigungQrDialog extends StatefulWidget {
   final String betriebName;
   final DateTime datum;
   final double? initialBetrag;
+  final String? referenz;
 
   const ReinigungQrDialog({
     super.key,
@@ -17,6 +18,7 @@ class ReinigungQrDialog extends StatefulWidget {
     required this.betriebName,
     required this.datum,
     this.initialBetrag,
+    this.referenz,
   });
 
   @override
@@ -31,7 +33,8 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
     super.initState();
     final b = widget.initialBetrag;
     _betragCtrl = TextEditingController(
-        text: (b != null && b > 0) ? b.toStringAsFixed(2) : '');
+      text: (b != null && b > 0) ? b.toStringAsFixed(2) : '',
+    );
   }
 
   @override
@@ -74,6 +77,7 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
             creditorOrt: ort,
             betrag: betrag,
             mitteilung: 'Reinigung · ${widget.betriebName} · $datumStr',
+            referenz: widget.referenz,
           );
 
     return AlertDialog(
@@ -96,8 +100,9 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: _betragCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Betrag (CHF, leer = offen)',
                   isDense: true,
@@ -111,7 +116,9 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
                 child: Text(
                   '${widget.firma.firma}\n${widget.firma.firmenIban}',
                   style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -120,8 +127,9 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Schliessen')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Schliessen'),
+        ),
       ],
     );
   }

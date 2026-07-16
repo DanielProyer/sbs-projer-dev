@@ -5,6 +5,8 @@
 /// (Vorbelegung + Fallback für Altbestand vor v0.50, dessen Feld NULL ist).
 library;
 
+import 'package:sbs_projer_app/core/util/scor_referenz.dart';
+
 const zahlungsarten = [
   'rechnung_mail',
   'rechnung_post',
@@ -54,4 +56,23 @@ String zahlungsartKlartext(String art, {required String? kundenEmail}) {
     default:
       return art;
   }
+}
+
+/// SCOR-Referenz für den Direkt-Zahlen-QR im Reinigungstab — DIESELBE Referenz,
+/// die die Rechnung bekommt (Ziffern aus 'YYYY-MM-DD-<betriebNr>', identisch zu
+/// RechnungService.createFromReinigung). Damit ist auch eine spontane
+/// Direktzahlung im camt über die Referenz zuordenbar. Bar/Heineken -> null.
+String? qrReferenzFuerReinigung({
+  required String? zahlungsart,
+  required DateTime datum,
+  required String? betriebNr,
+}) {
+  if (!istRechnungsart(zahlungsart)) return null;
+  final nr = (betriebNr == null || betriebNr.isEmpty)
+      ? '0000'
+      : betriebNr.padLeft(4, '0');
+  final nummer =
+      '${datum.year}-${datum.month.toString().padLeft(2, '0')}-'
+      '${datum.day.toString().padLeft(2, '0')}-$nr';
+  return qrReferenzAusNummer('kundenrechnung', nummer);
 }

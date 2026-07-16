@@ -67,4 +67,46 @@ void main() {
       );
     });
   });
+
+  group('qrReferenzFuerReinigung', () {
+    test(
+      'Rechnungsart -> deterministische SCOR-Referenz (Datum+BetriebNr)',
+      () {
+        final ref = qrReferenzFuerReinigung(
+          zahlungsart: 'rechnung_tresen',
+          datum: DateTime(2026, 6, 26),
+          betriebNr: '0476',
+        );
+        expect(ref, isNotNull);
+        expect(ref, startsWith('RF'));
+        expect(ref, contains('202606260476'));
+      },
+    );
+    test('barzahlung/heineken -> null (QR bleibt referenzlos)', () {
+      expect(
+        qrReferenzFuerReinigung(
+          zahlungsart: 'barzahlung',
+          datum: DateTime(2026, 6, 26),
+          betriebNr: '0476',
+        ),
+        isNull,
+      );
+      expect(
+        qrReferenzFuerReinigung(
+          zahlungsart: 'heineken',
+          datum: DateTime(2026, 6, 26),
+          betriebNr: '0476',
+        ),
+        isNull,
+      );
+    });
+    test('fehlende BetriebNr -> Ziffernfallback 0000 wie die Rechnung', () {
+      final ref = qrReferenzFuerReinigung(
+        zahlungsart: 'rechnung_mail',
+        datum: DateTime(2026, 6, 26),
+        betriebNr: null,
+      );
+      expect(ref, contains('202606260000'));
+    });
+  });
 }

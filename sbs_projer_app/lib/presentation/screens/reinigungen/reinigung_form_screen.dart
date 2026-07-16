@@ -54,8 +54,19 @@ class ReinigungFormScreen extends ConsumerStatefulWidget {
 
 String _monatName(int monat) {
   const namen = [
-    '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+    '',
+    'Januar',
+    'Februar',
+    'März',
+    'April',
+    'Mai',
+    'Juni',
+    'Juli',
+    'August',
+    'September',
+    'Oktober',
+    'November',
+    'Dezember',
   ];
   return namen[monat];
 }
@@ -165,7 +176,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       // Multi-Anlagen: aus anlageIdsJson laden
       if (r.anlageIdsJson != null) {
         _selectedAnlageIds = Set<String>.from(
-            (jsonDecode(r.anlageIdsJson!) as List).map((e) => e.toString()));
+          (jsonDecode(r.anlageIdsJson!) as List).map((e) => e.toString()),
+        );
       } else if (r.anlageId.isNotEmpty) {
         _selectedAnlageIds = {r.anlageId};
       }
@@ -243,12 +255,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             _letzteReinigung = letzte;
             setState(() {
               _serviceTyp ??= letzte.serviceTyp;
-              if (_anzahlHaehneEigen == 0) _anzahlHaehneEigen = letzte.anzahlHaehneEigen;
-              if (_anzahlHaehneOrion == 0) _anzahlHaehneOrion = letzte.anzahlHaehneOrion;
-              if (_anzahlHaehneFremd == 0) _anzahlHaehneFremd = letzte.anzahlHaehneFremd;
-              if (_anzahlHaehneWein == 0) _anzahlHaehneWein = letzte.anzahlHaehneWein;
+              if (_anzahlHaehneEigen == 0)
+                _anzahlHaehneEigen = letzte.anzahlHaehneEigen;
+              if (_anzahlHaehneOrion == 0)
+                _anzahlHaehneOrion = letzte.anzahlHaehneOrion;
+              if (_anzahlHaehneFremd == 0)
+                _anzahlHaehneFremd = letzte.anzahlHaehneFremd;
+              if (_anzahlHaehneWein == 0)
+                _anzahlHaehneWein = letzte.anzahlHaehneWein;
               if (_anzahlHaehneAndererStandort == 0) {
-                _anzahlHaehneAndererStandort = letzte.anzahlHaehneAndererStandort;
+                _anzahlHaehneAndererStandort =
+                    letzte.anzahlHaehneAndererStandort;
               }
             });
           }
@@ -258,8 +275,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
 
     // ServiceTyp ableiten (aus erster ausgewählter Anlage)
     if (_serviceTyp == null && _selectedAnlageIds.isNotEmpty) {
-      final firstAnlage = _anlagenDesBetrieb.where(
-          (a) => _selectedAnlageIds.contains(a.serverId ?? a.routeId)).firstOrNull;
+      final firstAnlage = _anlagenDesBetrieb
+          .where((a) => _selectedAnlageIds.contains(a.serverId ?? a.routeId))
+          .firstOrNull;
       if (firstAnlage != null && mounted) {
         setState(() {
           _serviceTyp = switch (firstAnlage.typAnlage.toLowerCase()) {
@@ -273,7 +291,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
 
     // Bierleitungen → Hähne zählen (aus allen ausgewählten Anlagen)
     try {
-      if (!_isEdit && _selectedAnlageIds.isNotEmpty && _letzteReinigung == null) {
+      if (!_isEdit &&
+          _selectedAnlageIds.isNotEmpty &&
+          _letzteReinigung == null) {
         await _recalculateHaehne();
       }
     } catch (_) {}
@@ -457,8 +477,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           }
 
           final reinigungId = r.serverId ?? r.routeId;
-          final pfad =
-              await ProtokollFotoStorage.uploadFoto(reinigungId, _fotoBytes!);
+          final pfad = await ProtokollFotoStorage.uploadFoto(
+            reinigungId,
+            _fotoBytes!,
+          );
           r.protokollFotoPfad = pfad;
         } catch (e) {
           debugPrint('Foto-Upload fehlgeschlagen: $e');
@@ -474,14 +496,20 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
       bool buchungKorrigiert = false;
       String? korrekturTypLabel;
-      if (_isEdit && !abschliessen && kIsWeb &&
-          r.status == 'abgeschlossen' && r.serverId != null &&
-          !_istKulanz && !_istHeinekenMonteur) {
+      if (_isEdit &&
+          !abschliessen &&
+          kIsWeb &&
+          r.status == 'abgeschlossen' &&
+          r.serverId != null &&
+          !_istKulanz &&
+          !_istHeinekenMonteur) {
         try {
           await ReinigungKorrekturService.cleanupBuchhaltung(r.serverId!);
           final result = await ReinigungKorrekturService.recreateBuchhaltung(
             r,
-            _betrieb ?? await BetriebRepository.getByServerId(r.betriebId) ?? _betrieb!,
+            _betrieb ??
+                await BetriebRepository.getByServerId(r.betriebId) ??
+                _betrieb!,
           );
           buchungKorrigiert = result.buchungVerbucht;
           korrekturTypLabel = result.buchungTypLabel;
@@ -494,13 +522,22 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       // HeiGenie-Mail an Heineken senden
       if (abschliessen && kIsWeb && _serviceTyp == 'heigenie') {
         try {
-          final betrieb = _betrieb ??
-              await BetriebRepository.getByServerId(r.betriebId);
+          final betrieb =
+              _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
           if (betrieb != null) {
-            final kontakt = await KontaktRepository.getHeinekenZuweisung('heigenie_service');
-            final empfaenger = MailConfig.empfaenger(kontakt?.email, bereich: 'heigenie');
-            debugPrint('[HeiGenie-Mail] Kontakt: ${kontakt?.vorname} ${kontakt?.nachname}, Email: ${kontakt?.email}');
-            debugPrint('[HeiGenie-Mail] testModus=${MailConfig.testModus}, heigenieScharf=${MailConfig.heigenieScharf}');
+            final kontakt = await KontaktRepository.getHeinekenZuweisung(
+              'heigenie_service',
+            );
+            final empfaenger = MailConfig.empfaenger(
+              kontakt?.email,
+              bereich: 'heigenie',
+            );
+            debugPrint(
+              '[HeiGenie-Mail] Kontakt: ${kontakt?.vorname} ${kontakt?.nachname}, Email: ${kontakt?.email}',
+            );
+            debugPrint(
+              '[HeiGenie-Mail] testModus=${MailConfig.testModus}, heigenieScharf=${MailConfig.heigenieScharf}',
+            );
             debugPrint('[HeiGenie-Mail] Empfänger: $empfaenger');
             final datumStr =
                 '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}';
@@ -511,7 +548,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('HeiGenie-Mail → $empfaenger (Kontakt: ${kontakt?.email ?? "KEIN KONTAKT"})'),
+                  content: Text(
+                    'HeiGenie-Mail → $empfaenger (Kontakt: ${kontakt?.email ?? "KEIN KONTAKT"})',
+                  ),
                   duration: const Duration(seconds: 6),
                 ),
               );
@@ -522,7 +561,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               body: {
                 'to': empfaenger,
                 'subject': 'Higenie Service - $betriebLabel - $datumStr',
-                'bodyText': 'Hallo Beat\n\n'
+                'bodyText':
+                    'Hallo Beat\n\n'
                     'Beiliegend das Reinigungsprotokoll für den Higenie Service im $betriebLabel vom $datumStr.\n\n'
                     'Gruass Dani',
                 'userId': SupabaseService.dataUserId,
@@ -538,8 +578,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 backgroundColor: AppColors.error,
-                content: Text('HeiGenie-Mail fehlgeschlagen: $e',
-                    style: const TextStyle(color: Colors.white)),
+                content: Text(
+                  'HeiGenie-Mail fehlgeschlagen: $e',
+                  style: const TextStyle(color: Colors.white),
+                ),
                 duration: const Duration(seconds: 8),
               ),
             );
@@ -551,15 +593,20 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       bool buchungVerbucht = false;
       String? buchungTypLabel;
       if (abschliessen && kIsWeb && !_istKulanz && !_istHeinekenMonteur) {
-        final betrieb = _betrieb ??
-            await BetriebRepository.getByServerId(r.betriebId);
+        final betrieb =
+            _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
         if (betrieb != null) {
-          final zahlungsart =
-              resolveZahlungsart(r.zahlungsart, betrieb.rechnungsstellung);
+          final zahlungsart = resolveZahlungsart(
+            r.zahlungsart,
+            betrieb.rechnungsstellung,
+          );
           // 1. Rechnung + Mail — eigener try/catch; ein Fehler hier darf die
           //    Buchung (Schritt 2) NICHT verhindern.
           try {
-            final rechnung = await RechnungService.createFromReinigung(r, betrieb);
+            final rechnung = await RechnungService.createFromReinigung(
+              r,
+              betrieb,
+            );
 
             // Mail versenden wenn rechnung_mail
             if (rechnung != null && zahlungsart == 'rechnung_mail') {
@@ -578,22 +625,32 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                     if (mail is String && mail.isNotEmpty) kundenEmail = mail;
                   }
                 } catch (e) {
-                  debugPrint('[ServiceMail] Rechnungsadresse-Query fehlgeschlagen: $e');
+                  debugPrint(
+                    '[ServiceMail] Rechnungsadresse-Query fehlgeschlagen: $e',
+                  );
                 }
                 final keineKundenadresse = kundenEmail == null;
-                final empfaenger = MailConfig.empfaenger(kundenEmail, bereich: 'reinigung');
-                final datumStr = '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
-                final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
+                final empfaenger = MailConfig.empfaenger(
+                  kundenEmail,
+                  bereich: 'reinigung',
+                );
+                final datumStr =
+                    '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
+                final betriebLabel =
+                    betrieb.ort != null && betrieb.ort!.isNotEmpty
                     ? '${betrieb.name} ${betrieb.ort}'
                     : betrieb.name;
-                final betragRounded = (rechnung.betragBrutto * 20).roundToDouble() / 20;
+                final betragRounded =
+                    (rechnung.betragBrutto * 20).roundToDouble() / 20;
                 final betragStr = betragRounded.toStringAsFixed(2);
                 final response = await SupabaseService.client.functions.invoke(
                   'send-rechnung-mail',
                   body: {
                     'to': empfaenger,
-                    'subject': 'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
-                    'bodyText': 'Guten Tag\n\n'
+                    'subject':
+                        'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
+                    'bodyText':
+                        'Guten Tag\n\n'
                         'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
                         'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
                         'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
@@ -607,13 +664,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                       'protokollFotoPfad': r.protokollFotoPfad,
                   },
                 );
-                debugPrint('[ServiceMail] Response: ${response.status} ${response.data}');
+                debugPrint(
+                  '[ServiceMail] Response: ${response.status} ${response.data}',
+                );
                 // Status/versendet_am NUR bei scharfem Versand setzen — im
                 // Testmodus ging die Mail an den Test-Empfänger, nicht an den Kunden.
                 if (MailConfig.istScharf('reinigung')) {
                   await RechnungRepository.update(rechnung.id, {
                     'zahlungsstatus': 'gesendet',
-                    'versendet_am': DateTime.now().toIso8601String().split('T').first,
+                    'versendet_am': DateTime.now()
+                        .toIso8601String()
+                        .split('T')
+                        .first,
                   });
                 }
                 if (mounted) {
@@ -622,12 +684,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                         ? SnackBar(
                             backgroundColor: AppColors.warning,
                             content: Text(
-                                'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
-                                'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.',
-                                style: const TextStyle(color: Colors.white)),
+                              'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
+                              'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.',
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             duration: const Duration(seconds: 8),
                           )
-                        : SnackBar(content: Text('Rechnung per Mail versendet an $empfaenger')),
+                        : SnackBar(
+                            content: Text(
+                              'Rechnung per Mail versendet an $empfaenger',
+                            ),
+                          ),
                   );
                 }
               } catch (e) {
@@ -636,8 +703,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: AppColors.error,
-                      content: Text('MAIL-VERSAND FEHLGESCHLAGEN: $e',
-                          style: const TextStyle(color: Colors.white)),
+                      content: Text(
+                        'MAIL-VERSAND FEHLGESCHLAGEN: $e',
+                        style: const TextStyle(color: Colors.white),
+                      ),
                       duration: const Duration(seconds: 8),
                     ),
                   );
@@ -653,17 +722,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                     '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
                 final betriebLabel =
                     betrieb.ort != null && betrieb.ort!.isNotEmpty
-                        ? '${betrieb.name} ${betrieb.ort}'
-                        : betrieb.name;
+                    ? '${betrieb.name} ${betrieb.ort}'
+                    : betrieb.name;
                 await SupabaseService.client.functions.invoke(
                   'send-rechnung-mail',
                   body: {
-                    'to': MailConfig.testEmpfaenger, // dani.proyer@gmail.com (intern)
+                    'to': MailConfig
+                        .testEmpfaenger, // dani.proyer@gmail.com (intern)
                     'subject':
                         'Post-Rechnung zum Ausdrucken: $betriebLabel vom $datumStr',
                     'bodyText':
                         'Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr '
-                            'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
+                        'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
                     'rechnungId': rechnung.id,
                     'userId': SupabaseService.dataUserId,
                     if (r.protokollFotoPfad != null)
@@ -673,14 +743,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
                 await RechnungRepository.update(rechnung.id, {
                   'zahlungsstatus': 'gesendet',
-                  'versendet_am':
-                      DateTime.now().toIso8601String().split('T').first,
+                  'versendet_am': DateTime.now()
+                      .toIso8601String()
+                      .split('T')
+                      .first,
                 });
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content:
-                            Text('Rechnung zum Postversand an dich gemailt')),
+                      content: Text('Rechnung zum Postversand an dich gemailt'),
+                    ),
                   );
                 }
               } catch (e) {
@@ -689,15 +761,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: AppColors.error,
-                      content: Text('POST-MAIL FEHLGESCHLAGEN: $e',
-                          style: const TextStyle(color: Colors.white)),
+                      content: Text(
+                        'POST-MAIL FEHLGESCHLAGEN: $e',
+                        style: const TextStyle(color: Colors.white),
+                      ),
                       duration: const Duration(seconds: 8),
                     ),
                   );
                 }
               }
             }
-
           } catch (e) {
             debugPrint('Rechnungs-/Mailerstellung fehlgeschlagen: $e');
             // Fehler NICHT verschlucken: der Nutzer muss sehen, dass Rechnung/
@@ -707,10 +780,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 SnackBar(
                   backgroundColor: AppColors.error,
                   content: Text(
-                      'RECHNUNG/MAIL FEHLGESCHLAGEN: $e\n'
-                      'Reinigung ist abgeschlossen. Rechnung/Mail über das '
-                      'Rechnungs-Menü im Detail nachholen.',
-                      style: const TextStyle(color: Colors.white)),
+                    'RECHNUNG/MAIL FEHLGESCHLAGEN: $e\n'
+                    'Reinigung ist abgeschlossen. Rechnung/Mail über das '
+                    'Rechnungs-Menü im Detail nachholen.',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   duration: const Duration(seconds: 12),
                 ),
               );
@@ -720,8 +794,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           // 2. Automatische Buchung — UNABHÄNGIG vom Rechnungs-/Mailversand,
           //    damit eine gescheiterte Rechnung NIE die Buchhaltung verhindert.
           try {
-            final buchung =
-                await ReinigungBuchungService.createFromReinigung(r, betrieb);
+            final buchung = await ReinigungBuchungService.createFromReinigung(
+              r,
+              betrieb,
+            );
             if (buchung != null) {
               buchungVerbucht = true;
               buchungTypLabel = zahlungsart == 'barzahlung'
@@ -734,8 +810,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   backgroundColor: AppColors.error,
-                  content: Text('BUCHUNG FEHLGESCHLAGEN: $e',
-                      style: const TextStyle(color: Colors.white)),
+                  content: Text(
+                    'BUCHUNG FEHLGESCHLAGEN: $e',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   duration: const Duration(seconds: 10),
                 ),
               );
@@ -747,17 +825,20 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           // Spur aussteigt, und damit der Hauptverdächtige für die 38 fehlenden
           // Rechnungen vom 26.06.–13.07.: kein Insert (Sequenz unberührt), kein
           // Fehler, keine Meldung. Ab jetzt sichtbar.
-          debugPrint('[Rechnung] BETRIEB NULL — betriebId="${r.betriebId}", '
-              '_betrieb=${_betrieb?.serverId}, widget.betriebId=${widget.betriebId}');
+          debugPrint(
+            '[Rechnung] BETRIEB NULL — betriebId="${r.betriebId}", '
+            '_betrieb=${_betrieb?.serverId}, widget.betriebId=${widget.betriebId}',
+          );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 backgroundColor: AppColors.error,
                 content: Text(
-                    'BETRIEB NICHT GELADEN — KEINE RECHNUNG, KEINE BUCHUNG!\n'
-                    'Reinigung ist gespeichert. Bitte Daniel melden.\n'
-                    'betriebId="${r.betriebId}"',
-                    style: const TextStyle(color: Colors.white)),
+                  'BETRIEB NICHT GELADEN — KEINE RECHNUNG, KEINE BUCHUNG!\n'
+                  'Reinigung ist gespeichert. Bitte Daniel melden.\n'
+                  'betriebId="${r.betriebId}"',
+                  style: const TextStyle(color: Colors.white),
+                ),
                 duration: const Duration(seconds: 30),
               ),
             );
@@ -770,7 +851,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         try {
           final reinigungId = r.serverId;
           if (reinigungId != null) {
-            final betrag = (_preisliste?['bergkunden_zuschlag'] as num?)?.toDouble() ?? 180.0;
+            final betrag =
+                (_preisliste?['bergkunden_zuschlag'] as num?)?.toDouble() ??
+                180.0;
             await BergkundenpauschaleRepository.create({
               'betrieb_id': r.betriebId,
               'reinigung_id': reinigungId,
@@ -778,7 +861,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               'betrag': betrag,
             });
             ref.invalidate(bergkundenpauschaleStreamProvider);
-            debugPrint('[Bergkundenpauschale] Erstellt: $betrag CHF für ${r.betriebId}');
+            debugPrint(
+              '[Bergkundenpauschale] Erstellt: $betrag CHF für ${r.betriebId}',
+            );
           }
         } catch (e) {
           debugPrint('[Bergkundenpauschale] Fehler: $e');
@@ -788,15 +873,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(abschliessen
-                ? (buchungVerbucht
-                    ? 'Reinigung abgeschlossen – $buchungTypLabel verbucht'
-                    : 'Reinigung abgeschlossen')
-                : buchungKorrigiert
-                    ? 'Reinigung aktualisiert – Buchhaltung korrigiert ($korrekturTypLabel)'
-                    : _isEdit
-                        ? 'Reinigung aktualisiert'
-                        : 'Reinigung gestartet'),
+            content: Text(
+              abschliessen
+                  ? (buchungVerbucht
+                        ? 'Reinigung abgeschlossen – $buchungTypLabel verbucht'
+                        : 'Reinigung abgeschlossen')
+                  : buchungKorrigiert
+                  ? 'Reinigung aktualisiert – Buchhaltung korrigiert ($korrekturTypLabel)'
+                  : _isEdit
+                  ? 'Reinigung aktualisiert'
+                  : 'Reinigung gestartet',
+            ),
           ),
         );
         if (kIsWeb) {
@@ -813,9 +900,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -909,12 +996,30 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                     isDense: true,
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'rechnung_mail', child: Text('Per E-Mail')),
-                    DropdownMenuItem(value: 'rechnung_post', child: Text('Per Post')),
-                    DropdownMenuItem(value: 'rechnung_tresen', child: Text('Rechnung Tresen (EZS)')),
-                    DropdownMenuItem(value: 'barzahlung', child: Text('Barzahlung')),
-                    DropdownMenuItem(value: 'jahresrechnung', child: Text('Jahresrechnung')),
-                    DropdownMenuItem(value: 'heineken', child: Text('Via Heineken (monatlich)')),
+                    DropdownMenuItem(
+                      value: 'rechnung_mail',
+                      child: Text('Per E-Mail'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rechnung_post',
+                      child: Text('Per Post'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rechnung_tresen',
+                      child: Text('Rechnung Tresen (EZS)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'barzahlung',
+                      child: Text('Barzahlung'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'jahresrechnung',
+                      child: Text('Jahresrechnung'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'heineken',
+                      child: Text('Via Heineken (monatlich)'),
+                    ),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => selected = v);
@@ -952,9 +1057,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Auch als Standard für diesen Betrieb übernehmen',
-                      style: TextStyle(fontSize: 13)),
-                  onChanged: (v) => setDialogState(() => alsStandard = v ?? false),
+                  title: const Text(
+                    'Auch als Standard für diesen Betrieb übernehmen',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  onChanged: (v) =>
+                      setDialogState(() => alsStandard = v ?? false),
                 ),
               ],
             ),
@@ -980,10 +1088,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     // (vorbefüllt aus Betriebsdaten, damit der PDF-Adressblock stimmt) bzw.
     // nur die E-Mail ergänzen.
     final neueEmail = emailCtrl.text.trim();
-    if (selected == 'rechnung_mail' && raEmail == null && neueEmail.isNotEmpty &&
+    if (selected == 'rechnung_mail' &&
+        raEmail == null &&
+        neueEmail.isNotEmpty &&
         betriebId != null) {
       try {
-        var ra = await BetriebRechnungsadresseRepository.getByBetrieb(betriebId);
+        var ra = await BetriebRechnungsadresseRepository.getByBetrieb(
+          betriebId,
+        );
         ra ??= BetriebRechnungsadresseLocal()
           ..betriebId = betriebId
           ..nachname = betrieb?.name ?? ''
@@ -995,22 +1107,25 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       } catch (e) {
         debugPrint('[Abschluss] Rechnungsadresse speichern fehlgeschlagen: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: AppColors.error,
-            content: Text(
-              'Rechnungs-E-Mail konnte nicht gespeichert werden: $e\n'
-              'Bitte in der Rechnungsadresse nachtragen.',
-              style: const TextStyle(color: Colors.white),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.error,
+              content: Text(
+                'Rechnungs-E-Mail konnte nicht gespeichert werden: $e\n'
+                'Bitte in der Rechnungsadresse nachtragen.',
+                style: const TextStyle(color: Colors.white),
+              ),
+              duration: const Duration(seconds: 8),
             ),
-            duration: const Duration(seconds: 8),
-          ));
+          );
         }
       }
     }
 
     // Betriebs-Default NUR auf expliziten Wunsch aktualisieren (Checkbox) —
     // der frühere STILLE Rückschreib-Effekt hat zu den 38 beigetragen.
-    if (alsStandard && betrieb != null &&
+    if (alsStandard &&
+        betrieb != null &&
         selected != betrieb.rechnungsstellung) {
       betrieb.rechnungsstellung = selected;
       await BetriebRepository.save(betrieb);
@@ -1061,7 +1176,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     final hOrion = (p['zusatz_hahn_orion'] as num?)?.toDouble() ?? 18.0;
     final hFremd = (p['zusatz_hahn_fremd'] as num?)?.toDouble() ?? 23.0;
     final hWein = (p['zusatz_hahn_wein'] as num?)?.toDouble() ?? 23.0;
-    final hStandort = (p['zusatz_hahn_anderer_standort'] as num?)?.toDouble() ?? 30.0;
+    final hStandort =
+        (p['zusatz_hahn_anderer_standort'] as num?)?.toDouble() ?? 30.0;
 
     double zusatz = 0;
     zusatz += _anzahlHaehneEigen * hEigen;
@@ -1093,8 +1209,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isEdit && _existing == null) {
-      return const Scaffold(
-          body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -1124,7 +1239,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               ] else if (!_anlagenLoaded && _betrieb != null) ...[
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 ),
               ],
             ],
@@ -1204,12 +1321,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 ),
                 items: const [
                   DropdownMenuItem(
-                      value: 'standardservice', child: Text('Standardservice')),
+                    value: 'standardservice',
+                    child: Text('Standardservice'),
+                  ),
                   DropdownMenuItem(
-                      value: 'endreinigung', child: Text('Endreinigung')),
+                    value: 'endreinigung',
+                    child: Text('Endreinigung'),
+                  ),
                   DropdownMenuItem(
-                      value: 'eroeffnungsservice',
-                      child: Text('Eröffnungsservice')),
+                    value: 'eroeffnungsservice',
+                    child: Text('Eröffnungsservice'),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v != null) setState(() => _serviceArt = v);
@@ -1239,8 +1361,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                         child: FilledButton.icon(
                           onPressed: _fotoUploading ? null : _takePhoto,
                           icon: const Icon(Icons.document_scanner, size: 24),
-                          label: const Text('Digitalisieren',
-                              style: TextStyle(fontSize: 15)),
+                          label: const Text(
+                            'Digitalisieren',
+                            style: TextStyle(fontSize: 15),
+                          ),
                         ),
                       ),
                     ),
@@ -1251,8 +1375,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                         child: OutlinedButton.icon(
                           onPressed: _fotoUploading ? null : _pickPhoto,
                           icon: const Icon(Icons.upload_file, size: 24),
-                          label: const Text('Hochladen',
-                              style: TextStyle(fontSize: 15)),
+                          label: const Text(
+                            'Hochladen',
+                            style: TextStyle(fontSize: 15),
+                          ),
                         ),
                       ),
                     ),
@@ -1323,9 +1449,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check_circle),
-                label: Text(_istHeinekenMonteur
-                    ? 'Heineken-Monteur erfassen'
-                    : 'Reinigung abschliessen'),
+                label: Text(
+                  _istHeinekenMonteur
+                      ? 'Heineken-Monteur erfassen'
+                      : 'Reinigung abschliessen',
+                ),
               ),
             const SizedBox(height: 32),
           ],
@@ -1350,13 +1478,21 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_betrieb!.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(
+                  _betrieb!.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
                 if (_betrieb!.ort != null)
-                  Text(_betrieb!.ort!,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
+                  Text(
+                    _betrieb!.ort!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1364,7 +1500,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             icon: const Icon(Icons.edit, size: 20, color: AppColors.primary),
             tooltip: 'Betrieb anzeigen',
             onPressed: () {
-              context.push('/betriebe/${_betrieb!.serverId ?? _betrieb!.routeId}');
+              context.push(
+                '/betriebe/${_betrieb!.serverId ?? _betrieb!.routeId}',
+              );
             },
           ),
         ],
@@ -1388,13 +1526,24 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.precision_manufacturing, size: 18, color: AppColors.primary),
+              const Icon(
+                Icons.precision_manufacturing,
+                size: 18,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 8),
-              const Text('Anlagen',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'Anlagen',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
               const Spacer(),
-              Text('$selectedCount/$totalCount ausgewählt',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text(
+                '$selectedCount/$totalCount ausgewählt',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -1416,10 +1565,15 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                       });
                       if (!_isEdit) _recalculateHaehne();
                     },
-                    title: Text(anlage.bezeichnung ?? anlage.typAnlage,
-                        style: const TextStyle(fontSize: 14)),
+                    title: Text(
+                      anlage.bezeichnung ?? anlage.typAnlage,
+                      style: const TextStyle(fontSize: 14),
+                    ),
                     subtitle: anlage.bezeichnung != null
-                        ? Text(anlage.typAnlage, style: const TextStyle(fontSize: 12))
+                        ? Text(
+                            anlage.typAnlage,
+                            style: const TextStyle(fontSize: 12),
+                          )
                         : null,
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -1427,10 +1581,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.edit, size: 18, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.edit,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
                   tooltip: 'Anlage anzeigen',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                   onPressed: () {
                     context.push('/anlagen/$anlageId');
                   },
@@ -1458,10 +1619,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         ),
       ),
       child: SwitchListTile(
-        title: const Text('Heineken-Monteur',
-            style: TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: const Text('Nur Datum erfassen (kein Preis/Protokoll)',
-            style: TextStyle(fontSize: 12)),
+        title: const Text(
+          'Heineken-Monteur',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: const Text(
+          'Nur Datum erfassen (kein Preis/Protokoll)',
+          style: TextStyle(fontSize: 12),
+        ),
         secondary: const Icon(Icons.engineering, color: AppColors.info),
         value: _istHeinekenMonteur,
         contentPadding: EdgeInsets.zero,
@@ -1477,9 +1642,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: _istKulanz
-            ? AppColors.warning.withAlpha(25)
-            : AppColors.surface,
+        color: _istKulanz ? AppColors.warning.withAlpha(25) : AppColors.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: _istKulanz
@@ -1488,11 +1651,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         ),
       ),
       child: SwitchListTile(
-        title: const Text('Kulanz (kostenlos)',
-            style: TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: const Text('Gesamtpreis CHF 0.–',
-            style: TextStyle(fontSize: 12)),
-        secondary: const Icon(Icons.volunteer_activism, color: AppColors.warning),
+        title: const Text(
+          'Kulanz (kostenlos)',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: const Text(
+          'Gesamtpreis CHF 0.–',
+          style: TextStyle(fontSize: 12),
+        ),
+        secondary: const Icon(
+          Icons.volunteer_activism,
+          color: AppColors.warning,
+        ),
         value: _istKulanz,
         contentPadding: EdgeInsets.zero,
         onChanged: (v) => setState(() {
@@ -1535,14 +1705,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.picture_as_pdf,
-                            size: 40, color: AppColors.error),
+                        const Icon(
+                          Icons.picture_as_pdf,
+                          size: 40,
+                          color: AppColors.error,
+                        ),
                         const SizedBox(height: 8),
                         if (snapshot.hasData)
                           FilledButton.icon(
                             onPressed: () => launchUrl(
-                                Uri.parse(snapshot.data!),
-                                mode: LaunchMode.externalApplication),
+                              Uri.parse(snapshot.data!),
+                              mode: LaunchMode.externalApplication,
+                            ),
                             icon: const Icon(Icons.open_in_new, size: 16),
                             label: const Text('PDF öffnen'),
                           )
@@ -1550,8 +1724,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                           const SizedBox(
                             width: 20,
                             height: 20,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                       ],
                     ),
@@ -1562,8 +1735,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           else
             // JPG (legacy): Bild direkt anzeigen
             FutureBuilder<String>(
-              future:
-                  ProtokollFotoStorage.getSignedUrl(_existingFotoPfad!),
+              future: ProtokollFotoStorage.getSignedUrl(_existingFotoPfad!),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return ClipRRect(
@@ -1583,13 +1755,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.broken_image,
-                                  color: AppColors.textSecondary),
+                              Icon(
+                                Icons.broken_image,
+                                color: AppColors.textSecondary,
+                              ),
                               SizedBox(height: 4),
-                              Text('Foto konnte nicht geladen werden',
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 12)),
+                              Text(
+                                'Foto konnte nicht geladen werden',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1604,8 +1781,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.divider),
                   ),
-                  child:
-                      const Center(child: CircularProgressIndicator()),
+                  child: const Center(child: CircularProgressIndicator()),
                 );
               },
             ),
@@ -1619,9 +1795,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               child: OutlinedButton.icon(
                 onPressed: _fotoUploading ? null : _takePhoto,
                 icon: const Icon(Icons.camera_alt),
-                label: Text(_fotoBytes != null || _existingFotoPfad != null
-                    ? 'Neues Foto'
-                    : 'Protokoll fotografieren'),
+                label: Text(
+                  _fotoBytes != null || _existingFotoPfad != null
+                      ? 'Neues Foto'
+                      : 'Protokoll fotografieren',
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1646,7 +1824,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 Text(
                   'Foto wird hochgeladen...',
                   style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13),
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -1684,15 +1864,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             ),
             items: const [
               DropdownMenuItem(
-                  value: 'reinigung_bier', child: Text('Reinigung Bier')),
+                value: 'reinigung_bier',
+                child: Text('Reinigung Bier'),
+              ),
               DropdownMenuItem(
-                  value: 'reinigung_orion',
-                  child: Text('Reinigung Orion')),
+                value: 'reinigung_orion',
+                child: Text('Reinigung Orion'),
+              ),
+              DropdownMenuItem(value: 'heigenie', child: Text('Heigenie')),
               DropdownMenuItem(
-                  value: 'heigenie', child: Text('Heigenie')),
-              DropdownMenuItem(
-                  value: 'reinigung_fremd',
-                  child: Text('Reinigung Fremd')),
+                value: 'reinigung_fremd',
+                child: Text('Reinigung Fremd'),
+              ),
               DropdownMenuItem(value: 'wein', child: Text('Wein')),
             ],
             onChanged: (v) => _updatePositionAndPreis(() => _serviceTyp = v),
@@ -1709,16 +1892,37 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           ],
 
           // Hähne-Aufstellung
-          _haehneRow('Hähne Eigen', _anzahlHaehneEigen, _hahnPreis('zusatz_hahn_eigen'),
-              (v) => _updatePositionAndPreis(() => _anzahlHaehneEigen = v)),
-          _haehneRow('Hähne Orion', _anzahlHaehneOrion, _hahnPreis('zusatz_hahn_orion'),
-              (v) => _updatePositionAndPreis(() => _anzahlHaehneOrion = v)),
-          _haehneRow('Hähne Fremd', _anzahlHaehneFremd, _hahnPreis('zusatz_hahn_fremd'),
-              (v) => _updatePositionAndPreis(() => _anzahlHaehneFremd = v)),
-          _haehneRow('Hähne Wein', _anzahlHaehneWein, _hahnPreis('zusatz_hahn_wein'),
-              (v) => _updatePositionAndPreis(() => _anzahlHaehneWein = v)),
-          _haehneRow('Anderer Standort', _anzahlHaehneAndererStandort, _hahnPreis('zusatz_hahn_anderer_standort'),
-              (v) => _updatePositionAndPreis(() => _anzahlHaehneAndererStandort = v)),
+          _haehneRow(
+            'Hähne Eigen',
+            _anzahlHaehneEigen,
+            _hahnPreis('zusatz_hahn_eigen'),
+            (v) => _updatePositionAndPreis(() => _anzahlHaehneEigen = v),
+          ),
+          _haehneRow(
+            'Hähne Orion',
+            _anzahlHaehneOrion,
+            _hahnPreis('zusatz_hahn_orion'),
+            (v) => _updatePositionAndPreis(() => _anzahlHaehneOrion = v),
+          ),
+          _haehneRow(
+            'Hähne Fremd',
+            _anzahlHaehneFremd,
+            _hahnPreis('zusatz_hahn_fremd'),
+            (v) => _updatePositionAndPreis(() => _anzahlHaehneFremd = v),
+          ),
+          _haehneRow(
+            'Hähne Wein',
+            _anzahlHaehneWein,
+            _hahnPreis('zusatz_hahn_wein'),
+            (v) => _updatePositionAndPreis(() => _anzahlHaehneWein = v),
+          ),
+          _haehneRow(
+            'Anderer Standort',
+            _anzahlHaehneAndererStandort,
+            _hahnPreis('zusatz_hahn_anderer_standort'),
+            (v) =>
+                _updatePositionAndPreis(() => _anzahlHaehneAndererStandort = v),
+          ),
 
           // Kalkulation
           const Divider(height: 16),
@@ -1740,10 +1944,13 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   }
 
   Future<void> _zeigeQrZahlung() async {
-    final betriebName = _betrieb?.name ??
+    final betriebName =
+        _betrieb?.name ??
         (widget.betriebId != null
-            ? (await BetriebRepository.getByServerId(widget.betriebId!))?.name ??
-                ''
+            ? (await BetriebRepository.getByServerId(
+                    widget.betriebId!,
+                  ))?.name ??
+                  ''
             : '');
     final firma = await GeschaeftRepository.get();
     final brutto = _calculatePreis()['brutto'];
@@ -1755,6 +1962,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         betriebName: betriebName,
         datum: _datum,
         initialBetrag: brutto,
+        referenz: qrReferenzFuerReinigung(
+          zahlungsart:
+              _existing?.zahlungsart ??
+              _rechnungsstellung ??
+              _betrieb?.rechnungsstellung,
+          datum: _datum,
+          betriebNr: _betrieb?.betriebNr,
+        ),
       ),
     );
   }
@@ -1798,10 +2013,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Total (inkl. 8.1% MwSt)',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-          const Text('0.00 CHF',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const Text(
+            'Total (inkl. 8.1% MwSt)',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
+          const Text(
+            '0.00 CHF',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
         ],
       ),
       const SizedBox(height: 4),
@@ -1828,15 +2047,21 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     return [
       _preisRow('Netto (exkl. MwSt)', preis['netto']!),
       _preisRow(
-          'MwSt (${preis['mwstSatz']!.toStringAsFixed(1)}%)', preis['mwst']!),
+        'MwSt (${preis['mwstSatz']!.toStringAsFixed(1)}%)',
+        preis['mwst']!,
+      ),
       const Divider(height: 16),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Total (inkl. 8.1% MwSt)',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-          Text('${preis['brutto']!.toStringAsFixed(2)} CHF',
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const Text(
+            'Total (inkl. 8.1% MwSt)',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
+          Text(
+            '${preis['brutto']!.toStringAsFixed(2)} CHF',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
         ],
       ),
     ];
@@ -1845,29 +2070,47 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   Widget _buildPreislisteReferenz() {
     final p = _preisliste!;
     return ExpansionTile(
-      title: const Text('Preisliste (exkl. MwSt)',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      title: const Text(
+        'Preisliste (exkl. MwSt)',
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
       tilePadding: EdgeInsets.zero,
       childrenPadding: const EdgeInsets.only(bottom: 8),
       children: [
-        _preislisteRow('Grundtarif Eigen',
-            (p['grundtarif_reinigung_bier'] as num?)?.toDouble() ?? 0),
-        _preislisteRow('Grundtarif Orion',
-            (p['grundtarif_reinigung_orion'] as num?)?.toDouble() ?? 0),
-        _preislisteRow('Service Heigenie (Leihvertrag)',
-            (p['grundtarif_heigenie'] as num?)?.toDouble() ?? 0),
-        _preislisteRow('Grundtarif Fremd',
-            (p['grundtarif_reinigung_fremd'] as num?)?.toDouble() ?? 0),
+        _preislisteRow(
+          'Grundtarif Eigen',
+          (p['grundtarif_reinigung_bier'] as num?)?.toDouble() ?? 0,
+        ),
+        _preislisteRow(
+          'Grundtarif Orion',
+          (p['grundtarif_reinigung_orion'] as num?)?.toDouble() ?? 0,
+        ),
+        _preislisteRow(
+          'Service Heigenie (Leihvertrag)',
+          (p['grundtarif_heigenie'] as num?)?.toDouble() ?? 0,
+        ),
+        _preislisteRow(
+          'Grundtarif Fremd',
+          (p['grundtarif_reinigung_fremd'] as num?)?.toDouble() ?? 0,
+        ),
         const Divider(height: 8),
-        _preislisteRow('Zusätzl. Hahn Eigen/Orion',
-            (p['zusatz_hahn_eigen'] as num?)?.toDouble() ?? 18),
-        _preislisteRow('Zusätzl. Hahn Fremd',
-            (p['zusatz_hahn_fremd'] as num?)?.toDouble() ?? 23),
-        _preislisteRow('Zusätzl. Hahn anderer Standort',
-            (p['zusatz_hahn_anderer_standort'] as num?)?.toDouble() ?? 30),
+        _preislisteRow(
+          'Zusätzl. Hahn Eigen/Orion',
+          (p['zusatz_hahn_eigen'] as num?)?.toDouble() ?? 18,
+        ),
+        _preislisteRow(
+          'Zusätzl. Hahn Fremd',
+          (p['zusatz_hahn_fremd'] as num?)?.toDouble() ?? 23,
+        ),
+        _preislisteRow(
+          'Zusätzl. Hahn anderer Standort',
+          (p['zusatz_hahn_anderer_standort'] as num?)?.toDouble() ?? 30,
+        ),
         const Divider(height: 8),
-        _preislisteRow('Bergkunden-Zuschlag (→ Heineken)',
-            (p['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100),
+        _preislisteRow(
+          'Bergkunden-Zuschlag (→ Heineken)',
+          (p['bergkunden_zuschlag'] as num?)?.toDouble() ?? 100,
+        ),
       ],
     );
   }
@@ -1879,28 +2122,42 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
-          Text('CHF ${betrag.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 12)),
+          Text(
+            'CHF ${betrag.toStringAsFixed(2)}',
+            style: const TextStyle(fontSize: 12),
+          ),
         ],
       ),
     );
   }
 
   Widget _haehneRow(
-      String label, int anzahl, double preisProHahn, ValueChanged<int> onChanged) {
+    String label,
+    int anzahl,
+    double preisProHahn,
+    ValueChanged<int> onChanged,
+  ) {
     final total = _istKulanz ? 0.0 : anzahl * preisProHahn;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
           Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
           // Minus-Button
           SizedBox(
@@ -1955,11 +2212,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 13, color: AppColors.textSecondary)),
-          Text('${betrag.toStringAsFixed(2)} CHF',
-              style: const TextStyle(fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            '${betrag.toStringAsFixed(2)} CHF',
+            style: const TextStyle(fontSize: 13),
+          ),
         ],
       ),
     );
@@ -1968,9 +2231,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   Widget _sectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 
