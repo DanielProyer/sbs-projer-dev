@@ -4,8 +4,8 @@
 
 ---
 
-## 🔴 OFFEN: Warum fehlten 38 Rechnungen (26.06.–13.07.)? — Ursache UNGEKLÄRT
-**Das ist der nächste Arbeitspunkt.** Hat mit der Rundung NICHTS zu tun (das war ein zweiter, eigener Fehler).
+## 🟢 (GELÖST 16.07. — siehe „Ursache der 38 — GELÖST" oben) Archiv: Warum fehlten 38 Rechnungen?
+**Historie der Fehlersuche, als Referenz behalten.** Hat mit der Rundung NICHTS zu tun (das war ein zweiter, eigener Fehler).
 
 **Symptom:** 38 abgeschlossene Tresen-Reinigungen (26.06.–13.07., CHF 3'656.05) bekamen beim Abschluss keine Rechnung. Nur bei Tresen aufgefallen, weil dort Protokoll + QR direkt aus der Reinigung kommen und ohne Rechnung funktionieren — bei `rechnung_mail`/`rechnung_post` merkte Daniel es sofort und holte es manuell nach (deshalb sahen diese Kategorien „sauber" aus, waren es aber nicht).
 
@@ -78,6 +78,28 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ---
 
 ## 🔴 OFFEN: Nächste Schritte
+- **172 Mail-Betriebe ohne Rechnungsadresse-E-Mail** (Suchlauf 16.07., nach Fallback-Entfall geht deren Rechnung an den Test-Empfänger): **14 davon** haben eine `betriebe.email` → Kandidaten für Übernahme in die Rechnungsadresse (Alpensonne Arosa, Alpina Brigels, Blue Cinema, Clubhotel Davos, Concordia, Dischma, FC Schluein, Fünf Dörfer Zizers, Little Coffee, Montana Bar, Padelta, Piaggio Dosch, Rätia Ilanz, Sneki Bar). **158 ganz ohne E-Mail.** Daniel entscheidet: 14 automatisch übernehmen? Rest nach und nach beim Abschluss erfassen (Dialog bietet es jetzt an).
+- **Live-Test v0.50.0 durch Daniel** (aus Spec): 1× Tresen mit Checkbox aus (Betrieb bleibt), 1× Mail mit Checkbox an (Betrieb wechselt), 1× Mail ohne E-Mail (Warnung + Erfassungs-Feld), Forderungen-Titel zeigt v0.50.0. Testdaten danach auf Zuruf zurückrollen.
+
+---
+
+## 🟢 Zahlungsart pro Reinigung (live v0.50.0 · 16.07.2026) — Ursache der 38 BEHOBEN
+Spec `docs/superpowers/specs/2026-07-16-zahlungsart-pro-reinigung-design.md`, Plan `docs/superpowers/plans/2026-07-16-zahlungsart-pro-reinigung.md`. Subagenten-getrieben (8 Tasks, je Spec- + Qualitäts-Review, Final-Review vor Deploy), 428 Tests grün, Migration 144 auf Prod.
+
+- **Kern:** `reinigungen.zahlungsart` wird beim Abschluss fixiert und ist via `resolveZahlungsart()` ALLEIN massgebend für Buchung, Rechnung, Versand, Detail-Recovery, PDF-Fusszeile und Detail-Anzeige. Betriebs-Wert = nur noch Default/Fallback für Altbestand (NULL).
+- **Abschluss-Dialog:** Betrieb wird FRISCH geladen (der Cache-Fall der 4 vom 13.07.); Checkbox „Auch als Standard übernehmen" (default AUS — der stille Rückschreib-Effekt ist weg); Klartext-Zeile, was der Abschluss auslöst (rot bei Mail ohne E-Mail); Rechnungs-E-Mail direkt erfassbar (legt Rechnungsadresse vorbefüllt an — Versand läuft NUR über `betrieb_rechnungsadressen.email`, `betriebe.email` ist Info).
+- **QR-Tab** trägt bei Rechnungsarten dieselbe SCOR-Referenz wie die Rechnung (byte-identisch gegen Live-DB verifiziert: RF32202606260476) → spontane Direktzahlung camt-zuordenbar. Bar bleibt referenzlos.
+- **Warnung:** Entscheidung als getestete reine Funktion `warnungsGrund()` — Kasse-Buchung (1000) = bar erledigt (die 10 Fehlalarme weg), NEU auch „ohne Buchung"-Check (fängt die Durchfall-Klasse selbst). Live-Verify: 0 Treffer.
+- **Suchlauf 1:** 0 verlorene Reinigungen seit 01.12.2025 — nichts offen.
+- **Review-Funde gefixt:** Doppeltap-Guard im Abschluss (Critical — hätte Doppelrechnung erzeugt), Retry behält User-Wahl, E-Mail-Speicherfehler sichtbar, Label im Korrektur-Service, Perf (Betrieb-Fetch ~856→~280), 2 Display-Lecks (Detail + Protokoll-PDF zeigten Betriebs- statt fixierter Art).
+- **Rest-Grenze (bewusst):** Wählt man im Dialog absichtlich `heineken` für einen Nicht-Heineken-Betrieb, greift nur die Klartext-Warnung im Dialog (Warnung flaggt heineken nicht — by design, Spec Abschnitt 4).
+
+---
+
+## 🟢 Ursache der 38 fehlenden Rechnungen — GELÖST (16.07.2026, Hinweis Daniel)
+Nach 6 widerlegten Hypothesen brachte Daniels Hinweis („ich habe einige Änderungen an der Zahlungsart vorgenommen") die Lösung: **34 der 38** Reinigungen passierten, als die Betriebe noch `rechnungsstellung='heineken'` hatten (Serie erst am **10.07.** auf Tresen umgestellt) — `heineken` fiel in Buchungs- UND Rechnungs-Service lautlos durch (`return null`: keine Rechnung, keine Buchung, keine Ausnahme, keine Sequenznummer). **Die restlichen 4** (13.07.: Surselva 2×, Hotel Chur, Espresso Bar) nutzten den veralteten Formular-Cache statt des frischen DB-Werts (Betriebe waren schon Tresen). Erklärt auch, warum die Reproduktion am 15.07. scheiterte: dieselben Betriebe, aber NACH der Umstellung mit frischem Cache. Behoben durch v0.50.0 (Zahlungsart pro Reinigung, frischer Betrieb im Dialog).
+
+---
 - **10 Reinigungen ohne Rechnung entscheiden (~CHF 1'011)** — die neue Warnung zeigt sie beim ersten Öffnen. Sartons Valbella (3×), Dieschen (2×), Rössli Cham (2×), Seerestaurant Immensee (2×), Central Bad Ragaz. Leistungen Dez 2025 – Apr 2026, alle Tresen, **alle im April nacherfasst** (`created_at` 22.–27.04. bei Leistungsdatum Monate davor) → eigenes Muster, nichts mit den 38 zu tun. **Daniel entscheidet, ob noch verrechnet wird** — nichts angefasst.
 - **camt-Test fortsetzen:** 🟡 Manuell (v. a. Davos Klosters → Routing über `heineken_nr`, 0151 = Armando Klosters), ⚪ Nicht zugeordnet, Übriges (Buchung müsste seit Migration 140 gehen).
 - **Backups aufräumen** (erst nach Daniels OK): `_bak_nachtrag_20260715_rechnungen`, `_bak_nachtrag_20260715_positionen`, `_bak_camt_20260715_*`, ggf. `_bak_rundung_*_20260714`.
