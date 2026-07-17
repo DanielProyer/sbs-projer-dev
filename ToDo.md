@@ -78,7 +78,7 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ---
 
 ## 🔴 OFFEN: Nächste Schritte
-- **172 Mail-Betriebe ohne Rechnungsadresse-E-Mail** (Suchlauf 16.07., nach Fallback-Entfall geht deren Rechnung an den Test-Empfänger): **14 davon** haben eine `betriebe.email` → Kandidaten für Übernahme in die Rechnungsadresse (Alpensonne Arosa, Alpina Brigels, Blue Cinema, Clubhotel Davos, Concordia, Dischma, FC Schluein, Fünf Dörfer Zizers, Little Coffee, Montana Bar, Padelta, Piaggio Dosch, Rätia Ilanz, Sneki Bar). **158 ganz ohne E-Mail.** Daniel entscheidet: 14 automatisch übernehmen? Rest nach und nach beim Abschluss erfassen (Dialog bietet es jetzt an).
+- **158 Mail-Betriebe ohne Rechnungsadresse-E-Mail** (Stand 16.07. nach Bereinigung; deren Rechnung geht bis zur Erfassung sichtbar an den Test-Empfänger). **Erledigt:** Die 14 Kandidaten mit `betriebe.email` sind abgearbeitet — 8 hat Daniel selbst erfasst (inkl. der Sonderfälle Blue Cinema/Swisscom, Clubhotel/Mountain Hotels, Piaggio Dosch), Concordia war schon versorgt, **5 Nicht-Kunden auf `heineken` umgestellt** (Alpensonne Arosa, Alpina Brigels, FC Schluein, Little Coffee, Sneki Bar — standen fälschlich auf `rechnung_mail`, hätten als Dialog-Vorbelegung eine Rechnung an Nicht-Kunden vorgeschlagen). Die 158 restlichen erfasst Daniel laufend beim Abschluss (der neue Dialog bietet Warnung + Feld).
 - **Live-Test v0.50.0 durch Daniel** (aus Spec): 1× Tresen mit Checkbox aus (Betrieb bleibt), 1× Mail mit Checkbox an (Betrieb wechselt), 1× Mail ohne E-Mail (Warnung + Erfassungs-Feld), Forderungen-Titel zeigt v0.50.0. Testdaten danach auf Zuruf zurückrollen.
 
 ---
