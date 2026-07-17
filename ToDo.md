@@ -79,7 +79,7 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 
 ## 🔴 OFFEN: Nächste Schritte
 - **158 Mail-Betriebe ohne Rechnungsadresse-E-Mail** (Stand 16.07. nach Bereinigung; deren Rechnung geht bis zur Erfassung sichtbar an den Test-Empfänger). **Erledigt:** Die 14 Kandidaten mit `betriebe.email` sind abgearbeitet — 8 hat Daniel selbst erfasst (inkl. der Sonderfälle Blue Cinema/Swisscom, Clubhotel/Mountain Hotels, Piaggio Dosch), Concordia war schon versorgt, **5 Nicht-Kunden auf `heineken` umgestellt** (Alpensonne Arosa, Alpina Brigels, FC Schluein, Little Coffee, Sneki Bar — standen fälschlich auf `rechnung_mail`, hätten als Dialog-Vorbelegung eine Rechnung an Nicht-Kunden vorgeschlagen). Die 158 restlichen erfasst Daniel laufend beim Abschluss (der neue Dialog bietet Warnung + Feld).
-- **Live-Test v0.50.0 durch Daniel** (aus Spec): 1× Tresen mit Checkbox aus (Betrieb bleibt), 1× Mail mit Checkbox an (Betrieb wechselt), 1× Mail ohne E-Mail (Warnung + Erfassungs-Feld), Forderungen-Titel zeigt v0.50.0. Testdaten danach auf Zuruf zurückrollen.
+- ~~Live-Test v0.50.0~~ **ERLEDIGT 17.07. im Echtbetrieb:** 10 Reinigungen (7 Tresen/Mail → Rechnung+Debitor, 1 Bar → Kasse, 1 Heineken → korrekt nichts, 2 Mail), alle mit fixierter `zahlungsart` auf der Reinigung, alle Beträge auf 5 Rappen, DB-verifiziert. Keine Fehler beobachtet, Warnung leer. Kein Test-Rollback nötig (echte Daten).
 
 ---
 
