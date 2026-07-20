@@ -79,7 +79,7 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 
 ## 🔴 OFFEN: Nächste Schritte
 - **Live-Check Tourenplan v0.51.0 durch Daniel:** Fällig-Liste muss jetzt die Saison-Kunden zeigen (Stand 17.07. spätabends: 8 überfällig inkl. Tgantieni, 1 fällig Mountain Plaza, 2 bald fällig Waldhuus/Jschalp; 5 korrekt noch nicht fällig, weil erst kürzlich geöffnet — Soll = Saisonstart + Rhythmus).
-- **Furt, Wangs hat KEINE aktive Anlage** (Endreinigung 07.04., wieder offen seit 27.06.) → taucht in keiner Fälligkeits-Liste auf. Daniel prüfen: Anlage versehentlich deaktiviert oder Betrieb ohne Anlage korrekt?
+- ~~Furt, Wangs~~ **ERLEDIGT 20.07.:** Anlage war demontiert (korrekt erfasst), nur der Betrieb stand noch auf aktiv → jetzt `inaktiv` mit Grund „Anlage demontiert" (inaktiv_seit 20.07., Demontage-Datum unbekannt). Falls Daniel das echte Demontage-Datum kennt: im Betriebs-Formular nachziehen.
 - **Detailfrage Warnleiste (Review):** Betriebe mit Status `saisonpause` sind von der „Saisondaten fehlen"-Warnung ausgeschlossen (wie überall im Touren-Code `status='aktiv'`-Filter). Gewollt, oder sollen manuell pausierte Betriebe mit Endreinigung + fehlendem Saisonstart auch gemeldet werden?
 
 ---
