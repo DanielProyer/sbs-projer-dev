@@ -51,41 +51,6 @@ int? _rhythmusTage(String rhythmus) {
   }
 }
 
-/// Findet das Wiedereröffnungsdatum nach einer Endreinigung
-/// (nächster Saisonstart oder Tag nach Ferienende).
-DateTime? _wiederoeffnungNachEndreinigung(
-  BetriebLocal betrieb,
-  DateTime letzteReinigung,
-) {
-  DateTime? wiederoeffnung;
-
-  // Ferien: Tag nach Ferienende = Wiedereröffnung
-  for (final fe in ferienEnden(betrieb)) {
-    if (fe.isAfter(letzteReinigung)) {
-      final reopen = fe.add(const Duration(days: 1));
-      if (wiederoeffnung == null || reopen.isBefore(wiederoeffnung)) {
-        wiederoeffnung = reopen;
-      }
-    }
-  }
-
-  // Saison: nächster Saisonstart
-  if (betrieb.istSaisonbetrieb) {
-    for (final s in [
-      if (betrieb.sommerSaisonAktiv) betrieb.sommerStartDatum,
-      if (betrieb.winterSaisonAktiv) betrieb.winterStartDatum,
-    ]) {
-      if (s != null && s.isAfter(letzteReinigung)) {
-        if (wiederoeffnung == null || s.isBefore(wiederoeffnung)) {
-          wiederoeffnung = s;
-        }
-      }
-    }
-  }
-
-  return wiederoeffnung;
-}
-
 /// Baut eine Map: anlageId → serviceArt der letzten Reinigung
 Map<String, String?> _buildLetzteServiceArtMap(
     List<ReinigungLocal> reinigungen) {
@@ -124,7 +89,11 @@ FaelligkeitsStatus? _getSaisonFaelligkeit(
     }
   }
 
-  // --- Eröffnungsservice: Wiedereröffnung bald oder gerade erst geöffnet ---
+  // --- Eröffnungsservice: Wiedereröffnung steht bevor (Fenster 7 Tage).
+  // Nur solange in der Pause NICHT gereinigt wurde (jede Pausen-Reinigung
+  // ändert letzteServiceArt -> Branch feuert nicht mehr). NACH dem Start
+  // übernimmt die reguläre Uhr mit Anker = Wiedereröffnung (faelligkeitsAnker)
+  // — das frühere ewige eroeffnungFaellig liess 17 offene Betriebe unsichtbar.
   if (letzteServiceArt == 'endreinigung' || letzteServiceArt == null) {
     final ab =
         anlage.letzteReinigung ?? datum.subtract(const Duration(days: 365));
@@ -132,9 +101,6 @@ FaelligkeitsStatus? _getSaisonFaelligkeit(
     if (oeffnung != null) {
       final tage = oeffnung.difference(datum).inDays;
       if (tage >= 0 && tage <= _saisonVorlaufTage) {
-        return FaelligkeitsStatus.eroeffnungFaellig;
-      }
-      if (tage < 0 && letzteServiceArt == 'endreinigung') {
         return FaelligkeitsStatus.eroeffnungFaellig;
       }
     }
@@ -170,17 +136,18 @@ FaelligkeitsStatus getFaelligkeit(
     return FaelligkeitsStatus.ueberfaellig;
   }
 
-  // Endreinigung + Ferien/Saison → Fälligkeit auf Wiedereröffnung + 4 Wochen
-  if (letzteServiceArt == 'endreinigung' &&
-      betrieb != null &&
-      anlage.letzteReinigung != null) {
-    final wiederoeffnung =
-        _wiederoeffnungNachEndreinigung(betrieb, anlage.letzteReinigung!);
-    if (wiederoeffnung != null) {
-      final adjusted = wiederoeffnung.add(const Duration(days: 28));
-      if (adjusted.isAfter(naechste)) {
-        naechste = adjusted;
-      }
+  // Uhr-Anker (Regel Daniel 17.07.2026): War der Betrieb nach der letzten
+  // Reinigung geschlossen, zählt der Rhythmus ab der Wiedereröffnung — für
+  // JEDE Service-Art (Endreinigung am Schluss, Eröffnungsreinigung vor dem
+  // Start). Nur nach hinten korrigierend: ein überholtes naechsteReinigung
+  // aus der Zeit vor der Pause (z.B. 27.04. bei Wiedereröffnung 06.06.) wird
+  // überstimmt. Anker == null (Saisondaten fehlen) meldet die Warnleiste im
+  // Tourenplan (Task 3).
+  if (betrieb != null && anlage.letzteReinigung != null) {
+    final anker = faelligkeitsAnker(betrieb, anlage.letzteReinigung!);
+    if (anker != null) {
+      final abAnker = anker.add(Duration(days: tage));
+      if (abAnker.isAfter(naechste)) naechste = abAnker;
     }
   }
 
