@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 16.07.2026 · **Live:** v0.50.0
+**Stand:** 17.07.2026 · **Live:** v0.51.0
 
 ---
 
@@ -78,6 +78,26 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ---
 
 ## 🔴 OFFEN: Nächste Schritte
+- **Live-Check Tourenplan v0.51.0 durch Daniel:** Fällig-Liste muss jetzt die Saison-Kunden zeigen (Stand 17.07. spätabends: 8 überfällig inkl. Tgantieni, 1 fällig Mountain Plaza, 2 bald fällig Waldhuus/Jschalp; 5 korrekt noch nicht fällig, weil erst kürzlich geöffnet — Soll = Saisonstart + Rhythmus).
+- **Furt, Wangs hat KEINE aktive Anlage** (Endreinigung 07.04., wieder offen seit 27.06.) → taucht in keiner Fälligkeits-Liste auf. Daniel prüfen: Anlage versehentlich deaktiviert oder Betrieb ohne Anlage korrekt?
+- **Detailfrage Warnleiste (Review):** Betriebe mit Status `saisonpause` sind von der „Saisondaten fehlen"-Warnung ausgeschlossen (wie überall im Touren-Code `status='aktiv'`-Filter). Gewollt, oder sollen manuell pausierte Betriebe mit Endreinigung + fehlendem Saisonstart auch gemeldet werden?
+
+---
+
+## 🟢 Fälligkeit ab Saisonstart (live v0.51.0 · 17.07.2026) — Tgantieni-Fall behoben
+Spec `docs/superpowers/specs/2026-07-17-faelligkeit-saisonstart-design.md`, Plan `docs/superpowers/plans/2026-07-17-faelligkeit-saisonstart.md`. Subagenten-getrieben (4 Tasks + Reviews), 442 Tests grün, keine DB-Änderung.
+
+**Befund:** 17 Saison-Kunden waren bis 78 Tage wieder offen, ohne je im Tourenplan zu erscheinen. Drei Zahnräder: `eroeffnungFaellig` blieb nach Endreinigung FÜR IMMER (Saison-Prüfung kehrte früh zurück, Uhr lief nie an), der Standard-Filter zeigte nur überfällig+fällig, der Auto-Termin nur exakt am Eröffnungstag.
+
+**Regel (Daniel):** Uhr-Anker = Wiedereröffnung, wenn der Betrieb nach der letzten Reinigung zu war (Saisonpause/Ferien; Ruhetage zählen nicht) — gilt für Endreinigung am Schluss UND Eröffnungsreinigung vor dem Start. Danach normale Stufen ab Anker + Rhythmus.
+
+- Neu `faelligkeitsAnker()` in `touren_saison.dart` (7 Tests); `getFaelligkeit` nutzt den Anker für JEDE Service-Art (ersetzt den harten „Endreinigung+28"-Block), 7 Szenario-Tests (Tgantieni-Timeline).
+- Eröffnungs-Hinweis nur noch im Fenster 7 Tage vor Start; entfällt automatisch nach einer Pausen-Reinigung (Service-Art-Wechsel).
+- **Warnleiste „Saisondaten fehlen"** im Tourenplan (Endreinigung ohne gepflegten Saisonstart/Ferien-Ende → Uhr kann nicht starten), Muster der Rechnungs-Warnung, stumm bei 0.
+- Standard-Filter zeigt jetzt auch Eröffnung/Endreinigung.
+- Bekannte Grenze (Review, unkritisch): Bei Monats-Rhythmen kann das Soll 1–2 Tage später liegen als der Kalender-Trigger der DB (feste 60/90-Tage vs. Kalendermonate) — nie früher.
+
+---
 - **158 Mail-Betriebe ohne Rechnungsadresse-E-Mail** (Stand 16.07. nach Bereinigung; deren Rechnung geht bis zur Erfassung sichtbar an den Test-Empfänger). **Erledigt:** Die 14 Kandidaten mit `betriebe.email` sind abgearbeitet — 8 hat Daniel selbst erfasst (inkl. der Sonderfälle Blue Cinema/Swisscom, Clubhotel/Mountain Hotels, Piaggio Dosch), Concordia war schon versorgt, **5 Nicht-Kunden auf `heineken` umgestellt** (Alpensonne Arosa, Alpina Brigels, FC Schluein, Little Coffee, Sneki Bar — standen fälschlich auf `rechnung_mail`, hätten als Dialog-Vorbelegung eine Rechnung an Nicht-Kunden vorgeschlagen). Die 158 restlichen erfasst Daniel laufend beim Abschluss (der neue Dialog bietet Warnung + Feld).
 - ~~Live-Test v0.50.0~~ **ERLEDIGT 17.07. im Echtbetrieb:** 10 Reinigungen (7 Tresen/Mail → Rechnung+Debitor, 1 Bar → Kasse, 1 Heineken → korrekt nichts, 2 Mail), alle mit fixierter `zahlungsart` auf der Reinigung, alle Beträge auf 5 Rappen, DB-verifiziert. Keine Fehler beobachtet, Warnung leer. Kein Test-Rollback nötig (echte Daten).
 
