@@ -54,8 +54,11 @@ bool istOffenerTag(BetriebLocal b, DateTime tag) {
 
 /// Erster offener Tag ab [ab] (vorwärts, oder [rueckwaerts]); max. 60 Tage
 /// Suchfenster, sonst null.
-DateTime? naechsterOffenerTag(BetriebLocal b, DateTime ab,
-    {bool rueckwaerts = false}) {
+DateTime? naechsterOffenerTag(
+  BetriebLocal b,
+  DateTime ab, {
+  bool rueckwaerts = false,
+}) {
   var tag = DateTime(ab.year, ab.month, ab.day);
   for (var i = 0; i < 60; i++) {
     if (istOffenerTag(b, tag)) return tag;
@@ -68,7 +71,9 @@ DateTime? naechsterOffenerTag(BetriebLocal b, DateTime ab,
 /// Schliessung (Saisonende+1 oder Ferienstart) plus Flag, ob Saisonende.
 /// Nur Saisonende und Ferien ab [langeSchliessungTage].
 ({DateTime datum, bool istSaisonende})? qualifizierteSchliessung(
-    BetriebLocal b, DateTime ab) {
+  BetriebLocal b,
+  DateTime ab,
+) {
   final kandidaten = <({DateTime datum, bool istSaisonende})>[];
 
   if (b.istSaisonbetrieb) {
@@ -118,4 +123,22 @@ DateTime? oeffnungNach(BetriebLocal b, DateTime ab) {
     }
   }
   return naechste;
+}
+
+/// Anker für die Fälligkeits-Uhr (Regel Daniel 17.07.2026): War der Betrieb am
+/// Tag nach der letzten Reinigung GESCHLOSSEN (Saisonpause oder Ferien —
+/// Ruhetage zählen bewusst NICHT), startet die Zählung erst bei der
+/// Wiedereröffnung. Deckt die Endreinigung am Saisonschluss UND die
+/// Eröffnungsreinigung kurz vor Saisonstart ab. null = geschlossen, aber keine
+/// Wiedereröffnung gepflegt -> Aufrufer zeigt die "Saisondaten fehlen"-Meldung.
+DateTime? faelligkeitsAnker(BetriebLocal b, DateTime letzteReinigung) {
+  final tagDanach = DateTime(
+    letzteReinigung.year,
+    letzteReinigung.month,
+    letzteReinigung.day,
+  ).add(const Duration(days: 1));
+  final geschlossen =
+      !_inAktiverSaison(b, tagDanach) || istInFerien(b, tagDanach);
+  if (!geschlossen) return letzteReinigung;
+  return oeffnungNach(b, letzteReinigung);
 }
