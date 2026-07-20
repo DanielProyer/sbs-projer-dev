@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 17.07.2026 · **Live:** v0.51.0
+**Stand:** 20.07.2026 · **Live:** v0.51.1
 
 ---
 
@@ -80,7 +80,8 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ## 🔴 OFFEN: Nächste Schritte
 - **Live-Check Tourenplan v0.51.0 durch Daniel:** Fällig-Liste muss jetzt die Saison-Kunden zeigen (Stand 17.07. spätabends: 8 überfällig inkl. Tgantieni, 1 fällig Mountain Plaza, 2 bald fällig Waldhuus/Jschalp; 5 korrekt noch nicht fällig, weil erst kürzlich geöffnet — Soll = Saisonstart + Rhythmus).
 - ~~Furt, Wangs~~ **ERLEDIGT 20.07.:** Anlage war demontiert (korrekt erfasst), nur der Betrieb stand noch auf aktiv → jetzt `inaktiv` mit Grund „Anlage demontiert" (inaktiv_seit 20.07., Demontage-Datum unbekannt). Falls Daniel das echte Demontage-Datum kennt: im Betriebs-Formular nachziehen.
-- **Detailfrage Warnleiste (Review):** Betriebe mit Status `saisonpause` sind von der „Saisondaten fehlen"-Warnung ausgeschlossen (wie überall im Touren-Code `status='aktiv'`-Filter). Gewollt, oder sollen manuell pausierte Betriebe mit Endreinigung + fehlendem Saisonstart auch gemeldet werden?
+- ~~Detailfrage Warnleiste~~ **ERLEDIGT 20.07. (v0.51.1):** Saisonpause-Betriebe werden jetzt auch gemeldet (Entscheid Daniel; operativ = aktiv+saisonpause, nur inaktiv/geschlossen aussen vor).
+- **Warnleiste „Saisondaten fehlen" zeigt aktuell 15 Betriebe** — überwiegend Winter-Betriebe (Davos/Laax/Lenzerheide: Fuxägufer, Piz Piz, Frosch, Bolgenschanze, Il Pub, Indy Bar, Snake Bar, Acla Grischuna, Clubhotel, Dischma, Hotel Sport Klosters, Kartitscha, Obertor Parpan/Ilanz, Gemsli Mels), deren Endreinigung im Frühjahr war und deren **nächster Winterstart noch nicht eingetragen** ist. Daniel pflegt die Saisondaten nach, sobald bekannt — die Uhr startet dann automatisch; bis dahin erinnert die Leiste.
 
 ---
 
