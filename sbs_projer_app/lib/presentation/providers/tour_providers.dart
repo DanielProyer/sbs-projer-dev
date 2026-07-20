@@ -1041,7 +1041,12 @@ final saisonAnkerFehltProvider = Provider<List<BetriebLocal>>((ref) {
     final art = a.serverId != null ? serviceArtMap[a.serverId!] : null;
     if (art != 'endreinigung') continue;
     final b = betriebMap[a.betriebId];
-    if (b == null || b.status != 'aktiv') continue;
+    // Auch manuell auf 'saisonpause' gestellte Betriebe melden (Daniel,
+    // 20.07.2026): gerade DIE haben am ehesten eine fehlende Wiedereröffnung.
+    // Nur inaktiv/geschlossen bleiben aussen vor (operativ = aktiv+saisonpause).
+    if (b == null || (b.status != 'aktiv' && b.status != 'saisonpause')) {
+      continue;
+    }
     if (faelligkeitsAnker(b, a.letzteReinigung!) == null) {
       result[b.routeId] = b;
     }
