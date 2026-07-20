@@ -171074,7 +171074,9 @@ if(r.fr!=="aktiv"||r.dx==null)continue
 q=r.b
 if((q!=null?m.h(0,q):null)!=="endreinigung")continue
 p=l.h(0,r.f)
-if(p==null||p.cx!=="aktiv")continue
+if(p!=null){q=p.cx
+q=q!=="aktiv"&&q!=="saisonpause"}else q=!0
+if(q)continue
 r=r.dx
 r.toString
 if(A.cAy(p,r)==null){r=p.b
@@ -193409,7 +193411,7 @@ e=a2.fl(a3,new A.bXF())
 d=e.br(0,0,new A.bXG())
 c=new A.ad(e,new A.bXH(),e.$ti.i("ad<u.E>")).gu(0)
 b=a2.fl(a3,A.d2l()).gu(0)
-a2=A.bQ(a1,a1,!0,a1,a1,a1,a1,a1,a1,a1,A.e("Forderungen  \xb7  v0.51.0",a1,a1,a1,a1,B.bVr,a1,a1,a1),a1)
+a2=A.bQ(a1,a1,!0,a1,a1,a1,a1,a1,a1,a1,A.e("Forderungen  \xb7  v0.51.1",a1,a1,a1,a1,B.bVr,a1,a1,a1),a1)
 s=a0.b9v()
 n=A.ok("Rechnung suchen...",B.ez,new A.bXI(a0))
 m=a0.x
