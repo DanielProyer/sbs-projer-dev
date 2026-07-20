@@ -32,10 +32,12 @@ class ReinigungOhneRechnung {
 /// **Warum es das gibt:** Zwischen dem 26.06. und 13.07.2026 blieben 38
 /// Tresen-Reinigungen ohne Rechnung (CHF 3'656.05) — drei Wochen lang
 /// unbemerkt, weil bei Tresen Protokoll und Einzahlungsschein direkt aus der
-/// Reinigung kommen und ohne Rechnung funktionieren. Die Ursache ist bis heute
-/// ungeklärt und nicht reproduzierbar. Diese Prüfung interessiert sich nicht
-/// dafür, WARUM eine Rechnung fehlt — sie zeigt, DASS eine fehlt. Das wirkt bei
-/// jeder Ursache, auch bei einer, die nie verstanden wird.
+/// Reinigung kommen und ohne Rechnung funktionieren. (Ursache am 16.07. geklärt
+/// und mit v0.50.0 behoben: Betriebe standen zum Abschluss-Zeitpunkt noch auf
+/// 'heineken' bzw. der Formular-Cache war veraltet — seither ist die
+/// Zahlungsart pro Reinigung fixiert.) Diese Prüfung interessiert sich trotzdem
+/// nicht dafür, WARUM eine Rechnung fehlt — sie zeigt, DASS eine fehlt. Das
+/// wirkt bei jeder Ursache, auch bei einer künftigen, die nie verstanden wird.
 ///
 /// Sie meldet nur, sie repariert nichts: Nachholen geht über den bestehenden
 /// Weg im Reinigungs-Detail.
