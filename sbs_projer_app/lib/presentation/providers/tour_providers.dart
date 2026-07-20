@@ -41,19 +41,27 @@ enum FaelligkeitsStatus {
 
 int? _rhythmusTage(String rhythmus) {
   switch (rhythmus) {
-    case '4-Wochen': return 28;
-    case '6-Wochen': return 42;
-    case '2-Monate': return 60;
-    case '3-Monate': return 90;
-    case '6-Monate': return 180;
-    case 'Jährlich': return 365;
-    default: return null; // auf-Abruf, Selbstreiniger
+    case '4-Wochen':
+      return 28;
+    case '6-Wochen':
+      return 42;
+    case '2-Monate':
+      return 60;
+    case '3-Monate':
+      return 90;
+    case '6-Monate':
+      return 180;
+    case 'Jährlich':
+      return 365;
+    default:
+      return null; // auf-Abruf, Selbstreiniger
   }
 }
 
 /// Baut eine Map: anlageId → serviceArt der letzten Reinigung
 Map<String, String?> _buildLetzteServiceArtMap(
-    List<ReinigungLocal> reinigungen) {
+  List<ReinigungLocal> reinigungen,
+) {
   final sorted = List.of(reinigungen)
     ..sort((a, b) => b.datum.compareTo(a.datum));
   final map = <String, String?>{};
@@ -120,7 +128,11 @@ FaelligkeitsStatus getFaelligkeit(
   // Saisonale Fälligkeit hat Vorrang
   if (betrieb != null) {
     final saison = _getSaisonFaelligkeit(
-        anlage, datum, betrieb, letzteServiceArt);
+      anlage,
+      datum,
+      betrieb,
+      letzteServiceArt,
+    );
     if (saison != null) return saison;
   }
 
@@ -211,8 +223,10 @@ bool _isBetriebAktiv(BetriebLocal b, DateTime datum) {
 
 // ─── Fällige Anlagen Provider ───
 
-final faelligeAnlagenProvider =
-    Provider.family<List<AnlageLocal>, DateTime>((ref, datum) {
+final faelligeAnlagenProvider = Provider.family<List<AnlageLocal>, DateTime>((
+  ref,
+  datum,
+) {
   final anlagen = ref.watch(anlagenProvider);
   final betriebe = ref.watch(betriebeProvider);
   final reinigungen = ref.watch(reinigungenProvider);
@@ -229,10 +243,13 @@ final faelligeAnlagenProvider =
   return anlagen.where((a) {
     if (a.status != 'aktiv') return false;
     final betrieb = betriebMap[a.betriebId];
-    final serviceArt =
-        a.serverId != null ? serviceArtMap[a.serverId!] : null;
-    final faelligkeit = getFaelligkeit(a, datum,
-        betrieb: betrieb, letzteServiceArt: serviceArt);
+    final serviceArt = a.serverId != null ? serviceArtMap[a.serverId!] : null;
+    final faelligkeit = getFaelligkeit(
+      a,
+      datum,
+      betrieb: betrieb,
+      letzteServiceArt: serviceArt,
+    );
     if (faelligkeit == FaelligkeitsStatus.nichtFaellig) return false;
 
     // Saisonale Einträge immer anzeigen (auch wenn Betrieb in Pause)
@@ -245,27 +262,34 @@ final faelligeAnlagenProvider =
     if (betrieb != null && !_isBetriebAktiv(betrieb, datum)) return false;
 
     return true;
-  }).toList()
-    ..sort((a, b) {
-      // Überfällig zuerst
-      final betriebA = betriebMap[a.betriebId];
-      final betriebB = betriebMap[b.betriebId];
-      final saA =
-          a.serverId != null ? serviceArtMap[a.serverId!] : null;
-      final saB =
-          b.serverId != null ? serviceArtMap[b.serverId!] : null;
-      final fa = getFaelligkeit(a, datum,
-          betrieb: betriebA, letzteServiceArt: saA).index;
-      final fb = getFaelligkeit(b, datum,
-          betrieb: betriebB, letzteServiceArt: saB).index;
-      return fa.compareTo(fb);
-    });
+  }).toList()..sort((a, b) {
+    // Überfällig zuerst
+    final betriebA = betriebMap[a.betriebId];
+    final betriebB = betriebMap[b.betriebId];
+    final saA = a.serverId != null ? serviceArtMap[a.serverId!] : null;
+    final saB = b.serverId != null ? serviceArtMap[b.serverId!] : null;
+    final fa = getFaelligkeit(
+      a,
+      datum,
+      betrieb: betriebA,
+      letzteServiceArt: saA,
+    ).index;
+    final fb = getFaelligkeit(
+      b,
+      datum,
+      betrieb: betriebB,
+      letzteServiceArt: saB,
+    ).index;
+    return fa.compareTo(fb);
+  });
 });
 
 // ─── Tour-Vorschlag Provider (Reinigungen von vor ~28 Tagen) ───
 
-final tourVorschlagProvider =
-    Provider.family<List<ReinigungLocal>, DateTime>((ref, datum) {
+final tourVorschlagProvider = Provider.family<List<ReinigungLocal>, DateTime>((
+  ref,
+  datum,
+) {
   final reinigungen = ref.watch(reinigungenProvider);
   final referenz = datum.subtract(const Duration(days: 28));
   final von = referenz.subtract(const Duration(days: 2));
@@ -273,8 +297,7 @@ final tourVorschlagProvider =
 
   return reinigungen.where((r) {
     return r.datum.isAfter(von) && r.datum.isBefore(bis);
-  }).toList()
-    ..sort((a, b) => a.datum.compareTo(b.datum));
+  }).toList()..sort((a, b) => a.datum.compareTo(b.datum));
 });
 
 // ─── Fällige Anlagen Count ───
@@ -324,29 +347,27 @@ class TourEintrag {
 
   /// Version für den gespeicherten Plan (kein Auto-Marker mehr).
   TourEintrag alsPlanEintrag() => TourEintrag(
-        typ: typ,
-        id: id,
-        betriebId: betriebId,
-        anlageId: anlageId,
-        betriebName: betriebName,
-        betriebOrt: betriebOrt,
-        regionId: regionId,
-        beschreibung: beschreibung,
-        faelligkeit: faelligkeit,
-        datum: datum,
-        ruhetage: ruhetage,
-        servicezeit: servicezeit,
-      );
+    typ: typ,
+    id: id,
+    betriebId: betriebId,
+    anlageId: anlageId,
+    betriebName: betriebName,
+    betriebOrt: betriebOrt,
+    regionId: regionId,
+    beschreibung: beschreibung,
+    faelligkeit: faelligkeit,
+    datum: datum,
+    ruhetage: ruhetage,
+    servicezeit: servicezeit,
+  );
 }
 
 // ─── Filter-State ───
 
 final selectedRegionenProvider = StateProvider<Set<String>>((ref) => {});
-final selectedFaelligkeitProvider =
-    StateProvider<Set<FaelligkeitsStatus>>((ref) => {
-      FaelligkeitsStatus.ueberfaellig,
-      FaelligkeitsStatus.faellig,
-    });
+final selectedFaelligkeitProvider = StateProvider<Set<FaelligkeitsStatus>>(
+  (ref) => {FaelligkeitsStatus.ueberfaellig, FaelligkeitsStatus.faellig},
+);
 
 // ─── Betrieb-Lookup Helper ───
 
@@ -372,8 +393,10 @@ String? _servicezeitAus(BetriebLocal? b) {
 
 // ─── Vereinigte Fällig-Liste (alle Typen) ───
 
-final faelligeEintraegeProvider =
-    Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
+final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
+  ref,
+  datum,
+) {
   final betriebe = ref.watch(betriebeProvider);
   final betriebMap = _buildBetriebMap(betriebe);
   final reinigungen = ref.watch(reinigungenProvider);
@@ -384,67 +407,73 @@ final faelligeEintraegeProvider =
   final faelligeAnlagen = ref.watch(faelligeAnlagenProvider(datum));
   for (final a in faelligeAnlagen) {
     final betrieb = betriebMap[a.betriebId];
-    final serviceArt =
-        a.serverId != null ? serviceArtMap[a.serverId!] : null;
-    eintraege.add(TourEintrag(
-      typ: TourEintragTyp.reinigung,
-      id: 'r_${a.routeId}',
-      betriebId: a.betriebId,
-      anlageId: a.routeId,
-      betriebName: betrieb?.name ?? '?',
-      betriebOrt: betrieb?.ort,
-      regionId: betrieb?.regionId,
-      beschreibung:
-          '${a.typAnlage} · ${a.anzahlHaehne} Hähne',
-      faelligkeit: getFaelligkeit(a, datum,
-          betrieb: betrieb, letzteServiceArt: serviceArt),
-      datum: a.naechsteReinigung,
-      ruhetage: betrieb?.ruhetage ?? const [],
-      servicezeit: _servicezeitAus(betrieb),
-    ));
+    final serviceArt = a.serverId != null ? serviceArtMap[a.serverId!] : null;
+    eintraege.add(
+      TourEintrag(
+        typ: TourEintragTyp.reinigung,
+        id: 'r_${a.routeId}',
+        betriebId: a.betriebId,
+        anlageId: a.routeId,
+        betriebName: betrieb?.name ?? '?',
+        betriebOrt: betrieb?.ort,
+        regionId: betrieb?.regionId,
+        beschreibung: '${a.typAnlage} · ${a.anzahlHaehne} Hähne',
+        faelligkeit: getFaelligkeit(
+          a,
+          datum,
+          betrieb: betrieb,
+          letzteServiceArt: serviceArt,
+        ),
+        datum: a.naechsteReinigung,
+        ruhetage: betrieb?.ruhetage ?? const [],
+        servicezeit: _servicezeitAus(betrieb),
+      ),
+    );
   }
 
   // 2. Offene Störungen
   final stoerungen = ref.watch(stoerungenProvider);
   for (final s in stoerungen) {
     if (s.status != 'offen') continue;
-    final betrieb =
-        s.betriebId != null ? betriebMap[s.betriebId!] : null;
-    eintraege.add(TourEintrag(
-      typ: TourEintragTyp.stoerung,
-      id: 's_${s.routeId}',
-      betriebId: s.betriebId,
-      anlageId: s.anlageId,
-      betriebName: betrieb?.name ?? '?',
-      betriebOrt: betrieb?.ort,
-      regionId: betrieb?.regionId,
-      beschreibung: s.problemBeschreibung,
-      datum: s.datum,
-      ruhetage: betrieb?.ruhetage ?? const [],
-      servicezeit: _servicezeitAus(betrieb),
-    ));
+    final betrieb = s.betriebId != null ? betriebMap[s.betriebId!] : null;
+    eintraege.add(
+      TourEintrag(
+        typ: TourEintragTyp.stoerung,
+        id: 's_${s.routeId}',
+        betriebId: s.betriebId,
+        anlageId: s.anlageId,
+        betriebName: betrieb?.name ?? '?',
+        betriebOrt: betrieb?.ort,
+        regionId: betrieb?.regionId,
+        beschreibung: s.problemBeschreibung,
+        datum: s.datum,
+        ruhetage: betrieb?.ruhetage ?? const [],
+        servicezeit: _servicezeitAus(betrieb),
+      ),
+    );
   }
 
   // 3. Geplante Montagen / HeiGenie
   final montagen = ref.watch(montagenProvider);
   for (final m in montagen) {
     if (m.status != 'geplant') continue;
-    final betrieb =
-        m.betriebId != null ? betriebMap[m.betriebId!] : null;
+    final betrieb = m.betriebId != null ? betriebMap[m.betriebId!] : null;
     final istHeiGenie = m.montageTyp == 'heigenie_service';
-    eintraege.add(TourEintrag(
-      typ: istHeiGenie ? TourEintragTyp.heigenie : TourEintragTyp.montage,
-      id: 'm_${m.routeId}',
-      betriebId: m.betriebId,
-      anlageId: m.anlageId,
-      betriebName: betrieb?.name ?? '?',
-      betriebOrt: betrieb?.ort,
-      regionId: betrieb?.regionId,
-      beschreibung: '${_montageTypLabel(m.montageTyp)} · ${m.beschreibung}',
-      datum: m.datum,
-      ruhetage: betrieb?.ruhetage ?? const [],
-      servicezeit: _servicezeitAus(betrieb),
-    ));
+    eintraege.add(
+      TourEintrag(
+        typ: istHeiGenie ? TourEintragTyp.heigenie : TourEintragTyp.montage,
+        id: 'm_${m.routeId}',
+        betriebId: m.betriebId,
+        anlageId: m.anlageId,
+        betriebName: betrieb?.name ?? '?',
+        betriebOrt: betrieb?.ort,
+        regionId: betrieb?.regionId,
+        beschreibung: '${_montageTypLabel(m.montageTyp)} · ${m.beschreibung}',
+        datum: m.datum,
+        ruhetage: betrieb?.ruhetage ?? const [],
+        servicezeit: _servicezeitAus(betrieb),
+      ),
+    );
   }
 
   // Sortierung: Reinigungen (nach Fälligkeit) → Störungen → Montagen
@@ -462,8 +491,10 @@ final faelligeEintraegeProvider =
 
 // ─── Automatische Saison-Termine (Endreinigung/Eröffnung am Ziel-Tag) ───
 
-final autoTermineProvider =
-    Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
+final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
+  ref,
+  datum,
+) {
   final betriebe = ref.watch(betriebeProvider);
   final betriebMap = _buildBetriebMap(betriebe);
   final anlagen = ref.watch(anlagenProvider);
@@ -484,8 +515,9 @@ final autoTermineProvider =
     final id = 'r_${a.routeId}';
     if (imPlan.contains(id)) continue;
 
-    final letzteServiceArt =
-        a.serverId != null ? serviceArtMap[a.serverId!] : null;
+    final letzteServiceArt = a.serverId != null
+        ? serviceArtMap[a.serverId!]
+        : null;
 
     // Endreinigung: letzter offener Tag vor der nächsten Schliessung
     if (letzteServiceArt != 'endreinigung') {
@@ -493,21 +525,23 @@ final autoTermineProvider =
       if (s != null) {
         final ziel = naechsterOffenerTag(betrieb, s.datum, rueckwaerts: true);
         if (ziel != null && ziel == tag) {
-          result.add(TourEintrag(
-            typ: TourEintragTyp.reinigung,
-            id: id,
-            betriebId: a.betriebId,
-            anlageId: a.routeId,
-            betriebName: betrieb.name,
-            betriebOrt: betrieb.ort,
-            regionId: betrieb.regionId,
-            beschreibung: 'Endreinigung · ${a.typAnlage}',
-            faelligkeit: FaelligkeitsStatus.endreinigungFaellig,
-            ruhetage: betrieb.ruhetage,
-            servicezeit: _servicezeitAus(betrieb),
-            istAutoTermin: true,
-            zielDatum: ziel,
-          ));
+          result.add(
+            TourEintrag(
+              typ: TourEintragTyp.reinigung,
+              id: id,
+              betriebId: a.betriebId,
+              anlageId: a.routeId,
+              betriebName: betrieb.name,
+              betriebOrt: betrieb.ort,
+              regionId: betrieb.regionId,
+              beschreibung: 'Endreinigung · ${a.typAnlage}',
+              faelligkeit: FaelligkeitsStatus.endreinigungFaellig,
+              ruhetage: betrieb.ruhetage,
+              servicezeit: _servicezeitAus(betrieb),
+              istAutoTermin: true,
+              zielDatum: ziel,
+            ),
+          );
           continue;
         }
       }
@@ -520,21 +554,23 @@ final autoTermineProvider =
       if (oeffnung != null) {
         final ziel = naechsterOffenerTag(betrieb, oeffnung, rueckwaerts: false);
         if (ziel != null && ziel == tag) {
-          result.add(TourEintrag(
-            typ: TourEintragTyp.reinigung,
-            id: id,
-            betriebId: a.betriebId,
-            anlageId: a.routeId,
-            betriebName: betrieb.name,
-            betriebOrt: betrieb.ort,
-            regionId: betrieb.regionId,
-            beschreibung: 'Eröffnungsservice · ${a.typAnlage}',
-            faelligkeit: FaelligkeitsStatus.eroeffnungFaellig,
-            ruhetage: betrieb.ruhetage,
-            servicezeit: _servicezeitAus(betrieb),
-            istAutoTermin: true,
-            zielDatum: ziel,
-          ));
+          result.add(
+            TourEintrag(
+              typ: TourEintragTyp.reinigung,
+              id: id,
+              betriebId: a.betriebId,
+              anlageId: a.routeId,
+              betriebName: betrieb.name,
+              betriebOrt: betrieb.ort,
+              regionId: betrieb.regionId,
+              beschreibung: 'Eröffnungsservice · ${a.typAnlage}',
+              faelligkeit: FaelligkeitsStatus.eroeffnungFaellig,
+              ruhetage: betrieb.ruhetage,
+              servicezeit: _servicezeitAus(betrieb),
+              istAutoTermin: true,
+              zielDatum: ziel,
+            ),
+          );
         }
       }
     }
@@ -545,14 +581,22 @@ final autoTermineProvider =
 
 String _montageTypLabel(String typ) {
   switch (typ) {
-    case 'neumontage': return 'Neumontage';
-    case 'demontage': return 'Demontage';
-    case 'abaenderung': return 'Abänderung';
-    case 'heigenie_service': return 'HeiGenie Service';
-    case 'anlass': return 'Anlass';
-    case 'spesen': return 'Spesen';
-    case 'aufwandsentschaedigung': return 'Aufwandsentsch.';
-    default: return typ;
+    case 'neumontage':
+      return 'Neumontage';
+    case 'demontage':
+      return 'Demontage';
+    case 'abaenderung':
+      return 'Abänderung';
+    case 'heigenie_service':
+      return 'HeiGenie Service';
+    case 'anlass':
+      return 'Anlass';
+    case 'spesen':
+      return 'Spesen';
+    case 'aufwandsentschaedigung':
+      return 'Aufwandsentsch.';
+    default:
+      return typ;
   }
 }
 
@@ -560,109 +604,115 @@ String _montageTypLabel(String typ) {
 
 final tourVorschlagErweitertProvider =
     Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
-  final betriebe = ref.watch(betriebeProvider);
-  final anlagen = ref.watch(anlagenProvider);
-  final reinigungen = ref.watch(reinigungenProvider);
-  final betriebMap = _buildBetriebMap(betriebe);
-  final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
-  final eintraege = <TourEintrag>[];
+      final betriebe = ref.watch(betriebeProvider);
+      final anlagen = ref.watch(anlagenProvider);
+      final reinigungen = ref.watch(reinigungenProvider);
+      final betriebMap = _buildBetriebMap(betriebe);
+      final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
+      final eintraege = <TourEintrag>[];
 
-  // Anlagen-Lookup
-  final anlageMap = <String, AnlageLocal>{};
-  for (final a in anlagen) {
-    anlageMap[a.routeId] = a;
-    if (a.serverId != null) anlageMap[a.serverId!] = a;
-  }
+      // Anlagen-Lookup
+      final anlageMap = <String, AnlageLocal>{};
+      for (final a in anlagen) {
+        anlageMap[a.routeId] = a;
+        if (a.serverId != null) anlageMap[a.serverId!] = a;
+      }
 
-  // 1. Reinigungen von vor ~28 Tagen
-  final vorschlagReinigungen = ref.watch(tourVorschlagProvider(datum));
-  final seenAnlagen = <String>{};
-  for (final r in vorschlagReinigungen) {
-    // Deduplizieren nach Anlage
-    final aId = r.anlageIds.isNotEmpty
-        ? r.anlageIds.first
-        : r.betriebId;
-    if (!seenAnlagen.add(aId)) continue;
+      // 1. Reinigungen von vor ~28 Tagen
+      final vorschlagReinigungen = ref.watch(tourVorschlagProvider(datum));
+      final seenAnlagen = <String>{};
+      for (final r in vorschlagReinigungen) {
+        // Deduplizieren nach Anlage
+        final aId = r.anlageIds.isNotEmpty ? r.anlageIds.first : r.betriebId;
+        if (!seenAnlagen.add(aId)) continue;
 
-    final anlage = anlageMap[aId];
-    if (anlage != null && anlage.status != 'aktiv') continue;
+        final anlage = anlageMap[aId];
+        if (anlage != null && anlage.status != 'aktiv') continue;
 
-    final betrieb = betriebMap[r.betriebId];
-    if (betrieb != null && !isBetriebOffen(betrieb, datum)) continue;
+        final betrieb = betriebMap[r.betriebId];
+        if (betrieb != null && !isBetriebOffen(betrieb, datum)) continue;
 
-    eintraege.add(TourEintrag(
-      typ: TourEintragTyp.reinigung,
-      id: 'r_$aId',
-      betriebId: r.betriebId,
-      anlageId: aId,
-      betriebName: betrieb?.name ?? '?',
-      betriebOrt: betrieb?.ort,
-      regionId: betrieb?.regionId,
-      beschreibung: anlage != null
-          ? '${anlage.typAnlage} · ${anlage.anzahlHaehne} Hähne'
-          : 'Reinigung',
-      faelligkeit: anlage != null
-          ? getFaelligkeit(anlage, datum,
-              betrieb: betrieb,
-              letzteServiceArt: anlage.serverId != null
-                  ? serviceArtMap[anlage.serverId!]
-                  : null)
-          : null,
-      datum: r.datum,
-      ruhetage: betrieb?.ruhetage ?? const [],
-      servicezeit: _servicezeitAus(betrieb),
-    ));
-  }
+        eintraege.add(
+          TourEintrag(
+            typ: TourEintragTyp.reinigung,
+            id: 'r_$aId',
+            betriebId: r.betriebId,
+            anlageId: aId,
+            betriebName: betrieb?.name ?? '?',
+            betriebOrt: betrieb?.ort,
+            regionId: betrieb?.regionId,
+            beschreibung: anlage != null
+                ? '${anlage.typAnlage} · ${anlage.anzahlHaehne} Hähne'
+                : 'Reinigung',
+            faelligkeit: anlage != null
+                ? getFaelligkeit(
+                    anlage,
+                    datum,
+                    betrieb: betrieb,
+                    letzteServiceArt: anlage.serverId != null
+                        ? serviceArtMap[anlage.serverId!]
+                        : null,
+                  )
+                : null,
+            datum: r.datum,
+            ruhetage: betrieb?.ruhetage ?? const [],
+            servicezeit: _servicezeitAus(betrieb),
+          ),
+        );
+      }
 
-  // 2. Offene Störungen (immer relevant)
-  final stoerungen = ref.watch(stoerungenProvider);
-  for (final s in stoerungen) {
-    if (s.status != 'offen') continue;
-    final betrieb =
-        s.betriebId != null ? betriebMap[s.betriebId!] : null;
-    eintraege.add(TourEintrag(
-      typ: TourEintragTyp.stoerung,
-      id: 's_${s.routeId}',
-      betriebId: s.betriebId,
-      anlageId: s.anlageId,
-      betriebName: betrieb?.name ?? '?',
-      betriebOrt: betrieb?.ort,
-      regionId: betrieb?.regionId,
-      beschreibung: s.problemBeschreibung,
-      datum: s.datum,
-      ruhetage: betrieb?.ruhetage ?? const [],
-      servicezeit: _servicezeitAus(betrieb),
-    ));
-  }
+      // 2. Offene Störungen (immer relevant)
+      final stoerungen = ref.watch(stoerungenProvider);
+      for (final s in stoerungen) {
+        if (s.status != 'offen') continue;
+        final betrieb = s.betriebId != null ? betriebMap[s.betriebId!] : null;
+        eintraege.add(
+          TourEintrag(
+            typ: TourEintragTyp.stoerung,
+            id: 's_${s.routeId}',
+            betriebId: s.betriebId,
+            anlageId: s.anlageId,
+            betriebName: betrieb?.name ?? '?',
+            betriebOrt: betrieb?.ort,
+            regionId: betrieb?.regionId,
+            beschreibung: s.problemBeschreibung,
+            datum: s.datum,
+            ruhetage: betrieb?.ruhetage ?? const [],
+            servicezeit: _servicezeitAus(betrieb),
+          ),
+        );
+      }
 
-  // 3. Montagen an diesem Datum
-  final montagen = ref.watch(montagenProvider);
-  for (final m in montagen) {
-    if (m.status != 'geplant') continue;
-    final mDatum = DateTime(m.datum.year, m.datum.month, m.datum.day);
-    final selDate = DateTime(datum.year, datum.month, datum.day);
-    if (mDatum != selDate) continue;
+      // 3. Montagen an diesem Datum
+      final montagen = ref.watch(montagenProvider);
+      for (final m in montagen) {
+        if (m.status != 'geplant') continue;
+        final mDatum = DateTime(m.datum.year, m.datum.month, m.datum.day);
+        final selDate = DateTime(datum.year, datum.month, datum.day);
+        if (mDatum != selDate) continue;
 
-    final betrieb =
-        m.betriebId != null ? betriebMap[m.betriebId!] : null;
-    final istHeiGenie = m.montageTyp == 'heigenie_service';
-    eintraege.add(TourEintrag(
-      typ: istHeiGenie ? TourEintragTyp.heigenie : TourEintragTyp.montage,
-      id: 'm_${m.routeId}',
-      betriebId: m.betriebId,
-      anlageId: m.anlageId,
-      betriebName: betrieb?.name ?? '?',
-      betriebOrt: betrieb?.ort,
-      regionId: betrieb?.regionId,
-      beschreibung: '${_montageTypLabel(m.montageTyp)} · ${m.beschreibung}',
-      datum: m.datum,
-      ruhetage: betrieb?.ruhetage ?? const [],
-      servicezeit: _servicezeitAus(betrieb),
-    ));
-  }
+        final betrieb = m.betriebId != null ? betriebMap[m.betriebId!] : null;
+        final istHeiGenie = m.montageTyp == 'heigenie_service';
+        eintraege.add(
+          TourEintrag(
+            typ: istHeiGenie ? TourEintragTyp.heigenie : TourEintragTyp.montage,
+            id: 'm_${m.routeId}',
+            betriebId: m.betriebId,
+            anlageId: m.anlageId,
+            betriebName: betrieb?.name ?? '?',
+            betriebOrt: betrieb?.ort,
+            regionId: betrieb?.regionId,
+            beschreibung:
+                '${_montageTypLabel(m.montageTyp)} · ${m.beschreibung}',
+            datum: m.datum,
+            ruhetage: betrieb?.ruhetage ?? const [],
+            servicezeit: _servicezeitAus(betrieb),
+          ),
+        );
+      }
 
-  return eintraege;
-});
+      return eintraege;
+    });
 
 // ─── Tagesplan State ───
 
@@ -670,8 +720,8 @@ final aktiverTagesplanTagProvider = StateProvider<DateTime?>((ref) => null);
 
 final tagesplanProvider =
     StateNotifierProvider<TagesplanNotifier, List<TourEintrag>>((ref) {
-  return TagesplanNotifier(ref);
-});
+      return TagesplanNotifier(ref);
+    });
 
 class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
   TagesplanNotifier(this._ref) : super([]);
@@ -768,72 +818,78 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
 // ─── Tagesplan Persistierung (Supabase) ───
 
 Map<String, dynamic> _tourEintragToJson(TourEintrag e) => {
-      'typ': e.typ.name,
-      'id': e.id,
-      'betriebId': e.betriebId,
-      'anlageId': e.anlageId,
-      'betriebName': e.betriebName,
-      'betriebOrt': e.betriebOrt,
-      'regionId': e.regionId,
-      'beschreibung': e.beschreibung,
-      'ruhetage': e.ruhetage,
-      'servicezeit': e.servicezeit,
-      // Fälligkeit + Daten mitspeichern, damit geladene Einträge ihren Status
-      // (Farbe, Sortierung) behalten und nicht durch Filter verschwinden.
-      'faelligkeit': e.faelligkeit?.name,
-      'datum': e.datum?.toIso8601String(),
-      'zielDatum': e.zielDatum?.toIso8601String(),
-    };
+  'typ': e.typ.name,
+  'id': e.id,
+  'betriebId': e.betriebId,
+  'anlageId': e.anlageId,
+  'betriebName': e.betriebName,
+  'betriebOrt': e.betriebOrt,
+  'regionId': e.regionId,
+  'beschreibung': e.beschreibung,
+  'ruhetage': e.ruhetage,
+  'servicezeit': e.servicezeit,
+  // Fälligkeit + Daten mitspeichern, damit geladene Einträge ihren Status
+  // (Farbe, Sortierung) behalten und nicht durch Filter verschwinden.
+  'faelligkeit': e.faelligkeit?.name,
+  'datum': e.datum?.toIso8601String(),
+  'zielDatum': e.zielDatum?.toIso8601String(),
+};
 
 TourEintrag _tourEintragFromJson(Map<String, dynamic> j) => TourEintrag(
-      typ: TourEintragTyp.values.firstWhere(
-          (t) => t.name == j['typ'],
-          orElse: () => TourEintragTyp.reinigung),
-      id: j['id'] as String,
-      betriebId: j['betriebId'] as String?,
-      anlageId: j['anlageId'] as String?,
-      betriebName: j['betriebName'] as String? ?? '',
-      betriebOrt: j['betriebOrt'] as String?,
-      regionId: j['regionId'] as String?,
-      beschreibung: j['beschreibung'] as String? ?? '',
-      ruhetage: (j['ruhetage'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const [],
-      servicezeit: j['servicezeit'] as String?,
-      faelligkeit: j['faelligkeit'] != null
-          ? FaelligkeitsStatus.values.firstWhere(
-              (f) => f.name == j['faelligkeit'],
-              orElse: () => FaelligkeitsStatus.nichtFaellig)
-          : null,
-      datum: j['datum'] != null ? DateTime.tryParse(j['datum'] as String) : null,
-      zielDatum: j['zielDatum'] != null
-          ? DateTime.tryParse(j['zielDatum'] as String)
-          : null,
-    );
+  typ: TourEintragTyp.values.firstWhere(
+    (t) => t.name == j['typ'],
+    orElse: () => TourEintragTyp.reinigung,
+  ),
+  id: j['id'] as String,
+  betriebId: j['betriebId'] as String?,
+  anlageId: j['anlageId'] as String?,
+  betriebName: j['betriebName'] as String? ?? '',
+  betriebOrt: j['betriebOrt'] as String?,
+  regionId: j['regionId'] as String?,
+  beschreibung: j['beschreibung'] as String? ?? '',
+  ruhetage:
+      (j['ruhetage'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
+  servicezeit: j['servicezeit'] as String?,
+  faelligkeit: j['faelligkeit'] != null
+      ? FaelligkeitsStatus.values.firstWhere(
+          (f) => f.name == j['faelligkeit'],
+          orElse: () => FaelligkeitsStatus.nichtFaellig,
+        )
+      : null,
+  datum: j['datum'] != null ? DateTime.tryParse(j['datum'] as String) : null,
+  zielDatum: j['zielDatum'] != null
+      ? DateTime.tryParse(j['zielDatum'] as String)
+      : null,
+);
 
 final gespeicherterTagesplanProvider =
     FutureProvider.family<List<TourEintrag>?, DateTime>((ref, datum) async {
-  try {
-    final datumStr = '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
-    final rows = await SupabaseService.client
-        .from('tagesplaene')
-        .select()
-        .eq('datum', datumStr)
-        .limit(1);
-    if (rows.isEmpty) return null;
-    final eintraege = (rows.first['eintraege'] as List<dynamic>)
-        .map((e) => _tourEintragFromJson(Map<String, dynamic>.from(e)))
-        .toList();
-    return eintraege;
-  } catch (e) {
-    debugPrint('[Tagesplan] Laden fehlgeschlagen: $e');
-    return null;
-  }
-});
+      try {
+        final datumStr =
+            '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+        final rows = await SupabaseService.client
+            .from('tagesplaene')
+            .select()
+            .eq('datum', datumStr)
+            .limit(1);
+        if (rows.isEmpty) return null;
+        final eintraege = (rows.first['eintraege'] as List<dynamic>)
+            .map((e) => _tourEintragFromJson(Map<String, dynamic>.from(e)))
+            .toList();
+        return eintraege;
+      } catch (e) {
+        debugPrint('[Tagesplan] Laden fehlgeschlagen: $e');
+        return null;
+      }
+    });
 
-Future<void> tagesplanSpeichern(DateTime datum, List<TourEintrag> eintraege) async {
-  final datumStr = '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+Future<void> tagesplanSpeichern(
+  DateTime datum,
+  List<TourEintrag> eintraege,
+) async {
+  final datumStr =
+      '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
   final userId = SupabaseService.client.auth.currentUser!.id;
   final json = eintraege.map(_tourEintragToJson).toList();
   await SupabaseService.client.from('tagesplaene').upsert({
@@ -845,7 +901,8 @@ Future<void> tagesplanSpeichern(DateTime datum, List<TourEintrag> eintraege) asy
 }
 
 Future<void> tagesplanLoeschen(DateTime datum) async {
-  final datumStr = '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+  final datumStr =
+      '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
   await SupabaseService.client
       .from('tagesplaene')
       .delete()
@@ -854,8 +911,10 @@ Future<void> tagesplanLoeschen(DateTime datum) async {
 
 // ─── Tages-Counts (für Day-Chips, alle Typen) ───
 
-final tagesCountsProvider =
-    Provider.family<List<int>, DateTime>((ref, weekStart) {
+final tagesCountsProvider = Provider.family<List<int>, DateTime>((
+  ref,
+  weekStart,
+) {
   final counts = List<int>.filled(6, 0); // Mo-Sa
 
   final aktiverTag = ref.watch(aktiverTagesplanTagProvider);
@@ -877,8 +936,9 @@ final tagesCountsProvider =
     }
 
     // Gespeicherter Plan hat Vorrang
-    final gespeichert =
-        ref.watch(gespeicherterTagesplanProvider(day)).valueOrNull;
+    final gespeichert = ref
+        .watch(gespeicherterTagesplanProvider(day))
+        .valueOrNull;
     if (gespeichert != null) {
       counts[i] = gespeichert.length;
       continue;
@@ -893,9 +953,7 @@ final tagesCountsProvider =
     final seen = <String>{};
     for (final r in reinigungen) {
       if (r.datum.isAfter(von) && r.datum.isBefore(bis)) {
-        final key = r.anlageIds.isNotEmpty
-            ? r.anlageIds.first
-            : r.betriebId;
+        final key = r.anlageIds.isNotEmpty ? r.anlageIds.first : r.betriebId;
         if (seen.add(key)) count++;
       }
     }
@@ -956,3 +1014,30 @@ String faelligkeitLabel(FaelligkeitsStatus status) {
       return 'Nicht fällig';
   }
 }
+
+// ─── Saisondaten fehlen (Anker nicht bestimmbar) ───
+
+/// Betriebe, deren letzte Reinigung eine Endreinigung ist, die aber keine
+/// künftige Wiedereröffnung gepflegt haben — die Fälligkeits-Uhr kann nicht
+/// starten. Ohne Meldung wären sie STILL nie fällig (Regel Daniel 17.07.2026:
+/// "falls nicht festgelegt Meldung").
+final saisonAnkerFehltProvider = Provider<List<BetriebLocal>>((ref) {
+  final betriebe = ref.watch(betriebeProvider);
+  final anlagen = ref.watch(anlagenProvider);
+  final reinigungen = ref.watch(reinigungenProvider);
+  final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
+  final betriebMap = _buildBetriebMap(betriebe);
+
+  final result = <String, BetriebLocal>{};
+  for (final a in anlagen) {
+    if (a.status != 'aktiv' || a.letzteReinigung == null) continue;
+    final art = a.serverId != null ? serviceArtMap[a.serverId!] : null;
+    if (art != 'endreinigung') continue;
+    final b = betriebMap[a.betriebId];
+    if (b == null || b.status != 'aktiv') continue;
+    if (faelligkeitsAnker(b, a.letzteReinigung!) == null) {
+      result[b.routeId] = b;
+    }
+  }
+  return result.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+});

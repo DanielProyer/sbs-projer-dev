@@ -69,13 +69,15 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final selectedFaelligkeit = ref.watch(selectedFaelligkeitProvider);
     final tagesplan = ref.watch(tagesplanProvider);
     final dayCounts = ref.watch(tagesCountsProvider(_weekStart));
-    final faelligeEintraege =
-        ref.watch(faelligeEintraegeProvider(_selectedDate));
+    final faelligeEintraege = ref.watch(
+      faelligeEintraegeProvider(_selectedDate),
+    );
     final autoTermine = ref.watch(autoTermineProvider(_selectedDate));
 
     // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag.
-    final gespeichertAsync =
-        ref.watch(gespeicherterTagesplanProvider(_selectedDate));
+    final gespeichertAsync = ref.watch(
+      gespeicherterTagesplanProvider(_selectedDate),
+    );
     if (_loadedForDate != _selectedDate) {
       final tag = _selectedDate;
       void anwenden(List<TourEintrag>? gespeichert) {
@@ -115,8 +117,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         return false;
       }
       // Fälligkeits-Filter nur auf Reinigungen; Störungen/Montagen durchlassen.
-      if (selectedFaelligkeit.isNotEmpty &&
-          e.typ == TourEintragTyp.reinigung) {
+      if (selectedFaelligkeit.isNotEmpty && e.typ == TourEintragTyp.reinigung) {
         if (e.faelligkeit == null ||
             !selectedFaelligkeit.contains(e.faelligkeit)) {
           return false;
@@ -144,9 +145,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
               padding: const EdgeInsets.only(right: 4),
               child: AppFilterMultiDropdown<String>(
                 label: 'Regionen',
-                options: [
-                  for (final r in regionen) (r.routeId, r.name),
-                ],
+                options: [for (final r in regionen) (r.routeId, r.name)],
                 selected: selectedRegionen,
                 onChanged: (updated) {
                   ref.read(selectedRegionenProvider.notifier).state = updated;
@@ -217,8 +216,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                             .read(tagesplanProvider.notifier)
                             .hinzufuegen(e.alsPlanEintrag()),
                         onAlleUebernehmen: () {
-                          final notifier =
-                              ref.read(tagesplanProvider.notifier);
+                          final notifier = ref.read(tagesplanProvider.notifier);
                           for (final e in autoTermine) {
                             notifier.hinzufuegen(e.alsPlanEintrag());
                           }
@@ -247,34 +245,103 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                 ),
 
                 // === Tab 2: Fällig ===
-                angezeigtFaellig.isEmpty
-                    ? _buildEmpty(
-                        'Keine fälligen Einträge',
-                        'Zum ${_formatDate(_selectedDate)} sind keine\nReinigungen, Störungen oder Montagen fällig.',
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: angezeigtFaellig.length,
-                        itemBuilder: (_, i) {
-                          final e = angezeigtFaellig[i];
-                          final imPlan = bereitsImPlan.contains(e.id);
-                          return _FaelligEintragKarte(
-                            datum: _selectedDate,
-                            eintrag: e,
-                            imPlan: imPlan,
-                            onAdd: () {
-                              ref
-                                  .read(tagesplanProvider.notifier)
-                                  .hinzufuegen(e);
-                            },
-                            onTap: () => _navigateToDetail(e),
-                          );
-                        },
-                      ),
+                Column(
+                  children: [
+                    _warnungSaisonAnker(),
+                    Expanded(
+                      child: angezeigtFaellig.isEmpty
+                          ? _buildEmpty(
+                              'Keine fälligen Einträge',
+                              'Zum ${_formatDate(_selectedDate)} sind keine\nReinigungen, Störungen oder Montagen fällig.',
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              itemCount: angezeigtFaellig.length,
+                              itemBuilder: (_, i) {
+                                final e = angezeigtFaellig[i];
+                                final imPlan = bereitsImPlan.contains(e.id);
+                                return _FaelligEintragKarte(
+                                  datum: _selectedDate,
+                                  eintrag: e,
+                                  imPlan: imPlan,
+                                  onAdd: () {
+                                    ref
+                                        .read(tagesplanProvider.notifier)
+                                        .hinzufuegen(e);
+                                  },
+                                  onTap: () => _navigateToDetail(e),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _warnungSaisonAnker() {
+    final fehlt = ref.watch(saisonAnkerFehltProvider);
+    if (fehlt.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('${fehlt.length} Betriebe ohne Saisonstart'),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Text(
+                  '${fehlt.map((b) => b.ort != null && b.ort!.isNotEmpty ? '${b.name} ${b.ort}' : b.name).join('\n')}\n\n'
+                  'Endreinigung erledigt, aber kein künftiger Saisonstart/'
+                  'Ferien-Ende gepflegt — die Fälligkeits-Uhr kann nicht starten. '
+                  'Bitte Saisondaten im Betrieb ergänzen.',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withAlpha(30),
+            border: Border.all(color: AppColors.warning.withAlpha(100)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.event_busy, color: AppColors.warning, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${fehlt.length} Betriebe: Endreinigung ohne Saisonstart — Uhr kann nicht starten',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.warning,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -286,22 +353,25 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.route,
-                size: 64, color: AppColors.textSecondary.withAlpha(100)),
+            Icon(
+              Icons.route,
+              size: 64,
+              color: AppColors.textSecondary.withAlpha(100),
+            ),
             const SizedBox(height: 16),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -371,10 +441,7 @@ class _WeekNavigator extends StatelessWidget {
           ),
           Text(
             'KW $weekNumber · $label',
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
@@ -415,10 +482,12 @@ class _DayChips extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(6, (i) {
           final day = weekStart.add(Duration(days: i));
-          final isSelected = day.year == selectedDate.year &&
+          final isSelected =
+              day.year == selectedDate.year &&
               day.month == selectedDate.month &&
               day.day == selectedDate.day;
-          final isToday = day.year == todayDate.year &&
+          final isToday =
+              day.year == todayDate.year &&
               day.month == todayDate.month &&
               day.day == todayDate.day;
           final count = counts[i];
@@ -432,8 +501,8 @@ class _DayChips extends StatelessWidget {
                 color: isSelected
                     ? AppColors.primary
                     : isToday
-                        ? AppColors.primary.withAlpha(25)
-                        : Colors.transparent,
+                    ? AppColors.primary.withAlpha(25)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
                 border: isToday && !isSelected
                     ? Border.all(color: AppColors.primary, width: 1.5)
@@ -446,8 +515,9 @@ class _DayChips extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color:
-                          isSelected ? Colors.white : AppColors.textSecondary,
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -463,7 +533,9 @@ class _DayChips extends StatelessWidget {
                     const SizedBox(height: 2),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.white.withAlpha(50)
@@ -523,8 +595,10 @@ class _TagesplanHeader extends StatelessWidget {
           TextButton.icon(
             onPressed: onAusFaelligBefuellen,
             icon: const Icon(Icons.playlist_add, size: 18),
-            label: const Text('Fällige übernehmen',
-                style: TextStyle(fontSize: 12)),
+            label: const Text(
+              'Fällige übernehmen',
+              style: TextStyle(fontSize: 12),
+            ),
             style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -634,8 +708,10 @@ class _TourEintragKarte extends StatelessWidget {
               // Inhalt
               Expanded(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       // Position
@@ -654,8 +730,11 @@ class _TourEintragKarte extends StatelessWidget {
                       CircleAvatar(
                         radius: 16,
                         backgroundColor: color.withAlpha(25),
-                        child: Icon(_typIcon(eintrag.typ),
-                            color: color, size: 16),
+                        child: Icon(
+                          _typIcon(eintrag.typ),
+                          color: color,
+                          size: 16,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       // Text
@@ -716,8 +795,11 @@ class _TourEintragKarte extends StatelessWidget {
                             color: AppColors.textSecondary.withAlpha(15),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.drag_indicator,
-                              color: AppColors.textSecondary, size: 28),
+                          child: const Icon(
+                            Icons.drag_indicator,
+                            color: AppColors.textSecondary,
+                            size: 28,
+                          ),
                         ),
                       ),
                     ],
@@ -791,11 +873,14 @@ class _AutoTermineSektion extends StatelessWidget {
               children: [
                 const Icon(Icons.auto_awesome, size: 16, color: AppColors.info),
                 const SizedBox(width: 6),
-                Text('Automatische Termine (${eintraege.length})',
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.info)),
+                Text(
+                  'Automatische Termine (${eintraege.length})',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.info,
+                  ),
+                ),
                 const Spacer(),
                 TextButton(
                   onPressed: onAlleUebernehmen,
@@ -803,17 +888,21 @@ class _AutoTermineSektion extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
-                  child: const Text('Alle übernehmen',
-                      style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                    'Alle übernehmen',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
           ),
-          ...eintraege.map((e) => _AutoTerminKarte(
-                eintrag: e,
-                onUebernehmen: () => onUebernehmen(e),
-                onTap: () => onTap(e),
-              )),
+          ...eintraege.map(
+            (e) => _AutoTerminKarte(
+              eintrag: e,
+              onUebernehmen: () => onUebernehmen(e),
+              onTap: () => onTap(e),
+            ),
+          ),
           const SizedBox(height: 4),
         ],
       ),
@@ -853,20 +942,30 @@ class _AutoTerminKarte extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(eintrag.betriebName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 13),
-                      overflow: TextOverflow.ellipsis),
-                  Text(eintrag.beschreibung,
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.textSecondary),
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    eintrag.betriebName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    eintrag.beschreibung,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.add_circle_outline,
-                  color: AppColors.primary),
+              icon: const Icon(
+                Icons.add_circle_outline,
+                color: AppColors.primary,
+              ),
               onPressed: onUebernehmen,
               tooltip: 'Zum Tagesplan',
               iconSize: 22,
@@ -901,18 +1000,23 @@ class _TourInfoZeile extends StatelessWidget {
     final children = <Widget>[];
 
     if (heuteRuhetag) {
-      children.add(Row(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.block, size: 13, color: AppColors.error),
-          SizedBox(width: 3),
-          Text('Heute Ruhetag',
+      children.add(
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.block, size: 13, color: AppColors.error),
+            SizedBox(width: 3),
+            Text(
+              'Heute Ruhetag',
               style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.error,
-                  fontWeight: FontWeight.w700)),
-        ],
-      ));
+                fontSize: 11,
+                color: AppColors.error,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
     } else if (ruheTxt.isNotEmpty) {
       children.add(_infoChip(Icons.event_busy, 'Ruhetag: $ruheTxt'));
     }
@@ -923,11 +1027,7 @@ class _TourInfoZeile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(top: 3),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 2,
-        children: children,
-      ),
+      child: Wrap(spacing: 10, runSpacing: 2, children: children),
     );
   }
 
@@ -937,9 +1037,10 @@ class _TourInfoZeile extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: AppColors.textSecondary),
         const SizedBox(width: 3),
-        Text(text,
-            style: const TextStyle(
-                fontSize: 11, color: AppColors.textSecondary)),
+        Text(
+          text,
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
       ],
     );
   }
@@ -1033,15 +1134,20 @@ class _FaelligEintragKarte extends StatelessWidget {
               Container(width: 4, color: color),
               Expanded(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 16,
                         backgroundColor: color.withAlpha(25),
-                        child: Icon(_TourEintragKarte._typIcon(eintrag.typ),
-                            color: color, size: 16),
+                        child: Icon(
+                          _TourEintragKarte._typIcon(eintrag.typ),
+                          color: color,
+                          size: 16,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -1054,8 +1160,9 @@ class _FaelligEintragKarte extends StatelessWidget {
                                   child: Text(
                                     eintrag.betriebName,
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -1073,8 +1180,9 @@ class _FaelligEintragKarte extends StatelessWidget {
                             Text(
                               eintrag.beschreibung,
                               style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary),
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                             _TourInfoZeile(datum: datum, eintrag: eintrag),
@@ -1089,12 +1197,10 @@ class _FaelligEintragKarte extends StatelessWidget {
                           imPlan
                               ? Icons.check_circle
                               : Icons.add_circle_outline,
-                          color:
-                              imPlan ? AppColors.success : AppColors.primary,
+                          color: imPlan ? AppColors.success : AppColors.primary,
                         ),
                         onPressed: imPlan ? null : onAdd,
-                        tooltip:
-                            imPlan ? 'Bereits im Plan' : 'Zum Tagesplan',
+                        tooltip: imPlan ? 'Bereits im Plan' : 'Zum Tagesplan',
                         iconSize: 24,
                         visualDensity: VisualDensity.compact,
                       ),
