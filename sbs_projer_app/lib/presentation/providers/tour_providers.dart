@@ -366,7 +366,14 @@ class TourEintrag {
 
 final selectedRegionenProvider = StateProvider<Set<String>>((ref) => {});
 final selectedFaelligkeitProvider = StateProvider<Set<FaelligkeitsStatus>>(
-  (ref) => {FaelligkeitsStatus.ueberfaellig, FaelligkeitsStatus.faellig},
+  (ref) => {
+    FaelligkeitsStatus.ueberfaellig,
+    FaelligkeitsStatus.faellig,
+    // Saisonale Planungsfenster standardmässig sichtbar (17 unsichtbare
+    // Betriebe am 17.07.2026 — der Eröffnungs-Chip war nie aktiv).
+    FaelligkeitsStatus.endreinigungFaellig,
+    FaelligkeitsStatus.eroeffnungFaellig,
+  },
 );
 
 // ─── Betrieb-Lookup Helper ───
