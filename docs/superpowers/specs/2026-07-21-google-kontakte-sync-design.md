@@ -141,17 +141,27 @@ Function-Datei (Soll-Bau, Feldvergleich), getrennt vom I/O-Teil.
 
 ## Datenmodell (Migration 148)
 
+**Korrektur bei Planerstellung (21.07.):** Der Status gehört in
+`google_calendar_status` (die App-lesbare Status-Tabelle), NICHT in
+`google_calendar_tokens` — die Token-Tabelle ist bewusst nur für die
+Service-Role lesbar. Der Scope muss dafür in die Status-Tabelle gespiegelt
+werden (Backfill + künftig durch `google-oauth-exchange`).
+
 ```sql
-ALTER TABLE google_calendar_tokens
+ALTER TABLE google_calendar_status
+  ADD COLUMN scope text,
   ADD COLUMN contacts_last_sync_at timestamptz,
   ADD COLUMN contacts_last_sync_info text;   -- z.B. '104 Kontakte, 240 Betriebe' oder 'Fehler: ...'
+UPDATE google_calendar_status s SET scope = t.scope
+  FROM google_calendar_tokens t WHERE t.user_id = s.user_id;
 ALTER TABLE kontakte
   DROP COLUMN phone_contact_id,
   DROP COLUMN phone_last_synced_at;          -- nie genutzt, Identität lebt in Google (clientData)
 ```
 
-Kein neues Sync-Vertical, keine Isar-Änderung (die beiden gedroppten Spalten
-waren im Dart-Modell nie vorhanden — im Plan verifizieren).
+Kein neues Sync-Vertical. **Achtung (verifiziert):** `phoneContactId` ist im
+Dart-Modell vorhanden (`kontakt.dart`, `kontakt_local.dart`) und muss auf
+Dart-Seite mit entfernt werden (DTO, Local, Web-Stub, Mapper, build_runner).
 
 ## Fehlerbehandlung
 
@@ -167,9 +177,10 @@ waren im Dart-Modell nie vorhanden — im Plan verifizieren).
 ## Tests
 
 - **TDD (Dart, reine Funktionen):** `kontaktAusPicker` (Name-Split: 0/1/2/3
-  Wörter, leere Felder), Soll-Filterung (`istSyncWuerdig` für Kontakt/Betrieb:
-  Telefon/Mail-Regeln, Status-Regeln inkl. saisonpause), Anzeige-Helfer für
-  den Einstellungs-Status.
+  Wörter, leere Felder), `hatKontakteScope` (Scope-Erkennung), Anzeige-Helfer
+  für den Einstellungs-Status. Die Soll-Filterung (`istSyncWuerdig`) lebt
+  ausschliesslich in der Edge-Function (TS) — kein Dart-Duplikat (Korrektur
+  bei Planerstellung: kein toter Code).
 - **Edge-Function:** Mapping/Diff als reine TS-Funktionen; Verifikation nach
   Deploy gegen das echte Konto (kein Deno-Test-Harness im Projekt).
 - **Abnahme (Daniel, Pixel 9):** Erst-Sync per Button → Stichprobe im
