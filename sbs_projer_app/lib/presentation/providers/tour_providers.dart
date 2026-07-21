@@ -98,13 +98,16 @@ FaelligkeitsStatus? _getSaisonFaelligkeit(
   }
 
   // --- Eröffnungsservice: Wiedereröffnung steht bevor (Fenster 7 Tage).
-  // Nur solange in der Pause NICHT gereinigt wurde (jede Pausen-Reinigung
-  // ändert letzteServiceArt -> Branch feuert nicht mehr). NACH dem Start
-  // übernimmt die reguläre Uhr mit Anker = Wiedereröffnung (faelligkeitsAnker)
-  // — das frühere ewige eroeffnungFaellig liess 17 offene Betriebe unsichtbar.
+  // Nur solange in der Pause NICHT gereinigt wurde — auch die Endreinigung
+  // selbst zählt als Pausen-Reinigung, wenn sie in der Schliessung lag
+  // (Muloin 21.07.2026: Endreinigung 30.06. IN den Ferien 26.06.–27.07.).
+  // NACH dem Start übernimmt die reguläre Uhr mit Anker = Wiedereröffnung
+  // (faelligkeitsAnker) — das frühere ewige eroeffnungFaellig liess 17
+  // offene Betriebe unsichtbar.
   if (letzteServiceArt == 'endreinigung' || letzteServiceArt == null) {
-    final ab =
-        anlage.letzteReinigung ?? datum.subtract(const Duration(days: 365));
+    final letzte = anlage.letzteReinigung;
+    if (letzte != null && istInSchliessung(betrieb, letzte)) return null;
+    final ab = letzte ?? datum.subtract(const Duration(days: 365));
     final oeffnung = oeffnungNach(betrieb, ab);
     if (oeffnung != null) {
       final tage = oeffnung.difference(datum).inDays;
@@ -554,8 +557,12 @@ final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
       }
     }
 
-    // Eröffnung: erster offener Tag ab Wiedereröffnung (Anlage ist geschlossen)
-    if (letzteServiceArt == 'endreinigung') {
+    // Eröffnung: erster offener Tag ab Wiedereröffnung (Anlage ist geschlossen).
+    // Lag die Endreinigung selbst schon in der Schliessung, ist die Anlage
+    // versorgt -> kein Auto-Termin (gleiche Regel wie _getSaisonFaelligkeit).
+    if (letzteServiceArt == 'endreinigung' &&
+        !(a.letzteReinigung != null &&
+            istInSchliessung(betrieb, a.letzteReinigung!))) {
       final ab = a.letzteReinigung ?? tag.subtract(const Duration(days: 365));
       final oeffnung = oeffnungNach(betrieb, ab);
       if (oeffnung != null) {

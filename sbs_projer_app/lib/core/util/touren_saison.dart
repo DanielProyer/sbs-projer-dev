@@ -42,6 +42,12 @@ bool _inAktiverSaison(BetriebLocal b, DateTime datum) {
   return inSaison;
 }
 
+/// Betrieb an diesem Tag in einer Schliessung (Saisonpause oder Ferien)?
+/// Ruhetage und Status zählen bewusst nicht — gleiche Definition wie beim
+/// Fälligkeits-Anker.
+bool istInSchliessung(BetriebLocal b, DateTime tag) =>
+    !_inAktiverSaison(b, tag) || istInFerien(b, tag);
+
 /// Kanonischer „offen"-Begriff: aktiv, nicht in Ferien, in aktiver Saison,
 /// kein Ruhetag.
 bool istOffenerTag(BetriebLocal b, DateTime tag) {

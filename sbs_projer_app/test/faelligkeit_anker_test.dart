@@ -85,9 +85,20 @@ void main() {
               betrieb: saisonBetrieb(), letzteServiceArt: 'endreinigung'),
           FaelligkeitsStatus.nichtFaellig);
     });
-    test('7 Tage vor Start: Eröffnungs-Hinweis', () {
+    test(
+        '7 Tage vor Start, Endreinigung lag in der Pause: KEIN Eröffnungs-'
+        'Hinweis (Regel Daniel 21.07.: jede Pausen-Reinigung unterdrückt ihn)',
+        () {
       expect(
           getFaelligkeit(anlage(), DateTime(2026, 6, 1),
+              betrieb: saisonBetrieb(), letzteServiceArt: 'endreinigung'),
+          FaelligkeitsStatus.nichtFaellig);
+    });
+    test('7 Tage vor Start, Endreinigung am letzten Saisontag: Hinweis bleibt',
+        () {
+      final a = anlage()..letzteReinigung = DateTime(2026, 3, 29);
+      expect(
+          getFaelligkeit(a, DateTime(2026, 6, 1),
               betrieb: saisonBetrieb(), letzteServiceArt: 'endreinigung'),
           FaelligkeitsStatus.eroeffnungFaellig);
     });
@@ -115,6 +126,15 @@ void main() {
               betrieb: saisonBetrieb(), letzteServiceArt: 'endreinigung'),
           FaelligkeitsStatus.ueberfaellig);
     });
+    test('istInSchliessung: Ferien und Saisonpause ja, offene Tage nein', () {
+      final b = ganzjahresBetrieb(); // Ferien 01.05.–28.05.
+      expect(istInSchliessung(b, DateTime(2026, 5, 10)), isTrue);
+      expect(istInSchliessung(b, DateTime(2026, 6, 10)), isFalse);
+      final s = saisonBetrieb(); // Pause 30.03.–05.06.
+      expect(istInSchliessung(s, DateTime(2026, 3, 30)), isTrue);
+      expect(istInSchliessung(s, DateTime(2026, 3, 29)), isFalse);
+    });
+
     test('Eröffnungsreinigung in der Pause: kein Hinweis mehr, Uhr ab Start', () {
       final a = anlage()
         ..letzteReinigung = DateTime(2026, 6, 3)
@@ -127,6 +147,49 @@ void main() {
           getFaelligkeit(a, DateTime(2026, 7, 12),
               betrieb: saisonBetrieb(), letzteServiceArt: 'eroeffnungsservice'),
           FaelligkeitsStatus.faellig);
+    });
+  });
+
+  group('Muloin-Szenario: Endreinigung IN den Betriebsferien (21.07.2026)', () {
+    // Muloin Lenzerheide: Ferien 26.06.–27.07., Endreinigung am 30.06. —
+    // also bereits in der Pause. Regel Daniel 17./21.07.: Eröffnungs-Hinweis
+    // nur, wenn in der Pause NICHT gereinigt wurde; die Uhr zählt ab der
+    // Wiedereröffnung (28.07.) + Rhythmus -> fällig Ende August.
+    BetriebLocal muloin() => BetriebLocal()
+      ..name = 'Muloin'
+      ..status = 'aktiv'
+      ..istSaisonbetrieb = false
+      ..ferienStart = DateTime(2026, 6, 26)
+      ..ferienEnde = DateTime(2026, 7, 27)
+      ..ruhetage = [];
+
+    AnlageLocal anlage() => AnlageLocal()
+      ..status = 'aktiv'
+      ..typAnlage = 'Warmanstich'
+      ..reinigungRhythmus = '4-Wochen'
+      ..letzteReinigung = DateTime(2026, 6, 30)
+      ..naechsteReinigung = DateTime(2026, 7, 28);
+
+    test('21.07. (7 Tage vor Öffnung): KEIN Eröffnungs-Hinweis, nicht fällig',
+        () {
+      expect(
+          getFaelligkeit(anlage(), DateTime(2026, 7, 21),
+              betrieb: muloin(), letzteServiceArt: 'endreinigung'),
+          FaelligkeitsStatus.nichtFaellig);
+    });
+    test('25.08. (Öffnung 28.07. + 4 Wochen): bald fällig', () {
+      expect(
+          getFaelligkeit(anlage(), DateTime(2026, 8, 25),
+              betrieb: muloin(), letzteServiceArt: 'endreinigung'),
+          FaelligkeitsStatus.baldFaellig);
+    });
+    test('Gegenprobe: Endreinigung am 25.06. VOR den Ferien -> Hinweis kommt',
+        () {
+      final a = anlage()..letzteReinigung = DateTime(2026, 6, 25);
+      expect(
+          getFaelligkeit(a, DateTime(2026, 7, 21),
+              betrieb: muloin(), letzteServiceArt: 'endreinigung'),
+          FaelligkeitsStatus.eroeffnungFaellig);
     });
   });
 }
