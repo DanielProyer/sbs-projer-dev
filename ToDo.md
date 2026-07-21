@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 20.07.2026 · **Live:** v0.51.1
+**Stand:** 21.07.2026 · **Live:** v0.51.2
 
 ---
 
@@ -78,6 +78,7 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ---
 
 ## 🔴 OFFEN: Nächste Schritte
+- **Muloin-Fix (v0.51.2, 21.07.):** Eröffnungs-Hinweis erschien fälschlich, obwohl die Endreinigung (30.06.) schon IN den Ferien (26.06.–27.07.) lag. Regel jetzt wörtlich umgesetzt: jede Pausen-Reinigung — auch die Endreinigung selbst — unterdrückt Hinweis UND Auto-Termin; Uhr zählt ab Wiedereröffnung (Muloin: fällig 25.08.). Gilt auch für Winterbetriebe (kein Hinweis mehr vor Saisonstart, wenn die Endreinigung in der Pause lag — Entscheid Daniel 21.07.). Live-Check durch Daniel offen.
 - **Live-Check Tourenplan v0.51.0 durch Daniel:** Fällig-Liste muss jetzt die Saison-Kunden zeigen (Stand 17.07. spätabends: 8 überfällig inkl. Tgantieni, 1 fällig Mountain Plaza, 2 bald fällig Waldhuus/Jschalp; 5 korrekt noch nicht fällig, weil erst kürzlich geöffnet — Soll = Saisonstart + Rhythmus).
 - ~~Furt, Wangs~~ **ERLEDIGT 20.07.:** Anlage war demontiert (korrekt erfasst), nur der Betrieb stand noch auf aktiv → jetzt `inaktiv` mit Grund „Anlage demontiert" (inaktiv_seit 20.07., Demontage-Datum unbekannt). Falls Daniel das echte Demontage-Datum kennt: im Betriebs-Formular nachziehen.
 - ~~Detailfrage Warnleiste~~ **ERLEDIGT 20.07. (v0.51.1):** Saisonpause-Betriebe werden jetzt auch gemeldet (Entscheid Daniel; operativ = aktiv+saisonpause, nur inaktiv/geschlossen aussen vor).
