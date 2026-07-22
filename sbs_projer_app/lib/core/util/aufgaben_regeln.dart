@@ -44,10 +44,14 @@ Aufgabe? heinekenAufgabe({
   );
 }
 
-/// MWST fürs zuletzt abgelaufene Quartal. Erledigung NUR per Marker.
-Aufgabe? mwstAufgabe({
+/// MWST für die letzten `maxQuartale` abgelaufenen Quartale (jüngstes
+/// zuerst), die noch NICHT per Marker erledigt sind. Erledigung NUR per
+/// Marker — unmarkierte ältere Quartale gehen dadurch nicht verloren, auch
+/// wenn bereits weitere Quartale abgelaufen sind.
+List<Aufgabe> mwstAufgaben({
   required DateTime heute,
   required Set<String> markerKeys,
+  int maxQuartale = 4,
 }) {
   // Zuletzt abgelaufenes Quartal.
   var jahr = heute.year;
@@ -56,26 +60,36 @@ Aufgabe? mwstAufgabe({
     jahr -= 1;
     quartal = 4;
   }
-  final key = 'mwst:$jahr-Q$quartal';
-  if (markerKeys.contains(key)) return null;
-  // Abgabefristen wie mwst_abrechnung_screen: Q1 31.05., Q2 31.08.,
-  // Q3 30.11., Q4 28.02. Folgejahr.
-  final frist = switch (quartal) {
-    1 => DateTime(jahr, 5, 31),
-    2 => DateTime(jahr, 8, 31),
-    3 => DateTime(jahr, 11, 30),
-    _ => DateTime(jahr + 1, 2, 28),
-  };
-  final tageBisFrist =
-      frist.difference(DateTime(heute.year, heute.month, heute.day)).inDays;
-  return Aufgabe(
-    key: key,
-    titel: 'MWST Q$quartal $jahr abrechnen (Frist '
-        '${frist.day.toString().padLeft(2, '0')}.${frist.month.toString().padLeft(2, '0')}.${frist.year})',
-    dringend: tageBisFrist <= 14,
-    route: '/buchhaltung/mwst',
-    manuellErledigbar: true,
-  );
+  final ergebnis = <Aufgabe>[];
+  for (var i = 0; i < maxQuartale; i++) {
+    final key = 'mwst:$jahr-Q$quartal';
+    if (!markerKeys.contains(key)) {
+      // Abgabefristen wie mwst_abrechnung_screen: Q1 31.05., Q2 31.08.,
+      // Q3 30.11., Q4 28.02. Folgejahr.
+      final frist = switch (quartal) {
+        1 => DateTime(jahr, 5, 31),
+        2 => DateTime(jahr, 8, 31),
+        3 => DateTime(jahr, 11, 30),
+        _ => DateTime(jahr + 1, 2, 28),
+      };
+      final tageBisFrist =
+          frist.difference(DateTime(heute.year, heute.month, heute.day)).inDays;
+      ergebnis.add(Aufgabe(
+        key: key,
+        titel: 'MWST Q$quartal $jahr abrechnen (Frist '
+            '${frist.day.toString().padLeft(2, '0')}.${frist.month.toString().padLeft(2, '0')}.${frist.year})',
+        dringend: tageBisFrist <= 14,
+        route: '/buchhaltung/mwst',
+        manuellErledigbar: true,
+      ));
+    }
+    quartal -= 1;
+    if (quartal == 0) {
+      quartal = 4;
+      jahr -= 1;
+    }
+  }
+  return ergebnis;
 }
 
 Aufgabe? mahnlaufAufgabe(int anzahl) => anzahl <= 0
@@ -105,7 +119,8 @@ bool snoozeAktiv(DateTime? snoozeBis, DateTime heute) {
 bool eigeneSichtbar(DateTime? faelligAm, DateTime heute) {
   if (faelligAm == null) return true;
   final h = DateTime(heute.year, heute.month, heute.day);
-  return faelligAm.difference(h).inDays <= 7;
+  final f = DateTime(faelligAm.year, faelligAm.month, faelligAm.day);
+  return f.difference(h).inDays <= 7;
 }
 
 /// Dringende zuerst, sonst stabile Reihenfolge.
