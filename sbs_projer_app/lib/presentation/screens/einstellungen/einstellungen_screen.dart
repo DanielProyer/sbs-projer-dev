@@ -9,6 +9,8 @@ import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/google_calendar_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/geschaeft_form.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/mwst_saetze_section.dart';
+import 'package:sbs_projer_app/core/util/google_kontakte.dart';
+import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auth_service.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 
@@ -169,6 +171,91 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     );
   }
 
+  bool _isKontakteSyncing = false;
+
+  Future<void> _kontakteSyncJetzt() async {
+    setState(() => _isKontakteSyncing = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final r = await GoogleContactsService.syncJetzt();
+      messenger.showSnackBar(SnackBar(
+          content: Text('Sync ok: ${r.info} '
+              '(${r.created} neu, ${r.updated} geändert, ${r.deleted} gelöscht)')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Sync fehlgeschlagen: $e')));
+    } finally {
+      if (mounted) setState(() => _isKontakteSyncing = false);
+      ref.invalidate(googleCalendarStatusProvider);
+    }
+  }
+
+  Widget _buildGoogleKontakte(GoogleCalendarStatus status) {
+    if (!status.connected) {
+      return const Text(
+        'Zuerst oben Google Kalender verbinden — der Kontakte-Sync nutzt '
+        'dieselbe Google-Verbindung.',
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      );
+    }
+    if (!hatKontakteScope(status.scope)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Für den Kontakte-Sync fehlt noch die Google-Freigabe. Einmal '
+            'erneuern — Google fragt dann nach dem Kontakte-Zugriff.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.sync_lock, size: 18),
+              label: const Text('Google-Verbindung erneuern'),
+              onPressed: () => GoogleCalendarAuthService.verbinden(),
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Kontakte und operative Betriebe landen automatisch im Google-'
+          'Adressbuch (Label «SBS App») — für die Anrufer-Erkennung auf dem '
+          'Handy. Löschungen und Reaktivierungen gleichen sich mit ab.',
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          kontakteSyncStatusText(
+              status.contactsLastSyncAt, status.contactsLastSyncInfo),
+          style: TextStyle(
+            fontSize: 12,
+            color: (status.contactsLastSyncInfo ?? '').startsWith('Fehler')
+                ? AppColors.warning
+                : AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            icon: _isKontakteSyncing
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.sync, size: 18),
+            label: const Text('Jetzt syncen'),
+            onPressed: _isKontakteSyncing ? null : _kontakteSyncJetzt,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final aktuellePreise = ref.watch(aktuellePreiseProvider);
@@ -213,6 +300,29 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
               children: [
                 ref.watch(googleCalendarStatusProvider).when(
                       data: (status) => _buildGoogleKalender(status),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => Text('Fehler: $e',
+                          style: const TextStyle(color: AppColors.error)),
+                    ),
+              ],
+            ),
+          ),
+
+          // Google Kontakte
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ExpansionTile(
+              leading: const Icon(Icons.contacts, color: AppColors.primary),
+              title: const Text('Google Kontakte',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Adressbuch-Sync für Anrufer-Erkennung'),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              children: [
+                ref.watch(googleCalendarStatusProvider).when(
+                      data: (status) => _buildGoogleKontakte(status),
                       loading: () => const Padding(
                         padding: EdgeInsets.all(12),
                         child: Center(child: CircularProgressIndicator()),
