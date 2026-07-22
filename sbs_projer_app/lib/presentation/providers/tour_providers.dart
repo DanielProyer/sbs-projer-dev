@@ -372,6 +372,11 @@ final selectedFaelligkeitProvider = StateProvider<Set<FaelligkeitsStatus>>(
   (ref) => {
     FaelligkeitsStatus.ueberfaellig,
     FaelligkeitsStatus.faellig,
+    // Bald fällig default AN (Regel Daniel 22.07.): Beim Planen einer
+    // Zukunfts-Tour sind genau die an dem Tag reif werdenden Kunden
+    // «bald fällig» — ohne den Chip wirkte das Planungsdatum wirkungslos
+    // (verifiziert: 32 Anlagen im +7-Tage-Fenster unsichtbar).
+    FaelligkeitsStatus.baldFaellig,
     // Saisonale Planungsfenster standardmässig sichtbar (17 unsichtbare
     // Betriebe am 17.07.2026 — der Eröffnungs-Chip war nie aktiv).
     FaelligkeitsStatus.endreinigungFaellig,
