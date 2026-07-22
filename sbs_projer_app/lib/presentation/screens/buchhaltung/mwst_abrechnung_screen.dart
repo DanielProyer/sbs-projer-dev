@@ -5,6 +5,8 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
+import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 
 class MwstAbrechnungScreen extends ConsumerStatefulWidget {
   const MwstAbrechnungScreen({super.key});
@@ -91,6 +93,39 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
                       const SizedBox(height: 8),
                       Text('Abgabefrist: $frist',
                           style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                      const SizedBox(height: 8),
+                      Builder(builder: (btnContext) {
+                        // Aufgaben-Marker: MWST-Erinnerung für dieses Quartal erledigen.
+                        final key = 'mwst:$_jahr-Q$_quartal';
+                        final stand = ref.watch(aufgabenProvider).valueOrNull;
+                        final offen =
+                            stand?.offene.any((a) => a.key == key) ?? false;
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            icon: Icon(
+                                offen ? Icons.check_circle_outline : Icons.undo,
+                                size: 18),
+                            label: Text(offen
+                                ? 'Als abgerechnet markieren'
+                                : 'Markierung zurücknehmen'),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(btnContext);
+                              try {
+                                if (offen) {
+                                  await AufgabenRepository.markerSetzen(key);
+                                } else {
+                                  await AufgabenRepository.markerLoeschen(key);
+                                }
+                              } catch (e) {
+                                messenger.showSnackBar(
+                                    SnackBar(content: Text('Fehler: $e')));
+                              }
+                              ref.invalidate(aufgabenProvider);
+                            },
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
