@@ -1,10 +1,11 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 22.07.2026 · **Live:** v0.52.0
+**Stand:** 22.07.2026 · **Live:** v0.52.1
 
 ---
 
-## 🔴 ABNAHME v0.52.0 durch Daniel — Google-Kontakte-Sync + Contact Picker (22.07.)
+## 🟢 ABNAHME BESTANDEN 22.07. («funktioniert») — Google-Kontakte-Sync + Contact Picker
+**Nachfix v0.52.1:** Picker-Übernahme normalisiert Telefonnummern jetzt ins App-Format («079 123 45 67» → «+41 79 123 45 67», `telefonAusPicker`, TDD). **Migration 149 angewendet:** `kontakte.phone_contact_id`/`phone_last_synced_at` endgültig gedroppt. Ursprüngliche Checkliste (Referenz):
 Paket GK-1..GK-8 live (Spec/Plan `docs/superpowers/…/2026-07-21-google-kontakte-sync*`). **Checkliste (Pixel 9, Browser):**
 1. App neu laden (v0.52.0 im Forderungen-Titel) → Einstellungen → neue Karte **«Google Kontakte»** → **«Google-Verbindung erneuern»** → Google-Consent inkl. Kontakte-Freigabe bestätigen.
 2. **«Jetzt syncen»** → SnackBar mit Zählern; danach in der Google-Kontakte-App prüfen: Label **«SBS App»** mit ~104 Kontakten + operativen Betrieben, Stichprobe Name/Firma/Nummer.
