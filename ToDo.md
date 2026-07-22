@@ -1,6 +1,19 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 22.07.2026 · **Live:** v0.52.3
+**Stand:** 22.07.2026 · **Live:** v0.53.0
+
+---
+
+## 🔴 ABNAHME v0.53.0 durch Daniel — Aufgaben-Erinnerungen (22.07.)
+Paket AE-1..AE-6 live (Spec/Plan `docs/superpowers/…/2026-07-22-aufgaben-erinnerungen*`). Dashboard-Karte + Glocke unten links, bleiben sichtbar bis erledigt. **Checkliste:**
+1. App laden (v0.53.0): Dashboard zeigt zuoberst «X Aufgaben offen» — erwartet: MWST Q2 2026 (Frist 31.08.), evtl. Mahnlauf, Saisondaten 15; Glocke unten links auf JEDER Seite.
+2. Sheet öffnen (Karte oder Glocke): «Dorthin»-Links (MWST, Mahnwesen, Tourenplan) prüfen.
+3. Snooze 1 Tag auf eine Aufgabe → verschwindet, Badge sinkt, morgen wieder da.
+4. Eigene Aufgabe anlegen (Titel + Datum) → erscheint; abhaken → weg.
+5. MWST-Screen: «Als abgerechnet markieren» → Aufgabe weg; «Markierung zurücknehmen» → wieder da.
+6. Heineken-Erinnerung erscheint automatisch ab 01.08. («Monatsrechnung Juli erstellen»), verschwindet mit Erstellen/Versand.
+
+**Bekannte Rest-MINORs (kosmetisch, aus Final-Review):** MWST-Screen-Button zeigt bei gesnooztem Quartal «Markierung zurücknehmen» (Klick = harmloser No-op); leerer Titel im Neue-Aufgabe-Dialog schliesst kommentarlos ohne Speichern.
 
 ---
 
