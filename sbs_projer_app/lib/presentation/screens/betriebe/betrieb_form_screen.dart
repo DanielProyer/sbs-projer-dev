@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/models/google_betrieb_daten.dart';
@@ -456,6 +457,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.servicezeitNachmittagBis = _emptyToNull(_servicezeitNachmittagBisCtrl.text);
 
       await BetriebRepository.save(betrieb);
+      // Betriebs-Eintrag im Google-Adressbuch nachziehen (Status/Telefon
+      // können sich geändert haben; deckt auch Reaktivierung ab).
+      GoogleContactsService.syncImHintergrund();
 
       // Saison-/Ferien-Reinigungen optional in den Google Kalender eintragen
       // (mit Bestätigungs-Dialog, nur wenn Google verbunden).

@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/models/kontakt.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 
 class KontaktFormScreen extends ConsumerStatefulWidget {
   final String? kontaktId;
@@ -99,6 +100,7 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
       }
 
       await KontaktRepository.save(kontakt);
+      GoogleContactsService.syncImHintergrund();
       ref.invalidate(kontakteProvider);
 
       if (mounted) {

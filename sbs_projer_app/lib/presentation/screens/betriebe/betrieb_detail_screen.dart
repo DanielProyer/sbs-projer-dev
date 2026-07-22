@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/core/util/google_maps_route.dart';
@@ -597,6 +598,7 @@ class _KontaktRow extends StatelessWidget {
       try {
         final id = kontakt.serverId ?? kontakt.id.toString();
         await BetriebKontaktRepository.delete(id);
+        GoogleContactsService.syncImHintergrund();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Kontakt gelöscht')),

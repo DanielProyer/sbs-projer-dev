@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 
@@ -76,6 +77,7 @@ class _BetriebKontaktFormScreenState
       kontakt.istDuAnrede = _istDuAnrede;
 
       await BetriebKontaktRepository.save(kontakt);
+      GoogleContactsService.syncImHintergrund();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
