@@ -8,7 +8,9 @@ import 'package:sbs_projer_app/data/models/kontakt.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/core/util/google_kontakte.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
+import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 
 class KontaktFormScreen extends ConsumerStatefulWidget {
   final String? kontaktId;
@@ -122,6 +124,23 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
     }
   }
 
+  /// Handy-Kontakt übernehmen (Contact Picker API, nur Chrome/Android).
+  Future<void> _importAusHandy() async {
+    try {
+      final roh = await waehleHandyKontakt();
+      if (roh == null || !mounted) return;
+      final k = kontaktAusPicker(roh.name, roh.telefon, roh.email);
+      setState(() {
+        if (k.vorname != null) _vornameCtrl.text = k.vorname!;
+        if (k.nachname != null) _nachnameCtrl.text = k.nachname!;
+        if (k.telefon != null) _telefonCtrl.text = k.telefon!;
+        if (k.email != null) _emailCtrl.text = k.email!;
+      });
+    } catch (_) {
+      // Abbruch/Verweigerung: Formular unverändert lassen.
+    }
+  }
+
   String? _emptyToNull(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
@@ -227,6 +246,17 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Import aus Handy-Kontakten (Contact Picker, nur Chrome/Android)
+            if (kontaktPickerVerfuegbar)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.contact_phone_outlined),
+                  label: const Text('Aus Handy-Kontakten'),
+                  onPressed: _importAusHandy,
+                ),
+              ),
+
             // Kategorie
             DropdownButtonFormField<String>(
               initialValue: _kategorie,

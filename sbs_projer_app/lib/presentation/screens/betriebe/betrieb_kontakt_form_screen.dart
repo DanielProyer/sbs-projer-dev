@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/util/google_kontakte.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
+import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 
@@ -99,6 +101,22 @@ class _BetriebKontaktFormScreenState
     }
   }
 
+  /// Handy-Kontakt übernehmen (Contact Picker API, nur Chrome/Android).
+  Future<void> _importAusHandy() async {
+    try {
+      final roh = await waehleHandyKontakt();
+      if (roh == null || !mounted) return;
+      final k = kontaktAusPicker(roh.name, roh.telefon, roh.email);
+      setState(() {
+        if (k.vorname != null) _vornameController.text = k.vorname!;
+        if (k.nachname != null) _nachnameController.text = k.nachname!;
+        if (k.telefon != null) _telefonController.text = k.telefon!;
+      });
+    } catch (_) {
+      // Abbruch/Verweigerung: Formular unverändert lassen.
+    }
+  }
+
   String? _emptyToNull(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
@@ -128,6 +146,17 @@ class _BetriebKontaktFormScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Import aus Handy-Kontakten (Contact Picker, nur Chrome/Android)
+            if (kontaktPickerVerfuegbar)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.contact_phone_outlined),
+                  label: const Text('Aus Handy-Kontakten'),
+                  onPressed: _importAusHandy,
+                ),
+              ),
+
             // === Name ===
             Row(
               children: [
