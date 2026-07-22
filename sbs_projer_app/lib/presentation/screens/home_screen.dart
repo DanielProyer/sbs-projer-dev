@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -17,6 +18,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 
@@ -46,6 +48,7 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          const _AufgabenKarte(),
           const _TagesUebersicht(),
           const SizedBox(height: 10),
           const _KachelGrid(),
@@ -475,6 +478,64 @@ class _MenuListTile extends StatelessWidget {
           ],
         ),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _AufgabenKarte extends ConsumerWidget {
+  const _AufgabenKarte();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stand = ref.watch(aufgabenProvider).valueOrNull;
+    if (stand == null || stand.badge == 0) return const SizedBox.shrink();
+    final titel = [
+      ...stand.offene.map((a) => a.titel),
+      ...stand.eigene.map((e) => e.aufgabe.titel),
+    ].take(3).toList();
+    final dringend = stand.offene.any((a) => a.dringend) ||
+        stand.eigene.any((e) => e.aufgabe.dringend);
+    final label = stand.badge == 1
+        ? '1 Aufgabe offen'
+        : '${stand.badge} Aufgaben offen';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      color: dringend
+          ? AppColors.error.withValues(alpha: 0.08)
+          : AppColors.warning.withValues(alpha: 0.08),
+      child: InkWell(
+        onTap: () => zeigeAufgabenSheet(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.notifications_active,
+                      size: 18,
+                      color: dringend ? AppColors.error : AppColors.warning),
+                  const SizedBox(width: 8),
+                  Text(label,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right, size: 18),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ...titel.map((t) => Padding(
+                    padding: const EdgeInsets.only(left: 26, top: 2),
+                    child: Text('· $t',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+          ),
+        ),
       ),
     );
   }

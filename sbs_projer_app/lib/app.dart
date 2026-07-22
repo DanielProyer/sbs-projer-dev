@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgaben_glocke.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auto_sync.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -151,6 +152,8 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: AppTheme.light,
       routerConfig: router,
+      builder: (context, child) =>
+          AufgabenGlocke(child: child ?? const SizedBox.shrink()),
     );
   }
 }

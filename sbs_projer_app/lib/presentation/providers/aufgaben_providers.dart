@@ -103,7 +103,7 @@ final aufgabenProvider = FutureProvider<AufgabenStand>((ref) async {
       .where((a) => !snoozeAktiv(snoozes[a.key], heute))
       .toList());
 
-  final eigene = <EigeneAufgabe>[];
+  final eigeneMitDatum = <(DateTime?, EigeneAufgabe)>[];
   for (final z in zeilen.where((z) => z['typ'] == 'eigene')) {
     if (z['erledigt_am'] != null) continue;
     final faellig = DateTime.tryParse(z['faellig_am'] as String? ?? '');
@@ -112,18 +112,29 @@ final aufgabenProvider = FutureProvider<AufgabenStand>((ref) async {
     if (snoozeAktiv(snoozes[key], heute)) continue;
     final istDringend = faellig != null &&
         !faellig.isAfter(DateTime(heute.year, heute.month, heute.day));
-    eigene.add(EigeneAufgabe(
-      z['id'] as String,
-      Aufgabe(
-        key: key,
-        titel: (z['titel'] ?? '?') as String,
-        dringend: istDringend,
-        manuellErledigbar: true,
+    eigeneMitDatum.add((
+      faellig,
+      EigeneAufgabe(
+        z['id'] as String,
+        Aufgabe(
+          key: key,
+          titel: (z['titel'] ?? '?') as String,
+          dringend: istDringend,
+          manuellErledigbar: true,
+        ),
       ),
     ));
   }
-  eigene.sort((a, b) =>
-      (b.aufgabe.dringend ? 1 : 0) - (a.aufgabe.dringend ? 1 : 0));
+  // Deterministisch: erst dringend desc, dann faellig_am asc (null zuletzt).
+  eigeneMitDatum.sort((a, b) {
+    final d = (b.$2.aufgabe.dringend ? 1 : 0) - (a.$2.aufgabe.dringend ? 1 : 0);
+    if (d != 0) return d;
+    if (a.$1 == null && b.$1 == null) return 0;
+    if (a.$1 == null) return 1;
+    if (b.$1 == null) return -1;
+    return a.$1!.compareTo(b.$1!);
+  });
+  final eigene = eigeneMitDatum.map((e) => e.$2).toList();
 
   return AufgabenStand(offene, eigene);
 });
