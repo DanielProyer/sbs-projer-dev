@@ -5,10 +5,16 @@ class GoogleCalendarStatus {
   final bool connected;
   final String? email;
   final DateTime? lastSyncAt;
+  final String? scope;
+  final DateTime? contactsLastSyncAt;
+  final String? contactsLastSyncInfo;
   const GoogleCalendarStatus({
     required this.connected,
     this.email,
     this.lastSyncAt,
+    this.scope,
+    this.contactsLastSyncAt,
+    this.contactsLastSyncInfo,
   });
 }
 
@@ -20,10 +26,17 @@ final googleCalendarStatusProvider =
       .limit(1);
   if (rows.isEmpty) return const GoogleCalendarStatus(connected: false);
   final r = rows.first;
-  final lastRaw = r['last_sync_at'] as String?;
+  DateTime? ts(String key) {
+    final raw = r[key] as String?;
+    return raw != null ? DateTime.tryParse(raw)?.toLocal() : null;
+  }
+
   return GoogleCalendarStatus(
     connected: r['connected'] == true,
     email: r['google_email'] as String?,
-    lastSyncAt: lastRaw != null ? DateTime.tryParse(lastRaw) : null,
+    lastSyncAt: ts('last_sync_at'),
+    scope: r['scope'] as String?,
+    contactsLastSyncAt: ts('contacts_last_sync_at'),
+    contactsLastSyncInfo: r['contacts_last_sync_info'] as String?,
   );
 });

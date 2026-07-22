@@ -88,6 +88,9 @@ Deno.serve(async (req: Request) => {
       user_id: user.id,
       connected: true,
       google_email: email,
+      // Scope in die App-lesbare Status-Tabelle spiegeln (Tokens-Tabelle ist
+      // Service-Role-only) — die App erkennt daran den Kontakte-Zugriff.
+      scope: token.scope ?? null,
       connected_at: now,
       updated_at: now,
     });

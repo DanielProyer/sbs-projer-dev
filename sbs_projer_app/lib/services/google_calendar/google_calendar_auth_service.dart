@@ -16,7 +16,8 @@ class GoogleCalendarVerbindenResult {
 class GoogleCalendarAuthService {
   static const _authEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
   static const _scope =
-      'https://www.googleapis.com/auth/calendar.events email';
+      'https://www.googleapis.com/auth/calendar.events '
+      'https://www.googleapis.com/auth/contacts email';
 
   static String get _clientId => dotenv.env['GOOGLE_OAUTH_CLIENT_ID'] ?? '';
   static String get _redirectUri =>
