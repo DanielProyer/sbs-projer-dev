@@ -19,7 +19,6 @@ class KontaktLocal {
   String? telefon;
   String? email;
   String? telefonNormalized;
-  String? phoneContactId;
   String kontaktMethode = 'telefon';
   bool istHauptkontakt = false;
   bool istDuAnrede = false;

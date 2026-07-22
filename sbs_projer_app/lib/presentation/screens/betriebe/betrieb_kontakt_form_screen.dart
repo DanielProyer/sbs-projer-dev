@@ -1,12 +1,9 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
-import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
-import 'package:sbs_projer_app/services/phone_contact_service.dart';
 
 class BetriebKontaktFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -35,7 +32,6 @@ class _BetriebKontaktFormScreenState
   late final _notizenController = TextEditingController();
 
   String? _selectedFunktion;
-  String? _phoneContactId;
   bool _istHauptkontakt = false;
   bool _istDuAnrede = false;
 
@@ -56,7 +52,6 @@ class _BetriebKontaktFormScreenState
       _vornameController.text = kontakt.vorname;
       _nachnameController.text = kontakt.nachname ?? '';
       _selectedFunktion = kontakt.funktion;
-      _phoneContactId = kontakt.phoneContactId;
       _telefonController.text = kontakt.telefon ?? '';
       _notizenController.text = kontakt.notizen ?? '';
       _istHauptkontakt = kontakt.istHauptkontakt;
@@ -79,28 +74,6 @@ class _BetriebKontaktFormScreenState
       kontakt.notizen = _emptyToNull(_notizenController.text);
       kontakt.istHauptkontakt = _istHauptkontakt;
       kontakt.istDuAnrede = _istDuAnrede;
-      kontakt.phoneContactId = _phoneContactId;
-
-      // Auf Handy speichern (nur Android/iOS)
-      if (!kIsWeb) {
-        try {
-          final betrieb = await BetriebRepository.getById(widget.betriebId);
-          final betriebName = betrieb?.name ?? '';
-          final newPhoneId = await PhoneContactService.saveToPhone(
-            vorname: kontakt.vorname,
-            nachname: kontakt.nachname,
-            telefon: kontakt.telefon,
-            betriebName: betriebName,
-            existingPhoneContactId: _phoneContactId,
-          );
-          if (newPhoneId != null) {
-            kontakt.phoneContactId = newPhoneId;
-            _phoneContactId = newPhoneId;
-          }
-        } catch (_) {
-          // Handy-Sync fehlgeschlagen, App-Kontakt trotzdem speichern
-        }
-      }
 
       await BetriebKontaktRepository.save(kontakt);
 
@@ -122,18 +95,6 @@ class _BetriebKontaktFormScreenState
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  Future<void> _importFromPhone() async {
-    final data = await PhoneContactService.pickContact();
-    if (data == null || !mounted) return;
-
-    setState(() {
-      if (data['vorname'] != null) _vornameController.text = data['vorname']!;
-      if (data['nachname'] != null) _nachnameController.text = data['nachname']!;
-      if (data['telefon'] != null) _telefonController.text = data['telefon']!;
-      if (data['phoneContactId'] != null) _phoneContactId = data['phoneContactId'];
-    });
   }
 
   String? _emptyToNull(String text) {
@@ -165,17 +126,6 @@ class _BetriebKontaktFormScreenState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // === Import von Handykontakten (nur Android/iOS) ===
-            if (!kIsWeb)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.contacts),
-                  label: const Text('Aus Kontakten importieren'),
-                  onPressed: _importFromPhone,
-                ),
-              ),
-
             // === Name ===
             Row(
               children: [

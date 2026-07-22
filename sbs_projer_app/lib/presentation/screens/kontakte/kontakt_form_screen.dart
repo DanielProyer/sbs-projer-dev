@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +6,8 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/kontakt.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
-import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
-import 'package:sbs_projer_app/services/phone_contact_service.dart';
 
 class KontaktFormScreen extends ConsumerStatefulWidget {
   final String? kontaktId;
@@ -42,7 +39,6 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
   String _kategorie = 'betrieb';
   String? _rolle;
   String? _betriebId;
-  String? _phoneContactId;
   bool _istHauptkontakt = false;
   bool _istDuAnrede = false;
   String _kontaktMethode = 'telefon';
@@ -71,7 +67,6 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
       _kategorie = kontakt.kategorie;
       _rolle = kontakt.rolle;
       _betriebId = kontakt.betriebId;
-      _phoneContactId = kontakt.phoneContactId;
       _istHauptkontakt = kontakt.istHauptkontakt;
       _istDuAnrede = kontakt.istDuAnrede;
       _kontaktMethode = kontakt.kontaktMethode;
@@ -96,36 +91,11 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
       kontakt.istHauptkontakt = _istHauptkontakt;
       kontakt.istDuAnrede = _istDuAnrede;
       kontakt.kontaktMethode = _kontaktMethode;
-      kontakt.phoneContactId = _phoneContactId;
 
       // Telefon normalisieren
       if (kontakt.telefon != null) {
         kontakt.telefonNormalized =
             kontakt.telefon!.replaceAll(RegExp(r'[^\d+]'), '');
-      }
-
-      // Auf Handy speichern (nur Android/iOS, alle Kategorien)
-      if (!kIsWeb) {
-        try {
-          String? betriebName;
-          if (_kategorie == 'betrieb' && _betriebId != null) {
-            final betrieb = await BetriebRepository.getById(_betriebId!);
-            betriebName = betrieb?.name;
-          }
-          final newPhoneId = await PhoneContactService.syncToPhone(
-            vorname: kontakt.vorname,
-            nachname: kontakt.nachname,
-            telefon: kontakt.telefon,
-            email: kontakt.email,
-            kategorie: _kategorie,
-            betriebName: betriebName,
-            existingPhoneContactId: _phoneContactId,
-          );
-          if (newPhoneId != null) {
-            kontakt.phoneContactId = newPhoneId;
-            _phoneContactId = newPhoneId;
-          }
-        } catch (_) {}
       }
 
       await KontaktRepository.save(kontakt);
@@ -148,20 +118,6 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  Future<void> _importFromPhone() async {
-    final data = await PhoneContactService.pickContact();
-    if (data == null || !mounted) return;
-
-    setState(() {
-      if (data['vorname'] != null) _vornameCtrl.text = data['vorname']!;
-      if (data['nachname'] != null) _nachnameCtrl.text = data['nachname']!;
-      if (data['telefon'] != null) _telefonCtrl.text = data['telefon']!;
-      if (data['phoneContactId'] != null) {
-        _phoneContactId = data['phoneContactId'];
-      }
-    });
   }
 
   String? _emptyToNull(String text) {
@@ -269,17 +225,6 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Import (nur Native)
-            if (!kIsWeb)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.contacts),
-                  label: const Text('Aus Kontakten importieren'),
-                  onPressed: _importFromPhone,
-                ),
-              ),
-
             // Kategorie
             DropdownButtonFormField<String>(
               initialValue: _kategorie,

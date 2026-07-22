@@ -15,7 +15,6 @@ class KontaktMapper {
     local.telefon = dto.telefon;
     local.email = dto.email;
     local.telefonNormalized = dto.telefonNormalized;
-    local.phoneContactId = dto.phoneContactId;
     local.kontaktMethode = dto.kontaktMethode;
     local.istHauptkontakt = dto.istHauptkontakt;
     local.istDuAnrede = dto.istDuAnrede;
@@ -39,7 +38,6 @@ class KontaktMapper {
       'telefon': local.telefon,
       'email': local.email,
       'telefon_normalized': local.telefonNormalized,
-      'phone_contact_id': local.phoneContactId,
       'kontakt_methode': local.kontaktMethode,
       'ist_hauptkontakt': local.istHauptkontakt,
       'ist_du_anrede': local.istDuAnrede,

@@ -34,6 +34,33 @@
 
 ---
 
+> **NACHTRAG 22.07. (Controller):** Bei Ausführungsbeginn entdeckt: Die
+> `phone_*`-Spalten sind KEIN toter Bestand — es existiert ein alter, rein
+> NATIVER Handy-Sync (`lib/services/phone_contact_service.dart` mit
+> `flutter_contacts`; alle Einstiege `if (kIsWeb) return`, im Web nie aktiv).
+> Daniel hat am 22.07. entschieden: **komplett entfernen** (ersetzt durch den
+> Google-Sync). Zudem: `BetriebKontakt` ist ein zweites, AKTIV genutztes DTO
+> über dieselbe Tabelle `kontakte` (Betrieb-Detail, Heineken-Raster, Sync
+> Tier 2) — es bleibt bestehen, verliert nur die `phone_*`-Felder.
+> Konsequenzen (ersetzen die ursprünglichen Task-Texte, wo abweichend):
+> - **GK-1 NEU:** Alten Handy-Sync entfernen statt nur Felder: 
+>   `phone_contact_service.dart` löschen; alle Aufrufe entfernen in
+>   `kontakt_form_screen.dart`, `betrieb_kontakt_form_screen.dart`,
+>   `kontakte_list_screen.dart` (inkl. zugehöriger Buttons/Menüpunkte «aus
+>   Handykontakten»/«auf Handy speichern» o. ä. und `_phoneContactId`-State);
+>   `flutter_contacts` aus `pubspec.yaml`; `phoneContactId`/
+>   `phoneLastSyncedAt` aus BEIDEN DTOs (`kontakt.dart`, `betrieb_kontakt.dart`),
+>   BEIDEN Locals + Web-Stubs + BEIDEN Mappern; build_runner; Tests.
+>   Migration 148 (nur Status-Spalten) ist bereits auf Prod; die DB-Spalten
+>   `phone_*` bleiben VORERST (Live-Version schreibt sie noch!).
+> - **GK-8 NEU zusätzlich:** NACH erfolgreichem Deploy v0.52.0 Migration
+>   `149_drop_phone_contact_spalten.sql` anwenden (Controller):
+>   `ALTER TABLE public.kontakte DROP COLUMN IF EXISTS phone_contact_id, DROP COLUMN IF EXISTS phone_last_synced_at;`
+> - **GK-5 zusätzlich:** Trigger auch nach `BetriebKontaktRepository.save/delete`
+>   bzw. in `betrieb_kontakt_form_screen.dart` (zweiter Speicherweg für Kontakte).
+> - **GK-7 zusätzlich:** Picker-Button in BEIDEN Formularen (kontakt_form +
+>   betrieb_kontakt_form), als Ersatz des entfernten nativen Pickers.
+
 ### Task GK-1: Migration 148 + Dart-Modell aufräumen
 
 **Files:**

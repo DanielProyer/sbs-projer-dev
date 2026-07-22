@@ -10,8 +10,6 @@ class Kontakt {
   final String? telefon;
   final String? email;
   final String? telefonNormalized;
-  final String? phoneContactId;
-  final DateTime? phoneLastSyncedAt;
   final String kontaktMethode;
   final bool istHauptkontakt;
   final bool istDuAnrede;
@@ -31,8 +29,6 @@ class Kontakt {
     this.telefon,
     this.email,
     this.telefonNormalized,
-    this.phoneContactId,
-    this.phoneLastSyncedAt,
     this.kontaktMethode = 'telefon',
     this.istHauptkontakt = false,
     this.istDuAnrede = false,
@@ -54,10 +50,6 @@ class Kontakt {
       telefon: json['telefon'],
       email: json['email'],
       telefonNormalized: json['telefon_normalized'],
-      phoneContactId: json['phone_contact_id'],
-      phoneLastSyncedAt: json['phone_last_synced_at'] != null
-          ? DateTime.parse(json['phone_last_synced_at'])
-          : null,
       kontaktMethode: json['kontakt_methode'] ?? 'telefon',
       istHauptkontakt: json['ist_hauptkontakt'] ?? false,
       istDuAnrede: json['ist_du_anrede'] ?? false,
@@ -80,7 +72,6 @@ class Kontakt {
       'telefon': telefon,
       'email': email,
       'telefon_normalized': telefonNormalized,
-      'phone_contact_id': phoneContactId,
       'kontakt_methode': kontaktMethode,
       'ist_hauptkontakt': istHauptkontakt,
       'ist_du_anrede': istDuAnrede,
