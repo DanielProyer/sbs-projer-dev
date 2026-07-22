@@ -962,6 +962,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       betrieb?.rechnungsstellung,
     );
     var alsStandard = false;
+    // Standard-Checkbox nur zeigen, wenn die Wahl vom Betriebs-Default
+    // abweicht (Regel Daniel 22.07. — übersichtlicher). Beim Zurückwechseln
+    // auf den Default wird sie versteckt UND zurückgesetzt, damit kein
+    // unsichtbares Häkchen mitläuft.
+    final betriebsDefault = resolveZahlungsart(null, betrieb?.rechnungsstellung);
 
     // Rechnungsadresse-E-Mail (Versand läuft NUR darüber; betriebe.email = Info).
     String? raEmail;
@@ -1022,7 +1027,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                     ),
                   ],
                   onChanged: (v) {
-                    if (v != null) setDialogState(() => selected = v);
+                    if (v != null) {
+                      setDialogState(() {
+                        selected = v;
+                        if (v == betriebsDefault) alsStandard = false;
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 8),
@@ -1051,19 +1061,21 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  value: alsStandard,
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text(
-                    'Auch als Standard für diesen Betrieb übernehmen',
-                    style: TextStyle(fontSize: 13),
+                if (selected != betriebsDefault) ...[
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    value: alsStandard,
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text(
+                      'Auch als Standard für diesen Betrieb übernehmen',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    onChanged: (v) =>
+                        setDialogState(() => alsStandard = v ?? false),
                   ),
-                  onChanged: (v) =>
-                      setDialogState(() => alsStandard = v ?? false),
-                ),
+                ],
               ],
             ),
           ),
