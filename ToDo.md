@@ -1,6 +1,19 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 21.07.2026 · **Live:** v0.51.2
+**Stand:** 22.07.2026 · **Live:** v0.52.0
+
+---
+
+## 🔴 ABNAHME v0.52.0 durch Daniel — Google-Kontakte-Sync + Contact Picker (22.07.)
+Paket GK-1..GK-8 live (Spec/Plan `docs/superpowers/…/2026-07-21-google-kontakte-sync*`). **Checkliste (Pixel 9, Browser):**
+1. App neu laden (v0.52.0 im Forderungen-Titel) → Einstellungen → neue Karte **«Google Kontakte»** → **«Google-Verbindung erneuern»** → Google-Consent inkl. Kontakte-Freigabe bestätigen.
+2. **«Jetzt syncen»** → SnackBar mit Zählern; danach in der Google-Kontakte-App prüfen: Label **«SBS App»** mit ~104 Kontakten + operativen Betrieben, Stichprobe Name/Firma/Nummer.
+3. Kontakt in der App ändern → nach ~1 Min. in Google nachschauen (Auto-Sync, entprellt 5 s nach Speichern).
+4. Test: Kontakt löschen → verschwindet in Google; Betrieb auf inaktiv → verschwindet; wieder aktiv → kommt zurück.
+5. **Anruf-Test:** Betriebs-/Kontaktnummer anrufen lassen → Name erscheint auf dem Pixel.
+6. Kontakt-Formular (auch Betrieb-Kontakt): Button **«Aus Handy-Kontakten»** (nur Chrome/Android sichtbar) → Felder vorbefüllt.
+
+**Hinweise:** Alter nativer Handy-Sync (flutter_contacts) komplett entfernt (Entscheid Daniel 22.07., war im Web immer inaktiv). Migration 149 (Drop `kontakte.phone_contact_id/phone_last_synced_at`) folgt nach bestätigter Abnahme — Spalten sind aktuell noch da (harmlos). Visueller Check der neuen Einstellungs-Karte war lokal nur als Boot-Smoke möglich (CanvasKit-Preview-Limit) — bitte bei Schritt 1 auf Darstellung achten. Subagenten-Reviews liefen wegen Dispatcher-Ausfall teils als Selbst-Review (GK-1 extern reviewt; Churn-Bug in vergleichsKey beim Final-Selbst-Review gefunden + gefixt).
 
 ---
 
