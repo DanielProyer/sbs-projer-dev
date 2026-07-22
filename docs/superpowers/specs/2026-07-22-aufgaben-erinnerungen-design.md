@@ -101,8 +101,11 @@ Invalidierung nach jeder Aktion im Sheet sowie beim Dashboard-Refresh.
 
 - **Dashboard-Karte** (zuoberst in `home_screen.dart`): «⚠ X Aufgaben offen»
   mit den ersten 3 Titeln; Tap öffnet das Sheet. Bei 0 Aufgaben unsichtbar.
-- **Globale Glocke:** über `MaterialApp.builder` als Overlay oben rechts auf
-  jeder Seite (kleiner runder Button mit Badge-Zahl; unsichtbar bei 0).
+- **Globale Glocke:** über `MaterialApp.builder` als Overlay auf jeder Seite
+  (kleiner runder Button mit Badge-Zahl; unsichtbar bei 0). **Position unten
+  links** (Korrektur bei Planerstellung: oben rechts würde AppBar-Actions
+  verdecken; unten rechts kollidiert mit FABs; unten links ist einhändig
+  erreichbar — Smartphone-first). Unsichtbar, solange kein User eingeloggt.
   Eine Code-Stelle, kein Umbau der einzelnen AppBars. CanvasKit-tauglich
   (GestureDetector + Container, Projekt-Muster).
 - **Aufgaben-Sheet** (`showModalBottomSheet`): Liste mit Titel, Fällig-Text,
