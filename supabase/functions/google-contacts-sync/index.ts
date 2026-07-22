@@ -64,13 +64,19 @@ export function personAusBetrieb(b: Any): Any {
 }
 
 // Vergleichs-Schluessel: alles, was wir schreiben, normalisiert.
+// Name als EIN zusammengesetzter Schluessel: Google zerlegt unstructuredName
+// beim Speichern in given/family und liefert beim Lesen beide Varianten —
+// Einzelfeld-Vergleich saehe deshalb JEDEN Betrieb bei JEDEM Lauf als
+// geaendert (Endlos-Churn). "given family" und unstructuredName ergeben
+// denselben Schluessel.
 export function vergleichsKey(p: Any): string {
   const n = p.names?.[0] ?? {};
   const o = p.organizations?.[0] ?? {};
+  const nameKey =
+    [n.givenName ?? "", n.familyName ?? ""].join(" ").trim() ||
+    (n.unstructuredName ?? "").trim();
   return JSON.stringify([
-    n.givenName ?? "",
-    n.familyName ?? "",
-    n.unstructuredName ?? "",
+    nameKey,
     o.name ?? "",
     o.title ?? "",
     p.phoneNumbers?.[0]?.value ?? "",
