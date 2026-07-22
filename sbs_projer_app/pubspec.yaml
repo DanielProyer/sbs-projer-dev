@@ -54,7 +54,6 @@ dependencies:
   # Links (tel, mailto, https)
   url_launcher: ^6.2.0
 
-  # Handykontakte
 
   # Kalender
   table_calendar: ^3.1.0
