@@ -6,14 +6,21 @@ import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 
+bool _sheetOffen = false;
+
 /// Öffnet das Aufgaben-Sheet (von Dashboard-Karte und Glocke genutzt).
+/// Re-Entry-Guard: die Glocke liegt als Stack-Sibling über dem
+/// Navigator-Overlay und bleibt bei offenem Sheet tippbar — ohne Guard
+/// würde ein erneuter Tap ein zweites Sheet stapeln.
 void zeigeAufgabenSheet(BuildContext context) {
+  if (_sheetOffen) return;
+  _sheetOffen = true;
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => const _AufgabenSheet(),
-  );
+  ).whenComplete(() => _sheetOffen = false);
 }
 
 class _AufgabenSheet extends ConsumerWidget {
