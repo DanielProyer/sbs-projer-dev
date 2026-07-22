@@ -42,7 +42,10 @@ injizierbarem `heute`.
   (rechnungstyp, Monat) — kein neues Vertical.
 
 **b) MWST-Abrechnung** — key `mwst:<jahr>-Q<quartal>`:
-- Sichtbar ab Quartalsende für das abgelaufene Quartal.
+- Sichtbar ab Quartalsende. **Korrektur aus Review AE-2:** nicht nur das
+  jüngste, sondern ALLE bis zu 4 letzten abgelaufenen Quartale ohne
+  Erledigt-Marker (je eine Aufgabe) — ein nie markiertes Quartal ginge sonst
+  beim nächsten Quartalswechsel lautlos verloren.
 - Abgabefristen wie im MWST-Screen: Q1→31.05., Q2→31.08., Q3→30.11.,
   Q4→28.02. des Folgejahres. Orange bis 14 Tage vor Frist, danach rot
   (auch nach Fristablauf rot, bleibt sichtbar).
@@ -109,9 +112,9 @@ Invalidierung nach jeder Aktion im Sheet sowie beim Dashboard-Refresh.
   Eine Code-Stelle, kein Umbau der einzelnen AppBars. CanvasKit-tauglich
   (GestureDetector + Container, Projekt-Muster).
 - **Aufgaben-Sheet** (`showModalBottomSheet`): Liste mit Titel, Fällig-Text,
-  Farbe; pro Eintrag: «Dorthin»-Link (heineken → `/heineken/raster` bzw.
-  Rechnungen, mwst → MWST-Screen, mahnlauf → Forderungen, saisondaten →
-  `/touren`, eigene → kein Link), Snooze-Menü (1/3/7 Tage), Abhaken (nur
+  Farbe; pro Eintrag: «Dorthin»-Link (heineken → `/heineken` — dort wird die
+  Monatsrechnung erstellt, nicht im Raster; mwst → MWST-Screen, mahnlauf →
+  Forderungen/Mahnwesen, saisondaten → `/touren`, eigene → kein Link), Snooze-Menü (1/3/7 Tage), Abhaken (nur
   MWST + eigene; die übrigen erledigen sich selbst). «+»-Button für neue
   eigene Aufgabe (Dialog: Titel Pflicht, Datum optional).
 - **MWST-Screen:** zusätzlicher Button «Als abgerechnet markieren» beim
