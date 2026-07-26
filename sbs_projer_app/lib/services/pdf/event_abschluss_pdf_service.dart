@@ -118,21 +118,21 @@ class EventAbschlussPdfService {
   /// Hält eine Kategorie (Titel + Inhalt) auf EINER Seite zusammen: Passt
   /// sie nicht mehr auf die aktuelle Seite, rutscht sie KOMPLETT auf die
   /// nächste (Regel Daniel 26.07.2026 — kein Umbruch mitten in z. B. den
-  /// Pikett-Einsätzen). WICHTIG: Der äussere pw.Container ist der Kern des
-  /// Tricks — pw.Column allein ist in der pdf-Lib ein SpanningWidget und
-  /// wird von MultiPage munter zwischen Titel und Tabelle gesplittet
-  /// (genau der Fehler vom 26.07. abends); Container ist nicht teilbar und
-  /// wird als Ganzes verschoben. Nur überlange Kategorien (> [maxZeilen]
-  /// Einträge, mehr als eine Seite) bleiben teilbar — ein unteilbarer
-  /// Block höher als eine Seite würde das Layout sprengen.
+  /// Pikett-Einsätzen). Braucht zwingend [_BlockOhneUmbruch]: pw.Column ist
+  /// ein SpanningWidget, und pw.Container/StatelessWidget DELEGIEREN canSpan
+  /// ans Kind (widget.dart:271) — beide Wrapper wurden von MultiPage
+  /// weiterhin zwischen Titel und Tabelle gesplittet (zwei Fehlversuche am
+  /// 26.07.). Nur überlange Kategorien (> [maxZeilen] Einträge, mehr als
+  /// eine Seite) bleiben teilbar — ein unteilbarer Block höher als eine
+  /// Seite würde «Widget won't fit» werfen.
   static List<pw.Widget> _kategorie(String titel, pw.Widget inhalt,
       {required int zeilen, int maxZeilen = 20}) {
     if (zeilen > maxZeilen) {
       return [_sectionHeader(titel), pw.SizedBox(height: 6), inhalt];
     }
     return [
-      pw.Container(
-        child: pw.Column(
+      _BlockOhneUmbruch(
+        kind: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             _sectionHeader(titel),
@@ -330,4 +330,20 @@ class EventAbschlussPdfService {
   static String _ddMMyyyy(DateTime d) => '${_zwei(d.day)}.${_zwei(d.month)}.${d.year}';
   static String _ddMMHHmm(DateTime d) =>
       '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';
+}
+
+/// Block, den MultiPage NIE über Seiten splitten darf: `canSpan` ist hart
+/// `false` — StatelessWidget würde es sonst ans (spannende) Column-Kind
+/// delegieren. MultiPage verschiebt den Block dadurch als Ganzes auf die
+/// nächste Seite (multi_page.dart:338).
+class _BlockOhneUmbruch extends pw.StatelessWidget {
+  _BlockOhneUmbruch({required this.kind});
+
+  final pw.Widget kind;
+
+  @override
+  bool get canSpan => false;
+
+  @override
+  pw.Widget build(pw.Context context) => kind;
 }
