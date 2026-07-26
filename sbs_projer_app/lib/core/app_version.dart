@@ -7,4 +7,4 @@
 /// einem DB-Trigger (Migration 143), nicht im Bundle-Stand.
 ///
 /// MUSS bei jedem Bump von `pubspec.yaml` Zeile 4 mitgezogen werden.
-const String kAppVersion = '0.53.2';
+const String kAppVersion = '0.53.3';

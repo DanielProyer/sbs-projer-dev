@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_mail_empfaenger.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/services/mail/bericht_mail_service.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_tab_oeffner_export.dart';
 
 /// Bottom-Sheet zum Versand der Abschluss-Mail: Empfänger wählen + senden.
 class EventAbschlussSheet extends StatefulWidget {
@@ -62,7 +62,9 @@ class _EventAbschlussSheetState extends State<EventAbschlussSheet> {
   }
 
   Future<void> _vorschau() async {
-    await Printing.layoutPdf(onLayout: (_) => widget.pdf);
+    // Neuer Tab statt Druckdialog (Regel Daniel 26.07.2026).
+    await oeffnePdfImNeuenTab(
+        widget.pdf, abschlussDateiname(widget.eventName, widget.jahr));
   }
 
   Future<void> _senden() async {

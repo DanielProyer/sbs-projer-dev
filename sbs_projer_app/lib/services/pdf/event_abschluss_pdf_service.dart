@@ -62,41 +62,51 @@ class EventAbschlussPdfService {
           BerichtPdfCommon.kopf('Abschlussbericht', _s('${d.eventName} · ${d.zeitraum}')),
           pw.SizedBox(height: 16),
 
-          _sectionHeader('Zusammenfassung'),
-          pw.SizedBox(height: 6),
-          _summaryGrid([
-            ('Stände', '${d.staende.length}'),
-            ('Anlagen in Betrieb', '${d.anlagenInBetrieb} / ${d.anlagenTotal}'),
-            ('Einsätze', '${d.einsaetze.length}'),
-            ('Erfasste Stunden', '${totalStunden.toStringAsFixed(2)} h'),
-          ]),
+          ..._kategorie(
+            'Zusammenfassung',
+            _summaryGrid([
+              ('Stände', '${d.staende.length}'),
+              ('Anlagen in Betrieb', '${d.anlagenInBetrieb} / ${d.anlagenTotal}'),
+              ('Einsätze', '${d.einsaetze.length}'),
+              ('Erfasste Stunden', '${totalStunden.toStringAsFixed(2)} h'),
+            ]),
+            zeilen: 2,
+          ),
           pw.SizedBox(height: 16),
 
-          _sectionHeader('Stände'),
-          pw.SizedBox(height: 6),
-          if (d.staende.isEmpty)
-            _leer('Keine Stände erfasst.')
-          else
-            _staendeTabelle(d.staende),
+          ..._kategorie(
+            'Stände',
+            d.staende.isEmpty
+                ? _leer('Keine Stände erfasst.')
+                : _staendeTabelle(d.staende),
+            zeilen: d.staende.length,
+          ),
           pw.SizedBox(height: 16),
 
-          _sectionHeader('Zeit & Aufwand'),
-          pw.SizedBox(height: 6),
-          if (d.aufwaende.isEmpty)
-            _leer('Keine Zeiten erfasst.')
-          else ...[
-            ..._aufwandGruppen(d.aufwaende),
-            pw.SizedBox(height: 6),
-            _totalRow('Total Stunden', '${totalStunden.toStringAsFixed(2)} h'),
-          ],
+          ..._kategorie(
+            'Zeit & Aufwand',
+            d.aufwaende.isEmpty
+                ? _leer('Keine Zeiten erfasst.')
+                : pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      ..._aufwandGruppen(d.aufwaende),
+                      pw.SizedBox(height: 6),
+                      _totalRow('Total Stunden',
+                          '${totalStunden.toStringAsFixed(2)} h'),
+                    ],
+                  ),
+            zeilen: d.aufwaende.length + 4,
+          ),
           pw.SizedBox(height: 16),
 
-          _sectionHeader('Pikett-Einsätze'),
-          pw.SizedBox(height: 6),
-          if (d.einsaetze.isEmpty)
-            _leer('Keine Einsätze erfasst.')
-          else
-            _einsatzTabelle(d.einsaetze),
+          ..._kategorie(
+            'Pikett-Einsätze',
+            d.einsaetze.isEmpty
+                ? _leer('Keine Einsätze erfasst.')
+                : _einsatzTabelle(d.einsaetze),
+            zeilen: d.einsaetze.length,
+          ),
         ],
       ),
     );
@@ -104,6 +114,29 @@ class EventAbschlussPdfService {
   }
 
   // ── Bausteine ──────────────────────────────────────────────
+
+  /// Hält eine Kategorie (Titel + Inhalt) auf EINER Seite zusammen: Passt
+  /// sie nicht mehr auf die aktuelle Seite, rutscht sie KOMPLETT auf die
+  /// nächste (Regel Daniel 26.07.2026 — kein Umbruch mitten in z. B. den
+  /// Pikett-Einsätzen). Nur überlange Kategorien (> [maxZeilen] Einträge,
+  /// also mehr als eine Seite) bleiben teilbar — ein unteilbarer Block, der
+  /// höher als eine Seite ist, würde das PDF-Layout sprengen.
+  static List<pw.Widget> _kategorie(String titel, pw.Widget inhalt,
+      {required int zeilen, int maxZeilen = 20}) {
+    if (zeilen > maxZeilen) {
+      return [_sectionHeader(titel), pw.SizedBox(height: 6), inhalt];
+    }
+    return [
+      pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(titel),
+          pw.SizedBox(height: 6),
+          inhalt,
+        ],
+      ),
+    ];
+  }
 
   static pw.Widget _sectionHeader(String t) => pw.Container(
         width: double.infinity,
