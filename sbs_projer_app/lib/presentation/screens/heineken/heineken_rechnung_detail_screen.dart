@@ -60,26 +60,23 @@ class _HeinekenRechnungDetailScreenState
   }
 
   Future<void> _openPdf() async {
-    if (_rechnung?.pdfUrl == null) {
-      // PDF neu generieren / URL erneuern
-      try {
-        final url =
-            await RechnungPdfStorage.getSignedUrl(widget.rechnungId);
-        await RechnungRepository.update(widget.rechnungId, {'pdf_url': url});
-        if (url.isNotEmpty) {
-          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('PDF nicht verfügbar: $e')),
-          );
-        }
+    // IMMER frische Signed-URL holen: die gespeicherte pdf_url läuft nach
+    // 1 Stunde ab — sie direkt zu öffnen war der Grund für «PDF lässt sich
+    // nicht mehr öffnen» (26.07.2026). Gleiches Muster wie im
+    // Kundenrechnungs-Detail (_showProtokollePdf).
+    try {
+      final url = await RechnungPdfStorage.getSignedUrl(widget.rechnungId);
+      await RechnungRepository.update(widget.rechnungId, {'pdf_url': url});
+      if (url.isNotEmpty) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       }
-      return;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF nicht verfügbar: $e')),
+        );
+      }
     }
-    await launchUrl(Uri.parse(_rechnung!.pdfUrl!),
-        mode: LaunchMode.externalApplication);
   }
 
   Future<void> _sendMail() async {
