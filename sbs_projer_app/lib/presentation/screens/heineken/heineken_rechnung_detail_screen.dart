@@ -79,6 +79,32 @@ class _HeinekenRechnungDetailScreenState
     }
   }
 
+  /// Baut das Rechnungs-PDF (Übersicht + Detail + Rapporte) aus den
+  /// aktuellen Daten neu und überschreibt es im Storage — für korrigierte
+  /// Nachlieferungen (z. B. Rapport-Fix 26.07.2026). Rechnung/Positionen
+  /// bleiben unverändert.
+  Future<void> _regenerierePdf() async {
+    if (_rechnung == null) return;
+    setState(() => _loading = true);
+    try {
+      await HeinekenRechnungService.regenerierePdf(_rechnung!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PDF neu generiert')),
+        );
+      }
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Generierung fehlgeschlagen: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _sendMail() async {
     if (_rechnung == null) return;
     setState(() => _loading = true);
@@ -276,6 +302,9 @@ class _HeinekenRechnungDetailScreenState
                 case 'freigegeben':
                   _updateStatus(value);
                   break;
+                case 'pdf_neu':
+                  _regenerierePdf();
+                  break;
                 case 'delete':
                   _delete();
                   break;
@@ -294,6 +323,10 @@ class _HeinekenRechnungDetailScreenState
                 const PopupMenuItem(
                     value: 'gesendet',
                     child: Text('Auf gesendet zurücksetzen')),
+              const PopupMenuItem(
+                value: 'pdf_neu',
+                child: Text('PDF neu generieren'),
+              ),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',

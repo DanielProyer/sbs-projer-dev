@@ -248,6 +248,50 @@ class HeinekenRechnungService {
     return rechnung;
   }
 
+  /// Generiert das PDF einer BESTEHENDEN Monatsrechnung neu und überschreibt
+  /// es im Storage (Rechnung, Positionen und Nummer bleiben unverändert).
+  /// Anlass 26.07.2026: Störungs-Rapporte kreuzten das falsche System an —
+  /// bereits versendete Rechnungen brauchen eine korrigierte Nachlieferung.
+  static Future<void> regenerierePdf(Rechnung rechnung) async {
+    final monat = rechnung.heinekenMonat;
+    if (monat == null) {
+      throw StateError('Rechnung hat keinen heineken_monat');
+    }
+    final daten = await sammleMonatsDaten(DateTime(monat.year, monat.month, 1));
+
+    Uint8List? logoBytes;
+    try {
+      final data = await rootBundle.load('assets/images/heineken_logo.png');
+      logoBytes = data.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('[HEI] Logo laden fehlgeschlagen: $e');
+    }
+
+    final pdf = pw.Document();
+    pdf.addPage(HeinekenPdfService.buildUebersichtPage(
+        daten, rechnung.rechnungsnummer,
+        logoBytes: logoBytes,
+        poNummer: _heinekenPoNummer,
+        mwstLabel: _mwstLabel));
+    final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 40),
+      header: (context) => pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 8),
+        child: HeinekenPdfService.buildDetailHeader(),
+      ),
+      build: (context) => detailWidgets,
+    ));
+    await _addRapportPages(pdf, daten, logoBytes);
+
+    final pdfBytes = await pdf.save();
+    await RechnungPdfStorage.uploadPdf(rechnung.id, pdfBytes);
+    final signedUrl = await RechnungPdfStorage.getSignedUrl(rechnung.id);
+    await RechnungRepository.update(rechnung.id, {'pdf_url': signedUrl});
+    debugPrint('[HEI] PDF neu generiert für ${rechnung.rechnungsnummer}');
+  }
+
   // ── Hilfsmethoden ──────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> _queryTable(
@@ -787,6 +831,7 @@ class HeinekenRechnungService {
         adresse: isKm ? '' : _adresse(b),
         ort: isKm ? (row['notizen']?.toString() ?? '') : _plzOrt(b),
         stoerungBereiche: isKm ? [1] : (row['stoerung_bereiche'] as List?)?.cast<int>(),
+        anlageTyp: isKm ? null : row['anlage_typ']?.toString(),
         serienNrKuehler: isKm ? null : row['serien_nr_kuehler']?.toString(),
         uhrzeitStart: isKm ? '00:00' : row['uhrzeit_start']?.toString(),
         istPikettEinsatz: isKm ? false : row['ist_pikett_einsatz'] == true,

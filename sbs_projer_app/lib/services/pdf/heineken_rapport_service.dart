@@ -28,6 +28,7 @@ class HeinekenRapportService {
     String adresse = '',
     required String ort,
     List<int>? stoerungBereiche,
+    String? anlageTyp,
     String? serienNrKuehler,
     String? uhrzeitStart,
     bool istPikettEinsatz = false,
@@ -101,7 +102,7 @@ class HeinekenRapportService {
               children: [
                 pw.SizedBox(
                     width: 150,
-                    child: _buildBereichCheckboxes(stoerungBereiche)),
+                    child: _buildSystemCheckboxes(anlageTyp)),
                 pw.SizedBox(width: 8),
                 pw.Expanded(child: _buildMaterialTabelle(materialien, 3)),
               ],
@@ -131,6 +132,7 @@ class HeinekenRapportService {
     required String kunde,
     required String ort,
     List<int>? stoerungBereiche,
+    String? anlageTyp,
     String? serienNrKuehler,
     String? uhrzeitStart,
     bool istPikettEinsatz = false,
@@ -152,6 +154,7 @@ class HeinekenRapportService {
       kunde: kunde,
       ort: ort,
       stoerungBereiche: stoerungBereiche,
+      anlageTyp: anlageTyp,
       serienNrKuehler: serienNrKuehler,
       uhrzeitStart: uhrzeitStart,
       istPikettEinsatz: istPikettEinsatz,
@@ -594,7 +597,7 @@ class HeinekenRapportService {
               children: [
                 pw.SizedBox(
                     width: 150,
-                    child: _buildBereichCheckboxes(null)),
+                    child: _buildSystemCheckboxes(null)),
                 pw.SizedBox(width: 8),
                 pw.Expanded(child: _buildMaterialTabelle([], 3)),
               ],
@@ -873,19 +876,24 @@ class HeinekenRapportService {
     );
   }
 
-  /// Bereich-Checkboxen (B/D/K/H/O) mit gelben Zellen
-  static pw.Widget _buildBereichCheckboxes(List<int>? bereiche) {
-    final bereichDefs = [
-      (2, 'B = Blade'),
-      (3, 'D = David'),
-      (1, 'K = Konventionell'),
-      (4, 'H = Heigenie'),
-      (5, 'O = Orion'),
+  /// System-Checkboxen (B/D/K/H/O) mit gelben Zellen.
+  /// Quelle ist stoerungen.anlage_typ ('david'/'heigenie'/'konventionell'/
+  /// 'orion'/'blade') — NICHT stoerung_bereiche: das sind die
+  /// Störungsbereiche 1–5 (Zapfhahn/Leitung/Kühler/Zapfkopf/Gas). Deren
+  /// Missbrauch als System-Index kreuzte bis 26.07.2026 falsche Systeme an
+  /// (z. B. Bereich 4 «Zapfkopf/Tank» → fälschlich Heigenie).
+  static pw.Widget _buildSystemCheckboxes(String? anlageTyp) {
+    final systemDefs = [
+      ('blade', 'B = Blade'),
+      ('david', 'D = David'),
+      ('konventionell', 'K = Konventionell'),
+      ('heigenie', 'H = Heigenie'),
+      ('orion', 'O = Orion'),
     ];
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: bereichDefs.map((b) {
-        final isSelected = bereiche?.contains(b.$1) ?? false;
+      children: systemDefs.map((b) {
+        final isSelected = anlageTyp != null && anlageTyp == b.$1;
         return pw.Padding(
           padding: const pw.EdgeInsets.only(bottom: 2),
           child: pw.Row(

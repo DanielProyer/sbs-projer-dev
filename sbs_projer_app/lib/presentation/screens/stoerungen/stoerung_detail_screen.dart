@@ -417,6 +417,7 @@ class _StoerungDetailContentState
         kunde: kunde,
         ort: ort,
         stoerungBereiche: stoerung.stoerungBereiche,
+        anlageTyp: stoerung.anlageTyp,
         uhrzeitStart: stoerung.uhrzeitStart,
         istPikettEinsatz: stoerung.istPikettEinsatz,
         istBergkunde: stoerung.istBergkunde,
