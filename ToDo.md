@@ -1,6 +1,11 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 26.07.2026 · **Live:** v0.53.1
+**Stand:** 26.07.2026 · **Live:** v0.53.2
+
+---
+
+## 🔴 OFFEN: Juni-Monatsrechnung korrigiert an Heineken nachliefern (26.07.)
+Der Störungsrapport kreuzte das falsche System an (Bug seit Bestehen der Rapporte, gefixt v0.53.2): Die B/D/K/H/O-Kreuze kamen aus den **Störungsbereichen** (1=Zapfhahn…5=Gas) statt aus `anlage_typ` — z. B. «Zapfkopf/Tank»→fälschlich Heigenie (Centro Trun), «Kühler»→David (Clubhotel), «Gas»→Orion (Stadtcafé). Die **Juni-Rechnung 2026-07-1316 ging am 22.07. mit falschen Rapporten raus.** Vorgehen: Heineken-Rechnung Juni öffnen → Menü → **«PDF neu generieren»** → PDF prüfen (Kreuze jetzt korrekt) → korrigiert nachsenden. Ältere Monate bei Bedarf gleich (Menüpunkt funktioniert für jede Monatsrechnung). Einzelrapport-Druck aus dem Störungs-Detail ist ebenfalls gefixt.
 
 ---
 
