@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 26.07.2026 · **Live:** v0.53.0
+**Stand:** 26.07.2026 · **Live:** v0.53.1
 
 ---
 
