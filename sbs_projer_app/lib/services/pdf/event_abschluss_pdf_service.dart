@@ -118,22 +118,28 @@ class EventAbschlussPdfService {
   /// Hält eine Kategorie (Titel + Inhalt) auf EINER Seite zusammen: Passt
   /// sie nicht mehr auf die aktuelle Seite, rutscht sie KOMPLETT auf die
   /// nächste (Regel Daniel 26.07.2026 — kein Umbruch mitten in z. B. den
-  /// Pikett-Einsätzen). Nur überlange Kategorien (> [maxZeilen] Einträge,
-  /// also mehr als eine Seite) bleiben teilbar — ein unteilbarer Block, der
-  /// höher als eine Seite ist, würde das PDF-Layout sprengen.
+  /// Pikett-Einsätzen). WICHTIG: Der äussere pw.Container ist der Kern des
+  /// Tricks — pw.Column allein ist in der pdf-Lib ein SpanningWidget und
+  /// wird von MultiPage munter zwischen Titel und Tabelle gesplittet
+  /// (genau der Fehler vom 26.07. abends); Container ist nicht teilbar und
+  /// wird als Ganzes verschoben. Nur überlange Kategorien (> [maxZeilen]
+  /// Einträge, mehr als eine Seite) bleiben teilbar — ein unteilbarer
+  /// Block höher als eine Seite würde das Layout sprengen.
   static List<pw.Widget> _kategorie(String titel, pw.Widget inhalt,
       {required int zeilen, int maxZeilen = 20}) {
     if (zeilen > maxZeilen) {
       return [_sectionHeader(titel), pw.SizedBox(height: 6), inhalt];
     }
     return [
-      pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          _sectionHeader(titel),
-          pw.SizedBox(height: 6),
-          inhalt,
-        ],
+      pw.Container(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _sectionHeader(titel),
+            pw.SizedBox(height: 6),
+            inhalt,
+          ],
+        ),
       ),
     ];
   }
