@@ -194208,7 +194208,7 @@ e=a2.fh(a3,new A.bYJ())
 d=e.br(0,0,new A.bYK())
 c=new A.ab(e,new A.bYL(),e.$ti.i("ab<u.E>")).gv(0)
 b=a2.fh(a3,A.d4_()).gv(0)
-a2=A.bR(a1,a1,!0,a1,a1,a1,a1,a1,a1,a1,A.e("Forderungen  \xb7  v0.53.5",a1,a1,a1,a1,B.bVX,a1,a1,a1),a1)
+a2=A.bR(a1,a1,!0,a1,a1,a1,a1,a1,a1,a1,A.e("Forderungen  \xb7  v0.53.6",a1,a1,a1,a1,B.bVX,a1,a1,a1),a1)
 s=a0.b9J()
 n=A.ol("Rechnung suchen...",B.eA,new A.bYM(a0))
 m=a0.x
@@ -196823,7 +196823,7 @@ s=7
 return A.c(A.iK(B.b_,null,t.z),$async$tf)
 case 7:m=new A.t_()
 s=8
-return A.c(m.KI(60,1024,1024,B.jp),$async$tf)
+return A.c(m.KI(88,2000,2000,B.jp),$async$tf)
 case 8:l=b
 if(l==null){h=n.c
 if(h!=null){h=A.aw(h).c
