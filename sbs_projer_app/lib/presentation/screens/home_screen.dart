@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
@@ -29,7 +30,17 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SBS Projer'),
+        // Version gleich im Titel: sonst ist im Web nicht feststellbar,
+        // welcher Stand geladen ist (Cache-Diagnosen, Daniel 28.07.2026).
+        title: const Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('SBS Projer'),
+            SizedBox(width: 6),
+            Text('(v$kAppVersion)', style: TextStyle(fontSize: 12)),
+          ],
+        ),
         actions: [
           const Padding(
             padding: EdgeInsets.only(right: 8),

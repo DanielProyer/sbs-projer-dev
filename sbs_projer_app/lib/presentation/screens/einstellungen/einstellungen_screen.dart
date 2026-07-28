@@ -135,6 +135,31 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     }
   }
 
+  /// Material-Buttons rendern unter CanvasKit teils nicht (bestehendes
+  /// Projekt-Muster, vgl. material_bestellungen_screen.dart) — deshalb
+  /// GestureDetector-Pill. Genau das war der Grund, warum die Karte hier
+  /// ohne Knöpfe erschien (Daniel 28.07.2026).
+  Widget _tapButton(String label, VoidCallback? onTap, bool primaer,
+      {Color? farbe}) {
+    final grund = farbe ?? (primaer ? AppColors.primary : Colors.grey.shade600);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: onTap == null ? Colors.grey.shade300 : grund,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(label,
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13)),
+      ),
+    );
+  }
+
   Widget _buildSpeicher() {
     if (_waisenLaden) {
       return const Padding(
@@ -151,8 +176,7 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             Text('Fehler: $_waisenFehler',
                 style: const TextStyle(color: AppColors.error)),
             const SizedBox(height: 8),
-            OutlinedButton(
-                onPressed: _ladeWaisen, child: const Text('Nochmal versuchen')),
+            _tapButton('Nochmal versuchen', _ladeWaisen, false),
           ],
         ),
       );
@@ -161,10 +185,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     if (liste == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: OutlinedButton.icon(
-          onPressed: _ladeWaisen,
-          icon: const Icon(Icons.search),
-          label: const Text('Speicher prüfen'),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: _tapButton('Speicher prüfen', _ladeWaisen, true),
         ),
       );
     }
@@ -197,18 +220,10 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            OutlinedButton.icon(
-              onPressed: _ladeWaisen,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Aktualisieren'),
-            ),
+            _tapButton('Aktualisieren', _ladeWaisen, false),
             const SizedBox(width: 8),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-              onPressed: _loescheWaisen,
-              icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('Löschen'),
-            ),
+            _tapButton('Löschen', _loescheWaisen, true,
+                farbe: AppColors.error),
           ],
         ),
       ],
