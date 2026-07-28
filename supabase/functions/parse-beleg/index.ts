@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
       signal: controller.signal,
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1500,
+        max_tokens: 2000,
         messages: [
           {
             role: "user",
@@ -168,6 +168,7 @@ ZAHLUNGSMETHODE erkennen:
 
 Antworte NUR mit validem JSON in diesem Format:
 {
+  "bild_drehung": 0,
   "geschaeft": "Name des Geschäfts",
   "datum": "YYYY-MM-DD",
   "zahlungsmethode": "twint",
@@ -192,8 +193,7 @@ Antworte NUR mit validem JSON in diesem Format:
     }
   ],
   "total_brutto": 105.07,
-  "konfidenz": 0.95,
-  "bild_drehung": 0
+  "konfidenz": 0.95
 }
 
 BILD-AUSRICHTUNG (bild_drehung):
@@ -276,7 +276,14 @@ Weitere Regeln:
     }
 
     const parsed = JSON.parse(jsonText);
-    console.log(`Parsed: ${parsed.geschaeft}, ${parsed.total_brutto} CHF, ${parsed.positionen?.length} pos, zahlung: ${parsed.zahlungsmethode}`);
+    // bild_drehung mitloggen: Bei quer gespeicherten Belegen ist das der
+    // einzige Weg zu sehen, ob das Modell die Drehung erkannt hat oder ob
+    // die App sie falsch anwendet (Daniel 28.07.2026).
+    console.log(
+      `Parsed: ${parsed.geschaeft}, ${parsed.total_brutto} CHF, ` +
+      `${parsed.positionen?.length} pos, zahlung: ${parsed.zahlungsmethode}, ` +
+      `konfidenz: ${parsed.konfidenz}, bild_drehung: ${parsed.bild_drehung}`,
+    );
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
