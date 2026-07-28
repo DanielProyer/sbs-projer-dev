@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.07.2026 · **Live:** v0.53.11
+**Stand:** 28.07.2026 · **Live:** v0.54.0
 
 ---
 
@@ -15,16 +15,18 @@ Findet Beleg-Dateien im Storage, zu denen keine Buchung mehr existiert (entstehe
 
 ---
 
-## 🟡 OFFEN — Spesen-Scanner: Korrektur-Schritt + Dubletten-Warnung
-Entscheid Daniel 28.07.: **beides zusammen**, Testlauf ist inzwischen abgeschlossen — kann gebaut werden.
-1. **Korrektur-Schritt vor dem Buchen:** Datum, Positionen (Betrag / MwSt-Satz / Kategorie) und Zahlart editierbar; dazu Plausibilitätsprüfungen (Summe Positionen = Beleg-Total, Datum nicht in der Zukunft).
-2. **Beleg drehen** nach dem Scan (wurde mehrfach falsch ausgerichtet gespeichert).
-3. **Dubletten-Warnung:** vor dem Buchen auf Geschäft + Datum + Gesamtbetrag in `buchungen` prüfen → Hinweis-Dialog «Dieser Beleg wurde am … bereits gebucht (X Buchungen). Trotzdem buchen?», Standard = Abbrechen. **Kein hartes Verbot** (zweimal am selben Tag beim selben Coop Pronto tanken ist ein echter Fall). Optionaler Ausbau später: Datei-Hash in der Storage-Ebene.
+## 🟢 NEU v0.54.0 — Spesen-Scanner: Korrektur-Schritt, Beleg drehen, Dubletten-Warnung, Bar-Rundung
+Alle vier Punkte umgesetzt (Entscheide Daniel 28.07.). **Bitte testen:**
+1. **Korrektur-Schritt:** Geschäft, Datum (Kalender), Total sowie jede Position (Beschreibung, Betrag, MwSt-Satz, Konto) editierbar; Positionen löschen und neu hinzufügen. Weicht die Positionssumme vom Total ab, erscheint eine rote Zeile mit der Differenz — **buchen bleibt möglich** (Gutschein/Rabatt sind echte Fälle). Gebucht werden immer die Positionen.
+2. **Beleg drehen:** Vorschau oben im Prüf-Schritt, Drehen links/rechts in 90°-Schritten. Wirkt auf die Datei, die im Storage landet; die erkannten Werte bleiben stehen (kein erneuter KI-Durchlauf).
+3. **Dubletten-Warnung:** Vor dem Buchen Abgleich mit den Spesen-Buchungen desselben Datums (gleiches Geschäft + gleiche Summe, 5 Rappen Toleranz) → Dialog «Beleg schon gebucht?» mit «Abbrechen»/«Trotzdem buchen». Keine Sperre; schlägt die Prüfung technisch fehl, wird normal gebucht.
+4. **Bar-Rundung korrigiert:** Nur noch das **Beleg-Total** wird auf 5 Rappen gerundet, die Differenz erhält die grösste Position (`verteileBarRundung`, TDD). Vorher wurde jede Position einzeln gerundet → Summe lief vom bezahlten Betrag weg (Coop Pronto bar: 106.55 statt 106.53).
 
-4. **5-Rappen-Rundung nur auf dem Beleg-Total** (gefunden 28.07.): `SpesenImportService` rundet bei Barzahlung **jede Position einzeln** ([spesen_import_service.dart:93](sbs_projer_app/lib/services/spesen/spesen_import_service.dart:93)) — der Beleg-Total kommt aber bereits gerundet vom Scan. Bei mehreren Positionen driftet die Summe (Coop Pronto bar: 89.70 + 6.75 + 10.10 = 106.55 statt 106.53 → 2 Rp. Kassendifferenz). Richtig: Total runden, Differenz der grössten Position zuschlagen. Bisher nicht schlagend geworden (Testbelege liefen über Bank/Privat).
+Neue Dateien: `core/util/beleg_korrektur.dart` (Rundung/Differenz/Dubletten, 16 Tests), `services/spesen/beleg_bild_service.dart` (Drehen via `image`-Paket). 514 Tests grün. **Visueller Test steht aus** — Scanner braucht Kamera + Login, lokal nicht prüfbar.
+
 5. *Kein Handlungsbedarf, geprüft 28.07.:* Kleine Rundungsposition mit falschem MwSt-Satz (z. B. 0.02 @ 2.6% auf einem reinen 8.1%-Diesel-Beleg) ist harmlos — die MWST-Abrechnung summiert `mwst_betrag` je `mwst_konto` ([004_views.sql:86](Datenbank/migrations/004_views.sql:86)), der `mwst_satz` geht auf der Vorsteuerseite gar nicht ein. Entgangene Vorsteuer: 0.0015 CHF. Gilt genauso für den umgekehrten Fall (Plastiksack 0.05 @ 8.1% auf einem sonst 2.6%-Beleg — dort ist der Satz sogar korrekt, die MwSt wird nur durch den Kleinbetrag zu 0.00). Auch kumuliert vernachlässigbar (~0.08 CHF/Quartal; ESTV-Abrechnung wird auf ganze Franken gerundet).
 
-**Ist-Zustand (geprüft 28.07.):** Es gibt KEINE Dublettenprüfung — weder im Scanner noch im `SpesenImportService` noch in der DB (`buchungen` hat ausser dem PK keinen Unique-Index). In den Testdaten liegt der Coop-Pronto-Beleg vom 18.07. deshalb 2–3× drin (wird beim Aufräumen des Testlaufs mitgelöscht).
+**Historie:** Vor v0.54.0 gab es keinerlei Dublettenprüfung — weder im Scanner noch im Import-Service noch in der DB (`buchungen` hat ausser dem PK keinen Unique-Index). Deshalb lag der Coop-Pronto-Beleg vom 18.07. im Testlauf 3× in den Daten.
 
 **Testlauf-Aufräumen (danach):** Buchungen ab 26.07.2026 00:00 mit `notizen LIKE 'Spesen-Scanner Import%'` + Beleg-Verknüpfungen + Storage-Dateien löschen (vor dem Test existierten an diesem Tag keine Buchungen).
 
