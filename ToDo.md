@@ -26,7 +26,23 @@ Rückgängig: `Datenbank/wartung/rollback_excel_zuordnung_2026_07_28.sql` (Snaps
 
 ---
 
-## 🔴 OFFEN: 16 Betriebe mit vermischten Excel-Objekten
+## 🟢 ERLEDIGT 28.07.: Mischbetriebe entwirrt — 490 Reinigungen + 309 Rechnungen umgehängt
+
+Beim Historik-Import waren gleichnamige Betriebe zu **einem** Datensatz verschmolzen (Match nur über den Namen statt Name + Ort). Die Historie hängt jetzt am richtigen Haus — zugeordnet über die Excel-Betriebsnummer (Stelle 4 der `extern_id`), Zuordnung von Daniel bestätigt.
+
+**Umgehängt an bestehende Betriebe:** Alpina Schiers (0195) · Seven Alpina Klosters (0147) · Alte Post Davos (0092) · Calanda Chur (0026) · Hotel Central am See Weggis (0751) · Krone Igis (0137) · Obertor Parpan (0189) · Surselva Chur (0045, 108 Reinigungen!) · Café Restaurant Mühle Nottwil (0721) · Türmli Sempach (0732) · Villaggio Root (0749)
+
+**Neu angelegt (Status geschlossen, Häuser bestehen nicht mehr):** Alpina Gitzihöll Triesenberg · Alte Post Maladers · Bistro Bahnhöfli Schiers · Bahnhöfli Küblis · Krone Cham · Rheinkrone Chur · Gasthaus Löwen Grossdietwil · Gasthaus Löwen Sins · Restaurant Eisenbahn Zell · Grill-Haus Hayoz Gettnau
+
+**Sonderfälle:** *Bahnhöfli Haldenstein = Chur* (Fusion, nur Ortswechsel) — bleibt zusammen. *Stau Davos* war eine einmalige Reinigung an einer Fremdanlage, behält genau diesen einen Vorgang. *Alpina Breil/Brigels* (Heigenie, kein Kunde) ist leer, aber **nicht gelöscht** — dort hängen noch eine Störung und eine Montage vom 05.05.2026; auf `inaktiv` + kein Kunde gesetzt, die vier Bergkundenpauschalen gingen an Gitzihöll.
+
+Skript `Datenbank/wartung/entwirren_mischbetriebe_2026_07_28.sql`, Rückgängig via `rollback_mischbetriebe_2026_07_28.sql` (Snapshot `snapshot_mischbetriebe`).
+
+**Offen:** Umgehängte Reinigungen haben keine `anlage_id`, wenn der Zielbetrieb mehr als eine Anlage hat (Surselva Chur 108, Calanda Chur 59, Seven Alpina 39, Obertor Parpan 39) — bei Bedarf manuell zuordnen. Ausserdem: 15 weitere Betriebe tragen tote Historie fremder Häuser (nur ein aktives Objekt, daher unkritisch) — zweiter Durchgang.
+
+---
+
+## 🔴 ERLEDIGT-VORLÄUFER (Analyse): 16 Betriebe mit vermischten Excel-Objekten
 
 Beim Historik-Import sind gleichnamige Betriebe zu **einem** Datensatz verschmolzen — unterschieden werden müssten sie über Name **+ Ort**. Folge: Rechnungen und Zahlungen mehrerer Häuser hängen am selben Betrieb, was den camt-Abgleich verfälscht.
 
