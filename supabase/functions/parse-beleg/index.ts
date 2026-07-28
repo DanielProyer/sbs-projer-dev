@@ -1,5 +1,5 @@
 // Supabase Edge Function: parse-beleg
-// Analysiert Kassenzettel-Bilder via Claude Haiku 4.5 und extrahiert Beleg-Daten.
+// Analysiert Kassenzettel-Bilder via Claude Sonnet 4.6 und extrahiert Beleg-Daten.
 // Deploy: supabase functions deploy parse-beleg (verify_jwt=true via config.toml)
 // Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -53,9 +53,12 @@ Deno.serve(async (req: Request) => {
     const imageSizeKB = Math.round((image_base64.length * 3) / 4 / 1024);
     console.log(`Image size: ~${imageSizeKB} KB, type: ${media_type}`);
 
-    // Claude Haiku 4.5 API Call mit AbortController Timeout (50s)
+    // Claude Sonnet 4.6 API Call mit AbortController Timeout (55s).
+    // Modellwechsel 26.07.2026: Haiku 4.5 las auf Thermo-Kassenzetteln das
+    // Kleingedruckte (Datum, MwSt-Tabelle, Zahlungsart) zu unzuverlaessig —
+    // gleiche Begruendung wie bei parse-rechnung (Ziffern-/Layout-Genauigkeit).
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 50000);
+    const timeout = setTimeout(() => controller.abort(), 55000);
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -66,8 +69,8 @@ Deno.serve(async (req: Request) => {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
+        model: "claude-sonnet-4-6",
+        max_tokens: 1500,
         messages: [
           {
             role: "user",

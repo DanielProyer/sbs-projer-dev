@@ -52,11 +52,17 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       await Future.delayed(Duration.zero);
 
       final picker = ImagePicker();
+      // Auflösung/Qualität hoch genug fürs Kleingedruckte (Regel Daniel
+      // 26.07.2026): Mit 1024 px / Q60 war auf Thermo-Kassenzetteln nur der
+      // fett gedruckte Totalbetrag sicher lesbar — Datum, MwSt-Tabelle und
+      // Zahlungsart (alles klein) wurden regelmässig falsch erkannt.
+      // 2000 px / Q88 liefert scharfe Ziffern und bleibt beim Base64-Versand
+      // an die Edge-Function unter ~1.5 MB.
       final image = await picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 60,
+        maxWidth: 2000,
+        maxHeight: 2000,
+        imageQuality: 88,
       );
       if (image == null) {
         if (mounted) context.pop();
