@@ -22,7 +22,10 @@ class AufgabenGlocke extends ConsumerWidget {
         if (badge > 0)
           Positioned(
             left: 12,
-            bottom: 24,
+            // Hoch genug, damit die Glocke keine unteren Aktionsleisten
+            // überdeckt (Vorfall 26.07.2026: sie lag über dem Buchen-Knopf
+            // im Spesen-Scanner).
+            bottom: 96,
             child: Directionality(
               textDirection: TextDirection.ltr,
               child: GestureDetector(

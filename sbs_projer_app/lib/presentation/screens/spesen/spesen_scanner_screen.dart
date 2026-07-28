@@ -172,7 +172,56 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       appBar: AppBar(
         title: const Text('Spesen Scanner'),
       ),
-      body: _isLoading ? _buildLoading() : _buildStep(),
+      body: SafeArea(child: _isLoading ? _buildLoading() : _buildStep()),
+      // Aktions-Buttons FIX am unteren Rand (Vorfall 26.07.2026: bei einem
+      // Beleg mit 6 Positionen war der Buchen-Button am Listenende nicht
+      // mehr erreichbar). So hängt er nie am Scrollen und liegt nicht hinter
+      // der System-Navigationsleiste.
+      bottomNavigationBar:
+          (!_isLoading && _step == 1) ? _buildAktionsLeiste() : null,
+    );
+  }
+
+  /// Untere Aktionsleiste im Prüf-Schritt: buchen bzw. bei unsicherer
+  /// Erkennung nochmal scannen.
+  Widget _buildAktionsLeiste() {
+    final scan = _scanResult;
+    if (scan == null) return const SizedBox.shrink();
+    final unsicher = scan.konfidenz < 0.85;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Row(
+          children: [
+            TextButton(
+              onPressed: _reset,
+              child: Text(unsicher ? 'Abbrechen' : 'Neuer Beleg'),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: unsicher
+                  ? FilledButton.icon(
+                      onPressed: _reset,
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Nochmal scannen'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    )
+                  : FilledButton.icon(
+                      onPressed: _buchen,
+                      icon: const Icon(Icons.check),
+                      label: Text(scan.istMischkauf
+                          ? '${scan.positionen.length} Buchungen erstellen'
+                          : 'Buchen'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -433,8 +482,9 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
 
         const SizedBox(height: 16),
 
-        // Niedrige Konfidenz → Warnung + Nochmal scannen
-        if (scan.konfidenz < 0.85) ...[
+        // Niedrige Konfidenz → Warnung (der Knopf dazu sitzt in der
+        // fixen Aktionsleiste unten).
+        if (scan.konfidenz < 0.85)
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -455,45 +505,6 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _reset,
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Nochmal scannen'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Abbrechen'),
-          ),
-        ] else ...[
-          const SizedBox(height: 8),
-
-          // Buchen Button (nur bei >= 85% Konfidenz)
-          FilledButton.icon(
-            onPressed: _buchen,
-            icon: const Icon(Icons.check),
-            label: Text(scan.istMischkauf
-                ? '${scan.positionen.length} Buchungen erstellen'
-                : 'Buchen'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Zurück
-          TextButton(
-            onPressed: _reset,
-            child: const Text('Anderen Beleg scannen'),
-          ),
-        ],
       ],
     );
   }
