@@ -29,16 +29,22 @@ class BuchungRepository {
     return Stream.fromFuture(getAll());
   }
 
-  /// Anzahl gescannter Spesenbelege eines Jahres (nach Belegdatum) für die
-  /// Dashboard-Kachel. Gezählt werden Belege, nicht Buchungszeilen — ein
-  /// Beleg mit drei MwSt-Gruppen ergibt drei Buchungen, ist aber ein Scan.
+  /// Spesenkonten für die Dashboard-Zahl — Aufwandseite ohne Vorsteuer (1171).
+  static const spesenKonten = [4004, 5820, 5850, 6200, 6270, 6460];
+
+  /// Anzahl Spesenbelege eines Jahres (nach Belegdatum) für die Dashboard-
+  /// Kachel. Erfasst **beide Quellen**: gescannte Belege und die direkt
+  /// importierten (Excel-Übernahme, ohne Scanner-Notiz) — abgegrenzt über die
+  /// Spesenkonten statt über die Herkunft.
+  ///
+  /// Gezählt werden Belege, nicht Buchungszeilen: ein Beleg mit drei
+  /// MwSt-Gruppen ergibt drei Buchungen, ist aber ein Einkauf.
   static Future<int> spesenBelegeImJahr(int jahr) async {
     final rows = await SupabaseService.client
         .from('buchungen')
         .select('datum, beschreibung')
         .eq('user_id', _userId)
-        .neq('soll_konto', 1171)
-        .like('notizen', 'Spesen-Scanner Import%')
+        .inFilter('soll_konto', spesenKonten)
         .gte('datum', '$jahr-01-01')
         .lte('datum', '$jahr-12-31');
     return zaehleBelege([

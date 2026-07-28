@@ -55,6 +55,9 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   final List<_PosEntwurf> _positionen = [];
   bool _dreheLaeuft = false;
 
+  /// Läuft gerade ein Buchungsvorgang? Schützt vor Doppeltipp (siehe _buchen).
+  bool _buchtGerade = false;
+
   static const _mwstSaetze = [8.1, 3.8, 2.6, 0.0];
   static const _kategorien = [
     'essen',
@@ -270,9 +273,19 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       setState(() => _error = 'Keine Positionen erfasst.');
       return;
     }
+    // Riegel VOR dem ersten await: Die Dubletten-Prüfung fragt die Datenbank
+    // ab, und in dieser Zeit blieb der Buchen-Knopf aktiv — ein Doppeltipp
+    // erzeugte zwei vollständige Buchungssätze (Vorfall 30.06.-Beleg,
+    // 230 ms Abstand, gemeldet 28.07.2026). Der Dublettendialog selbst greift
+    // dort nicht, weil beide Läufe die DB gleichzeitig abfragen.
+    if (_buchtGerade) return;
+    _buchtGerade = true;
 
     final entwurf = _scanAusEntwurf();
-    if (!await _dublettePruefen(entwurf)) return;
+    if (!await _dublettePruefen(entwurf)) {
+      _buchtGerade = false;
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -297,6 +310,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      _buchtGerade = false; // erneuter Versuch möglich
       setState(() {
         _error = 'Buchung fehlgeschlagen: $e';
         _isLoading = false;
@@ -355,6 +369,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       _scanResult = null;
       _zahlungsweg = Zahlungsweg.bar;
       _bearbeiten = false;
+      _buchtGerade = false;
       _erstellteBuchungen = [];
     });
     _openCamera();
