@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/abgleich_fenster.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
@@ -51,6 +52,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   List<CamtVorschlag> _vorschlaege = []; // Bereich 2: zu bestätigen
   int _prueflisteCount = 0;
   int _uebersprungen = 0;
+  int _altpostenAusgeblendet = 0;
   AbgleichErgebnis? _abgleich;          // Bereich 1 Ergebnis
   List<Rechnung> _alleOffenen = [];     // Pool für ⚪-Zuordnung
   Map<String, String> _betriebName = {};
@@ -333,9 +335,17 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
               })
           .toList();
       final alleRechnungen = await RechnungRepository.getAll();
-      final offeneRechnungen = alleRechnungen.where((r) =>
+      final alleOffenen = alleRechnungen.where((r) =>
           r.rechnungstyp == 'kundenrechnung' &&
           (r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'gesendet')).toList();
+      // Nur Forderungen bis ein Jahr zurück (Regel Daniel 28.07.2026) — ältere
+      // stammen aus der Zeit ohne Rechnungsversand, werden abgeschrieben und
+      // würden im Abgleich nur Fehlgriffe provozieren.
+      final jetzt = DateTime.now();
+      final offeneRechnungen = alleOffenen
+          .where((r) => istImAbgleichsfenster(r.rechnungsdatum, jetzt))
+          .toList();
+      final ausgeblendeteAltposten = alleOffenen.length - offeneRechnungen.length;
       final heinekenRechnungen = alleRechnungen.where((r) =>
           r.rechnungstyp == 'heineken_monat' && r.zahlungsstatus != 'bezahlt').toList();
       final bereitsVerarbeitet = <String>{
@@ -395,6 +405,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
         _vorschlaege = plan.vorschlaege;
         _prueflisteCount = plan.pruefliste.length;
         _uebersprungen = plan.uebersprungen + preStichtagOderVerarbeitet;
+        _altpostenAusgeblendet = ausgeblendeteAltposten;
         _abgleich = abgleich;
         _alleOffenen = offeneRechnungen;
         _betriebName = {
@@ -480,6 +491,10 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
             if (_uebersprungen > 0)
               _ResultRow(Icons.skip_next,
                   '$_uebersprungen übersprungen (vor Stichtag / bereits verarbeitet)',
+                  AppColors.textSecondary),
+            if (_altpostenAusgeblendet > 0)
+              _ResultRow(Icons.history_toggle_off,
+                  '$_altpostenAusgeblendet Forderungen älter als ein Jahr — nicht im Abgleich',
                   AppColors.textSecondary),
             const SizedBox(height: 12),
             Align(
