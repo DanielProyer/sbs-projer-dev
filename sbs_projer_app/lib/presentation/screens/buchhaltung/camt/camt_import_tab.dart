@@ -407,7 +407,10 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
         _uebersprungen = plan.uebersprungen + preStichtagOderVerarbeitet;
         _altpostenAusgeblendet = ausgeblendeteAltposten;
         _abgleich = abgleich;
-        _alleOffenen = offeneRechnungen;
+        // Der Pool für die manuelle Zuordnung enthält bewusst ALLE offenen
+        // Forderungen — im Dialog lassen sich die älteren zuschalten, falls
+        // ein Kunde doch erst nach über einem Jahr zahlt.
+        _alleOffenen = alleOffenen;
         _betriebName = {
           for (final b in betriebe)
             b['id']!: (b['ort'] ?? '').isEmpty

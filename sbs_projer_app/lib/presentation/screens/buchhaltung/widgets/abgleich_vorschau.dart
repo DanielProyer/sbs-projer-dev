@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/abgleich_fenster.dart';
 import 'package:sbs_projer_app/core/util/zahlung_paarung.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -361,6 +362,44 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       ),
     );
     return trotzdem == true;
+  }
+
+  /// Schalter, der Forderungen älter als ein Jahr in die Auswahl holt.
+  ///
+  /// Der Abgleich arbeitet standardmässig nur mit Forderungen aus dem letzten
+  /// Jahr — sonst stehen bei einem Betrieb zehn gleich hohe Altposten zur
+  /// Auswahl und eine neue Zahlung landet auf einer Rechnung von 2019. Zahlt
+  /// ein Kunde doch erst später, lassen sich die älteren hier zuschalten
+  /// (Wunsch Daniel 28.07.2026).
+  Widget _altpostenSchalter({
+    required bool an,
+    required int anzahl,
+    required VoidCallback umschalten,
+  }) {
+    return InkWell(
+      onTap: umschalten,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(an ? Icons.expand_less : Icons.expand_more,
+                size: 20, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                an
+                    ? 'Ältere ausblenden (über ein Jahr)'
+                    : '$anzahl Forderungen älter als ein Jahr einblenden',
+                style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _datumKurz(DateTime d) =>
@@ -769,11 +808,19 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       {AutoTreffer? korrigiereAuto, ManuellFall? korrigiereManuell}) async {
     final gewaehlt = <Rechnung>{};
     var suche = '';
+    var zeigeAlte = false;
+    final jetzt = DateTime.now();
+    final anzahlAlte = widget.alleOffenen
+        .where((r) => !istImAbgleichsfenster(r.rechnungsdatum, jetzt))
+        .length;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final gefiltert = widget.alleOffenen.where((r) {
+            if (!zeigeAlte && !istImAbgleichsfenster(r.rechnungsdatum, jetzt)) {
+              return false;
+            }
             if (suche.isEmpty) return true;
             final q = suche.toLowerCase();
             final nr = (r.rechnungsnummer ?? '').toLowerCase();
@@ -826,6 +873,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     ),
                     onChanged: (v) => setDialogState(() => suche = v),
                   ),
+                  if (anzahlAlte > 0)
+                    _altpostenSchalter(
+                      an: zeigeAlte,
+                      anzahl: anzahlAlte,
+                      umschalten: () =>
+                          setDialogState(() => zeigeAlte = !zeigeAlte),
+                    ),
                   const SizedBox(height: 8),
                   Flexible(
                     child: ListView(
@@ -1130,6 +1184,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final gewaehlteGuts = <CamtTransaction>{if (guts.length == 1) guts.first};
     final gewaehlteForderungen = <Rechnung>{};
     var suche = '';
+    var zeigeAlte = false;
+    final jetzt = DateTime.now();
+    final anzahlAlte = widget.alleOffenen
+        .where((r) => !istImAbgleichsfenster(r.rechnungsdatum, jetzt))
+        .length;
     final name = effektiverZahlername(
             partyName: guts.first.partyName,
             additionalInfo: guts.first.additionalInfo) ??
@@ -1140,6 +1199,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final gefiltert = widget.alleOffenen.where((r) {
+            if (!zeigeAlte && !istImAbgleichsfenster(r.rechnungsdatum, jetzt)) {
+              return false;
+            }
             if (suche.isEmpty) return true;
             final q = suche.toLowerCase();
             return (r.rechnungsnummer ?? '').toLowerCase().contains(q) ||
@@ -1194,6 +1256,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                       ),
                       onChanged: (v) => setDialogState(() => suche = v),
                     ),
+                    if (anzahlAlte > 0)
+                      _altpostenSchalter(
+                        an: zeigeAlte,
+                        anzahl: anzahlAlte,
+                        umschalten: () =>
+                            setDialogState(() => zeigeAlte = !zeigeAlte),
+                      ),
                     const SizedBox(height: 8),
                     for (final r in gefiltert.take(50))
                       CheckboxListTile(
