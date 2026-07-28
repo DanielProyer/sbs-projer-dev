@@ -1,6 +1,28 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.07.2026 · **Live:** v0.54.0
+**Stand:** 28.07.2026 · **Live:** v0.54.6
+
+---
+
+## 🟢 ERLEDIGT 28.07.: Spesen-Belege produktiv erfasst — 40 Belege, CHF 2'206.56
+Alle offenen Spesenbelege 09.06.–27.07.2026 gescannt und gebucht (**keine Testdaten, bleiben stehen**). 112 Buchungszeilen (57 Aufwand + 55 Vorsteuer), Vorsteuer CHF 147.56.
+
+| Konto | Zeilen | Brutto |
+|---|---|---|
+| 6200 Fahrzeuge (Diesel) | 12 | 918.26 |
+| 4004 Material/Werkzeug | 8 | 821.05 |
+| 5820 Spesen (Verpflegung) | 35 | 401.45 |
+| 6460 Entsorgung | 2 | 65.80 |
+
+Zahlungswege: privat CHF 1'775.81 (47 Zeilen), Kasse CHF 430.75 (10). Keine Privatbezüge/2260 — es wurden keine Tabakwaren erfasst.
+
+**Geprüft und sauber:** jede MwSt-Buchung hat ihre Vorsteuer-Gegenbuchung, jede Buchung einen Beleg, keine Nullbeträge, keine Zukunftsdaten, nur zulässige MwSt-Sätze, Bar-Rundung bei allen Kassenbelegen auf 5 Rappen aufgehend.
+
+**Zwei Fälle zum Nachschauen (kann ich aus den Daten nicht entscheiden):**
+1. **11.06. Landi Oberkirch:** zwei Scans — «Landi TopShop Oberkirch (Agrola)» Verpflegung CHF 22.90 (10:43 Uhr) und «Landi Agrola TopShop Oberkirch» Diesel CHF 81.25 (11:05 Uhr). Entweder zwei getrennte Belege (Tanken + Shop) oder derselbe Beleg zweimal unterschiedlich gelesen.
+2. **21.07. Coop Domat-Ems:** «Coop Domat-Ems» CHF 25.95 (10:32:32) und «Coop Donat-Ens» CHF 24.70 (10:33:02) — 30 Sekunden Abstand, ähnlicher Name, andere Summe. Die Dubletten-Warnung greift hier nicht (Name weicht ab, Summe ebenfalls).
+
+**Ausrichtung der Belege:** v0.54.4 lässt die Drehung neu vom gelesenen Text bestimmen (`bild_drehung` aus der KI) statt vom EXIF-Tag der Kamera — das ist bei flach von oben fotografierten Belegen unzuverlässig. Bildverarbeitung selbst wurde per Test entlastet (Drehrichtung korrekt, kein EXIF-Rest, `beleg_drehrichtung_test.dart`). Die zuletzt gescannten Belege kamen alle sauber ausgerichtet. **3 quer liegende Belege** (2 davon gebucht) bleiben so — Entscheid Daniel: werden ohnehin nicht mehr angeschaut. Nachträgliches Drehen gibt es nicht.
 
 ---
 
