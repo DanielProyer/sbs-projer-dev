@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/dateigroesse.dart';
+import 'package:sbs_projer_app/data/models/buchungs_beleg.dart';
+import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
@@ -54,6 +57,162 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           preisId, {'heineken_po_nummer': result});
       ref.invalidate(aktuellePreiseProvider);
     }
+  }
+
+  // --- Speicher aufräumen (verwaiste Beleg-Dateien, Migration 151) ---
+  List<VerwaisterBeleg>? _waisen;
+  bool _waisenLaden = false;
+  String? _waisenFehler;
+
+  Future<void> _ladeWaisen() async {
+    setState(() {
+      _waisenLaden = true;
+      _waisenFehler = null;
+    });
+    try {
+      final liste = await BuchungsBelegRepository.verwaisteBelege();
+      if (!mounted) return;
+      setState(() {
+        _waisen = liste;
+        _waisenLaden = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _waisenFehler = '$e';
+        _waisenLaden = false;
+      });
+    }
+  }
+
+  Future<void> _loescheWaisen() async {
+    final liste = _waisen;
+    if (liste == null || liste.isEmpty) return;
+    final bytes = liste.fold<int>(0, (s, w) => s + w.groesse);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Dateien löschen?'),
+        content: Text(
+          '${liste.length} Beleg-Dateien (${formatiereGroesse(bytes)}) werden '
+          'endgültig aus dem Speicher entfernt.\n\n'
+          'Diese Dateien gehören zu keiner Buchung mehr — die Buchhaltung '
+          'bleibt unverändert.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() => _waisenLaden = true);
+    try {
+      final anzahl = await BuchungsBelegRepository.loescheVerwaiste(
+          liste.map((w) => w.storagePfad).toList());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$anzahl Dateien gelöscht (${formatiereGroesse(bytes)} '
+            'freigegeben)'),
+        backgroundColor: AppColors.success,
+      ));
+      await _ladeWaisen();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _waisenFehler = '$e';
+        _waisenLaden = false;
+      });
+    }
+  }
+
+  Widget _buildSpeicher() {
+    if (_waisenLaden) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_waisenFehler != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Fehler: $_waisenFehler',
+                style: const TextStyle(color: AppColors.error)),
+            const SizedBox(height: 8),
+            OutlinedButton(
+                onPressed: _ladeWaisen, child: const Text('Nochmal versuchen')),
+          ],
+        ),
+      );
+    }
+    final liste = _waisen;
+    if (liste == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: OutlinedButton.icon(
+          onPressed: _ladeWaisen,
+          icon: const Icon(Icons.search),
+          label: const Text('Speicher prüfen'),
+        ),
+      );
+    }
+    if (liste.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: AppColors.success, size: 20),
+            SizedBox(width: 8),
+            Expanded(child: Text('Keine verwaisten Dateien — alles sauber.')),
+          ],
+        ),
+      );
+    }
+
+    final bytes = liste.fold<int>(0, (s, w) => s + w.groesse);
+    final aeltest = liste.first.hochgeladen;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${liste.length} Dateien ohne Buchung · '
+            '${formatiereGroesse(bytes)}'),
+        const SizedBox(height: 4),
+        Text(
+          'Älteste vom ${DateFormat('dd.MM.yyyy').format(aeltest)}. '
+          'Entstehen, wenn Buchungen gelöscht werden — die Datei bleibt liegen.',
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: _ladeWaisen,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Aktualisieren'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: _loescheWaisen,
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Löschen'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _buildGoogleKalender(GoogleCalendarStatus status) {
@@ -331,6 +490,23 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                           style: const TextStyle(color: AppColors.error)),
                     ),
               ],
+            ),
+          ),
+
+          // Speicher aufräumen
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ExpansionTile(
+              leading: const Icon(Icons.cleaning_services,
+                  color: AppColors.primary),
+              title: const Text('Speicher aufräumen',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Beleg-Dateien ohne Buchung finden'),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              onExpansionChanged: (offen) {
+                if (offen && _waisen == null && !_waisenLaden) _ladeWaisen();
+              },
+              children: [_buildSpeicher()],
             ),
           ),
 

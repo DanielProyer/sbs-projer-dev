@@ -73,6 +73,32 @@ class BuchungsBelegRepository {
         .remove([storagePfad]);
   }
 
+  /// Verwaiste Beleg-Dateien: liegen im Storage, gehören aber zu keiner
+  /// Buchung mehr (z.B. weil die Buchung gelöscht wurde). Migration 151.
+  static Future<List<VerwaisterBeleg>> verwaisteBelege() async {
+    final rows = await SupabaseService.client.rpc('verwaiste_belege');
+    return (rows as List)
+        .map((r) => VerwaisterBeleg.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Verwaiste Dateien löschen — in Blöcken, damit auch grosse Mengen
+  /// zuverlässig durchgehen. Gibt die Anzahl gelöschter Dateien zurück.
+  static Future<int> loescheVerwaiste(List<String> pfade) async {
+    var geloescht = 0;
+    for (final block in _bloecke(pfade, 50)) {
+      await SupabaseService.client.storage.from(_bucket).remove(block);
+      geloescht += block.length;
+    }
+    return geloescht;
+  }
+
+  static Iterable<List<String>> _bloecke(List<String> alle, int groesse) sync* {
+    for (var i = 0; i < alle.length; i += groesse) {
+      yield alle.sublist(i, (i + groesse).clamp(0, alle.length));
+    }
+  }
+
   /// Signed URL für einen Beleg generieren (1h gültig).
   static Future<String> getSignedUrl(String storagePfad) async {
     return await SupabaseService.client.storage

@@ -1,3 +1,24 @@
+/// Eine Datei im Beleg-Storage ohne zugehörige Buchung (RPC `verwaiste_belege`).
+class VerwaisterBeleg {
+  final String storagePfad;
+  final int groesse;
+  final DateTime hochgeladen;
+
+  VerwaisterBeleg({
+    required this.storagePfad,
+    required this.groesse,
+    required this.hochgeladen,
+  });
+
+  factory VerwaisterBeleg.fromJson(Map<String, dynamic> json) {
+    return VerwaisterBeleg(
+      storagePfad: json['storage_pfad'] as String,
+      groesse: (json['groesse'] as num?)?.toInt() ?? 0,
+      hochgeladen: DateTime.parse(json['hochgeladen'] as String),
+    );
+  }
+}
+
 class BuchungsBeleg {
   final String id;
   final String userId;
