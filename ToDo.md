@@ -1,6 +1,18 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 26.07.2026 · **Live:** v0.53.8
+**Stand:** 28.07.2026 · **Live:** v0.53.9
+
+---
+
+## 🟡 OFFEN — Spesen-Scanner: Korrektur-Schritt + Dubletten-Warnung (nach dem Testlauf bauen)
+Entscheid Daniel 28.07.: **beides zusammen**, aber **erst nach Abschluss des laufenden Beleg-Testlaufs**.
+1. **Korrektur-Schritt vor dem Buchen:** Datum, Positionen (Betrag / MwSt-Satz / Kategorie) und Zahlart editierbar; dazu Plausibilitätsprüfungen (Summe Positionen = Beleg-Total, Datum nicht in der Zukunft).
+2. **Beleg drehen** nach dem Scan (wurde mehrfach falsch ausgerichtet gespeichert).
+3. **Dubletten-Warnung:** vor dem Buchen auf Geschäft + Datum + Gesamtbetrag in `buchungen` prüfen → Hinweis-Dialog «Dieser Beleg wurde am … bereits gebucht (X Buchungen). Trotzdem buchen?», Standard = Abbrechen. **Kein hartes Verbot** (zweimal am selben Tag beim selben Coop Pronto tanken ist ein echter Fall). Optionaler Ausbau später: Datei-Hash in der Storage-Ebene.
+
+**Ist-Zustand (geprüft 28.07.):** Es gibt KEINE Dublettenprüfung — weder im Scanner noch im `SpesenImportService` noch in der DB (`buchungen` hat ausser dem PK keinen Unique-Index). In den Testdaten liegt der Coop-Pronto-Beleg vom 18.07. deshalb 2–3× drin (wird beim Aufräumen des Testlaufs mitgelöscht).
+
+**Testlauf-Aufräumen (danach):** Buchungen ab 26.07.2026 00:00 mit `notizen LIKE 'Spesen-Scanner Import%'` + Beleg-Verknüpfungen + Storage-Dateien löschen (vor dem Test existierten an diesem Tag keine Buchungen).
 
 ---
 
