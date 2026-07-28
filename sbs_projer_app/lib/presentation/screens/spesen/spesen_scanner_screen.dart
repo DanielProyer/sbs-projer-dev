@@ -27,9 +27,7 @@ class SpesenScannerScreen extends ConsumerStatefulWidget {
 const double _konfidenzOk = 0.85;
 
 class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
-  // 0 = Kamera/Fehler, 3 = Beleg ausrichten (vor der Analyse),
-  // 1 = Prüfen, 2 = Erfolg
-  int _step = 0;
+  int _step = 0; // 0 = Kamera/Fehler, 1 = Prüfen, 2 = Erfolg
   bool _isLoading = false;
   String? _error;
 
@@ -140,8 +138,8 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
     if (bytes == null) return;
     setState(() => _dreheLaeuft = true);
     try {
-      final gedreht =
-          BelegBildService.drehen(bytes, grad, dateityp: _dateityp);
+      final gedreht = Uint8List.fromList(
+          BelegBildService.drehen(bytes, grad, dateityp: _dateityp));
       if (!mounted) return;
       setState(() {
         _belegBytes = gedreht;
@@ -191,17 +189,19 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       final bytes = await image.readAsBytes();
       final ext = image.name.split('.').last.toLowerCase();
 
-      _belegBytes = bytes;
       _dateiname = image.name;
       _dateityp = ext == 'png' ? 'png' : 'jpg';
       _mediaType = ext == 'png' ? 'image/png' : 'image/jpeg';
 
-      // Erst ausrichten, dann analysieren: Ein gerade stehender Beleg wird
-      // besser gelesen und landet auch richtig herum im Storage.
-      setState(() {
-        _step = 3;
-        _isLoading = false;
-      });
+      // Ausrichtung aus den EXIF-Daten in die Pixel backen — das Handy
+      // speichert quer aufgenommene Fotos liegend und vermerkt die Drehung
+      // nur als Tag, das beim Weiterverarbeiten verloren geht. Deshalb lagen
+      // Belege im Archiv quer. Bei Bedarf lässt sich im Prüf-Schritt weiter
+      // von Hand drehen.
+      _belegBytes = Uint8List.fromList(
+          BelegBildService.autoAusrichten(bytes, dateityp: _dateityp));
+
+      await _analyzeBeleg();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -346,7 +346,17 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Spesen Scanner')),
+      appBar: AppBar(
+        title: const Text('Spesen Scanner'),
+        actions: [
+          if (!_isLoading && _step == 1 && _belegBytes != null)
+            IconButton(
+              onPressed: _belegDrehenDialog,
+              icon: const Icon(Icons.rotate_right),
+              tooltip: 'Beleg drehen',
+            ),
+        ],
+      ),
       body: SafeArea(child: _isLoading ? _buildLoading() : _buildStep()),
       // Aktions-Buttons FIX am unteren Rand (Vorfall 26.07.2026: bei einem
       // Beleg mit 6 Positionen war der Buchen-Button am Listenende nicht
@@ -362,32 +372,6 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   /// nach dem Buchen weiter scannen bzw. fertig. Immer fix am unteren
   /// Rand, damit sie nie am Scrollen hängt.
   Widget _buildAktionsLeiste() {
-    if (_step == 3) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Row(
-            children: [
-              TextButton(
-                onPressed: _openCamera,
-                child: const Text('Neu aufnehmen'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _dreheLaeuft ? null : _analyzeBeleg,
-                  icon: const Icon(Icons.document_scanner),
-                  label: const Text('Beleg auswerten'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
     if (_step == 2) {
       return SafeArea(
         child: Padding(
@@ -457,7 +441,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   }
 
   Widget _buildLoading() {
-    final text = _step == 3 || _step == 0
+    final text = _step == 0
         ? 'Beleg wird analysiert...'
         : 'Buchung wird erstellt...';
     return Center(
@@ -480,64 +464,69 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
         return _buildPruefen();
       case 2:
         return _buildErfolg();
-      case 3:
-        return _buildAusrichten();
       default:
         return const SizedBox();
     }
   }
 
-  // === Step 3: Beleg ausrichten (direkt nach der Aufnahme) ===
-  Widget _buildAusrichten() {
-    final bytes = _belegBytes;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (bytes != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.memory(
-              bytes,
-              height: 420,
-              fit: BoxFit.contain,
-              gaplessPlayback: true,
+  /// Beleg drehen — auf Zuruf über die Titelleiste, nicht als eigener Schritt.
+  /// Normalerweise steht der Beleg dank EXIF-Auswertung schon richtig.
+  Future<void> _belegDrehenDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Future<void> drehen(int grad) async {
+            await _drehen(grad);
+            setDialogState(() {});
+          }
+
+          return AlertDialog(
+            contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_belegBytes != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.memory(
+                        _belegBytes!,
+                        height: 320,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton.filledTonal(
+                        onPressed: _dreheLaeuft ? null : () => drehen(270),
+                        icon: const Icon(Icons.rotate_left),
+                        tooltip: 'Nach links drehen',
+                      ),
+                      const SizedBox(width: 32),
+                      IconButton.filledTonal(
+                        onPressed: _dreheLaeuft ? null : () => drehen(90),
+                        icon: const Icon(Icons.rotate_right),
+                        tooltip: 'Nach rechts drehen',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton.filledTonal(
-              onPressed: _dreheLaeuft ? null : () => _drehen(270),
-              icon: const Icon(Icons.rotate_left),
-              tooltip: 'Nach links drehen',
-            ),
-            const SizedBox(width: 24),
-            if (_dreheLaeuft)
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            else
-              Text('Ausrichten',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            const SizedBox(width: 24),
-            IconButton.filledTonal(
-              onPressed: _dreheLaeuft ? null : () => _drehen(90),
-              icon: const Icon(Icons.rotate_right),
-              tooltip: 'Nach rechts drehen',
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Steht der Beleg richtig herum, wird er besser gelesen — und liegt '
-          'auch im Archiv richtig.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-      ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Fertig'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
