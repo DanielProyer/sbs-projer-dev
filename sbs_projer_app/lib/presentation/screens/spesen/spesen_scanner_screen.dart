@@ -14,7 +14,8 @@ class SpesenScannerScreen extends ConsumerStatefulWidget {
   const SpesenScannerScreen({super.key});
 
   @override
-  ConsumerState<SpesenScannerScreen> createState() => _SpesenScannerScreenState();
+  ConsumerState<SpesenScannerScreen> createState() =>
+      _SpesenScannerScreenState();
 }
 
 class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
@@ -169,22 +170,48 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Spesen Scanner'),
-      ),
+      appBar: AppBar(title: const Text('Spesen Scanner')),
       body: SafeArea(child: _isLoading ? _buildLoading() : _buildStep()),
       // Aktions-Buttons FIX am unteren Rand (Vorfall 26.07.2026: bei einem
       // Beleg mit 6 Positionen war der Buchen-Button am Listenende nicht
       // mehr erreichbar). So hängt er nie am Scrollen und liegt nicht hinter
       // der System-Navigationsleiste.
-      bottomNavigationBar:
-          (!_isLoading && _step == 1) ? _buildAktionsLeiste() : null,
+      bottomNavigationBar: (!_isLoading && (_step == 1 || _step == 2))
+          ? _buildAktionsLeiste()
+          : null,
     );
   }
 
-  /// Untere Aktionsleiste im Prüf-Schritt: buchen bzw. bei unsicherer
-  /// Erkennung nochmal scannen.
+  /// Untere Aktionsleiste: im Prüf-Schritt buchen bzw. nochmal scannen,
+  /// nach dem Buchen weiter scannen bzw. fertig. Immer fix am unteren
+  /// Rand, damit sie nie am Scrollen hängt.
   Widget _buildAktionsLeiste() {
+    if (_step == 2) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Row(
+            children: [
+              TextButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Fertig'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _reset,
+                  icon: const Icon(Icons.document_scanner),
+                  label: const Text('Weiteren Beleg scannen'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final scan = _scanResult;
     if (scan == null) return const SizedBox.shrink();
     final unsicher = scan.konfidenz < 0.85;
@@ -211,9 +238,11 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                   : FilledButton.icon(
                       onPressed: _buchen,
                       icon: const Icon(Icons.check),
-                      label: Text(scan.istMischkauf
-                          ? '${scan.positionen.length} Buchungen erstellen'
-                          : 'Buchen'),
+                      label: Text(
+                        scan.istMischkauf
+                            ? '${scan.positionen.length} Buchungen erstellen'
+                            : 'Buchen',
+                      ),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
@@ -226,7 +255,9 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   }
 
   Widget _buildLoading() {
-    final text = _step == 0 ? 'Beleg wird analysiert...' : 'Buchung wird erstellt...';
+    final text = _step == 0
+        ? 'Beleg wird analysiert...'
+        : 'Buchung wird erstellt...';
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -255,31 +286,34 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   // === Step 0: Fehler / Retry ===
   Widget _buildFehler() {
     if (_error == null) return const SizedBox();
-    return Padding(
+    // Scrollbar, damit auch lange Fehlermeldungen die Knöpfe nicht
+    // aus dem Bild schieben (gleiche Falle wie im Erfolgs-Schritt).
+    return ListView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(
-            _error!,
-            style: const TextStyle(color: AppColors.error, fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: _openCamera,
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Nochmal versuchen'),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Abbrechen'),
-          ),
-        ],
-      ),
+      children: [
+        Column(
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              style: const TextStyle(color: AppColors.error, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _openCamera,
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Nochmal versuchen'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => context.pop(),
+              child: const Text('Abbrechen'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -303,7 +337,10 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                     Expanded(
                       child: Text(
                         scan.geschaeft,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     _KonfidenzBadge(konfidenz: scan.konfidenz),
@@ -317,66 +354,99 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                 const Divider(height: 24),
 
                 // Positionen
-                ...scan.positionen.map((pos) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            pos.istBenzin ? Icons.local_gas_station : Icons.restaurant,
-                            size: 18,
-                            color: pos.istBenzin ? AppColors.info : AppColors.warning,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(pos.beschreibung,
-                                          style: const TextStyle(fontWeight: FontWeight.w500)),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: (pos.istBenzin ? AppColors.info : AppColors.warning).withAlpha(25),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        pos.istBenzin ? 'Benzin · 6200' : 'Essen · 5820',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: pos.istBenzin ? AppColors.info : AppColors.warning,
-                                        ),
+                ...scan.positionen.map(
+                  (pos) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          pos.istBenzin
+                              ? Icons.local_gas_station
+                              : Icons.restaurant,
+                          size: 18,
+                          color: pos.istBenzin
+                              ? AppColors.info
+                              : AppColors.warning,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      pos.beschreibung,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (pos.istBenzin
+                                                  ? AppColors.info
+                                                  : AppColors.warning)
+                                              .withAlpha(25),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      pos.istBenzin
+                                          ? 'Benzin · 6200'
+                                          : 'Essen · 5820',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: pos.istBenzin
+                                            ? AppColors.info
+                                            : AppColors.warning,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Netto ${pos.betragNetto.toStringAsFixed(2)} + ${pos.mwstSatz}% MwSt ${pos.mwstBetrag.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
                                 ),
-                                Text(
-                                  'Netto ${pos.betragNetto.toStringAsFixed(2)} + ${pos.mwstSatz}% MwSt ${pos.mwstBetrag.toStringAsFixed(2)}',
-                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${pos.betragBrutto.toStringAsFixed(2)} CHF',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    )),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${pos.betragBrutto.toStringAsFixed(2)} CHF',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                    const Text(
+                      'Total',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
                     Text(
                       '${scan.totalBrutto.toStringAsFixed(2)} CHF',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
                   ],
                 ),
@@ -387,11 +457,21 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Bar gerundet (5 Rp.)',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textSecondary)),
+                      Text(
+                        'Bar gerundet (5 Rp.)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       Text(
                         '${_gerundeterTotal(scan).toStringAsFixed(2)} CHF',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.primary),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -429,7 +509,12 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
         const SizedBox(height: 16),
 
         // Zahlungsweg
-        Text('Zahlungsweg', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          'Zahlungsweg',
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -476,7 +561,10 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
               color: AppColors.error.withAlpha(25),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: AppColors.error, fontSize: 13),
+            ),
           ),
         ],
 
@@ -494,12 +582,19 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppColors.warning,
+                  size: 24,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Erkennung unsicher (${(scan.konfidenz * 100).round()}%) — Beträge könnten falsch sein. Bitte nochmal scannen.',
-                    style: TextStyle(color: AppColors.warning.withAlpha(200), fontSize: 13),
+                    style: TextStyle(
+                      color: AppColors.warning.withAlpha(200),
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
@@ -511,33 +606,47 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
 
   // === Step 2: Erfolg ===
   Widget _buildErfolg() {
-    return Padding(
+    // ListView statt Column: Bei mehreren Buchungen (Mischkauf) lief der
+    // Inhalt sonst unten aus dem Bild UND liess sich nicht scrollen —
+    // die Knöpfe waren unerreichbar (Vorfall 26.07.2026). Die Knöpfe
+    // sitzen jetzt zusätzlich in der fixen Aktionsleiste unten.
+    return ListView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.check_circle, color: AppColors.success, size: 72),
-          const SizedBox(height: 16),
-          Text(
-            _erstellteBuchungen.length == 1
-                ? 'Buchung erstellt!'
-                : '${_erstellteBuchungen.length} Buchungen erstellt!',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 16),
+      children: [
+        Column(
+          children: [
+            const Icon(Icons.check_circle, color: AppColors.success, size: 72),
+            const SizedBox(height: 16),
+            Text(
+              _erstellteBuchungen.length == 1
+                  ? 'Buchung erstellt!'
+                  : '${_erstellteBuchungen.length} Buchungen erstellt!',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
 
-          // Buchungs-Details
-          ...(_erstellteBuchungen.map((b) => Card(
+            // Buchungs-Details
+            ...(_erstellteBuchungen.map(
+              (b) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.success.withAlpha(25),
-                    child: const Icon(Icons.swap_horiz, color: AppColors.success, size: 20),
+                    child: const Icon(
+                      Icons.swap_horiz,
+                      color: AppColors.success,
+                      size: 20,
+                    ),
                   ),
-                  title: Text(b.beschreibung,
-                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                  title: Text(
+                    b.beschreibung,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
                   subtitle: Text(
                     '${b.sollKonto} → ${b.habenKonto} · ${b.mwstSatz}% MwSt',
                     style: const TextStyle(fontSize: 12),
@@ -548,25 +657,11 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                   ),
                   onTap: () => context.push('/buchhaltung/buchungen/${b.id}'),
                 ),
-              ))),
-
-          const SizedBox(height: 24),
-
-          FilledButton.icon(
-            onPressed: _reset,
-            icon: const Icon(Icons.document_scanner),
-            label: const Text('Weiteren Beleg scannen'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => context.go('/'),
-            child: const Text('Fertig'),
-          ),
-        ],
-      ),
+              ),
+            )),
+          ],
+        ),
+      ],
     );
   }
 
@@ -622,7 +717,11 @@ class _ChoiceChipButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           child: Column(
             children: [
-              Icon(icon, color: isSelected ? color : AppColors.textSecondary, size: 24),
+              Icon(
+                icon,
+                color: isSelected ? color : AppColors.textSecondary,
+                size: 24,
+              ),
               const SizedBox(height: 4),
               Text(
                 label,
@@ -655,8 +754,8 @@ class _KonfidenzBadge extends StatelessWidget {
     final color = konfidenz >= 0.8
         ? AppColors.success
         : konfidenz >= 0.5
-            ? AppColors.warning
-            : AppColors.error;
+        ? AppColors.warning
+        : AppColors.error;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -665,7 +764,11 @@ class _KonfidenzBadge extends StatelessWidget {
       ),
       child: Text(
         '$pct%',
-        style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
       ),
     );
   }
