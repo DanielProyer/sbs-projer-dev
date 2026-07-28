@@ -38,7 +38,23 @@ Beim Historik-Import waren gleichnamige Betriebe zu **einem** Datensatz verschmo
 
 Skript `Datenbank/wartung/entwirren_mischbetriebe_2026_07_28.sql`, Rückgängig via `rollback_mischbetriebe_2026_07_28.sql` (Snapshot `snapshot_mischbetriebe`).
 
-**Offen:** Umgehängte Reinigungen haben keine `anlage_id`, wenn der Zielbetrieb mehr als eine Anlage hat (Surselva Chur 108, Calanda Chur 59, Seven Alpina 39, Obertor Parpan 39) — bei Bedarf manuell zuordnen. Ausserdem: 15 weitere Betriebe tragen tote Historie fremder Häuser (nur ein aktives Objekt, daher unkritisch) — zweiter Durchgang.
+**Anlagenbezug nachgetragen (280 Reinigungen):** Die Excel-ID trägt den Anlagenindex an letzter Stelle (`2024_09_26_0195_01`). Eine Stichprobe über 93 bestehende Zuordnungen zeigte, dass der Index in 92 Fällen der Reihenfolge entspricht, in der die Anlagen angelegt wurden — danach zugeordnet. Keine einzige Reinigung zeigt mehr auf eine Anlage eines fremden Betriebs.
+
+**Offen:** 15 weitere Betriebe tragen tote Historie fremder Häuser (nur ein aktives Objekt, daher für den camt-Abgleich unkritisch) — zweiter Durchgang.
+
+---
+
+## 🟢 ERLEDIGT 28.07.: QR-Referenzen für 363 offene Rechnungen nachgetragen
+
+**Warum der camt-Auto-Match bisher kaum griff:** Der deterministische SCOR-Abgleich ist als *Stufe 1* im Forderungsabgleich implementiert (vor Alias und Betragsvergleich) — aber bei den Rechnungen stand keine Referenz. Vor 2026: 1 von 4'591. Q1 2026: **0 von 275**. Q2: 12 von 192. Q3: **63 von 63**. Ab den Juli-Rechnungen greift er also voll.
+
+**Rückwirkend hilft Nachtragen nichts** — auf dem versendeten Einzahlungsschein stand keine Referenz, also liefert die Bank auch keine. Wohl aber vorwärts: Jede künftige **Mahnung** und jeder **Nachversand** trägt sie jetzt, und solche Zahlungen matchen automatisch.
+
+Bildungsregel wie im Repository (SCOR aus den Ziffern der Rechnungsnummer), nur für App-Nummern (`2026-04-0125`) — Historik-Nummern (`011_2019_05_02_0042_00006785`) ergäben eine 27-stellige Referenz, SCOR erlaubt höchstens 25 Zeichen. Alle 363 sind Mod-97-gültig und eindeutig, keine Kollision mit dem Bestand.
+
+**Zur Kenntnis:** Die bereits vorhandenen 76 Referenzen stammen aus einem anderen Weg — dem QR-Zettel bei der Reinigung, gebildet aus *Reinigungsdatum + Betriebsnummer* (Rechnung 2026-07-1286 → `RF93 20260629 0030`), nicht aus der Rechnungsnummer.
+
+Skripte: `Datenbank/wartung/anlagen_und_qr_nachtrag_2026_07_28.sql`, Rückgängig via `rollback_anlagen_und_qr_2026_07_28.sql`.
 
 ---
 
