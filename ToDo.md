@@ -60,7 +60,7 @@ Die drei Duplikate sind entfernt, alle 27 neu angelegten Betriebe tragen jetzt i
 
 ---
 
-## 🔴 OFFEN: 8 Betriebs-Dubletten (alter Excel-Name ↔ heutiger Name)
+## 🟢 ERLEDIGT 28.07.: 8 Betriebs-Dubletten aufgelöst (alter Excel-Name ↔ heutiger Name)
 
 Die `heineken_nr`-Prüfung über alle 7'788 Historik-Reinigungen fand 127 Reinigungen, deren Betrieb eine andere Nummer trägt als die Excel-Zeile. Das sind **keine** Fehler des Entwirrens, sondern Betriebe, die **doppelt** in der App stehen: einmal unter dem alten Excel-Namen (dort hängt die Historie), einmal unter dem heutigen Namen (dort steht die Nummer).
 
@@ -74,7 +74,20 @@ Die `heineken_nr`-Prüfung über alle 7'788 Historik-Reinigungen fand 127 Reinig
 | 0082 | Vaillant Arena [Davos] · 2× | Eisstadion Davos [Davos] |
 | 0788 | Tapas Bar [Bad Ragaz] · 1× | Paloma Vino & Tapas [Bad Ragaz] |
 
-Vor dem Zusammenführen muss Daniel je Paar bestätigen, ob es wirklich derselbe Betrieb ist (Umbenennung) oder zwei verschiedene Häuser am selben Ort.
+**Daniel bestätigt: alle sechs sind derselbe Betrieb unter anderem Namen** → zusammengeführt (Skript `zusammenfuehren_dubletten_2026_07_28.sql`). Umgehängt wurden **alle** Verweise, nicht nur Reinigungen (auch Störungen, Montagen, Rechnungen, Adressen); die Altdatensätze sind gelöscht.
+
+| Nr | jetzt am Betrieb | Reinigungen | Zeitraum |
+|---|---|---|---|
+| 0113 | Center Fontauna [Disentis] | 54 | 07.2019–07.2026 |
+| 0372 | Giodavin [Davos Platz] | 20 | 11.2019–11.2025 |
+| 0183 | Sezner [Obersaxen Meierhof] | 12 | 02.2020–04.2025 |
+| 0161 | Capalari [Laax] | 7 | 12.2019–06.2021 |
+| 0082 | Eisstadion Davos | 3 | 10.2023–09.2025 |
+| 0788 | Paloma Vino & Tapas [Bad Ragaz] | 3 | 10.2025–03.2026 |
+
+**Schlusskontrolle über alle 7'786 Historik-Reinigungen:** 6'472 per `heineken_nr` bestätigt, **0 falsch zugeordnet**, 1'314 an Betrieben ohne hinterlegte Nummer (die erloschenen Häuser). Keine einzige Reinigung zeigt auf eine Anlage eines fremden Betriebs. Betriebe gesamt: 428.
+
+Rückgängig: `rollback_dubletten_2026_07_28.sql` (Snapshot `snapshot_dubletten`; Störungen/Montagen müssten dort von Hand nachgezogen werden).
 
 Skript `entwirren_mischbetriebe_teil2_2026_07_28.sql`, Rückgängig via `rollback_mischbetriebe_teil2_2026_07_28.sql`.
 
