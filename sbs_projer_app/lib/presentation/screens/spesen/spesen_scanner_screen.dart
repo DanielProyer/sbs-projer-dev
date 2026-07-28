@@ -676,30 +676,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
           children: [
             Row(
               children: [
-                // Kleine Vorschau: zeigt auf einen Blick, ob der Beleg quer
-                // liegt — tippen öffnet den Dreh-Dialog. Die automatische
-                // Ausrichtung (EXIF + KI) liegt gelegentlich daneben, und
-                // hinterher lässt sich die Datei nicht mehr drehen.
-                if (_belegBytes != null)
-                  GestureDetector(
-                    onTap: _belegDrehenDialog,
-                    child: Container(
-                      width: 40,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: AppColors.textSecondary),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.memory(
-                        _belegBytes!,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                      ),
-                    ),
-                  )
-                else
-                  const Icon(Icons.receipt_long, color: AppColors.primary),
+                const Icon(Icons.receipt_long, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
