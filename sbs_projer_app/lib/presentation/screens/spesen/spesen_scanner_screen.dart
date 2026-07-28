@@ -360,13 +360,9 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          pos.istBenzin
-                              ? Icons.local_gas_station
-                              : Icons.restaurant,
+                          _katIcon(pos.kategorie),
                           size: 18,
-                          color: pos.istBenzin
-                              ? AppColors.info
-                              : AppColors.warning,
+                          color: _katFarbe(pos.kategorie),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -389,23 +385,17 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color:
-                                          (pos.istBenzin
-                                                  ? AppColors.info
-                                                  : AppColors.warning)
-                                              .withAlpha(25),
+                                      color: _katFarbe(
+                                        pos.kategorie,
+                                      ).withAlpha(25),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      pos.istBenzin
-                                          ? 'Benzin · 6200'
-                                          : 'Essen · 5820',
+                                      _katLabel(pos.kategorie),
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
-                                        color: pos.istBenzin
-                                            ? AppColors.info
-                                            : AppColors.warning,
+                                        color: _katFarbe(pos.kategorie),
                                       ),
                                     ),
                                   ),
@@ -740,6 +730,56 @@ class _ChoiceChipButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Anzeige-Mapping der OCR-Kategorien (Konten wie in SpesenImportService).
+IconData _katIcon(String kategorie) {
+  switch (kategorie) {
+    case 'benzin':
+      return Icons.local_gas_station;
+    case 'material':
+      return Icons.handyman;
+    case 'berufskleider':
+      return Icons.checkroom;
+    case 'parkgebuehren':
+      return Icons.local_parking;
+    case 'entsorgung':
+      return Icons.delete_outline;
+    default:
+      return Icons.restaurant;
+  }
+}
+
+Color _katFarbe(String kategorie) {
+  switch (kategorie) {
+    case 'benzin':
+      return AppColors.info;
+    case 'material':
+    case 'berufskleider':
+    case 'entsorgung':
+      return AppColors.primary;
+    case 'parkgebuehren':
+      return AppColors.info;
+    default:
+      return AppColors.warning;
+  }
+}
+
+String _katLabel(String kategorie) {
+  switch (kategorie) {
+    case 'benzin':
+      return 'Benzin · 6200';
+    case 'material':
+      return 'Material · 4004';
+    case 'berufskleider':
+      return 'Berufskleider · 5850';
+    case 'parkgebuehren':
+      return 'Parkgebühren · 6270';
+    case 'entsorgung':
+      return 'Entsorgung · 6460';
+    default:
+      return 'Essen · 5820';
   }
 }
 

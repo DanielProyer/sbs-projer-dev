@@ -4,8 +4,6 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 
-enum SpesenTyp { essen, benzin }
-
 enum Zahlungsweg { bar, bank, privat }
 
 /// Erstellt Buchungen + Beleg-Uploads aus einem BelegScanResult.
@@ -14,13 +12,37 @@ class SpesenImportService {
   static double _runden5Rappen(double betrag) =>
       (betrag * 20).roundToDouble() / 20;
 
-  /// Konten-Mapping nach Kategorie
+  /// Konten-Mapping nach Kategorie (Kontenwahl Daniel 26.07.2026).
+  /// 'essen' ist der Auffangwert für alles Übrige → Spesen.
   static int _sollKonto(String kategorie) {
-    return kategorie == 'benzin' ? 6200 : 5820; // Fahrzeugaufwand : Spesen
+    switch (kategorie) {
+      case 'benzin':
+        return 6200; // Betriebsaufwand Fahrzeuge
+      case 'material':
+        return 4004; // Hilfs- und Verbrauchsmaterialaufwand
+      case 'berufskleider':
+        return 5850; // Berufskleider/Schutzausrüstung
+      case 'parkgebuehren':
+        return 6270; // Parkgebühren
+      case 'entsorgung':
+        return 6460; // Entsorgungsaufwand
+      default:
+        return 5820; // Reise- und Spesenvergütungen
+    }
   }
 
   static String _belegordner(String kategorie) {
-    return kategorie == 'benzin' ? '040_Fahrzeug' : '030_Spesen';
+    switch (kategorie) {
+      case 'benzin':
+      case 'parkgebuehren':
+        return '040_Fahrzeug';
+      case 'material':
+      case 'berufskleider':
+      case 'entsorgung':
+        return '050_Material';
+      default:
+        return '030_Spesen';
+    }
   }
 
   static int _habenKonto(Zahlungsweg weg) {
@@ -46,7 +68,8 @@ class SpesenImportService {
   }
 
   /// Importiert Spesen: Erstellt 1-N Buchungen (pro Position) + Beleg-Upload.
-  /// Kategorie (benzin/essen) wird pro Position automatisch aus OCR bestimmt.
+  /// Kategorie (benzin/material/berufskleider/parkgebuehren/entsorgung/essen)
+  /// wird pro Position automatisch aus dem OCR-Ergebnis bestimmt.
   static Future<List<Buchung>> importSpesen({
     required BelegScanResult scanResult,
     required Zahlungsweg zahlungsweg,

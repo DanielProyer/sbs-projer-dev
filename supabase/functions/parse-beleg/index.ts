@@ -99,10 +99,30 @@ Datum-Formate: DD.MM.YYYY oder DD.MM.YY
 Beträge in CHF
 
 KATEGORIE-ERKENNUNG - ZUERST Artikel prüfen, DANN gruppieren:
-1. Jeden Artikel einer Kategorie zuordnen:
-   - "benzin" wenn Artikel enthält: Diesel, Benzin, Bleifrei, Tankzeit, AdBlue, Treibstoff, Fuel, Zapfsäule, Liter-Angabe bei Kraftstoff
-   - "essen" für alles andere: Lebensmittel, Getränke, Snacks, Sandwiches, Kaffee, Shop-Artikel etc.
-2. Dann gruppieren nach EINZIGARTIGER Kombination von (kategorie + mwst_satz)
+1. Jeden Artikel einer Kategorie zuordnen (Reihenfolge beachten, erste
+   passende Regel gewinnt):
+   - "benzin": Diesel, Benzin, Bleifrei, Tankzeit, AdBlue, Treibstoff, Fuel,
+     Zapfsäule, Liter-Angabe bei Kraftstoff
+   - "parkgebuehren": Parkhaus, Parking, Parkplatz, Parkuhr, Parkgebühr,
+     Parkschein, Tiefgarage
+   - "berufskleider": Arbeitshandschuhe, Sicherheitsschuhe, Arbeitshose,
+     Arbeitsjacke, Schutzbrille, Gehörschutz, Helm, Warnweste, Knieschoner
+   - "entsorgung": Deponie, Entsorgung, Kehrichtsack, Gebührenmarke,
+     Recycling, Sondermüll, Altöl-Entsorgung
+   - "material": ALLES Handwerks-/Baumaterial und Werkzeug — z.B. Schrauben,
+     Dübel, Muttern, Dichtungen, Schläuche, Rohre, Kabel, Klebeband,
+     Silikon, Farbe, Holz, Bleche, Bohrer, Sägeblätter, Zangen, Schlüssel,
+     Messgeräte, Batterien, Leuchtmittel, Putzmittel/Reinigungsmittel,
+     Lappen, Kabelbinder, Schleifpapier
+   - "essen" NUR für tatsächliche Verpflegung: Lebensmittel, Getränke,
+     Snacks, Sandwiches, Kaffee, Menü, Restaurant
+2. GESCHÄFTS-HINWEIS nutzen: In einem Baumarkt/Fachhandel (Bauhaus, Jumbo,
+   Hornbach, Obi, Coop Bau+Hobby, Landi, Migros Do it, Hagebau, Würth,
+   Elektro-/Sanitär-/Eisenwarenhandlung) ist praktisch ALLES "material" —
+   ausser eindeutiger Verpflegung (z.B. Getränk an der Kasse) oder klarer
+   Schutzausrüstung ("berufskleider"). Ein unklarer Artikel in einem
+   Baumarkt ist "material", NIEMALS "essen".
+3. Dann gruppieren nach EINZIGARTIGER Kombination von (kategorie + mwst_satz)
 3. Pro Gruppe: Beträge summieren → eine Position
 
 GRUPPIERUNGS-REGELN:
@@ -121,6 +141,15 @@ Beispiel 2 - Coop Pronto Tankstelle (Diesel + Shop → 3 Positionen):
   → Gruppe 1: benzin+8.1% = 92.92 | Gruppe 2: essen+2.6% = 7.95 | Gruppe 3: essen+8.1% = 4.20
   → 3 Positionen: [{kategorie:"benzin", mwst_satz:8.1, betrag_brutto:92.92}, {kategorie:"essen", mwst_satz:2.6, betrag_brutto:7.95}, {kategorie:"essen", mwst_satz:8.1, betrag_brutto:4.20}]
   WICHTIG: Diesel (benzin) und Radler (essen) haben BEIDE 8.1% aber VERSCHIEDENE Kategorien → 2 getrennte Positionen!
+
+Beispiel 3 - Bauhaus (Baumarkt → material, NICHT essen!):
+  Artikel: Dichtungsring 4.90, Schlauchschelle 3.20, Silikon 12.50,
+           Arbeitshandschuhe 14.90, Mineralwasser 2.50
+  → Gruppe 1: material+8.1% = 20.60 (Dichtung, Schelle, Silikon)
+  → Gruppe 2: berufskleider+8.1% = 14.90 (Handschuhe)
+  → Gruppe 3: essen+2.6% = 2.50 (Mineralwasser)
+  WICHTIG: Im Baumarkt ist der Normalfall "material" — Verpflegung ist die
+  Ausnahme und muss klar erkennbar sein. NIEMALS Baumaterial als "essen"!
 
 ZAHLUNGSMETHODE erkennen:
 - Auf dem Beleg steht oft die Zahlungsmethode (z.B. "TWINT", "Bargeld", "BAR", "Maestro", "Visa", "Mastercard", "EC", "Debit", "Kreditkarte")
@@ -175,7 +204,11 @@ Weitere Regeln:
 - beschreibung: Artikelnamen kommasepariert auflisten (z.B. "Lebensmittel (Kaffee, Brötchen)")
 - Benzin/Diesel: immer 8.1% MwSt und kategorie "benzin"
 - Wenn kein MwSt-Satz erkennbar: 8.1% als Default
-- Datum: Wenn Jahr zweistellig, ergänze 20xx`,
+- Datum: Wenn Jahr zweistellig, ergänze 20xx
+- kategorie MUSS einer dieser Werte sein: "benzin", "material",
+  "berufskleider", "parkgebuehren", "entsorgung", "essen"
+- Handwerks-/Baumaterial und Werkzeug gehören IMMER zu "material" —
+  "essen" ist ausschliesslich für Verpflegung`,
               },
             ],
           },

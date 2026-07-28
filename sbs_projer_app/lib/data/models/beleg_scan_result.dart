@@ -69,7 +69,9 @@ class BelegPosition {
   final double mwstSatz;
   final double betragBrutto;
   final String beschreibung;
-  final String kategorie; // 'benzin' oder 'essen'
+  /// 'benzin', 'material', 'berufskleider', 'parkgebuehren', 'entsorgung'
+  /// oder 'essen' (Auffangwert für Verpflegung/Übriges).
+  final String kategorie;
 
   BelegPosition({
     required this.mwstSatz,
@@ -77,8 +79,6 @@ class BelegPosition {
     required this.beschreibung,
     required this.kategorie,
   });
-
-  bool get istBenzin => kategorie == 'benzin';
 
   /// Netto-Betrag berechnet aus Brutto und MwSt-Satz.
   double get betragNetto =>
