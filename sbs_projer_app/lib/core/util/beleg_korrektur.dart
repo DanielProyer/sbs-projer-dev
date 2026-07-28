@@ -36,6 +36,25 @@ double? differenzZumTotal(List<double> betraege, double total) {
   return differenz.abs() < 0.005 ? null : differenz;
 }
 
+/// Ist die Erfassung belastbar?
+///
+/// Die Selbsteinschätzung des Modells ist das schwächere Signal — es meldet
+/// auch bei einwandfrei gelesenen Belegen gerne 0.80–0.85 (gemeldet Daniel
+/// 28.07.2026). Deckt sich die Summe der Positionen dagegen mit dem
+/// gedruckten Total, ist der Beleg rechnerisch schlüssig: jeder Lesefehler in
+/// einem Betrag würde die Summe verschieben. Diese Probe schlägt darum die
+/// Konfidenz — ausser das Bild war so schlecht, dass auch das Total geraten
+/// sein könnte (< 0.5).
+bool belegStimmig(double konfidenz, List<double> betraege, double total) {
+  if (betraege.isEmpty) return false;
+  if (konfidenz >= 0.85) return true;
+  if (konfidenz < 0.5) return false;
+
+  // 5 Rappen Toleranz: bei Barzahlung ist das gedruckte Total gerundet.
+  final summe = betraege.fold<double>(0, (s, b) => s + b);
+  return (summe - total).abs() <= 0.05;
+}
+
 /// Eine bereits gebuchte Spesen-Position desselben Belegdatums.
 class DublettenKandidat {
   final String beschreibung;

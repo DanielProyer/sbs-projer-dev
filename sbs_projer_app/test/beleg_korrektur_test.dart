@@ -66,6 +66,26 @@ void main() {
     });
   });
 
+  group('belegStimmig (Regel Daniel 28.07.: Rechnung schlägt Bauchgefühl)', () {
+    test('Summe = Total -> stimmig, auch bei niedriger Konfidenz', () {
+      expect(belegStimmig(0.82, [89.68, 6.75], 96.43), isTrue);
+      expect(belegStimmig(0.60, [10.00], 10.00), isTrue);
+    });
+    test('5-Rappen-Toleranz (Barzahlung)', () {
+      expect(belegStimmig(0.70, [106.53], 106.55), isTrue);
+    });
+    test('Summe weicht ab -> nur hohe Konfidenz zählt', () {
+      expect(belegStimmig(0.82, [50.00], 96.43), isFalse);
+      expect(belegStimmig(0.95, [50.00], 96.43), isTrue);
+    });
+    test('sehr niedrige Konfidenz -> nie stimmig, auch wenn die Summe passt', () {
+      expect(belegStimmig(0.40, [10.00], 10.00), isFalse);
+    });
+    test('keine Positionen -> nicht stimmig', () {
+      expect(belegStimmig(0.99, [], 10.00), isFalse);
+    });
+  });
+
   group('dublettenTreffer', () {
     final kandidaten = [
       DublettenKandidat(

@@ -200,13 +200,20 @@ PLAUSIBILITÄTS-PRÜFUNG (MUSS stimmen):
 - Vergleiche dein total_brutto mit dem "Total"/"Gesamt"/"TOTAL CHF"-Wert auf dem Beleg
 - Wenn die Summe nicht stimmt: Prüfe nochmal die MwSt-Tabelle und korrigiere
 
-KONFIDENZ-REGELN (sei ehrlich und streng):
-- 0.95-1.0: Alle Werte klar lesbar, MwSt-Tabelle vorhanden, Total stimmt
-- 0.85-0.95: Die meisten Werte lesbar, leichte Unschärfe aber plausibel
-- 0.70-0.85: Einige Werte schwer lesbar, musste raten
-- unter 0.70: Beleg kaum lesbar, starke Unschärfe/Schatten
-- Bei unscharfen/abgeschnittenen Belegen IMMER niedrige Konfidenz setzen!
-- Wenn du bei einem Betrag unsicher bist: konfidenz unter 0.85 setzen
+KONFIDENZ-REGELN (bewerte, was du GELESEN hast — nicht wie der Beleg aussieht):
+- 0.95-1.0: Datum, Geschäft und alle Beträge klar lesbar UND deine
+  Positionssumme entspricht dem gedruckten Total. Das ist der Normalfall.
+- 0.85-0.95: Alles gelesen, aber ein Detail war schwach (z.B. Datum blass)
+- 0.70-0.85: Du musstest einen Betrag oder das Datum RATEN
+- unter 0.70: Beleg kaum lesbar, mehrere Werte geraten
+WICHTIG - diese Dinge senken die Konfidenz NICHT:
+- fehlende MwSt-Tabelle (viele kleine Quittungen haben keine)
+- Knicke, Schatten, schräge Aufnahme oder Thermopapier-Grauschleier
+- ein knapp angeschnittener Rand, solange alle Werte lesbar sind
+Entscheidend ist nur: Konntest du die Werte ablesen und geht die Rechnung
+auf? Wenn deine Positionssumme dem gedruckten Total entspricht, hast du
+richtig gelesen — dann gehört die Konfidenz über 0.95. Setze nur dann unter
+0.85, wenn du bei einem konkreten Wert tatsächlich geraten hast.
 
 Weitere Regeln:
 - beschreibung: Artikelnamen kommasepariert auflisten (z.B. "Lebensmittel (Kaffee, Brötchen)")

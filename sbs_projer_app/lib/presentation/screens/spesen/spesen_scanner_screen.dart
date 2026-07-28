@@ -111,6 +111,14 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   List<double> _positionsBetraege() =>
       _positionen.map((p) => p.betragWert).toList();
 
+  /// Ist die Erfassung belastbar? Die Probe «Positionen = Total» zählt mehr
+  /// als die Selbsteinschätzung des Modells (siehe belegStimmig).
+  bool _stimmig() => belegStimmig(
+        _scanResult?.konfidenz ?? 0,
+        _positionsBetraege(),
+        _total(),
+      );
+
   double _barRundung() =>
       double.parse((runde5Rappen(_total()) - _total()).toStringAsFixed(2));
 
@@ -400,7 +408,9 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
     }
     final scan = _scanResult;
     if (scan == null) return const SizedBox.shrink();
-    final unsicher = scan.konfidenz < _konfidenzOk;
+    // Buchen ist IMMER möglich — bei unsicherer Erkennung steht daneben
+    // «Nochmal scannen». Vorher ersetzte der Scan-Knopf den Buchen-Knopf,
+    // wodurch ein korrekt erkannter Beleg nicht gebucht werden konnte.
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -408,31 +418,22 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
           children: [
             TextButton(
               onPressed: _reset,
-              child: Text(unsicher ? 'Abbrechen' : 'Neuer Beleg'),
+              child: Text(_stimmig() ? 'Neuer Beleg' : 'Nochmal scannen'),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: unsicher
-                  ? FilledButton.icon(
-                      onPressed: _reset,
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Nochmal scannen'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _buchen,
-                      icon: const Icon(Icons.check),
-                      label: Text(
-                        scan.istMischkauf
-                            ? '${scan.positionen.length} Buchungen erstellen'
-                            : 'Buchen',
-                      ),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
+              child: FilledButton.icon(
+                onPressed: _buchen,
+                icon: const Icon(Icons.check),
+                label: Text(
+                  _positionen.length > 1
+                      ? '${_positionen.length} Buchungen erstellen'
+                      : 'Buchen',
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
             ),
           ],
         ),
@@ -618,7 +619,9 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
             ),
           ),
         ],
-        if (scan.konfidenz < _konfidenzOk) ...[
+        // Warnung nur, wenn auch die Rechenprobe nicht aufgeht — eine
+        // vorsichtige Selbsteinschätzung des Modells allein genügt nicht.
+        if (!_stimmig()) ...[
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
@@ -634,8 +637,9 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Erkennung unsicher (${(scan.konfidenz * 100).round()}%) — '
-                    'bitte Beträge prüfen oder nochmal scannen.',
+                    'Erkennung unsicher (${(scan.konfidenz * 100).round()}%) '
+                    'und die Positionen ergeben nicht das Total — bitte '
+                    'Beträge prüfen oder nochmal scannen.',
                     style: TextStyle(
                       color: AppColors.warning.withAlpha(200),
                       fontSize: 13,
@@ -672,7 +676,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                         fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ),
-                _KonfidenzBadge(konfidenz: scan.konfidenz),
+                _KonfidenzBadge(konfidenz: scan.konfidenz, stimmig: _stimmig()),
                 IconButton(
                   onPressed: () => setState(() => _bearbeiten = true),
                   icon: const Icon(Icons.edit_outlined, size: 20),
@@ -1310,16 +1314,22 @@ String _katLabel(String kategorie) {
 class _KonfidenzBadge extends StatelessWidget {
   final double konfidenz;
 
-  const _KonfidenzBadge({required this.konfidenz});
+  /// Ergebnis der Rechenprobe (Positionen = Total). Stimmt sie, ist der Beleg
+  /// verlässlich erfasst, auch wenn sich das Modell unsicher gab.
+  final bool stimmig;
+
+  const _KonfidenzBadge({required this.konfidenz, required this.stimmig});
 
   @override
   Widget build(BuildContext context) {
-    final pct = (konfidenz * 100).round();
-    final color = konfidenz >= _konfidenzOk
+    final color = stimmig
         ? AppColors.success
         : konfidenz >= 0.5
         ? AppColors.warning
         : AppColors.error;
+    final text = stimmig && konfidenz < _konfidenzOk
+        ? 'Summe stimmt'
+        : '${(konfidenz * 100).round()}%';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -1327,7 +1337,7 @@ class _KonfidenzBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        '$pct%',
+        text,
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w600,
