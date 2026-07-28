@@ -21,10 +21,22 @@ class SpesenScannerScreen extends ConsumerStatefulWidget {
       _SpesenScannerScreenState();
 }
 
+/// Ab welcher Konfidenz die Erkennung als verlässlich gilt. EINE Schwelle für
+/// Badge, Warnhinweis und Aktionsleiste — vorher war das Badge schon ab 80 %
+/// grün, während unten noch die Warnung stand (gemeldet Daniel 28.07.2026).
+const double _konfidenzOk = 0.85;
+
 class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
-  int _step = 0; // 0 = Kamera, 1 = Prüfen, 2 = Erfolg
+  // 0 = Kamera/Fehler, 3 = Beleg ausrichten (vor der Analyse),
+  // 1 = Prüfen, 2 = Erfolg
+  int _step = 0;
   bool _isLoading = false;
   String? _error;
+
+  /// Prüf-Schritt: Anzeige kompakt (false) oder als Korrektur-Formular (true).
+  /// Standard kompakt — die Erkennung sitzt, das Formular wäre nur unruhig
+  /// (Entscheid Daniel 28.07.2026).
+  bool _bearbeiten = false;
 
   // Beleg-Daten
   Uint8List? _belegBytes;
@@ -184,7 +196,12 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       _dateityp = ext == 'png' ? 'png' : 'jpg';
       _mediaType = ext == 'png' ? 'image/png' : 'image/jpeg';
 
-      await _analyzeBeleg();
+      // Erst ausrichten, dann analysieren: Ein gerade stehender Beleg wird
+      // besser gelesen und landet auch richtig herum im Storage.
+      setState(() {
+        _step = 3;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -195,6 +212,10 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
 
   Future<void> _analyzeBeleg() async {
     if (_belegBytes == null) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
       final result = await BelegScanService.parseBeleg(
@@ -214,6 +235,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
         _scanResult = result;
         _uebernehmeScan(result);
         _zahlungsweg = autoZahlungsweg;
+        _bearbeiten = false;
         _step = 1;
         _isLoading = false;
       });
@@ -315,6 +337,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       _mediaType = '';
       _scanResult = null;
       _zahlungsweg = Zahlungsweg.bar;
+      _bearbeiten = false;
       _erstellteBuchungen = [];
     });
     _openCamera();
@@ -329,7 +352,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       // Beleg mit 6 Positionen war der Buchen-Button am Listenende nicht
       // mehr erreichbar). So hängt er nie am Scrollen und liegt nicht hinter
       // der System-Navigationsleiste.
-      bottomNavigationBar: (!_isLoading && (_step == 1 || _step == 2))
+      bottomNavigationBar: (!_isLoading && _step != 0)
           ? _buildAktionsLeiste()
           : null,
     );
@@ -339,6 +362,32 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   /// nach dem Buchen weiter scannen bzw. fertig. Immer fix am unteren
   /// Rand, damit sie nie am Scrollen hängt.
   Widget _buildAktionsLeiste() {
+    if (_step == 3) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Row(
+            children: [
+              TextButton(
+                onPressed: _openCamera,
+                child: const Text('Neu aufnehmen'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _dreheLaeuft ? null : _analyzeBeleg,
+                  icon: const Icon(Icons.document_scanner),
+                  label: const Text('Beleg auswerten'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (_step == 2) {
       return SafeArea(
         child: Padding(
@@ -367,7 +416,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
     }
     final scan = _scanResult;
     if (scan == null) return const SizedBox.shrink();
-    final unsicher = scan.konfidenz < 0.85;
+    final unsicher = scan.konfidenz < _konfidenzOk;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -408,7 +457,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   }
 
   Widget _buildLoading() {
-    final text = _step == 0
+    final text = _step == 3 || _step == 0
         ? 'Beleg wird analysiert...'
         : 'Buchung wird erstellt...';
     return Center(
@@ -431,9 +480,65 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
         return _buildPruefen();
       case 2:
         return _buildErfolg();
+      case 3:
+        return _buildAusrichten();
       default:
         return const SizedBox();
     }
+  }
+
+  // === Step 3: Beleg ausrichten (direkt nach der Aufnahme) ===
+  Widget _buildAusrichten() {
+    final bytes = _belegBytes;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (bytes != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              bytes,
+              height: 420,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+            ),
+          ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton.filledTonal(
+              onPressed: _dreheLaeuft ? null : () => _drehen(270),
+              icon: const Icon(Icons.rotate_left),
+              tooltip: 'Nach links drehen',
+            ),
+            const SizedBox(width: 24),
+            if (_dreheLaeuft)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Text('Ausrichten',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(width: 24),
+            IconButton.filledTonal(
+              onPressed: _dreheLaeuft ? null : () => _drehen(90),
+              icon: const Icon(Icons.rotate_right),
+              tooltip: 'Nach rechts drehen',
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Steht der Beleg richtig herum, wird er besser gelesen — und liegt '
+          'auch im Archiv richtig.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+      ],
+    );
   }
 
   // === Step 0: Fehler / Retry ===
@@ -484,11 +589,26 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildBelegBild(scan),
-        const SizedBox(height: 12),
-        _buildAngaben(),
-        const SizedBox(height: 12),
-        _buildPositionen(),
+        if (_bearbeiten) ...[
+          Row(
+            children: [
+              const Icon(Icons.edit_outlined, size: 18,
+                  color: AppColors.primary),
+              const SizedBox(width: 6),
+              const Text('Korrigieren',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const Spacer(),
+              TextButton(
+                onPressed: () => setState(() => _bearbeiten = false),
+                child: const Text('Fertig'),
+              ),
+            ],
+          ),
+          _buildAngaben(),
+          const SizedBox(height: 12),
+          _buildPositionen(),
+        ] else
+          _buildUebersicht(scan),
         if (differenz != null) ...[
           const SizedBox(height: 8),
           _buildDifferenzHinweis(differenz),
@@ -509,7 +629,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
             ),
           ),
         ],
-        if (scan.konfidenz < 0.85) ...[
+        if (scan.konfidenz < _konfidenzOk) ...[
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
@@ -542,53 +662,128 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
     );
   }
 
-  /// Beleg-Vorschau mit Drehen-Knöpfen. Die Drehung wirkt auf die Datei,
-  /// die im Storage landet (Belege wurden mehrfach quer gespeichert).
-  Widget _buildBelegBild(BelegScanResult scan) {
-    final bytes = _belegBytes;
+  /// Kompakte Übersicht — der Normalfall. Nur lesen, kein Formular
+  /// (Entscheid Daniel 28.07.2026: die Erkennung sitzt, Felder überall
+  /// machen die Ansicht bloss unruhig). Korrigieren über den Stift.
+  Widget _buildUebersicht(BelegScanResult scan) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (bytes != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.memory(
-                  bytes,
-                  height: 160,
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
-                ),
-              ),
-            const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                IconButton(
-                  onPressed: _dreheLaeuft ? null : () => _drehen(270),
-                  icon: const Icon(Icons.rotate_left),
-                  tooltip: 'Nach links drehen',
+                const Icon(Icons.receipt_long, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _geschaeftCtrl.text,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
                 ),
-                if (_dreheLaeuft)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  Text('Beleg drehen',
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
-                IconButton(
-                  onPressed: _dreheLaeuft ? null : () => _drehen(90),
-                  icon: const Icon(Icons.rotate_right),
-                  tooltip: 'Nach rechts drehen',
-                ),
-                const Spacer(),
                 _KonfidenzBadge(konfidenz: scan.konfidenz),
+                IconButton(
+                  onPressed: () => setState(() => _bearbeiten = true),
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  tooltip: 'Korrigieren',
+                ),
               ],
             ),
+            const SizedBox(height: 4),
+            Text('Datum: ${_formatDate(_datum)}',
+                style: TextStyle(color: AppColors.textSecondary)),
+            const Divider(height: 24),
+            for (final pos in _positionen)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(_katIcon(pos.kategorie),
+                        size: 18, color: _katFarbe(pos.kategorie)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  pos.beschreibung.text,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color:
+                                      _katFarbe(pos.kategorie).withAlpha(25),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _katLabel(pos.kategorie),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: _katFarbe(pos.kategorie),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            pos.kategorie == 'privat'
+                                ? (_zahlungsweg == Zahlungsweg.privat
+                                    ? 'Privatkauf — wird nicht gebucht'
+                                    : 'Privatkauf — kein Vorsteuerabzug')
+                                : 'Netto ${(pos.mwstSatz > 0 ? pos.betragWert / (1 + pos.mwstSatz / 100) : pos.betragWert).toStringAsFixed(2)}'
+                                    ' + ${pos.mwstSatz}% MwSt',
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${pos.betragWert.toStringAsFixed(2)} CHF',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Total',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 16)),
+                Text('${_total().toStringAsFixed(2)} CHF',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 16)),
+              ],
+            ),
+            if (_zahlungsweg == Zahlungsweg.bar && _barRundung() != 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Bar gerundet (5 Rp.)',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary)),
+                  Text('${runde5Rappen(_total()).toStringAsFixed(2)} CHF',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary)),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -1131,7 +1326,7 @@ class _KonfidenzBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = (konfidenz * 100).round();
-    final color = konfidenz >= 0.8
+    final color = konfidenz >= _konfidenzOk
         ? AppColors.success
         : konfidenz >= 0.5
         ? AppColors.warning
