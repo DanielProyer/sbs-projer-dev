@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -450,7 +451,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 gewaehlteGutschriften.fold<double>(0, (s, g) => s + g.amount);
             final fordSumme = gewaehlteForderungen.fold<double>(
                 0, (s, r) => s + r.betragBrutto);
-            final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
+            final info = bewerteDifferenz(zahlSumme, fordSumme);
             final kannVerbuchen = gewaehlteGutschriften.isNotEmpty &&
                 gewaehlteForderungen.isNotEmpty;
             // Forderungen chronologisch (neueste zuoberst, nach Datum — nicht Nr.).
@@ -551,44 +552,41 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                       'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 13),
                     ),
-                    if (diff.abs() >= 0.01) ...[
+                    if (!info.istKeine) ...[
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: diff < 0
-                              ? AppColors.warning.withAlpha(25)
+                          color: info.istMinder
+                              ? AppColors.error.withAlpha(25)
                               : AppColors.success.withAlpha(25),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: diff < 0
-                                ? AppColors.warning.withAlpha(80)
-                                : AppColors.success.withAlpha(80),
+                            color: (info.istMinder
+                                    ? AppColors.error
+                                    : AppColors.success)
+                                .withAlpha(80),
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
-                              diff < 0
+                              info.istMinder
                                   ? Icons.trending_down
                                   : Icons.trending_up,
                               size: 18,
-                              color: diff < 0
-                                  ? AppColors.warning
+                              color: info.istMinder
+                                  ? AppColors.error
                                   : AppColors.success,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                diff < 0
-                                    ? 'Unterzahlung: CHF ${diff.abs().toStringAsFixed(2)}\n'
-                                        'Wird als Debitorenverlust (3805) gebucht'
-                                    : 'Mehrzahlung: CHF ${diff.toStringAsFixed(2)}\n'
-                                        'Wird als a.o. Ertrag (8000) gebucht',
+                                info.text,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: diff < 0
-                                      ? AppColors.warning
+                                  color: info.istMinder
+                                      ? AppColors.error
                                       : AppColors.success,
                                 ),
                               ),
@@ -713,7 +711,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
           final zahlSumme = g.amount;
           final fordSumme = gewaehlt.fold<double>(0, (s, r) => s + r.betragBrutto);
-          final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
+          final info = bewerteDifferenz(zahlSumme, fordSumme);
           return AlertDialog(
             title: Text('Zahlung zuordnen — ${g.amount.toStringAsFixed(2)} CHF'),
             content: SizedBox(
@@ -784,23 +782,26 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if (gewaehlt.isNotEmpty && diff.abs() >= 0.01)
+                  if (!info.istKeine)
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (diff < 0 ? AppColors.warning : AppColors.success)
+                        color: (info.istMinder
+                                ? AppColors.error
+                                : AppColors.success)
                             .withAlpha(25),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(children: [
-                        Icon(diff < 0 ? Icons.trending_down : Icons.trending_up,
-                            color: diff < 0 ? AppColors.warning : AppColors.success),
+                        Icon(
+                            info.istMinder
+                                ? Icons.trending_down
+                                : Icons.trending_up,
+                            color: info.istMinder
+                                ? AppColors.error
+                                : AppColors.success),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(diff < 0
-                              ? 'Unterzahlung ${diff.abs().toStringAsFixed(2)} CHF — wird als Debitorenverlust (3805) gebucht'
-                              : 'Mehrzahlung ${diff.toStringAsFixed(2)} CHF — wird als a.o. Ertrag (8000) gebucht'),
-                        ),
+                        Expanded(child: Text(info.text)),
                       ]),
                     ),
                 ],
@@ -1074,7 +1075,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
               gewaehlteGuts.fold<double>(0, (s, g) => s + g.amount);
           final fordSumme = gewaehlteForderungen.fold<double>(
               0, (s, r) => s + r.betragBrutto);
-          final diff = ((zahlSumme - fordSumme) * 20).roundToDouble() / 20;
+          final info = bewerteDifferenz(zahlSumme, fordSumme);
           final kannVerbuchen =
               gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
           return AlertDialog(
@@ -1144,17 +1145,15 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                       'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 13),
                     ),
-                    if (diff.abs() >= 0.01)
+                    if (!info.istKeine)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          diff < 0
-                              ? 'Unterzahlung CHF ${diff.abs().toStringAsFixed(2)} → Debitorenverlust (3805)'
-                              : 'Mehrzahlung CHF ${diff.toStringAsFixed(2)} → a.o. Ertrag (8000)',
+                          info.text,
                           style: TextStyle(
                               fontSize: 12,
-                              color: diff < 0
-                                  ? AppColors.warning
+                              color: info.istMinder
+                                  ? AppColors.error
                                   : AppColors.success),
                         ),
                       ),
