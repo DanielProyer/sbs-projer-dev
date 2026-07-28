@@ -42,7 +42,39 @@ Skript `Datenbank/wartung/entwirren_mischbetriebe_2026_07_28.sql`, Rückgängig 
 
 **Teil 2 (ebenfalls 28.07. erledigt): 16 Betriebe mit toter Fremdhistorie** — 218 Reinigungen und 147 Rechnungen umgehängt, 18 weitere erloschene Häuser als geschlossene Betriebe angelegt (Arena Klosters · Arena Bar 2 Flims · Mühle Davos · Edelweiss Chur/Triesenberg · Sport Klosters · Weisses Kreuz Cazis · Kulm Arosa · Kurhaus Lenzerheide · Merz Wiesental Chur · Parsenn Conters · Posthotel Churwalden · Rössli Steinhausen · Sonne Krummenau/Thusis/Klosters · Sonnenhalde Davos · Waldhaus Flims). Zwei Objekte gingen an bestehende Betriebe: Gemsli Mels (25×) und Rätia Filisur (2×).
 
-**Einzige verbleibende Mehrfachzuordnung — bewusst so:** *Halli Galli + Los Bar [Arosa]* trägt die Nummern 0011 (Halli Galli) und 0616 (Los), weil der Betriebsname beide Lokale nennt. *Arena Bar 2 [Flims]* wurde dagegen als eigener Betrieb angelegt, obwohl am selben Ort wie Arena Flims — im Excel sind es getrennte Objekte.
+**Halli Galli getrennt (Korrektur nach Daniels Hinweis):** *Halli Galli [Arosa]* ist der alte Standort (2019–08.2022, 16 Reinigungen, geschlossen, `heineken_nr` 0011), *Halli Galli + Los Bar [Arosa]* der heutige Betrieb ab 10.2022 (33 Reinigungen, 0616). *Arena Bar 2 [Flims]* bleibt eigener Betrieb, obwohl am selben Ort wie Arena Flims — im Excel getrennte Objekte.
+
+### Kontrolle über `betriebe.heineken_nr` — drei Fehlzuordnungen gefunden und behoben
+
+`betriebe.heineken_nr` trägt die **Excel-Betriebsnummer** und liefert damit eine unabhängige Prüfung jeder Zuordnung. Von den bestehenden Betrieben wurden 13 exakt bestätigt, **drei waren falsch** — dort hatte ich einen Betrieb neu angelegt, obwohl er unter anderem Namen längst existierte:
+
+| Nr | falsch (neu angelegt) | richtig |
+|---|---|---|
+| 0146 | Sport [Klosters-Serneus] | **Hotel Sport [Klosters]** — 35 Reinigungen 2019–2026 |
+| 0727 | Grill-Haus Hayoz [Gettnau] | **Blue Sushi Garden [Gettnau]** |
+| 0730 | Gasthaus Löwen [Grossdietwil] | **Gasthof Löwen [Grossdietwil]** |
+
+Die drei Duplikate sind entfernt, alle 27 neu angelegten Betriebe tragen jetzt ihre `heineken_nr`. Skript: `korrektur_heineken_nr_2026_07_28.sql`.
+
+**Merke:** `saisonpause` ist **kein** gültiger Betriebsstatus — der CHECK erlaubt nur `aktiv`, `inaktiv`, `geschlossen`. Die Saison wird über die Saisondaten abgebildet.
+
+---
+
+## 🔴 OFFEN: 8 Betriebs-Dubletten (alter Excel-Name ↔ heutiger Name)
+
+Die `heineken_nr`-Prüfung über alle 7'788 Historik-Reinigungen fand 127 Reinigungen, deren Betrieb eine andere Nummer trägt als die Excel-Zeile. Das sind **keine** Fehler des Entwirrens, sondern Betriebe, die **doppelt** in der App stehen: einmal unter dem alten Excel-Namen (dort hängt die Historie), einmal unter dem heutigen Namen (dort steht die Nummer).
+
+| Nr | Historie hängt an | trägt die Nummer |
+|---|---|---|
+| 0113 | Center da sport e cultura [Disentis/Muster] · 48× | Center Fontauna [Disentis] |
+| 0372 | WG Giovadin [Davos] · 20× | Giodavin [Davos Platz] |
+| 0407 | Traube [Dietwil] · 19× | **Traube [Mels]** (Excel sagt Mels — echte Fehlzuordnung) |
+| 0183 | Gipfelbar Setz Nair [Obersaxen] · 12× | Sezner [Obersaxen Meierhof] |
+| 0161 | Crap Sogn Gion [Laax] · 7× | Capalari [Laax] |
+| 0082 | Vaillant Arena [Davos] · 2× | Eisstadion Davos [Davos] |
+| 0788 | Tapas Bar [Bad Ragaz] · 1× | Paloma Vino & Tapas [Bad Ragaz] |
+
+Vor dem Zusammenführen muss Daniel je Paar bestätigen, ob es wirklich derselbe Betrieb ist (Umbenennung) oder zwei verschiedene Häuser am selben Ort.
 
 Skript `entwirren_mischbetriebe_teil2_2026_07_28.sql`, Rückgängig via `rollback_mischbetriebe_teil2_2026_07_28.sql`.
 
