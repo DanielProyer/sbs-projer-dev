@@ -299,6 +299,28 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     );
   }
 
+  /// Entfernt verbuchte Forderungen aus **jeder** Liste des Abgleichs — auch
+  /// aus anderen Manuell-Fällen und Auto-Treffern. Vorher verschwanden sie nur
+  /// aus dem gerade bearbeiteten Fall; dieselbe Forderung blieb anderswo
+  /// auswählbar und hätte ein zweites Mal zugeordnet werden können
+  /// (gemeldet Daniel 28.07.2026). Der Service lehnt eine solche Doppelbuchung
+  /// zwar ab — sichtbar sein soll sie aber gar nicht erst.
+  void _entferneVerbuchte(Set<String> ids) {
+    if (ids.isEmpty) return;
+    widget.alleOffenen.removeWhere((r) => ids.contains(r.id));
+    widget.ergebnis.keineZahlung.removeWhere((r) => ids.contains(r.id));
+    for (final m in widget.ergebnis.manuell) {
+      m.forderungen.removeWhere((r) => ids.contains(r.id));
+    }
+    for (final a in [...widget.ergebnis.auto]) {
+      a.forderungen.removeWhere((r) => ids.contains(r.id));
+      if (a.forderungen.isEmpty) widget.ergebnis.auto.remove(a);
+    }
+    // Manuell-Fälle, die dadurch leer laufen, fallen weg.
+    widget.ergebnis.manuell
+        .removeWhere((m) => m.forderungen.isEmpty && m.gutschriften.isEmpty);
+  }
+
   Future<void> _verbuche(AutoTreffer t) async {
     try {
       await ForderungsAbgleichService.verbuche(
@@ -317,10 +339,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       if (!mounted) return;
       setState(() {
         widget.ergebnis.auto.remove(t);
-        final gebuchteIds = t.forderungen.map((r) => r.id).toSet();
-        widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
-        widget.ergebnis.keineZahlung
-            .removeWhere((r) => gebuchteIds.contains(r.id));
+        _entferneVerbuchte(t.forderungen.map((r) => r.id).toSet());
       });
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -372,13 +391,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     if (mounted) {
       setState(() {
         widget.ergebnis.auto.removeWhere((t) => verbuchteTreffer.contains(t));
-        final gebuchteIds = verbuchteTreffer
+        _entferneVerbuchte(verbuchteTreffer
             .expand((t) => t.forderungen)
             .map((r) => r.id)
-            .toSet();
-        widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
-        widget.ergebnis.keineZahlung
-            .removeWhere((r) => gebuchteIds.contains(r.id));
+            .toSet());
       });
       final verbucht = treffer.length - fehler.length;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -645,12 +661,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       // Verbuchte Forderungen + konsumierte Gutschriften aus dem Fall entfernen.
       f.forderungen.removeWhere((r) => gewaehlteForderungen.contains(r));
       f.gutschriften.removeWhere((g) => gewaehlteGutschriften.contains(g));
-      // Gemeinsamen Pool synchron halten, damit eine bereits hier verbuchte
-      // Forderung nicht erneut im ⚪-Dialog (_ordneZu) auswählbar bleibt.
+      // Aus ALLEN Listen entfernen — auch aus anderen Fällen und Auto-Treffern.
       final gebuchteIds = gewaehlteForderungen.map((r) => r.id).toSet();
-      widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
-      widget.ergebnis.keineZahlung
-          .removeWhere((r) => gebuchteIds.contains(r.id));
+      _entferneVerbuchte(gebuchteIds);
       // Bleiben keine Forderungen mehr offen, fällt der ganze Fall weg.
       if (f.forderungen.isEmpty) {
         // Übrige (nicht zugeordnete) Gutschriften des Falls sichtbar halten.
@@ -863,6 +876,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         } else {
           widget.ergebnis.unbekannteGutschriften.remove(g);
         }
+        _entferneVerbuchte(gebuchteIds);
         widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
         widget.ergebnis.keineZahlung
             .removeWhere((r) => gebuchteIds.contains(r.id));
@@ -1189,12 +1203,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
       setState(() {
-        final gebuchteIds = gewaehlteForderungen.map((r) => r.id).toSet();
         widget.ergebnis.unbekannteGutschriften
             .removeWhere((g) => gewaehlteGuts.contains(g));
-        widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
-        widget.ergebnis.keineZahlung
-            .removeWhere((r) => gebuchteIds.contains(r.id));
+        _entferneVerbuchte(gewaehlteForderungen.map((r) => r.id).toSet());
       });
       if (mounted) {
         ScaffoldMessenger.of(context)

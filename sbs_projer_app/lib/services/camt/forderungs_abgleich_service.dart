@@ -179,6 +179,25 @@ class ForderungsAbgleichService {
     String? camtTxKey,
   }) async {
     if (forderungen.isEmpty) return;
+
+    // Schutz gegen Mehrfachzuordnung (Daniel 28.07.2026): Der Stand wird
+    // FRISCH aus der Datenbank geprüft, nicht aus der Bildschirmliste. Wurde
+    // eine Forderung zwischenzeitlich anderswo zugeordnet — anderer Fall,
+    // zweiter Tab, Doppeltipp —, darf sie nicht ein zweites Mal verbucht
+    // werden, sonst entstünde eine Doppelzahlung auf demselben Debitor.
+    final bereitsBezahlt = <String>[];
+    for (final r in forderungen) {
+      final frisch = await RechnungRepository.getById(r.id);
+      if (frisch != null && frisch.zahlungsstatus == 'bezahlt') {
+        bereitsBezahlt.add(frisch.rechnungsnummer ?? frisch.id);
+      }
+    }
+    if (bereitsBezahlt.isNotEmpty) {
+      throw Exception(
+          'Bereits bezahlt: ${bereitsBezahlt.join(', ')} — Zuordnung '
+          'abgebrochen. Bitte Liste aktualisieren.');
+    }
+
     final buchungen = await ZahlungsdifferenzService.verbuchenSammel(
       rechnungen: forderungen, zahlungBetrag: zahlbetrag, datum: datum,
     );
