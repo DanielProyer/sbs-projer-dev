@@ -1,11 +1,13 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.07.2026 · **Live:** v0.54.6
+**Stand:** 28.07.2026 · **Live:** v0.54.9
 
 ---
 
-## 🟢 ERLEDIGT 28.07.: Spesen-Belege produktiv erfasst — 40 Belege, CHF 2'206.56
-Alle offenen Spesenbelege 09.06.–27.07.2026 gescannt und gebucht (**keine Testdaten, bleiben stehen**). 112 Buchungszeilen (57 Aufwand + 55 Vorsteuer), Vorsteuer CHF 147.56.
+## 🟢 ERLEDIGT 28.07.: Spesen-Belege produktiv erfasst — 40 Belege, CHF 2'198.87
+Alle offenen Spesenbelege 09.06.–27.07.2026 gescannt und gebucht (**keine Testdaten, bleiben stehen**). 110 Buchungszeilen, Vorsteuer CHF 146.98.
+
+**Doppelbuchung gefunden und entfernt:** Der Beleg «Landi TopShop Chur (AGROLA)» vom 30.06. lag zweimal drin (2× CHF 7.69 + 2× Vorsteuer 0.58) — beide Sätze aus derselben Bilddatei im Abstand von 230 ms, also ein Doppeltipp auf «Buchen». Ursache in **v0.54.9** behoben: Der Knopf blieb während der Dubletten-Prüfung (DB-Abfrage) aktiv, der Riegel greift jetzt vor dem ersten `await`. Die zwei überzähligen Buchungen sind gelöscht; die beiden Bilddateien bleiben als Waisen liegen und verschwinden beim nächsten «Speicher aufräumen».
 
 | Konto | Zeilen | Brutto |
 |---|---|---|
