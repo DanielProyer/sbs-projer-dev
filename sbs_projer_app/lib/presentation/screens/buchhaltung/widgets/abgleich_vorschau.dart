@@ -656,6 +656,19 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         // Übrige (nicht zugeordnete) Gutschriften des Falls sichtbar halten.
         widget.ergebnis.unbekannteGutschriften.addAll(f.gutschriften);
         widget.ergebnis.manuell.remove(f);
+      } else if (f.gutschriften.isEmpty) {
+        // Alle Zahlungen des Falls sind zugeordnet — es gibt nichts mehr zu
+        // tun, der Eintrag würde sonst mit „0 Zahlung(en)" stehen bleiben
+        // (gemeldet Daniel 28.07.2026). Die weiterhin offenen Forderungen
+        // wandern nach „Keine Zahlung gefunden", wie im ⚪-Pfad.
+        for (final r in f.forderungen) {
+          if (!gebuchteIds.contains(r.id) &&
+              widget.alleOffenen.any((o) => o.id == r.id) &&
+              !widget.ergebnis.keineZahlung.any((k) => k.id == r.id)) {
+            widget.ergebnis.keineZahlung.add(r);
+          }
+        }
+        widget.ergebnis.manuell.remove(f);
       }
     });
     if (mounted) {
