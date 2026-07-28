@@ -68,7 +68,7 @@ Die `heineken_nr`-Prüfung über alle 7'788 Historik-Reinigungen fand 127 Reinig
 |---|---|---|
 | 0113 | Center da sport e cultura [Disentis/Muster] · 48× | Center Fontauna [Disentis] |
 | 0372 | WG Giovadin [Davos] · 20× | Giodavin [Davos Platz] |
-| 0407 | Traube [Dietwil] · 19× | **Traube [Mels]** (Excel sagt Mels — echte Fehlzuordnung) |
+| ~~0407~~ | ~~Traube [Dietwil] · 19×~~ | **✅ erledigt** — Daniel: zwei verschiedene Betriebe; die 19 Reinigungen 2021–2025 an **Traube [Mels]** umgehängt (hat jetzt 21, Zeitraum 08.2021–04.2026). Traube [Dietwil] (`heineken_nr` 0756) behält seine eine eigene Reinigung vom 24.04.2026. |
 | 0183 | Gipfelbar Setz Nair [Obersaxen] · 12× | Sezner [Obersaxen Meierhof] |
 | 0161 | Crap Sogn Gion [Laax] · 7× | Capalari [Laax] |
 | 0082 | Vaillant Arena [Davos] · 2× | Eisstadion Davos [Davos] |
