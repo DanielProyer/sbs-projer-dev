@@ -4,6 +4,29 @@
 
 ---
 
+## 🟢 ERLEDIGT 28.07.: Schlussprüfung aller Datenarbeiten — gegen Excel und intern
+
+**Gegen das Excel (Sheet Reinigung, 10'080 Zeilen):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| Excel ↔ DB über `extern_id` | 7'786 in der DB, **0 ohne Excel-Entsprechung** |
+| Excel-Zeilen ohne DB-Reinigung | 1'307 — ausnahmslos „Zusätzliche Anlage" (Positionen, korrekt nie importiert) |
+| Betriebszuordnung über `heineken_nr` | **6'509 bestätigt, 0 falsch** |
+| Die 147 Zahlungen | 147/147 im Excel gefunden, **147/147 Datum identisch**, 0 fälschlich als Abschreibung |
+
+**Buchhaltung unverändert:** Bank 3'322.26 · Debitoren 176'228.04 · Kasse 18'697.78 · 16'867 aktive Buchungen · 0 camt-Buchungen · 1'434 offen / 3'655 bezahlt.
+
+**Konsistenz — neun Prüfungen, alle null:** keine verwaisten Reinigungen/Rechnungen/Anlagen/Störungen/Montagen/Positionen, keine Reinigung an fremder Anlage, keine doppelte QR-Referenz, kein Betrieb mit gleichem Name + Ort.
+
+**Zwei Stammdatenfehler dabei gefunden und behoben** (`normalisierung_heineken_nr_2026_07_28.sql`):
+1. `heineken_nr` ohne führende Null bei Piz Piz (`105`→`0105`) und Vereina (`511`→`0511`) — dadurch stieg die Bestätigungsquote um 35 Reinigungen.
+2. Nummer **0723 war doppelt vergeben**: Sie gehört laut Excel zu Panorama [Schlierbach]; *Silvia Kaufmann's Schlagerbar [Oberkirch]* trug sie fälschlich und läuft korrekt unter **0725**.
+
+**Bekannt und bewusst unangetastet:** Das Excel selbst hat vier doppelte Reinigungs-IDs (Lindemann's Over Time 03.11.2020, Jamies 17.06.2019, Frosch 14.01. und 18.02.2026) — Entscheid Daniel: keine Anpassung nötig.
+
+---
+
 ## 🟢 ERLEDIGT 28.07.: Excel-Zahlungen zugeordnet — 147 Rechnungen auf bezahlt
 
 Vor dem echten camt-Abgleich mussten die im Excel erfassten Einzahlungen in die App. Die Zuordnung stammt **nicht** aus einer Betragsrechnung, sondern direkt aus der Quelle: Sheet `Reinigung`, Spalte **Einzahlungsdatum** + **Einzahlungsbeleg** (Extraktor `Datenbank/import/extract_einzahlungen_reinigung.py`, Tabelle `import.einzahlung_excel`).
