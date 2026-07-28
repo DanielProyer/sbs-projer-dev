@@ -23,6 +23,10 @@ OUT = os.path.join(HERE, 'out')
 C_ID, C_DATUM, C_BETRIEB, C_ORT = 1, 4, 5, 6
 C_RECHNUNGSART, C_EINZAHLUNG, C_EINZAHLUNGSBELEG = 10, 11, 12
 C_TOTAL_BRUTTO, C_RECHNUNG_GESTELLT = 20, 32
+# Mengen (nicht Betraege): Grundtarife und zusaetzliche Haehne
+C_TOTAL_NETTO = 21
+C_GT_EIGEN, C_GT_ORION, C_GT_FREMD = 22, 23, 24
+C_HAHN_EIGEN, C_HAHN_FREMD, C_HAHN_STANDORT = 25, 26, 27
 
 
 def _txt(v):
@@ -78,6 +82,13 @@ def lese(pfad):
             'einzahlungsbeleg': _txt(cell(C_EINZAHLUNGSBELEG)) or '',
             'brutto': _zahl(cell(C_TOTAL_BRUTTO)),
             'rechnung_gestellt': _txt(cell(C_RECHNUNG_GESTELLT)) or '',
+            'netto': _zahl(cell(C_TOTAL_NETTO)),
+            'gt_eigen': int(_zahl(cell(C_GT_EIGEN)) or 0),
+            'gt_orion': int(_zahl(cell(C_GT_ORION)) or 0),
+            'gt_fremd': int(_zahl(cell(C_GT_FREMD)) or 0),
+            'hahn_eigen': int(_zahl(cell(C_HAHN_EIGEN)) or 0),
+            'hahn_fremd': int(_zahl(cell(C_HAHN_FREMD)) or 0),
+            'hahn_standort': int(_zahl(cell(C_HAHN_STANDORT)) or 0),
         })
     wb.close()
     return zeilen
@@ -101,10 +112,13 @@ def schreibe_sql(zeilen, ziel):
         f.write('create table import.einzahlung_excel (\n'
                 '  extern_id text, datum date, betrieb text, ort text,\n'
                 '  rechnungsart text, einzahlung date, einzahlungsbeleg text,\n'
-                '  brutto numeric, rechnung_gestellt text);\n')
+                '  brutto numeric, rechnung_gestellt text,\n'
+                '  netto numeric, gt_eigen int, gt_orion int, gt_fremd int,\n'
+                '  hahn_eigen int, hahn_fremd int, hahn_standort int);\n')
         spalten = ('id', 'datum', 'betrieb', 'ort', 'rechnungsart',
                    'einzahlung', 'einzahlungsbeleg', 'brutto',
-                   'rechnung_gestellt')
+                   'rechnung_gestellt', 'netto', 'gt_eigen', 'gt_orion',
+                   'gt_fremd', 'hahn_eigen', 'hahn_fremd', 'hahn_standort')
         for i in range(0, len(zeilen), 500):
             teil = zeilen[i:i + 500]
             f.write('insert into import.einzahlung_excel values\n')

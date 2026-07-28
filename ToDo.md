@@ -4,6 +4,32 @@
 
 ---
 
+## 🟢 ERLEDIGT 28.07. (abends): Reinigungspreise korrigiert — Hahn-Zuschläge fehlten seit dem Import
+
+**Gemeldet von Daniel:** Lindemann's Over Time, Reinigung 21.11.2025 zeigt CHF 74.60, das Protokoll aber 113.50 — der Betrieb hat 7 Hähne, nie weniger als 3.
+
+**Ursache — nicht die Arbeiten von heute:** Der Historik-Import vom **19.06.2026** hat die Hahn-Spalten des Excel nie übernommen. Alle 7'786 importierten Reinigungen 2019–2025 standen auf `anzahl_haehne = 0` und `preis_zusatz_haehne = 0.00`. Für 2019–2024 wurde der Betrag trotzdem aus dem Excel übernommen und war korrekt; für **2025 wurde er aus dem Grundtarif neu gerechnet** — dort fehlten die Zuschläge (858 Reinigungen, CHF 8'542.37 zu niedrig). Beleg gegen eine Verursachung durch die heutigen Arbeiten: `updated_at` stand auf 19.06., und 786 der 858 wurden heute überhaupt nicht angefasst.
+
+**Korrektur** (`korrektur_reinigungspreise_2026_07_28.sql`): Brutto **und** Netto direkt aus dem Excel (Spalten „Total mit/ohne MwSt"), Hahn-Mengen aus „Zusätzlicher Hahn / …Fremd / …2ter Standort", MwSt **7.7 % bis 31.12.2023 und 8.1 % ab 01.01.2024** (Hinweis Daniel). Der Trigger `reinigung_preis_berechnung` rechnet daraus den Preis konsistent neu.
+
+| | |
+|---|---|
+| Beträge korrigiert | **627** |
+| Hahn-Mengen gesetzt | **3'291** (5'637 eigene, 437 fremde, 464 anderer Standort) |
+| Stimmt jetzt mit Excel | **7'084 von 7'116** |
+| Kontrollfall Lindemann's 21.11. | 69.00 + 36.00 = 105.00 netto + 8.50 = **113.50** ✓ |
+
+**Rechnungen und Buchhaltung unberührt:** 4'438 von 4'439 Rechnungen mit Reinigungsbezug tragen exakt den Excel-Betrag (der eine Ausreisser ist der bekannte Jamies-Doppeleintrag im Excel), keine neue Position, keine neue Buchung, Bank 3'322.26 und Debitoren 176'228.04 unverändert.
+
+**Offen — 32 Restfälle aus 2025 (Differenz CHF 276.10), drei Ursachen:**
+1. **Mehrere Grundtarife** je Reinigung (z. B. „Grundtarif Orion" + „Grundtarif Fremd" gleichzeitig) — die App kennt nur einen Grundtarif pro Reinigung, das Excel rechnet 92 + 92 + Hähne.
+2. **Orion-Grundtarif** (92.00) wurde beim Import als normaler Grundtarif (69.00) angelegt.
+3. Einzelne Zeilen, deren Excel-Brutto zu keinem MwSt-Satz zum Netto passt (z. B. netto 69.00 → brutto 80.00) — Excel-interne Sonderfälle.
+
+Rückgängig: `rollback_reinigungspreise_2026_07_28.sql` (Snapshot `snapshot_reinigungspreise`).
+
+---
+
 ## 🟢 ERLEDIGT 28.07.: Schlussprüfung aller Datenarbeiten — gegen Excel und intern
 
 **Gegen das Excel (Sheet Reinigung, 10'080 Zeilen):**
