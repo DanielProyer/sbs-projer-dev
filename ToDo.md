@@ -29,7 +29,11 @@
 
 **Wichtig zum Preis-Trigger** (`reinigung_preis_berechnung`): Er rechnet Netto/MwSt/Brutto bei **jedem** Update neu aus Preisliste + `service_typ` + Hahn-Mengen. Eigene Beträge werden immer überschrieben — Korrekturen müssen daher über die Mengen laufen, nicht über die Beträge.
 
-**Zur Preisliste:** Es existiert nur **eine** Preisliste, gültig ab 01.01.2025 (Bier 69 / Orion 92 / Fremd 92, Zuschläge 18/18/23/30, MwSt 8.1) — und die **doppelt**. Für Reinigungen vor 2025 findet der Trigger keine gültige Liste und rechnet gar nicht; deshalb blieben die Beträge 2019–2024 unverändert korrekt. Zwei offene Punkte daraus: das Duplikat bereinigen und ggf. historische Preislisten (Heineken-Tarife vor 2025, MwSt 7.7 %) nachtragen — sonst würde eine nachträglich bearbeitete Altreinigung nicht neu gerechnet. **Preise sind geschützte Stammdaten — nur nach Rücksprache.**
+**Zur Preisliste:** Es existiert nur **eine** Preisliste, gültig ab 01.01.2025 (Bier 69 / Orion 92 / Fremd 92, Zuschläge 18/18/23/30, MwSt 8.1) — und die **doppelt** (identische Werte, unkritisch). Für Reinigungen vor 2025 findet der Trigger keine gültige Liste und rechnet gar nicht; deshalb blieben die Beträge 2019–2024 unverändert korrekt.
+
+**Historische Preislisten werden NICHT nachgetragen** (Entscheid Daniel 28.07.2026: „wenn die Reinigungen jetzt stimmen, brauchen wir die alten Preise nicht"). Das ist gefahrlos, weil der Trigger ohne gültige Liste unverändert zurückgibt — eine Altreinigung behält ihren Betrag auch beim Speichern.
+
+> ⚠️ **Daraus folgt eine Regel:** Das `gueltig_ab` der bestehenden Preisliste **niemals nach hinten verschieben** (z. B. auf 2019). Sonst würde jede nachträglich gespeicherte Altreinigung mit den heutigen Tarifen und 8.1 % neu gerechnet — die eben korrigierten Beträge wären wieder falsch. Neue Tarife immer als **zusätzliche** Liste mit eigenem `gueltig_ab` anlegen.
 
 Rückgängig: `rollback_reinigungspreise_2026_07_28.sql` (Snapshot `snapshot_reinigungspreise`).
 
