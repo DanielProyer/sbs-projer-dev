@@ -86,6 +86,37 @@ void main() {
     });
   });
 
+  group('zaehleBelege', () {
+    test('mehrere Positionen desselben Belegs zählen als einer', () {
+      expect(
+          zaehleBelege([
+            (datum: '2026-07-18', beschreibung: 'Coop Pronto - Diesel'),
+            (datum: '2026-07-18', beschreibung: 'Coop Pronto - Essen'),
+            (datum: '2026-07-18', beschreibung: 'Coop Pronto - Non-Food'),
+          ]),
+          1);
+    });
+    test('gleiches Geschäft an verschiedenen Tagen = mehrere Belege', () {
+      expect(
+          zaehleBelege([
+            (datum: '2026-07-18', beschreibung: 'Coop Pronto'),
+            (datum: '2026-07-22', beschreibung: 'Coop Pronto'),
+          ]),
+          2);
+    });
+    test('verschiedene Geschäfte am selben Tag = mehrere Belege', () {
+      expect(
+          zaehleBelege([
+            (datum: '2026-07-16', beschreibung: 'Bauhaus'),
+            (datum: '2026-07-16', beschreibung: 'Jumbo Chur - Material'),
+          ]),
+          2);
+    });
+    test('leere Liste -> 0', () {
+      expect(zaehleBelege([]), 0);
+    });
+  });
+
   group('dublettenTreffer', () {
     final kandidaten = [
       DublettenKandidat(

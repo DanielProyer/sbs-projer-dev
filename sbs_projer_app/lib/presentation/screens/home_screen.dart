@@ -87,6 +87,8 @@ class _KachelGrid extends ConsumerWidget {
         ref.watch(eroeffnungsreinigungCountAktuellesJahrProvider);
     final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
     final kontaktCount = ref.watch(kontakteProvider).valueOrNull?.length ?? 0;
+    final spesenCount =
+        ref.watch(spesenBelegeCountAktuellesJahrProvider).valueOrNull ?? 0;
     final eventCount = ref
             .watch(eventsProvider)
             .valueOrNull
@@ -168,6 +170,7 @@ class _KachelGrid extends ConsumerWidget {
         _DashboardTile(
           icon: Icons.receipt_long,
           label: 'Spesen',
+          count: spesenCount > 0 ? '$spesenCount' : null,
           color: Colors.brown,
           onTap: () => context.push('/spesen'),
         ),

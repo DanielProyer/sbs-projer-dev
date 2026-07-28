@@ -55,6 +55,16 @@ bool belegStimmig(double konfidenz, List<double> betraege, double total) {
   return (summe - total).abs() <= 0.05;
 }
 
+/// Zählt Belege statt Buchungszeilen: Ein Beleg mit drei MwSt-Gruppen ergibt
+/// drei Buchungen, ist aber ein Scan. Ein Beleg ist eindeutig durch Datum und
+/// Geschäft; der Positionsteil hinter dem Bindestrich gehört nicht dazu.
+int zaehleBelege(List<({String datum, String beschreibung})> zeilen) {
+  return zeilen
+      .map((z) => '${z.datum}|${z.beschreibung.split(' - ').first.trim()}')
+      .toSet()
+      .length;
+}
+
 /// Eine bereits gebuchte Spesen-Position desselben Belegdatums.
 class DublettenKandidat {
   final String beschreibung;

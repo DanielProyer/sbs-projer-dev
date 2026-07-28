@@ -38,3 +38,10 @@ final kontoSaldiProvider = FutureProvider<Map<int, double>>((ref) {
   ref.watch(buchungenStreamProvider);
   return BuchungService.getAllSaldi();
 });
+
+/// Gescannte Spesenbelege des laufenden Jahres — Zahl auf der Dashboard-Kachel
+/// (analog zu den uebrigen Kacheln: aktuelles Jahr, nicht die Gesamthistorie).
+final spesenBelegeCountAktuellesJahrProvider = FutureProvider<int>((ref) {
+  ref.watch(buchungenStreamProvider);
+  return BuchungRepository.spesenBelegeImJahr(DateTime.now().year);
+});
