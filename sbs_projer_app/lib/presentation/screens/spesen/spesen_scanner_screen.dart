@@ -402,7 +402,13 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                                 ],
                               ),
                               Text(
-                                'Netto ${pos.betragNetto.toStringAsFixed(2)} + ${pos.mwstSatz}% MwSt ${pos.mwstBetrag.toStringAsFixed(2)}',
+                                pos.kategorie == 'privat'
+                                    ? (_zahlungsweg == Zahlungsweg.privat
+                                          ? 'Privatkauf — wird nicht gebucht'
+                                          : 'Privatkauf — Bezug ab '
+                                                '${_zahlungsweg == Zahlungsweg.bar ? 'Kasse' : 'Bank'}, '
+                                                'kein Vorsteuerabzug')
+                                    : 'Netto ${pos.betragNetto.toStringAsFixed(2)} + ${pos.mwstSatz}% MwSt ${pos.mwstBetrag.toStringAsFixed(2)}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textSecondary,
@@ -736,6 +742,8 @@ class _ChoiceChipButton extends StatelessWidget {
 /// Anzeige-Mapping der OCR-Kategorien (Konten wie in SpesenImportService).
 IconData _katIcon(String kategorie) {
   switch (kategorie) {
+    case 'privat':
+      return Icons.person_outline;
     case 'benzin':
       return Icons.local_gas_station;
     case 'material':
@@ -753,6 +761,8 @@ IconData _katIcon(String kategorie) {
 
 Color _katFarbe(String kategorie) {
   switch (kategorie) {
+    case 'privat':
+      return AppColors.textSecondary;
     case 'benzin':
       return AppColors.info;
     case 'material':
@@ -768,6 +778,8 @@ Color _katFarbe(String kategorie) {
 
 String _katLabel(String kategorie) {
   switch (kategorie) {
+    case 'privat':
+      return 'Privat · 2260';
     case 'benzin':
       return 'Benzin · 6200';
     case 'material':

@@ -101,6 +101,11 @@ Beträge in CHF
 KATEGORIE-ERKENNUNG - ZUERST Artikel prüfen, DANN gruppieren:
 1. Jeden Artikel einer Kategorie zuordnen (Reihenfolge beachten, erste
    passende Regel gewinnt):
+   - "privat": ALLE Tabakwaren — Zigaretten (jede Marke, z.B. Brunette,
+     Marlboro, Parisienne, Winston), Zigarillos, Zigarren, Drehtabak,
+     Feinschnitt, Schnupftabak, Snus, Filter/Blättchen, sowie Belegtexte
+     wie "Tabakwaren", "Rauchwaren", "Tabak", "Zig.", "Rauchw."
+     Das ist ein Privatkauf und KEIN Geschäftsaufwand.
    - "benzin": Diesel, Benzin, Bleifrei, Tankzeit, AdBlue, Treibstoff, Fuel,
      Zapfsäule, Liter-Angabe bei Kraftstoff
    - "parkgebuehren": Parkhaus, Parking, Parkplatz, Parkuhr, Parkgebühr,
@@ -136,11 +141,14 @@ Beispiel 1 - migrolino (nur Essen, 2 MwSt-Sätze → 2 Positionen):
   → Gruppe 1: essen+2.6% = 5.55 | Gruppe 2: essen+8.1% = 25.20
   → 2 Positionen: [{kategorie:"essen", mwst_satz:2.6, betrag_brutto:5.55}, {kategorie:"essen", mwst_satz:8.1, betrag_brutto:25.20}]
 
-Beispiel 2 - Coop Pronto Tankstelle (Diesel + Shop → 3 Positionen):
-  Artikel: Diesel 92.92 (8.1%), Salat 7.95 (2.6%), Radler 4.20 (8.1%)
-  → Gruppe 1: benzin+8.1% = 92.92 | Gruppe 2: essen+2.6% = 7.95 | Gruppe 3: essen+8.1% = 4.20
-  → 3 Positionen: [{kategorie:"benzin", mwst_satz:8.1, betrag_brutto:92.92}, {kategorie:"essen", mwst_satz:2.6, betrag_brutto:7.95}, {kategorie:"essen", mwst_satz:8.1, betrag_brutto:4.20}]
-  WICHTIG: Diesel (benzin) und Radler (essen) haben BEIDE 8.1% aber VERSCHIEDENE Kategorien → 2 getrennte Positionen!
+Beispiel 2 - Coop Pronto Tankstelle (Diesel + Shop + Zigaretten → 4 Positionen):
+  Artikel: Diesel 92.92 (8.1%), Salat 7.95 (2.6%), Radler 4.20 (8.1%),
+           Brunette Doppel-Filter 10.10 (8.1%)
+  → Gruppe 1: benzin+8.1% = 92.92 | Gruppe 2: essen+2.6% = 7.95
+  → Gruppe 3: essen+8.1% = 4.20 | Gruppe 4: privat+8.1% = 10.10
+  → 4 Positionen: [{kategorie:"benzin", mwst_satz:8.1, betrag_brutto:92.92}, {kategorie:"essen", mwst_satz:2.6, betrag_brutto:7.95}, {kategorie:"essen", mwst_satz:8.1, betrag_brutto:4.20}, {kategorie:"privat", mwst_satz:8.1, betrag_brutto:10.10}]
+  WICHTIG: Diesel (benzin), Radler (essen) und Zigaretten (privat) haben ALLE
+  8.1% aber VERSCHIEDENE Kategorien → 3 getrennte Positionen!
 
 Beispiel 3 - Bauhaus (Baumarkt → material, NICHT essen!):
   Artikel: Dichtungsring 4.90, Schlauchschelle 3.20, Silikon 12.50,
@@ -205,10 +213,13 @@ Weitere Regeln:
 - Benzin/Diesel: immer 8.1% MwSt und kategorie "benzin"
 - Wenn kein MwSt-Satz erkennbar: 8.1% als Default
 - Datum: Wenn Jahr zweistellig, ergänze 20xx
-- kategorie MUSS einer dieser Werte sein: "benzin", "material",
+- kategorie MUSS einer dieser Werte sein: "privat", "benzin", "material",
   "berufskleider", "parkgebuehren", "entsorgung", "essen"
 - Handwerks-/Baumaterial und Werkzeug gehören IMMER zu "material" —
-  "essen" ist ausschliesslich für Verpflegung`,
+  "essen" ist ausschliesslich für Verpflegung
+- Tabakwaren sind IMMER "privat" (nie "essen"), auch wenn sie zusammen mit
+  Verpflegung auf demselben Beleg stehen. total_brutto enthält sie trotzdem,
+  weil es der tatsächlich bezahlte Beleg-Betrag ist.`,
               },
             ],
           },

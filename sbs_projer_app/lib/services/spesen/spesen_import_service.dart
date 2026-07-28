@@ -16,6 +16,8 @@ class SpesenImportService {
   /// 'essen' ist der Auffangwert für alles Übrige → Spesen.
   static int _sollKonto(String kategorie) {
     switch (kategorie) {
+      case 'privat':
+        return 2260; // Privatkonto (Privatbezug, z.B. Tabakwaren)
       case 'benzin':
         return 6200; // Betriebsaufwand Fahrzeuge
       case 'material':
@@ -31,19 +33,32 @@ class SpesenImportService {
     }
   }
 
+  /// Belegordner gemäss der gewachsenen Ablagestruktur der Buchhaltung.
   static String _belegordner(String kategorie) {
     switch (kategorie) {
       case 'benzin':
+        return '040_Tanken';
       case 'parkgebuehren':
-        return '040_Fahrzeug';
+        return '050_Parkgebuehren';
       case 'material':
+        return '100_Werkzeug_Material';
       case 'berufskleider':
+        return '110_Berufskleider';
       case 'entsorgung':
-        return '050_Material';
+        return '130_Kehricht';
       default:
-        return '030_Spesen';
+        return '030_Spesen'; // inkl. 'privat' (Beleg liegt beim Spesenbeleg)
     }
   }
+
+  /// Privatbezug (Tabakwaren) ist kein Geschäftsaufwand: Er wird als
+  /// Soll 2260 / Haben Zahlungskonto gebucht, damit Kasse bzw. Bank weiterhin
+  /// mit dem Beleg übereinstimmt — ohne Vorsteuerabzug. Wurde ohnehin privat
+  /// bezahlt, entfällt die Buchung ganz (wäre 2260 an 2260).
+  static bool istPrivatbezug(String kategorie) => kategorie == 'privat';
+
+  static bool positionBuchen(String kategorie, Zahlungsweg zahlungsweg) =>
+      !(istPrivatbezug(kategorie) && zahlungsweg == Zahlungsweg.privat);
 
   static int _habenKonto(Zahlungsweg weg) {
     switch (weg) {
@@ -83,16 +98,21 @@ class SpesenImportService {
     for (int i = 0; i < scanResult.positionen.length; i++) {
       final pos = scanResult.positionen[i];
       final kat = pos.kategorie;
+      if (!positionBuchen(kat, zahlungsweg)) continue;
       final datumStr = scanResult.datum.toIso8601String().split('T').first;
-      final beschreibung = scanResult.positionen.length > 1
+      final basis = scanResult.positionen.length > 1
           ? '${scanResult.geschaeft} - ${pos.beschreibung}'
           : scanResult.geschaeft;
+      final beschreibung =
+          pos.kategorie == 'privat' ? 'Privatbezug - $basis' : basis;
 
       // Barzahlung: auf 5 Rappen runden (Schweizer Rundungsregel)
       final brutto = zahlungsweg == Zahlungsweg.bar
           ? _runden5Rappen(pos.betragBrutto)
           : pos.betragBrutto;
-      final netto = pos.mwstSatz > 0
+      // Privatbezug: kein Vorsteuerabzug → Brutto als Netto, MwSt-Felder leer
+      final istPrivat = istPrivatbezug(kat);
+      final netto = (!istPrivat && pos.mwstSatz > 0)
           ? brutto / (1 + pos.mwstSatz / 100)
           : brutto;
       final betragNetto = double.parse(netto.toStringAsFixed(2));
@@ -104,9 +124,9 @@ class SpesenImportService {
         'datum': datumStr,
         'soll_konto': _sollKonto(kat),
         'haben_konto': habenKonto,
-        'mwst_konto': 1171,
+        'mwst_konto': istPrivat ? null : 1171,
         'betrag_netto': betragNetto,
-        'mwst_satz': pos.mwstSatz,
+        'mwst_satz': istPrivat ? 0 : pos.mwstSatz,
         'mwst_betrag': mwstBetrag,
         'betrag_brutto': brutto,
         'beschreibung': beschreibung,
