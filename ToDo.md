@@ -4,6 +4,29 @@
 
 ---
 
+## 🟢 ERLEDIGT 28.07. (abends): Zusatzanlagen zusammengeführt — 198 Doppel-Reinigungen entfernt
+
+**Gemeldet von Daniel:** Lindemann's Over Time, 31.07.2025 — die App zeigt zwei Reinigungen, es war aber **eine Reinigung an zwei Anlagen**. Im Excel bekommt jede weitere Anlage eine eigene Zeile mit Rechnungsart „Zusätzliche Anlage" und Total 0.00.
+
+**Ursache — wieder der Import vom 19.06.2026:** 222 dieser Zusatzzeilen wurden als eigenständige Reinigung angelegt (die übrigen 1'307 korrekterweise nicht) und bekamen über den Preis-Trigger sogar einen Betrag — **220 Stück mit zusammen CHF 16'571.63**, obwohl im Excel 0.00 steht.
+
+**Bereinigung** (`zusatzanlagen_zusammenfuehren_2026_07_28.sql`): Die Anlage der Zusatzzeile wandert in `anlage_ids` der Hauptreinigung (so bildet die App mehrere Anlagen ab), danach wird die Zusatzzeile gelöscht. Preis-Trigger dabei ausgesetzt, damit die korrigierten Beträge stehen bleiben.
+
+| | |
+|---|---|
+| Zusatzzeilen entfernt | **198** |
+| dabei beseitigter Scheinumsatz | **CHF 14'789.84** |
+| Hauptreinigungen um Anlagen ergänzt | **158** |
+| Kontrollfall Lindemann's 31.07. | eine Reinigung, 152.40, Anlagen „Try Out + Overtime EG" ✓ |
+
+**24 Zeilen bewusst stehen gelassen — brauchen deine Klärung:**
+- **16 Einzelreinigungen mit Suffix `_01`** bei *Vieri Bar [Cham]* (8×), *Strela [Davos]* (4×), *Frosch Sportclub* (2×), *Rössli [Cham]*, *Jamies [Chur]*: Das ist die einzige Reinigung des Tages, im Excel aber als „Zusätzliche Anlage" mit 0.00 geführt. Vermutung: Diese Betriebe sind Zusatzanlagen eines anderen Hauses und werden dort mitverrechnet — dann gehören die Reinigungen dorthin.
+- **8 Zeilen ohne Hauptreinigung am selben Tag** bei *Blue Cinema Chur* (5×, Suffix `_03`) und *Robinson Club Arosa* (3×, Suffix `_04/_05/_06`): Die Hauptzeile `_01` fehlt in der DB — vermutlich wurde sie nie importiert.
+
+Rückgängig: `rollback_zusatzanlagen_2026_07_28.sql` (Snapshot `snapshot_zusatzanlagen`).
+
+---
+
 ## 🟢 ERLEDIGT 28.07. (abends): Reinigungspreise korrigiert — Hahn-Zuschläge fehlten seit dem Import
 
 **Gemeldet von Daniel:** Lindemann's Over Time, Reinigung 21.11.2025 zeigt CHF 74.60, das Protokoll aber 113.50 — der Betrieb hat 7 Hähne, nie weniger als 3.
