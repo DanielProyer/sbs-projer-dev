@@ -28,7 +28,7 @@ Zahlungswege: privat CHF 1'775.81 (47 Zeilen), Kasse CHF 430.75 (10). Keine Priv
 
 ## 🟢 ERLEDIGT 28.07.: Spesen-Beleg-Testlauf abgeschlossen + aufgeräumt
 Daniel: «bin mit dem Testen durch, wurde alles richtig erkannt, super». Erkennung sitzt (v0.53.9 Kategorien Material/Berufskleider/Parkgebühren/Entsorgung, v0.53.10 Tabakwaren als Privatbezug 2260).
-**Aufgeräumt:** 66 Testbuchungen (CHF 1'664.89) + 66 Beleg-Verknüpfungen gelöscht; die beiden Heineken-Buchungen der Juni-Rechnung blieben unberührt. Storage liess sich weder per SQL (Schutz-Trigger `storage.protect_delete`) noch per Supabase-CLI (`storage rm` meldet Erfolg, löscht nichts) aufräumen → **neue App-Funktion v0.53.11** (siehe unten). **Noch zu tun: in der App Einstellungen → «Speicher aufräumen» ausführen** (217 Waisen / 77.7 MB, davon 66 aus dem Testlauf).
+**Aufgeräumt:** 66 Testbuchungen (CHF 1'664.89) + 66 Beleg-Verknüpfungen gelöscht; die beiden Heineken-Buchungen der Juni-Rechnung blieben unberührt. Storage liess sich weder per SQL (Schutz-Trigger `storage.protect_delete`) noch per Supabase-CLI (`storage rm` meldet Erfolg, löscht nichts) aufräumen → **neue App-Funktion v0.53.11**. **Am 28.07. ausgeführt:** 215 von 217 Waisen (77.7 MB) gelöscht; verbleiben 2 Dateien aus der nachträglich entfernten Doppelbuchung, die beim nächsten Durchlauf mitgehen. Bucket jetzt 3'565 Dateien / 1'105 MB, alle einer Buchung zugeordnet.
 
 ---
 
