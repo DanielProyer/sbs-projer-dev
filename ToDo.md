@@ -21,10 +21,15 @@
 
 **Rechnungen und Buchhaltung unberührt:** 4'438 von 4'439 Rechnungen mit Reinigungsbezug tragen exakt den Excel-Betrag (der eine Ausreisser ist der bekannte Jamies-Doppeleintrag im Excel), keine neue Position, keine neue Buchung, Bank 3'322.26 und Debitoren 176'228.04 unverändert.
 
-**Offen — 32 Restfälle aus 2025 (Differenz CHF 276.10), drei Ursachen:**
-1. **Mehrere Grundtarife** je Reinigung (z. B. „Grundtarif Orion" + „Grundtarif Fremd" gleichzeitig) — die App kennt nur einen Grundtarif pro Reinigung, das Excel rechnet 92 + 92 + Hähne.
-2. **Orion-Grundtarif** (92.00) wurde beim Import als normaler Grundtarif (69.00) angelegt.
-3. Einzelne Zeilen, deren Excel-Brutto zu keinem MwSt-Satz zum Netto passt (z. B. netto 69.00 → brutto 80.00) — Excel-interne Sonderfälle.
+**Restfälle abgearbeitet — Netto stimmt jetzt bei ALLEN 7'116 Reinigungen mit dem Excel überein:**
+
+- **3 Reinigungen mit zwei Grundtarifen** (Holländer Landquart 2×, Sarain 1×: Orion 92 + Fremd 92 bzw. Bier 69 + Fremd 92): Excel-Betrag hart gesetzt, dafür den Preis-Trigger kurz ausgesetzt (CHF 273.50). Künftig schreibt Daniel dafür **zwei Rechnungen** — kam zuletzt nur bei Surselva Chur (Wein + Bier) vor, dort ist Wein stillgelegt.
+- **29 Bruttodifferenzen, zusammen CHF 2.60** — bewusst **nicht** angeglichen: Dort rundet die App korrekt auf 5 Rappen (146.00 netto → 157.85), das Excel weicht um Rappen ab oder ist fehlerhaft (69.00 netto → 77.60 statt 74.60).
+- **Orion-Grundtarif** war kein Fehler: In der Preisliste stehen bereits 92.00; die betroffenen Reinigungen tragen den richtigen `service_typ`.
+
+**Wichtig zum Preis-Trigger** (`reinigung_preis_berechnung`): Er rechnet Netto/MwSt/Brutto bei **jedem** Update neu aus Preisliste + `service_typ` + Hahn-Mengen. Eigene Beträge werden immer überschrieben — Korrekturen müssen daher über die Mengen laufen, nicht über die Beträge.
+
+**Zur Preisliste:** Es existiert nur **eine** Preisliste, gültig ab 01.01.2025 (Bier 69 / Orion 92 / Fremd 92, Zuschläge 18/18/23/30, MwSt 8.1) — und die **doppelt**. Für Reinigungen vor 2025 findet der Trigger keine gültige Liste und rechnet gar nicht; deshalb blieben die Beträge 2019–2024 unverändert korrekt. Zwei offene Punkte daraus: das Duplikat bereinigen und ggf. historische Preislisten (Heineken-Tarife vor 2025, MwSt 7.7 %) nachtragen — sonst würde eine nachträglich bearbeitete Altreinigung nicht neu gerechnet. **Preise sind geschützte Stammdaten — nur nach Rücksprache.**
 
 Rückgängig: `rollback_reinigungspreise_2026_07_28.sql` (Snapshot `snapshot_reinigungspreise`).
 
