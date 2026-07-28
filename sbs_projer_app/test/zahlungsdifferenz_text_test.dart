@@ -20,6 +20,56 @@ void main() {
     });
   });
 
+  group('rechnungenNachZahlung — Fall Marsöl (Daniel 28.07.2026)', () {
+    test('Rechnung vom 12.05. auf Zahlung vom 25.03. wird gemeldet', () {
+      final treffer = rechnungenNachZahlung(DateTime(2026, 3, 25), [
+        (bezeichnung: '2026-05-0618', rechnungsdatum: DateTime(2026, 5, 12)),
+      ]);
+      expect(treffer, ['2026-05-0618']);
+    });
+
+    test('ältere offene Rechnungen sind plausibel', () {
+      final treffer = rechnungenNachZahlung(DateTime(2026, 3, 25), [
+        (bezeichnung: '2026-04-0273', rechnungsdatum: DateTime(2026, 1, 20)),
+        (bezeichnung: '2026-04-0173', rechnungsdatum: DateTime(2025, 12, 17)),
+      ]);
+      expect(treffer, isEmpty);
+    });
+
+    test('nur die problematischen werden zurückgegeben', () {
+      final treffer = rechnungenNachZahlung(DateTime(2026, 3, 25), [
+        (bezeichnung: 'alt', rechnungsdatum: DateTime(2026, 1, 20)),
+        (bezeichnung: 'zu jung', rechnungsdatum: DateTime(2026, 6, 1)),
+      ]);
+      expect(treffer, ['zu jung']);
+    });
+
+    test('gleicher Tag ist in Ordnung (Barzahlung bei Übergabe)', () {
+      expect(
+          rechnungenNachZahlung(DateTime(2026, 3, 25), [
+            (bezeichnung: 'x', rechnungsdatum: DateTime(2026, 3, 25)),
+          ]),
+          isEmpty);
+    });
+
+    test('ein Tag Toleranz für Buchungs-/Valutadatum', () {
+      expect(
+          rechnungenNachZahlung(DateTime(2026, 3, 25), [
+            (bezeichnung: 'x', rechnungsdatum: DateTime(2026, 3, 26)),
+          ]),
+          isEmpty);
+      expect(
+          rechnungenNachZahlung(DateTime(2026, 3, 25), [
+            (bezeichnung: 'x', rechnungsdatum: DateTime(2026, 3, 27)),
+          ]),
+          ['x']);
+    });
+
+    test('leere Auswahl -> keine Meldung', () {
+      expect(rechnungenNachZahlung(DateTime(2026, 3, 25), []), isEmpty);
+    });
+  });
+
   group('bewerteDifferenz', () {
     test('exakte Zahlung -> keine Differenz', () {
       expect(bewerteDifferenz(74.60, 74.60).art, DifferenzArt.keine);

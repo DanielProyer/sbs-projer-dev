@@ -1,5 +1,23 @@
-// Bewertung der Differenz zwischen Zahlungseingang und zugeordneter Forderung
-// für die Anzeige im camt-Abgleich.
+// Plausibilitätsprüfungen einer Zahlungszuordnung im camt-Abgleich:
+// Betragsdifferenz (Minder-/Mehrzahlung) und Datumsfolge.
+
+/// Rechnungen, die NACH dem Zahlungseingang ausgestellt wurden — die konnte
+/// der Kunde damals noch gar nicht bezahlen. Deutet fast immer auf einen
+/// Fehlgriff in der Liste hin (Fall Marsöl 28.07.2026: Zahlung vom 25.03. auf
+/// eine Rechnung vom 12.05. gebucht, obwohl ältere offene Posten vorlagen).
+///
+/// Ein Tag Toleranz, weil Buchungs- und Valutadatum um einen Tag abweichen
+/// können. Gibt die betroffenen Bezeichnungen zurück; leer = plausibel.
+List<String> rechnungenNachZahlung(
+  DateTime zahlungsdatum,
+  List<({String bezeichnung, DateTime rechnungsdatum})> forderungen,
+) {
+  final grenze = zahlungsdatum.add(const Duration(days: 1));
+  return [
+    for (final f in forderungen)
+      if (f.rechnungsdatum.isAfter(grenze)) f.bezeichnung,
+  ];
+}
 
 enum DifferenzArt { keine, minder, mehr }
 

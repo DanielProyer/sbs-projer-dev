@@ -300,6 +300,54 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     );
   }
 
+  /// Fragt nach, wenn eine Rechnung NACH dem Zahlungseingang datiert ist —
+  /// die konnte der Kunde damals nicht bezahlen (Fall Marsöl 28.07.2026:
+  /// Zahlung 25.03. auf Rechnung vom 12.05., obwohl ältere offene Posten
+  /// vorlagen). Keine harte Sperre: Vorauszahlungen gibt es. Gibt true zurück,
+  /// wenn gebucht werden darf.
+  Future<bool> _pruefeDatumsfolge(
+      DateTime zahlungsdatum, Iterable<Rechnung> forderungen) async {
+    final treffer = rechnungenNachZahlung(
+      zahlungsdatum,
+      [
+        for (final r in forderungen)
+          (
+            bezeichnung: r.rechnungsnummer ?? r.id,
+            rechnungsdatum: r.rechnungsdatum,
+          )
+      ],
+    );
+    if (treffer.isEmpty || !mounted) return treffer.isEmpty;
+
+    final trotzdem = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rechnung jünger als die Zahlung'),
+        content: Text(
+          'Die Zahlung ist vom ${_datumKurz(zahlungsdatum)}, aber '
+          '${treffer.length == 1 ? 'diese Rechnung wurde' : 'diese Rechnungen wurden'} '
+          'erst danach ausgestellt:\n\n${treffer.join('\n')}\n\n'
+          'Das ist meist ein Fehlgriff — vermutlich gehört die Zahlung zu '
+          'einer älteren offenen Rechnung. Trotzdem zuordnen?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Trotzdem zuordnen'),
+          ),
+        ],
+      ),
+    );
+    return trotzdem == true;
+  }
+
+  String _datumKurz(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
   /// Entfernt verbuchte Forderungen aus **jeder** Liste des Abgleichs — auch
   /// aus anderen Manuell-Fällen und Auto-Treffern. Vorher verschwanden sie nur
   /// aus dem gerade bearbeiteten Fall; dieselbe Forderung blieb anderswo
@@ -607,6 +655,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 FilledButton(
                   onPressed: kannVerbuchen
                       ? () async {
+                          if (!await _pruefeDatumsfolge(
+                              gewaehlteGutschriften.first.bookingDate,
+                              gewaehlteForderungen)) {
+                            return;
+                          }
                           try {
                             await ForderungsAbgleichService.verbuche(
                               zahlbetrag: zahlSumme,
@@ -815,6 +868,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 onPressed: gewaehlt.isEmpty
                     ? null
                     : () async {
+                        if (!await _pruefeDatumsfolge(
+                            g.bookingDate, gewaehlt)) {
+                          return;
+                        }
                         try {
                           await ForderungsAbgleichService.verbuche(
                             zahlbetrag: g.amount,
@@ -1168,6 +1225,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
               FilledButton(
                 onPressed: kannVerbuchen
                     ? () async {
+                        if (!await _pruefeDatumsfolge(
+                            gewaehlteGuts.first.bookingDate,
+                            gewaehlteForderungen)) {
+                          return;
+                        }
                         try {
                           await ForderungsAbgleichService.verbuche(
                             zahlbetrag: zahlSumme,
