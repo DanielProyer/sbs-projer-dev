@@ -13,13 +13,20 @@ class ZahlungsdifferenzService {
   /// Verbucht eine Sammelzahlung über mehrere Rechnungen.
   /// Jede Rechnung bekommt eine eigene Buchung (Soll 1020 / Haben 1100).
   /// Eine Differenz zum [zahlungBetrag] wird einmal am Ende gebucht.
+  ///
+  /// [datumProRechnung] setzt je Rechnung (Schlüssel = Rechnungs-Id) ein
+  /// eigenes Buchungsdatum — nötig, wenn mehrere Zahlungseingänge von
+  /// verschiedenen Tagen zugeordnet werden. Ohne Eintrag gilt [datum].
   static Future<List<Buchung>> verbuchenSammel({
     required List<Rechnung> rechnungen,
     required double zahlungBetrag,
     DateTime? datum,
+    Map<String, DateTime>? datumProRechnung,
   }) async {
     final erstellteBuchungen = <Buchung>[];
-    final datumStr = (datum ?? DateTime.now()).toIso8601String().split('T').first;
+    final standard = datum ?? DateTime.now();
+    DateTime datumFuer(Rechnung r) => datumProRechnung?[r.id] ?? standard;
+    String alsText(DateTime d) => d.toIso8601String().split('T').first;
 
     double gesamtBrutto = 0;
     for (final r in rechnungen) {
@@ -39,8 +46,9 @@ class ZahlungsdifferenzService {
         continue;
       }
 
+      final rechnungDatum = datumFuer(rechnung);
       final buchung = await BuchungRepository.create({
-        'datum': datumStr,
+        'datum': alsText(rechnungDatum),
         'belegnummer': rgNr,
         'soll_konto': 1020,
         'haben_konto': 1100,
@@ -52,7 +60,7 @@ class ZahlungsdifferenzService {
         'zahlungsweg': 'bank',
         'beleg_typ': 'zahlung',
         'beleg_id': rechnung.id,
-        'geschaeftsjahr': (datum ?? DateTime.now()).year,
+        'geschaeftsjahr': rechnungDatum.year,
       });
       erstellteBuchungen.add(buchung);
     }
@@ -61,6 +69,8 @@ class ZahlungsdifferenzService {
     if (differenz.abs() >= 0.01) {
       final letzte = rechnungen.last;
       final rgNr = letzte.rechnungsnummer ?? '';
+      final letztesDatum = datumFuer(letzte);
+      final datumStr = alsText(letztesDatum);
       if (differenz < 0) {
         final buchung = await BuchungRepository.create({
           'datum': datumStr,
@@ -75,7 +85,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'intern',
           'beleg_typ': 'zahlung',
           'beleg_id': letzte.id,
-          'geschaeftsjahr': (datum ?? DateTime.now()).year,
+          'geschaeftsjahr': letztesDatum.year,
         });
         erstellteBuchungen.add(buchung);
       } else {
@@ -92,7 +102,7 @@ class ZahlungsdifferenzService {
           'zahlungsweg': 'bank',
           'beleg_typ': 'zahlung',
           'beleg_id': letzte.id,
-          'geschaeftsjahr': (datum ?? DateTime.now()).year,
+          'geschaeftsjahr': letztesDatum.year,
         });
         erstellteBuchungen.add(buchung);
       }

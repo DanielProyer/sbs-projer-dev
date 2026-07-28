@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/zahlung_paarung.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
@@ -305,28 +306,45 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   /// Zahlung 25.03. auf Rechnung vom 12.05., obwohl ältere offene Posten
   /// vorlagen). Keine harte Sperre: Vorauszahlungen gibt es. Gibt true zurück,
   /// wenn gebucht werden darf.
+  ///
+  /// Geprüft wird je Rechnung gegen die Zahlung, die sie nach der Paarung
+  /// tatsächlich begleicht — bei Mehrfachauswahl also nicht pauschal gegen die
+  /// erste Gutschrift.
   Future<bool> _pruefeDatumsfolge(
-      DateTime zahlungsdatum, Iterable<Rechnung> forderungen) async {
-    final treffer = rechnungenNachZahlung(
-      zahlungsdatum,
-      [
+      List<CamtTransaction> gutschriften, Iterable<Rechnung> forderungen) async {
+    if (gutschriften.isEmpty) return true;
+    final paarung = paareNachDatum<CamtTransaction>(
+      zahlungen: gutschriften,
+      datumVon: (g) => g.bookingDate,
+      forderungen: [
         for (final r in forderungen)
-          (
-            bezeichnung: r.rechnungsnummer ?? r.id,
-            rechnungsdatum: r.rechnungsdatum,
-          )
+          (id: r.id, rechnungsdatum: r.rechnungsdatum)
       ],
     );
-    if (treffer.isEmpty || !mounted) return treffer.isEmpty;
+    final zeilen = <String>[];
+    for (final r in forderungen) {
+      final zahlung = paarung[r.id] ?? gutschriften.first;
+      final treffer = rechnungenNachZahlung(zahlung.bookingDate, [
+        (
+          bezeichnung: r.rechnungsnummer ?? r.id,
+          rechnungsdatum: r.rechnungsdatum,
+        )
+      ]);
+      if (treffer.isNotEmpty) {
+        zeilen.add('${treffer.first} — Zahlung vom '
+            '${_datumKurz(zahlung.bookingDate)}, Rechnung vom '
+            '${_datumKurz(r.rechnungsdatum)}');
+      }
+    }
+    if (zeilen.isEmpty || !mounted) return zeilen.isEmpty;
 
     final trotzdem = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Rechnung jünger als die Zahlung'),
         content: Text(
-          'Die Zahlung ist vom ${_datumKurz(zahlungsdatum)}, aber '
-          '${treffer.length == 1 ? 'diese Rechnung wurde' : 'diese Rechnungen wurden'} '
-          'erst danach ausgestellt:\n\n${treffer.join('\n')}\n\n'
+          '${zeilen.length == 1 ? 'Diese Rechnung wurde' : 'Diese Rechnungen wurden'} '
+          'erst nach dem Zahlungseingang ausgestellt:\n\n${zeilen.join('\n')}\n\n'
           'Das ist meist ein Fehlgriff — vermutlich gehört die Zahlung zu '
           'einer älteren offenen Rechnung. Trotzdem zuordnen?',
         ),
@@ -656,7 +674,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                   onPressed: kannVerbuchen
                       ? () async {
                           if (!await _pruefeDatumsfolge(
-                              gewaehlteGutschriften.first.bookingDate,
+                              gewaehlteGutschriften.toList(),
                               gewaehlteForderungen)) {
                             return;
                           }
@@ -666,6 +684,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                               datum: gewaehlteGutschriften.first.bookingDate,
                               forderungen: gewaehlteForderungen.toList(),
                               camtTxKey: gewaehlteGutschriften.first.txKey,
+                              gutschriften: gewaehlteGutschriften.toList(),
                             );
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           } catch (e) {
@@ -868,8 +887,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 onPressed: gewaehlt.isEmpty
                     ? null
                     : () async {
-                        if (!await _pruefeDatumsfolge(
-                            g.bookingDate, gewaehlt)) {
+                        if (!await _pruefeDatumsfolge([g], gewaehlt)) {
                           return;
                         }
                         try {
@@ -1226,8 +1244,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 onPressed: kannVerbuchen
                     ? () async {
                         if (!await _pruefeDatumsfolge(
-                            gewaehlteGuts.first.bookingDate,
-                            gewaehlteForderungen)) {
+                            gewaehlteGuts.toList(), gewaehlteForderungen)) {
                           return;
                         }
                         try {
@@ -1236,6 +1253,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             datum: gewaehlteGuts.first.bookingDate,
                             forderungen: gewaehlteForderungen.toList(),
                             camtTxKey: gewaehlteGuts.first.txKey,
+                            gutschriften: gewaehlteGuts.toList(),
                           );
                           if (ctx.mounted) Navigator.pop(ctx, true);
                         } catch (e) {

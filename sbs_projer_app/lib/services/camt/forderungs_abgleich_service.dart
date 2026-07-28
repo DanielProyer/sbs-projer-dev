@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
 import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
 import 'package:sbs_projer_app/core/util/scor_referenz.dart';
+import 'package:sbs_projer_app/core/util/zahlung_paarung.dart';
 
 /// Ein eindeutiger Auto-Treffer: eine Gutschrift schliesst eine/mehrere Forderungen.
 class AutoTreffer {
@@ -172,11 +173,18 @@ class ForderungsAbgleichService {
   /// Verbucht eine Zahlung gegen die gewählten Forderungen + markiert sie bezahlt.
   /// Nutzt die bestehende Sammel-Verbuchung (Bank 1020 ← Debitoren 1100 + Differenz).
   /// [camtTxKey] markiert die erzeugten Buchungen → identifizierbar/reversibel.
+  ///
+  /// [gutschriften] sind die zugeordneten Zahlungseingänge. Sind es mehrere,
+  /// werden sie paarweise verteilt — neueste Zahlung auf neueste Forderung
+  /// (Regel Daniel 28.07.2026) —, damit jede Rechnung das Datum und den
+  /// camt-Schlüssel *ihrer* Zahlung trägt. Vorher bekamen alle Rechnungen
+  /// pauschal die Werte der ersten Gutschrift.
   static Future<void> verbuche({
     required double zahlbetrag,
     required DateTime datum,
     required List<Rechnung> forderungen,
     String? camtTxKey,
+    List<CamtTransaction> gutschriften = const [],
   }) async {
     if (forderungen.isEmpty) return;
 
@@ -198,19 +206,37 @@ class ForderungsAbgleichService {
           'abgebrochen. Bitte Liste aktualisieren.');
     }
 
+    // Paarung nur nötig, wenn mehrere Zahlungen im Spiel sind.
+    final paarung = gutschriften.length < 2
+        ? const <String, CamtTransaction>{}
+        : paareNachDatum<CamtTransaction>(
+            zahlungen: gutschriften,
+            datumVon: (g) => g.bookingDate,
+            forderungen: [
+              for (final r in forderungen)
+                (id: r.id, rechnungsdatum: r.rechnungsdatum)
+            ],
+          );
+
     final buchungen = await ZahlungsdifferenzService.verbuchenSammel(
-      rechnungen: forderungen, zahlungBetrag: zahlbetrag, datum: datum,
+      rechnungen: forderungen,
+      zahlungBetrag: zahlbetrag,
+      datum: datum,
+      datumProRechnung: {
+        for (final e in paarung.entries) e.key: e.value.bookingDate,
+      },
     );
-    if (camtTxKey != null) {
-      for (final b in buchungen) {
-        await BuchungRepository.setCamtTxKey(b.id, camtTxKey);
-      }
+    // Jede Buchung trägt den Schlüssel *ihrer* Zahlung — sonst hinge die
+    // Buchung beim Rückgängigmachen an der falschen Transaktion.
+    for (final b in buchungen) {
+      final key = paarung[b.belegId]?.txKey ?? camtTxKey;
+      if (key != null) await BuchungRepository.setCamtTxKey(b.id, key);
     }
-    final datumStr = datum.toIso8601String().split('T').first;
     for (final r in forderungen) {
+      final eingang = paarung[r.id]?.bookingDate ?? datum;
       await RechnungRepository.update(r.id, {
         'zahlungsstatus': 'bezahlt',
-        'zahlung_eingegangen_am': datumStr,
+        'zahlung_eingegangen_am': eingang.toIso8601String().split('T').first,
         'zahlung_betrag': r.betragBrutto,
       });
     }
