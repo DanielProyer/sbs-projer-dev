@@ -1,11 +1,22 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.07.2026 · **Live:** v0.53.9
+**Stand:** 28.07.2026 · **Live:** v0.53.11
 
 ---
 
-## 🟡 OFFEN — Spesen-Scanner: Korrektur-Schritt + Dubletten-Warnung (nach dem Testlauf bauen)
-Entscheid Daniel 28.07.: **beides zusammen**, aber **erst nach Abschluss des laufenden Beleg-Testlaufs**.
+## 🟢 ERLEDIGT 28.07.: Spesen-Beleg-Testlauf abgeschlossen + aufgeräumt
+Daniel: «bin mit dem Testen durch, wurde alles richtig erkannt, super». Erkennung sitzt (v0.53.9 Kategorien Material/Berufskleider/Parkgebühren/Entsorgung, v0.53.10 Tabakwaren als Privatbezug 2260).
+**Aufgeräumt:** 66 Testbuchungen (CHF 1'664.89) + 66 Beleg-Verknüpfungen gelöscht; die beiden Heineken-Buchungen der Juni-Rechnung blieben unberührt. Storage liess sich weder per SQL (Schutz-Trigger `storage.protect_delete`) noch per Supabase-CLI (`storage rm` meldet Erfolg, löscht nichts) aufräumen → **neue App-Funktion v0.53.11** (siehe unten). **Noch zu tun: in der App Einstellungen → «Speicher aufräumen» ausführen** (217 Waisen / 77.7 MB, davon 66 aus dem Testlauf).
+
+---
+
+## 🟢 NEU v0.53.11 — Einstellungen → «Speicher aufräumen»
+Findet Beleg-Dateien im Storage, zu denen keine Buchung mehr existiert (entstehen beim Löschen von Buchungen). Migration 151: RPC `verwaiste_belege()` (SECURITY DEFINER, nur eigener Ordner, nur Dateien älter als 1 h → laufende Uploads sind geschützt). Löschen erfolgt über die Storage-API der App in 50er-Blöcken, mit Sicherheitsabfrage inkl. Anzahl und Grösse. **Bitte visuell prüfen** (lokal nicht testbar, Login nötig).
+
+---
+
+## 🟡 OFFEN — Spesen-Scanner: Korrektur-Schritt + Dubletten-Warnung
+Entscheid Daniel 28.07.: **beides zusammen**, Testlauf ist inzwischen abgeschlossen — kann gebaut werden.
 1. **Korrektur-Schritt vor dem Buchen:** Datum, Positionen (Betrag / MwSt-Satz / Kategorie) und Zahlart editierbar; dazu Plausibilitätsprüfungen (Summe Positionen = Beleg-Total, Datum nicht in der Zukunft).
 2. **Beleg drehen** nach dem Scan (wurde mehrfach falsch ausgerichtet gespeichert).
 3. **Dubletten-Warnung:** vor dem Buchen auf Geschäft + Datum + Gesamtbetrag in `buchungen` prüfen → Hinweis-Dialog «Dieser Beleg wurde am … bereits gebucht (X Buchungen). Trotzdem buchen?», Standard = Abbrechen. **Kein hartes Verbot** (zweimal am selben Tag beim selben Coop Pronto tanken ist ein echter Fall). Optionaler Ausbau später: Datei-Hash in der Storage-Ebene.
