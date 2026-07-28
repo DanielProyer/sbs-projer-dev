@@ -1,6 +1,57 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.07.2026 · **Live:** v0.54.9
+**Stand:** 28.07.2026 · **Live:** v0.54.14
+
+---
+
+## 🟢 ERLEDIGT 28.07.: Excel-Zahlungen zugeordnet — 147 Rechnungen auf bezahlt
+
+Vor dem echten camt-Abgleich mussten die im Excel erfassten Einzahlungen in die App. Die Zuordnung stammt **nicht** aus einer Betragsrechnung, sondern direkt aus der Quelle: Sheet `Reinigung`, Spalte **Einzahlungsdatum** + **Einzahlungsbeleg** (Extraktor `Datenbank/import/extract_einzahlungen_reinigung.py`, Tabelle `import.einzahlung_excel`).
+
+Befund für die 1'313 offenen Rechnungen bis 11.03.2026:
+
+| Gruppe | Anzahl | Betrag | Aktion |
+|---|---|---|---|
+| laut Excel ebenfalls offen | 966 | — | zu Recht offen, nichts getan |
+| im Excel als ABSCHREIBUNG markiert | 47 | — | **Daniel schreibt selbst in der App ab** |
+| laut Excel bezahlt (App-Rechnungen) | **147** | **14'958.45** | auf bezahlt gesetzt, Datum aus Excel |
+
+Alle 147 Zahlungen liegen zwischen 04.12.2025 und 11.03.2026 — nichts nach dem Stichtag, alles danach läuft über camt. Gegenprobe: 145 der 147 Zahlungsbelege existieren als Buchung; die zwei Abweichungen sind ein Rappen-Dreher in der Belegnummer (Stadtcafé) und eine Sammelzahlung über zwei Betriebe (Bolgen Plaza + Waldhuus, 272.45 unter Kürzel 0089). Bank 3'322.26 und Debitoren 176'228.04 unverändert — es entstanden keine Buchungen. Offene Rechnungen 1'581 → 1'434.
+
+Rückgängig: `Datenbank/wartung/rollback_excel_zuordnung_2026_07_28.sql` (Snapshot `snapshot_excel_zuordnung`).
+
+**Verworfen:** Ein erster Ansatz über Betragsbilanzen je Betrieb hätte 150 Rechnungen geschlossen — davon rund 100 zu Unrecht, weil er aus Betragsdifferenzen Zahlungen konstruierte, die es nie gab.
+
+**Hintergrund Versandlücke:** Rechnungen der Art *Mail* und *Post* wurden über längere Zeiträume gar nicht gestellt, erst ab 31.12.2025 wieder regelmässig (inkl. Nachversand aus der App). Diese Altforderungen schreibt Daniel ab — eigener Fehler, kein Mahnfall.
+
+---
+
+## 🔴 OFFEN: 16 Betriebe mit vermischten Excel-Objekten
+
+Beim Historik-Import sind gleichnamige Betriebe zu **einem** Datensatz verschmolzen — unterschieden werden müssten sie über Name **+ Ort**. Folge: Rechnungen und Zahlungen mehrerer Häuser hängen am selben Betrieb, was den camt-Abgleich verfälscht.
+
+| DB-Betrieb | tatsächliche Excel-Objekte |
+|---|---|
+| Alpina [Breil/Brigels] | Alpina Klosters-Serneus (0147), Alpina Schiers (0195), Alpina Gitzihöll Triesenberg (0506) |
+| Sonne [Neuenkirch] | Klosters (0153), Thusis (0211), Sonnenhalde Davos (0226), Krummenau (0503), Neuenkirch (0733) |
+| Stau [Davos Platz] | Restaurant Türmli Sempach (0732), Villaggio Restaurant Root (0749) |
+| Arena Bar [Flims Dorf] | Arena Flims (0242), Arena Bar 2 Flims (0371), Arena Klosters (0468) |
+| Bahnhöfli [Chur] | Bahnhöfli Haldenstein (0136), Bistro Bahnhöfli Schiers (0612) |
+| Kulm [Davos] | Kulm Arosa (0005), Kulm Davos (0109) |
+| Kreuz [Inwil] | Weisses Kreuz Cazis (0022), Restaurant Kreuz Inwil (0748) |
+| Frosch Sportclub [Davos Platz] | Sport Klosters (0146), Frosch Davos (0670) |
+| Merz [Domat/Ems] | Merz Wiesental Chur (0042), Merz Domat/Ems (0116) |
+| Rätia [Ilanz] | Rätia Ilanz (0138), Rätia Filisur (0285) |
+| Waldhaus [Valbella] | Waldhaus Valbella (0214), Waldhaus Flims (0235) |
+| Surselva, Central, Kurhaus Omstal, Löwen, Rössli | je zwei Objekte (teils echter Nummernwechsel) |
+
+Die Zuordnung der 147 ist davon **nicht** betroffen — die 12 Fälle bei Mischbetrieben hatten je genau einen Excel-Treffer mit passendem Betrag.
+
+---
+
+## 🔴 OFFEN: Blue Cinema Chur — 37 offene Rechnungen, eine Zahlung
+
+12/2022 bis 05/2026, rund CHF 7'500 offen, dazu genau **eine** Zahlung (05.02.2026, 184.85). Vermutlich laufen die Zahlungen über eine Zentrale unter anderem Namen und wurden im Excel nie diesem Objekt zugeordnet. Vor dem camt-Abgleich klären.
 
 ---
 
