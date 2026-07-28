@@ -19,11 +19,17 @@
 | Hauptreinigungen um Anlagen ergänzt | **158** |
 | Kontrollfall Lindemann's 31.07. | eine Reinigung, 152.40, Anlagen „Try Out + Overtime EG" ✓ |
 
-**24 Zeilen bewusst stehen gelassen — brauchen deine Klärung:**
-- **16 Einzelreinigungen mit Suffix `_01`** bei *Vieri Bar [Cham]* (8×), *Strela [Davos]* (4×), *Frosch Sportclub* (2×), *Rössli [Cham]*, *Jamies [Chur]*: Das ist die einzige Reinigung des Tages, im Excel aber als „Zusätzliche Anlage" mit 0.00 geführt. Vermutung: Diese Betriebe sind Zusatzanlagen eines anderen Hauses und werden dort mitverrechnet — dann gehören die Reinigungen dorthin.
-- **8 Zeilen ohne Hauptreinigung am selben Tag** bei *Blue Cinema Chur* (5×, Suffix `_03`) und *Robinson Club Arosa* (3×, Suffix `_04/_05/_06`): Die Hauptzeile `_01` fehlt in der DB — vermutlich wurde sie nie importiert.
+**Die 24 Restfälle — von Daniel geklärt und erledigt** (`zusatzanlagen_rest_2026_07_28.sql`):
 
-Rückgängig: `rollback_zusatzanlagen_2026_07_28.sql` (Snapshot `snapshot_zusatzanlagen`).
+> Regel Daniel: *„Wenn im Excel Zusatzanlage steht, ist das massgebend für die Rechnung — die Reinigung soll aber bei beiden Anlagen/Betrieben ersichtlich sein."* Hintergrund: zwei Betriebe in einem Haus, früher zwei Rechnungen, auf Kundenwunsch zusammengelegt.
+
+- **Blue Cinema Chur (5×)**: Die Hauptanlage `_01` war ausser Betrieb, die Rechnung hängt an `_02` (Rechnung Mail, 184.85) — die `_03`-Zusatzanlage wurde dorthin zusammengeführt und entfernt.
+- **18 Zeilen auf Preis 0.00 gesetzt** und bewusst behalten, damit die Reinigung beim Betrieb sichtbar bleibt: *Vieri Bar Cham* (8×), *Strela Davos* (4×), *Frosch Sportclub* (2×), *Rössli Cham* (1×) und *Robinson Club Arosa* (3× vom 26.02.2025 — eigene Arbeitstage, Hauptreinigung war am 24.02.).
+- **1 Ausnahme**: *Jamies Chur* 17.06.2019 behält 215.40 — dort existiert eine echte Rechnung, die Excel-Zeile ist einer der vier bekannten Doppeleinträge.
+
+**Kontrolle nach allen Bereinigungen:** Netto stimmt weiterhin bei allen Reinigungen mit dem Excel (0 Abweichungen), keine verwaisten Datensätze, Debitoren 176'228.04 und 1'434 offene Rechnungen unverändert.
+
+Rückgängig: `rollback_zusatzanlagen_2026_07_28.sql` (Snapshots `snapshot_zusatzanlagen.geloescht`, `.haupt_vorher`, `.rest_vorher`).
 
 ---
 

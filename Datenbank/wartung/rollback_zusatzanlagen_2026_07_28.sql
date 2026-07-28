@@ -20,6 +20,17 @@ SET anlage_ids = v.anlage_ids, updated_at = v.updated_at
 FROM snapshot_zusatzanlagen.haupt_vorher v
 WHERE r.id = v.id AND r.anlage_ids IS DISTINCT FROM v.anlage_ids;
 
+-- Restfaelle (zweiter Lauf): Preise und Anlagenliste zurueck
+INSERT INTO reinigungen SELECT * FROM snapshot_zusatzanlagen.rest_vorher
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE reinigungen r
+SET preis_grundtarif = v.preis_grundtarif, preis_zusatz_haehne = v.preis_zusatz_haehne,
+    preis_netto = v.preis_netto, preis_mwst = v.preis_mwst, preis_brutto = v.preis_brutto,
+    notizen = v.notizen, updated_at = v.updated_at
+FROM snapshot_zusatzanlagen.rest_vorher v
+WHERE r.id = v.id AND r.preis_brutto IS DISTINCT FROM v.preis_brutto;
+
 ALTER TABLE reinigungen ENABLE TRIGGER reinigung_preis_berechnung;
 COMMIT;
 
