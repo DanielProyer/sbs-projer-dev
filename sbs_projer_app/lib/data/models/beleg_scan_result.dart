@@ -7,6 +7,12 @@ class BelegScanResult {
   final double konfidenz;
   final String? zahlungsmethode; // 'twint', 'bar', 'karte' oder null
 
+  /// Drehung im Uhrzeigersinn (0/90/180/270), damit der Belegtext aufrecht
+  /// steht — vom Modell am gelesenen Text beurteilt. Verlässlicher als die
+  /// EXIF-Angabe der Kamera, die bei flach von oben aufgenommenen Belegen
+  /// beliebig ausfällt (gemeldet Daniel 28.07.2026).
+  final int bildDrehung;
+
   BelegScanResult({
     required this.geschaeft,
     required this.datum,
@@ -14,6 +20,7 @@ class BelegScanResult {
     required this.totalBrutto,
     required this.konfidenz,
     this.zahlungsmethode,
+    this.bildDrehung = 0,
   });
 
   bool get istMischkauf => positionen.length > 1;
@@ -29,6 +36,7 @@ class BelegScanResult {
       totalBrutto: _d(json['total_brutto']),
       konfidenz: _d(json['konfidenz']),
       zahlungsmethode: json['zahlungsmethode'] as String?,
+      bildDrehung: _drehung(json['bild_drehung']),
     );
   }
 
@@ -61,6 +69,13 @@ class BelegScanResult {
   static double _d(dynamic value) {
     if (value == null) return 0;
     return double.tryParse(value.toString()) ?? 0;
+  }
+
+  /// Nur 90er-Schritte zulassen — alles andere wäre ein Modell-Ausrutscher
+  /// und würde den Beleg schief speichern.
+  static int _drehung(dynamic value) {
+    final grad = int.tryParse(value?.toString() ?? '') ?? 0;
+    return const [0, 90, 180, 270].contains(grad) ? grad : 0;
   }
 }
 

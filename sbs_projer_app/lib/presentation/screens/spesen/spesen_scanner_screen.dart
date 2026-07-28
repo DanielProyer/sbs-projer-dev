@@ -239,6 +239,15 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
         autoZahlungsweg = Zahlungsweg.bank;
       }
 
+      // Das Modell beurteilt die Ausrichtung am gelesenen Text — das ist
+      // verlässlicher als die EXIF-Angabe der Kamera, die bei flach von oben
+      // fotografierten Belegen beliebig ausfällt und dann falsch dreht.
+      if (result.bildDrehung != 0 && _belegBytes != null) {
+        _belegBytes = Uint8List.fromList(BelegBildService.drehen(
+            _belegBytes!, result.bildDrehung,
+            dateityp: _dateityp));
+      }
+
       setState(() {
         _scanResult = result;
         _uebernehmeScan(result);

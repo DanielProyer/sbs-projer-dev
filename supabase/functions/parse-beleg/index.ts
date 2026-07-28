@@ -192,8 +192,18 @@ Antworte NUR mit validem JSON in diesem Format:
     }
   ],
   "total_brutto": 105.07,
-  "konfidenz": 0.95
+  "konfidenz": 0.95,
+  "bild_drehung": 0
 }
+
+BILD-AUSRICHTUNG (bild_drehung):
+Um wie viele Grad muss das BILD im Uhrzeigersinn gedreht werden, damit der
+Belegtext aufrecht und von links nach rechts lesbar ist?
+- 0   = Text steht bereits aufrecht (Normalfall)
+- 90  = Beleg liegt auf der linken Seite (Text läuft von unten nach oben)
+- 180 = Beleg steht auf dem Kopf
+- 270 = Beleg liegt auf der rechten Seite (Text läuft von oben nach unten)
+Beurteile das am gedruckten Text, nicht an der Form des Belegs. Im Zweifel 0.
 
 PLAUSIBILITÄTS-PRÜFUNG (MUSS stimmen):
 - total_brutto MUSS = Summe aller positionen.betrag_brutto sein (auf 5 Rappen gerundet)
