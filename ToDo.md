@@ -40,7 +40,11 @@ Skript `Datenbank/wartung/entwirren_mischbetriebe_2026_07_28.sql`, Rückgängig 
 
 **Anlagenbezug nachgetragen (280 Reinigungen):** Die Excel-ID trägt den Anlagenindex an letzter Stelle (`2024_09_26_0195_01`). Eine Stichprobe über 93 bestehende Zuordnungen zeigte, dass der Index in 92 Fällen der Reihenfolge entspricht, in der die Anlagen angelegt wurden — danach zugeordnet. Keine einzige Reinigung zeigt mehr auf eine Anlage eines fremden Betriebs.
 
-**Offen:** 15 weitere Betriebe tragen tote Historie fremder Häuser (nur ein aktives Objekt, daher für den camt-Abgleich unkritisch) — zweiter Durchgang.
+**Teil 2 (ebenfalls 28.07. erledigt): 16 Betriebe mit toter Fremdhistorie** — 218 Reinigungen und 147 Rechnungen umgehängt, 18 weitere erloschene Häuser als geschlossene Betriebe angelegt (Arena Klosters · Arena Bar 2 Flims · Mühle Davos · Edelweiss Chur/Triesenberg · Sport Klosters · Weisses Kreuz Cazis · Kulm Arosa · Kurhaus Lenzerheide · Merz Wiesental Chur · Parsenn Conters · Posthotel Churwalden · Rössli Steinhausen · Sonne Krummenau/Thusis/Klosters · Sonnenhalde Davos · Waldhaus Flims). Zwei Objekte gingen an bestehende Betriebe: Gemsli Mels (25×) und Rätia Filisur (2×).
+
+**Einzige verbleibende Mehrfachzuordnung — bewusst so:** *Halli Galli + Los Bar [Arosa]* trägt die Nummern 0011 (Halli Galli) und 0616 (Los), weil der Betriebsname beide Lokale nennt. *Arena Bar 2 [Flims]* wurde dagegen als eigener Betrieb angelegt, obwohl am selben Ort wie Arena Flims — im Excel sind es getrennte Objekte.
+
+Skript `entwirren_mischbetriebe_teil2_2026_07_28.sql`, Rückgängig via `rollback_mischbetriebe_teil2_2026_07_28.sql`.
 
 ---
 
