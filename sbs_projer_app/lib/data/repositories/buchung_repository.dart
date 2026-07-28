@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sbs_projer_app/core/util/beleg_korrektur.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -26,6 +27,27 @@ class BuchungRepository {
 
   static Stream<List<Buchung>> watchAll() {
     return Stream.fromFuture(getAll());
+  }
+
+  /// Bereits gebuchte Spesen-Positionen eines Belegdatums — Grundlage für die
+  /// Dubletten-Warnung im Scanner. Vorsteuer-Gegenbuchungen (1171) bleiben
+  /// aussen vor, sonst würde die Summe doppelt zählen.
+  static Future<List<DublettenKandidat>> spesenAmDatum(DateTime datum) async {
+    final tag = datum.toIso8601String().split('T').first;
+    final rows = await SupabaseService.client
+        .from('buchungen')
+        .select('beschreibung, betrag_brutto')
+        .eq('user_id', _userId)
+        .eq('datum', tag)
+        .neq('soll_konto', 1171)
+        .like('notizen', 'Spesen-Scanner Import%');
+    return rows
+        .map((r) => DublettenKandidat(
+              beschreibung: (r['beschreibung'] as String?) ?? '',
+              brutto:
+                  double.tryParse(r['betrag_brutto']?.toString() ?? '') ?? 0,
+            ))
+        .toList();
   }
 
   static Future<Buchung?> getById(String id) async {

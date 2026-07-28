@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/beleg_korrektur.dart';
 import 'package:sbs_projer_app/data/models/beleg_scan_result.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/services/spesen/beleg_bild_service.dart';
 import 'package:sbs_projer_app/services/spesen/beleg_scan_service.dart';
 import 'package:sbs_projer_app/services/spesen/spesen_import_service.dart';
 
@@ -35,8 +38,111 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   // Buchungs-Optionen
   Zahlungsweg _zahlungsweg = Zahlungsweg.bar;
 
+  // Korrigierbarer Entwurf (aus dem Scan vorbefüllt)
+  final _geschaeftCtrl = TextEditingController();
+  final _totalCtrl = TextEditingController();
+  DateTime _datum = DateTime.now();
+  final List<_PosEntwurf> _positionen = [];
+  bool _dreheLaeuft = false;
+
+  static const _mwstSaetze = [8.1, 3.8, 2.6, 0.0];
+  static const _kategorien = [
+    'essen',
+    'benzin',
+    'material',
+    'berufskleider',
+    'parkgebuehren',
+    'entsorgung',
+    'privat',
+  ];
+
   // Ergebnis
   List<Buchung> _erstellteBuchungen = [];
+
+  @override
+  void dispose() {
+    _geschaeftCtrl.dispose();
+    _totalCtrl.dispose();
+    for (final p in _positionen) {
+      p.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Scan-Ergebnis in den editierbaren Entwurf übernehmen.
+  void _uebernehmeScan(BelegScanResult result) {
+    _geschaeftCtrl.text = result.geschaeft;
+    _totalCtrl.text = result.totalBrutto.toStringAsFixed(2);
+    _datum = result.datum;
+    for (final p in _positionen) {
+      p.dispose();
+    }
+    _positionen
+      ..clear()
+      ..addAll(result.positionen.map(_PosEntwurf.ausPosition));
+  }
+
+  /// Entwurf zurück in ein BelegScanResult — das ist, was gebucht wird.
+  BelegScanResult _scanAusEntwurf() {
+    return BelegScanResult(
+      geschaeft: _geschaeftCtrl.text.trim().isEmpty
+          ? 'Unbekannt'
+          : _geschaeftCtrl.text.trim(),
+      datum: _datum,
+      positionen: _positionen.map((p) => p.zuPosition()).toList(),
+      totalBrutto: _total(),
+      konfidenz: _scanResult?.konfidenz ?? 1.0,
+      zahlungsmethode: _scanResult?.zahlungsmethode,
+    );
+  }
+
+  double _total() => double.tryParse(_totalCtrl.text.replaceAll(',', '.')) ?? 0;
+
+  List<double> _positionsBetraege() =>
+      _positionen.map((p) => p.betragWert).toList();
+
+  double _barRundung() =>
+      double.parse((runde5Rappen(_total()) - _total()).toStringAsFixed(2));
+
+  Future<void> _datumWaehlen() async {
+    final gewaehlt = await showDatePicker(
+      context: context,
+      initialDate: _datum,
+      firstDate: DateTime(_datum.year - 2),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (gewaehlt != null) setState(() => _datum = gewaehlt);
+  }
+
+  void _posHinzufuegen() {
+    setState(() => _positionen.add(_PosEntwurf.leer()));
+  }
+
+  void _posEntfernen(int index) {
+    setState(() => _positionen.removeAt(index).dispose());
+  }
+
+  /// Beleg drehen — wirkt auf die Datei, die im Storage landet.
+  Future<void> _drehen(int grad) async {
+    final bytes = _belegBytes;
+    if (bytes == null) return;
+    setState(() => _dreheLaeuft = true);
+    try {
+      final gedreht =
+          BelegBildService.drehen(bytes, grad, dateityp: _dateityp);
+      if (!mounted) return;
+      setState(() {
+        _belegBytes = gedreht;
+        _dreheLaeuft = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Drehen fehlgeschlagen: $e';
+        _dreheLaeuft = false;
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -106,6 +212,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
 
       setState(() {
         _scanResult = result;
+        _uebernehmeScan(result);
         _zahlungsweg = autoZahlungsweg;
         _step = 1;
         _isLoading = false;
@@ -120,6 +227,13 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
 
   Future<void> _buchen() async {
     if (_scanResult == null || _belegBytes == null) return;
+    if (_positionen.isEmpty) {
+      setState(() => _error = 'Keine Positionen erfasst.');
+      return;
+    }
+
+    final entwurf = _scanAusEntwurf();
+    if (!await _dublettePruefen(entwurf)) return;
 
     setState(() {
       _isLoading = true;
@@ -128,7 +242,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
 
     try {
       final buchungen = await SpesenImportService.importSpesen(
-        scanResult: _scanResult!,
+        scanResult: entwurf,
         zahlungsweg: _zahlungsweg,
         belegBytes: _belegBytes!,
         dateiname: _dateiname,
@@ -149,6 +263,45 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Warnt, wenn derselbe Beleg an diesem Tag schon gebucht wurde.
+  /// Bewusst keine Sperre — zweimal am selben Tag bei derselben Tankstelle
+  /// zu tanken ist ein echter Fall. Gibt true zurück, wenn gebucht werden soll.
+  Future<bool> _dublettePruefen(BelegScanResult entwurf) async {
+    List<DublettenKandidat> kandidaten;
+    try {
+      kandidaten = await BuchungRepository.spesenAmDatum(entwurf.datum);
+    } catch (_) {
+      return true; // Prüfung darf das Buchen nie blockieren
+    }
+    final summe =
+        _positionsBetraege().fold<double>(0, (s, b) => s + b);
+    if (!dublettenTreffer(kandidaten, entwurf.geschaeft, summe)) return true;
+    if (!mounted) return false;
+
+    final trotzdem = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Beleg schon gebucht?'),
+        content: Text(
+          '${entwurf.geschaeft} vom ${_formatDate(entwurf.datum)} über '
+          '${summe.toStringAsFixed(2)} CHF ist bereits gebucht.\n\n'
+          'Trotzdem nochmal buchen?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Trotzdem buchen'),
+          ),
+        ],
+      ),
+    );
+    return trotzdem == true;
   }
 
   void _reset() {
@@ -317,199 +470,387 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
     );
   }
 
-  // === Step 1: Prüfen ===
+  // === Step 1: Prüfen & korrigieren ===
+  //
+  // Alle erkannten Werte sind editierbar (Entscheid Daniel 28.07.2026):
+  // Datum, Geschäft, Total, jede Position (Text, Betrag, MwSt-Satz,
+  // Kategorie) sowie Positionen löschen/hinzufügen. Stimmt die Summe der
+  // Positionen nicht zum Total, wird nur gewarnt — buchen bleibt möglich
+  // (z.B. Gutschein oder Rabatt, den der Scan nicht als Position führt).
   Widget _buildPruefen() {
     final scan = _scanResult!;
+    final differenz = differenzZumTotal(_positionsBetraege(), _total());
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // OCR-Ergebnis Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.receipt_long, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        scan.geschaeft,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    _KonfidenzBadge(konfidenz: scan.konfidenz),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Datum: ${_formatDate(scan.datum)}',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-                const Divider(height: 24),
-
-                // Positionen
-                ...scan.positionen.map(
-                  (pos) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _katIcon(pos.kategorie),
-                          size: 18,
-                          color: _katFarbe(pos.kategorie),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      pos.beschreibung,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _katFarbe(
-                                        pos.kategorie,
-                                      ).withAlpha(25),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      _katLabel(pos.kategorie),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: _katFarbe(pos.kategorie),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                pos.kategorie == 'privat'
-                                    ? (_zahlungsweg == Zahlungsweg.privat
-                                          ? 'Privatkauf — wird nicht gebucht'
-                                          : 'Privatkauf — Bezug ab '
-                                                '${_zahlungsweg == Zahlungsweg.bar ? 'Kasse' : 'Bank'}, '
-                                                'kein Vorsteuerabzug')
-                                    : 'Netto ${pos.betragNetto.toStringAsFixed(2)} + ${pos.mwstSatz}% MwSt ${pos.mwstBetrag.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${pos.betragBrutto.toStringAsFixed(2)} CHF',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Total',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      '${scan.totalBrutto.toStringAsFixed(2)} CHF',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                // 5-Rappen-Rundung bei Barzahlung anzeigen
-                if (_zahlungsweg == Zahlungsweg.bar &&
-                    _gerundeterTotal(scan) != scan.totalBrutto) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Bar gerundet (5 Rp.)',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        '${_gerundeterTotal(scan).toStringAsFixed(2)} CHF',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-
-        // Mischkauf-Info
-        if (scan.positionen.length > 1) ...[
+        _buildBelegBild(scan),
+        const SizedBox(height: 12),
+        _buildAngaben(),
+        const SizedBox(height: 12),
+        _buildPositionen(),
+        if (differenz != null) ...[
           const SizedBox(height: 8),
+          _buildDifferenzHinweis(differenz),
+        ],
+        const SizedBox(height: 16),
+        _buildZahlungsweg(),
+        if (_error != null) ...[
+          const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.info.withAlpha(25),
+              color: AppColors.error.withAlpha(25),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.info.withAlpha(50)),
+            ),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: AppColors.error, fontSize: 13),
+            ),
+          ),
+        ],
+        if (scan.konfidenz < 0.85) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withAlpha(25),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.warning.withAlpha(80)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: AppColors.info, size: 20),
-                const SizedBox(width: 8),
+                const Icon(Icons.warning_amber_rounded,
+                    color: AppColors.warning, size: 24),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Mischkauf: ${scan.positionen.length} separate Buchungen (Konten automatisch erkannt)',
-                    style: const TextStyle(color: AppColors.info, fontSize: 13),
+                    'Erkennung unsicher (${(scan.konfidenz * 100).round()}%) — '
+                    'bitte Beträge prüfen oder nochmal scannen.',
+                    style: TextStyle(
+                      color: AppColors.warning.withAlpha(200),
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+        const SizedBox(height: 8),
+      ],
+    );
+  }
 
-        const SizedBox(height: 16),
+  /// Beleg-Vorschau mit Drehen-Knöpfen. Die Drehung wirkt auf die Datei,
+  /// die im Storage landet (Belege wurden mehrfach quer gespeichert).
+  Widget _buildBelegBild(BelegScanResult scan) {
+    final bytes = _belegBytes;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            if (bytes != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.memory(
+                  bytes,
+                  height: 160,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                ),
+              ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _dreheLaeuft ? null : () => _drehen(270),
+                  icon: const Icon(Icons.rotate_left),
+                  tooltip: 'Nach links drehen',
+                ),
+                if (_dreheLaeuft)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Text('Beleg drehen',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                IconButton(
+                  onPressed: _dreheLaeuft ? null : () => _drehen(90),
+                  icon: const Icon(Icons.rotate_right),
+                  tooltip: 'Nach rechts drehen',
+                ),
+                const Spacer(),
+                _KonfidenzBadge(konfidenz: scan.konfidenz),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-        // Zahlungsweg
+  Widget _buildAngaben() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _geschaeftCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Geschäft',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: _datumWaehlen,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Datum',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_formatDate(_datum)),
+                          const Icon(Icons.calendar_today, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _totalCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Total CHF',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+              ],
+            ),
+            if (_zahlungsweg == Zahlungsweg.bar && _barRundung() != 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Bar gerundet auf 5 Rappen: '
+                '${runde5Rappen(_total()).toStringAsFixed(2)} CHF '
+                '(${_barRundung() > 0 ? '+' : ''}'
+                '${_barRundung().toStringAsFixed(2)})',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPositionen() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.list_alt, size: 18, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  _positionen.length == 1
+                      ? '1 Position'
+                      : '${_positionen.length} Positionen',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Text(
+                  '${_positionsBetraege().fold<double>(0, (s, b) => s + b).toStringAsFixed(2)} CHF',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+            for (var i = 0; i < _positionen.length; i++) _posKarte(i),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _posHinzufuegen,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Position hinzufügen'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _posKarte(int index) {
+    final pos = _positionen[index];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(_katIcon(pos.kategorie),
+                  size: 18, color: _katFarbe(pos.kategorie)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: TextField(
+                  controller: pos.beschreibung,
+                  decoration: const InputDecoration(
+                    labelText: 'Beschreibung',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => _posEntfernen(index),
+                icon: const Icon(Icons.delete_outline, size: 20),
+                color: AppColors.error,
+                tooltip: 'Position entfernen',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              SizedBox(
+                width: 96,
+                child: TextField(
+                  controller: pos.betrag,
+                  decoration: const InputDecoration(
+                    labelText: 'CHF',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 92,
+                child: DropdownButtonFormField<double>(
+                  initialValue: pos.mwstSatz,
+                  decoration: const InputDecoration(
+                    labelText: 'MwSt',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _mwstSaetze
+                      .map((s) => DropdownMenuItem(
+                            value: s,
+                            child: Text('$s%', style: const TextStyle(fontSize: 13)),
+                          ))
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => pos.mwstSatz = v ?? pos.mwstSatz),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: pos.kategorie,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Konto',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _kategorien
+                      .map((k) => DropdownMenuItem(
+                            value: k,
+                            child: Text(_katLabel(k),
+                                style: const TextStyle(fontSize: 12),
+                                overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => pos.kategorie = v ?? pos.kategorie),
+                ),
+              ),
+            ],
+          ),
+          if (pos.kategorie == 'privat')
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _zahlungsweg == Zahlungsweg.privat
+                    ? 'Privatkauf — wird nicht gebucht'
+                    : 'Privatkauf — Bezug ab '
+                        '${_zahlungsweg == Zahlungsweg.bar ? 'Kasse' : 'Bank'}, '
+                        'kein Vorsteuerabzug',
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDifferenzHinweis(double differenz) {
+    final zuWenig = differenz > 0;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withAlpha(25),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.error.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Positionen ergeben ${differenz.abs().toStringAsFixed(2)} CHF '
+              '${zuWenig ? 'weniger' : 'mehr'} als das Total. '
+              'Gebucht werden die Positionen.',
+              style: const TextStyle(color: AppColors.error, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildZahlungsweg() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Text(
           'Zahlungsweg',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         Row(
@@ -548,54 +889,6 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
             ),
           ],
         ),
-
-        if (_error != null) ...[
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.error.withAlpha(25),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              _error!,
-              style: const TextStyle(color: AppColors.error, fontSize: 13),
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 16),
-
-        // Niedrige Konfidenz → Warnung (der Knopf dazu sitzt in der
-        // fixen Aktionsleiste unten).
-        if (scan.konfidenz < 0.85)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.warning.withAlpha(25),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.warning.withAlpha(80)),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.warning_amber_rounded,
-                  color: AppColors.warning,
-                  size: 24,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Erkennung unsicher (${(scan.konfidenz * 100).round()}%) — Beträge könnten falsch sein. Bitte nochmal scannen.',
-                    style: TextStyle(
-                      color: AppColors.warning.withAlpha(200),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
       ],
     );
   }
@@ -664,16 +957,6 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
   static String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
-  static double _runden5Rappen(double betrag) =>
-      (betrag * 20).roundToDouble() / 20;
-
-  static double _gerundeterTotal(BelegScanResult scan) {
-    double total = 0;
-    for (final pos in scan.positionen) {
-      total += _runden5Rappen(pos.betragBrutto);
-    }
-    return total;
-  }
 }
 
 // === Hilfs-Widgets ===
@@ -736,6 +1019,51 @@ class _ChoiceChipButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Eine korrigierbare Beleg-Position im Prüf-Schritt.
+class _PosEntwurf {
+  final TextEditingController beschreibung;
+  final TextEditingController betrag;
+  double mwstSatz;
+  String kategorie;
+
+  _PosEntwurf({
+    required String text,
+    required double betragWert,
+    required this.mwstSatz,
+    required this.kategorie,
+  })  : beschreibung = TextEditingController(text: text),
+        betrag = TextEditingController(text: betragWert.toStringAsFixed(2));
+
+  factory _PosEntwurf.ausPosition(BelegPosition p) => _PosEntwurf(
+        text: p.beschreibung,
+        betragWert: p.betragBrutto,
+        mwstSatz: p.mwstSatz,
+        kategorie: p.kategorie,
+      );
+
+  factory _PosEntwurf.leer() => _PosEntwurf(
+        text: '',
+        betragWert: 0,
+        mwstSatz: 8.1,
+        kategorie: 'essen',
+      );
+
+  double get betragWert =>
+      double.tryParse(betrag.text.replaceAll(',', '.')) ?? 0;
+
+  BelegPosition zuPosition() => BelegPosition(
+        mwstSatz: mwstSatz,
+        betragBrutto: betragWert,
+        beschreibung: beschreibung.text.trim(),
+        kategorie: kategorie,
+      );
+
+  void dispose() {
+    beschreibung.dispose();
+    betrag.dispose();
   }
 }
 

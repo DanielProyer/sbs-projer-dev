@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:sbs_projer_app/core/util/beleg_korrektur.dart';
 import 'package:sbs_projer_app/data/models/beleg_scan_result.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
@@ -8,10 +9,6 @@ enum Zahlungsweg { bar, bank, privat }
 
 /// Erstellt Buchungen + Beleg-Uploads aus einem BelegScanResult.
 class SpesenImportService {
-  /// Schweizer 5-Rappen-Rundung für Barzahlung.
-  static double _runden5Rappen(double betrag) =>
-      (betrag * 20).roundToDouble() / 20;
-
   /// Konten-Mapping nach Kategorie (Kontenwahl Daniel 26.07.2026).
   /// 'essen' ist der Auffangwert für alles Übrige → Spesen.
   static int _sollKonto(String kategorie) {
@@ -95,6 +92,15 @@ class SpesenImportService {
     final buchungen = <Buchung>[];
     final now = DateTime.now();
 
+    // Barzahlung: NUR das Beleg-Total auf 5 Rappen runden, die Differenz
+    // erhält die grösste Position (Fix 28.07.2026 — vorher wurde jede
+    // Position einzeln gerundet, wodurch die Summe vom bezahlten Betrag
+    // abwich und Kassendifferenzen entstanden).
+    final bruttoWerte = zahlungsweg == Zahlungsweg.bar
+        ? verteileBarRundung(
+            scanResult.positionen.map((p) => p.betragBrutto).toList())
+        : scanResult.positionen.map((p) => p.betragBrutto).toList();
+
     for (int i = 0; i < scanResult.positionen.length; i++) {
       final pos = scanResult.positionen[i];
       final kat = pos.kategorie;
@@ -106,10 +112,7 @@ class SpesenImportService {
       final beschreibung =
           pos.kategorie == 'privat' ? 'Privatbezug - $basis' : basis;
 
-      // Barzahlung: auf 5 Rappen runden (Schweizer Rundungsregel)
-      final brutto = zahlungsweg == Zahlungsweg.bar
-          ? _runden5Rappen(pos.betragBrutto)
-          : pos.betragBrutto;
+      final brutto = bruttoWerte[i];
       // Privatbezug: kein Vorsteuerabzug → Brutto als Netto, MwSt-Felder leer
       final istPrivat = istPrivatbezug(kat);
       final netto = (!istPrivat && pos.mwstSatz > 0)
