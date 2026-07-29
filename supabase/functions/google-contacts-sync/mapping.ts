@@ -32,6 +32,91 @@ export function personFunktion(k: Any): string {
   return ((k.funktion ?? k.rolle) ?? "").trim();
 }
 
+/// Klartext zu den Rollen-Schlüsseln; gleiche Beschriftung wie in der App
+/// (lib/data/models/kontakt.dart).
+const ROLLEN_LABEL: Record<string, string> = {
+  geschaeftsfuehrer: "Geschäftsführer",
+  fb_manager: "F&B Manager",
+  mitarbeiter: "Mitarbeiter",
+  hauswart: "Hauswart",
+  sonstige: "Sonstige",
+  rsl: "RSL",
+  buero: "Büro",
+  monteur: "Monteur",
+  event_heineken: "Event Heineken",
+  pikett: "Pikett",
+  vertreter: "Vertreter",
+  stardrinks: "Stardrinks",
+  ok: "OK",
+  bau: "Bau",
+  stand: "Stand",
+};
+
+export function rolleLabel(rolle: Any): string {
+  const r = (rolle ?? "").trim();
+  return ROLLEN_LABEL[r] ?? r;
+}
+
+/// Karte für einen Heineken-Kontakt: «Heineken - Vorname Nachname - Rolle».
+export function personAusHeineken(k: Any): Any {
+  const teile = ["Heineken", personName(k), rolleLabel(k.rolle)]
+    .filter((x: string) => x !== "");
+  const p: Any = {
+    names: [{ unstructuredName: teile.join(" - ") }],
+    organizations: [{ name: "Heineken", title: rolleLabel(k.rolle) }],
+    clientData: [{ key: "sbs_id", value: `kontakt:${k.id}` }],
+  };
+  const tel = (k.telefon ?? "").trim();
+  if (tel) p.phoneNumbers = [{ value: tel, type: "mobile" }];
+  const mail = (k.email ?? "").trim();
+  if (mail) p.emailAddresses = [{ value: mail }];
+  return p;
+}
+
+/// Was ein Event-Kontakt über seinen Einsatz weiss.
+export type EventInfo = {
+  name: string;
+  jahr: Any;
+  rolle: Any;
+  stand: string;
+};
+
+/// Karte für einen Event-Kontakt:
+/// «Event - Openair Val Lumnezia 2026 - Stand 24h Bar - Andreas Muster».
+///
+/// Bei der Rolle «Stand» wird der Standname angehängt, sonst steht dort nur
+/// die Rolle. Ohne Event-Zuordnung entfällt der Eventteil — sonst stünde dort
+/// eine leere Lücke.
+export function personAusEventKontakt(k: Any, info: EventInfo | null): Any {
+  const eventTeil = info
+    ? [info.name, (info.jahr ?? "").toString()]
+      .map((x: Any) => (x ?? "").toString().trim())
+      .filter((x: string) => x !== "")
+      .join(" ")
+    : "";
+  const rolleRoh = info?.rolle ?? k.rolle;
+  const rolleTeil = rolleRoh === "stand" && (info?.stand ?? "") !== ""
+    ? `${rolleLabel(rolleRoh)} ${info!.stand}`
+    : rolleLabel(rolleRoh);
+
+  const teile = ["Event", eventTeil, rolleTeil, personName(k)]
+    .filter((x: string) => x !== "");
+
+  const p: Any = {
+    names: [{ unstructuredName: teile.join(" - ") }],
+    organizations: [{
+      name: eventTeil !== "" ? eventTeil : "Event",
+      title: rolleTeil,
+    }],
+    clientData: [{ key: "sbs_id", value: `kontakt:${k.id}` }],
+  };
+  const tel = (k.telefon ?? "").trim();
+  if (tel) p.phoneNumbers = [{ value: tel, type: "mobile" }];
+  const mail = (k.email ?? "").trim();
+  if (mail) p.emailAddresses = [{ value: mail }];
+  return p;
+}
+
 /// Ortsteil-Zusätze, die im Adressbuch zur Hauptortschaft zusammengefasst
 /// werden. Als Regel formuliert und nicht als Liste einzelner Orte, damit sie
 /// auch für künftig angelegte Betriebe greift (Rückfrage Daniel 29.07.2026).
@@ -199,7 +284,17 @@ export function sbsIdVon(p: Any): string | null {
 /// Personen, deren Betrieb keine eigene Karte hat (kein Telefon, inaktiv,
 /// oder gar kein Betrieb hinterlegt), bleiben eigenständige Einträge —
 /// sonst würden sie im Adressbuch fehlen.
-export function baueSoll(kontakte: Any[], betriebe: Any[]): Map<string, Any> {
+///
+/// Heineken- und Event-Kontakte bekommen ihr eigenes Namensschema und wandern
+/// nie in eine Betriebskarte: Sie sind eigene Ansprechpartner, keine
+/// Kontaktpersonen des Lokals. Liegt ein Kontakt in beiden Welten — ein
+/// Heineken-Mitarbeiter, der an einem Event mitwirkt —, gewinnt die
+/// Kategorie: Heineken-Leute sind dauerhaft, das Event ist eine Episode.
+export function baueSoll(
+  kontakte: Any[],
+  betriebe: Any[],
+  eventInfos?: Map<string, EventInfo>,
+): Map<string, Any> {
   const syncBetriebe = (betriebe ?? []).filter(istSyncWuerdigBetrieb);
   const hatEigeneKarte = new Set(syncBetriebe.map((b: Any) => b.id));
 
@@ -207,7 +302,8 @@ export function baueSoll(kontakte: Any[], betriebe: Any[]): Map<string, Any> {
   const einzeln: Any[] = [];
   for (const k of (kontakte ?? []).filter(istSyncWuerdigKontakt)) {
     const bid = k.betrieb_id;
-    if (bid && hatEigeneKarte.has(bid)) {
+    const eigenesSchema = k.kategorie === "heineken" || k.kategorie === "event";
+    if (!eigenesSchema && bid && hatEigeneKarte.has(bid)) {
       const liste = personenJeBetrieb.get(bid) ?? [];
       liste.push(k);
       personenJeBetrieb.set(bid, liste);
@@ -235,10 +331,12 @@ export function baueSoll(kontakte: Any[], betriebe: Any[]): Map<string, Any> {
     );
   }
   for (const k of einzeln) {
-    soll.set(
-      `kontakt:${k.id}`,
-      personAusKontakt(k, betriebTextJeId.get(k.betrieb_id) ?? ""),
-    );
+    const person = k.kategorie === "heineken"
+        ? personAusHeineken(k)
+        : k.kategorie === "event"
+        ? personAusEventKontakt(k, eventInfos?.get(k.id) ?? null)
+        : personAusKontakt(k, betriebTextJeId.get(k.betrieb_id) ?? "");
+    soll.set(`kontakt:${k.id}`, person);
   }
   return soll;
 }

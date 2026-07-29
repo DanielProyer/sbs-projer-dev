@@ -204,6 +204,108 @@ Deno.test("Kartenname nutzt den zusammengefassten Ort", () => {
   );
 });
 
+// ── Heineken- und Event-Kontakte (echte Daten, 29.07.2026) ──
+
+const beat = {
+  id: "k-beat",
+  vorname: "Beat",
+  nachname: "Jörg",
+  kategorie: "heineken",
+  rolle: "rsl",
+  telefon: "+41 79 458 71 49",
+  email: "beat.joerg@heineken.com",
+};
+const andreas = {
+  id: "k-andreas",
+  vorname: "Andreas",
+  nachname: "Muster",
+  kategorie: "event",
+  rolle: "stand",
+  telefon: "+41 79 736 97 12",
+};
+const openair = {
+  name: "Openair Val Lumnezia",
+  jahr: 2026,
+  rolle: "stand",
+  stand: "24h Bar",
+};
+
+Deno.test("Heineken-Kontakt: Heineken - Name - Rolle", () => {
+  const soll = baueSoll([beat], []);
+  const p = soll.get("kontakt:k-beat");
+  assertEquals(p.names[0].unstructuredName, "Heineken - Beat Jörg - RSL");
+  assertEquals(p.organizations[0].name, "Heineken");
+  assertEquals(p.organizations[0].title, "RSL");
+  assertEquals(p.phoneNumbers, [
+    { value: "+41 79 458 71 49", type: "mobile" },
+  ]);
+  assertEquals(p.emailAddresses, [{ value: "beat.joerg@heineken.com" }]);
+});
+
+Deno.test("Heineken: Rollen werden ausgeschrieben", () => {
+  const buero = { ...beat, id: "k-mani", vorname: "Daniel", nachname: "Mani", rolle: "buero" };
+  assertEquals(
+    baueSoll([buero], []).get("kontakt:k-mani").names[0].unstructuredName,
+    "Heineken - Daniel Mani - Büro",
+  );
+});
+
+Deno.test("Event-Kontakt mit Stand: Rolle plus Standname", () => {
+  const infos = new Map([["k-andreas", openair]]);
+  const p = baueSoll([andreas], [], infos).get("kontakt:k-andreas");
+  assertEquals(
+    p.names[0].unstructuredName,
+    "Event - Openair Val Lumnezia 2026 - Stand 24h Bar - Andreas Muster",
+  );
+  assertEquals(p.organizations[0].name, "Openair Val Lumnezia 2026");
+});
+
+Deno.test("Event-Kontakt ohne Stand: nur die Rolle", () => {
+  const rene = {
+    id: "k-rene",
+    vorname: "Rene",
+    nachname: "Bolz",
+    kategorie: "event",
+    rolle: "ok",
+    telefon: "+41 76 387 73 80",
+  };
+  const infos = new Map([
+    ["k-rene", { ...openair, rolle: "ok", stand: "" }],
+  ]);
+  assertEquals(
+    baueSoll([rene], [], infos).get("kontakt:k-rene").names[0].unstructuredName,
+    "Event - Openair Val Lumnezia 2026 - OK - Rene Bolz",
+  );
+});
+
+Deno.test("Event-Kontakt ohne Event-Zuordnung: Eventteil entfaellt", () => {
+  assertEquals(
+    baueSoll([andreas], []).get("kontakt:k-andreas").names[0].unstructuredName,
+    "Event - Stand - Andreas Muster",
+  );
+});
+
+Deno.test("Heineken gewinnt gegen Event-Beteiligung", () => {
+  // Beat Joerg ist Heineken-RSL UND am Openair beteiligt.
+  const infos = new Map([["k-beat", { ...openair, rolle: "rsl", stand: "" }]]);
+  assertEquals(
+    baueSoll([beat], [], infos).get("kontakt:k-beat").names[0].unstructuredName,
+    "Heineken - Beat Jörg - RSL",
+  );
+});
+
+Deno.test("Heineken/Event landen nie in einer Betriebskarte", () => {
+  // Selbst mit gesetztem Betrieb bleiben sie eigenstaendig.
+  const mitBetrieb = { ...beat, betrieb_id: "b-alpnova" };
+  const soll = baueSoll([mitBetrieb], [alpNova]);
+  assertEquals(soll.size, 2);
+  assertEquals(soll.has("kontakt:k-beat"), true);
+  assertEquals(
+    soll.get("betrieb:b-alpnova").names[0].unstructuredName,
+    "Lenzerheide/Lai - Alp Nova",
+  );
+});
+
 Deno.test("vergleichsKey: Nummern-Reihenfolge egal", () => {
   const a = {
     names: [{ unstructuredName: "X" }],

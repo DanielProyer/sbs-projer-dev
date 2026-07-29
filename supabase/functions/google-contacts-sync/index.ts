@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   type Any,
+  type EventInfo,
   baueSoll,
   sbsIdVon,
   vergleichsKey,
@@ -87,11 +88,45 @@ async function reconcile(admin: Any, token: string, userId: string) {
   // Soll-Zustand laden
   const { data: kontakte } = await admin.from("kontakte").select(
     "id, vorname, nachname, funktion, rolle, telefon, email, betrieb_id, " +
-      "ist_hauptkontakt",
+      "ist_hauptkontakt, kategorie",
   ).eq("user_id", userId);
   const { data: betriebe } = await admin.from("betriebe").select(
     "id, name, ort, telefon, status",
   ).eq("user_id", userId);
+
+  // Event-Zuordnung der Kontakte: Ein Event hat keinen eigenen Namen, es
+  // haengt am Betrieb — dessen Name benennt das Event.
+  const { data: eventKontakte } = await admin.from("event_kontakte").select(
+    "kontakt_id, event_id, stand_id, rolle",
+  ).eq("user_id", userId);
+  const { data: events } = await admin.from("events").select(
+    "id, jahr, betrieb_id",
+  ).eq("user_id", userId);
+  const { data: staende } = await admin.from("event_staende").select(
+    "id, name",
+  ).eq("user_id", userId);
+
+  const betriebNameJeId = new Map<string, string>();
+  for (const b of betriebe ?? []) betriebNameJeId.set(b.id, b.name ?? "");
+  const standNameJeId = new Map<string, string>();
+  for (const s of staende ?? []) standNameJeId.set(s.id, s.name ?? "");
+  const eventJeId = new Map<string, Any>();
+  for (const e of events ?? []) eventJeId.set(e.id, e);
+
+  // Wirkt eine Person an mehreren Events mit, benennt das juengste die Karte.
+  const eventInfos = new Map<string, EventInfo>();
+  for (const ek of eventKontakte ?? []) {
+    const e = eventJeId.get(ek.event_id);
+    if (!e || !ek.kontakt_id) continue;
+    const bisher = eventInfos.get(ek.kontakt_id);
+    if (bisher && Number(bisher.jahr ?? 0) >= Number(e.jahr ?? 0)) continue;
+    eventInfos.set(ek.kontakt_id, {
+      name: betriebNameJeId.get(e.betrieb_id) ?? "",
+      jahr: e.jahr,
+      rolle: ek.rolle,
+      stand: ek.stand_id ? (standNameJeId.get(ek.stand_id) ?? "") : "",
+    });
+  }
 
   const label = await ensureLabel(token);
   const membership = {
@@ -103,7 +138,7 @@ async function reconcile(admin: Any, token: string, userId: string) {
   // sbs_id -> Person-Payload. Ein Betrieb trägt seine Kontaktpersonen in
   // derselben Karte; siehe mapping.ts.
   const soll = new Map<string, Any>();
-  for (const [id, person] of baueSoll(kontakte ?? [], betriebe ?? [])) {
+  for (const [id, person] of baueSoll(kontakte ?? [], betriebe ?? [], eventInfos)) {
     soll.set(id, { ...person, ...membership });
   }
 
