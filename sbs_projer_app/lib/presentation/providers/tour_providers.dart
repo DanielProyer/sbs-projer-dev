@@ -190,35 +190,15 @@ bool _isBetriebAktiv(BetriebLocal b, DateTime datum) {
   // Ferien-Check
   if (istInFerien(b, datum)) return false;
 
-  // Saison-Check
-  if (b.istSaisonbetrieb) {
-    bool inAktiverSaison = false;
-
-    if (b.winterSaisonAktiv &&
-        b.winterStartDatum != null &&
-        b.winterEndeDatum != null) {
-      if (!datum.isBefore(b.winterStartDatum!) &&
-          !datum.isAfter(b.winterEndeDatum!)) {
-        inAktiverSaison = true;
-      }
-    }
-
-    if (b.sommerSaisonAktiv &&
-        b.sommerStartDatum != null &&
-        b.sommerEndeDatum != null) {
-      if (!datum.isBefore(b.sommerStartDatum!) &&
-          !datum.isAfter(b.sommerEndeDatum!)) {
-        inAktiverSaison = true;
-      }
-    }
-
-    if (!inAktiverSaison) {
-      // Saisonpause → nicht aktiv für reguläre Fälligkeit.
-      // Eröffnungs-/Endreinigung wird über _getSaisonFaelligkeit
-      // gesteuert und bypassed diesen Filter.
-      return false;
-    }
-  }
+  // Saison-Check — dieselbe Definition wie in touren_saison.dart. Die Logik
+  // lag hier früher ein zweites Mal und lief auseinander: sie verlangte beide
+  // Datumsangaben, sodass ein Betrieb mit laufender, noch offener Saison
+  // (Ende leer) still aus dem Tourenplan fiel — Fall Grischa Davos.
+  //
+  // Saisonpause → nicht aktiv für reguläre Fälligkeit. Eröffnungs-/
+  // Endreinigung wird über _getSaisonFaelligkeit gesteuert und bypassed
+  // diesen Filter.
+  if (!istInAktiverSaison(b, datum)) return false;
 
   return true;
 }

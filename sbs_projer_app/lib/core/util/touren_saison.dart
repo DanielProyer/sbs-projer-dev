@@ -20,40 +20,54 @@ const List<String> _wochentageVoll = [
 bool _istRuhetag(BetriebLocal b, DateTime tag) =>
     b.ruhetage.contains(_wochentageVoll[tag.weekday - 1]);
 
-bool _inAktiverSaison(BetriebLocal b, DateTime datum) {
+/// Liegt [datum] im Saisonfenster [von]–[bis]?
+///
+/// Die Grenzen sind offen (Regel Daniel 29.07.2026): Ein fehlendes Enddatum
+/// heisst «läuft weiter» — genau der Normalfall einer laufenden Saison, deren
+/// Ende noch nicht feststeht. Ein fehlendes Startdatum heisst «hat schon
+/// begonnen». Fehlen beide, ist die Saison unbefristet offen.
+///
+/// Liegt der Start NACH dem Ende, umspannt das Fenster den Jahreswechsel
+/// (Wintersaison 01.12.–01.04.) und gilt ab dem Start ODER bis zum Ende.
+bool _imFenster(DateTime? von, DateTime? bis, DateTime datum) {
+  final d = DateTime(datum.year, datum.month, datum.day);
+  if (von == null && bis == null) return true;
+  if (von == null) return !d.isAfter(bis!);
+  if (bis == null) return !d.isBefore(von);
+  if (von.isAfter(bis)) return !d.isBefore(von) || !d.isAfter(bis);
+  return !d.isBefore(von) && !d.isAfter(bis);
+}
+
+/// Ist der Betrieb an diesem Tag in einer aktiven Saison?
+///
+/// Ein Betrieb ohne Saisonbetrieb-Kennzeichen ist immer in Saison. Sonst muss
+/// mindestens eine der beiden angehakten Saisons das Datum abdecken; zu den
+/// offenen Grenzen siehe [_imFenster].
+bool istInAktiverSaison(BetriebLocal b, DateTime datum) {
   if (!b.istSaisonbetrieb) return true;
-  bool inSaison = false;
   if (b.winterSaisonAktiv &&
-      b.winterStartDatum != null &&
-      b.winterEndeDatum != null) {
-    if (!datum.isBefore(b.winterStartDatum!) &&
-        !datum.isAfter(b.winterEndeDatum!)) {
-      inSaison = true;
-    }
+      _imFenster(b.winterStartDatum, b.winterEndeDatum, datum)) {
+    return true;
   }
   if (b.sommerSaisonAktiv &&
-      b.sommerStartDatum != null &&
-      b.sommerEndeDatum != null) {
-    if (!datum.isBefore(b.sommerStartDatum!) &&
-        !datum.isAfter(b.sommerEndeDatum!)) {
-      inSaison = true;
-    }
+      _imFenster(b.sommerStartDatum, b.sommerEndeDatum, datum)) {
+    return true;
   }
-  return inSaison;
+  return false;
 }
 
 /// Betrieb an diesem Tag in einer Schliessung (Saisonpause oder Ferien)?
 /// Ruhetage und Status zählen bewusst nicht — gleiche Definition wie beim
 /// Fälligkeits-Anker.
 bool istInSchliessung(BetriebLocal b, DateTime tag) =>
-    !_inAktiverSaison(b, tag) || istInFerien(b, tag);
+    !istInAktiverSaison(b, tag) || istInFerien(b, tag);
 
 /// Kanonischer „offen"-Begriff: aktiv, nicht in Ferien, in aktiver Saison,
 /// kein Ruhetag.
 bool istOffenerTag(BetriebLocal b, DateTime tag) {
   if (b.status != 'aktiv') return false;
   if (istInFerien(b, tag)) return false;
-  if (!_inAktiverSaison(b, tag)) return false;
+  if (!istInAktiverSaison(b, tag)) return false;
   if (_istRuhetag(b, tag)) return false;
   return true;
 }
@@ -144,7 +158,7 @@ DateTime? faelligkeitsAnker(BetriebLocal b, DateTime letzteReinigung) {
     letzteReinigung.day,
   ).add(const Duration(days: 1));
   final geschlossen =
-      !_inAktiverSaison(b, tagDanach) || istInFerien(b, tagDanach);
+      !istInAktiverSaison(b, tagDanach) || istInFerien(b, tagDanach);
   if (!geschlossen) return letzteReinigung;
   return oeffnungNach(b, letzteReinigung);
 }
