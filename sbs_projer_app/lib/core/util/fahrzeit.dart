@@ -16,8 +16,14 @@ double haversineKm(double lat1, double lng1, double lat2, double lng2) {
   return r * 2 * atan2(sqrt(a), sqrt(1 - a));
 }
 
-/// Standard-Umwegfaktor Strasse/Luftlinie im Berggebiet.
-const double kFahrzeitFaktor = 1.6;
+/// Standard-Umwegfaktor Strasse/Luftlinie.
+///
+/// Kalibriert am 29.07.2026 gegen 180 beobachtete Übergänge aus den
+/// historischen Reinigungen: Median von beobachtet/Luftlinien-Fahrzeit = 2.15.
+/// Der Wert liegt bewusst über einem reinen Strassen-Umwegfaktor (~1.6),
+/// weil die beobachtete Lücke auch Parkieren und Ein-/Ausladen enthält —
+/// und genau diese effektive Übergangszeit soll der Tagesplan abbilden.
+const double kFahrzeitFaktor = 2.2;
 /// Angenommene Durchschnittsgeschwindigkeit (Berggebiet, Ortsdurchfahrten).
 const double kSchnittKmh = 45.0;
 

@@ -20,6 +20,12 @@ void main() {
     test('Minimum 3 min fuer Nachbarn', () {
       expect(heuristikMinuten(luftlinieKm: 0.3, faktor: 1.6), 3);
     });
+    test('Standard-Faktor ist kalibriert (2.2, Stand 29.07.2026)', () {
+      // 30 km Luftlinie x 2.2 / 45 km/h = 88 min effektive Uebergangszeit
+      // (inkl. Parkieren/Umladen — so wurde gegen die Beobachtungen geeicht).
+      expect(kFahrzeitFaktor, 2.2);
+      expect(heuristikMinuten(luftlinieKm: 30), 88);
+    });
   });
 
   group('waehleFahrzeit', () {
