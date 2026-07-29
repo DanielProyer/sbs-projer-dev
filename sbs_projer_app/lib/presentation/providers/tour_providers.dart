@@ -921,16 +921,31 @@ final fahrzeitenMapProvider = FutureProvider<Map<String, FahrzeitEintrag>>(
 /// (Daniel 29.07.2026): Er startet nicht immer am festen Startort (Zuhause
 /// Domat/Ems), sondern oft anderswo (Chur) — Anfahrt/Heimweg der Zeitachse
 /// rechnen darum bevorzugt von hier, der feste Startort ist nur Rückfall.
+/// `km` = km-Stand am Abend (historischer Name), `kmStart` = km-Stand beim
+/// Arbeitsbeginn — beide zusammen ergeben die Tages-km ohne Privatfahrten
+/// (Daniel 29.07.2026). lat/lng = Startposition, endLat/endLng = Endposition.
 typedef Arbeitstag = ({
   String beginn,
   String? ende,
   int? km,
+  int? kmStart,
   double? lat,
   double? lng,
+  double? endLat,
+  double? endLng,
 });
 
 final arbeitstagProvider = StateProvider.family<Arbeitstag, DateTime>(
-  (ref, datum) => (beginn: '06:00', ende: null, km: null, lat: null, lng: null),
+  (ref, datum) => (
+    beginn: '06:00',
+    ende: null,
+    km: null,
+    kmStart: null,
+    lat: null,
+    lng: null,
+    endLat: null,
+    endLng: null,
+  ),
 );
 
 /// Datum der letzten Reinigung je Anlage (`AnlageLocal.routeId` — dieselbe
@@ -1157,8 +1172,11 @@ typedef GespeicherterTagesplan = ({
   String? arbeitsbeginn,
   String? arbeitsende,
   int? kmStand,
+  int? kmStart,
   double? startLat,
   double? startLng,
+  double? endLat,
+  double? endLng,
 });
 
 final gespeicherterTagesplanProvider =
@@ -1184,8 +1202,11 @@ final gespeicherterTagesplanProvider =
           arbeitsbeginn: row['arbeitsbeginn'] as String?,
           arbeitsende: row['arbeitsende'] as String?,
           kmStand: row['km_stand'] as int?,
+          kmStart: row['km_start'] as int?,
           startLat: (row['start_lat'] as num?)?.toDouble(),
           startLng: (row['start_lng'] as num?)?.toDouble(),
+          endLat: (row['end_lat'] as num?)?.toDouble(),
+          endLng: (row['end_lng'] as num?)?.toDouble(),
         );
       } catch (e) {
         debugPrint('[Tagesplan] Laden fehlgeschlagen: $e');
@@ -1232,10 +1253,12 @@ Future<void> arbeitstagFelderSpeichern(
   required String arbeitsbeginn,
   required String? arbeitsende,
   required int? kmStand,
-  // Tagesstart-Position (GPS beim «Arbeitsbeginn»-Knopf). Nur wenn übergeben
-  // wird sie geschrieben — sie wird nie gelöscht, nur überschrieben; das
-  // Ende/km-Sheet fasst sie darum nicht an.
+  required int? kmStart,
+  // Start-/End-Position (GPS beim «Arbeitsbeginn»- bzw. «Feierabend»-Knopf).
+  // Nur wenn übergeben werden sie geschrieben — sie werden nie gelöscht,
+  // nur überschrieben.
   ({double lat, double lng})? startPosition,
+  ({double lat, double lng})? endPosition,
 }) async {
   final datumStr =
       '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
@@ -1246,8 +1269,11 @@ Future<void> arbeitstagFelderSpeichern(
         'arbeitsbeginn': arbeitsbeginn,
         'arbeitsende': arbeitsende,
         'km_stand': kmStand,
+        'km_start': kmStart,
         if (startPosition != null) 'start_lat': startPosition.lat,
         if (startPosition != null) 'start_lng': startPosition.lng,
+        if (endPosition != null) 'end_lat': endPosition.lat,
+        if (endPosition != null) 'end_lng': endPosition.lng,
         'updated_at': DateTime.now().toIso8601String(),
       })
       .eq('user_id', userId)
@@ -1262,15 +1288,19 @@ Future<void> arbeitstagFelderSpeichern(
     arbeitsende: arbeitsende,
     kmStand: kmStand,
   );
-  // Neu angelegte Zeile: Position nachtragen (tagesplanSpeichern kennt sie
-  // bewusst nicht — dort hiesse null «nicht angefasst»).
-  if (startPosition != null) {
+  // Neu angelegte Zeile: Positionen + km_start nachtragen (tagesplanSpeichern
+  // kennt sie bewusst nicht — dort hiesse null «nicht angefasst»).
+  final nachtrag = <String, dynamic>{
+    if (kmStart != null) 'km_start': kmStart,
+    if (startPosition != null) 'start_lat': startPosition.lat,
+    if (startPosition != null) 'start_lng': startPosition.lng,
+    if (endPosition != null) 'end_lat': endPosition.lat,
+    if (endPosition != null) 'end_lng': endPosition.lng,
+  };
+  if (nachtrag.isNotEmpty) {
     await SupabaseService.client
         .from('tagesplaene')
-        .update({
-          'start_lat': startPosition.lat,
-          'start_lng': startPosition.lng,
-        })
+        .update(nachtrag)
         .eq('user_id', userId)
         .eq('datum', datumStr);
   }

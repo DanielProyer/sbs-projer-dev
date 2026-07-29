@@ -108,8 +108,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
               beginn: gespeichert.arbeitsbeginn ?? aktuell.beginn,
               ende: gespeichert.arbeitsende,
               km: gespeichert.kmStand,
+              kmStart: gespeichert.kmStart,
               lat: gespeichert.startLat,
               lng: gespeichert.startLng,
+              endLat: gespeichert.endLat,
+              endLng: gespeichert.endLng,
             );
           }
           final notifier = ref.read(tagesplanProvider.notifier);
@@ -1565,6 +1568,7 @@ class _ArbeitstagZeile extends ConsumerWidget {
           arbeitsbeginn: neu.beginn,
           arbeitsende: neu.ende,
           kmStand: neu.km,
+          kmStart: neu.kmStart,
         );
         ref.invalidate(gespeicherterTagesplanProvider(datum));
       } catch (e) {
@@ -1590,8 +1594,11 @@ class _ArbeitstagZeile extends ConsumerWidget {
                 beginn: hhmmAusMinuten(gewaehlt.hour * 60 + gewaehlt.minute),
                 ende: at.ende,
                 km: at.km,
+                kmStart: at.kmStart,
                 lat: at.lat,
                 lng: at.lng,
+                endLat: at.endLat,
+                endLng: at.endLng,
               ));
             },
           ),

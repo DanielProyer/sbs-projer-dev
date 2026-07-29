@@ -9,11 +9,13 @@ import 'package:sbs_projer_app/services/gps/gps_service.dart';
 /// Arbeitsbeginn, Arbeitsende und km-Stand direkt dort erfassen, wo der Tag
 /// beginnt und endet — nicht erst im Tourenplan.
 ///
-/// «Jetzt starten» stempelt die aktuelle Uhrzeit UND die GPS-Position:
-/// Der Tag beginnt nicht immer am festen Startort (Zuhause Domat/Ems),
-/// sondern oft anderswo (Chur) — Anfahrt/Heimweg der Zeitachse rechnen
-/// von der gestempelten Position. Schlägt GPS fehl, wird nur die Zeit
-/// erfasst (die Zeitachse fällt auf den festen Startort zurück).
+/// km wird an BEIDEN Tagesrändern erfasst (Start und Ende): Die Differenz
+/// ergibt die Tages-km, unverfälscht von Privatfahrten ausserhalb des
+/// Arbeitstags. GPS wird bei Start UND Feierabend gestempelt — damit liegen
+/// alle Daten für spätere Auswertungen vor. Der Tag beginnt nicht immer am
+/// festen Startort (Zuhause Domat/Ems), sondern oft anderswo (Chur):
+/// Anfahrt/Heimweg der Zeitachse rechnen von der gestempelten Startposition;
+/// schlägt GPS fehl, wird trotzdem gespeichert (Rückfall fester Startort).
 class ArbeitstagKarte extends ConsumerWidget {
   const ArbeitstagKarte({super.key});
 
@@ -27,6 +29,7 @@ class ArbeitstagKarte extends ConsumerWidget {
     DateTime heute,
     Arbeitstag neu, {
     ({double lat, double lng})? startPosition,
+    ({double lat, double lng})? endPosition,
   }) async {
     ref.read(arbeitstagProvider(heute).notifier).state = neu;
     // Einträge bewusst leer: existiert schon eine Plan-Zeile, fasst
@@ -38,48 +41,71 @@ class ArbeitstagKarte extends ConsumerWidget {
       arbeitsbeginn: neu.beginn,
       arbeitsende: neu.ende,
       kmStand: neu.km,
+      kmStart: neu.kmStart,
       startPosition: startPosition,
+      endPosition: endPosition,
     );
     ref.invalidate(gespeicherterTagesplanProvider(heute));
   }
 
-  Future<void> _startJetzt(BuildContext context, WidgetRef ref) async {
-    final heute = _heute;
-    final jetzt = DateTime.now();
-    final beginn = hhmmAusMinuten(jetzt.hour * 60 + jetzt.minute);
-    final messenger = ScaffoldMessenger.of(context);
-
-    // GPS zuerst versuchen — ohne Position trotzdem die Zeit stempeln.
-    ({double lat, double lng})? pos;
+  /// GPS holen; Fehler → null plus Hinweis (Zeit/km werden trotzdem erfasst).
+  Future<({double lat, double lng})?> _gps(
+    ScaffoldMessengerState messenger,
+    String wofuer,
+  ) async {
     try {
       final p = await GpsService.aktuellePosition();
-      pos = (lat: p.latitude, lng: p.longitude);
+      return (lat: p.latitude, lng: p.longitude);
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Ohne Standort gestartet ($e) — Anfahrt rechnet vom festen '
-            'Startort.',
-          ),
-        ),
+        SnackBar(content: Text('$wofuer ohne Standort erfasst ($e).')),
       );
+      return null;
+    }
+  }
+
+  Future<void> _startJetzt(BuildContext context, WidgetRef ref) async {
+    final heute = _heute;
+    final bisher = ref.read(arbeitstagProvider(heute));
+    final messenger = ScaffoldMessenger.of(context);
+
+    final km = await showModalBottomSheet<int?>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _KmSheet(
+        titel: 'Arbeitsbeginn',
+        hinweis:
+            'km-Stand des Autos jetzt — Uhrzeit und Standort werden '
+            'automatisch erfasst.',
+        vorbefuellung: bisher.kmStart,
+      ),
+    );
+    if (km == null && bisher.kmStart == null) {
+      // Abgebrochen ohne km: gar nicht starten — halbe Datensätze bringen
+      // für die Auswertung nichts.
+      return;
     }
 
-    final bisher = ref.read(arbeitstagProvider(heute));
+    final jetzt = DateTime.now();
+    final beginn = hhmmAusMinuten(jetzt.hour * 60 + jetzt.minute);
+    final pos = await _gps(messenger, 'Arbeitsbeginn');
+
     try {
       await _speichern(ref, heute, (
         beginn: beginn,
         ende: bisher.ende,
         km: bisher.km,
+        kmStart: km ?? bisher.kmStart,
         lat: pos?.lat ?? bisher.lat,
         lng: pos?.lng ?? bisher.lng,
+        endLat: bisher.endLat,
+        endLng: bisher.endLng,
       ), startPosition: pos);
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            pos != null
-                ? 'Arbeitsbeginn $beginn mit Standort erfasst'
-                : 'Arbeitsbeginn $beginn erfasst',
+            'Arbeitsbeginn $beginn erfasst'
+            '${pos != null ? ' (mit Standort)' : ''}',
           ),
         ),
       );
@@ -98,8 +124,26 @@ class ArbeitstagKarte extends ConsumerWidget {
       builder: (_) => ArbeitstagAbschlussSheet(aktuell: at),
     );
     if (ergebnis == null) return;
+    // End-Position beim Feierabend stempeln — vervollständigt den Datensatz.
+    final pos = await _gps(messenger, 'Feierabend');
     try {
-      await _speichern(ref, heute, ergebnis);
+      await _speichern(
+        ref,
+        heute,
+        pos == null
+            ? ergebnis
+            : (
+                beginn: ergebnis.beginn,
+                ende: ergebnis.ende,
+                km: ergebnis.km,
+                kmStart: ergebnis.kmStart,
+                lat: ergebnis.lat,
+                lng: ergebnis.lng,
+                endLat: pos.lat,
+                endLng: pos.lng,
+              ),
+        endPosition: pos,
+      );
       messenger.showSnackBar(
         const SnackBar(content: Text('Arbeitstag gespeichert')),
       );
@@ -121,8 +165,11 @@ class ArbeitstagKarte extends ConsumerWidget {
         beginn: g.arbeitsbeginn ?? aktuell.beginn,
         ende: g.arbeitsende,
         km: g.kmStand,
+        kmStart: g.kmStart,
         lat: g.startLat,
         lng: g.startLng,
+        endLat: g.endLat,
+        endLng: g.endLng,
       );
     });
     final gespeichert = ref
@@ -131,7 +178,16 @@ class ArbeitstagKarte extends ConsumerWidget {
     final at = ref.watch(arbeitstagProvider(heute));
     // «erfasst» heisst: in der DB steht ein Beginn — nicht der 06:00-Standard.
     final beginnErfasst = gespeichert?.arbeitsbeginn != null;
-    final mitStandort = at.lat != null && at.lng != null;
+    final tagesKm =
+        (at.km != null && at.kmStart != null && at.km! >= at.kmStart!)
+        ? at.km! - at.kmStart!
+        : null;
+
+    String zeile1 = beginnErfasst ? 'Start ${at.beginn}' : 'Start —';
+    if (at.kmStart != null) zeile1 += ' · ${at.kmStart} km';
+    String zeile2 = 'Ende ${at.ende ?? '—'}';
+    if (at.km != null) zeile2 += ' · ${at.km} km';
+    if (tagesKm != null) zeile2 += ' · Tag: $tagesKm km';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -143,27 +199,16 @@ class ArbeitstagKarte extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Arbeitstag',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
                   Row(
                     children: [
-                      Flexible(
-                        child: Text(
-                          'Start ${beginnErfasst ? at.beginn : '—'}'
-                          ' · Ende ${at.ende ?? '—'}'
-                          ' · ${at.km != null ? '${at.km} km' : '— km'}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
+                      const Text(
+                        'Arbeitstag',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      if (mitStandort) ...[
+                      if (at.lat != null) ...[
                         const SizedBox(width: 4),
                         const Icon(
                           Icons.location_on,
@@ -171,7 +216,28 @@ class ArbeitstagKarte extends ConsumerWidget {
                           color: AppColors.success,
                         ),
                       ],
+                      if (at.endLat != null)
+                        const Icon(Icons.flag, size: 13, color: AppColors.info),
                     ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    zeile1,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    zeile2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -234,7 +300,102 @@ class _KnopfKlein extends StatelessWidget {
   }
 }
 
-/// Sheet «Arbeitstag abschliessen»: Arbeitsende + km-Stand.
+/// Kleines Sheet mit einem km-Feld (Arbeitsbeginn).
+class _KmSheet extends StatefulWidget {
+  final String titel;
+  final String hinweis;
+  final int? vorbefuellung;
+
+  const _KmSheet({
+    required this.titel,
+    required this.hinweis,
+    this.vorbefuellung,
+  });
+
+  @override
+  State<_KmSheet> createState() => _KmSheetState();
+}
+
+class _KmSheetState extends State<_KmSheet> {
+  late final TextEditingController _km = TextEditingController(
+    text: widget.vorbefuellung?.toString() ?? '',
+  );
+
+  @override
+  void dispose() {
+    _km.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.titel,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.hinweis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _km,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'km-Stand',
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () =>
+                    Navigator.pop(context, int.tryParse(_km.text.trim())),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Starten',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sheet «Arbeitstag abschliessen»: Arbeitsende + km-Stand am Abend.
 ///
 /// Gemeinsam genutzt von Startbildschirm und Tourenplan. Leeres Feld heisst
 /// «löschen» (null), ein unbrauchbarer Wert («12:xx», «abc») heisst
@@ -286,6 +447,16 @@ class _ArbeitstagAbschlussSheetState extends State<ArbeitstagAbschlussSheet> {
                 'Arbeitstag abschliessen',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
+              if (widget.aktuell.kmStart != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Start heute: ${widget.aktuell.kmStart} km',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               TextFormField(
                 controller: _ende,
@@ -300,7 +471,7 @@ class _ArbeitstagAbschlussSheetState extends State<ArbeitstagAbschlussSheet> {
                 controller: _km,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'km-Stand',
+                  labelText: 'km-Stand Abend',
                   isDense: true,
                 ),
               ),
@@ -321,8 +492,11 @@ class _ArbeitstagAbschlussSheetState extends State<ArbeitstagAbschlussSheet> {
                     beginn: widget.aktuell.beginn,
                     ende: ende,
                     km: km,
+                    kmStart: widget.aktuell.kmStart,
                     lat: widget.aktuell.lat,
                     lng: widget.aktuell.lng,
+                    endLat: widget.aktuell.endLat,
+                    endLng: widget.aktuell.endLng,
                   ));
                 },
                 behavior: HitTestBehavior.opaque,
