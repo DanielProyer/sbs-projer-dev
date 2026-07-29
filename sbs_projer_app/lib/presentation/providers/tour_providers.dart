@@ -396,6 +396,31 @@ class TourEintrag {
     uebernommen: uebernommen,
   );
 
+  /// Kopie mit neuer `id`, alle anderen Felder unverändert. Nur für die
+  /// Plan-Übernahme von einem anderen Datum (Task 7): dort ist `id` NICHT
+  /// fest, weil zwei Übernahmen desselben Quelltags sonst auf dieselbe ID
+  /// kollidieren würden — `copyWith` erlaubt das bewusst nicht (siehe dort).
+  TourEintrag mitId(String neueId) => TourEintrag(
+    typ: typ,
+    id: neueId,
+    betriebId: betriebId,
+    anlageId: anlageId,
+    betriebName: betriebName,
+    betriebOrt: betriebOrt,
+    regionId: regionId,
+    beschreibung: beschreibung,
+    faelligkeit: faelligkeit,
+    datum: datum,
+    ruhetage: ruhetage,
+    servicezeit: servicezeit,
+    istAutoTermin: istAutoTermin,
+    zielDatum: zielDatum,
+    anlageIds: anlageIds,
+    dauerMinuten: dauerMinuten,
+    ankerZeit: ankerZeit,
+    uebernommen: uebernommen,
+  );
+
   /// Kopie mit geänderten Feldern. `typ`/`id` sind fest (Identität eines
   /// Eintrags ändert sich nicht). Für die nullable Felder `dauerMinuten`
   /// und `ankerZeit` wird ein Sentinel (`_unset`) genutzt, damit man sie
@@ -952,6 +977,16 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
     final items = List.of(state);
     items[index] = neu;
     state = items;
+    _scheduleSave();
+  }
+
+  /// Ganzen Plan ersetzen (z.B. Ergebnis von `buendleInPlan` oder einer
+  /// Plan-Übernahme von einem anderen Datum) und speichern. Kleinster
+  /// Eingriff: die vorbereitete Liste kommt bereits fertig gebaut von der
+  /// aufrufenden Stelle, hier nur State setzen + Auto-Save wie bei den
+  /// anderen Mutationen.
+  void setzePlan(List<TourEintrag> neuerPlan) {
+    state = neuerPlan;
     _scheduleSave();
   }
 

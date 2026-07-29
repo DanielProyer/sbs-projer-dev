@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/besuch_buendelung.dart';
 import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
@@ -230,6 +231,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                             .read(tagesplanProvider.notifier)
                             .befuellenAusFaellig(angezeigtFaellig);
                       },
+                      onPlanUebernehmen: _planVonDatumUebernehmen,
                     ),
                     _ArbeitstagZeile(datum: _selectedDate),
                     if (autoTermine.isNotEmpty)
@@ -286,11 +288,10 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                                   datum: _selectedDate,
                                   eintrag: e,
                                   imPlan: imPlan,
-                                  onAdd: () {
-                                    ref
-                                        .read(tagesplanProvider.notifier)
-                                        .hinzufuegen(e);
-                                  },
+                                  onAdd: () => _faelligEintragUebernehmen(
+                                    e,
+                                    angezeigtFaellig,
+                                  ),
                                   onTap: () => _navigateToDetail(e),
                                 );
                               },
@@ -403,6 +404,140 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  /// Fällig-Tab „in den Plan"-Aktion: bündelt Reinigungen beim selben
+  /// Betrieb statt einen zweiten Besuchs-Block anzulegen (Spec §1). Die
+  /// heute fälligen Geschwister-Anlagen des Betriebs kommen aus der bereits
+  /// gefilterten Fällig-Liste (`angezeigtFaellig`), nicht aus dem
+  /// ungefilterten Provider — was nicht sichtbar ist, soll auch nicht
+  /// automatisch mit in den Plan rutschen.
+  void _faelligEintragUebernehmen(
+    TourEintrag eintrag,
+    List<TourEintrag> angezeigtFaellig,
+  ) {
+    final notifier = ref.read(tagesplanProvider.notifier);
+    final planVorher = ref.read(tagesplanProvider);
+    final betriebId = eintrag.betriebId;
+    final faelligeGeschwister = betriebId == null
+        ? const <String>[]
+        : [
+            for (final x in angezeigtFaellig)
+              if (x.typ == TourEintragTyp.reinigung &&
+                  x.betriebId == betriebId &&
+                  x.anlageId != null)
+                x.anlageId!,
+          ];
+
+    final neuerPlan = buendleInPlan(
+      plan: planVorher,
+      neu: eintrag,
+      faelligeAnlagenDesBetriebs: faelligeGeschwister,
+    );
+    // Gleiche Länge wie vorher = in bestehenden Besuch gebündelt (kein neuer
+    // Eintrag angehängt) — das ist der Fall, der ohne Hinweis unbemerkt
+    // bliebe (der neue Block wäre ja sonst sichtbar im Tagesplan-Tab).
+    final wurdeGebuendelt = neuerPlan.length == planVorher.length;
+    notifier.setzePlan(neuerPlan);
+
+    if (wurdeGebuendelt && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text('Anlage zu ${eintrag.betriebName} hinzugefügt'),
+        ),
+      );
+    }
+  }
+
+  /// Menüpunkt „Plan von Datum übernehmen" (Spec §6): Einträge eines anderen
+  /// Tages in identischer Reihenfolge an den aktuellen Plan anhängen.
+  /// Betriebe, die im Zielplan schon einen Reinigungs-Besuch haben, werden
+  /// nicht dupliziert; Besuche, deren Betrieb heute keine fällige Anlage
+  /// hat, kommen als `uebernommen = true` (graue Darstellung) mit.
+  Future<void> _planVonDatumUebernehmen() async {
+    final heuteReal = DateTime.now();
+    final heuteDatum = DateTime(heuteReal.year, heuteReal.month, heuteReal.day);
+    final gewaehlt = await showDatePicker(
+      context: context,
+      initialDate: heuteDatum.subtract(const Duration(days: 1)),
+      firstDate: DateTime(2025, 1, 1),
+      lastDate: heuteDatum.add(const Duration(days: 365)),
+      helpText: 'Plan von welchem Tag übernehmen?',
+    );
+    if (gewaehlt == null || !mounted) return;
+    final quelltag = DateTime(gewaehlt.year, gewaehlt.month, gewaehlt.day);
+
+    final quelle = await ref.read(
+      gespeicherterTagesplanProvider(quelltag).future,
+    );
+    if (!mounted) return;
+    if (quelle == null || quelle.eintraege.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Kein gespeicherter Plan am ${_formatDate(quelltag)}'),
+        ),
+      );
+      return;
+    }
+
+    // Heute fällige Betriebe (Reinigung) — massgebend für die
+    // „uebernommen"-Markierung, NICHT gefiltert (die volle Fälligkeit zählt,
+    // unabhängig vom aktuell gesetzten Fällig-Tab-Filter).
+    final faelligeBetriebe = ref
+        .read(faelligeEintraegeProvider(_selectedDate))
+        .where((e) => e.typ == TourEintragTyp.reinigung && e.betriebId != null)
+        .map((e) => e.betriebId!)
+        .toSet();
+
+    final planVorher = ref.read(tagesplanProvider);
+    final vorhandeneBetriebe = {
+      for (final e in planVorher)
+        if (e.typ == TourEintragTyp.reinigung && e.betriebId != null)
+          e.betriebId!,
+    };
+    final vorhandeneIds = planVorher.map((e) => e.id).toSet();
+
+    final uebernahme = <TourEintrag>[];
+    for (final original in quelle.eintraege) {
+      final istReinigung = original.typ == TourEintragTyp.reinigung;
+      if (istReinigung &&
+          original.betriebId != null &&
+          vorhandeneBetriebe.contains(original.betriebId)) {
+        continue; // Betrieb hat im Zielplan schon einen Besuch
+      }
+
+      var eintrag = original.alsPlanEintrag();
+      if (istReinigung) {
+        final heuteFaellig =
+            eintrag.betriebId != null &&
+            faelligeBetriebe.contains(eintrag.betriebId);
+        eintrag = eintrag.copyWith(uebernommen: !heuteFaellig);
+      }
+      // ID-Kollision (z.B. zweimalige Übernahme desselben Quelltags):
+      // NUR dann umbenennen, wenn die ID im Zielplan bereits existiert —
+      // sonst bleibt die Original-ID stehen, damit z.B. „Reinigung starten"
+      // weiter auf denselben Eintrag verweist wie am Quelltag.
+      if (vorhandeneIds.contains(eintrag.id)) {
+        eintrag = eintrag.mitId(
+          'u_${eintrag.id}_${quelltag.millisecondsSinceEpoch}',
+        );
+      }
+      vorhandeneIds.add(eintrag.id);
+      if (istReinigung && eintrag.betriebId != null) {
+        vorhandeneBetriebe.add(eintrag.betriebId!);
+      }
+      uebernahme.add(eintrag);
+    }
+
+    ref.read(tagesplanProvider.notifier).setzePlan([
+      ...planVorher,
+      ...uebernahme,
+    ]);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${uebernahme.length} Einträge übernommen')),
+    );
   }
 
   void _navigateToDetail(TourEintrag eintrag) {
@@ -590,11 +725,13 @@ class _TagesplanHeader extends StatelessWidget {
   final DateTime datum;
   final VoidCallback onLeeren;
   final VoidCallback onAusFaelligBefuellen;
+  final VoidCallback onPlanUebernehmen;
 
   const _TagesplanHeader({
     required this.datum,
     required this.onLeeren,
     required this.onAusFaelligBefuellen,
+    required this.onPlanUebernehmen,
   });
 
   @override
@@ -614,6 +751,13 @@ class _TagesplanHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          IconButton(
+            onPressed: onPlanUebernehmen,
+            icon: const Icon(Icons.history, size: 20),
+            tooltip: 'Plan von Datum übernehmen',
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          ),
           TextButton.icon(
             onPressed: onAusFaelligBefuellen,
             icon: const Icon(Icons.playlist_add, size: 18),
