@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
@@ -11,6 +12,7 @@ import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -824,6 +826,52 @@ final tourVorschlagErweitertProvider =
       return eintraege;
     });
 
+// ─── Zeitachse: Dauer-Historie, Fahrzeiten, Arbeitstag (Task 6) ───
+
+/// Dauer-Historie je Betrieb (Schlüssel = `betriebId` der Reinigung, also die
+/// Server-Id — dieselbe Konvention wie `AnlageLocal.betriebId` und
+/// `TourEintrag.betriebId`). Grundlage der Schätzung `geschaetzteDauer`.
+///
+/// Anlagenzahl eines historischen Besuchs = Zusatzanlagen (`anlageIds`) + die
+/// Hauptanlage. Besuche ohne brauchbare Dauer fallen raus, damit sie den
+/// Median nicht nach unten ziehen.
+final besuchHistorieProvider = Provider<Map<String, List<BesuchHistorie>>>((
+  ref,
+) {
+  final reinigungen = ref.watch(reinigungenProvider);
+  final map = <String, List<BesuchHistorie>>{};
+  for (final r in reinigungen) {
+    final dauer = dauerAusReinigung(
+      dauerMinuten: r.dauerMinuten,
+      start: r.uhrzeitStart,
+      ende: r.uhrzeitEnde,
+    );
+    if (dauer == null) continue;
+    final anlagenZahl = (r.anlageIds.isNotEmpty ? r.anlageIds.length : 0) + 1;
+    (map[r.betriebId] ??= []).add((
+      anlagenZahl: anlagenZahl,
+      dauerMinuten: dauer,
+    ));
+  }
+  return map;
+});
+
+/// Alle gelernten/gerouteten Fahrzeiten des Users in einer Abfrage
+/// (`'$von>$nach'` → Minuten + Quelle). Lesen über
+/// `FahrzeitRepository.ausMap`, das auch die Gegenrichtung prüft.
+final fahrzeitenMapProvider = FutureProvider<Map<String, FahrzeitEintrag>>(
+  (ref) => FahrzeitRepository.ladeAlle(),
+);
+
+/// Arbeitstag-Rahmen je Tag: Beginn (Start der Zeitachse), Ende und km-Stand.
+/// Standard 06:00 (Spec 2026-07-29). Gespeichert wird am Tagesplan
+/// (`tagesplanSpeichern`), geladen beim Öffnen des Tages.
+typedef Arbeitstag = ({String beginn, String? ende, int? km});
+
+final arbeitstagProvider = StateProvider.family<Arbeitstag, DateTime>(
+  (ref, datum) => (beginn: '06:00', ende: null, km: null),
+);
+
 // ─── Tagesplan State ───
 
 final aktiverTagesplanTagProvider = StateProvider<DateTime?>((ref) => null);
@@ -892,6 +940,18 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
 
   void entfernen(String id) {
     state = state.where((e) => e.id != id).toList();
+    _scheduleSave();
+  }
+
+  /// Einen Eintrag an Ort und Stelle ersetzen (Block-Sheet: Anlagen-Auswahl,
+  /// Dauer, Anker). Die Position im Plan bleibt erhalten — ein Entfernen +
+  /// Hinzufügen würde den Besuch ans Ende schieben und den Tag umbauen.
+  void ersetze(String id, TourEintrag neu) {
+    final index = state.indexWhere((e) => e.id == id);
+    if (index < 0) return;
+    final items = List.of(state);
+    items[index] = neu;
+    state = items;
     _scheduleSave();
   }
 

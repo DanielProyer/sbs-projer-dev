@@ -3,11 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
+import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
+import 'package:sbs_projer_app/core/util/touren_saison.dart';
+import 'package:sbs_projer_app/core/util/zeitplan.dart';
+import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
+import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
   const TourenplanungScreen({super.key});
@@ -82,20 +90,30 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     );
     if (_loadedForDate != _selectedDate) {
       final tag = _selectedDate;
-      // Der gespeicherte Tagesplan liefert seit Task 5 zusätzlich den
-      // Arbeitstag-Rahmen (arbeitsbeginn/-ende, km-Stand). Der wird erst in
-      // Task 6 in den UI-State übernommen — hier vorerst nur `.eintraege`,
-      // Verhalten bleibt unverändert.
-      void anwenden(List<TourEintrag>? gespeichert) {
+      void anwenden(GespeicherterTagesplan? gespeichert) {
         _loadedForDate = tag;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
+          // Arbeitstag-Rahmen übernehmen — nur die gepflegten Werte, damit ein
+          // leeres Feld den Standard (06:00) nicht überschreibt.
+          if (gespeichert != null) {
+            final aktuell = ref.read(arbeitstagProvider(tag));
+            if (gespeichert.arbeitsbeginn != null ||
+                gespeichert.arbeitsende != null ||
+                gespeichert.kmStand != null) {
+              ref.read(arbeitstagProvider(tag).notifier).state = (
+                beginn: gespeichert.arbeitsbeginn ?? aktuell.beginn,
+                ende: gespeichert.arbeitsende ?? aktuell.ende,
+                km: gespeichert.kmStand ?? aktuell.km,
+              );
+            }
+          }
           final notifier = ref.read(tagesplanProvider.notifier);
           // Race-Schutz: hat der User diesen Tag inzwischen bereits bearbeitet,
           // seinen Stand NICHT mit dem (evtl. älteren) Lade-Fetch überschreiben.
           if (notifier.datum == tag) return;
           if (gespeichert != null) {
-            notifier.setFromGespeichert(tag, gespeichert);
+            notifier.setFromGespeichert(tag, gespeichert.eintraege);
           } else {
             notifier.resetLeer(tag);
           }
@@ -104,7 +122,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
       gespeichertAsync.when(
         data: (gespeichert) {
-          if (_loadedForDate != tag) anwenden(gespeichert?.eintraege);
+          if (_loadedForDate != tag) anwenden(gespeichert);
         },
         loading: () {},
         error: (_, _) {
@@ -215,6 +233,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                             .befuellenAusFaellig(angezeigtFaellig);
                       },
                     ),
+                    _ArbeitstagZeile(datum: _selectedDate),
                     if (autoTermine.isNotEmpty)
                       _AutoTermineSektion(
                         eintraege: autoTermine,
@@ -235,7 +254,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                               'Kein Tagesplan',
                               'Wechsle zum Tab "Fällig" um Einträge\nzum Tagesplan hinzuzufügen.',
                             )
-                          : _TagesplanListe(
+                          : _TagesplanZeitachse(
                               datum: _selectedDate,
                               eintraege: angezeigtTagesplan,
                               onReorder: (old, neu) => ref
@@ -244,7 +263,6 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                               onDismiss: (id) => ref
                                   .read(tagesplanProvider.notifier)
                                   .entfernen(id),
-                              onTap: _navigateToDetail,
                             ),
                     ),
                   ],
@@ -626,189 +644,894 @@ class _TagesplanHeader extends StatelessWidget {
   }
 }
 
-// ─── Tagesplan-Liste (ReorderableListView) ───
+// ─── Typ-Farben/-Symbole (geteilt von Fällig-Liste und Zeitachse) ───
 
-class _TagesplanListe extends StatelessWidget {
+Color _typColor(TourEintragTyp typ) {
+  switch (typ) {
+    case TourEintragTyp.reinigung:
+      return AppColors.success;
+    case TourEintragTyp.stoerung:
+      return AppColors.error;
+    case TourEintragTyp.montage:
+      return AppColors.info;
+    case TourEintragTyp.heigenie:
+      return AppColors.warning;
+  }
+}
+
+IconData _typIcon(TourEintragTyp typ) {
+  switch (typ) {
+    case TourEintragTyp.reinigung:
+      return Icons.cleaning_services;
+    case TourEintragTyp.stoerung:
+      return Icons.warning_amber;
+    case TourEintragTyp.montage:
+      return Icons.construction;
+    case TourEintragTyp.heigenie:
+      return Icons.build;
+  }
+}
+
+// ─── Zeitachse: Dauer- und Fahrzeit-Helfer ───
+
+/// Anlagen dieses Besuchs. `anlageIds` ist fachlich führend; Alt-Einträge
+/// tragen nur das einzelne `anlageId`.
+List<String> _besuchsAnlagen(TourEintrag e) => e.anlageIds.isNotEmpty
+    ? e.anlageIds
+    : [if (e.anlageId != null) e.anlageId!];
+
+/// Wirksame Dauer eines Plan-Eintrags: manuelle Übersteuerung hat Vorrang,
+/// sonst die Median-Schätzung aus der Betriebs-Historie (Reinigung) bzw. der
+/// Standardwert für Störung/Montage (Spec 2026-07-29 §2).
+int _dauerFuer(TourEintrag e, Map<String, List<BesuchHistorie>> historie) {
+  final manuell = e.dauerMinuten;
+  if (manuell != null) return manuell;
+  if (e.typ != TourEintragTyp.reinigung) return kDauerDefaultMinuten;
+  final hist = e.betriebId != null
+      ? (historie[e.betriebId!] ?? const <BesuchHistorie>[])
+      : const <BesuchHistorie>[];
+  final anlagen = _besuchsAnlagen(e).length;
+  return geschaetzteDauer(
+    historie: hist,
+    anlagenZahl: anlagen == 0 ? 1 : anlagen,
+  );
+}
+
+/// Fahrzeit, wenn zu mindestens einem der beiden Betriebe die Koordinaten
+/// fehlen: nicht 0 (das würde eine Fahrt verschlucken) und nicht die
+/// Heuristik (ohne GPS nicht berechenbar) — ein neutraler Ansatz, den die
+/// erste beobachtete Fahrt später ersetzt.
+const int _kFahrzeitOhneGps = 15;
+
+// ─── Tagesplan als Zeitachse ───
+
+class _TagesplanZeitachse extends ConsumerStatefulWidget {
   final DateTime datum;
   final List<TourEintrag> eintraege;
   final void Function(int, int) onReorder;
   final void Function(String) onDismiss;
-  final void Function(TourEintrag) onTap;
 
-  const _TagesplanListe({
+  const _TagesplanZeitachse({
     required this.datum,
     required this.eintraege,
     required this.onReorder,
     required this.onDismiss,
-    required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return ReorderableListView.builder(
-      padding: const EdgeInsets.only(top: 4, bottom: 16),
-      buildDefaultDragHandles: false,
-      itemCount: eintraege.length,
-      onReorder: onReorder,
-      proxyDecorator: (child, index, animation) {
-        return Material(
-          elevation: 4,
-          borderRadius: BorderRadius.circular(12),
-          child: child,
-        );
-      },
-      itemBuilder: (context, index) {
-        final eintrag = eintraege[index];
+  ConsumerState<_TagesplanZeitachse> createState() =>
+      _TagesplanZeitachseState();
+}
 
-        return Dismissible(
-          key: ValueKey(eintrag.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            color: AppColors.error.withAlpha(30),
-            child: const Icon(Icons.delete_outline, color: AppColors.error),
-          ),
-          onDismissed: (_) => onDismiss(eintrag.id),
-          child: _TourEintragKarte(
-            datum: datum,
-            eintrag: eintrag,
-            position: index + 1,
-            onTap: () => onTap(eintrag),
+class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
+  /// Bereits bei der Edge-Function angefragte Strecken — verhindert, dass
+  /// jeder Rebuild dieselbe Route erneut anfordert.
+  final Set<String> _routeAngefragt = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final lookup = ref.watch(betriebLookupProvider);
+    final historie = ref.watch(besuchHistorieProvider);
+    final fahrzeiten =
+        ref.watch(fahrzeitenMapProvider).valueOrNull ??
+        const <String, FahrzeitEintrag>{};
+    final arbeitstag = ref.watch(arbeitstagProvider(widget.datum));
+    final anlagen = ref.watch(anlagenProvider);
+
+    final eintraege = widget.eintraege;
+    final byId = {for (final e in eintraege) e.id: e};
+
+    // Nenner des Chips «n von m Anlagen»: aktive Anlagen je Betrieb.
+    final anlagenJeBetrieb = <String, int>{};
+    for (final a in anlagen) {
+      if (a.status != 'aktiv') continue;
+      final key = lookup[a.betriebId]?.routeId ?? a.betriebId;
+      anlagenJeBetrieb[key] = (anlagenJeBetrieb[key] ?? 0) + 1;
+    }
+
+    // Quelle je Fahrt (für den Punkt an der Fahrt-Zeile) und die Paare ohne
+    // gelernten/gerouteten Wert. Beides fällt beim Durchlaufen der Kaskade an,
+    // die `berechneZeitplan` genau einmal je Übergang aufruft.
+    final fahrtQuellen = <String, String>{};
+    final fehlendePaare = <({String von, String nach})>[];
+
+    int fahrzeitZwischen(String vonBlockId, String nachBlockId) {
+      final vonBetrieb = byId[vonBlockId]?.betriebId;
+      final nachBetrieb = byId[nachBlockId]?.betriebId;
+      if (vonBetrieb == null || nachBetrieb == null) {
+        fahrtQuellen[nachBlockId] = 'heuristik';
+        return _kFahrzeitOhneGps;
+      }
+      // Zwei Einträge beim selben Betrieb (z.B. Reinigung + Störung): keine
+      // Fahrt dazwischen.
+      if (vonBetrieb == nachBetrieb) return 0;
+
+      final gelernt = FahrzeitRepository.ausMap(
+        fahrzeiten,
+        vonBetrieb,
+        nachBetrieb,
+      );
+      if (gelernt != null) {
+        fahrtQuellen[nachBlockId] = gelernt.quelle;
+        return gelernt.minuten;
+      }
+
+      fehlendePaare.add((von: vonBetrieb, nach: nachBetrieb));
+      fahrtQuellen[nachBlockId] = 'heuristik';
+      final bv = lookup[vonBetrieb];
+      final bn = lookup[nachBetrieb];
+      if (bv?.latitude != null &&
+          bv?.longitude != null &&
+          bn?.latitude != null &&
+          bn?.longitude != null) {
+        return heuristikMinuten(
+          luftlinieKm: haversineKm(
+            bv!.latitude!,
+            bv.longitude!,
+            bn!.latitude!,
+            bn.longitude!,
           ),
         );
-      },
+      }
+      return _kFahrzeitOhneGps;
+    }
+
+    final segmente = berechneZeitplan(
+      bloecke: [
+        for (final e in eintraege)
+          PlanBlock(
+            id: e.id,
+            dauerMinuten: _dauerFuer(e, historie),
+            ankerZeit: e.ankerZeit,
+          ),
+      ],
+      arbeitsbeginn: arbeitstag.beginn,
+      // Startort (Zuhause) kommt in Task 8 aus den Geschäftseinstellungen —
+      // null heisst hier: keine Anfahrt-/Heimweg-Segmente zeichnen.
+      anfahrtMinuten: null,
+      heimwegMinuten: null,
+      fahrzeitZwischen: fahrzeitZwischen,
+    );
+
+    final besuchSeg = <String, ZeitSegment>{};
+    final fahrtSeg = <String, ZeitSegment>{};
+    final warteSeg = <String, ZeitSegment>{};
+    ZeitSegment? anfahrt;
+    ZeitSegment? heimweg;
+    for (final s in segmente) {
+      switch (s.art) {
+        case SegmentArt.anfahrt:
+          anfahrt = s;
+        case SegmentArt.heimweg:
+          heimweg = s;
+        case SegmentArt.besuch:
+          if (s.blockId != null) besuchSeg[s.blockId!] = s;
+        case SegmentArt.fahrt:
+          if (s.blockId != null) fahrtSeg[s.blockId!] = s;
+        case SegmentArt.wartezeit:
+          if (s.blockId != null) warteSeg[s.blockId!] = s;
+      }
+    }
+
+    if (fehlendePaare.isNotEmpty) {
+      // Nach dem Frame, nie während des Builds (Provider-Invalidierung).
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _routenAnfordern(fehlendePaare),
+      );
+    }
+
+    return Column(
+      children: [
+        if (anfahrt != null)
+          RandSegmentZeile(segment: anfahrt, label: 'Anfahrt'),
+        Expanded(
+          child: ReorderableListView.builder(
+            padding: const EdgeInsets.only(top: 4, bottom: 24),
+            buildDefaultDragHandles: false,
+            itemCount: eintraege.length,
+            onReorder: widget.onReorder,
+            proxyDecorator: (child, index, animation) =>
+                Material(elevation: 4, color: Colors.transparent, child: child),
+            itemBuilder: (context, index) {
+              final eintrag = eintraege[index];
+              final segment = besuchSeg[eintrag.id];
+              // Sicherheitsnetz: ohne Segment (dürfte nicht vorkommen) bleibt
+              // die Zeile leer, statt die ganze Liste scheitern zu lassen.
+              if (segment == null) {
+                return SizedBox.shrink(key: ValueKey(eintrag.id));
+              }
+
+              final betrieb = eintrag.betriebId == null
+                  ? null
+                  : lookup[eintrag.betriebId!];
+              final ruhetagKonflikt =
+                  betrieb != null && !istOffenerTag(betrieb, widget.datum);
+              final servicezeitKonflikt =
+                  betrieb != null &&
+                  !liegtInServicefenster(
+                    segment.startMin,
+                    betrieb.servicezeitMorgenAb,
+                    betrieb.servicezeitMorgenBis,
+                    betrieb.servicezeitNachmittagAb,
+                    betrieb.servicezeitNachmittagBis,
+                  );
+              // Vorschlag nur, wenn nach der Ankunft noch ein Fenster beginnt.
+              final vorschlagMin = servicezeitKonflikt
+                  ? naechsterFensterStart(
+                      segment.startMin,
+                      betrieb.servicezeitMorgenAb,
+                      betrieb.servicezeitMorgenBis,
+                      betrieb.servicezeitNachmittagAb,
+                      betrieb.servicezeitNachmittagBis,
+                    )
+                  : null;
+
+              final betriebKey = betrieb?.routeId ?? eintrag.betriebId;
+              final gesamt = betriebKey != null
+                  ? (anlagenJeBetrieb[betriebKey] ?? 0)
+                  : 0;
+
+              return Dismissible(
+                key: ValueKey(eintrag.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: AppColors.error.withAlpha(30),
+                  child: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.error,
+                  ),
+                ),
+                onDismissed: (_) => widget.onDismiss(eintrag.id),
+                child: ZeitplanZeile(
+                  segment: segment,
+                  fahrtDavor: fahrtSeg[eintrag.id],
+                  wartezeitDavor: warteSeg[eintrag.id],
+                  eintrag: eintrag,
+                  anlagenGesamt: gesamt,
+                  dauerGeschaetzt: eintrag.dauerMinuten == null,
+                  ruhetagKonflikt: ruhetagKonflikt,
+                  servicezeitKonflikt: servicezeitKonflikt,
+                  fahrtQuelle: fahrtQuellen[eintrag.id],
+                  ankerVorschlag: vorschlagMin != null
+                      ? hhmmAusMinuten(vorschlagMin)
+                      : null,
+                  onAnkerVorschlag: vorschlagMin != null
+                      ? () => ref
+                            .read(tagesplanProvider.notifier)
+                            .ersetze(
+                              eintrag.id,
+                              eintrag.copyWith(
+                                ankerZeit: hhmmAusMinuten(vorschlagMin),
+                              ),
+                            )
+                      : null,
+                  dragHandle: ReorderableDragStartListener(
+                    index: index,
+                    child: Container(
+                      width: 44,
+                      alignment: Alignment.center,
+                      color: AppColors.textSecondary.withAlpha(12),
+                      child: const Icon(
+                        Icons.drag_indicator,
+                        color: AppColors.textSecondary,
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                  onTap: () => _oeffneBlockSheet(eintrag),
+                ),
+              );
+            },
+          ),
+        ),
+        if (heimweg != null)
+          RandSegmentZeile(segment: heimweg, label: 'Heimweg'),
+      ],
+    );
+  }
+
+  /// Fehlende Strecken einmalig bei der Edge-Function anfragen (fire and
+  /// forget). Kommt ein Wert zurück, wird die Fahrzeit-Map neu geladen und
+  /// die Zeitachse rechnet mit dem gerouteten statt dem geschätzten Wert.
+  Future<void> _routenAnfordern(List<({String von, String nach})> paare) async {
+    var erfolg = false;
+    for (final p in paare) {
+      final key = '${p.von}>${p.nach}';
+      if (!_routeAngefragt.add(key)) continue;
+      final res = await FahrzeitRepository.routeAnfordern(p.von, p.nach);
+      if (res != null) erfolg = true;
+    }
+    if (erfolg && mounted) ref.invalidate(fahrzeitenMapProvider);
+  }
+
+  void _oeffneBlockSheet(TourEintrag eintrag) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _BlockSheet(eintragId: eintrag.id),
     );
   }
 }
 
-// ─── Tour-Eintrag Karte ───
+// ─── Block-Sheet: Anlagen, Dauer, Anker, Entfernen ───
 
-class _TourEintragKarte extends StatelessWidget {
-  final DateTime datum;
-  final TourEintrag eintrag;
-  final int position;
+class _BlockSheet extends ConsumerWidget {
+  final String eintragId;
+
+  const _BlockSheet({required this.eintragId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(tagesplanProvider);
+    final treffer = plan.where((e) => e.id == eintragId);
+    // Eintrag inzwischen entfernt (z.B. per Swipe) → Sheet leeren statt
+    // auf einem verwaisten Stand weiterzuarbeiten.
+    if (treffer.isEmpty) return const SizedBox.shrink();
+    final eintrag = treffer.first;
+
+    final lookup = ref.watch(betriebLookupProvider);
+    final historie = ref.watch(besuchHistorieProvider);
+    final betrieb = eintrag.betriebId == null
+        ? null
+        : lookup[eintrag.betriebId!];
+    final gewaehlt = _besuchsAnlagen(eintrag);
+    final dauer = _dauerFuer(eintrag, historie);
+
+    // Aktive Anlagen des Betriebs. `AnlageLocal.betriebId` und
+    // `TourEintrag.betriebId` tragen dieselbe Id-Konvention (Server-Id); der
+    // Vergleich läuft trotzdem über den aufgelösten Betrieb, damit ein
+    // Eintrag mit routeId statt serverId nicht durchfällt.
+    final anlagen = <AnlageLocal>[
+      if (betrieb != null)
+        for (final a in ref.watch(anlagenProvider))
+          if (a.status == 'aktiv' &&
+              lookup[a.betriebId]?.routeId == betrieb.routeId)
+            a,
+    ];
+
+    void ersetze(TourEintrag neu) =>
+        ref.read(tagesplanProvider.notifier).ersetze(eintragId, neu);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Griff
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      _typIcon(eintrag.typ),
+                      size: 18,
+                      color: _typColor(eintrag.typ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        eintrag.betriebOrt != null &&
+                                eintrag.betriebOrt!.isNotEmpty
+                            ? '${eintrag.betriebName} - ${eintrag.betriebOrt}'
+                            : eintrag.betriebName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ─── Anlagen (nur Reinigung) ───
+              if (eintrag.typ == TourEintragTyp.reinigung) ...[
+                const _SheetTitel('Anlagen dieses Besuchs'),
+                if (anlagen.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      'Keine aktiven Anlagen gefunden.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                for (final a in anlagen)
+                  _AnlageZeile(
+                    anlage: a,
+                    gewaehlt: gewaehlt.contains(a.routeId),
+                    onTap: () {
+                      final neu = List<String>.of(gewaehlt);
+                      if (!neu.remove(a.routeId)) neu.add(a.routeId);
+                      // `dauerMinuten` bleibt unangetastet: ist nichts manuell
+                      // gesetzt, folgt die Schätzung automatisch der neuen
+                      // Anlagenzahl. `anlageId` (erste Anlage) bleibt als
+                      // Kompatibilitäts-Feld für «Reinigung starten» erhalten.
+                      ersetze(
+                        eintrag.copyWith(
+                          anlageIds: neu,
+                          anlageId: neu.isNotEmpty ? neu.first : null,
+                        ),
+                      );
+                    },
+                  ),
+              ],
+
+              // ─── Dauer ───
+              const _SheetTitel('Dauer'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  children: [
+                    _RundKnopf(
+                      icon: Icons.remove,
+                      onTap: () => ersetze(
+                        eintrag.copyWith(
+                          dauerMinuten: dauer - 5 < 10 ? 10 : dauer - 5,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          '${eintrag.dauerMinuten == null ? '~' : ''}$dauer min',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    _RundKnopf(
+                      icon: Icons.add,
+                      onTap: () =>
+                          ersetze(eintrag.copyWith(dauerMinuten: dauer + 5)),
+                    ),
+                  ],
+                ),
+              ),
+              if (eintrag.dauerMinuten != null)
+                _SheetAktion(
+                  icon: Icons.restart_alt,
+                  text: 'auf Schätzung zurücksetzen',
+                  onTap: () => ersetze(eintrag.copyWith(dauerMinuten: null)),
+                ),
+
+              // ─── Termin-Anker ───
+              const _SheetTitel('Termin-Anker (frühestens ab)'),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SheetAktion(
+                      icon: Icons.push_pin_outlined,
+                      text: eintrag.ankerZeit ?? '—',
+                      onTap: () async {
+                        final jetzt =
+                            minutenAusHhmm(eintrag.ankerZeit) ?? 8 * 60;
+                        final gewaehltZeit = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay(
+                            hour: jetzt ~/ 60,
+                            minute: jetzt % 60,
+                          ),
+                        );
+                        if (gewaehltZeit == null) return;
+                        ersetze(
+                          eintrag.copyWith(
+                            ankerZeit: hhmmAusMinuten(
+                              gewaehltZeit.hour * 60 + gewaehltZeit.minute,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (eintrag.ankerZeit != null)
+                    GestureDetector(
+                      onTap: () => ersetze(eintrag.copyWith(ankerZeit: null)),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(right: 16),
+                        child: const Icon(
+                          Icons.close,
+                          size: 20,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              const Divider(height: 20),
+              _SheetAktion(
+                icon: Icons.delete_outline,
+                text: 'Aus Plan entfernen',
+                farbe: AppColors.error,
+                onTap: () {
+                  ref.read(tagesplanProvider.notifier).entfernen(eintragId);
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetTitel extends StatelessWidget {
+  final String text;
+
+  const _SheetTitel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Tippbare Zeile im Sheet — bewusst GestureDetector + Container statt eines
+/// Material-Buttons (CanvasKit-Regel: Material-Buttons in Sheets werden auf
+/// Web nicht zuverlässig gezeichnet).
+class _SheetAktion extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color farbe;
   final VoidCallback onTap;
 
-  const _TourEintragKarte({
-    required this.datum,
-    required this.eintrag,
-    required this.position,
+  const _SheetAktion({
+    required this.icon,
+    required this.text,
+    required this.onTap,
+    this.farbe = AppColors.textPrimary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: farbe),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: farbe,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RundKnopf extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _RundKnopf({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withAlpha(20),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 22),
+      ),
+    );
+  }
+}
+
+class _AnlageZeile extends StatelessWidget {
+  final AnlageLocal anlage;
+  final bool gewaehlt;
+  final VoidCallback onTap;
+
+  const _AnlageZeile({
+    required this.anlage,
+    required this.gewaehlt,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = _typColor(eintrag.typ);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              gewaehlt ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 22,
+              color: gewaehlt ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '${anlage.bezeichnung ?? anlage.typAnlage} · '
+                '${anlage.anzahlHaehne} Hähne',
+                style: const TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: IntrinsicHeight(
-          child: Row(
+// ─── Arbeitstag: Start / Ende + km ───
+
+class _ArbeitstagZeile extends ConsumerWidget {
+  final DateTime datum;
+
+  const _ArbeitstagZeile({required this.datum});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final at = ref.watch(arbeitstagProvider(datum));
+
+    Future<void> speichern(Arbeitstag neu) async {
+      ref.read(arbeitstagProvider(datum).notifier).state = neu;
+      try {
+        await tagesplanSpeichern(
+          datum,
+          ref.read(tagesplanProvider),
+          arbeitsbeginn: neu.beginn,
+          arbeitsende: neu.ende,
+          kmStand: neu.km,
+        );
+        ref.invalidate(gespeicherterTagesplanProvider(datum));
+      } catch (e) {
+        debugPrint('[Arbeitstag] Speichern fehlgeschlagen: $e');
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      child: Row(
+        children: [
+          _TippFeld(
+            icon: Icons.schedule,
+            text: 'Start ${at.beginn}',
+            onTap: () async {
+              final start = minutenAusHhmm(at.beginn) ?? 6 * 60;
+              final gewaehlt = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay(hour: start ~/ 60, minute: start % 60),
+              );
+              if (gewaehlt == null) return;
+              await speichern((
+                beginn: hhmmAusMinuten(gewaehlt.hour * 60 + gewaehlt.minute),
+                ende: at.ende,
+                km: at.km,
+              ));
+            },
+          ),
+          const Spacer(),
+          _TippFeld(
+            icon: Icons.flag_outlined,
+            text:
+                'Ende ${at.ende ?? '—'} · ${at.km != null ? '${at.km} km' : '— km'}',
+            onTap: () async {
+              final ergebnis = await showModalBottomSheet<Arbeitstag>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => _ArbeitstagSheet(aktuell: at),
+              );
+              if (ergebnis == null) return;
+              await speichern(ergebnis);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TippFeld extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+
+  const _TippFeld({
+    required this.icon,
+    required this.text,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withAlpha(12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: AppColors.primary),
+            const SizedBox(width: 5),
+            Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Abend-Erfassung: Arbeitsende und km-Stand.
+class _ArbeitstagSheet extends StatefulWidget {
+  final Arbeitstag aktuell;
+
+  const _ArbeitstagSheet({required this.aktuell});
+
+  @override
+  State<_ArbeitstagSheet> createState() => _ArbeitstagSheetState();
+}
+
+class _ArbeitstagSheetState extends State<_ArbeitstagSheet> {
+  late final TextEditingController _ende = TextEditingController(
+    text: widget.aktuell.ende ?? '',
+  );
+  late final TextEditingController _km = TextEditingController(
+    text: widget.aktuell.km?.toString() ?? '',
+  );
+
+  @override
+  void dispose() {
+    _ende.dispose();
+    _km.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Farbbalken links
-              Container(width: 5, color: color),
-              // Inhalt
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+              const Text(
+                'Arbeitstag abschliessen',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _ende,
+                keyboardType: TextInputType.datetime,
+                decoration: const InputDecoration(
+                  labelText: 'Arbeitsende (HH:mm)',
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _km,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'km-Stand',
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () {
+                  // Unbrauchbare Eingaben still verwerfen (null = unverändert
+                  // lassen), statt den Tag mit Unsinn zu speichern.
+                  final ende = minutenAusHhmm(_ende.text.trim()) != null
+                      ? _ende.text.trim()
+                      : widget.aktuell.ende;
+                  final km = int.tryParse(_km.text.trim()) ?? widget.aktuell.km;
+                  Navigator.pop(context, (
+                    beginn: widget.aktuell.beginn,
+                    ende: ende,
+                    km: km,
+                  ));
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    children: [
-                      // Position
-                      SizedBox(
-                        width: 24,
-                        child: Text(
-                          '$position',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: color,
-                          ),
-                        ),
-                      ),
-                      // Icon
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: color.withAlpha(25),
-                        child: Icon(
-                          _typIcon(eintrag.typ),
-                          color: color,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Text
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    eintrag.betriebName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (eintrag.betriebOrt != null)
-                                  Text(
-                                    eintrag.betriebOrt!,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    eintrag.beschreibung,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                _StatusBadge(eintrag: eintrag),
-                              ],
-                            ),
-                            _TourInfoZeile(datum: datum, eintrag: eintrag),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      // Grosser Greif-Griff (leicht zu treffen)
-                      ReorderableDragStartListener(
-                        index: position - 1,
-                        child: Container(
-                          width: 48,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            color: AppColors.textSecondary.withAlpha(15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.drag_indicator,
-                            color: AppColors.textSecondary,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: const Text(
+                    'Speichern',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -817,32 +1540,6 @@ class _TourEintragKarte extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static Color _typColor(TourEintragTyp typ) {
-    switch (typ) {
-      case TourEintragTyp.reinigung:
-        return AppColors.success;
-      case TourEintragTyp.stoerung:
-        return AppColors.error;
-      case TourEintragTyp.montage:
-        return AppColors.info;
-      case TourEintragTyp.heigenie:
-        return AppColors.warning;
-    }
-  }
-
-  static IconData _typIcon(TourEintragTyp typ) {
-    switch (typ) {
-      case TourEintragTyp.reinigung:
-        return Icons.cleaning_services;
-      case TourEintragTyp.stoerung:
-        return Icons.warning_amber;
-      case TourEintragTyp.montage:
-        return Icons.construction;
-      case TourEintragTyp.heigenie:
-        return Icons.build;
-    }
   }
 }
 
@@ -1141,7 +1838,7 @@ class _FaelligEintragKarte extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _TourEintragKarte._typColor(eintrag.typ);
+    final color = _typColor(eintrag.typ);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -1164,7 +1861,7 @@ class _FaelligEintragKarte extends StatelessWidget {
                         radius: 16,
                         backgroundColor: color.withAlpha(25),
                         child: Icon(
-                          _TourEintragKarte._typIcon(eintrag.typ),
+                          _typIcon(eintrag.typ),
                           color: color,
                           size: 16,
                         ),

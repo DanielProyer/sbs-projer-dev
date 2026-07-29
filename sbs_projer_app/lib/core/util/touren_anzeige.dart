@@ -82,3 +82,82 @@ String servicezeitText(
   if (morgen) return '$morgenAb–$morgenBis · nachmittags kein Service';
   return '$nachmittagAb–$nachmittagBis · morgens kein Service';
 }
+
+// ─── Zeitachse (Tourenplan-Zeitachse, Spec 2026-07-29 §4/§5) ───
+
+/// 'HH:mm' → Minuten seit Mitternacht; null bei ungültiger Eingabe.
+///
+/// Bewusst tolerant (tryParse statt parse): ein einzelner beschädigter Wert
+/// aus Altdaten darf die Zeitachse des ganzen Tages nicht zum Absturz bringen.
+int? minutenAusHhmm(String? hhmm) {
+  if (hhmm == null) return null;
+  final teile = hhmm.split(':');
+  if (teile.length < 2) return null;
+  final h = int.tryParse(teile[0]);
+  final m = int.tryParse(teile[1]);
+  if (h == null || m == null) return null;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
+/// Minuten seit Mitternacht → 'HH:mm' (auch über 24 h hinaus lesbar, falls
+/// ein Plan über Mitternacht läuft: 25:10 statt 01:10 — sonst wäre nicht
+/// erkennbar, dass der Tag zu lang geplant ist).
+String hhmmAusMinuten(int minuten) {
+  final m = minuten < 0 ? 0 : minuten;
+  return '${(m ~/ 60).toString().padLeft(2, '0')}:'
+      '${(m % 60).toString().padLeft(2, '0')}';
+}
+
+/// Alle vollständig erfassten Servicefenster eines Betriebs als
+/// (ab, bis)-Minutenpaare. Halbe Fenster (nur Ab **oder** nur Bis) werden
+/// ignoriert — dieselbe Regel wie in [servicezeitText].
+List<({int ab, int bis})> _fenster(
+  String? morgenAb,
+  String? morgenBis,
+  String? nachmittagAb,
+  String? nachmittagBis,
+) {
+  final result = <({int ab, int bis})>[];
+  for (final paar in [(morgenAb, morgenBis), (nachmittagAb, nachmittagBis)]) {
+    final ab = minutenAusHhmm(paar.$1);
+    final bis = minutenAusHhmm(paar.$2);
+    if (ab != null && bis != null && bis > ab) result.add((ab: ab, bis: bis));
+  }
+  result.sort((a, b) => a.ab.compareTo(b.ab));
+  return result;
+}
+
+/// Liegt die Ankunft ([minute] seit Mitternacht) in einem Servicefenster?
+///
+/// Ist gar kein vollständiges Fenster erfasst, gilt `true`: unbekannt ist
+/// keine Einschränkung — der Tourenplan warnt nur, wenn er es wirklich besser
+/// weiss (sonst hinge an jedem Betrieb ohne gepflegte Servicezeit eine
+/// Warnung).
+bool liegtInServicefenster(
+  int minute,
+  String? morgenAb,
+  String? morgenBis,
+  String? nachmittagAb,
+  String? nachmittagBis,
+) {
+  final fenster = _fenster(morgenAb, morgenBis, nachmittagAb, nachmittagBis);
+  if (fenster.isEmpty) return true;
+  return fenster.any((f) => minute >= f.ab && minute <= f.bis);
+}
+
+/// Beginn des nächsten Servicefensters **nach** [minute] (Minuten seit
+/// Mitternacht) — Grundlage für den Vorschlag «Anker HH:mm?» am Block.
+/// null, wenn kein Fenster mehr folgt (oder keines erfasst ist).
+int? naechsterFensterStart(
+  int minute,
+  String? morgenAb,
+  String? morgenBis,
+  String? nachmittagAb,
+  String? nachmittagBis,
+) {
+  for (final f in _fenster(morgenAb, morgenBis, nachmittagAb, nachmittagBis)) {
+    if (f.ab > minute) return f.ab;
+  }
+  return null;
+}

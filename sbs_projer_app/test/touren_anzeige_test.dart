@@ -41,20 +41,28 @@ void main() {
 
   group('servicezeitText', () {
     test('beide Blöcke', () {
-      expect(servicezeitText('08:00', '12:00', '13:30', '17:00'),
-          '08:00–12:00 · 13:30–17:00');
+      expect(
+        servicezeitText('08:00', '12:00', '13:30', '17:00'),
+        '08:00–12:00 · 13:30–17:00',
+      );
     });
     test('nur Morgen → Nachmittag ausdrücklich kein Service', () {
-      expect(servicezeitText('08:00', '12:00', null, null),
-          '08:00–12:00 · nachmittags kein Service');
+      expect(
+        servicezeitText('08:00', '12:00', null, null),
+        '08:00–12:00 · nachmittags kein Service',
+      );
     });
     test('nur Nachmittag → Morgen ausdrücklich kein Service', () {
-      expect(servicezeitText(null, null, '13:30', '17:00'),
-          '13:30–17:00 · morgens kein Service');
+      expect(
+        servicezeitText(null, null, '13:30', '17:00'),
+        '13:30–17:00 · morgens kein Service',
+      );
     });
     test('Fall Conditorei Fischer', () {
-      expect(servicezeitText('06:30', '11:00', null, null),
-          '06:30–11:00 · nachmittags kein Service');
+      expect(
+        servicezeitText('06:30', '11:00', null, null),
+        '06:30–11:00 · nachmittags kein Service',
+      );
     });
     test('leere Strings zählen als nicht gesetzt', () {
       expect(servicezeitText('', '', '', ''), '');
@@ -78,6 +86,62 @@ void main() {
     });
     test('halber Block zählt nicht als erfasst', () {
       expect(servicezeitErfasst('06:30', null, null, null), isFalse);
+    });
+  });
+
+  group('liegtInServicefenster (Zeitachse, Spec 2026-07-29)', () {
+    // Betrieb mit zwei Fenstern: 08:00–12:00 und 13:30–17:00.
+    const mAb = '08:00', mBis = '12:00', nAb = '13:30', nBis = '17:00';
+
+    test('Ankunft in beiden Fenstern → true', () {
+      expect(liegtInServicefenster(9 * 60, mAb, mBis, nAb, nBis), isTrue);
+      expect(liegtInServicefenster(14 * 60, mAb, mBis, nAb, nBis), isTrue);
+    });
+    test('Ankunft zwischen den Fenstern → false', () {
+      expect(
+        liegtInServicefenster(12 * 60 + 30, mAb, mBis, nAb, nBis),
+        isFalse,
+      );
+    });
+    test('Ankunft vor dem ersten Fenster → false', () {
+      expect(liegtInServicefenster(7 * 60, mAb, mBis, nAb, nBis), isFalse);
+    });
+    test('Ankunft nach dem letzten Fenster → false', () {
+      expect(liegtInServicefenster(18 * 60, mAb, mBis, nAb, nBis), isFalse);
+    });
+    test('kein (vollständiges) Fenster erfasst → true', () {
+      expect(liegtInServicefenster(3 * 60, null, null, null, null), isTrue);
+      // Halbes Fenster zählt nicht — gleiche Regel wie servicezeitText.
+      expect(liegtInServicefenster(3 * 60, '08:00', null, null, null), isTrue);
+    });
+  });
+
+  group('naechsterFensterStart', () {
+    const mAb = '08:00', mBis = '12:00', nAb = '13:30', nBis = '17:00';
+
+    test('vor dem Morgenfenster → Morgenbeginn', () {
+      expect(naechsterFensterStart(7 * 60, mAb, mBis, nAb, nBis), 8 * 60);
+    });
+    test('zwischen den Fenstern → Nachmittagsbeginn', () {
+      expect(
+        naechsterFensterStart(12 * 60 + 30, mAb, mBis, nAb, nBis),
+        13 * 60 + 30,
+      );
+    });
+    test('nach dem letzten Fenster → null', () {
+      expect(naechsterFensterStart(18 * 60, mAb, mBis, nAb, nBis), isNull);
+    });
+  });
+
+  group('minutenAusHhmm / hhmmAusMinuten', () {
+    test('Hin- und Rückweg', () {
+      expect(minutenAusHhmm('06:20'), 6 * 60 + 20);
+      expect(hhmmAusMinuten(6 * 60 + 20), '06:20');
+    });
+    test('ungültige Eingaben → null', () {
+      expect(minutenAusHhmm(null), isNull);
+      expect(minutenAusHhmm(''), isNull);
+      expect(minutenAusHhmm('25:00'), isNull);
     });
   });
 
