@@ -32,6 +32,38 @@ export function personFunktion(k: Any): string {
   return ((k.funktion ?? k.rolle) ?? "").trim();
 }
 
+/// Ortsteil-Zusätze, die im Adressbuch zur Hauptortschaft zusammengefasst
+/// werden. Als Regel formuliert und nicht als Liste einzelner Orte, damit sie
+/// auch für künftig angelegte Betriebe greift (Rückfrage Daniel 29.07.2026).
+const ORTSTEIL_ZUSAETZE = [" Dorf", " Platz", " Waldhaus", " Meierhof"];
+
+/// Ortschaften, deren gebräuchliche Kurzform sich nicht aus einer Regel
+/// ergibt. Amtliche Doppelnamen wie «Lenzerheide/Lai» oder «Breil/Brigels»
+/// bleiben bewusst stehen: Mal ist der erste Teil der geläufige, mal der
+/// zweite — eine pauschale Regel läge zwangsläufig oft daneben.
+const ORT_SONDERFAELLE: Record<string, string> = {
+  "Disentis/Mustér": "Disentis",
+};
+
+/// Ort, wie er im Namen der Google-Karte erscheint.
+///
+/// Fasst Ortsteile zur Hauptortschaft zusammen («Davos Platz» → «Davos»),
+/// damit alle Betriebe einer Ortschaft im Adressbuch beieinanderstehen. Die
+/// Stammdaten bleiben davon unberührt — «Davos Platz» ist die korrekte
+/// Postanschrift.
+export function ortFuerAnzeige(ort: Any): string {
+  const o = (ort ?? "").trim();
+  if (o === "") return "";
+  const sonder = ORT_SONDERFAELLE[o];
+  if (sonder) return sonder;
+  for (const zusatz of ORTSTEIL_ZUSAETZE) {
+    if (o.endsWith(zusatz) && o.length > zusatz.length) {
+      return o.slice(0, -zusatz.length).trim();
+    }
+  }
+  return o;
+}
+
 /// «Ort - Betrieb» — der Kartenname eines Betriebs ohne Kontaktperson.
 ///
 /// Der Ort steht vorn (Format Daniel, 29.07.2026): So sortiert das Adressbuch
@@ -39,7 +71,7 @@ export function personFunktion(k: Any): string {
 /// und die Karten passen zu den von Hand angelegten Einträgen, sodass Google
 /// die Dubletten als solche erkennt.
 export function betriebAnzeige(b: Any): string {
-  return [b.ort, b.name]
+  return [ortFuerAnzeige(b.ort), b.name]
     .map((x: Any) => (x ?? "").trim())
     .filter((x: string) => x !== "")
     .join(" - ");

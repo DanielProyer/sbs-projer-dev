@@ -4,6 +4,7 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   baueSoll,
+  ortFuerAnzeige,
   personAusBetriebMitPersonen,
   sortierePersonen,
   vergleichsKey,
@@ -150,6 +151,57 @@ Deno.test("geschlossener Betrieb erzeugt keine Karte", () => {
 Deno.test("Kontakt ohne Telefon und Mail wird nicht gesynct", () => {
   const leer = { id: "k-leer", vorname: "Ohne", telefon: "", email: "" };
   assertEquals(baueSoll([leer], []).size, 0);
+});
+
+Deno.test("Ortsteile werden zur Hauptortschaft zusammengefasst", () => {
+  assertEquals(ortFuerAnzeige("Davos Platz"), "Davos");
+  assertEquals(ortFuerAnzeige("Davos Dorf"), "Davos");
+  assertEquals(ortFuerAnzeige("Klosters Dorf"), "Klosters");
+  assertEquals(ortFuerAnzeige("Flims Waldhaus"), "Flims");
+  assertEquals(ortFuerAnzeige("Flims Dorf"), "Flims");
+  assertEquals(ortFuerAnzeige("Obersaxen Meierhof"), "Obersaxen");
+  assertEquals(ortFuerAnzeige("Seewis Dorf"), "Seewis");
+});
+
+Deno.test("Regel greift auch für künftige Betriebe", () => {
+  // Kein Eintrag in einer Liste — der Zusatz allein genügt.
+  assertEquals(ortFuerAnzeige("Sedrun Dorf"), "Sedrun");
+  assertEquals(ortFuerAnzeige("Irgendwo Platz"), "Irgendwo");
+});
+
+Deno.test("Doppelnamen mit Schrägstrich bleiben unangetastet", () => {
+  assertEquals(ortFuerAnzeige("Lenzerheide/Lai"), "Lenzerheide/Lai");
+  assertEquals(ortFuerAnzeige("Breil/Brigels"), "Breil/Brigels");
+  assertEquals(ortFuerAnzeige("Lantsch/Lenz"), "Lantsch/Lenz");
+  assertEquals(ortFuerAnzeige("Domat/Ems"), "Domat/Ems");
+  assertEquals(ortFuerAnzeige("Tumegl/Tomils"), "Tumegl/Tomils");
+});
+
+Deno.test("Disentis/Mustér wird auf die vorhandene Kurzform gebracht", () => {
+  assertEquals(ortFuerAnzeige("Disentis/Mustér"), "Disentis");
+  assertEquals(ortFuerAnzeige("Disentis"), "Disentis");
+});
+
+Deno.test("gewöhnliche Orte bleiben, wie sie sind", () => {
+  assertEquals(ortFuerAnzeige("Chur"), "Chur");
+  assertEquals(ortFuerAnzeige("Bad Ragaz"), "Bad Ragaz");
+  assertEquals(ortFuerAnzeige("Arosa"), "Arosa");
+  assertEquals(ortFuerAnzeige(null), "");
+  assertEquals(ortFuerAnzeige("  Chur  "), "Chur");
+});
+
+Deno.test("Kartenname nutzt den zusammengefassten Ort", () => {
+  const bolgen = {
+    id: "b-bolgen",
+    name: "Bolgen Plaza",
+    ort: "Davos Platz",
+    telefon: "+41 81 000 00 00",
+    status: "aktiv",
+  };
+  assertEquals(
+    personAusBetriebMitPersonen(bolgen, []).names[0].unstructuredName,
+    "Davos - Bolgen Plaza",
+  );
 });
 
 Deno.test("vergleichsKey: Nummern-Reihenfolge egal", () => {
