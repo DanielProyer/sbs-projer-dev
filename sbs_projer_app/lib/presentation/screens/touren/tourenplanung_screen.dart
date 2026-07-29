@@ -82,6 +82,10 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     );
     if (_loadedForDate != _selectedDate) {
       final tag = _selectedDate;
+      // Der gespeicherte Tagesplan liefert seit Task 5 zusätzlich den
+      // Arbeitstag-Rahmen (arbeitsbeginn/-ende, km-Stand). Der wird erst in
+      // Task 6 in den UI-State übernommen — hier vorerst nur `.eintraege`,
+      // Verhalten bleibt unverändert.
       void anwenden(List<TourEintrag>? gespeichert) {
         _loadedForDate = tag;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -100,7 +104,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
       gespeichertAsync.when(
         data: (gespeichert) {
-          if (_loadedForDate != tag) anwenden(gespeichert);
+          if (_loadedForDate != tag) anwenden(gespeichert?.eintraege);
         },
         loading: () {},
         error: (_, _) {
@@ -1004,7 +1008,8 @@ class _TourInfoZeile extends ConsumerWidget {
     final ruheTxt = ruhetageText(ruhetage);
     // Fehlt die Servicezeit ganz, wird das benannt — sonst ist nicht
     // erkennbar, ob sie fehlt oder ob kein Service möglich ist.
-    final zeitFehlt = zeitTxt == null && eintrag.typ == TourEintragTyp.reinigung;
+    final zeitFehlt =
+        zeitTxt == null && eintrag.typ == TourEintragTyp.reinigung;
 
     if (!heuteRuhetag && ruheTxt.isEmpty && zeitTxt == null && !zeitFehlt) {
       return const SizedBox.shrink();

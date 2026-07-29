@@ -37,7 +37,6 @@ final regionenProvider = Provider<List<RegionLocal>>((ref) {
 
 // ─── Fälligkeits-Status ───
 
-
 int? _rhythmusTage(String rhythmus) {
   switch (rhythmus) {
     case '4-Wochen':
@@ -283,8 +282,8 @@ final faelligeAnlagenProvider = Provider.family<List<AnlageLocal>, DateTime>(
 /// Wie [faelligeAnlagenProvider], nur schaltbar um die nicht fälligen Anlagen.
 final tourAnlagenProvider =
     Provider.family<List<AnlageLocal>, ({DateTime datum, bool alle})>(
-  (ref, k) => _anlagenFuerTour(ref, k.datum, mitNichtFaelligen: k.alle),
-);
+      (ref, k) => _anlagenFuerTour(ref, k.datum, mitNichtFaelligen: k.alle),
+    );
 
 // ─── Tour-Vorschlag Provider (Reinigungen von vor ~28 Tagen) ───
 
@@ -314,10 +313,21 @@ final faelligeAnlagenCountProvider = Provider<int>((ref) {
 
 enum TourEintragTyp { reinigung, stoerung, montage, heigenie }
 
+/// Sentinel für `copyWith` auf nullable Feldern: unterscheidet „Parameter
+/// nicht angegeben" (Feld bleibt unverändert) von „Parameter explizit auf
+/// null gesetzt" (Feld wird geleert), was mit einem simplen `?? this.x`
+/// nicht ginge.
+const _unset = Object();
+
 class TourEintrag {
   final TourEintragTyp typ;
   final String id;
   final String? betriebId;
+  // WICHTIG: anlageId bleibt bestehen (nicht durch anlageIds ersetzt) und
+  // wird weiterhin befüllt (= erste Anlage von anlageIds), damit bestehende
+  // Screens (z.B. „Reinigung starten") unverändert funktionieren. Fachlich
+  // führend ist ab jetzt anlageIds — anlageId ist nur noch die Kompatibilitäts-
+  // Ansicht darauf.
   final String? anlageId;
   final String betriebName;
   final String? betriebOrt;
@@ -329,6 +339,19 @@ class TourEintrag {
   final String? servicezeit;
   final bool istAutoTermin;
   final DateTime? zielDatum;
+  // ─── Besuchs-Block (Task 5, Spec Abschnitt 1) ───
+  /// Alle Anlagen dieses Besuchs (Reinigung). Fachlich führend; `anlageId`
+  /// bleibt als Kompatibilitäts-Feld daneben bestehen (siehe oben).
+  final List<String> anlageIds;
+
+  /// Manuelle Übersteuerung der geschätzten Besuchsdauer.
+  final int? dauerMinuten;
+
+  /// Termin-Anker „frühestens HH:mm" — erzeugt im Zeitplan ggf. Wartezeit.
+  final String? ankerZeit;
+
+  /// Aus einer Plan-Übernahme entstanden, heute nicht fällig → grau markiert.
+  final bool uebernommen;
 
   const TourEintrag({
     required this.typ,
@@ -345,6 +368,10 @@ class TourEintrag {
     this.servicezeit,
     this.istAutoTermin = false,
     this.zielDatum,
+    this.anlageIds = const [],
+    this.dauerMinuten,
+    this.ankerZeit,
+    this.uebernommen = false,
   });
 
   /// Version für den gespeicherten Plan (kein Auto-Marker mehr).
@@ -361,12 +388,64 @@ class TourEintrag {
     datum: datum,
     ruhetage: ruhetage,
     servicezeit: servicezeit,
+    anlageIds: anlageIds,
+    dauerMinuten: dauerMinuten,
+    ankerZeit: ankerZeit,
+    uebernommen: uebernommen,
+  );
+
+  /// Kopie mit geänderten Feldern. `typ`/`id` sind fest (Identität eines
+  /// Eintrags ändert sich nicht). Für die nullable Felder `dauerMinuten`
+  /// und `ankerZeit` wird ein Sentinel (`_unset`) genutzt, damit man sie
+  /// gezielt auf `null` zurücksetzen kann (z.B. Anker entfernen) statt nur
+  /// „nicht angegeben" ausdrücken zu können.
+  TourEintrag copyWith({
+    String? betriebId,
+    String? anlageId,
+    String? betriebName,
+    String? betriebOrt,
+    String? regionId,
+    String? beschreibung,
+    FaelligkeitsStatus? faelligkeit,
+    DateTime? datum,
+    List<String>? ruhetage,
+    String? servicezeit,
+    bool? istAutoTermin,
+    DateTime? zielDatum,
+    List<String>? anlageIds,
+    Object? dauerMinuten = _unset,
+    Object? ankerZeit = _unset,
+    bool? uebernommen,
+  }) => TourEintrag(
+    typ: typ,
+    id: id,
+    betriebId: betriebId ?? this.betriebId,
+    anlageId: anlageId ?? this.anlageId,
+    betriebName: betriebName ?? this.betriebName,
+    betriebOrt: betriebOrt ?? this.betriebOrt,
+    regionId: regionId ?? this.regionId,
+    beschreibung: beschreibung ?? this.beschreibung,
+    faelligkeit: faelligkeit ?? this.faelligkeit,
+    datum: datum ?? this.datum,
+    ruhetage: ruhetage ?? this.ruhetage,
+    servicezeit: servicezeit ?? this.servicezeit,
+    istAutoTermin: istAutoTermin ?? this.istAutoTermin,
+    zielDatum: zielDatum ?? this.zielDatum,
+    anlageIds: anlageIds ?? this.anlageIds,
+    dauerMinuten: identical(dauerMinuten, _unset)
+        ? this.dauerMinuten
+        : dauerMinuten as int?,
+    ankerZeit: identical(ankerZeit, _unset)
+        ? this.ankerZeit
+        : ankerZeit as String?,
+    uebernommen: uebernommen ?? this.uebernommen,
   );
 }
 
 // ─── Filter-State ───
 
 final selectedRegionenProvider = StateProvider<Set<String>>((ref) => {});
+
 /// Fälligkeits-Auswahl der Tourenplanung.
 ///
 /// Standard: alles ausser «Alle» — überfällig, fällig, bald fällig und die
@@ -375,8 +454,9 @@ final selectedRegionenProvider = StateProvider<Set<String>>((ref) => {});
 /// Kunden «bald fällig» — ohne sie wirkte das Planungsdatum wirkungslos
 /// (verifiziert: 32 Anlagen im +7-Tage-Fenster unsichtbar). Eröffnung und
 /// Endreinigung liegen seit 29.07.2026 zusammen unter «Saison».
-final selectedFaelligkeitProvider =
-    StateProvider<Set<TourFilter>>((ref) => standardTourFilter);
+final selectedFaelligkeitProvider = StateProvider<Set<TourFilter>>(
+  (ref) => standardTourFilter,
+);
 
 // ─── Betrieb-Lookup Helper ───
 
@@ -428,8 +508,9 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
   // 1. Fällige Anlagen → Reinigungen. Bei aktivem «Alle»-Filter kommen auch
   // die noch nicht fälligen Anlagen dazu.
   final alle = zeigtNichtFaellige(ref.watch(selectedFaelligkeitProvider));
-  final faelligeAnlagen =
-      ref.watch(tourAnlagenProvider((datum: datum, alle: alle)));
+  final faelligeAnlagen = ref.watch(
+    tourAnlagenProvider((datum: datum, alle: alle)),
+  );
   for (final a in faelligeAnlagen) {
     final betrieb = betriebMap[a.betriebId];
     final serviceArt = a.serverId != null ? serviceArtMap[a.serverId!] : null;
@@ -862,38 +943,68 @@ Map<String, dynamic> _tourEintragToJson(TourEintrag e) => {
   'faelligkeit': e.faelligkeit?.name,
   'datum': e.datum?.toIso8601String(),
   'zielDatum': e.zielDatum?.toIso8601String(),
+  'anlageIds': e.anlageIds,
+  'dauerMinuten': e.dauerMinuten,
+  'ankerZeit': e.ankerZeit,
+  'uebernommen': e.uebernommen,
 };
 
-TourEintrag _tourEintragFromJson(Map<String, dynamic> j) => TourEintrag(
-  typ: TourEintragTyp.values.firstWhere(
-    (t) => t.name == j['typ'],
-    orElse: () => TourEintragTyp.reinigung,
-  ),
-  id: j['id'] as String,
-  betriebId: j['betriebId'] as String?,
-  anlageId: j['anlageId'] as String?,
-  betriebName: j['betriebName'] as String? ?? '',
-  betriebOrt: j['betriebOrt'] as String?,
-  regionId: j['regionId'] as String?,
-  beschreibung: j['beschreibung'] as String? ?? '',
-  ruhetage:
-      (j['ruhetage'] as List<dynamic>?)?.map((e) => e as String).toList() ??
-      const [],
-  servicezeit: j['servicezeit'] as String?,
-  faelligkeit: j['faelligkeit'] != null
-      ? FaelligkeitsStatus.values.firstWhere(
-          (f) => f.name == j['faelligkeit'],
-          orElse: () => FaelligkeitsStatus.nichtFaellig,
-        )
-      : null,
-  datum: j['datum'] != null ? DateTime.tryParse(j['datum'] as String) : null,
-  zielDatum: j['zielDatum'] != null
-      ? DateTime.tryParse(j['zielDatum'] as String)
-      : null,
-);
+TourEintrag _tourEintragFromJson(Map<String, dynamic> j) {
+  // Lademigration: Altpläne kennen nur das einzelne `anlageId`-Feld, keine
+  // `anlageIds`-Liste. Ist eine Liste vorhanden, ist sie führend; sonst wird
+  // sie aus dem Alt-Feld nachgebildet (leer, falls auch das fehlt).
+  final anlageIds =
+      (j['anlageIds'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      [if (j['anlageId'] != null) j['anlageId'] as String];
+  return TourEintrag(
+    typ: TourEintragTyp.values.firstWhere(
+      (t) => t.name == j['typ'],
+      orElse: () => TourEintragTyp.reinigung,
+    ),
+    id: j['id'] as String,
+    betriebId: j['betriebId'] as String?,
+    // anlageId bleibt die erste Anlage — egal ob aus neuem oder altem Feld.
+    anlageId: anlageIds.isNotEmpty ? anlageIds.first : j['anlageId'] as String?,
+    betriebName: j['betriebName'] as String? ?? '',
+    betriebOrt: j['betriebOrt'] as String?,
+    regionId: j['regionId'] as String?,
+    beschreibung: j['beschreibung'] as String? ?? '',
+    ruhetage:
+        (j['ruhetage'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+        const [],
+    servicezeit: j['servicezeit'] as String?,
+    faelligkeit: j['faelligkeit'] != null
+        ? FaelligkeitsStatus.values.firstWhere(
+            (f) => f.name == j['faelligkeit'],
+            orElse: () => FaelligkeitsStatus.nichtFaellig,
+          )
+        : null,
+    datum: j['datum'] != null ? DateTime.tryParse(j['datum'] as String) : null,
+    zielDatum: j['zielDatum'] != null
+        ? DateTime.tryParse(j['zielDatum'] as String)
+        : null,
+    anlageIds: anlageIds,
+    dauerMinuten: j['dauerMinuten'] as int?,
+    ankerZeit: j['ankerZeit'] as String?,
+    uebernommen: j['uebernommen'] as bool? ?? false,
+  );
+}
+
+/// Gespeicherter Tagesplan samt Arbeitstag-Rahmen (Arbeitsbeginn/-ende,
+/// km-Stand). Der Rahmen wird ab Task 6 im UI-State übernommen; hier nur
+/// kompilierfähig durchgereicht.
+typedef GespeicherterTagesplan = ({
+  List<TourEintrag> eintraege,
+  String? arbeitsbeginn,
+  String? arbeitsende,
+  int? kmStand,
+});
 
 final gespeicherterTagesplanProvider =
-    FutureProvider.family<List<TourEintrag>?, DateTime>((ref, datum) async {
+    FutureProvider.family<GespeicherterTagesplan?, DateTime>((
+      ref,
+      datum,
+    ) async {
       try {
         final datumStr =
             '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
@@ -903,10 +1014,16 @@ final gespeicherterTagesplanProvider =
             .eq('datum', datumStr)
             .limit(1);
         if (rows.isEmpty) return null;
-        final eintraege = (rows.first['eintraege'] as List<dynamic>)
+        final row = rows.first;
+        final eintraege = (row['eintraege'] as List<dynamic>)
             .map((e) => _tourEintragFromJson(Map<String, dynamic>.from(e)))
             .toList();
-        return eintraege;
+        return (
+          eintraege: eintraege,
+          arbeitsbeginn: row['arbeitsbeginn'] as String?,
+          arbeitsende: row['arbeitsende'] as String?,
+          kmStand: row['km_stand'] as int?,
+        );
       } catch (e) {
         debugPrint('[Tagesplan] Laden fehlgeschlagen: $e');
         return null;
@@ -915,8 +1032,11 @@ final gespeicherterTagesplanProvider =
 
 Future<void> tagesplanSpeichern(
   DateTime datum,
-  List<TourEintrag> eintraege,
-) async {
+  List<TourEintrag> eintraege, {
+  String? arbeitsbeginn,
+  String? arbeitsende,
+  int? kmStand,
+}) async {
   final datumStr =
       '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
   final userId = SupabaseService.client.auth.currentUser!.id;
@@ -926,6 +1046,9 @@ Future<void> tagesplanSpeichern(
     'datum': datumStr,
     'eintraege': json,
     'updated_at': DateTime.now().toIso8601String(),
+    if (arbeitsbeginn != null) 'arbeitsbeginn': arbeitsbeginn,
+    if (arbeitsende != null) 'arbeitsende': arbeitsende,
+    if (kmStand != null) 'km_stand': kmStand,
   }, onConflict: 'user_id,datum');
 }
 
@@ -969,7 +1092,7 @@ final tagesCountsProvider = Provider.family<List<int>, DateTime>((
         .watch(gespeicherterTagesplanProvider(day))
         .valueOrNull;
     if (gespeichert != null) {
-      counts[i] = gespeichert.length;
+      counts[i] = gespeichert.eintraege.length;
       continue;
     }
 
