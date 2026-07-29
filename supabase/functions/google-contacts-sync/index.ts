@@ -3,6 +3,12 @@
 // Identitaet: clientData.sbs_id = "kontakt:<uuid>" | "betrieb:<uuid>".
 // Sicherheitsregel: Nur Eintraege MIT sbs_id werden je angefasst/geloescht.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  type Any,
+  baueSoll,
+  sbsIdVon,
+  vergleichsKey,
+} from "./mapping.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -14,82 +20,6 @@ const PEOPLE = "https://people.googleapis.com/v1";
 const LABEL_NAME = "SBS App";
 const PERSON_FIELDS =
   "names,organizations,phoneNumbers,emailAddresses,memberships,clientData";
-// deno-lint-ignore no-explicit-any
-type Any = any;
-
-// ── Reine Funktionen (Soll-Filter + Mapping + Vergleich) ──
-
-export function istSyncWuerdigKontakt(k: Any): boolean {
-  const tel = (k.telefon ?? "").trim();
-  const mail = (k.email ?? "").trim();
-  return tel !== "" || mail !== "";
-}
-
-export function istSyncWuerdigBetrieb(b: Any): boolean {
-  const tel = (b.telefon ?? "").trim();
-  return (b.status === "aktiv" || b.status === "saisonpause") && tel !== "";
-}
-
-// Person-Payload fuer einen App-Kontakt. betriebText = "Name, Ort" oder "".
-export function personAusKontakt(k: Any, betriebText: string): Any {
-  const p: Any = {
-    names: [{
-      givenName: (k.vorname ?? "").trim(),
-      familyName: (k.nachname ?? "").trim(),
-    }],
-    clientData: [{ key: "sbs_id", value: `kontakt:${k.id}` }],
-  };
-  if (betriebText || (k.funktion ?? k.rolle)) {
-    p.organizations = [{
-      name: betriebText,
-      title: ((k.funktion ?? k.rolle) ?? "").trim(),
-    }];
-  }
-  const tel = (k.telefon ?? "").trim();
-  if (tel) p.phoneNumbers = [{ value: tel, type: "mobile" }];
-  const mail = (k.email ?? "").trim();
-  if (mail) p.emailAddresses = [{ value: mail }];
-  return p;
-}
-
-export function personAusBetrieb(b: Any): Any {
-  const anzeige = [b.name, b.ort].filter((x: Any) => (x ?? "").trim() !== "")
-    .join(" ");
-  return {
-    names: [{ unstructuredName: anzeige }],
-    organizations: [{ name: (b.name ?? "").trim() }],
-    phoneNumbers: [{ value: (b.telefon ?? "").trim(), type: "work" }],
-    clientData: [{ key: "sbs_id", value: `betrieb:${b.id}` }],
-  };
-}
-
-// Vergleichs-Schluessel: alles, was wir schreiben, normalisiert.
-// Name als EIN zusammengesetzter Schluessel: Google zerlegt unstructuredName
-// beim Speichern in given/family und liefert beim Lesen beide Varianten —
-// Einzelfeld-Vergleich saehe deshalb JEDEN Betrieb bei JEDEM Lauf als
-// geaendert (Endlos-Churn). "given family" und unstructuredName ergeben
-// denselben Schluessel.
-export function vergleichsKey(p: Any): string {
-  const n = p.names?.[0] ?? {};
-  const o = p.organizations?.[0] ?? {};
-  const nameKey =
-    [n.givenName ?? "", n.familyName ?? ""].join(" ").trim() ||
-    (n.unstructuredName ?? "").trim();
-  return JSON.stringify([
-    nameKey,
-    o.name ?? "",
-    o.title ?? "",
-    p.phoneNumbers?.[0]?.value ?? "",
-    p.emailAddresses?.[0]?.value ?? "",
-  ]);
-}
-
-export function sbsIdVon(p: Any): string | null {
-  for (const c of p.clientData ?? []) {
-    if (c.key === "sbs_id" && c.value) return c.value as string;
-  }
-  return null;
-}
 
 // ── People-API-Helfer ──
 
@@ -156,18 +86,12 @@ function chunks<T>(arr: T[], n: number): T[][] {
 async function reconcile(admin: Any, token: string, userId: string) {
   // Soll-Zustand laden
   const { data: kontakte } = await admin.from("kontakte").select(
-    "id, vorname, nachname, funktion, rolle, telefon, email, betrieb_id",
+    "id, vorname, nachname, funktion, rolle, telefon, email, betrieb_id, " +
+      "ist_hauptkontakt",
   ).eq("user_id", userId);
   const { data: betriebe } = await admin.from("betriebe").select(
     "id, name, ort, telefon, status",
   ).eq("user_id", userId);
-  const betriebText = new Map<string, string>();
-  for (const b of betriebe ?? []) {
-    betriebText.set(
-      b.id,
-      [b.name, b.ort].filter((x: Any) => (x ?? "").trim() !== "").join(", "),
-    );
-  }
 
   const label = await ensureLabel(token);
   const membership = {
@@ -176,15 +100,11 @@ async function reconcile(admin: Any, token: string, userId: string) {
     }],
   };
 
-  const soll = new Map<string, Any>(); // sbs_id -> Person-Payload
-  for (const k of (kontakte ?? []).filter(istSyncWuerdigKontakt)) {
-    soll.set(`kontakt:${k.id}`, {
-      ...personAusKontakt(k, betriebText.get(k.betrieb_id) ?? ""),
-      ...membership,
-    });
-  }
-  for (const b of (betriebe ?? []).filter(istSyncWuerdigBetrieb)) {
-    soll.set(`betrieb:${b.id}`, { ...personAusBetrieb(b), ...membership });
+  // sbs_id -> Person-Payload. Ein Betrieb trägt seine Kontaktpersonen in
+  // derselben Karte; siehe mapping.ts.
+  const soll = new Map<string, Any>();
+  for (const [id, person] of baueSoll(kontakte ?? [], betriebe ?? [])) {
+    soll.set(id, { ...person, ...membership });
   }
 
   const ist = await listeIst(token, label);
@@ -238,7 +158,9 @@ async function reconcile(admin: Any, token: string, userId: string) {
     updated: aktualisieren.length,
     deleted: loeschen.length,
     total: soll.size,
-    info: `${kontakteAnz} Kontakte, ${betriebeAnz} Betriebe`,
+    // Kontaktpersonen stecken seit 29.07.2026 in der Betriebs-Karte; als
+    // «Kontakte» zählen nur noch die eigenständigen Einträge.
+    info: `${betriebeAnz} Betriebe, ${kontakteAnz} Einzelkontakte`,
   };
 }
 
