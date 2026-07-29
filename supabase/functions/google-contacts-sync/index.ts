@@ -129,20 +129,28 @@ async function reconcile(admin: Any, token: string, userId: string) {
     .filter(([id]) => !soll.has(id))
     .map(([, p]) => p.resourceName);
 
-  // Ausfuehren (Batch-Limits: create 200, delete 500)
+  // Ausfuehren (Batch-Limits: create 200, update 200, delete 500).
+  //
+  // Auch die Aenderungen laufen als Sammel-Aufruf: Einzelne PATCH-Requests
+  // sprengten bei einer breiten Umstellung das Zeitlimit der Function
+  // (150 s) — die Umbenennung aller Betriebskarten am 29.07.2026 haette
+  // ~280 Einzel-Requests gebraucht.
   for (const teil of chunks(anlegen, 200)) {
     await gapi(token, "POST", "/people:batchCreateContacts", {
       contacts: teil.map((p) => ({ contactPerson: p })),
       readMask: "names",
     });
   }
-  for (const u of aktualisieren) {
-    await gapi(
-      token,
-      "PATCH",
-      `/${u.resourceName}:updateContact?updatePersonFields=names,organizations,phoneNumbers,emailAddresses`,
-      { ...u.person, etag: u.etag },
-    );
+  for (const teil of chunks(aktualisieren, 200)) {
+    const contacts: Record<string, Any> = {};
+    for (const u of teil) {
+      contacts[u.resourceName] = { ...u.person, etag: u.etag };
+    }
+    await gapi(token, "POST", "/people:batchUpdateContacts", {
+      contacts,
+      updateMask: "names,organizations,phoneNumbers,emailAddresses",
+      readMask: "names",
+    });
   }
   for (const teil of chunks(loeschen, 500)) {
     await gapi(token, "POST", "/people:batchDeleteContacts", {
