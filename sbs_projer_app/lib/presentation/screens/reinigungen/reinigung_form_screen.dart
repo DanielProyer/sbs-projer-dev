@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,8 @@ import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
+import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -147,6 +150,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
 
   String _formatTime(TimeOfDay time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// 'HH:mm' -> Minuten seit Mitternacht, fuer die Fahrzeit-Nachfuehrung
+  /// (Auswahl der zeitlich letzten vorherigen Reinigung). Lokale Kopie statt
+  /// Abhaengigkeit — dieselbe Parsing-Regel wie in besuch_dauer.dart.
+  int? _hmMinuten(String? s) {
+    if (s == null) return null;
+    final t = s.split(':');
+    if (t.length < 2) return null;
+    final h = int.tryParse(t[0]), m = int.tryParse(t[1]);
+    if (h == null || m == null) return null;
+    return h * 60 + m;
   }
 
   Future<void> _loadReinigung() async {
@@ -492,6 +507,44 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       }
 
       await ReinigungRepository.save(r);
+
+      // Fahrzeit-Nachfuehrung (Spec 2026-07-29 §3.1, Task 4): hat die
+      // Reinigung Start- UND Enduhrzeit, wird die Luecke zur zeitlich
+      // letzten ANDEREN Reinigung DESSELBEN Tages (anderer Betrieb, Ende vor
+      // diesem Start) als beobachtete Fahrzeit nachgefuehrt. Fire-and-forget:
+      // Fehler werden in FahrzeitRepository still geloggt, dieser Fluss darf
+      // das Speichern einer Reinigung nie stoeren.
+      if (r.uhrzeitStart != null && r.uhrzeitEnde != null) {
+        final startMin = _hmMinuten(r.uhrzeitStart);
+        if (startMin != null) {
+          ReinigungLocal? vorherige;
+          int? vorherigeEndeMin;
+          for (final x in ref.read(reinigungenProvider)) {
+            if (x.betriebId.isEmpty || x.betriebId == r.betriebId) continue;
+            if (x.datum.year != r.datum.year ||
+                x.datum.month != r.datum.month ||
+                x.datum.day != r.datum.day) {
+              continue;
+            }
+            final endeMin = _hmMinuten(x.uhrzeitEnde);
+            if (endeMin == null || endeMin >= startMin) continue;
+            if (vorherigeEndeMin == null || endeMin > vorherigeEndeMin) {
+              vorherige = x;
+              vorherigeEndeMin = endeMin;
+            }
+          }
+          if (vorherige != null) {
+            final luecke = fahrtLueckeMinuten(vorherige.uhrzeitEnde, r.uhrzeitStart);
+            if (luecke != null) {
+              unawaited(FahrzeitRepository.beobachtungNachfuehren(
+                vonBetriebId: vorherige.betriebId,
+                nachBetriebId: r.betriebId,
+                minuten: luecke,
+              ));
+            }
+          }
+        }
+      }
 
       // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
       bool buchungKorrigiert = false;
