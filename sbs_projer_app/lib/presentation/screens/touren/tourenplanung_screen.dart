@@ -982,20 +982,31 @@ class _AutoTerminKarte extends StatelessWidget {
 
 // ─── Info-Zeile: Ruhetage / Servicezeiten / Ruhetag-Warnung ───
 
-class _TourInfoZeile extends StatelessWidget {
+class _TourInfoZeile extends ConsumerWidget {
   final DateTime datum;
   final TourEintrag eintrag;
 
   const _TourInfoZeile({required this.datum, required this.eintrag});
 
   @override
-  Widget build(BuildContext context) {
-    final heuteRuhetag = istRuhetag(eintrag.ruhetage, datum);
-    final ruheTxt = ruhetageText(eintrag.ruhetage);
-    final zeitTxt = eintrag.servicezeit;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Ruhetage und Servicezeit immer frisch aus den Stammdaten — im
+    // gespeicherten Tagesplan stehen sie nur als Kopie vom Speicherzeitpunkt.
+    final betrieb = eintrag.betriebId == null
+        ? null
+        : ref.watch(betriebLookupProvider)[eintrag.betriebId!];
+    final ruhetage = betrieb?.ruhetage ?? eintrag.ruhetage;
+    final zeitTxt = betrieb != null
+        ? servicezeitAus(betrieb)
+        : eintrag.servicezeit;
 
-    // Nichts anzuzeigen
-    if (!heuteRuhetag && ruheTxt.isEmpty && (zeitTxt == null)) {
+    final heuteRuhetag = istRuhetag(ruhetage, datum);
+    final ruheTxt = ruhetageText(ruhetage);
+    // Fehlt die Servicezeit ganz, wird das benannt — sonst ist nicht
+    // erkennbar, ob sie fehlt oder ob kein Service möglich ist.
+    final zeitFehlt = zeitTxt == null && eintrag.typ == TourEintragTyp.reinigung;
+
+    if (!heuteRuhetag && ruheTxt.isEmpty && zeitTxt == null && !zeitFehlt) {
       return const SizedBox.shrink();
     }
 
@@ -1025,6 +1036,8 @@ class _TourInfoZeile extends StatelessWidget {
 
     if (zeitTxt != null) {
       children.add(_infoChip(Icons.schedule, zeitTxt));
+    } else if (zeitFehlt) {
+      children.add(_infoChip(Icons.schedule, 'Servicezeit fehlt'));
     }
 
     return Padding(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
@@ -544,6 +545,63 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   String? _emptyToNull(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  /// Sagt im Klartext, was die eingetragenen Zeiten bedeuten.
+  ///
+  /// Ein leer gelassener Block heisst «dann kein Service» — sobald der andere
+  /// gefüllt ist (Regel Daniel 29.07.2026). Ohne diesen Satz war an leeren
+  /// Feldern nicht erkennbar, ob die Zeit fehlt oder ob zu der Tageszeit
+  /// kein Service möglich ist.
+  Widget _servicezeitHinweis() {
+    final morgen = _emptyToNull(_servicezeitMorgenAbCtrl.text) != null &&
+        _emptyToNull(_servicezeitMorgenBisCtrl.text) != null;
+    final nachmittag =
+        _emptyToNull(_servicezeitNachmittagAbCtrl.text) != null &&
+            _emptyToNull(_servicezeitNachmittagBisCtrl.text) != null;
+
+    final (IconData icon, String text, Color farbe) = switch ((
+      morgen,
+      nachmittag,
+    )) {
+      (true, true) => (
+          Icons.check_circle_outline,
+          'Service vormittags und nachmittags möglich.',
+          AppColors.success,
+        ),
+      (true, false) => (
+          Icons.info_outline,
+          'Nachmittags kein Service möglich. Für Service am Nachmittag dort '
+              'eine Zeit eintragen.',
+          AppColors.textSecondary,
+        ),
+      (false, true) => (
+          Icons.info_outline,
+          'Morgens kein Service möglich. Für Service am Morgen dort eine Zeit '
+              'eintragen.',
+          AppColors.textSecondary,
+        ),
+      (false, false) => (
+          Icons.help_outline,
+          'Servicezeit noch nicht erfasst. Ein leer gelassener Block gilt als '
+              '«kein Service», sobald der andere ausgefüllt ist.',
+          AppColors.warning,
+        ),
+    };
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 15, color: farbe),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12, color: farbe),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -1203,6 +1261,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              _servicezeitHinweis(),
             ],
             const SizedBox(height: 16),
 

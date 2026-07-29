@@ -1,4 +1,5 @@
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 
 // Saison-/Übergangs-Logik für die Tourenplanung (reine Funktionen, testbar).
@@ -7,18 +8,10 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 /// Schliessung" und löst Endreinigung/Eröffnung aus.
 const int langeSchliessungTage = 21;
 
-const List<String> _wochentageVoll = [
-  'Montag',
-  'Dienstag',
-  'Mittwoch',
-  'Donnerstag',
-  'Freitag',
-  'Samstag',
-  'Sonntag',
-];
-
-bool _istRuhetag(BetriebLocal b, DateTime tag) =>
-    b.ruhetage.contains(_wochentageVoll[tag.weekday - 1]);
+// Ruhetag-Erkennung liegt in touren_anzeige.dart und versteht Kürzel wie
+// volle Namen. Hier stand früher eine eigene Prüfung nur auf volle Namen —
+// da die Betriebe Kürzel speichern, wurde nie ein Ruhetag erkannt.
+bool _istRuhetag(BetriebLocal b, DateTime tag) => istRuhetag(b.ruhetage, tag);
 
 /// Liegt [datum] im Saisonfenster [von]–[bis]?
 ///

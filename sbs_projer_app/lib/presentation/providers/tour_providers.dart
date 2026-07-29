@@ -389,6 +389,19 @@ Map<String, BetriebLocal> _buildBetriebMap(List<BetriebLocal> betriebe) {
   return map;
 }
 
+/// Betrieb nachschlagen — über routeId oder serverId.
+///
+/// Anzeigen wie Ruhetage und Servicezeit holen ihre Werte darüber frisch aus
+/// den Stammdaten. Im gespeicherten Tagesplan liegen sie nur als Kopie vom
+/// Zeitpunkt des Speicherns; eine später gepflegte Servicezeit tauchte dort
+/// nie auf (Fall Conditorei Fischer, 29.07.2026).
+final betriebLookupProvider = Provider<Map<String, BetriebLocal>>(
+  (ref) => _buildBetriebMap(ref.watch(betriebeProvider)),
+);
+
+/// Servicezeit-Text eines Betriebs; null, wenn nichts erfasst ist.
+String? servicezeitAus(BetriebLocal? b) => _servicezeitAus(b);
+
 String? _servicezeitAus(BetriebLocal? b) {
   if (b == null) return null;
   final t = servicezeitText(

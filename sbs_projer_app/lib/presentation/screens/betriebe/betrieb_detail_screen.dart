@@ -210,15 +210,27 @@ class _BetriebDetailContent extends ConsumerWidget {
             ),
 
           // Servicezeiten
+          // Beide Zeilen immer zeigen: ein leerer Block heisst «kein Service»,
+          // sobald der andere gefüllt ist (Regel Daniel 29.07.2026). Fehlte
+          // die Zeile ganz, war das nicht von «noch nicht erfasst» zu
+          // unterscheiden.
           if (betrieb.servicezeitMorgenAb != null || betrieb.servicezeitNachmittagAb != null)
             _SectionCard(
               title: 'Servicezeiten',
               icon: Icons.schedule,
               children: [
-                if (betrieb.servicezeitMorgenAb != null)
-                  _InfoRow('Morgen', '${betrieb.servicezeitMorgenAb} – ${betrieb.servicezeitMorgenBis ?? '?'}'),
-                if (betrieb.servicezeitNachmittagAb != null)
-                  _InfoRow('Nachmittag', '${betrieb.servicezeitNachmittagAb} – ${betrieb.servicezeitNachmittagBis ?? '?'}'),
+                _InfoRow(
+                  'Morgen',
+                  betrieb.servicezeitMorgenAb != null
+                      ? '${betrieb.servicezeitMorgenAb} – ${betrieb.servicezeitMorgenBis ?? '?'}'
+                      : 'kein Service',
+                ),
+                _InfoRow(
+                  'Nachmittag',
+                  betrieb.servicezeitNachmittagAb != null
+                      ? '${betrieb.servicezeitNachmittagAb} – ${betrieb.servicezeitNachmittagBis ?? '?'}'
+                      : 'kein Service',
+                ),
               ],
             ),
 
