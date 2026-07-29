@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
@@ -1346,9 +1347,9 @@ class _BlockSheet extends ConsumerWidget {
                       onTap: () async {
                         final jetzt =
                             minutenAusHhmm(eintrag.ankerZeit) ?? 8 * 60;
-                        final gewaehltZeit = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
+                        final gewaehltZeit = await zeigeZeitauswahl(
+                          context,
+                          initial: TimeOfDay(
                             hour: jetzt ~/ 60,
                             minute: jetzt % 60,
                           ),
@@ -1569,9 +1570,9 @@ class _ArbeitstagZeile extends ConsumerWidget {
             text: 'Start ${at.beginn}',
             onTap: () async {
               final start = minutenAusHhmm(at.beginn) ?? 6 * 60;
-              final gewaehlt = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay(hour: start ~/ 60, minute: start % 60),
+              final gewaehlt = await zeigeZeitauswahl(
+                context,
+                initial: TimeOfDay(hour: start ~/ 60, minute: start % 60),
               );
               if (gewaehlt == null) return;
               await speichern((

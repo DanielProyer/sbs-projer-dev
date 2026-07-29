@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
+import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
@@ -129,7 +130,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _servicezeitMorgenAbCtrl.text = betrieb.servicezeitMorgenAb ?? '';
       _servicezeitMorgenBisCtrl.text = betrieb.servicezeitMorgenBis ?? '';
       _servicezeitNachmittagAbCtrl.text = betrieb.servicezeitNachmittagAb ?? '';
-      _servicezeitNachmittagBisCtrl.text = betrieb.servicezeitNachmittagBis ?? '';
+      _servicezeitNachmittagBisCtrl.text =
+          betrieb.servicezeitNachmittagBis ?? '';
       _status = betrieb.status;
       _schliessungsgrund = betrieb.schliessungsgrund;
       _schliessungsdatum = betrieb.schliessungsdatum;
@@ -145,12 +147,18 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _sommerStartDatum = betrieb.sommerStartDatum;
       _sommerEndeDatum = betrieb.sommerEndeDatum;
       final geladeneStarts = [
-        betrieb.ferienStart, betrieb.ferien2Start, betrieb.ferien3Start,
-        betrieb.ferien4Start, betrieb.ferien5Start,
+        betrieb.ferienStart,
+        betrieb.ferien2Start,
+        betrieb.ferien3Start,
+        betrieb.ferien4Start,
+        betrieb.ferien5Start,
       ];
       final geladeneEnden = [
-        betrieb.ferienEnde, betrieb.ferien2Ende, betrieb.ferien3Ende,
-        betrieb.ferien4Ende, betrieb.ferien5Ende,
+        betrieb.ferienEnde,
+        betrieb.ferien2Ende,
+        betrieb.ferien3Ende,
+        betrieb.ferien4Ende,
+        betrieb.ferien5Ende,
       ];
       for (var i = 0; i < 5; i++) {
         _ferienStarts[i] = geladeneStarts[i];
@@ -169,14 +177,21 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _longitude = betrieb.longitude;
       _zapfsysteme = List<String>.from(betrieb.zapfsysteme);
       _zahlerAliase = List<String>.from(betrieb.zahlerAliase);
-      if (betrieb.oeffnungszeitenJson != null && betrieb.oeffnungszeitenJson!.isNotEmpty) {
+      if (betrieb.oeffnungszeitenJson != null &&
+          betrieb.oeffnungszeitenJson!.isNotEmpty) {
         try {
-          final map = jsonDecode(betrieb.oeffnungszeitenJson!) as Map<String, dynamic>;
+          final map =
+              jsonDecode(betrieb.oeffnungszeitenJson!) as Map<String, dynamic>;
           for (final tag in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) {
             final slots = map[tag];
             if (slots is List) {
               _oeffnungszeiten[tag] = slots
-                  .map((s) => {'von': s['von']?.toString() ?? '', 'bis': s['bis']?.toString() ?? ''})
+                  .map(
+                    (s) => {
+                      'von': s['von']?.toString() ?? '',
+                      'bis': s['bis']?.toString() ?? '',
+                    },
+                  )
                   .toList();
             }
           }
@@ -200,9 +215,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _snack('Bitte zuerst den Betriebsnamen eingeben.');
       return;
     }
-    final ortTeil = [_plzController.text.trim(), _ortController.text.trim()]
-        .where((s) => s.isNotEmpty)
-        .join(' ');
+    final ortTeil = [
+      _plzController.text.trim(),
+      _ortController.text.trim(),
+    ].where((s) => s.isNotEmpty).join(' ');
     final query = ortTeil.isEmpty ? name : '$name $ortTeil';
 
     setState(() => _googleLoading = true);
@@ -222,7 +238,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   Future<void> _oeffnungszeitenVonWebsite() async {
     final website = _websiteController.text.trim();
     if (website.isEmpty) {
-      _snack('Bitte zuerst eine Website eintragen (oder aus Google übernehmen).');
+      _snack(
+        'Bitte zuerst eine Website eintragen (oder aus Google übernehmen).',
+      );
       return;
     }
     setState(() => _websiteLoading = true);
@@ -247,14 +265,16 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _zeigeUebernahmeDialog(GoogleBetriebDaten d,
-      {String titel = 'Google-Daten übernehmen'}) async {
-    final hatOeffnungszeiten =
-        d.oeffnungszeiten.values.any((l) => l.isNotEmpty);
+  Future<void> _zeigeUebernahmeDialog(
+    GoogleBetriebDaten d, {
+    String titel = 'Google-Daten übernehmen',
+  }) async {
+    final hatOeffnungszeiten = d.oeffnungszeiten.values.any(
+      (l) => l.isNotEmpty,
+    );
     final kandidaten = <_GoogleFeld>[
       if (d.strasse != null || d.nr != null)
         _GoogleFeld(
@@ -267,17 +287,33 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
           },
         ),
       if (d.plz != null)
-        _GoogleFeld('PLZ', d.plz!, _plzController.text,
-            () => _plzController.text = d.plz!),
+        _GoogleFeld(
+          'PLZ',
+          d.plz!,
+          _plzController.text,
+          () => _plzController.text = d.plz!,
+        ),
       if (d.ort != null)
-        _GoogleFeld('Ort', d.ort!, _ortController.text,
-            () => _ortController.text = d.ort!),
+        _GoogleFeld(
+          'Ort',
+          d.ort!,
+          _ortController.text,
+          () => _ortController.text = d.ort!,
+        ),
       if (d.telefon != null)
-        _GoogleFeld('Telefon', d.telefon!, _telefonController.text,
-            () => _telefonController.text = d.telefon!),
+        _GoogleFeld(
+          'Telefon',
+          d.telefon!,
+          _telefonController.text,
+          () => _telefonController.text = d.telefon!,
+        ),
       if (d.website != null)
-        _GoogleFeld('Website', d.website!, _websiteController.text,
-            () => _websiteController.text = d.website!),
+        _GoogleFeld(
+          'Website',
+          d.website!,
+          _websiteController.text,
+          () => _websiteController.text = d.website!,
+        ),
       if (d.latitude != null && d.longitude != null)
         _GoogleFeld(
           'Koordinaten',
@@ -298,8 +334,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
           () {
             setState(() {
               for (final t in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) {
-                _oeffnungszeiten[t] =
-                    List<Map<String, String>>.from(d.oeffnungszeiten[t] ?? []);
+                _oeffnungszeiten[t] = List<Map<String, String>>.from(
+                  d.oeffnungszeiten[t] ?? [],
+                );
               }
               if (d.ruhetage.isNotEmpty) {
                 _ruhetage = List<String>.from(d.ruhetage);
@@ -330,9 +367,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                 if (d.name != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text('Gefunden: ${d.name}',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'Gefunden: ${d.name}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 for (final k in kandidaten)
                   CheckboxListTile(
@@ -341,27 +379,33 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     value: auswahl[k],
                     onChanged: (v) =>
                         setDialogState(() => auswahl[k] = v ?? false),
-                    title: Text(k.detail != null
-                        ? k.label
-                        : '${k.label}: ${k.wert}'),
+                    title: Text(
+                      k.detail != null ? k.label : '${k.label}: ${k.wert}',
+                    ),
                     subtitle: k.detail != null
                         ? Text(k.detail!, style: const TextStyle(fontSize: 12))
                         : (k.aktuell.isNotEmpty
-                            ? Text('ersetzt: ${k.aktuell}',
-                                style: const TextStyle(
-                                    fontSize: 11, color: Colors.grey))
-                            : null),
+                              ? Text(
+                                  'ersetzt: ${k.aktuell}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                )
+                              : null),
                   ),
               ],
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Abbrechen')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Übernehmen')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Übernehmen'),
+            ),
           ],
         ),
       ),
@@ -378,15 +422,23 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   }
 
   String _oeffnungszeitenKurz(Map<String, List<Map<String, String>>> oz) {
-    final tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
-        .where((t) => (oz[t] ?? []).isNotEmpty)
-        .toList();
+    final tage = [
+      'Mo',
+      'Di',
+      'Mi',
+      'Do',
+      'Fr',
+      'Sa',
+      'So',
+    ].where((t) => (oz[t] ?? []).isNotEmpty).toList();
     return '${tage.length} Tag(e) mit Zeiten';
   }
 
   /// Öffnungszeiten pro Tag (Mo–So) inkl. Ruhetag, mehrzeilig — zur Kontrolle.
   String _oeffnungszeitenDetail(
-      Map<String, List<Map<String, String>>> oz, List<String> ruhetage) {
+    Map<String, List<Map<String, String>>> oz,
+    List<String> ruhetage,
+  ) {
     const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     return [
       for (final t in tage)
@@ -423,19 +475,25 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.zugangNotizen = _emptyToNull(_zugangController.text);
       betrieb.notizen = _emptyToNull(_notizenController.text);
       betrieb.status = _status;
-      betrieb.schliessungsgrund =
-          _status == 'geschlossen' ? _schliessungsgrund : null;
-      betrieb.schliessungsdatum =
-          _status == 'geschlossen' ? _schliessungsdatum : null;
+      betrieb.schliessungsgrund = _status == 'geschlossen'
+          ? _schliessungsgrund
+          : null;
+      betrieb.schliessungsdatum = _status == 'geschlossen'
+          ? _schliessungsdatum
+          : null;
       betrieb.istMeinKunde = _istMeinKunde;
       betrieb.istBergkunde = _istBergkunde;
       betrieb.istSaisonbetrieb = _istSaisonbetrieb;
       betrieb.rechnungsstellung = _rechnungsstellung;
       betrieb.regionId = _regionId;
-      betrieb.winterSaisonAktiv = _istSaisonbetrieb ? _winterSaisonAktiv : false;
+      betrieb.winterSaisonAktiv = _istSaisonbetrieb
+          ? _winterSaisonAktiv
+          : false;
       betrieb.winterStartDatum = _istSaisonbetrieb ? _winterStartDatum : null;
       betrieb.winterEndeDatum = _istSaisonbetrieb ? _winterEndeDatum : null;
-      betrieb.sommerSaisonAktiv = _istSaisonbetrieb ? _sommerSaisonAktiv : false;
+      betrieb.sommerSaisonAktiv = _istSaisonbetrieb
+          ? _sommerSaisonAktiv
+          : false;
       betrieb.sommerStartDatum = _istSaisonbetrieb ? _sommerStartDatum : null;
       betrieb.sommerEndeDatum = _istSaisonbetrieb ? _sommerEndeDatum : null;
       betrieb.ferienStart = _keineBetriebsferien ? null : _ferienStarts[0];
@@ -456,9 +514,15 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.latitude = _latitude;
       betrieb.longitude = _longitude;
       betrieb.servicezeitMorgenAb = _emptyToNull(_servicezeitMorgenAbCtrl.text);
-      betrieb.servicezeitMorgenBis = _emptyToNull(_servicezeitMorgenBisCtrl.text);
-      betrieb.servicezeitNachmittagAb = _emptyToNull(_servicezeitNachmittagAbCtrl.text);
-      betrieb.servicezeitNachmittagBis = _emptyToNull(_servicezeitNachmittagBisCtrl.text);
+      betrieb.servicezeitMorgenBis = _emptyToNull(
+        _servicezeitMorgenBisCtrl.text,
+      );
+      betrieb.servicezeitNachmittagAb = _emptyToNull(
+        _servicezeitNachmittagAbCtrl.text,
+      );
+      betrieb.servicezeitNachmittagBis = _emptyToNull(
+        _servicezeitNachmittagBisCtrl.text,
+      );
 
       await BetriebRepository.save(betrieb);
       // Betriebs-Eintrag im Google-Adressbuch nachziehen (Status/Telefon
@@ -484,7 +548,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
           if (items != null) {
             try {
               await GoogleCalendarSyncService.syncBetriebReinigungen(
-                  betriebSid, reinigungen.first.label, items);
+                betriebSid,
+                reinigungen.first.label,
+                items,
+              );
             } catch (e) {
               debugPrint('[GCal-Reinigung] fehlgeschlagen: $e');
             }
@@ -495,7 +562,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEdit ? 'Betrieb aktualisiert' : 'Betrieb erstellt'),
+            content: Text(
+              _isEdit ? 'Betrieb aktualisiert' : 'Betrieb erstellt',
+            ),
           ),
         );
         if (kIsWeb) {
@@ -559,39 +628,40 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   /// Feldern nicht erkennbar, ob die Zeit fehlt oder ob zu der Tageszeit
   /// kein Service möglich ist.
   Widget _servicezeitHinweis() {
-    final morgen = _emptyToNull(_servicezeitMorgenAbCtrl.text) != null &&
+    final morgen =
+        _emptyToNull(_servicezeitMorgenAbCtrl.text) != null &&
         _emptyToNull(_servicezeitMorgenBisCtrl.text) != null;
     final nachmittag =
         _emptyToNull(_servicezeitNachmittagAbCtrl.text) != null &&
-            _emptyToNull(_servicezeitNachmittagBisCtrl.text) != null;
+        _emptyToNull(_servicezeitNachmittagBisCtrl.text) != null;
 
     final (IconData icon, String text, Color farbe) = switch ((
       morgen,
       nachmittag,
     )) {
       (true, true) => (
-          Icons.check_circle_outline,
-          'Service vormittags und nachmittags möglich.',
-          AppColors.success,
-        ),
+        Icons.check_circle_outline,
+        'Service vormittags und nachmittags möglich.',
+        AppColors.success,
+      ),
       (true, false) => (
-          Icons.info_outline,
-          'Nachmittags kein Service möglich. Für Service am Nachmittag dort '
-              'eine Zeit eintragen.',
-          AppColors.textSecondary,
-        ),
+        Icons.info_outline,
+        'Nachmittags kein Service möglich. Für Service am Nachmittag dort '
+            'eine Zeit eintragen.',
+        AppColors.textSecondary,
+      ),
       (false, true) => (
-          Icons.info_outline,
-          'Morgens kein Service möglich. Für Service am Morgen dort eine Zeit '
-              'eintragen.',
-          AppColors.textSecondary,
-        ),
+        Icons.info_outline,
+        'Morgens kein Service möglich. Für Service am Morgen dort eine Zeit '
+            'eintragen.',
+        AppColors.textSecondary,
+      ),
       (false, false) => (
-          Icons.help_outline,
-          'Servicezeit noch nicht erfasst. Ein leer gelassener Block gilt als '
-              '«kein Service», sobald der andere ausgefüllt ist.',
-          AppColors.warning,
-        ),
+        Icons.help_outline,
+        'Servicezeit noch nicht erfasst. Ein leer gelassener Block gilt als '
+            '«kein Service», sobald der andere ausgefüllt ist.',
+        AppColors.warning,
+      ),
     };
 
     return Row(
@@ -600,10 +670,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
         Icon(icon, size: 15, color: farbe),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 12, color: farbe),
-          ),
+          child: Text(text, style: TextStyle(fontSize: 12, color: farbe)),
         ),
       ],
     );
@@ -655,8 +722,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                 prefixIcon: Icon(Icons.store),
               ),
               textInputAction: TextInputAction.next,
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Name ist erforderlich' : null,
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? 'Name ist erforderlich'
+                  : null,
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -665,7 +733,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.travel_explore),
               label: const Text('Aus Google übernehmen'),
             ),
@@ -676,7 +745,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.schedule),
               label: const Text('Öffnungszeiten von Website'),
             ),
@@ -685,25 +755,34 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             // === Zapfsysteme (direkt unter Name) ===
             Wrap(
               spacing: 8,
-              children: ['David', 'Konventionell', 'Higenie', 'Orion', 'Veranstaltungen'].map((system) {
-                final selected = _zapfsysteme.contains(system);
-                return FilterChip(
-                  label: Text(system),
-                  selected: selected,
-                  onSelected: (v) {
-                    setState(() {
-                      if (v) {
-                        _zapfsysteme.add(system);
-                      } else {
-                        _zapfsysteme.remove(system);
-                      }
-                      // Vorschlag: Mein Kunde je nach Status + Zapfsystemen neu setzen
-                      _istMeinKunde = istMeinKundeVorschlag(
-                          _status, _zapfsysteme.toList());
-                    });
-                  },
-                );
-              }).toList(),
+              children:
+                  [
+                    'David',
+                    'Konventionell',
+                    'Higenie',
+                    'Orion',
+                    'Veranstaltungen',
+                  ].map((system) {
+                    final selected = _zapfsysteme.contains(system);
+                    return FilterChip(
+                      label: Text(system),
+                      selected: selected,
+                      onSelected: (v) {
+                        setState(() {
+                          if (v) {
+                            _zapfsysteme.add(system);
+                          } else {
+                            _zapfsysteme.remove(system);
+                          }
+                          // Vorschlag: Mein Kunde je nach Status + Zapfsystemen neu setzen
+                          _istMeinKunde = istMeinKundeVorschlag(
+                            _status,
+                            _zapfsysteme.toList(),
+                          );
+                        });
+                      },
+                    );
+                  }).toList(),
             ),
             SwitchListTile(
               title: const Text('Mein Kunde'),
@@ -727,17 +806,29 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                 ),
                 items: const [
                   DropdownMenuItem(
-                      value: 'rechnung_mail', child: Text('Per E-Mail')),
+                    value: 'rechnung_mail',
+                    child: Text('Per E-Mail'),
+                  ),
                   DropdownMenuItem(
-                      value: 'rechnung_post', child: Text('Per Post')),
+                    value: 'rechnung_post',
+                    child: Text('Per Post'),
+                  ),
                   DropdownMenuItem(
-                      value: 'rechnung_tresen', child: Text('Rechnung Tresen')),
+                    value: 'rechnung_tresen',
+                    child: Text('Rechnung Tresen'),
+                  ),
                   DropdownMenuItem(
-                      value: 'barzahlung', child: Text('Barzahlung')),
+                    value: 'barzahlung',
+                    child: Text('Barzahlung'),
+                  ),
                   DropdownMenuItem(
-                      value: 'jahresrechnung', child: Text('Jahresrechnung')),
+                    value: 'jahresrechnung',
+                    child: Text('Jahresrechnung'),
+                  ),
                   DropdownMenuItem(
-                      value: 'heineken', child: Text('Via Heineken')),
+                    value: 'heineken',
+                    child: Text('Via Heineken'),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v != null) setState(() => _rechnungsstellung = v);
@@ -747,10 +838,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
             if (_istMeinKunde) ...[
               // === Zahlernamen-Aliase (Bank zu Betrieb-Lernen) ===
-              Text('Zahlernamen (Bank)',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      )),
+              Text(
+                'Zahlernamen (Bank)',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const Text(
                 'Namen, unter denen dieser Betrieb Zahlungen überweist. '
                 'Wird beim Bankauszug-Import automatisch gelernt.',
@@ -765,7 +858,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     for (final a in _zahlerAliase)
                       InputChip(
                         label: Text(a),
-                        onDeleted: () => setState(() => _zahlerAliase.remove(a)),
+                        onDeleted: () =>
+                            setState(() => _zahlerAliase.remove(a)),
                       ),
                   ],
                 ),
@@ -793,10 +887,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             ],
 
             // === Adresse ===
-            Text('Adresse',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
+            Text(
+              'Adresse',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -864,10 +960,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             const SizedBox(height: 16),
 
             // === Kontakt ===
-            Text('Kontakt',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
+            Text(
+              'Kontakt',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _emailController,
@@ -892,10 +990,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             // === Nummern (nur für "meine Kunden") ===
             if (_istMeinKunde) ...[
               const SizedBox(height: 16),
-              Text('Nummern',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      )),
+              Text(
+                'Nummern',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _betriebNrController,
@@ -929,10 +1029,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             const SizedBox(height: 16),
 
             // === Einstellungen ===
-            Text('Einstellungen',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
+            Text(
+              'Einstellungen',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: _status,
@@ -944,17 +1046,22 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                 DropdownMenuItem(value: 'aktiv', child: Text('Aktiv')),
                 DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
                 DropdownMenuItem(
-                    value: 'saisonpause', child: Text('Saisonpause')),
+                  value: 'saisonpause',
+                  child: Text('Saisonpause'),
+                ),
                 DropdownMenuItem(
-                    value: 'geschlossen',
-                    child: Text('Geschlossen (dauerhaft)')),
+                  value: 'geschlossen',
+                  child: Text('Geschlossen (dauerhaft)'),
+                ),
               ],
               onChanged: (v) {
                 if (v != null) {
                   setState(() {
                     _status = v;
                     _istMeinKunde = istMeinKundeVorschlag(
-                        _status, _zapfsysteme.toList());
+                      _status,
+                      _zapfsysteme.toList(),
+                    );
                     if (_status != 'geschlossen') {
                       _schliessungsgrund = null;
                       _schliessungsdatum = null;
@@ -972,10 +1079,16 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                   prefixIcon: Icon(Icons.info_outline),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'umnutzung', child: Text('Umnutzung')),
+                  DropdownMenuItem(
+                    value: 'umnutzung',
+                    child: Text('Umnutzung'),
+                  ),
                   DropdownMenuItem(value: 'abbruch', child: Text('Abbruch')),
                   DropdownMenuItem(value: 'konkurs', child: Text('Konkurs')),
-                  DropdownMenuItem(value: 'sonstiges', child: Text('Sonstiges')),
+                  DropdownMenuItem(
+                    value: 'sonstiges',
+                    child: Text('Sonstiges'),
+                  ),
                 ],
                 onChanged: (v) => setState(() => _schliessungsgrund = v),
               ),
@@ -995,11 +1108,13 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     labelText: 'Schliessungsdatum',
                     prefixIcon: Icon(Icons.event),
                   ),
-                  child: Text(_schliessungsdatum == null
-                      ? 'Datum wählen'
-                      : '${_schliessungsdatum!.day.toString().padLeft(2, '0')}.'
-                          '${_schliessungsdatum!.month.toString().padLeft(2, '0')}.'
-                          '${_schliessungsdatum!.year}'),
+                  child: Text(
+                    _schliessungsdatum == null
+                        ? 'Datum wählen'
+                        : '${_schliessungsdatum!.day.toString().padLeft(2, '0')}.'
+                              '${_schliessungsdatum!.month.toString().padLeft(2, '0')}.'
+                              '${_schliessungsdatum!.year}',
+                  ),
                 ),
               ),
             ],
@@ -1013,11 +1128,15 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               ),
               items: [
                 const DropdownMenuItem<String>(
-                    value: null, child: Text('Keine Region')),
-                ..._regionen.map((r) => DropdownMenuItem<String>(
-                      value: r.serverId ?? r.id.toString(),
-                      child: Text(r.name),
-                    )),
+                  value: null,
+                  child: Text('Keine Region'),
+                ),
+                ..._regionen.map(
+                  (r) => DropdownMenuItem<String>(
+                    value: r.serverId ?? r.id.toString(),
+                    child: Text(r.name),
+                  ),
+                ),
               ],
               onChanged: (v) => setState(() => _regionId = v),
             ),
@@ -1032,10 +1151,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             // === Saison-Details (bedingt) ===
             if (_istSaisonbetrieb) ...[
               const SizedBox(height: 16),
-              Text('Saison-Details',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      )),
+              Text(
+                'Saison-Details',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               // Winter
               SwitchListTile(
@@ -1096,10 +1217,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
             // === Ruhetage (für alle Betriebe) ===
             const SizedBox(height: 16),
-            Text('Ruhetage',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
+            Text(
+              'Ruhetage',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -1139,10 +1262,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
             // === Betriebsferien (bis 5 Perioden, kompakt) ===
             const SizedBox(height: 16),
-            Text('Betriebsferien',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
+            Text(
+              'Betriebsferien',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             SwitchListTile(
               title: const Text('Keine Betriebsferien'),
@@ -1168,8 +1293,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                       child: _DatePickerField(
                         label: 'Ferien ${i + 1} von',
                         value: _ferienStarts[i],
-                        onChanged: (v) =>
-                            setState(() => _ferienStarts[i] = v),
+                        onChanged: (v) => setState(() => _ferienStarts[i] = v),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1177,8 +1301,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                       child: _DatePickerField(
                         label: 'Ferien ${i + 1} bis',
                         value: _ferienEnden[i],
-                        onChanged: (v) =>
-                            setState(() => _ferienEnden[i] = v),
+                        onChanged: (v) => setState(() => _ferienEnden[i] = v),
                       ),
                     ),
                   ],
@@ -1200,15 +1323,20 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Öffnungszeiten',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          )),
+                  child: Text(
+                    'Öffnungszeiten',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: _oeffnungszeitenAlleUebernehmen,
                   icon: const Icon(Icons.copy_all, size: 16),
-                  label: const Text('Mo → alle', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'Mo → alle',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -1218,10 +1346,12 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
             // === Servicezeiten (nur für "meine Kunden") ===
             if (_istMeinKunde) ...[
               const SizedBox(height: 16),
-              Text('Servicezeiten',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      )),
+              Text(
+                'Servicezeiten',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -1229,8 +1359,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     child: _TimePickerField(
                       label: 'Morgen von',
                       value: _parseTime(_servicezeitMorgenAbCtrl.text),
-                      onChanged: (t) => setState(() =>
-                          _servicezeitMorgenAbCtrl.text = _formatTime(t) ?? ''),
+                      onChanged: (t) => setState(
+                        () => _servicezeitMorgenAbCtrl.text =
+                            _formatTime(t) ?? '',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1238,8 +1370,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     child: _TimePickerField(
                       label: 'Morgen bis',
                       value: _parseTime(_servicezeitMorgenBisCtrl.text),
-                      onChanged: (t) => setState(() =>
-                          _servicezeitMorgenBisCtrl.text = _formatTime(t) ?? ''),
+                      onChanged: (t) => setState(
+                        () => _servicezeitMorgenBisCtrl.text =
+                            _formatTime(t) ?? '',
+                      ),
                     ),
                   ),
                 ],
@@ -1251,8 +1385,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     child: _TimePickerField(
                       label: 'Nachmittag von',
                       value: _parseTime(_servicezeitNachmittagAbCtrl.text),
-                      onChanged: (t) => setState(() =>
-                          _servicezeitNachmittagAbCtrl.text = _formatTime(t) ?? ''),
+                      onChanged: (t) => setState(
+                        () => _servicezeitNachmittagAbCtrl.text =
+                            _formatTime(t) ?? '',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1260,8 +1396,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     child: _TimePickerField(
                       label: 'Nachmittag bis',
                       value: _parseTime(_servicezeitNachmittagBisCtrl.text),
-                      onChanged: (t) => setState(() =>
-                          _servicezeitNachmittagBisCtrl.text = _formatTime(t) ?? ''),
+                      onChanged: (t) => setState(
+                        () => _servicezeitNachmittagBisCtrl.text =
+                            _formatTime(t) ?? '',
+                      ),
                     ),
                   ),
                 ],
@@ -1315,8 +1453,13 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
   // === Öffnungszeiten Helpers ===
   static const _tageLabel = {
-    'Mo': 'Montag', 'Di': 'Dienstag', 'Mi': 'Mittwoch',
-    'Do': 'Donnerstag', 'Fr': 'Freitag', 'Sa': 'Samstag', 'So': 'Sonntag',
+    'Mo': 'Montag',
+    'Di': 'Dienstag',
+    'Mi': 'Mittwoch',
+    'Do': 'Donnerstag',
+    'Fr': 'Freitag',
+    'Sa': 'Samstag',
+    'So': 'Sonntag',
   };
 
   List<Widget> _buildOeffnungszeitenForm() {
@@ -1327,8 +1470,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       final slotsText = istRuhetag
           ? 'Ruhetag'
           : slots.isNotEmpty
-              ? slots.map((s) => '${s['von']} – ${s['bis']}').join(', ')
-              : '–';
+          ? slots.map((s) => '${s['von']} – ${s['bis']}').join(', ')
+          : '–';
       return Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: InkWell(
@@ -1340,15 +1483,23 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               children: [
                 SizedBox(
                   width: 28,
-                  child: Text(tag, style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13,
-                      color: istRuhetag ? Colors.grey : null)),
+                  child: Text(
+                    tag,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: istRuhetag ? Colors.grey : null,
+                    ),
+                  ),
                 ),
                 Expanded(
-                  child: Text(slotsText, style: TextStyle(
-                    fontSize: 13,
-                    color: istRuhetag || slots.isEmpty ? Colors.grey : null,
-                  )),
+                  child: Text(
+                    slotsText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: istRuhetag || slots.isEmpty ? Colors.grey : null,
+                    ),
+                  ),
                 ),
                 if (!istRuhetag)
                   const Icon(Icons.edit, size: 16, color: Colors.grey),
@@ -1408,7 +1559,6 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     if (time == null) return null;
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
-
 }
 
 class _GoogleFeld {
@@ -1419,8 +1569,13 @@ class _GoogleFeld {
 
   /// Optionale mehrzeilige Detailansicht (z.B. Öffnungszeiten pro Tag).
   final String? detail;
-  _GoogleFeld(this.label, this.wert, this.aktuell, this.uebernehmen,
-      {this.detail});
+  _GoogleFeld(
+    this.label,
+    this.wert,
+    this.aktuell,
+    this.uebernehmen, {
+    this.detail,
+  });
 }
 
 class _DatePickerField extends StatelessWidget {
@@ -1515,15 +1670,9 @@ class _TimePickerField extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: value ?? const TimeOfDay(hour: 8, minute: 0),
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
-        );
-      },
+    final picked = await zeigeZeitauswahl(
+      context,
+      initial: value ?? const TimeOfDay(hour: 8, minute: 0),
     );
     if (picked != null) onChanged(picked);
   }
@@ -1563,10 +1712,7 @@ class _OeffnungszeitenDialog extends StatefulWidget {
   final String tag;
   final List<Map<String, String>> initialSlots;
 
-  const _OeffnungszeitenDialog({
-    required this.tag,
-    required this.initialSlots,
-  });
+  const _OeffnungszeitenDialog({required this.tag, required this.initialSlots});
 
   @override
   State<_OeffnungszeitenDialog> createState() => _OeffnungszeitenDialogState();
@@ -1595,13 +1741,9 @@ class _OeffnungszeitenDialogState extends State<_OeffnungszeitenDialog> {
 
   Future<void> _pickTime(int index, String field) async {
     final current = _parse(_slots[index][field]);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: current ?? const TimeOfDay(hour: 8, minute: 0),
-      builder: (ctx, child) => MediaQuery(
-        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
+    final picked = await zeigeZeitauswahl(
+      context,
+      initial: current ?? const TimeOfDay(hour: 8, minute: 0),
     );
     if (picked != null) {
       setState(() => _slots[index][field] = _fmt(picked));
@@ -1631,9 +1773,13 @@ class _OeffnungszeitenDialogState extends State<_OeffnungszeitenDialog> {
                             labelText: 'Von',
                             isDense: true,
                             contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 8),
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
                           ),
-                          child: Text(slot['von']!.isEmpty ? '–' : slot['von']!),
+                          child: Text(
+                            slot['von']!.isEmpty ? '–' : slot['von']!,
+                          ),
                         ),
                       ),
                     ),
@@ -1646,9 +1792,13 @@ class _OeffnungszeitenDialogState extends State<_OeffnungszeitenDialog> {
                             labelText: 'Bis',
                             isDense: true,
                             contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 8),
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
                           ),
-                          child: Text(slot['bis']!.isEmpty ? '–' : slot['bis']!),
+                          child: Text(
+                            slot['bis']!.isEmpty ? '–' : slot['bis']!,
+                          ),
                         ),
                       ),
                     ),

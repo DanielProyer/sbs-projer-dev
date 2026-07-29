@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 /// Freitext-Option im Material-Autocomplete (kein Lager-Artikel).
 class _MaterialFreitext {
@@ -112,14 +113,19 @@ class _EventEinsatzFormScreenState
       lastDate: DateTime(2100),
     );
     if (datum == null || !mounted) return;
-    final zeit = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_zeitpunkt),
+    final zeit = await zeigeZeitauswahl(
+      context,
+      initial: TimeOfDay.fromDateTime(_zeitpunkt),
     );
     if (zeit == null || !mounted) return;
     setState(() {
-      _zeitpunkt =
-          DateTime(datum.year, datum.month, datum.day, zeit.hour, zeit.minute);
+      _zeitpunkt = DateTime(
+        datum.year,
+        datum.month,
+        datum.day,
+        zeit.hour,
+        zeit.minute,
+      );
     });
   }
 
@@ -148,24 +154,25 @@ class _EventEinsatzFormScreenState
           _selectedLager != null &&
           (einsatz.materialMenge ?? 0) > 0) {
         final neu = _selectedLager!.bestandAktuell - einsatz.materialMenge!;
-        await LagerRepository.update(
-            _selectedLager!.id, {'bestand_aktuell': neu});
+        await LagerRepository.update(_selectedLager!.id, {
+          'bestand_aktuell': neu,
+        });
       }
 
       ref.invalidate(eventEinsaetzeProvider(widget.eventId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(_isEdit ? 'Einsatz aktualisiert' : 'Einsatz erfasst')),
+            content: Text(_isEdit ? 'Einsatz aktualisiert' : 'Einsatz erfasst'),
+          ),
         );
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -193,12 +200,9 @@ class _EventEinsatzFormScreenState
         final matches = q.isEmpty
             ? _lagerItems.take(15).toList()
             : _lagerItems
-                .where((l) => l.name.toLowerCase().contains(q.toLowerCase()))
-                .toList();
-        return [
-          if (q.isNotEmpty) _MaterialFreitext(q),
-          ...matches,
-        ];
+                  .where((l) => l.name.toLowerCase().contains(q.toLowerCase()))
+                  .toList();
+        return [if (q.isNotEmpty) _MaterialFreitext(q), ...matches];
       },
       onSelected: (o) {
         setState(() {
@@ -265,7 +269,8 @@ class _EventEinsatzFormScreenState
                     leading: const Icon(Icons.inventory_2_outlined, size: 18),
                     title: Text(l.name),
                     subtitle: Text(
-                        'Bestand: ${l.bestandAktuell.toStringAsFixed(0)} ${l.einheit}'),
+                      'Bestand: ${l.bestandAktuell.toStringAsFixed(0)} ${l.einheit}',
+                    ),
                     onTap: () => onSelected(o),
                   );
                 },
@@ -299,7 +304,8 @@ class _EventEinsatzFormScreenState
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('Fehler beim Laden der Stände: $e'),
               data: (staende) {
-                final gueltig = _standId != null &&
+                final gueltig =
+                    _standId != null &&
                     staende.any((s) => s.serverId == _standId);
                 return DropdownButtonFormField<String?>(
                   initialValue: gueltig ? _standId : null,
@@ -349,8 +355,9 @@ class _EventEinsatzFormScreenState
                   helperText:
                       'Bestand aktuell: ${_selectedLager!.bestandAktuell.toStringAsFixed(0)} ${_selectedLager!.einheit}',
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ],
             const SizedBox(height: 16),
