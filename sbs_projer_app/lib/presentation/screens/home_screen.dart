@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
@@ -60,6 +61,9 @@ class HomeScreen extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         children: [
           const _AufgabenKarte(),
+          // Arbeitstag direkt auf dem Startbildschirm erfassen (Beginn mit
+          // GPS-Position, abends Ende + km) — Daniel 29.07.2026.
+          const ArbeitstagKarte(),
           const _TagesUebersicht(),
           const SizedBox(height: 10),
           const _KachelGrid(),
@@ -83,13 +87,15 @@ class _KachelGrid extends ConsumerWidget {
     final stoerungCount = ref.watch(stoerungCountAktuellesJahrProvider);
     final faelligeCount = ref.watch(faelligeAnlagenCountProvider);
     final eigenauftragCount = ref.watch(eigenauftragCountAktuellesJahrProvider);
-    final eroeffnungsreinigungCount =
-        ref.watch(eroeffnungsreinigungCountAktuellesJahrProvider);
+    final eroeffnungsreinigungCount = ref.watch(
+      eroeffnungsreinigungCountAktuellesJahrProvider,
+    );
     final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
     final kontaktCount = ref.watch(kontakteProvider).valueOrNull?.length ?? 0;
     final spesenCount =
         ref.watch(spesenBelegeCountAktuellesJahrProvider).valueOrNull ?? 0;
-    final eventCount = ref
+    final eventCount =
+        ref
             .watch(eventsProvider)
             .valueOrNull
             ?.where((e) => e.jahr == DateTime.now().year)
@@ -142,7 +148,9 @@ class _KachelGrid extends ConsumerWidget {
         _DashboardTile(
           icon: Icons.cleaning_services_outlined,
           label: 'Eröffnungen',
-          count: eroeffnungsreinigungCount > 0 ? '$eroeffnungsreinigungCount' : null,
+          count: eroeffnungsreinigungCount > 0
+              ? '$eroeffnungsreinigungCount'
+              : null,
           color: AppColors.primary,
           onTap: () => context.push('/eroeffnungsreinigungen'),
         ),
@@ -263,8 +271,13 @@ class _SyncIndicator extends ConsumerWidget {
 }
 
 const _wochentage = [
-  'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag',
-  'Freitag', 'Samstag', 'Sonntag',
+  'Montag',
+  'Dienstag',
+  'Mittwoch',
+  'Donnerstag',
+  'Freitag',
+  'Samstag',
+  'Sonntag',
 ];
 
 class _TagesUebersicht extends ConsumerWidget {
@@ -297,9 +310,13 @@ class _TagesUebersicht extends ConsumerWidget {
                 const Icon(Icons.today, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(datumStr,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 15)),
+                  child: Text(
+                    datumStr,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
                 if (data.monatsUmsatzCHF > 0)
                   Text(
@@ -314,8 +331,10 @@ class _TagesUebersicht extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             if (total == 0)
-              Text('Keine Einsätze heute',
-                  style: TextStyle(color: AppColors.textSecondary))
+              Text(
+                'Keine Einsätze heute',
+                style: TextStyle(color: AppColors.textSecondary),
+              )
             else ...[
               Wrap(
                 spacing: 12,
@@ -323,36 +342,45 @@ class _TagesUebersicht extends ConsumerWidget {
                 children: [
                   if (hR.isNotEmpty)
                     _CountChip(
-                        '${hR.length} Reinigung${hR.length > 1 ? 'en' : ''}',
-                        AppColors.success),
+                      '${hR.length} Reinigung${hR.length > 1 ? 'en' : ''}',
+                      AppColors.success,
+                    ),
                   if (hS.isNotEmpty)
                     _CountChip(
-                        '${hS.length} Störung${hS.length > 1 ? 'en' : ''}',
-                        AppColors.warning),
+                      '${hS.length} Störung${hS.length > 1 ? 'en' : ''}',
+                      AppColors.warning,
+                    ),
                   if (hM.isNotEmpty)
                     _CountChip(
-                        '${hM.length} Montage${hM.length > 1 ? 'n' : ''}',
-                        AppColors.info),
+                      '${hM.length} Montage${hM.length > 1 ? 'n' : ''}',
+                      AppColors.info,
+                    ),
                   if (hE.isNotEmpty)
                     _CountChip(
-                        '${hE.length} Eigenauftr${hE.length > 1 ? 'äge' : 'ag'}',
-                        AppColors.textSecondary),
+                      '${hE.length} Eigenauftr${hE.length > 1 ? 'äge' : 'ag'}',
+                      AppColors.textSecondary,
+                    ),
                   if (hER.isNotEmpty)
                     _CountChip(
-                        '${hER.length} Eröffnung${hER.length > 1 ? 'en' : ''}',
-                        AppColors.primary),
+                      '${hER.length} Eröffnung${hER.length > 1 ? 'en' : ''}',
+                      AppColors.primary,
+                    ),
                   if (hBP.isNotEmpty)
                     _CountChip(
-                        '${hBP.length} Bergkunde${hBP.length > 1 ? 'n' : ''}',
-                        Colors.brown),
+                      '${hBP.length} Bergkunde${hBP.length > 1 ? 'n' : ''}',
+                      Colors.brown,
+                    ),
                 ],
               ),
               if (totalCHF > 0) ...[
                 const SizedBox(height: 8),
-                Text('Tagesumsatz: ${totalCHF.toStringAsFixed(2)} CHF',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary)),
+                Text(
+                  'Tagesumsatz: ${totalCHF.toStringAsFixed(2)} CHF',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
               ],
             ],
           ],
@@ -375,9 +403,14 @@ class _CountChip extends StatelessWidget {
         color: color.withAlpha(25),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(label,
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.w600, fontSize: 12)),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 }
@@ -508,7 +541,8 @@ class _AufgabenKarte extends ConsumerWidget {
       ...stand.offene.map((a) => a.titel),
       ...stand.eigene.map((e) => e.aufgabe.titel),
     ].take(3).toList();
-    final dringend = stand.offene.any((a) => a.dringend) ||
+    final dringend =
+        stand.offene.any((a) => a.dringend) ||
         stand.eigene.any((e) => e.aufgabe.dringend);
     final label = stand.badge == 1
         ? '1 Aufgabe offen'
@@ -528,25 +562,35 @@ class _AufgabenKarte extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.notifications_active,
-                      size: 18,
-                      color: dringend ? AppColors.error : AppColors.warning),
+                  Icon(
+                    Icons.notifications_active,
+                    size: 18,
+                    color: dringend ? AppColors.error : AppColors.warning,
+                  ),
                   const SizedBox(width: 8),
-                  Text(label,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   const Spacer(),
                   const Icon(Icons.chevron_right, size: 18),
                 ],
               ),
               const SizedBox(height: 4),
-              ...titel.map((t) => Padding(
-                    padding: const EdgeInsets.only(left: 26, top: 2),
-                    child: Text('· $t',
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  )),
+              ...titel.map(
+                (t) => Padding(
+                  padding: const EdgeInsets.only(left: 26, top: 2),
+                  child: Text(
+                    '· $t',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

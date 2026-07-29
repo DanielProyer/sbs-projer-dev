@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
+import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
@@ -107,6 +108,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
               beginn: gespeichert.arbeitsbeginn ?? aktuell.beginn,
               ende: gespeichert.arbeitsende,
               km: gespeichert.kmStand,
+              lat: gespeichert.startLat,
+              lng: gespeichert.startLng,
             );
           }
           final notifier = ref.read(tagesplanProvider.notifier);
@@ -940,7 +943,15 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     // (z.B. eine freie Störung), entfällt das jeweilige Segment (null).
     int? anfahrtMinuten;
     int? heimwegMinuten;
-    if (startort != null && eintraege.isNotEmpty) {
+    // Tagesstart-Position (GPS vom «Arbeitsbeginn»-Knopf) schlägt den festen
+    // Startort: Daniel startet oft nicht von Zuhause (Domat/Ems), sondern
+    // z.B. aus Chur. Der Heimweg zielt auf denselben Punkt — beste Annahme
+    // ohne bekanntes Abend-Ziel.
+    final tagesstart = (arbeitstag.lat != null && arbeitstag.lng != null)
+        ? (lat: arbeitstag.lat!, lng: arbeitstag.lng!)
+        : startort;
+    if (tagesstart != null && eintraege.isNotEmpty) {
+      final basis = tagesstart; // lokale, nicht-nullbare Kopie fürs Closure
       int? minutenAbStartort(BetriebLocal? betrieb, {required bool hin}) {
         if (betrieb?.latitude == null || betrieb?.longitude == null) {
           // Betrieb ohne GPS -> derselbe Fallback wie bei Fahrten zwischen
@@ -949,16 +960,16 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
         }
         final km = hin
             ? haversineKm(
-                startort.lat,
-                startort.lng,
+                basis.lat,
+                basis.lng,
                 betrieb!.latitude!,
                 betrieb.longitude!,
               )
             : haversineKm(
                 betrieb!.latitude!,
                 betrieb.longitude!,
-                startort.lat,
-                startort.lng,
+                basis.lat,
+                basis.lng,
               );
         return heuristikMinuten(luftlinieKm: km);
       }
@@ -1579,6 +1590,8 @@ class _ArbeitstagZeile extends ConsumerWidget {
                 beginn: hhmmAusMinuten(gewaehlt.hour * 60 + gewaehlt.minute),
                 ende: at.ende,
                 km: at.km,
+                lat: at.lat,
+                lng: at.lng,
               ));
             },
           ),
@@ -1591,7 +1604,7 @@ class _ArbeitstagZeile extends ConsumerWidget {
               final ergebnis = await showModalBottomSheet<Arbeitstag>(
                 context: context,
                 isScrollControlled: true,
-                builder: (_) => _ArbeitstagSheet(aktuell: at),
+                builder: (_) => ArbeitstagAbschlussSheet(aktuell: at),
               );
               if (ergebnis == null) return;
               await speichern(ergebnis);
@@ -1646,116 +1659,6 @@ class _TippFeld extends StatelessWidget {
 }
 
 /// Abend-Erfassung: Arbeitsende und km-Stand.
-class _ArbeitstagSheet extends StatefulWidget {
-  final Arbeitstag aktuell;
-
-  const _ArbeitstagSheet({required this.aktuell});
-
-  @override
-  State<_ArbeitstagSheet> createState() => _ArbeitstagSheetState();
-}
-
-class _ArbeitstagSheetState extends State<_ArbeitstagSheet> {
-  late final TextEditingController _ende = TextEditingController(
-    text: widget.aktuell.ende ?? '',
-  );
-  late final TextEditingController _km = TextEditingController(
-    text: widget.aktuell.km?.toString() ?? '',
-  );
-
-  @override
-  void dispose() {
-    _ende.dispose();
-    _km.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Arbeitstag abschliessen',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _ende,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(
-                  labelText: 'Arbeitsende (HH:mm)',
-                  isDense: true,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _km,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'km-Stand',
-                  isDense: true,
-                ),
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () {
-                  // Leeres Feld heisst «löschen» (null), ein unbrauchbarer
-                  // Wert («12:xx», «abc») heisst «unverändert lassen» — sonst
-                  // liesse sich ein falsch erfasstes Arbeitsende nie mehr
-                  // entfernen.
-                  final endeText = _ende.text.trim();
-                  final kmText = _km.text.trim();
-                  final String? ende = endeText.isEmpty
-                      ? null
-                      : (minutenAusHhmm(endeText) != null
-                            ? endeText
-                            : widget.aktuell.ende);
-                  final int? km = kmText.isEmpty
-                      ? null
-                      : (int.tryParse(kmText) ?? widget.aktuell.km);
-                  Navigator.pop(context, (
-                    beginn: widget.aktuell.beginn,
-                    ende: ende,
-                    km: km,
-                  ));
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Speichern',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Automatische Termine (Saison) ───
-
 class _AutoTermineSektion extends StatelessWidget {
   final List<TourEintrag> eintraege;
   final void Function(TourEintrag) onUebernehmen;
