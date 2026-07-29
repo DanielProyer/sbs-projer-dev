@@ -287,6 +287,31 @@ final tourAnlagenProvider =
       (ref, k) => _anlagenFuerTour(ref, k.datum, mitNichtFaelligen: k.alle),
     );
 
+// ─── Ableitungen aus fälligen Anlagen (Besuchs-Bündelung, Plan-Übernahme) ───
+//
+// Review 29.07.2026: Besuchs-Bündelung und Plan-Übernahme (Task 7) dürfen
+// NICHT die (gefilterte) Fällig-Eintragsliste als Fälligkeits-Quelle nehmen
+// — seit v0.54.17 lässt der «Alle»-Filter dort auch nicht fällige Anlagen
+// durch. `faelligeAnlagenProvider` schliesst nicht fällige Anlagen dagegen
+// hart aus (`mitNichtFaelligen: false`), unabhängig vom UI-Filterstand.
+// Reine Funktionen, damit sie ohne Provider-Verdrahtung testbar sind.
+
+/// RouteIds der fälligen Anlagen eines Betriebs — Grundlage dafür, welche
+/// Geschwister-Anlagen ein neuer Besuchs-Block automatisch mitnimmt.
+List<String> faelligeAnlagenRouteIdsFuerBetrieb(
+  List<AnlageLocal> faelligeAnlagen,
+  String betriebId,
+) => [
+  for (final a in faelligeAnlagen)
+    if (a.betriebId == betriebId) a.routeId,
+];
+
+/// BetriebIds mit mindestens einer fälligen Anlage — Grundlage für die
+/// „übernommen"-Markierung bei der Plan-Übernahme von einem anderen Datum.
+Set<String> faelligeBetriebIds(List<AnlageLocal> faelligeAnlagen) => {
+  for (final a in faelligeAnlagen) a.betriebId,
+};
+
 // ─── Tour-Vorschlag Provider (Reinigungen von vor ~28 Tagen) ───
 
 final tourVorschlagProvider = Provider.family<List<ReinigungLocal>, DateTime>((

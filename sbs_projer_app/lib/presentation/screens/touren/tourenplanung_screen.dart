@@ -288,10 +288,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                                   datum: _selectedDate,
                                   eintrag: e,
                                   imPlan: imPlan,
-                                  onAdd: () => _faelligEintragUebernehmen(
-                                    e,
-                                    angezeigtFaellig,
-                                  ),
+                                  onAdd: () => _faelligEintragUebernehmen(e),
                                   onTap: () => _navigateToDetail(e),
                                 );
                               },
@@ -408,26 +405,21 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
   /// Fällig-Tab „in den Plan"-Aktion: bündelt Reinigungen beim selben
   /// Betrieb statt einen zweiten Besuchs-Block anzulegen (Spec §1). Die
-  /// heute fälligen Geschwister-Anlagen des Betriebs kommen aus der bereits
-  /// gefilterten Fällig-Liste (`angezeigtFaellig`), nicht aus dem
-  /// ungefilterten Provider — was nicht sichtbar ist, soll auch nicht
-  /// automatisch mit in den Plan rutschen.
-  void _faelligEintragUebernehmen(
-    TourEintrag eintrag,
-    List<TourEintrag> angezeigtFaellig,
-  ) {
+  /// heute fälligen Geschwister-Anlagen des Betriebs kommen bewusst aus
+  /// `faelligeAnlagenProvider`, NICHT aus der (evtl. gefilterten)
+  /// Fällig-Eintragsliste: seit v0.54.17 lässt der «Alle»-Filter dort auch
+  /// nicht fällige Anlagen durch — Spec §1 verlangt aber ausdrücklich nur
+  /// die heute FÄLLIGEN Geschwister (Review 29.07.2026).
+  void _faelligEintragUebernehmen(TourEintrag eintrag) {
     final notifier = ref.read(tagesplanProvider.notifier);
     final planVorher = ref.read(tagesplanProvider);
     final betriebId = eintrag.betriebId;
     final faelligeGeschwister = betriebId == null
         ? const <String>[]
-        : [
-            for (final x in angezeigtFaellig)
-              if (x.typ == TourEintragTyp.reinigung &&
-                  x.betriebId == betriebId &&
-                  x.anlageId != null)
-                x.anlageId!,
-          ];
+        : faelligeAnlagenRouteIdsFuerBetrieb(
+            ref.read(faelligeAnlagenProvider(_selectedDate)),
+            betriebId,
+          );
 
     final neuerPlan = buendleInPlan(
       plan: planVorher,
@@ -481,14 +473,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       return;
     }
 
-    // Heute fällige Betriebe (Reinigung) — massgebend für die
-    // „uebernommen"-Markierung, NICHT gefiltert (die volle Fälligkeit zählt,
-    // unabhängig vom aktuell gesetzten Fällig-Tab-Filter).
-    final faelligeBetriebe = ref
-        .read(faelligeEintraegeProvider(_selectedDate))
-        .where((e) => e.typ == TourEintragTyp.reinigung && e.betriebId != null)
-        .map((e) => e.betriebId!)
-        .toSet();
+    // Heute fällige Betriebe — massgebend für die „uebernommen"-Markierung.
+    // Bewusst `faelligeAnlagenProvider`, NICHT `faelligeEintraegeProvider`:
+    // letzterer folgt intern dem UI-Fällig-Filter — bei aktivem «Alle»-
+    // Filter (seit v0.54.17) gälten dann ALLE Betriebe als „fällig" und kein
+    // übernommener Besuch würde je grau markiert (Review 29.07.2026).
+    final faelligeBetriebe = faelligeBetriebIds(
+      ref.read(faelligeAnlagenProvider(_selectedDate)),
+    );
 
     final planVorher = ref.read(tagesplanProvider);
     final vorhandeneBetriebe = {
