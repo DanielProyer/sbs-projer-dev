@@ -927,7 +927,10 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
 
 // ─── Tagesplan Persistierung (Supabase) ───
 
-Map<String, dynamic> _tourEintragToJson(TourEintrag e) => {
+/// Sichtbar für Tests (`test/tour_eintrag_json_test.dart`) — deckt die
+/// Lademigration von Altplänen ab (siehe `tourEintragFromJson`).
+@visibleForTesting
+Map<String, dynamic> tourEintragToJson(TourEintrag e) => {
   'typ': e.typ.name,
   'id': e.id,
   'betriebId': e.betriebId,
@@ -949,7 +952,10 @@ Map<String, dynamic> _tourEintragToJson(TourEintrag e) => {
   'uebernommen': e.uebernommen,
 };
 
-TourEintrag _tourEintragFromJson(Map<String, dynamic> j) {
+/// Sichtbar für Tests. Lademigration: Altpläne kennen nur `anlageId`, keine
+/// `anlageIds`-Liste — siehe Kommentar im Funktionskörper.
+@visibleForTesting
+TourEintrag tourEintragFromJson(Map<String, dynamic> j) {
   // Lademigration: Altpläne kennen nur das einzelne `anlageId`-Feld, keine
   // `anlageIds`-Liste. Ist eine Liste vorhanden, ist sie führend; sonst wird
   // sie aus dem Alt-Feld nachgebildet (leer, falls auch das fehlt).
@@ -1016,7 +1022,7 @@ final gespeicherterTagesplanProvider =
         if (rows.isEmpty) return null;
         final row = rows.first;
         final eintraege = (row['eintraege'] as List<dynamic>)
-            .map((e) => _tourEintragFromJson(Map<String, dynamic>.from(e)))
+            .map((e) => tourEintragFromJson(Map<String, dynamic>.from(e)))
             .toList();
         return (
           eintraege: eintraege,
@@ -1040,7 +1046,7 @@ Future<void> tagesplanSpeichern(
   final datumStr =
       '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
   final userId = SupabaseService.client.auth.currentUser!.id;
-  final json = eintraege.map(_tourEintragToJson).toList();
+  final json = eintraege.map(tourEintragToJson).toList();
   await SupabaseService.client.from('tagesplaene').upsert({
     'user_id': userId,
     'datum': datumStr,

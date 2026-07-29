@@ -45,13 +45,26 @@ class ZeitSegment {
   });
 }
 
-/// 'HH:mm' -> Minuten seit Mitternacht. Lokale Kopie (bewusst nicht mit
-/// besuch_dauer.dart geteilt, siehe Plan Task 5 Step 4 — 6 Zeilen, kein
-/// gemeinsamer Helfer noetig).
-int _parseZeit(String hhmm) {
+/// Standard-Tagesstart 06:00 (Spec 2026-07-29) — Fallback, falls
+/// `arbeitsbeginn` nicht als 'HH:mm' geparst werden kann.
+const int kZeitleisteStartMin = 6 * 60;
+
+/// 'HH:mm' -> Minuten seit Mitternacht, oder `null` bei ungueltiger Eingabe.
+/// Lokale Kopie (bewusst nicht mit besuch_dauer.dart geteilt, siehe Plan
+/// Task 5 Step 4 — wenige Zeilen, kein gemeinsamer Helfer noetig).
+///
+/// Gehaertet gegen korrupte Altdaten (Review-Fund): `int.parse` wuerde bei
+/// einem beschaedigten `ankerZeit`/`arbeitsbeginn` (z.B. altes Format, leerer
+/// String) die ganze Zeitplan-Berechnung zum Absturz bringen. Ein einzelner
+/// kaputter Wert darf aber nie den gesamten Tagesplan unbrauchbar machen —
+/// darum `tryParse` + Wertebereichs-Pruefung statt Exception.
+int? _parseZeit(String hhmm) {
   final teile = hhmm.split(':');
-  final stunden = int.parse(teile[0]);
-  final minuten = int.parse(teile[1]);
+  if (teile.length != 2) return null;
+  final stunden = int.tryParse(teile[0]);
+  final minuten = int.tryParse(teile[1]);
+  if (stunden == null || minuten == null) return null;
+  if (stunden < 0 || stunden > 23 || minuten < 0 || minuten > 59) return null;
   return stunden * 60 + minuten;
 }
 
@@ -73,7 +86,9 @@ List<ZeitSegment> berechneZeitplan({
   if (bloecke.isEmpty) return const [];
 
   final segmente = <ZeitSegment>[];
-  var aktuell = _parseZeit(arbeitsbeginn);
+  // Ungueltiger arbeitsbeginn (korrupte Altdaten) -> Standardstart 06:00,
+  // statt die Berechnung fuer den ganzen Tag scheitern zu lassen.
+  var aktuell = _parseZeit(arbeitsbeginn) ?? kZeitleisteStartMin;
 
   if (anfahrtMinuten != null && anfahrtMinuten > 0) {
     final ende = aktuell + anfahrtMinuten;
@@ -104,7 +119,10 @@ List<ZeitSegment> berechneZeitplan({
     final anker = block.ankerZeit;
     if (anker != null) {
       final ankerMin = _parseZeit(anker);
-      if (ankerMin > aktuell) {
+      // Ungueltiger Anker (korrupte Altdaten) -> ignorieren, Besuch startet
+      // ohne Wartezeit — statt die Berechnung fuer den ganzen Tag scheitern
+      // zu lassen.
+      if (ankerMin != null && ankerMin > aktuell) {
         segmente.add(
           ZeitSegment(
             art: SegmentArt.wartezeit,

@@ -75,5 +75,45 @@ void main() {
       expect(s.first.art, SegmentArt.besuch);
       expect(s.first.startMin, 6 * 60);
     });
+    test(
+      '0-Minuten-Fahrt zwischen zwei Besuchen erzeugt kein Fahrt-Segment',
+      () {
+        final s = berechneZeitplan(
+          bloecke: [b('a', 30), b('c', 30)],
+          arbeitsbeginn: '06:00',
+          anfahrtMinuten: null,
+          heimwegMinuten: null,
+          fahrzeitZwischen: (v, n) => 0,
+        );
+        expect(s.any((x) => x.art == SegmentArt.fahrt), isFalse);
+        expect(s.map((x) => x.art).toList(), [
+          SegmentArt.besuch,
+          SegmentArt.besuch,
+        ]);
+      },
+    );
+    test('korrupter Anker (kein HH:mm) wird ignoriert — keine Wartezeit', () {
+      final s = berechneZeitplan(
+        bloecke: [b('a', 30, anker: 'abc')],
+        arbeitsbeginn: '06:00',
+        anfahrtMinuten: null,
+        heimwegMinuten: null,
+        fahrzeitZwischen: (v, n) => 0,
+      );
+      expect(s.any((x) => x.art == SegmentArt.wartezeit), isFalse);
+      expect(s.first.art, SegmentArt.besuch);
+      expect(s.first.startMin, 6 * 60);
+    });
+    test('kaputter arbeitsbeginn faellt auf 06:00 zurueck', () {
+      final s = berechneZeitplan(
+        bloecke: [b('a', 30)],
+        arbeitsbeginn: 'kaputt',
+        anfahrtMinuten: null,
+        heimwegMinuten: null,
+        fahrzeitZwischen: (v, n) => 0,
+      );
+      expect(s.first.startMin, kZeitleisteStartMin);
+      expect(s.first.startMin, 6 * 60);
+    });
   });
 }
