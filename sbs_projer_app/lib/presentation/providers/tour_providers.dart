@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/core/util/touren_saison.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
@@ -18,6 +19,12 @@ import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+// FaelligkeitsStatus lebt seit 29.07.2026 in core/util/tour_filter.dart (der
+// Tourfilter braucht ihn, ohne die Provider zu laden). Re-Export, damit die
+// bestehenden Import-Stellen unverändert bleiben.
+export 'package:sbs_projer_app/core/util/tour_filter.dart'
+    show FaelligkeitsStatus;
+
 // ─── Regionen ───
 
 final regionenStreamProvider = StreamProvider<List<RegionLocal>>((ref) {
@@ -30,14 +37,6 @@ final regionenProvider = Provider<List<RegionLocal>>((ref) {
 
 // ─── Fälligkeits-Status ───
 
-enum FaelligkeitsStatus {
-  ueberfaellig,
-  faellig,
-  baldFaellig,
-  endreinigungFaellig,
-  eroeffnungFaellig,
-  nichtFaellig,
-}
 
 int? _rhythmusTage(String rhythmus) {
   switch (rhythmus) {
@@ -226,10 +225,17 @@ bool _isBetriebAktiv(BetriebLocal b, DateTime datum) {
 
 // ─── Fällige Anlagen Provider ───
 
-final faelligeAnlagenProvider = Provider.family<List<AnlageLocal>, DateTime>((
-  ref,
-  datum,
-) {
+/// Anlagen für die Tourenplanung, sortiert nach Dringlichkeit.
+///
+/// [mitNichtFaelligen] nimmt auch Anlagen mit, deren nächste Reinigung noch
+/// aussteht — das braucht der Filter «Alle» im Tourenplan, etwa um eine
+/// Anlage mitzunehmen, weil man ohnehin in der Region ist. Sie landen durch
+/// die Sortierung nach [FaelligkeitsStatus.index] am Ende der Liste.
+List<AnlageLocal> _anlagenFuerTour(
+  Ref ref,
+  DateTime datum, {
+  required bool mitNichtFaelligen,
+}) {
   final anlagen = ref.watch(anlagenProvider);
   final betriebe = ref.watch(betriebeProvider);
   final reinigungen = ref.watch(reinigungenProvider);
@@ -253,7 +259,9 @@ final faelligeAnlagenProvider = Provider.family<List<AnlageLocal>, DateTime>((
       betrieb: betrieb,
       letzteServiceArt: serviceArt,
     );
-    if (faelligkeit == FaelligkeitsStatus.nichtFaellig) return false;
+    if (faelligkeit == FaelligkeitsStatus.nichtFaellig && !mitNichtFaelligen) {
+      return false;
+    }
 
     // Saisonale Einträge immer anzeigen (auch wenn Betrieb in Pause)
     if (faelligkeit == FaelligkeitsStatus.endreinigungFaellig ||
@@ -285,7 +293,18 @@ final faelligeAnlagenProvider = Provider.family<List<AnlageLocal>, DateTime>((
     ).index;
     return fa.compareTo(fb);
   });
-});
+}
+
+/// Fällige Anlagen — Grundlage für den Dashboard-Zähler.
+final faelligeAnlagenProvider = Provider.family<List<AnlageLocal>, DateTime>(
+  (ref, datum) => _anlagenFuerTour(ref, datum, mitNichtFaelligen: false),
+);
+
+/// Wie [faelligeAnlagenProvider], nur schaltbar um die nicht fälligen Anlagen.
+final tourAnlagenProvider =
+    Provider.family<List<AnlageLocal>, ({DateTime datum, bool alle})>(
+  (ref, k) => _anlagenFuerTour(ref, k.datum, mitNichtFaelligen: k.alle),
+);
 
 // ─── Tour-Vorschlag Provider (Reinigungen von vor ~28 Tagen) ───
 
@@ -368,21 +387,16 @@ class TourEintrag {
 // ─── Filter-State ───
 
 final selectedRegionenProvider = StateProvider<Set<String>>((ref) => {});
-final selectedFaelligkeitProvider = StateProvider<Set<FaelligkeitsStatus>>(
-  (ref) => {
-    FaelligkeitsStatus.ueberfaellig,
-    FaelligkeitsStatus.faellig,
-    // Bald fällig default AN (Regel Daniel 22.07.): Beim Planen einer
-    // Zukunfts-Tour sind genau die an dem Tag reif werdenden Kunden
-    // «bald fällig» — ohne den Chip wirkte das Planungsdatum wirkungslos
-    // (verifiziert: 32 Anlagen im +7-Tage-Fenster unsichtbar).
-    FaelligkeitsStatus.baldFaellig,
-    // Saisonale Planungsfenster standardmässig sichtbar (17 unsichtbare
-    // Betriebe am 17.07.2026 — der Eröffnungs-Chip war nie aktiv).
-    FaelligkeitsStatus.endreinigungFaellig,
-    FaelligkeitsStatus.eroeffnungFaellig,
-  },
-);
+/// Fälligkeits-Auswahl der Tourenplanung.
+///
+/// Standard: alles ausser «Alle» — überfällig, fällig, bald fällig und die
+/// saisonalen Fenster. «Bald fällig» ist bewusst an (Regel Daniel 22.07.):
+/// Beim Planen einer Zukunfts-Tour sind genau die an dem Tag reif werdenden
+/// Kunden «bald fällig» — ohne sie wirkte das Planungsdatum wirkungslos
+/// (verifiziert: 32 Anlagen im +7-Tage-Fenster unsichtbar). Eröffnung und
+/// Endreinigung liegen seit 29.07.2026 zusammen unter «Saison».
+final selectedFaelligkeitProvider =
+    StateProvider<Set<TourFilter>>((ref) => standardTourFilter);
 
 // ─── Betrieb-Lookup Helper ───
 
@@ -418,8 +432,11 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
   final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
   final eintraege = <TourEintrag>[];
 
-  // 1. Fällige Anlagen → Reinigungen
-  final faelligeAnlagen = ref.watch(faelligeAnlagenProvider(datum));
+  // 1. Fällige Anlagen → Reinigungen. Bei aktivem «Alle»-Filter kommen auch
+  // die noch nicht fälligen Anlagen dazu.
+  final alle = zeigtNichtFaellige(ref.watch(selectedFaelligkeitProvider));
+  final faelligeAnlagen =
+      ref.watch(tourAnlagenProvider((datum: datum, alle: alle)));
   for (final a in faelligeAnlagen) {
     final betrieb = betriebMap[a.betriebId];
     final serviceArt = a.serverId != null ? serviceArtMap[a.serverId!] : null;

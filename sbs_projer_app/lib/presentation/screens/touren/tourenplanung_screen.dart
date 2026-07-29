@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
@@ -119,7 +121,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       // Fälligkeits-Filter nur auf Reinigungen; Störungen/Montagen durchlassen.
       if (selectedFaelligkeit.isNotEmpty && e.typ == TourEintragTyp.reinigung) {
         if (e.faelligkeit == null ||
-            !selectedFaelligkeit.contains(e.faelligkeit)) {
+            !sichtbarImTourfilter(e.faelligkeit!, selectedFaelligkeit)) {
           return false;
         }
       }
@@ -184,9 +186,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           ),
 
           // Inline-Filter Fälligkeit (einzeilig, ohne Label — Region: AppBar)
-          _InlineFilterLeiste(
-            selectedFaelligkeit: selectedFaelligkeit,
-            onFaelligkeitChanged: (updated) {
+          TourFilterLeiste(
+            ausgewaehlt: selectedFaelligkeit,
+            onChanged: (updated) {
               ref.read(selectedFaelligkeitProvider.notifier).state = updated;
             },
           ),
@@ -1211,49 +1213,6 @@ class _FaelligEintragKarte extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Inline-Filter-Leiste (Fälligkeit — einzeilig, farbige Chips) ───
-
-class _InlineFilterLeiste extends StatelessWidget {
-  final Set<FaelligkeitsStatus> selectedFaelligkeit;
-  final void Function(Set<FaelligkeitsStatus>) onFaelligkeitChanged;
-
-  const _InlineFilterLeiste({
-    required this.selectedFaelligkeit,
-    required this.onFaelligkeitChanged,
-  });
-
-  static const _faelligStatuses = [
-    FaelligkeitsStatus.ueberfaellig,
-    FaelligkeitsStatus.faellig,
-    FaelligkeitsStatus.baldFaellig,
-    FaelligkeitsStatus.endreinigungFaellig,
-    FaelligkeitsStatus.eroeffnungFaellig,
-  ];
-
-  // Kurz-Label nur für die Filter-Chips (global bleibt faelligkeitLabel).
-  static String _kurz(FaelligkeitsStatus s) =>
-      s == FaelligkeitsStatus.baldFaellig ? 'Bald' : faelligkeitLabel(s);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      child: AppMultiToggleChips<FaelligkeitsStatus>(
-        spacing: 4,
-        alignment: WrapAlignment.spaceBetween,
-        options: [
-          for (final s in _faelligStatuses)
-            AppMultiOption(s, _kurz(s), color: faelligkeitFarbe(s)),
-        ],
-        selected: selectedFaelligkeit,
-        onChanged: onFaelligkeitChanged,
       ),
     );
   }
