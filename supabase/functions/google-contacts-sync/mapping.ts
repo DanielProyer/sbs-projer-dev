@@ -32,12 +32,17 @@ export function personFunktion(k: Any): string {
   return ((k.funktion ?? k.rolle) ?? "").trim();
 }
 
-/// «Betriebsname Ort» — der Kartenname eines Betriebs ohne Kontaktperson.
+/// «Ort - Betrieb» — der Kartenname eines Betriebs ohne Kontaktperson.
+///
+/// Der Ort steht vorn (Format Daniel, 29.07.2026): So sortiert das Adressbuch
+/// nach Ort, alle Betriebe einer Ortschaft stehen für die Tour beieinander —
+/// und die Karten passen zu den von Hand angelegten Einträgen, sodass Google
+/// die Dubletten als solche erkennt.
 export function betriebAnzeige(b: Any): string {
-  return [b.name, b.ort]
+  return [b.ort, b.name]
     .map((x: Any) => (x ?? "").trim())
     .filter((x: string) => x !== "")
-    .join(" ");
+    .join(" - ");
 }
 
 /// Reihenfolge der Personen eines Betriebs: Hauptkontakt zuerst, sonst
@@ -81,17 +86,17 @@ export function personAusKontakt(k: Any, betriebText: string): Any {
 
 /// Eine Karte für den Betrieb — mit seinen Kontaktpersonen darin.
 ///
-/// Der Kartenname trägt den Betrieb und die Hauptperson («Alp Nova
-/// Lenzerheide/Lai — Jon Bertogg»), damit die Suche beide findet. Die
-/// Festnetznummer steht als Geschäftsnummer, jede Personennummer als
-/// Mobilnummer; bei mehreren Personen wird der Name zum Rufnummern-Label,
-/// sonst bleibt es beim schlichten «mobile».
+/// Der Kartenname trägt Ort, Betrieb und die Hauptperson («Lenzerheide/Lai -
+/// Alp Nova (Jon Bertogg)»), damit die Suche beide findet. Die Festnetznummer
+/// steht als Geschäftsnummer, jede Personennummer als Mobilnummer; bei
+/// mehreren Personen wird der Name zum Rufnummern-Label, sonst bleibt es beim
+/// schlichten «mobile».
 export function personAusBetriebMitPersonen(b: Any, personen: Any[]): Any {
   const sortiert = sortierePersonen(personen);
   const haupt = sortiert[0];
   const basis = betriebAnzeige(b);
   const hauptName = haupt ? personName(haupt) : "";
-  const anzeige = hauptName ? `${basis} — ${hauptName}` : basis;
+  const anzeige = hauptName ? `${basis} (${hauptName})` : basis;
 
   const p: Any = {
     names: [{ unstructuredName: anzeige }],

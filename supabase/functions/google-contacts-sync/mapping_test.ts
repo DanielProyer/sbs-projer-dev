@@ -38,7 +38,7 @@ Deno.test("Kartenname trägt Betrieb und Hauptperson", () => {
   const p = personAusBetriebMitPersonen(alpNova, [jon]);
   assertEquals(
     p.names[0].unstructuredName,
-    "Alp Nova Lenzerheide/Lai — Jon Bertogg",
+    "Lenzerheide/Lai - Alp Nova (Jon Bertogg)",
   );
 });
 
@@ -58,7 +58,7 @@ Deno.test("Funktion der Hauptperson steht in der Organisation", () => {
 
 Deno.test("Betrieb ohne Person behält seinen schlichten Namen", () => {
   const p = personAusBetriebMitPersonen(alpNova, []);
-  assertEquals(p.names[0].unstructuredName, "Alp Nova Lenzerheide/Lai");
+  assertEquals(p.names[0].unstructuredName, "Lenzerheide/Lai - Alp Nova");
   assertEquals(p.phoneNumbers, [{ value: "+41 81 385 51 20", type: "work" }]);
 });
 
@@ -81,7 +81,7 @@ Deno.test("mehrere Personen: Namen werden zu Rufnummern-Labels", () => {
   // Im Namen steht nur die erste Person, sonst wird die Karte unlesbar.
   assertEquals(
     p.names[0].unstructuredName,
-    "Alp Nova Lenzerheide/Lai — Anna Meier",
+    "Lenzerheide/Lai - Alp Nova (Anna Meier)",
   );
 });
 
@@ -97,7 +97,7 @@ Deno.test("Hauptkontakt bestimmt den Namen, nicht die Reihenfolge", () => {
   const p = personAusBetriebMitPersonen(alpNova, [jon, anna]);
   assertEquals(
     p.names[0].unstructuredName,
-    "Alp Nova Lenzerheide/Lai — Anna Meier",
+    "Lenzerheide/Lai - Alp Nova (Anna Meier)",
   );
 });
 
@@ -175,8 +175,8 @@ Deno.test("vergleichsKey: gelesene Google-Form ergibt denselben Schlüssel", () 
   const geschrieben = personAusBetriebMitPersonen(alpNova, [jon]);
   const gelesen = {
     names: [{
-      givenName: "Alp",
-      familyName: "Nova Lenzerheide/Lai — Jon Bertogg",
+      givenName: "Lenzerheide/Lai",
+      familyName: "- Alp Nova (Jon Bertogg)",
     }],
     organizations: [{ name: "Alp Nova", title: "Geschäftsführer" }],
     phoneNumbers: [
