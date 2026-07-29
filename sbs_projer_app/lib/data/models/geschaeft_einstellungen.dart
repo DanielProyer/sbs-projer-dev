@@ -14,6 +14,9 @@ class GeschaeftEinstellungen {
   final String? firmenIban;
   final String? gfAhvNr;
   final DateTime? gfGeburtsdatum;
+  // Startort (Zuhause) für Anfahrt/Heimweg im Tourenplan (Spec 2026-07-29 §3).
+  final double? startortLat;
+  final double? startortLng;
 
   const GeschaeftEinstellungen({
     this.id = '',
@@ -31,6 +34,8 @@ class GeschaeftEinstellungen {
     this.firmenIban,
     this.gfAhvNr,
     this.gfGeburtsdatum,
+    this.startortLat,
+    this.startortLng,
   });
 
   // Fallback-Konstanten = heutige fix codierte Werte.
@@ -40,21 +45,24 @@ class GeschaeftEinstellungen {
   static const kTelefon = '076 566 58 06';
   static const kMail = 'dani.proyer@gmail.com';
 
-  static String? _clean(String? s) => (s != null && s.trim().isNotEmpty) ? s.trim() : null;
+  static String? _clean(String? s) =>
+      (s != null && s.trim().isNotEmpty) ? s.trim() : null;
 
   String get firma => _clean(firmaName) ?? kFirma;
   String get adresseStrasse => _clean(strasse) ?? kStrasse;
   String get adressePlzOrt => _clean(plzOrt) ?? kPlzOrt;
   String get telefonOrFallback => _clean(telefon) ?? kTelefon;
   String get gfVollname => '${gfVorname ?? ''} ${gfName ?? ''}'.trim();
-  String get mailEmpfaenger => _clean(mailGeschaeft) ?? _clean(mailPrivat) ?? kMail;
+  String get mailEmpfaenger =>
+      _clean(mailGeschaeft) ?? _clean(mailPrivat) ?? kMail;
   int get gfGeburtsjahr => gfGeburtsdatum?.year ?? 1990;
   String get mwstZeile {
     final m = _clean(mwstNummer);
     return m == null ? '' : '$m MWST';
   }
 
-  factory GeschaeftEinstellungen.fromJson(Map<String, dynamic> j) => GeschaeftEinstellungen(
+  factory GeschaeftEinstellungen.fromJson(Map<String, dynamic> j) =>
+      GeschaeftEinstellungen(
         id: j['id']?.toString() ?? '',
         userId: j['user_id']?.toString() ?? '',
         firmaName: j['firma_name'],
@@ -69,22 +77,28 @@ class GeschaeftEinstellungen {
         uidNummer: j['uid_nummer'],
         firmenIban: j['firmen_iban'],
         gfAhvNr: j['gf_ahv_nr'],
-        gfGeburtsdatum: j['gf_geburtsdatum'] != null ? DateTime.parse(j['gf_geburtsdatum']) : null,
+        gfGeburtsdatum: j['gf_geburtsdatum'] != null
+            ? DateTime.parse(j['gf_geburtsdatum'])
+            : null,
+        startortLat: (j['startort_lat'] as num?)?.toDouble(),
+        startortLng: (j['startort_lng'] as num?)?.toDouble(),
       );
 
   Map<String, dynamic> toJson() => {
-        'firma_name': firmaName,
-        'strasse': strasse,
-        'plz_ort': plzOrt,
-        'gf_vorname': gfVorname,
-        'gf_name': gfName,
-        'telefon': telefon,
-        'mail_geschaeft': mailGeschaeft,
-        'mail_privat': mailPrivat,
-        'mwst_nummer': mwstNummer,
-        'uid_nummer': uidNummer,
-        'firmen_iban': firmenIban,
-        'gf_ahv_nr': gfAhvNr,
-        'gf_geburtsdatum': gfGeburtsdatum?.toIso8601String().split('T').first,
-      };
+    'firma_name': firmaName,
+    'strasse': strasse,
+    'plz_ort': plzOrt,
+    'gf_vorname': gfVorname,
+    'gf_name': gfName,
+    'telefon': telefon,
+    'mail_geschaeft': mailGeschaeft,
+    'mail_privat': mailPrivat,
+    'mwst_nummer': mwstNummer,
+    'uid_nummer': uidNummer,
+    'firmen_iban': firmenIban,
+    'gf_ahv_nr': gfAhvNr,
+    'gf_geburtsdatum': gfGeburtsdatum?.toIso8601String().split('T').first,
+    'startort_lat': startortLat,
+    'startort_lng': startortLng,
+  };
 }

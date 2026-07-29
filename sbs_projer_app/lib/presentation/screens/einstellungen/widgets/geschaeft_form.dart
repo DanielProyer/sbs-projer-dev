@@ -25,7 +25,9 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
     if (t.isEmpty) return null;
     final p = t.split('.');
     if (p.length != 3) return null;
-    final d = int.tryParse(p[0]), m = int.tryParse(p[1]), y = int.tryParse(p[2]);
+    final d = int.tryParse(p[0]),
+        m = int.tryParse(p[1]),
+        y = int.tryParse(p[2]);
     if (d == null || m == null || y == null) return null;
     return DateTime(y, m, d);
   }
@@ -44,10 +46,17 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
       'gf_name': TextEditingController(text: g.gfName ?? ''),
       'gf_ahv_nr': TextEditingController(text: g.gfAhvNr ?? ''),
       'gf_geburtsdatum': TextEditingController(
-          text: g.gfGeburtsdatum != null ? _df.format(g.gfGeburtsdatum!) : ''),
+        text: g.gfGeburtsdatum != null ? _df.format(g.gfGeburtsdatum!) : '',
+      ),
       'telefon': TextEditingController(text: g.telefon ?? ''),
       'mail_geschaeft': TextEditingController(text: g.mailGeschaeft ?? ''),
       'mail_privat': TextEditingController(text: g.mailPrivat ?? ''),
+      'startort_lat': TextEditingController(
+        text: g.startortLat?.toString() ?? '',
+      ),
+      'startort_lng': TextEditingController(
+        text: g.startortLng?.toString() ?? '',
+      ),
     };
   }
 
@@ -63,20 +72,31 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
     setState(() => _saving = true);
     try {
       final fields = <String, dynamic>{
-        for (final e in _c.entries) e.key: e.value.text.trim()
+        for (final e in _c.entries) e.key: e.value.text.trim(),
       };
-      fields['gf_geburtsdatum'] =
-          _parseDatum(_c['gf_geburtsdatum']!.text)?.toIso8601String().split('T').first;
+      fields['gf_geburtsdatum'] = _parseDatum(
+        _c['gf_geburtsdatum']!.text,
+      )?.toIso8601String().split('T').first;
+      // Numerisch statt Text — leer bzw. unlesbar wird bewusst null (kein
+      // Startort erfasst), nicht ein fehlerhafter Zahlenwert.
+      fields['startort_lat'] = double.tryParse(
+        _c['startort_lat']!.text.trim().replaceAll(',', '.'),
+      );
+      fields['startort_lng'] = double.tryParse(
+        _c['startort_lng']!.text.trim().replaceAll(',', '.'),
+      );
       await GeschaeftRepository.save(fields);
       ref.invalidate(geschaeftProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Geschäft gespeichert')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Geschäft gespeichert')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -84,19 +104,25 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
   }
 
   Widget _field(String key, String label, {TextInputType? kb}) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: TextField(
-          controller: _c[key],
-          keyboardType: kb,
-          decoration: InputDecoration(
-              labelText: label, border: const OutlineInputBorder(), isDense: true),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: TextField(
+      controller: _c[key],
+      keyboardType: kb,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+    ),
+  );
 
   Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 6),
-        child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-      );
+    padding: const EdgeInsets.only(top: 4, bottom: 6),
+    child: Text(
+      t,
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -116,8 +142,45 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
         _field('gf_geburtsdatum', 'Geburtsdatum (TT.MM.JJJJ)'),
         _label('Kontakt'),
         _field('telefon', 'Telefon', kb: TextInputType.phone),
-        _field('mail_geschaeft', 'Mail Geschäft', kb: TextInputType.emailAddress),
+        _field(
+          'mail_geschaeft',
+          'Mail Geschäft',
+          kb: TextInputType.emailAddress,
+        ),
         _field('mail_privat', 'Mail Privat', kb: TextInputType.emailAddress),
+        _label('Startort (Zuhause)'),
+        Row(
+          children: [
+            Expanded(
+              child: _field(
+                'startort_lat',
+                'Breitengrad',
+                kb: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _field(
+                'startort_lng',
+                'Längengrad',
+                kb: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Text(
+            'Für Anfahrt und Heimweg im Tourenplan',
+            style: TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -125,8 +188,13 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
             onPressed: _saving ? null : _save,
             icon: _saving
                 ? const SizedBox(
-                    width: 16, height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Icon(Icons.save, size: 18),
             label: const Text('Geschäft speichern'),
           ),

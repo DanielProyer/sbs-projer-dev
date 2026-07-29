@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/core/util/touren_saison.dart';
 import 'package:sbs_projer_app/core/util/zeitplan.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
@@ -871,6 +872,7 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
         const <String, FahrzeitEintrag>{};
     final arbeitstag = ref.watch(arbeitstagProvider(widget.datum));
     final anlagen = ref.watch(anlagenProvider);
+    final startort = ref.watch(startortProvider);
 
     final eintraege = widget.eintraege;
     final byId = {for (final e in eintraege) e.id: e};
@@ -930,6 +932,49 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
       return _kFahrzeitOhneGps;
     }
 
+    // Anfahrt/Heimweg ab Zuhause (Spec §3): Strecken zum/vom Startort sind
+    // bewusst IMMER Heuristik — es gibt kein Betriebspaar, also keinen
+    // Cache-Eintrag in `fahrzeiten` (anders als Fahrten zwischen Betrieben).
+    // Fehlt der Startort, oder hat der erste/letzte Eintrag keinen Betrieb
+    // (z.B. eine freie Störung), entfällt das jeweilige Segment (null).
+    int? anfahrtMinuten;
+    int? heimwegMinuten;
+    if (startort != null && eintraege.isNotEmpty) {
+      int? minutenAbStartort(BetriebLocal? betrieb, {required bool hin}) {
+        if (betrieb?.latitude == null || betrieb?.longitude == null) {
+          // Betrieb ohne GPS -> derselbe Fallback wie bei Fahrten zwischen
+          // Betrieben (kein 0, keine unberechenbare Heuristik).
+          return _kFahrzeitOhneGps;
+        }
+        final km = hin
+            ? haversineKm(
+                startort.lat,
+                startort.lng,
+                betrieb!.latitude!,
+                betrieb.longitude!,
+              )
+            : haversineKm(
+                betrieb!.latitude!,
+                betrieb.longitude!,
+                startort.lat,
+                startort.lng,
+              );
+        return heuristikMinuten(luftlinieKm: km);
+      }
+
+      final ersterBetriebId = eintraege.first.betriebId;
+      if (ersterBetriebId != null) {
+        anfahrtMinuten = minutenAbStartort(lookup[ersterBetriebId], hin: true);
+      }
+      final letzterBetriebId = eintraege.last.betriebId;
+      if (letzterBetriebId != null) {
+        heimwegMinuten = minutenAbStartort(
+          lookup[letzterBetriebId],
+          hin: false,
+        );
+      }
+    }
+
     final segmente = berechneZeitplan(
       bloecke: [
         for (final e in eintraege)
@@ -940,10 +985,8 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
           ),
       ],
       arbeitsbeginn: arbeitstag.beginn,
-      // Startort (Zuhause) kommt in Task 8 aus den Geschäftseinstellungen —
-      // null heisst hier: keine Anfahrt-/Heimweg-Segmente zeichnen.
-      anfahrtMinuten: null,
-      heimwegMinuten: null,
+      anfahrtMinuten: anfahrtMinuten,
+      heimwegMinuten: heimwegMinuten,
       fahrzeitZwischen: fahrzeitZwischen,
     );
 
@@ -1988,7 +2031,7 @@ class _StatusBadge extends StatelessWidget {
 
 // ─── Fällig-Eintrag Karte (im Fällig-Tab) ───
 
-class _FaelligEintragKarte extends StatelessWidget {
+class _FaelligEintragKarte extends ConsumerWidget {
   final DateTime datum;
   final TourEintrag eintrag;
   final bool imPlan;
@@ -2004,8 +2047,11 @@ class _FaelligEintragKarte extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final color = _typColor(eintrag.typ);
+    final letzteReinigung = eintrag.anlageId == null
+        ? null
+        : ref.watch(letzteReinigungJeAnlageProvider)[eintrag.anlageId!];
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -2038,27 +2084,20 @@ class _FaelligEintragKarte extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    eintrag.betriebName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (eintrag.betriebOrt != null)
-                                  Text(
-                                    eintrag.betriebOrt!,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                              ],
+                            // Betrieb + Ort in einer Grösse (Spec §7) — vorher
+                            // stach der Ort optisch kleiner ab, obwohl er zum
+                            // Wiedererkennen genauso wichtig ist.
+                            Text(
+                              eintrag.betriebOrt != null &&
+                                      eintrag.betriebOrt!.isNotEmpty
+                                  ? '${eintrag.betriebName} - ${eintrag.betriebOrt}'
+                                  : eintrag.betriebName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -2074,7 +2113,25 @@ class _FaelligEintragKarte extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      _StatusBadge(eintrag: eintrag),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _StatusBadge(eintrag: eintrag),
+                          if (eintrag.typ == TourEintragTyp.reinigung &&
+                              eintrag.anlageId != null &&
+                              letzteReinigung != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'zuletzt ${DateFormat('dd.MM.yyyy').format(letzteReinigung)}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(width: 4),
                       IconButton(
                         icon: Icon(

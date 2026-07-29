@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
@@ -921,6 +922,28 @@ typedef Arbeitstag = ({String beginn, String? ende, int? km});
 final arbeitstagProvider = StateProvider.family<Arbeitstag, DateTime>(
   (ref, datum) => (beginn: '06:00', ende: null, km: null),
 );
+
+/// Datum der letzten Reinigung je Anlage (`AnlageLocal.routeId` — dieselbe
+/// Konvention wie `TourEintrag.anlageId` bei Reinigungs-Einträgen). Für die
+/// Fällig-Liste (Spec §7: «zuletzt DD.MM.YYYY» unter dem Fälligkeits-Badge).
+final letzteReinigungJeAnlageProvider = Provider<Map<String, DateTime>>((ref) {
+  final anlagen = ref.watch(anlagenProvider);
+  return {
+    for (final a in anlagen)
+      if (a.letzteReinigung != null) a.routeId: a.letzteReinigung!,
+  };
+});
+
+/// Startort (Zuhause) aus den Geschäftseinstellungen — Grundlage für
+/// Anfahrt/Heimweg in der Zeitachse (Spec §3). `null`, solange keine
+/// Koordinaten erfasst sind; die Zeitachse zeichnet dann keine Rand-Segmente.
+final startortProvider = Provider<({double lat, double lng})?>((ref) {
+  final g = ref.watch(geschaeftProvider).valueOrNull;
+  if (g == null || g.startortLat == null || g.startortLng == null) {
+    return null;
+  }
+  return (lat: g.startortLat!, lng: g.startortLng!);
+});
 
 // ─── Tagesplan State ───
 
