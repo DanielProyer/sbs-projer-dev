@@ -1,4 +1,8 @@
 -- 152: Fahrzeiten-Kaskade + Arbeitstag-Rahmen (Spec 2026-07-29 Tourenplan-Zeitachse)
+--
+-- Bereits angewendet; Datenkorrektur der 2 Fehlzeilen erfolgte per Hand am 29.07.2026
+-- (Review-Befund: LATERAL-Join uebersprang Zwischenbesuche im selben Betrieb und
+-- vermischte deren Arbeitszeit in die Fahrzeit -- siehe Fix in Abschnitt 4 unten).
 
 -- 1) Gelernte/gecachte Fahrzeiten zwischen Betrieben.
 create table if not exists fahrzeiten (
@@ -43,12 +47,21 @@ uebergaenge as (
          extract(epoch from (b.start_ts - a.ende_ts)) / 60.0 as luecke_min
   from tagesfolge a
   join lateral (
+    -- Hier NUR den chronologisch naechsten Besuch suchen, egal welcher Betrieb.
+    -- Wuerde man "b.betrieb_id <> a.betrieb_id" bereits hier im Subquery filtern,
+    -- wird bei einer Kette am selben Betrieb (A -> A -> B) der Zwischenbesuch A
+    -- uebersprungen und dessen Arbeitszeit faelschlich als Fahrzeit A->B gezaehlt
+    -- (Review-Befund 29.07.2026, 2 Zeilen live betroffen und per Hand korrigiert).
     select * from tagesfolge b
     where b.user_id = a.user_id and b.datum = a.datum
-      and b.start_ts > a.ende_ts and b.betrieb_id <> a.betrieb_id
+      and b.start_ts > a.ende_ts
     order by b.start_ts limit 1
   ) b on true
-  where extract(epoch from (b.start_ts - a.ende_ts)) / 60.0 between 3 and 120
+  -- Der Betrieb-Filter gehoert AUSSEN: so terminiert eine Kette am selben Betrieb
+  -- korrekt (kein Uebergang, keine Fahrzeit), statt den naechsten Besuch zu
+  -- ueberspringen.
+  where b.betrieb_id <> a.betrieb_id
+    and extract(epoch from (b.start_ts - a.ende_ts)) / 60.0 between 3 and 120
 )
 insert into fahrzeiten (user_id, von_betrieb_id, nach_betrieb_id, minuten, quelle, anzahl)
 select user_id, von_id, nach_id,
