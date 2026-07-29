@@ -94,19 +94,17 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         _loadedForDate = tag;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          // Arbeitstag-Rahmen übernehmen — nur die gepflegten Werte, damit ein
-          // leeres Feld den Standard (06:00) nicht überschreibt.
+          // Arbeitstag-Rahmen übernehmen: liegt eine Zeile vor, ist sie für
+          // Ende und km-Stand massgebend (auch leer — sonst käme ein gerade
+          // gelöschter Wert beim nächsten Öffnen wieder). Nur beim Beginn
+          // bleibt der Standard 06:00 stehen, wenn nichts gepflegt ist.
           if (gespeichert != null) {
             final aktuell = ref.read(arbeitstagProvider(tag));
-            if (gespeichert.arbeitsbeginn != null ||
-                gespeichert.arbeitsende != null ||
-                gespeichert.kmStand != null) {
-              ref.read(arbeitstagProvider(tag).notifier).state = (
-                beginn: gespeichert.arbeitsbeginn ?? aktuell.beginn,
-                ende: gespeichert.arbeitsende ?? aktuell.ende,
-                km: gespeichert.kmStand ?? aktuell.km,
-              );
-            }
+            ref.read(arbeitstagProvider(tag).notifier).state = (
+              beginn: gespeichert.arbeitsbeginn ?? aktuell.beginn,
+              ende: gespeichert.arbeitsende,
+              km: gespeichert.kmStand,
+            );
           }
           final notifier = ref.read(tagesplanProvider.notifier);
           // Race-Schutz: hat der User diesen Tag inzwischen bereits bearbeitet,
@@ -866,10 +864,13 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                   : lookup[eintrag.betriebId!];
               final ruhetagKonflikt =
                   betrieb != null && !istOffenerTag(betrieb, widget.datum);
+              // Spec §4: der ganze Besuch (Ankunft bis Ende) muss ins
+              // Servicefenster passen, nicht nur die Ankunft.
               final servicezeitKonflikt =
                   betrieb != null &&
-                  !liegtInServicefenster(
+                  besuchAusserhalbServicezeit(
                     segment.startMin,
+                    segment.endMin,
                     betrieb.servicezeitMorgenAb,
                     betrieb.servicezeitMorgenBis,
                     betrieb.servicezeitNachmittagAb,
@@ -1082,16 +1083,34 @@ class _BlockSheet extends ConsumerWidget {
                     gewaehlt: gewaehlt.contains(a.routeId),
                     onTap: () {
                       final neu = List<String>.of(gewaehlt);
-                      if (!neu.remove(a.routeId)) neu.add(a.routeId);
+                      final abwahl = neu.contains(a.routeId);
+                      // Ein Besuch ohne Anlage ergibt fachlich nichts: die
+                      // Dauer-Schätzung fiele auf «1 Anlage» zurück und
+                      // «Reinigung starten» hätte kein Ziel mehr. Wer den
+                      // Besuch loswerden will, entfernt ihn unten ganz.
+                      if (abwahl && neu.length <= 1) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            duration: Duration(seconds: 3),
+                            content: Text(
+                              'Letzte Anlage — zum Entfernen des Besuchs '
+                              'unten «Aus Plan entfernen»',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      if (abwahl) {
+                        neu.remove(a.routeId);
+                      } else {
+                        neu.add(a.routeId);
+                      }
                       // `dauerMinuten` bleibt unangetastet: ist nichts manuell
                       // gesetzt, folgt die Schätzung automatisch der neuen
                       // Anlagenzahl. `anlageId` (erste Anlage) bleibt als
                       // Kompatibilitäts-Feld für «Reinigung starten» erhalten.
                       ersetze(
-                        eintrag.copyWith(
-                          anlageIds: neu,
-                          anlageId: neu.isNotEmpty ? neu.first : null,
-                        ),
+                        eintrag.copyWith(anlageIds: neu, anlageId: neu.first),
                       );
                     },
                   ),
@@ -1344,8 +1363,12 @@ class _ArbeitstagZeile extends ConsumerWidget {
 
     Future<void> speichern(Arbeitstag neu) async {
       ref.read(arbeitstagProvider(datum).notifier).state = neu;
+      // Datum-Guard: gehört der In-Memory-Plan inzwischen einem anderen Tag
+      // (Tagwechsel während des Dialogs), würde der Fallback-Pfad die Einträge
+      // des Vortags auf diesen Tag schreiben. Dann lieber gar nicht speichern.
+      if (ref.read(tagesplanProvider.notifier).datum != datum) return;
       try {
-        await tagesplanSpeichern(
+        await arbeitstagFelderSpeichern(
           datum,
           ref.read(tagesplanProvider),
           arbeitsbeginn: neu.beginn,
@@ -1505,12 +1528,20 @@ class _ArbeitstagSheetState extends State<_ArbeitstagSheet> {
               const SizedBox(height: 16),
               GestureDetector(
                 onTap: () {
-                  // Unbrauchbare Eingaben still verwerfen (null = unverändert
-                  // lassen), statt den Tag mit Unsinn zu speichern.
-                  final ende = minutenAusHhmm(_ende.text.trim()) != null
-                      ? _ende.text.trim()
-                      : widget.aktuell.ende;
-                  final km = int.tryParse(_km.text.trim()) ?? widget.aktuell.km;
+                  // Leeres Feld heisst «löschen» (null), ein unbrauchbarer
+                  // Wert («12:xx», «abc») heisst «unverändert lassen» — sonst
+                  // liesse sich ein falsch erfasstes Arbeitsende nie mehr
+                  // entfernen.
+                  final endeText = _ende.text.trim();
+                  final kmText = _km.text.trim();
+                  final String? ende = endeText.isEmpty
+                      ? null
+                      : (minutenAusHhmm(endeText) != null
+                            ? endeText
+                            : widget.aktuell.ende);
+                  final int? km = kmText.isEmpty
+                      ? null
+                      : (int.tryParse(kmText) ?? widget.aktuell.km);
                   Navigator.pop(context, (
                     beginn: widget.aktuell.beginn,
                     ende: ende,

@@ -22,10 +22,6 @@ const double kPxProMinute = 1.1;
 /// Mindesthöhe eines Besuchs-Blocks (Tippfläche).
 const double kBlockMindestHoehe = 44.0;
 
-/// Unterhalb dieser Blockhöhe wird nur noch Zeile 1 + 2 gezeigt (Zeitspanne
-/// und Betrieb) — der Anlagen-Chip hätte sonst keinen Platz mehr.
-const double _kKompaktUnter = 60.0;
-
 /// Breite der linken Zeitspalte.
 const double _kZeitSpalte = 36.0;
 
@@ -279,8 +275,9 @@ class ZeitplanZeile extends StatelessWidget {
 
   Widget _blockZeile() {
     final hoehe = math.max(kBlockMindestHoehe, segment.minuten * kPxProMinute);
-    final kompakt = hoehe < _kKompaktUnter;
     final farbe = blockFarbe(eintrag);
+    final zeigtChipZeile =
+        eintrag.typ == TourEintragTyp.reinigung || ankerVorschlag != null;
 
     final zeitspanne =
         '${hhmmAusMinuten(segment.startMin)}–${hhmmAusMinuten(segment.endMin)}';
@@ -331,20 +328,32 @@ class ZeitplanZeile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        if (!kompakt && eintrag.typ == TourEintragTyp.reinigung)
+        // Chip-Zeile IMMER zeigen, auch beim 28-Minuten-Normalfall: der Block
+        // hat nur eine Mindesthöhe (keine Fixhöhe) und darf für den Inhalt
+        // wachsen. Eine frühere Kompakt-Regel blendete Anlagen-Chip und
+        // Anker-Vorschlag bei kurzen Besuchen aus — also fast immer.
+        if (zeigtChipZeile)
           Padding(
             padding: const EdgeInsets.only(top: 3),
             child: Row(
               children: [
-                _chip(
-                  '${_anlagenZahl(eintrag)} von $anlagenGesamt Anlagen',
-                  AppColors.textSecondary,
-                ),
+                if (eintrag.typ == TourEintragTyp.reinigung)
+                  Flexible(
+                    child: _chip(
+                      '${_anlagenZahl(eintrag)} von $anlagenGesamt Anlagen',
+                      AppColors.textSecondary,
+                    ),
+                  ),
+                // Der Anker-Vorschlag hängt am Servicefenster des Betriebs —
+                // der gilt für Störung und Montage genauso wie für Reinigungen.
                 if (ankerVorschlag != null) ...[
-                  const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: onAnkerVorschlag,
-                    child: _chip('Anker $ankerVorschlag?', AppColors.info),
+                  if (eintrag.typ == TourEintragTyp.reinigung)
+                    const SizedBox(width: 6),
+                  Flexible(
+                    child: GestureDetector(
+                      onTap: onAnkerVorschlag,
+                      child: _chip('Anker $ankerVorschlag?', AppColors.info),
+                    ),
                   ),
                 ],
               ],
@@ -435,6 +444,10 @@ class ZeitplanZeile extends StatelessWidget {
       ),
       child: Text(
         text,
+        // In `Flexible` gesetzt: auf schmalen Geräten schrumpft der Chip
+        // lieber, als die Zeile überlaufen zu lassen.
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,

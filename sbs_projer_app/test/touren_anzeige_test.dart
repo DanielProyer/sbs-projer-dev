@@ -116,6 +116,43 @@ void main() {
     });
   });
 
+  group('besuchAusserhalbServicezeit (Ankunft–Ende, Spec §4)', () {
+    const mAb = '08:00', mBis = '12:00', nAb = '13:30', nBis = '17:00';
+
+    test('Besuch komplett im Fenster → kein Konflikt', () {
+      expect(
+        besuchAusserhalbServicezeit(9 * 60, 10 * 60, mAb, mBis, nAb, nBis),
+        isFalse,
+      );
+    });
+    test('startet im Fenster, läuft hinaus → Konflikt', () {
+      // 11:45 ist noch drin, 12:30 nicht mehr.
+      expect(
+        besuchAusserhalbServicezeit(
+          11 * 60 + 45,
+          12 * 60 + 30,
+          mAb,
+          mBis,
+          nAb,
+          nBis,
+        ),
+        isTrue,
+      );
+    });
+    test('Ankunft ausserhalb → Konflikt', () {
+      expect(
+        besuchAusserhalbServicezeit(7 * 60, 9 * 60, mAb, mBis, nAb, nBis),
+        isTrue,
+      );
+    });
+    test('ohne erfasste Fenster nie ein Konflikt', () {
+      expect(
+        besuchAusserhalbServicezeit(3 * 60, 5 * 60, null, null, null, null),
+        isFalse,
+      );
+    });
+  });
+
   group('naechsterFensterStart', () {
     const mAb = '08:00', mBis = '12:00', nAb = '13:30', nBis = '17:00';
 

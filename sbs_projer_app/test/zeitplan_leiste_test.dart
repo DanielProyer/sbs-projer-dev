@@ -136,6 +136,55 @@ void main() {
       expect(find.text('06:00–06:30 · 30 min'), findsOneWidget);
     });
 
+    // Regressionsschutz: eine frühere Kompakt-Regel blendete beides bei
+    // Blockhöhen < 60 px aus — also beim Normalfall (Median 28–33 min).
+    testWidgets('30-min-Block zeigt Anlagen-Chip UND Anker-Vorschlag', (
+      tester,
+    ) async {
+      for (final breite in [360.0, 375.0, 412.0]) {
+        await _pumpe(
+          tester,
+          ZeitplanZeile(
+            segment: _besuch('k', 6 * 60, 30),
+            eintrag: _eintrag('k'),
+            anlagenGesamt: 3,
+            servicezeitKonflikt: true,
+            ankerVorschlag: '08:00',
+            onAnkerVorschlag: () {},
+          ),
+          breite: breite,
+        );
+        expect(find.text('1 von 3 Anlagen'), findsOneWidget);
+        expect(find.text('Anker 08:00?'), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: '$breite px');
+      }
+    });
+
+    testWidgets('Anker-Vorschlag auch bei Störung (kein Anlagen-Chip)', (
+      tester,
+    ) async {
+      final stoerung = TourEintrag(
+        typ: TourEintragTyp.stoerung,
+        id: 's1',
+        betriebId: 'b1',
+        betriebName: 'Hotel Alpin',
+        betriebOrt: 'Klosters',
+        beschreibung: 'Kein Druck',
+      );
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('s1', 7 * 60, 60),
+          eintrag: stoerung,
+          ankerVorschlag: '13:30',
+          onAnkerVorschlag: () {},
+        ),
+      );
+      expect(find.text('Anker 13:30?'), findsOneWidget);
+      expect(find.textContaining('Anlagen'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('übernommener Eintrag wird abgeblendet und beschriftet', (
       tester,
     ) async {

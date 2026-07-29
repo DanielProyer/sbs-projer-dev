@@ -146,6 +146,30 @@ bool liegtInServicefenster(
   return fenster.any((f) => minute >= f.ab && minute <= f.bis);
 }
 
+/// Liegt ein Besuch von [startMin] bis [endMin] ausserhalb der Servicezeit?
+///
+/// Spec 2026-07-29 §4: geprüft wird «Ankunft–Ende», nicht nur die Ankunft.
+/// Ein Besuch, der um 11:45 im Fenster startet und bis 12:30 dauert, ragt aus
+/// dem Fenster heraus — genau der Fall, den Daniel gewarnt haben will (er
+/// steht sonst vor verschlossener Tür bzw. mitten im Mittagsgeschäft).
+bool besuchAusserhalbServicezeit(
+  int startMin,
+  int endMin,
+  String? morgenAb,
+  String? morgenBis,
+  String? nachmittagAb,
+  String? nachmittagBis,
+) {
+  bool drin(int m) => liegtInServicefenster(
+    m,
+    morgenAb,
+    morgenBis,
+    nachmittagAb,
+    nachmittagBis,
+  );
+  return !drin(startMin) || !drin(endMin);
+}
+
 /// Beginn des nächsten Servicefensters **nach** [minute] (Minuten seit
 /// Mitternacht) — Grundlage für den Vorschlag «Anker HH:mm?» am Block.
 /// null, wenn kein Fenster mehr folgt (oder keines erfasst ist).

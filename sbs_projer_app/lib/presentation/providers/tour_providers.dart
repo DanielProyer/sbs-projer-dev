@@ -1118,6 +1118,49 @@ Future<void> tagesplanSpeichern(
   }, onConflict: 'user_id,datum');
 }
 
+/// Speichert NUR den Arbeitstag-Rahmen (Beginn/Ende/km) und schreibt die drei
+/// Spalten **immer** — auch mit `null`.
+///
+/// Warum eine eigene Funktion: In [tagesplanSpeichern] heisst `null`
+/// «Parameter nicht angegeben» (die Felder fallen aus dem upsert-Map), sonst
+/// würde jedes automatische Speichern der Einträge den Rahmen mitlöschen.
+/// Damit lässt sich ein Arbeitsende oder km-Stand aber nie wieder leeren —
+/// genau das macht diese Funktion möglich. Sie fasst `eintraege` nicht an
+/// (update statt upsert). Existiert für den Tag noch keine Zeile, legt sie
+/// [tagesplanSpeichern] mit den aktuellen Einträgen an, statt eine Zeile mit
+/// leerem Plan zu erzeugen.
+Future<void> arbeitstagFelderSpeichern(
+  DateTime datum,
+  List<TourEintrag> eintraege, {
+  required String arbeitsbeginn,
+  required String? arbeitsende,
+  required int? kmStand,
+}) async {
+  final datumStr =
+      '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
+  final userId = SupabaseService.client.auth.currentUser!.id;
+  final betroffen = await SupabaseService.client
+      .from('tagesplaene')
+      .update({
+        'arbeitsbeginn': arbeitsbeginn,
+        'arbeitsende': arbeitsende,
+        'km_stand': kmStand,
+        'updated_at': DateTime.now().toIso8601String(),
+      })
+      .eq('user_id', userId)
+      .eq('datum', datumStr)
+      .select('id');
+  if (betroffen.isNotEmpty) return;
+
+  await tagesplanSpeichern(
+    datum,
+    eintraege,
+    arbeitsbeginn: arbeitsbeginn,
+    arbeitsende: arbeitsende,
+    kmStand: kmStand,
+  );
+}
+
 Future<void> tagesplanLoeschen(DateTime datum) async {
   final datumStr =
       '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
