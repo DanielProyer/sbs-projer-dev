@@ -12,7 +12,9 @@ class ReinigungMapper {
     local.datum = dto.datum;
     local.uhrzeitStart = dto.uhrzeitStart;
     local.uhrzeitEnde = dto.uhrzeitEnde;
-    // dauerMinuten is GENERATED, not stored locally
+    // dauer_minuten ist server-seitig GENERATED — hier nur lesend uebernehmen
+    // (Historie fuer die Dauer-Schaetzung), niemals zurueckschreiben (s. toJson).
+    local.dauerMinuten = dto.dauerMinuten;
     local.hatDurchlaufkuehler = dto.hatDurchlaufkuehler;
     local.hatBuffetanstich = dto.hatBuffetanstich;
     local.hatKuehlkeller = dto.hatKuehlkeller;
@@ -77,7 +79,8 @@ class ReinigungMapper {
       'datum': local.datum.toIso8601String().split('T').first,
       'uhrzeit_start': local.uhrzeitStart,
       'uhrzeit_ende': local.uhrzeitEnde,
-      // dauerMinuten is GENERATED, not included
+      // dauer_minuten ist GENERATED ALWAYS (Migration 001) — Schreiben wuerde
+      // Postgres mit einem Fehler quittieren, daher hier bewusst ausgelassen.
       'hat_durchlaufkuehler': local.hatDurchlaufkuehler,
       'hat_buffetanstich': local.hatBuffetanstich,
       'hat_kuehlkeller': local.hatKuehlkeller,

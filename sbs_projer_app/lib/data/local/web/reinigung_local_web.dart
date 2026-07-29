@@ -15,6 +15,10 @@ class ReinigungLocal {
   DateTime datum = DateTime.now();
   String? uhrzeitStart;
   String? uhrzeitEnde;
+  /// Dauer in Minuten (server-seitig aus uhrzeit_start/uhrzeit_ende als
+  /// GENERATED-Spalte berechnet, s. Migration 001) — lokal nur zum Lesen
+  /// (Historie fuer Dauer-Schaetzung), nie an Supabase zurueckschreiben.
+  int? dauerMinuten;
 
   // Checkliste
   bool hatDurchlaufkuehler = false;
