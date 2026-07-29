@@ -3,7 +3,7 @@ import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 
 void main() {
   group('haversineKm', () {
-    test('Chur -> Davos ~ 42 km Luftlinie', () {
+    test('Chur -> Davos ~ 24 km Luftlinie', () {
       final km = haversineKm(46.8508, 9.5320, 46.8027, 9.8360);
       expect(km, closeTo(23.7, 1.5)); // echte Luftlinie Chur-Davos ~23-24 km
     });
@@ -39,6 +39,18 @@ void main() {
     });
     test('Luecke ueber 120 min: null', () {
       expect(fahrtLueckeMinuten('08:00', '11:00'), isNull);
+    });
+    test('Grenzwert exakt 3 min: gueltig', () {
+      expect(fahrtLueckeMinuten('10:00', '10:03'), 3);
+    });
+    test('Grenzwert exakt 120 min: gueltig', () {
+      expect(fahrtLueckeMinuten('08:00', '10:00'), 120);
+    });
+    test('Grenzwert 121 min: null', () {
+      expect(fahrtLueckeMinuten('08:00', '10:01'), isNull);
+    });
+    test('Grenzwert 2 min: null', () {
+      expect(fahrtLueckeMinuten('10:00', '10:02'), isNull);
     });
   });
 }

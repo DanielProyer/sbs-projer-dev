@@ -508,41 +508,55 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
 
       await ReinigungRepository.save(r);
 
-      // Fahrzeit-Nachfuehrung (Spec 2026-07-29 §3.1, Task 4): hat die
-      // Reinigung Start- UND Enduhrzeit, wird die Luecke zur zeitlich
-      // letzten ANDEREN Reinigung DESSELBEN Tages (anderer Betrieb, Ende vor
-      // diesem Start) als beobachtete Fahrzeit nachgefuehrt. Fire-and-forget:
-      // Fehler werden in FahrzeitRepository still geloggt, dieser Fluss darf
-      // das Speichern einer Reinigung nie stoeren.
-      if (r.uhrzeitStart != null && r.uhrzeitEnde != null) {
-        final startMin = _hmMinuten(r.uhrzeitStart);
-        if (startMin != null) {
-          ReinigungLocal? vorherige;
-          int? vorherigeEndeMin;
-          for (final x in ref.read(reinigungenProvider)) {
-            if (x.betriebId.isEmpty || x.betriebId == r.betriebId) continue;
-            if (x.datum.year != r.datum.year ||
-                x.datum.month != r.datum.month ||
-                x.datum.day != r.datum.day) {
-              continue;
+      // Fahrzeit-Nachfuehrung (Spec 2026-07-29 §3.1, Task 4): NUR beim
+      // Uebergang zu 'abgeschlossen' (nicht bei jedem Save), sonst wuerde
+      // jede spaetere Notiz-Korrektur einer bereits abgeschlossenen Reinigung
+      // denselben Uebergang erneut zaehlen — `anzahl` waechst kuenstlich und
+      // verwaessert den gleitenden Mittelwert (Review-Befund 29.07.2026).
+      // Erkennung: abschliessen==true UND der Status VOR diesem Save war noch
+      // nicht 'abgeschlossen' (_existing = geladener Stand vor den Edits).
+      final wurdeGeradeAbgeschlossen =
+          abschliessen && _existing?.status != 'abgeschlossen';
+      // Eigener try/catch: die synchrone Vorgaenger-Suche haengt sonst im
+      // aeusseren try von _save — eine Exception hier wuerde dem Nutzer
+      // faelschlich "Fehler" zeigen, obwohl das Speichern (Zeile oben) schon
+      // durch war, und wuerde Snackbar/Invalidierung/pop ueberspringen.
+      if (wurdeGeradeAbgeschlossen &&
+          r.uhrzeitStart != null &&
+          r.uhrzeitEnde != null) {
+        try {
+          final startMin = _hmMinuten(r.uhrzeitStart);
+          if (startMin != null) {
+            ReinigungLocal? vorherige;
+            int? vorherigeEndeMin;
+            for (final x in ref.read(reinigungenProvider)) {
+              if (x.betriebId.isEmpty || x.betriebId == r.betriebId) continue;
+              if (x.datum.year != r.datum.year ||
+                  x.datum.month != r.datum.month ||
+                  x.datum.day != r.datum.day) {
+                continue;
+              }
+              final endeMin = _hmMinuten(x.uhrzeitEnde);
+              if (endeMin == null || endeMin >= startMin) continue;
+              if (vorherigeEndeMin == null || endeMin > vorherigeEndeMin) {
+                vorherige = x;
+                vorherigeEndeMin = endeMin;
+              }
             }
-            final endeMin = _hmMinuten(x.uhrzeitEnde);
-            if (endeMin == null || endeMin >= startMin) continue;
-            if (vorherigeEndeMin == null || endeMin > vorherigeEndeMin) {
-              vorherige = x;
-              vorherigeEndeMin = endeMin;
+            if (vorherige != null) {
+              final luecke =
+                  fahrtLueckeMinuten(vorherige.uhrzeitEnde, r.uhrzeitStart);
+              if (luecke != null) {
+                unawaited(FahrzeitRepository.beobachtungNachfuehren(
+                  vonBetriebId: vorherige.betriebId,
+                  nachBetriebId: r.betriebId,
+                  minuten: luecke,
+                ));
+              }
             }
           }
-          if (vorherige != null) {
-            final luecke = fahrtLueckeMinuten(vorherige.uhrzeitEnde, r.uhrzeitStart);
-            if (luecke != null) {
-              unawaited(FahrzeitRepository.beobachtungNachfuehren(
-                vonBetriebId: vorherige.betriebId,
-                nachBetriebId: r.betriebId,
-                minuten: luecke,
-              ));
-            }
-          }
+        } catch (e) {
+          debugPrint('[Fahrzeit] Nachfuehrung uebersprungen: $e');
         }
       }
 
