@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
@@ -84,12 +85,15 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final id = kontakt.serverId ?? kontakt.id.toString();
       await KontaktRepository.delete(id);
-      GoogleContactsService.syncImHintergrund();
+      GoogleContactsService.syncImHintergrund(
+        onFehler: (f) => zeigeGoogleFehler(messenger, f),
+      );
       ref.invalidate(kontakteProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

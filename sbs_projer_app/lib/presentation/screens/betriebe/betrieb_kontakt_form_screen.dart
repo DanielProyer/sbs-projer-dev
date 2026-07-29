@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/util/google_kontakte.dart';
+import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
@@ -66,6 +67,8 @@ class _BetriebKontaktFormScreenState
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    // Vor dem Schliessen greifen — der Sync meldet sich später.
+    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final kontakt = _existing ?? BetriebKontaktLocal();
@@ -79,7 +82,9 @@ class _BetriebKontaktFormScreenState
       kontakt.istDuAnrede = _istDuAnrede;
 
       await BetriebKontaktRepository.save(kontakt);
-      GoogleContactsService.syncImHintergrund();
+      GoogleContactsService.syncImHintergrund(
+        onFehler: (f) => zeigeGoogleFehler(messenger, f),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

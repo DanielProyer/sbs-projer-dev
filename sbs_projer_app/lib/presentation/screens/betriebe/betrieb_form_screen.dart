@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
@@ -403,6 +404,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    // Vor dem Schliessen greifen — der Sync meldet sich später.
+    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final betrieb = _existing ?? BetriebLocal();
@@ -460,7 +463,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       await BetriebRepository.save(betrieb);
       // Betriebs-Eintrag im Google-Adressbuch nachziehen (Status/Telefon
       // können sich geändert haben; deckt auch Reaktivierung ab).
-      GoogleContactsService.syncImHintergrund();
+      GoogleContactsService.syncImHintergrund(
+        onFehler: (f) => zeigeGoogleFehler(messenger, f),
+      );
 
       // Saison-/Ferien-Reinigungen optional in den Google Kalender eintragen
       // (mit Bestätigungs-Dialog, nur wenn Google verbunden).

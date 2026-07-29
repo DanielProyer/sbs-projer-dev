@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/core/util/google_fehler.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Ergebnis eines Sync-Laufs (Zähler aus der Edge-Function).
@@ -35,15 +36,20 @@ class GoogleContactsService {
     );
   }
 
-  /// Hintergrund-Lauf nach Speichern/Löschen: entprellt (5 s), Fehler still.
-  /// Ohne Google-Verbindung oder Kontakte-Scope antwortet die Function mit
-  /// skipped/Fehler — beides wird hier bewusst geschluckt; der nächste
-  /// Reconcile holt alles nach.
-  static void syncImHintergrund() {
+  /// Hintergrund-Lauf nach Speichern/Löschen, entprellt.
+  ///
+  /// Ist kein Google-Konto verbunden, passiert bewusst nichts. Scheitert der
+  /// Lauf dagegen an der Einrichtung — API nicht freigeschaltet, fehlende
+  /// Freigabe, abgelaufene Verbindung —, meldet [onFehler] das im Klartext.
+  /// Vorher verschwand jeder Fehler im Log: Der Sync lief seit der fehlenden
+  /// People-API-Freischaltung stumm ins Leere (29.07.2026).
+  static void syncImHintergrund({void Function(GoogleFehler)? onFehler}) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(seconds: 5), () {
+    _debounce = Timer(const Duration(seconds: 2), () {
       syncJetzt().then((_) {}, onError: (Object e) {
-        debugPrint('Kontakte-Sync (Hintergrund) übersprungen: $e');
+        final f = googleFehler(e);
+        debugPrint('Kontakte-Sync (Hintergrund) fehlgeschlagen: $e');
+        if (f.istMeldenswert) onFehler?.call(f);
       });
     });
   }

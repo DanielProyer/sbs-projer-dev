@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/core/util/google_kontakte.dart';
+import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 
@@ -80,6 +81,9 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    // Vor dem Schliessen greifen: Der Sync läuft im Hintergrund weiter und
+    // meldet sich, wenn dieses Formular längst zu ist.
+    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final kontakt = _existing ?? KontaktLocal();
@@ -102,7 +106,9 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
       }
 
       await KontaktRepository.save(kontakt);
-      GoogleContactsService.syncImHintergrund();
+      GoogleContactsService.syncImHintergrund(
+        onFehler: (f) => zeigeGoogleFehler(messenger, f),
+      );
       ref.invalidate(kontakteProvider);
 
       if (mounted) {

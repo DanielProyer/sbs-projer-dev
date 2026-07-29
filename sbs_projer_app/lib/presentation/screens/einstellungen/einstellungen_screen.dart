@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/dateigroesse.dart';
+import 'package:sbs_projer_app/core/util/google_fehler.dart';
+import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/data/models/buchungs_beleg.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
@@ -356,7 +358,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           content: Text('Sync ok: ${r.info} '
               '(${r.created} neu, ${r.updated} geändert, ${r.deleted} gelöscht)')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Sync fehlgeschlagen: $e')));
+      // Google-Rohmeldungen sind unbrauchbar — übersetzt anzeigen, samt
+      // Knopf zur Seite, die das Problem behebt.
+      zeigeGoogleFehler(messenger, googleFehler(e));
     } finally {
       if (mounted) setState(() => _isKontakteSyncing = false);
       ref.invalidate(googleCalendarStatusProvider);
