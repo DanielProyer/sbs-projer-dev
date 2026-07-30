@@ -399,6 +399,14 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 
 ---
 
+## 🟢 ERLEDIGT 31.07.: v0.56.1/v0.56.2 — Ist-Zeiten für vergangene Tage, Sunset-Fix, Arbeitstag-Schutz
+
+- **v0.56.1:** Vergangene Tage im Tagesplan zeigen die GEMESSENEN Zeiten der abgeschlossenen Reinigungen (Fall «Plan vom 17.07. — Zeiten stimmen nicht»); ohne erfassten Arbeitsbeginn startet die Achse beim ersten gemessenen Ereignis.
+- **v0.56.2:** (1) Block-Sheet verlinkt die **Betriebsseite**. (2) **Sunset-Fall** gelöst: Plan-Übernahme von Datum und «Fällige übernehmen» ergänzen jetzt die heute fälligen Geschwister-Anlagen des Betriebs (`ergaenzeFaelligeAnlagen`, Bulk über `buendleInPlan`). (3) **Arbeitstag-Fehleingaben-Schutz**: «Jetzt starten» fragt nach, wenn der Tag läuft oder schon abgeschlossen ist; das Arbeitstag-Sheet hat alle 4 Felder (Beginn/km Start/Ende/km Abend, leer = löschen); `arbeitsbeginn` ist nullbar — vorher schrieb jeder Feierabend ohne Start den 06:00-Standard als erfassten Beginn.
+- **DB bereinigt:** versehentlicher Arbeitsbeginn 19:29 vom 30.07. gelöscht (Beginn + Startposition + Wegpunkt); Feierabend 18:23 und km 77'912→78'290 (378 km) blieben stehen.
+
+---
+
 ## 🔴 OFFEN: Nächste Schritte
 - **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.
 - **Kontakte-Übertragung Daniel (geplant 30.07.):** Alle Telefon-Kontakte in die App erfassen → syncen → in Google kontrollieren → erst DANN die alten Handy-Kontakte löschen (Reihenfolge wichtig; Sync löscht nur eigene «SBS App»-Karten, manuelle bleiben).
