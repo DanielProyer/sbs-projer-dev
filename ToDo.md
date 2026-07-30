@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 30.07.2026 · **Live:** v0.56.0
+**Stand:** 30.07.2026 · **Live:** v0.64.0
 
 ---
 
@@ -458,6 +458,15 @@ Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet di
 ## 🔴 OFFEN: Ausbau Aufgaben (Folgepaket)
 - **Aufgaben ↔ Kalender + Tourenplanung verknüpfen:** Aufgaben-Einträge in den Tagesplan des jeweiligen Tages übernehmen können; Sync mit Google Kalender (Teil des geplanten Kalender-Pakets G1–G4); Störungen mit PLAN-Datum (heute nur Meldedatum).
 - **Echte Zeiterfassung Störung/Montage — braucht Entscheid Daniel:** Der Live-Tagesplan schätzt weiterhin (Ende = Wegpunkt-Stempel, Start = Stempel − Plandauer). Befund 30.07.: Die Felder `uhrzeit_start/ende` existieren bei beiden Tabellen und `dauer_minuten` ist eine **GENERATED**-Spalte (`ende − start`). Bei Störungen ist `uhrzeit_start` aber der **Störungseingang** (Anruf, 107 Altwerte) — trägt man dort ein Ende ein, wird die «Dauer» zur Reaktionszeit statt zur Arbeitszeit. Sauber wären eigene Felder «Arbeit von/bis» (Migration) ODER die Umdeutung des Eingangs-Felds. **Frage an Daniel:** Wie soll der Störungseingang künftig festgehalten werden?
+
+## 🟢 ERLEDIGT 30.07.: v0.64.0 — echte Strassenroute in der Tages-Karte
+
+**Gemeldet von Daniel:** «wolltest du nicht routen in der karte darstellen» — zu Recht: Die Tages-Karte verband die Besuche mit **Luftlinien**, quer über Berge und Seen.
+
+- Neuer `TagesrouteService` holt bei OSRM den tatsächlich gefahrenen Verlauf (GeoJSON) und zeichnet ihn als Linie über die Kacheln.
+- Die Karte ist **sofort** mit der Luftlinie da und schärft nach, sobald die Antwort eintrifft. Antwortet OSRM nicht (kein Netz, keine Autoroute — etwa Davoser Bergbetriebe), bleibt die Luftlinie stehen, dünner und blasser gezeichnet, damit der Unterschied sichtbar ist.
+- Kein neuer Dienst, keine Kosten: derselbe freie OSRM-Server, der schon die Fahrzeit-Referenzen liefert.
+- 9 Tests für die Auswertung der OSRM-Antwort (ohne Netz), 784 Tests grün.
 
 ## 🟢 ERLEDIGT 30.07.: v0.63.0 — Routen-Optimierung, Arbeitstag-Auswertung, Pause-Knopf
 - **Routen-Optimierung** (`routen_optimierung.dart`, 18 Tests): Zauberstab-Knopf im Tagesplan ordnet die Besuche nach kürzester Gesamtfahrzeit (Nächster-Nachbar + 2-opt, deterministisch). **Einträge mit Termin-Anker bleiben stehen.** Das Verfahren prüft auch die bestehende Reihenfolge und nimmt die bessere — es kann nie verschlechtern. Meldet die Ersparnis in Minuten oder «bereits optimal».
