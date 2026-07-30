@@ -405,8 +405,12 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 - **Anfahrtszeiten-Grundlage** (Migration 156 `anfahrtszeiten`): 804 OSRM-Standardzeiten (ohne Verkehr) von Via Rezia 8 Domat/Ems + Giacomettistrasse 89 Chur zu allen 402 Betrieben mit GPS — **kostenlos** (Google hätte ~3 USD gekostet, wäre aber auch im Freikontingent gewesen). Ø 48 min, max 200 min.
 - **Erinnerung angelegt:** «Openair Lumnezia: Montage in der App generieren», fällig Mo 03.08. (Glocke + Aufgaben-Screen).
 
-## 🔴 OFFEN: Google Routes API aktivieren (1 Klick, Daniel)
-**Damit die zweite Meinung zu den Anfahrtszeiten kommt** («2 Werte sind besser als einer»): In der Google Cloud Console im Projekt **426928923599** die **Routes API** aktivieren — [Direktlink](https://console.developers.google.com/apis/api/routes.googleapis.com/overview?project=426928923599). Die Edge-Function `anfahrt-google` ist deployed und wartet nur darauf; ein Aufruf holt dann alle 804 Google-Werte (kostenlos im Freikontingent). Danach zeigt die App automatisch die Google-Werte (Spalte `minuten` bevorzugt sie), OSRM bleibt als Vergleich in `minuten_osrm` stehen.
+## 🔴 OFFEN: API-Key für Routes API freigeben (Daniel, 2. Schritt)
+✅ Die **Routes API ist aktiviert** (31.07., Daniel) — der Fehler hat sich geändert. ❌ Jetzt blockiert die **Einschränkung des API-Keys**: `API_KEY_SERVICE_BLOCKED`. Der Key, der als Secret `GOOGLE_PLACES_KEY` hinterlegt ist, hat unter «API restrictions» eine Positivliste, auf der die Routes API fehlt.
+
+**Zu tun:** [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials?project=426928923599) → den verwendeten API-Key öffnen → Abschnitt **«API restrictions»** → **Routes API** zur Liste «Restrict key» hinzufügen → speichern (greift nach 1–5 Minuten).
+
+**Danach:** Ein Aufruf der Edge-Function `anfahrt-google` (ohne Body) holt alle 804 Google-Werte; die App bevorzugt sie automatisch (Spalte `minuten`), OSRM bleibt als Vergleich in `minuten_osrm`. Bis dahin läuft alles mit den OSRM-Werten — nichts ist blockiert.
 
 ## 🟢 ERLEDIGT 31.07.: v0.60.1 — Anfahrtszeiten für neue Betriebe automatisch
 Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet die App direkt nach dem Speichern die Anfahrtszeiten ab **Domat/Ems und Chur** und legt sie in `anfahrtszeiten` ab — nur wenn Koordinaten vorliegen und sich die Position geändert hat. Die Edge-Function `anfahrt-google` kann jetzt einen Einzelbetrieb rechnen und hat **OSRM als kostenlosen Rückfall**; Google-Werte kommen automatisch dazu, sobald die Routes API freigeschaltet ist. End-zu-End geprüft am Sunset Seehotel Eich: 121 min ab Domat/Ems (165.6 km), 115 min ab Chur (158.4 km).
