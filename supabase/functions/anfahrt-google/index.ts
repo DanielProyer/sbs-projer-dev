@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
       );
       if (!res.ok) {
         const text = await res.text();
-        fehler.push(`${start.key} chunk ${i}: HTTP ${res.status} ${text.slice(0, 300)}`);
+        fehler.push(`${start.key} chunk ${i}: HTTP ${res.status} ${text.slice(0, 900)}`);
         continue;
       }
 
