@@ -399,6 +399,18 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 
 ---
 
+## 🟢 ERLEDIGT 31.07. (Nachtpaket 2): v0.58.0 — Aufgaben-Screen, Events in Liste, Anfahrtszeiten
+
+- **Aufgaben-Screen** (`/aufgaben`, neue Kachel statt Events): alle anstehenden Arbeiten chronologisch (Überfällig/Heute/Morgen/Datum) — eigene Aufgaben inkl. künftiger, offene Störungen, geplante Montagen, anstehende Eröffnungs-/Endreinigungen; FAB legt Aufgaben mit Datum an, Haken erledigt. **Events** jetzt unten in der Liste zuoberst (oberhalb Buchhaltung).
+- **Anfahrtszeiten-Grundlage** (Migration 156 `anfahrtszeiten`): 804 OSRM-Standardzeiten (ohne Verkehr) von Via Rezia 8 Domat/Ems + Giacomettistrasse 89 Chur zu allen 402 Betrieben mit GPS — **kostenlos** (Google hätte ~3 USD gekostet, wäre aber auch im Freikontingent gewesen). Ø 48 min, max 200 min.
+- **Erinnerung angelegt:** «Openair Lumnezia: Montage in der App generieren», fällig Mo 03.08. (Glocke + Aufgaben-Screen).
+
+## 🔴 OFFEN: Ausbau Aufgaben & Anfahrtszeiten (Folgepaket, Daniel 31.07.)
+- **Anfahrtszeiten in die Zeitachse:** Anfahrt/Heimweg im Tagesplan sollen die `anfahrtszeiten`-Werte nutzen (Startort-Erkennung: GPS-Start nahe Domat/Ems vs. Chur → passende Spalte), statt der Luftlinien-Heuristik. Danach Routen-Optimierung (Reihenfolge-Vorschlag).
+- **Aufgaben ↔ Kalender + Tourenplanung verknüpfen:** Aufgaben-Einträge in den Tagesplan des jeweiligen Tages übernehmen können; Sync mit Google Kalender (Teil des geplanten Kalender-Pakets G1–G4); Störungen mit PLAN-Datum (heute nur Meldedatum).
+
+---
+
 ## 🟢 ERLEDIGT 31.07. (Nachtpaket): v0.57.0 — tatsächliche Tagesdaten, Tages-Karte, GPS robuster
 
 - **Vergangene Tage = tatsächliche Reinigungen:** Der Tagesplan-Tab zeigt für vergangene Tage die abgeschlossenen Reinigungen des Tages (Zeitachse readonly, Tap öffnet die Reinigung, Ist-Matching exakt je Reinigung) — gespeicherte Pläne sind Geschichte. Auch die **Plan-Übernahme** lädt jetzt die echten Reinigungen des Quelltags (ohne Störungen/Montagen), nicht mehr den damaligen Plan.
