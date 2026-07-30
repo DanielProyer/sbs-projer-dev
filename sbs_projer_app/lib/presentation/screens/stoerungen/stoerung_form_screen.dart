@@ -13,6 +13,8 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'dart:async';
+import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 
 class StoerungFormScreen extends ConsumerStatefulWidget {
   final String? stoerungId; // null = neu
@@ -27,8 +29,7 @@ class StoerungFormScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<StoerungFormScreen> createState() =>
-      _StoerungFormScreenState();
+  ConsumerState<StoerungFormScreen> createState() => _StoerungFormScreenState();
 }
 
 class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
@@ -54,12 +55,18 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   List<Lager> _lagerItems = [];
   final List<String?> _materialIds = List.filled(5, null);
   final List<double> _materialMengen = List.filled(5, 1);
-  final List<TextEditingController> _materialControllers =
-      List.generate(5, (_) => TextEditingController());
-  final List<TextEditingController> _materialMengenControllers =
-      List.generate(5, (_) => TextEditingController(text: '1'));
-  final List<TextEditingController?> _autoCompleteControllers =
-      List.filled(5, null);
+  final List<TextEditingController> _materialControllers = List.generate(
+    5,
+    (_) => TextEditingController(),
+  );
+  final List<TextEditingController> _materialMengenControllers = List.generate(
+    5,
+    (_) => TextEditingController(text: '1'),
+  );
+  final List<TextEditingController?> _autoCompleteControllers = List.filled(
+    5,
+    null,
+  );
 
   // Kilometerabrechnung
   bool _istKilometerabrechnung = false;
@@ -98,8 +105,11 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           _lagerItems = items;
           // Material-Controller mit Namen befüllen (wenn IDs gesetzt)
           for (int i = 0; i < 5; i++) {
-            if (_materialIds[i] != null && _materialControllers[i].text.isEmpty) {
-              final lager = items.where((l) => l.id == _materialIds[i]).firstOrNull;
+            if (_materialIds[i] != null &&
+                _materialControllers[i].text.isEmpty) {
+              final lager = items
+                  .where((l) => l.id == _materialIds[i])
+                  .firstOrNull;
               if (lager != null) _materialControllers[i].text = lager.name;
             }
           }
@@ -121,7 +131,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       _datum = s.datum;
       _heinekennrController.text = s.referenzNr ?? '';
       final zeit = s.uhrzeitStart ?? '';
-      _stoerungseingangController.text = zeit.length >= 5 ? zeit.substring(0, 5) : zeit;
+      _stoerungseingangController.text = zeit.length >= 5
+          ? zeit.substring(0, 5)
+          : zeit;
       _beschreibungController.text = s.problemBeschreibung;
       _stoerungBereiche = s.stoerungBereiche ?? [];
       _betriebId = s.betriebId;
@@ -131,7 +143,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       _istKilometerabrechnung = s.istKilometerabrechnung;
       _notizenController.text = s.notizen ?? '';
       _anfahrtKmController.text = s.anfahrtKm.toString();
-      _komplexitaetController.text = (s.komplexitaetZuschlag ?? 0).toStringAsFixed(0);
+      _komplexitaetController.text = (s.komplexitaetZuschlag ?? 0)
+          .toStringAsFixed(0);
 
       // Material IDs + Mengen
       _materialIds[0] = s.material1Id;
@@ -145,7 +158,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       _materialMengen[3] = s.material4Menge ?? 1;
       _materialMengen[4] = s.material5Menge ?? 1;
       for (int i = 0; i < 5; i++) {
-        _materialMengenControllers[i].text = _materialMengen[i].toStringAsFixed(0);
+        _materialMengenControllers[i].text = _materialMengen[i].toStringAsFixed(
+          0,
+        );
       }
     });
     _loadPreisData();
@@ -175,7 +190,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   }
 
   Map<String, double> _calculatePreis() {
-    if (_preisliste == null || (_stoerungBereiche.isEmpty && !_istKilometerabrechnung)) return {};
+    if (_preisliste == null ||
+        (_stoerungBereiche.isEmpty && !_istKilometerabrechnung))
+      return {};
     final p = _preisliste!;
 
     // Basis: Summe über alle gewählten Bereiche (0 bei Kilometerabrechnung)
@@ -188,8 +205,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
 
     // Anfahrt
     final km = int.tryParse(_anfahrtKmController.text) ?? 0;
-    final kmGrenze = (p['stoerung_anfahrt_km_grenze'] as num?)?.toDouble() ?? 80;
-    final pauschale = (p['stoerung_anfahrt_pauschale'] as num?)?.toDouble() ?? 60;
+    final kmGrenze =
+        (p['stoerung_anfahrt_km_grenze'] as num?)?.toDouble() ?? 80;
+    final pauschale =
+        (p['stoerung_anfahrt_pauschale'] as num?)?.toDouble() ?? 60;
     final kmSatz = (p['stoerung_anfahrt_km_satz'] as num?)?.toDouble() ?? 0.72;
     final anfahrt = km >= kmGrenze ? km * kmSatz : pauschale;
 
@@ -226,11 +245,16 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.referenzNr = null;
         s.anlageId = null;
         // Material leer
-        s.material1Id = null; s.material1Menge = null;
-        s.material2Id = null; s.material2Menge = null;
-        s.material3Id = null; s.material3Menge = null;
-        s.material4Id = null; s.material4Menge = null;
-        s.material5Id = null; s.material5Menge = null;
+        s.material1Id = null;
+        s.material1Menge = null;
+        s.material2Id = null;
+        s.material2Menge = null;
+        s.material3Id = null;
+        s.material3Menge = null;
+        s.material4Id = null;
+        s.material4Menge = null;
+        s.material5Id = null;
+        s.material5Menge = null;
       } else {
         if (!_isEdit) {
           s.anlageId = widget.anlageId;
@@ -238,15 +262,19 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.betriebId = _betriebId;
         s.anlageTyp = _anlageTyp;
         s.referenzNr = _emptyToNull(_heinekennrController.text);
-        s.stoerungBereiche = _stoerungBereiche.isEmpty ? null : _stoerungBereiche;
+        s.stoerungBereiche = _stoerungBereiche.isEmpty
+            ? null
+            : _stoerungBereiche;
         // Fallback: Text-Matching wenn User getippt aber nicht aus Dropdown gewählt hat
         for (int i = 0; i < 5; i++) {
           if (_materialIds[i] == null) {
-            final text = (_autoCompleteControllers[i] ?? _materialControllers[i]).text.trim();
+            final text =
+                (_autoCompleteControllers[i] ?? _materialControllers[i]).text
+                    .trim();
             if (text.isNotEmpty && _lagerItems.isNotEmpty) {
-              final match = _lagerItems.where(
-                (l) => l.name.toLowerCase() == text.toLowerCase(),
-              ).firstOrNull;
+              final match = _lagerItems
+                  .where((l) => l.name.toLowerCase() == text.toLowerCase())
+                  .firstOrNull;
               if (match != null) {
                 _materialIds[i] = match.id;
               }
@@ -289,6 +317,18 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       s.status = 'behoben';
 
       await StoerungRepository.save(s);
+      // Wegpunkt nur beim NEU-Erfassen (nicht bei jeder Bearbeitung): der
+      // Stempel markiert den Einsatz-Zeitpunkt fuer Routen-Daten und den
+      // Fahrzeit-Guard (Daniel 30.07.2026). Fire-and-forget.
+      if (!_isEdit) {
+        unawaited(
+          WegpunktRepository.stempeln(
+            quelle: 'stoerung',
+            betriebId: s.betriebId,
+            referenzId: s.serverId,
+          ),
+        );
+      }
       if (_materialIds.any((id) => id != null)) {
         ref.invalidate(materialienStreamProvider);
       }
@@ -296,9 +336,15 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEdit
-                ? (_istKilometerabrechnung ? 'Kilometerabrechnung aktualisiert' : 'Störung aktualisiert')
-                : (_istKilometerabrechnung ? 'Kilometerabrechnung erfasst' : 'Störung erfasst')),
+            content: Text(
+              _isEdit
+                  ? (_istKilometerabrechnung
+                        ? 'Kilometerabrechnung aktualisiert'
+                        : 'Störung aktualisiert')
+                  : (_istKilometerabrechnung
+                        ? 'Kilometerabrechnung erfasst'
+                        : 'Störung erfasst'),
+            ),
           ),
         );
         if (kIsWeb) ref.invalidate(stoerungenStreamProvider);
@@ -306,9 +352,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -323,7 +369,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   // === Auto-Pikett: Wochenende / Feiertag / Abend ===
 
   bool _shouldAutoPikett() {
-    final isWeekend = _datum.weekday == DateTime.saturday ||
+    final isWeekend =
+        _datum.weekday == DateTime.saturday ||
         _datum.weekday == DateTime.sunday;
     final isHoliday = _isSwissHoliday(_datum);
     bool isPikettTime = false;
@@ -362,8 +409,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       easter.add(const Duration(days: 50)), // Pfingstmontag
     ];
     return fixed.any((h) => h == d) ||
-        moving.any((h) =>
-            h.year == d.year && h.month == d.month && h.day == d.day);
+        moving.any(
+          (h) => h.year == d.year && h.month == d.month && h.day == d.day,
+        );
   }
 
   DateTime _computeEaster(int year) {
@@ -392,23 +440,30 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
     _notizenController.dispose();
     _anfahrtKmController.dispose();
     _komplexitaetController.dispose();
-    for (final c in _materialControllers) { c.dispose(); }
-    for (final c in _materialMengenControllers) { c.dispose(); }
+    for (final c in _materialControllers) {
+      c.dispose();
+    }
+    for (final c in _materialMengenControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isEdit && _existing == null) {
-      return const Scaffold(
-          body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_istKilometerabrechnung
-            ? (_isEdit ? 'Kilometerabrechnung bearbeiten' : 'Neue Kilometerabrechnung')
-            : (_isEdit ? 'Störung bearbeiten' : 'Neue Störung')),
+        title: Text(
+          _istKilometerabrechnung
+              ? (_isEdit
+                    ? 'Kilometerabrechnung bearbeiten'
+                    : 'Neue Kilometerabrechnung')
+              : (_isEdit ? 'Störung bearbeiten' : 'Neue Störung'),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -428,16 +483,17 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                 // Bei neuem Eintrag: Beschreibung aus letzter Km-Abrechnung vorausfüllen
                 if (v && !_isEdit) {
                   final stoerungen = ref.read(stoerungenProvider);
-                  final letzte = stoerungen
-                      .where((s) => s.istKilometerabrechnung)
-                      .toList()
-                    ..sort((a, b) => b.datum.compareTo(a.datum));
+                  final letzte =
+                      stoerungen.where((s) => s.istKilometerabrechnung).toList()
+                        ..sort((a, b) => b.datum.compareTo(a.datum));
                   if (letzte.isNotEmpty) {
                     if (_beschreibungController.text.isEmpty) {
-                      _beschreibungController.text = letzte.first.problemBeschreibung;
+                      _beschreibungController.text =
+                          letzte.first.problemBeschreibung;
                     }
                     if (_anfahrtKmController.text == '0') {
-                      _anfahrtKmController.text = letzte.first.anfahrtKm.toString();
+                      _anfahrtKmController.text = letzte.first.anfahrtKm
+                          .toString();
                     }
                   }
                 }
@@ -538,7 +594,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
             ],
 
             // === Beschreibung ===
-            _sectionTitle(context, _istKilometerabrechnung ? 'Beschreibung' : 'Störungsbeschreibung'),
+            _sectionTitle(
+              context,
+              _istKilometerabrechnung ? 'Beschreibung' : 'Störungsbeschreibung',
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _beschreibungController,
@@ -552,7 +611,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
               maxLines: 3,
               textInputAction: TextInputAction.next,
               validator: _istKilometerabrechnung
-                  ? (v) => (v == null || v.trim().isEmpty) ? 'Beschreibung erforderlich' : null
+                  ? (v) => (v == null || v.trim().isEmpty)
+                        ? 'Beschreibung erforderlich'
+                        : null
                   : null,
             ),
             const SizedBox(height: 24),
@@ -561,10 +622,16 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
             if (!_istKilometerabrechnung) ...[
               _sectionTitle(context, 'Optionen'),
               const SizedBox(height: 8),
-              _checkTile('Pikett / Wochenende / Feiertag', _istPikettWochenende,
-                  (v) => setState(() => _istPikettWochenende = v)),
-              _checkTile('Bergkunde', _istBergkunde,
-                  (v) => setState(() => _istBergkunde = v)),
+              _checkTile(
+                'Pikett / Wochenende / Feiertag',
+                _istPikettWochenende,
+                (v) => setState(() => _istPikettWochenende = v),
+              ),
+              _checkTile(
+                'Bergkunde',
+                _istBergkunde,
+                (v) => setState(() => _istBergkunde = v),
+              ),
               const SizedBox(height: 24),
             ],
 
@@ -636,7 +703,13 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(_isEdit ? 'Speichern' : (_istKilometerabrechnung ? 'Kilometerabrechnung erfassen' : 'Störung erfassen')),
+                  : Text(
+                      _isEdit
+                          ? 'Speichern'
+                          : (_istKilometerabrechnung
+                                ? 'Kilometerabrechnung erfassen'
+                                : 'Störung erfassen'),
+                    ),
             ),
             const SizedBox(height: 32),
           ],
@@ -646,106 +719,128 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   }
 
   List<Widget> _buildMaterialSlots() {
-    return List.generate(5, (i) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: _lagerItems.isNotEmpty
-                ? Autocomplete<Lager>(
-                    initialValue: TextEditingValue(text: _materialControllers[i].text),
-                    displayStringForOption: (l) => l.name,
-                    optionsViewOpenDirection: OptionsViewOpenDirection.up,
-                    optionsBuilder: (textEditingValue) {
-                      if (textEditingValue.text.isEmpty) return _lagerItems.take(10);
-                      final q = textEditingValue.text.toLowerCase();
-                      return _lagerItems.where((l) => l.name.toLowerCase().contains(q));
-                    },
-                    fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                      _autoCompleteControllers[i] = controller;
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          labelText: 'Material ${i + 1}',
-                          isDense: true,
-                          prefixIcon: const Icon(Icons.inventory_2, size: 20),
-                          suffixIcon: controller.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear, size: 16),
-                                  onPressed: () {
-                                    controller.clear();
-                                    setState(() {
-                                      _materialIds[i] = null;
-                                      _materialControllers[i].clear();
-                                    });
-                                  },
-                                )
-                              : null,
-                        ),
-                      );
-                    },
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.bottomLeft,
-                        child: Material(
-                          elevation: 4,
-                          borderRadius: BorderRadius.circular(8),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 350),
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              itemCount: options.length,
-                              itemBuilder: (context, index) {
-                                final l = options.elementAt(index);
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(l.name),
-                                  subtitle: l.dboNr != null ? Text(l.dboNr!, style: const TextStyle(fontSize: 11)) : null,
-                                  onTap: () => onSelected(l),
-                                );
-                              },
+    return List.generate(
+      5,
+      (i) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _lagerItems.isNotEmpty
+                  ? Autocomplete<Lager>(
+                      initialValue: TextEditingValue(
+                        text: _materialControllers[i].text,
+                      ),
+                      displayStringForOption: (l) => l.name,
+                      optionsViewOpenDirection: OptionsViewOpenDirection.up,
+                      optionsBuilder: (textEditingValue) {
+                        if (textEditingValue.text.isEmpty)
+                          return _lagerItems.take(10);
+                        final q = textEditingValue.text.toLowerCase();
+                        return _lagerItems.where(
+                          (l) => l.name.toLowerCase().contains(q),
+                        );
+                      },
+                      fieldViewBuilder:
+                          (context, controller, focusNode, onSubmitted) {
+                            _autoCompleteControllers[i] = controller;
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: InputDecoration(
+                                labelText: 'Material ${i + 1}',
+                                isDense: true,
+                                prefixIcon: const Icon(
+                                  Icons.inventory_2,
+                                  size: 20,
+                                ),
+                                suffixIcon: controller.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 16),
+                                        onPressed: () {
+                                          controller.clear();
+                                          setState(() {
+                                            _materialIds[i] = null;
+                                            _materialControllers[i].clear();
+                                          });
+                                        },
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.bottomLeft,
+                          child: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(8),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxHeight: 200,
+                                maxWidth: 350,
+                              ),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final l = options.elementAt(index);
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(l.name),
+                                    subtitle: l.dboNr != null
+                                        ? Text(
+                                            l.dboNr!,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                          )
+                                        : null,
+                                    onTap: () => onSelected(l),
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                    onSelected: (l) {
-                      setState(() {
-                        _materialIds[i] = l.id;
-                        _materialControllers[i].text = l.name;
-                      });
-                    },
-                  )
-                : TextFormField(
-                    controller: _materialControllers[i],
-                    decoration: InputDecoration(
-                      labelText: 'Material ${i + 1}',
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.inventory_2, size: 20),
+                        );
+                      },
+                      onSelected: (l) {
+                        setState(() {
+                          _materialIds[i] = l.id;
+                          _materialControllers[i].text = l.name;
+                        });
+                      },
+                    )
+                  : TextFormField(
+                      controller: _materialControllers[i],
+                      decoration: InputDecoration(
+                        labelText: 'Material ${i + 1}',
+                        isDense: true,
+                        prefixIcon: const Icon(Icons.inventory_2, size: 20),
+                      ),
                     ),
-                  ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 70,
-            child: TextFormField(
-              controller: _materialMengenControllers[i],
-              decoration: const InputDecoration(
-                labelText: 'Anz.',
-                isDense: true,
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (v) {
-                _materialMengen[i] = double.tryParse(v) ?? 1;
-              },
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 70,
+              child: TextFormField(
+                controller: _materialMengenControllers[i],
+                decoration: const InputDecoration(
+                  labelText: 'Anz.',
+                  isDense: true,
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (v) {
+                  _materialMengen[i] = double.tryParse(v) ?? 1;
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   String? _autoSelectAnlageTyp(List<String> zapfsysteme) {
@@ -787,13 +882,17 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   }
 
   Widget _buildBetriebField() {
-    final betriebe = ref.watch(betriebeProvider)
+    final betriebe = ref
+        .watch(betriebeProvider)
         .where((b) => b.serverId != null)
         .toList();
 
     // Betrieb-Name für aktuellen Wert
     final currentName = _betriebId != null
-        ? betriebe.where((b) => b.serverId == _betriebId).map((b) => b.name).firstOrNull
+        ? betriebe
+              .where((b) => b.serverId == _betriebId)
+              .map((b) => b.name)
+              .firstOrNull
         : null;
 
     return Autocomplete<BetriebLocal>(
@@ -806,10 +905,12 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           return betriebe.take(20);
         }
         final query = textEditingValue.text.toLowerCase();
-        return betriebe.where((b) =>
-            b.name.toLowerCase().contains(query) ||
-            (b.ort?.toLowerCase().contains(query) ?? false) ||
-            (b.betriebNr?.toLowerCase().contains(query) ?? false));
+        return betriebe.where(
+          (b) =>
+              b.name.toLowerCase().contains(query) ||
+              (b.ort?.toLowerCase().contains(query) ?? false) ||
+              (b.betriebNr?.toLowerCase().contains(query) ?? false),
+        );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return TextFormField(
@@ -850,7 +951,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                   return ListTile(
                     dense: true,
                     title: Text(b.name),
-                    subtitle: b.ort != null ? Text(b.ort!, style: const TextStyle(fontSize: 12)) : null,
+                    subtitle: b.ort != null
+                        ? Text(b.ort!, style: const TextStyle(fontSize: 12))
+                        : null,
                     onTap: () => onSelected(b),
                   );
                 },
@@ -883,7 +986,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           if (v) {
             _stoerungBereiche = [..._stoerungBereiche, value]..sort();
           } else {
-            _stoerungBereiche = _stoerungBereiche.where((b) => b != value).toList();
+            _stoerungBereiche = _stoerungBereiche
+                .where((b) => b != value)
+                .toList();
           }
         });
       },
@@ -905,9 +1010,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   Widget _sectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 
@@ -925,8 +1030,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           _istKilometerabrechnung
               ? 'Preisliste wird geladen...'
               : (_stoerungBereiche.isEmpty
-                  ? 'Bitte Störungsbereich wählen'
-                  : 'Preisliste wird geladen...'),
+                    ? 'Bitte Störungsbereich wählen'
+                    : 'Preisliste wird geladen...'),
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
       );
@@ -943,11 +1048,12 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         children: [
           if (!_istKilometerabrechnung || preis['basis']! > 0)
             _preisRow(
-              _istKilometerabrechnung ? 'Basis' : 'Basis (Bereich ${_stoerungBereiche.join(', ')})',
+              _istKilometerabrechnung
+                  ? 'Basis'
+                  : 'Basis (Bereich ${_stoerungBereiche.join(', ')})',
               preis['basis']!,
             ),
-          if (preis['anfahrt']! > 0)
-            _preisRow('Anfahrt', preis['anfahrt']!),
+          if (preis['anfahrt']! > 0) _preisRow('Anfahrt', preis['anfahrt']!),
           if (preis['wochenende']! > 0)
             _preisRow('Pikett/WE-Zuschlag', preis['wochenende']!),
           if (preis['komplex']! > 0)
@@ -956,9 +1062,17 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              Text('${preis['total']!.toStringAsFixed(2)} CHF',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const Text(
+                'Total',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+              Text(
+                '${preis['total']!.toStringAsFixed(2)} CHF',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
             ],
           ),
         ],
@@ -972,8 +1086,17 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          Text('${betrag.toStringAsFixed(2)} CHF', style: const TextStyle(fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            '${betrag.toStringAsFixed(2)} CHF',
+            style: const TextStyle(fontSize: 13),
+          ),
         ],
       ),
     );

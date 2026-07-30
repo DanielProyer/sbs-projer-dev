@@ -37,6 +37,7 @@ import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_qr_dia
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 
 class ReinigungFormScreen extends ConsumerStatefulWidget {
   final String? reinigungId; // null = neu
@@ -544,20 +545,65 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               }
             }
             if (vorherige != null) {
-              final luecke =
-                  fahrtLueckeMinuten(vorherige.uhrzeitEnde, r.uhrzeitStart);
+              final luecke = fahrtLueckeMinuten(
+                vorherige.uhrzeitEnde,
+                r.uhrzeitStart,
+              );
               if (luecke != null) {
-                unawaited(FahrzeitRepository.beobachtungNachfuehren(
-                  vonBetriebId: vorherige.betriebId,
-                  nachBetriebId: r.betriebId,
-                  minuten: luecke,
-                ));
+                // Guard (Daniel 30.07.2026): Lag zwischen den beiden
+                // Reinigungen eine Stoerung/Montage, ist die Luecke keine
+                // reine Fahrzeit — dann nicht lernen. Die Wegpunkte liefern
+                // die Ereigniszeiten dafuer.
+                final endeVorher = vorherige.uhrzeitEnde;
+                final von = DateTime(
+                  r.datum.year,
+                  r.datum.month,
+                  r.datum.day,
+                  _hmMinuten(endeVorher)! ~/ 60,
+                  _hmMinuten(endeVorher)! % 60,
+                );
+                final bis = DateTime(
+                  r.datum.year,
+                  r.datum.month,
+                  r.datum.day,
+                  startMin ~/ 60,
+                  startMin % 60,
+                );
+                final vonId = vorherige.betriebId;
+                unawaited(() async {
+                  final belegt =
+                      await WegpunktRepository.stoerungOderMontageZwischen(
+                        von,
+                        bis,
+                      );
+                  if (belegt) {
+                    debugPrint(
+                      '[Fahrzeit] Uebergang nicht gelernt — '
+                      'Stoerung/Montage dazwischen',
+                    );
+                    return;
+                  }
+                  await FahrzeitRepository.beobachtungNachfuehren(
+                    vonBetriebId: vonId,
+                    nachBetriebId: r.betriebId,
+                    minuten: luecke,
+                  );
+                }());
               }
             }
           }
         } catch (e) {
           debugPrint('[Fahrzeit] Nachfuehrung uebersprungen: $e');
         }
+        // Wegpunkt stempeln (Zeit + GPS + Betrieb) — Datenstrom fuer die
+        // spaetere Routen-Optimierung (Daniel 30.07.2026). Fire-and-forget.
+        unawaited(
+          WegpunktRepository.stempeln(
+            quelle: 'reinigung',
+            betriebId: r.betriebId.isEmpty ? null : r.betriebId,
+            referenzId: r.serverId,
+          ),
+        );
       }
 
       // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
@@ -1033,7 +1079,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     // abweicht (Regel Daniel 22.07. — übersichtlicher). Beim Zurückwechseln
     // auf den Default wird sie versteckt UND zurückgesetzt, damit kein
     // unsichtbares Häkchen mitläuft.
-    final betriebsDefault = resolveZahlungsart(null, betrieb?.rechnungsstellung);
+    final betriebsDefault = resolveZahlungsart(
+      null,
+      betrieb?.rechnungsstellung,
+    );
 
     // Rechnungsadresse-E-Mail (Versand läuft NUR darüber; betriebe.email = Info).
     String? raEmail;

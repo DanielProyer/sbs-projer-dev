@@ -4,6 +4,8 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
+import 'dart:async';
+import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 
 /// Arbeitstag-Karte auf dem Startbildschirm (Daniel 29.07.2026):
 /// Arbeitsbeginn, Arbeitsende und km-Stand direkt dort erfassen, wo der Tag
@@ -101,6 +103,10 @@ class ArbeitstagKarte extends ConsumerWidget {
         endLat: bisher.endLat,
         endLng: bisher.endLng,
       ), startPosition: pos);
+      // Wegpunkt in den Routen-Datenstrom (Position ist schon geholt).
+      unawaited(
+        WegpunktRepository.stempeln(quelle: 'arbeitsbeginn', position: pos),
+      );
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -143,6 +149,9 @@ class ArbeitstagKarte extends ConsumerWidget {
                 endLng: pos.lng,
               ),
         endPosition: pos,
+      );
+      unawaited(
+        WegpunktRepository.stempeln(quelle: 'feierabend', position: pos),
       );
       messenger.showSnackBar(
         const SnackBar(content: Text('Arbeitstag gespeichert')),

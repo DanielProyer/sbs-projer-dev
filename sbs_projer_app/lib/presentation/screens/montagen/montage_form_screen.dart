@@ -23,6 +23,7 @@ import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 
 /// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
 class MontageVorbefuellung {
@@ -79,12 +80,18 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
   List<Lager> _lagerItems = [];
   final List<String?> _materialIds = List.filled(5, null);
   final List<double> _materialMengen = List.filled(5, 1);
-  final List<TextEditingController> _materialControllers =
-      List.generate(5, (_) => TextEditingController());
-  final List<TextEditingController> _materialMengenControllers =
-      List.generate(5, (_) => TextEditingController(text: '1'));
-  final List<TextEditingController?> _autoCompleteControllers =
-      List.filled(5, null);
+  final List<TextEditingController> _materialControllers = List.generate(
+    5,
+    (_) => TextEditingController(),
+  );
+  final List<TextEditingController> _materialMengenControllers = List.generate(
+    5,
+    (_) => TextEditingController(text: '1'),
+  );
+  final List<TextEditingController?> _autoCompleteControllers = List.filled(
+    5,
+    null,
+  );
 
   // Stundensatz (80 CHF/h default)
   double _stundensatz = 80.0;
@@ -104,8 +111,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
   /// Betrieb-Feld deaktiviert bei Spesen und Aufwandsentschädigung
   bool get _betriebDisabled =>
-      _montageTyp == 'spesen' ||
-      _montageTyp == 'aufwandsentschaedigung';
+      _montageTyp == 'spesen' || _montageTyp == 'aufwandsentschaedigung';
 
   /// Bei Spesen: CHF-Betrag eingeben statt Stunden
   bool get _isSpesen => _montageTyp == 'spesen';
@@ -161,7 +167,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       if (preisRows.isNotEmpty &&
           preisRows.first['montage_stundensatz'] != null) {
         final satz = double.tryParse(
-            preisRows.first['montage_stundensatz'].toString());
+          preisRows.first['montage_stundensatz'].toString(),
+        );
         if (satz != null && mounted) setState(() => _stundensatz = satz);
       }
     } catch (_) {
@@ -176,11 +183,16 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         setState(() => _preisliste = preis);
       }
       // RSL-Kontakt für HeiGenie Mail laden
-      final rslKontakt =
-          await KontaktRepository.getHeinekenZuweisung('heigenie_service');
+      final rslKontakt = await KontaktRepository.getHeinekenZuweisung(
+        'heigenie_service',
+      );
       if (rslKontakt != null && mounted) {
-        setState(() => _heinekenMailRsl =
-            MailConfig.empfaenger(rslKontakt.email, bereich: 'montage'));
+        setState(
+          () => _heinekenMailRsl = MailConfig.empfaenger(
+            rslKontakt.email,
+            bereich: 'montage',
+          ),
+        );
       }
     } catch (_) {}
   }
@@ -194,8 +206,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       _montageTyp = m.montageTyp;
       _betriebId = m.betriebId;
       _datum = m.datum;
-      _stundenController.text =
-          m.dauerStunden != null ? m.dauerStunden.toString() : '';
+      _stundenController.text = m.dauerStunden != null
+          ? m.dauerStunden.toString()
+          : '';
       // Bei Spesen: Betrag aus kostenArbeit vorbelegen
       if (m.montageTyp == 'spesen' && m.kostenArbeit != null) {
         _betragController.text = m.kostenArbeit!.toStringAsFixed(2);
@@ -209,8 +222,20 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       _existingFotoPfad = m.protokollFotoPfad;
 
       // Material / Anlass-Slots
-      final ids = [m.material1Id, m.material2Id, m.material3Id, m.material4Id, m.material5Id];
-      final mengen = [m.material1Menge, m.material2Menge, m.material3Menge, m.material4Menge, m.material5Menge];
+      final ids = [
+        m.material1Id,
+        m.material2Id,
+        m.material3Id,
+        m.material4Id,
+        m.material5Id,
+      ];
+      final mengen = [
+        m.material1Menge,
+        m.material2Menge,
+        m.material3Menge,
+        m.material4Menge,
+        m.material5Menge,
+      ];
       for (int i = 0; i < 5; i++) {
         _materialIds[i] = ids[i];
         _materialMengen[i] = mengen[i] ?? (m.montageTyp == 'anlass' ? 0 : 1);
@@ -223,7 +248,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             _materialControllers[i].text = ids[i]!;
           } else {
             final match = _lagerItems.where((l) => l.id == ids[i]);
-            if (match.isNotEmpty) _materialControllers[i].text = match.first.name;
+            if (match.isNotEmpty)
+              _materialControllers[i].text = match.first.name;
           }
         }
       }
@@ -247,9 +273,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(
-      source: ImageSource.gallery,
-    );
+    final image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null || !mounted) return;
 
     final bytes = await image.readAsBytes();
@@ -285,9 +309,12 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     if (!mounted) return;
 
     try {
-      final enhanced = await DocumentEnhancer.enhance(bytes, onStep: (step) {
-        if (mounted) setState(() => _fotoProcessingStep = step);
-      });
+      final enhanced = await DocumentEnhancer.enhance(
+        bytes,
+        onStep: (step) {
+          if (mounted) setState(() => _fotoProcessingStep = step);
+        },
+      );
       if (!mounted) return;
       setState(() {
         _fotoBytes = enhanced;
@@ -312,17 +339,20 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     final grundtarif = _preisliste!.grundtarifHeigenie;
     final zusatzHaehne = (_anzahlHaehne - 1).clamp(0, 999);
     final hahnZuschlag = _preisliste!.zusatzHahnEigen * zusatzHaehne;
-    final haehneBrutto = (grundtarif + hahnZuschlag) * (1 + _preisliste!.mwstFaktor);
+    final haehneBrutto =
+        (grundtarif + hahnZuschlag) * (1 + _preisliste!.mwstFaktor);
     final bergkunde = _istBergkunde ? _preisliste!.bergkundenZuschlag : 0.0;
     return _round5Rappen(haehneBrutto + bergkunde);
   }
 
   /// Brutto-Einzelpreise für Anzeige
-  double _grundtarifBrutto() =>
-      _round5Rappen(_preisliste!.grundtarifHeigenie * (1 + _preisliste!.mwstFaktor));
+  double _grundtarifBrutto() => _round5Rappen(
+    _preisliste!.grundtarifHeigenie * (1 + _preisliste!.mwstFaktor),
+  );
 
-  double _zusatzHahnBrutto() =>
-      _round5Rappen(_preisliste!.zusatzHahnEigen * (1 + _preisliste!.mwstFaktor));
+  double _zusatzHahnBrutto() => _round5Rappen(
+    _preisliste!.zusatzHahnEigen * (1 + _preisliste!.mwstFaktor),
+  );
 
   static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
 
@@ -363,8 +393,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           setState(() => _fotoUploading = true);
           final montageId = m.serverId ?? const Uuid().v4();
           m.serverId ??= montageId;
-          final pfad =
-              await ProtokollFotoStorage.uploadFoto(montageId, _fotoBytes!);
+          final pfad = await ProtokollFotoStorage.uploadFoto(
+            montageId,
+            _fotoBytes!,
+          );
           m.protokollFotoPfad = pfad;
           setState(() => _fotoUploading = false);
         }
@@ -378,7 +410,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           // Anlass: Stunden aus Slots summieren
           final totalStunden = _anlassTotalStunden;
           m.dauerStunden = totalStunden > 0 ? totalStunden : null;
-          m.kostenArbeit = totalStunden > 0 ? _stundensatz * totalStunden : null;
+          m.kostenArbeit = totalStunden > 0
+              ? _stundensatz * totalStunden
+              : null;
         } else if (_isSpesen) {
           final betrag = double.tryParse(_betragController.text.trim());
           m.kostenArbeit = betrag;
@@ -403,11 +437,13 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         // Fallback: Text-Matching wenn User getippt aber nicht aus Dropdown gewählt hat
         for (int i = 0; i < 5; i++) {
           if (_materialIds[i] == null) {
-            final text = (_autoCompleteControllers[i] ?? _materialControllers[i]).text.trim();
+            final text =
+                (_autoCompleteControllers[i] ?? _materialControllers[i]).text
+                    .trim();
             if (text.isNotEmpty && _lagerItems.isNotEmpty) {
-              final match = _lagerItems.where(
-                (l) => l.name.toLowerCase() == text.toLowerCase(),
-              ).firstOrNull;
+              final match = _lagerItems
+                  .where((l) => l.name.toLowerCase() == text.toLowerCase())
+                  .firstOrNull;
               if (match != null) {
                 _materialIds[i] = match.id;
               }
@@ -427,6 +463,17 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       m.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
 
       await MontageRepository.save(m);
+      // Wegpunkt nur beim NEU-Erfassen — Einsatz-Zeitstempel fuer Routen-
+      // Daten und den Fahrzeit-Guard (Daniel 30.07.2026). Fire-and-forget.
+      if (!_isEdit) {
+        unawaited(
+          WegpunktRepository.stempeln(
+            quelle: 'montage',
+            betriebId: m.betriebId,
+            referenzId: m.serverId,
+          ),
+        );
+      }
       if (_materialIds.any((id) => id != null)) {
         ref.invalidate(materialienStreamProvider);
       }
@@ -439,9 +486,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           try {
             final betriebe = ref.read(betriebeProvider);
             final betrieb = _betriebId != null
-                ? betriebe
-                    .where((b) => b.serverId == _betriebId)
-                    .firstOrNull
+                ? betriebe.where((b) => b.serverId == _betriebId).firstOrNull
                 : null;
             final kundeName = betrieb?.name ?? 'Unbekannt';
             final datumStr =
@@ -461,8 +506,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             );
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Protokoll an RSL gesendet')),
+                const SnackBar(content: Text('Protokoll an RSL gesendet')),
               );
             }
           } catch (e) {
@@ -474,8 +518,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text(_isEdit ? 'Montage aktualisiert' : 'Montage erfasst'),
+            content: Text(_isEdit ? 'Montage aktualisiert' : 'Montage erfasst'),
           ),
         );
         if (kIsWeb) ref.invalidate(montagenStreamProvider);
@@ -483,9 +526,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) {
@@ -514,8 +557,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isEdit && _existing == null) {
-      return const Scaffold(
-          body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -546,20 +588,27 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(
-                        value: 'neumontage', child: Text('Neumontage')),
+                      value: 'neumontage',
+                      child: Text('Neumontage'),
+                    ),
                     DropdownMenuItem(
-                        value: 'demontage', child: Text('Demontage')),
+                      value: 'demontage',
+                      child: Text('Demontage'),
+                    ),
                     DropdownMenuItem(
-                        value: 'abaenderung', child: Text('Abänderung')),
+                      value: 'abaenderung',
+                      child: Text('Abänderung'),
+                    ),
                     DropdownMenuItem(
-                        value: 'heigenie_service',
-                        child: Text('HeiGenie Service')),
-                    DropdownMenuItem(
-                        value: 'anlass', child: Text('Anlass')),
+                      value: 'heigenie_service',
+                      child: Text('HeiGenie Service'),
+                    ),
+                    DropdownMenuItem(value: 'anlass', child: Text('Anlass')),
                     DropdownMenuItem(value: 'spesen', child: Text('Spesen')),
                     DropdownMenuItem(
-                        value: 'aufwandsentschaedigung',
-                        child: Text('Aufwandsentschädigung')),
+                      value: 'aufwandsentschaedigung',
+                      child: Text('Aufwandsentschädigung'),
+                    ),
                   ],
                   onChanged: (v) {
                     if (v != null) {
@@ -592,8 +641,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                               context: context,
                               initialDate: _datum,
                               firstDate: DateTime(2024),
-                              lastDate: DateTime.now()
-                                  .add(const Duration(days: 365)),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
                             );
                             if (picked != null) {
                               setState(() => _datum = picked);
@@ -639,7 +689,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(8),
@@ -647,14 +699,18 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.landscape,
-                              size: 18, color: Colors.orange.shade700),
+                          Icon(
+                            Icons.landscape,
+                            size: 18,
+                            color: Colors.orange.shade700,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Bergkunde (Zuschlag ${_preisliste?.bergkundenZuschlag.toStringAsFixed(2) ?? '–'} CHF inkl.)',
                             style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.orange.shade800),
+                              fontSize: 13,
+                              color: Colors.orange.shade800,
+                            ),
                           ),
                         ],
                       ),
@@ -674,12 +730,15 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                           child: SizedBox(
                             height: 56,
                             child: FilledButton.icon(
-                              onPressed:
-                                  _fotoUploading ? null : _takePhoto,
-                              icon:
-                                  const Icon(Icons.document_scanner, size: 24),
-                              label: const Text('Digitalisieren',
-                                  style: TextStyle(fontSize: 15)),
+                              onPressed: _fotoUploading ? null : _takePhoto,
+                              icon: const Icon(
+                                Icons.document_scanner,
+                                size: 24,
+                              ),
+                              label: const Text(
+                                'Digitalisieren',
+                                style: TextStyle(fontSize: 15),
+                              ),
                             ),
                           ),
                         ),
@@ -688,12 +747,12 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                           child: SizedBox(
                             height: 56,
                             child: OutlinedButton.icon(
-                              onPressed:
-                                  _fotoUploading ? null : _pickPhoto,
-                              icon: const Icon(Icons.upload_file,
-                                  size: 24),
-                              label: const Text('Hochladen',
-                                  style: TextStyle(fontSize: 15)),
+                              onPressed: _fotoUploading ? null : _pickPhoto,
+                              icon: const Icon(Icons.upload_file, size: 24),
+                              label: const Text(
+                                'Hochladen',
+                                style: TextStyle(fontSize: 15),
+                              ),
                             ),
                           ),
                         ),
@@ -718,8 +777,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                               context: context,
                               initialDate: _datum,
                               firstDate: DateTime(2024),
-                              lastDate: DateTime.now()
-                                  .add(const Duration(days: 365)),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
                             );
                             if (picked != null) {
                               setState(() => _datum = picked);
@@ -746,36 +806,39 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                                 ),
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                        decimal: true),
+                                      decimal: true,
+                                    ),
                                 textInputAction: TextInputAction.next,
                                 onChanged: (_) => setState(() {}),
                               )
                             : _isAnlass
-                                ? InputDecorator(
-                                    decoration: const InputDecoration(
-                                      labelText: 'Total Stunden',
-                                      prefixIcon: Icon(Icons.timer),
-                                      suffixText: 'h',
-                                    ),
-                                    child: Text(
-                                      _anlassTotalStunden.toStringAsFixed(2),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  )
-                                : TextFormField(
-                                    controller: _stundenController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Stunden',
-                                      prefixIcon: Icon(Icons.timer),
-                                      suffixText: 'h',
-                                    ),
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                            decimal: true),
-                                    textInputAction: TextInputAction.next,
-                                    onChanged: (_) => setState(() {}),
+                            ? InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Total Stunden',
+                                  prefixIcon: Icon(Icons.timer),
+                                  suffixText: 'h',
+                                ),
+                                child: Text(
+                                  _anlassTotalStunden.toStringAsFixed(2),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
                                   ),
+                                ),
+                              )
+                            : TextFormField(
+                                controller: _stundenController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Stunden',
+                                  prefixIcon: Icon(Icons.timer),
+                                  suffixText: 'h',
+                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                textInputAction: TextInputAction.next,
+                                onChanged: (_) => setState(() {}),
+                              ),
                       ),
                     ],
                   ),
@@ -792,25 +855,27 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                 TextFormField(
                   controller: _beschreibungController,
                   decoration: InputDecoration(
-                    labelText: _betriebDisabled ? 'Beschreibung *' : 'Beschreibung',
+                    labelText: _betriebDisabled
+                        ? 'Beschreibung *'
+                        : 'Beschreibung',
                     prefixIcon: const Icon(Icons.description),
                     alignLabelWithHint: true,
                     hintText: _isSpesen
                         ? 'z.B. AdBlue, Arbeitsschuhe, Autobahnvignette'
                         : _montageTyp == 'aufwandsentschaedigung'
-                            ? 'z.B. Schulung, Einführung neuer Mitarbeiter'
-                            : _isHeigenie
-                                ? 'z.B. HeiGenie Service Reinigung'
-                                : _isAnlass
-                                    ? 'z.B. Festival Zürich 18.-20. April'
-                                    : null,
+                        ? 'z.B. Schulung, Einführung neuer Mitarbeiter'
+                        : _isHeigenie
+                        ? 'z.B. HeiGenie Service Reinigung'
+                        : _isAnlass
+                        ? 'z.B. Festival Zürich 18.-20. April'
+                        : null,
                   ),
                   maxLines: 3,
                   textInputAction: TextInputAction.next,
                   validator: _betriebDisabled
                       ? (v) => (v == null || v.trim().isEmpty)
-                          ? 'Beschreibung erforderlich'
-                          : null
+                            ? 'Beschreibung erforderlich'
+                            : null
                       : null,
                 ),
                 const SizedBox(height: 24),
@@ -821,7 +886,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Einzelne Tage und Spesen erfassen. Stunden werden automatisch summiert.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   ..._buildAnlassSlots(),
@@ -831,7 +899,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                 ],
 
                 // === Material (nur bei Standard-Montagen) ===
-                if (!_isHeigenie && !_isAnlass && !_isSpesen && _montageTyp != 'aufwandsentschaedigung') ...[
+                if (!_isHeigenie &&
+                    !_isAnlass &&
+                    !_isSpesen &&
+                    _montageTyp != 'aufwandsentschaedigung') ...[
                   _sectionTitle(context, 'Verwendetes Material'),
                   const SizedBox(height: 8),
                   ..._buildMaterialSlots(),
@@ -845,11 +916,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(
-                          _isEdit ? 'Speichern' : 'Montage erfassen'),
+                      : Text(_isEdit ? 'Speichern' : 'Montage erfassen'),
                 ),
                 const SizedBox(height: 32),
               ],
@@ -891,40 +960,53 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         border: Border.all(color: AppColors.divider),
       ),
       child: _preisliste == null
-          ? const Text('Preise werden geladen...',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13))
+          ? const Text(
+              'Preise werden geladen...',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            )
           : _anzahlHaehne <= 0
-              ? const Text('Anzahl Hähne eingeben für Kostenvorschau',
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13))
-              : Column(
+          ? const Text(
+              'Anzahl Hähne eingeben für Kostenvorschau',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            )
+          : Column(
+              children: [
+                _preisRow(
+                  'Grundtarif HeiGenie (inkl. 1 Hahn)',
+                  '${_grundtarifBrutto().toStringAsFixed(2)} CHF',
+                ),
+                if (_anzahlHaehne > 1)
+                  _preisRow(
+                    '${_anzahlHaehne - 1} Zusatz-Hähne × ${_zusatzHahnBrutto().toStringAsFixed(2)}',
+                    '${_round5Rappen(_zusatzHahnBrutto() * (_anzahlHaehne - 1)).toStringAsFixed(2)} CHF',
+                  ),
+                if (_istBergkunde)
+                  _preisRow(
+                    'Bergkunden-Pauschale (fix)',
+                    '${_preisliste!.bergkundenZuschlag.toStringAsFixed(2)} CHF',
+                  ),
+                const Divider(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _preisRow('Grundtarif HeiGenie (inkl. 1 Hahn)',
-                        '${_grundtarifBrutto().toStringAsFixed(2)} CHF'),
-                    if (_anzahlHaehne > 1)
-                      _preisRow(
-                          '${_anzahlHaehne - 1} Zusatz-Hähne × ${_zusatzHahnBrutto().toStringAsFixed(2)}',
-                          '${_round5Rappen(_zusatzHahnBrutto() * (_anzahlHaehne - 1)).toStringAsFixed(2)} CHF'),
-                    if (_istBergkunde)
-                      _preisRow('Bergkunden-Pauschale (fix)',
-                          '${_preisliste!.bergkundenZuschlag.toStringAsFixed(2)} CHF'),
-                    const Divider(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total inkl. MwSt',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15)),
-                        Text(
-                            '${_heigeniePreis?.toStringAsFixed(2) ?? '–'} CHF',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15)),
-                      ],
+                    const Text(
+                      'Total inkl. MwSt',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      '${_heigeniePreis?.toStringAsFixed(2) ?? '–'} CHF',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                   ],
                 ),
+              ],
+            ),
     );
   }
 
@@ -960,14 +1042,18 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.picture_as_pdf,
-                            size: 40, color: AppColors.error),
+                        const Icon(
+                          Icons.picture_as_pdf,
+                          size: 40,
+                          color: AppColors.error,
+                        ),
                         const SizedBox(height: 8),
                         if (snapshot.hasData)
                           FilledButton.icon(
                             onPressed: () => launchUrl(
-                                Uri.parse(snapshot.data!),
-                                mode: LaunchMode.externalApplication),
+                              Uri.parse(snapshot.data!),
+                              mode: LaunchMode.externalApplication,
+                            ),
                             icon: const Icon(Icons.open_in_new, size: 16),
                             label: const Text('PDF öffnen'),
                           )
@@ -1005,13 +1091,18 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.broken_image,
-                                  color: AppColors.textSecondary),
+                              Icon(
+                                Icons.broken_image,
+                                color: AppColors.textSecondary,
+                              ),
                               SizedBox(height: 4),
-                              Text('Foto konnte nicht geladen werden',
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 12)),
+                              Text(
+                                'Foto konnte nicht geladen werden',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1038,9 +1129,11 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
               child: OutlinedButton.icon(
                 onPressed: _fotoUploading ? null : _takePhoto,
                 icon: const Icon(Icons.camera_alt),
-                label: Text(_fotoBytes != null || _existingFotoPfad != null
-                    ? 'Neues Foto'
-                    : 'Protokoll fotografieren'),
+                label: Text(
+                  _fotoBytes != null || _existingFotoPfad != null
+                      ? 'Neues Foto'
+                      : 'Protokoll fotografieren',
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1075,63 +1168,73 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
   // ── Anlass: Tages-/Spesen-Slots ───────────────────────────────────
 
   List<Widget> _buildAnlassSlots() {
-    return List.generate(5, (i) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: TextFormField(
-              controller: _materialControllers[i],
-              decoration: InputDecoration(
-                labelText: 'Eintrag ${i + 1}',
-                isDense: true,
-                prefixIcon: const Icon(Icons.event_note, size: 20),
-                hintText: i < 3 ? 'z.B. Fr 18.4. Service' : 'z.B. Spesen Essen',
-                hintStyle: const TextStyle(fontSize: 12, color: Colors.black26),
-                suffixIcon: _materialControllers[i].text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        onPressed: () {
-                          setState(() {
-                            _materialControllers[i].clear();
-                            _materialIds[i] = null;
-                            _materialMengen[i] = 0;
-                            _materialMengenControllers[i].text = '';
-                          });
-                        },
-                      )
-                    : null,
+    return List.generate(
+      5,
+      (i) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextFormField(
+                controller: _materialControllers[i],
+                decoration: InputDecoration(
+                  labelText: 'Eintrag ${i + 1}',
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.event_note, size: 20),
+                  hintText: i < 3
+                      ? 'z.B. Fr 18.4. Service'
+                      : 'z.B. Spesen Essen',
+                  hintStyle: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black26,
+                  ),
+                  suffixIcon: _materialControllers[i].text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            setState(() {
+                              _materialControllers[i].clear();
+                              _materialIds[i] = null;
+                              _materialMengen[i] = 0;
+                              _materialMengenControllers[i].text = '';
+                            });
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (v) {
+                  // Freitext als "Material-ID" speichern
+                  setState(() {
+                    _materialIds[i] = v.trim().isNotEmpty ? v.trim() : null;
+                  });
+                },
               ),
-              onChanged: (v) {
-                // Freitext als "Material-ID" speichern
-                setState(() {
-                  _materialIds[i] = v.trim().isNotEmpty ? v.trim() : null;
-                });
-              },
             ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 105,
-            child: TextFormField(
-              controller: _materialMengenControllers[i],
-              decoration: const InputDecoration(
-                labelText: 'Stunden',
-                isDense: true,
-                suffixText: 'h',
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 105,
+              child: TextFormField(
+                controller: _materialMengenControllers[i],
+                decoration: const InputDecoration(
+                  labelText: 'Stunden',
+                  isDense: true,
+                  suffixText: 'h',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (v) {
+                  setState(() {
+                    _materialMengen[i] = double.tryParse(v) ?? 0;
+                  });
+                },
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (v) {
-                setState(() {
-                  _materialMengen[i] = double.tryParse(v) ?? 0;
-                });
-              },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildAnlassSumme() {
@@ -1151,18 +1254,29 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             )
           : Column(
               children: [
-                _preisRow('Stundensatz', '${_stundensatz.toStringAsFixed(2)} CHF/h'),
+                _preisRow(
+                  'Stundensatz',
+                  '${_stundensatz.toStringAsFixed(2)} CHF/h',
+                ),
                 _preisRow('Total Stunden', '${total.toStringAsFixed(2)} h'),
                 const Divider(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Arbeitskosten',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
-                    Text('${kosten.toStringAsFixed(2)} CHF',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
+                    const Text(
+                      'Arbeitskosten',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      '${kosten.toStringAsFixed(2)} CHF',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1173,115 +1287,141 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
   // ── Standard-Widgets (unverändert) ────────────────────────────────
 
   List<Widget> _buildMaterialSlots() {
-    return List.generate(5, (i) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: _lagerItems.isNotEmpty
-                ? Autocomplete<Lager>(
-                    initialValue: TextEditingValue(text: _materialControllers[i].text),
-                    displayStringForOption: (l) => l.name,
-                    optionsViewOpenDirection: OptionsViewOpenDirection.up,
-                    optionsBuilder: (textEditingValue) {
-                      if (textEditingValue.text.isEmpty) return _lagerItems.take(10);
-                      final q = textEditingValue.text.toLowerCase();
-                      return _lagerItems.where((l) => l.name.toLowerCase().contains(q));
-                    },
-                    fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                      _autoCompleteControllers[i] = controller;
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          labelText: 'Material ${i + 1}',
-                          isDense: true,
-                          prefixIcon: const Icon(Icons.inventory_2, size: 20),
-                          suffixIcon: controller.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear, size: 16),
-                                  onPressed: () {
-                                    controller.clear();
-                                    setState(() {
-                                      _materialIds[i] = null;
-                                      _materialControllers[i].clear();
-                                    });
-                                  },
-                                )
-                              : null,
-                        ),
-                      );
-                    },
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.bottomLeft,
-                        child: Material(
-                          elevation: 4,
-                          borderRadius: BorderRadius.circular(8),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 350),
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              itemCount: options.length,
-                              itemBuilder: (context, index) {
-                                final l = options.elementAt(index);
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(l.name),
-                                  subtitle: l.dboNr != null ? Text(l.dboNr!, style: const TextStyle(fontSize: 11)) : null,
-                                  onTap: () => onSelected(l),
-                                );
-                              },
+    return List.generate(
+      5,
+      (i) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _lagerItems.isNotEmpty
+                  ? Autocomplete<Lager>(
+                      initialValue: TextEditingValue(
+                        text: _materialControllers[i].text,
+                      ),
+                      displayStringForOption: (l) => l.name,
+                      optionsViewOpenDirection: OptionsViewOpenDirection.up,
+                      optionsBuilder: (textEditingValue) {
+                        if (textEditingValue.text.isEmpty)
+                          return _lagerItems.take(10);
+                        final q = textEditingValue.text.toLowerCase();
+                        return _lagerItems.where(
+                          (l) => l.name.toLowerCase().contains(q),
+                        );
+                      },
+                      fieldViewBuilder:
+                          (context, controller, focusNode, onSubmitted) {
+                            _autoCompleteControllers[i] = controller;
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: InputDecoration(
+                                labelText: 'Material ${i + 1}',
+                                isDense: true,
+                                prefixIcon: const Icon(
+                                  Icons.inventory_2,
+                                  size: 20,
+                                ),
+                                suffixIcon: controller.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 16),
+                                        onPressed: () {
+                                          controller.clear();
+                                          setState(() {
+                                            _materialIds[i] = null;
+                                            _materialControllers[i].clear();
+                                          });
+                                        },
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.bottomLeft,
+                          child: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(8),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxHeight: 200,
+                                maxWidth: 350,
+                              ),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final l = options.elementAt(index);
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(l.name),
+                                    subtitle: l.dboNr != null
+                                        ? Text(
+                                            l.dboNr!,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                          )
+                                        : null,
+                                    onTap: () => onSelected(l),
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                    onSelected: (l) {
-                      setState(() {
-                        _materialIds[i] = l.id;
-                        _materialControllers[i].text = l.name;
-                      });
-                    },
-                  )
-                : TextFormField(
-                    controller: _materialControllers[i],
-                    decoration: InputDecoration(
-                      labelText: 'Material ${i + 1}',
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.inventory_2, size: 20),
+                        );
+                      },
+                      onSelected: (l) {
+                        setState(() {
+                          _materialIds[i] = l.id;
+                          _materialControllers[i].text = l.name;
+                        });
+                      },
+                    )
+                  : TextFormField(
+                      controller: _materialControllers[i],
+                      decoration: InputDecoration(
+                        labelText: 'Material ${i + 1}',
+                        isDense: true,
+                        prefixIcon: const Icon(Icons.inventory_2, size: 20),
+                      ),
                     ),
-                  ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 105,
-            child: TextFormField(
-              controller: _materialMengenControllers[i],
-              decoration: const InputDecoration(
-                labelText: 'Anz.',
-                isDense: true,
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (v) {
-                _materialMengen[i] = double.tryParse(v) ?? 1;
-              },
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 105,
+              child: TextFormField(
+                controller: _materialMengenControllers[i],
+                decoration: const InputDecoration(
+                  labelText: 'Anz.',
+                  isDense: true,
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (v) {
+                  _materialMengen[i] = double.tryParse(v) ?? 1;
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildBetriebField() {
-    final betriebe = ref.watch(betriebeProvider)
+    final betriebe = ref
+        .watch(betriebeProvider)
         .where((b) => b.serverId != null)
         .toList();
 
     final currentName = _betriebId != null
-        ? betriebe.where((b) => b.serverId == _betriebId).map((b) => b.name).firstOrNull
+        ? betriebe
+              .where((b) => b.serverId == _betriebId)
+              .map((b) => b.name)
+              .firstOrNull
         : null;
 
     if (_betriebDisabled) {
@@ -1302,9 +1442,11 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) return betriebe.take(20);
         final query = textEditingValue.text.toLowerCase();
-        return betriebe.where((b) =>
-            b.name.toLowerCase().contains(query) ||
-            (b.ort?.toLowerCase().contains(query) ?? false));
+        return betriebe.where(
+          (b) =>
+              b.name.toLowerCase().contains(query) ||
+              (b.ort?.toLowerCase().contains(query) ?? false),
+        );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return TextFormField(
@@ -1346,7 +1488,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                   return ListTile(
                     dense: true,
                     title: Text(b.name),
-                    subtitle: b.ort != null ? Text(b.ort!, style: const TextStyle(fontSize: 12)) : null,
+                    subtitle: b.ort != null
+                        ? Text(b.ort!, style: const TextStyle(fontSize: 12))
+                        : null,
                     onTap: () => onSelected(b),
                   );
                 },
@@ -1383,21 +1527,32 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             : Column(
                 children: [
                   _preisRow('Betrag', '${betrag.toStringAsFixed(2)} CHF'),
-                  _preisRow('Stundensatz',
-                      '${_stundensatz.toStringAsFixed(2)} CHF/h'),
-                  _preisRow('Umrechnung',
-                      '${(betrag / _stundensatz).toStringAsFixed(2)} h'),
+                  _preisRow(
+                    'Stundensatz',
+                    '${_stundensatz.toStringAsFixed(2)} CHF/h',
+                  ),
+                  _preisRow(
+                    'Umrechnung',
+                    '${(betrag / _stundensatz).toStringAsFixed(2)} h',
+                  ),
                   const Divider(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Verrechnet',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 15)),
+                      const Text(
+                        'Verrechnet',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
                       Text(
-                          '${betrag.toStringAsFixed(2)} CHF → ${(betrag / _stundensatz).toStringAsFixed(2)}h à ${_stundensatz.toStringAsFixed(2)} CHF/h',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13)),
+                        '${betrag.toStringAsFixed(2)} CHF → ${(betrag / _stundensatz).toStringAsFixed(2)}h à ${_stundensatz.toStringAsFixed(2)} CHF/h',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -1417,25 +1572,33 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       child: stunden == null
           ? const Text(
               'Stunden eingeben für Kostenvorschau',
-              style:
-                  TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             )
           : Column(
               children: [
-                _preisRow('Stundensatz',
-                    '${_stundensatz.toStringAsFixed(2)} CHF/h'),
+                _preisRow(
+                  'Stundensatz',
+                  '${_stundensatz.toStringAsFixed(2)} CHF/h',
+                ),
                 _preisRow('Stunden', '${stunden.toStringAsFixed(2)} h'),
                 const Divider(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Arbeitskosten',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
+                    const Text(
+                      'Arbeitskosten',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
                     Text(
-                        '${(_stundensatz * stunden).toStringAsFixed(2)} CHF',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
+                      '${(_stundensatz * stunden).toStringAsFixed(2)} CHF',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1449,9 +1612,13 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 13, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
           Text(betrag, style: const TextStyle(fontSize: 13)),
         ],
       ),
@@ -1461,9 +1628,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
   Widget _sectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 
