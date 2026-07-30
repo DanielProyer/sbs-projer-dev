@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -94,13 +95,11 @@ class _KachelGrid extends ConsumerWidget {
     final kontaktCount = ref.watch(kontakteProvider).valueOrNull?.length ?? 0;
     final spesenCount =
         ref.watch(spesenBelegeCountAktuellesJahrProvider).valueOrNull ?? 0;
-    final eventCount =
-        ref
-            .watch(eventsProvider)
-            .valueOrNull
-            ?.where((e) => e.jahr == DateTime.now().year)
-            .length ??
-        0;
+    // Aufgaben-Zähler: eigene offene + offene Störungen + geplante Montagen.
+    final aufgabenCount =
+        (ref.watch(offeneEigeneAufgabenProvider).valueOrNull?.length ?? 0) +
+        ref.watch(stoerungenProvider).where((s) => s.status == 'offen').length +
+        ref.watch(montagenProvider).where((m) => m.status == 'geplant').length;
 
     // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: alle 10 Kacheln
     // sollen zusammen mit Arbeitstag + Übersicht ohne Scrollen aufs Pixel 9
@@ -164,12 +163,15 @@ class _KachelGrid extends ConsumerWidget {
           color: Colors.teal,
           onTap: () => context.push('/kontakte'),
         ),
+        // Events sind seit v0.58.0 unten in der Liste (oberhalb Buchhaltung);
+        // an ihrer Stelle die neuen Aufgaben (anstehende Arbeiten) — Daniel
+        // 31.07.2026.
         _DashboardTile(
-          icon: Icons.festival,
-          label: 'Events',
-          count: eventCount > 0 ? '$eventCount' : null,
-          color: Colors.deepPurple,
-          onTap: () => context.push('/events'),
+          icon: Icons.task_alt,
+          label: 'Aufgaben',
+          count: aufgabenCount > 0 ? '$aufgabenCount' : null,
+          color: Colors.deepOrange,
+          onTap: () => context.push('/aufgaben'),
         ),
         _DashboardTile(
           icon: Icons.route,
@@ -197,9 +199,24 @@ class _WeitereSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final buchungenCount = ref.watch(buchungenCountProvider);
     final niedrigCount = ref.watch(niedrigCountProvider);
+    final eventCount =
+        ref
+            .watch(eventsProvider)
+            .valueOrNull
+            ?.where((e) => e.jahr == DateTime.now().year)
+            .length ??
+        0;
 
     return Column(
       children: [
+        // Events zuoberst (aus dem Kachel-Raster hierher verschoben — Daniel
+        // 31.07.2026; die Kachel gehört jetzt den Aufgaben).
+        _MenuListTile(
+          icon: Icons.festival,
+          label: 'Events',
+          count: eventCount > 0 ? '$eventCount' : null,
+          onTap: () => context.push('/events'),
+        ),
         // Buchhaltung für Gast (Heineken) ausgeblendet
         if (!SupabaseService.isGuest)
           _MenuListTile(

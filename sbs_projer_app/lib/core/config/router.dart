@@ -39,6 +39,7 @@ import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnungen
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_generate_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_raster_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_bankauszug_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_liste_screen.dart';
@@ -93,19 +94,19 @@ final router = GoRouter(
     return null;
   },
   routes: [
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const HomeScreen(),
-    ),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
 
     // Tourenplanung
     GoRoute(
       path: '/touren',
       builder: (context, state) => const TourenplanungScreen(),
+    ),
+
+    // Aufgaben (anstehende Arbeiten chronologisch)
+    GoRoute(
+      path: '/aufgaben',
+      builder: (context, state) => const AufgabenScreen(),
     ),
 
     // Betriebe
@@ -136,7 +137,9 @@ final router = GoRouter(
       builder: (context, state) {
         final betriebId = state.pathParameters['id']!;
         return KontaktFormScreen(
-            initialKategorie: 'betrieb', initialBetriebId: betriebId);
+          initialKategorie: 'betrieb',
+          initialBetriebId: betriebId,
+        );
       },
     ),
     GoRoute(
@@ -193,7 +196,9 @@ final router = GoRouter(
         final anlageId = state.pathParameters['id']!;
         final bierleitungId = state.pathParameters['lid']!;
         return BierleitungFormScreen(
-            anlageId: anlageId, bierleitungId: bierleitungId);
+          anlageId: anlageId,
+          bierleitungId: bierleitungId,
+        );
       },
     ),
 
@@ -210,8 +215,7 @@ final router = GoRouter(
         if (betriebId == null) {
           return const ReinigungBetriebAuswahlScreen();
         }
-        return ReinigungFormScreen(
-            anlageId: anlageId, betriebId: betriebId);
+        return ReinigungFormScreen(anlageId: anlageId, betriebId: betriebId);
       },
     ),
     GoRoute(
@@ -239,8 +243,7 @@ final router = GoRouter(
       builder: (context, state) {
         final anlageId = state.uri.queryParameters['anlageId'];
         final betriebId = state.uri.queryParameters['betriebId'];
-        return StoerungFormScreen(
-            anlageId: anlageId, betriebId: betriebId);
+        return StoerungFormScreen(anlageId: anlageId, betriebId: betriebId);
       },
     ),
     GoRoute(
@@ -268,8 +271,7 @@ final router = GoRouter(
       builder: (context, state) {
         final anlageId = state.uri.queryParameters['anlageId'];
         final betriebId = state.uri.queryParameters['betriebId'];
-        return MontageFormScreen(
-            anlageId: anlageId, betriebId: betriebId);
+        return MontageFormScreen(anlageId: anlageId, betriebId: betriebId);
       },
     ),
     GoRoute(
@@ -568,7 +570,9 @@ final router = GoRouter(
         final kategorie = state.uri.queryParameters['kategorie'];
         final betriebId = state.uri.queryParameters['betriebId'];
         return KontaktFormScreen(
-            initialKategorie: kategorie, initialBetriebId: betriebId);
+          initialKategorie: kategorie,
+          initialBetriebId: betriebId,
+        );
       },
     ),
     GoRoute(
@@ -654,6 +658,5 @@ final router = GoRouter(
       path: '/google-termine',
       builder: (context, state) => const GoogleTermineScreen(),
     ),
-
   ],
 );
