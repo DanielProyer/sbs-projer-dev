@@ -1,6 +1,27 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 28.07.2026 · **Live:** v0.54.14
+**Stand:** 30.07.2026 · **Live:** v0.56.0
+
+---
+
+## 🟢 ERLEDIGT 30.07.: Live-Tagesplan v0.56.0 — heutiger Plan zeigt gemessene Ist-Zeiten
+
+**Wunsch Daniel:** «kannst du mit den Daten (Stempel bei allen Ereignissen) den Tourenplan (vom aktuellen Tag) interaktiv halten … alle erledigten Arbeiten/Wege direkt mit den gemessenen Zeiten darstellen und die Tour entsprechend anpassen»
+
+- **`berechneZeitplanMitIst`** (`zeitplan.dart`, +8 Tests): Erledigte Blöcke laufen mit ihren gemessenen Zeiten in Ist-Reihenfolge; Lücken zwischen Ist-Ereignissen = gemessene Fahrt; ab 3 min zwischen letztem Ist-Ende und jetzt entsteht ein **frei-Fenster**; der Rest-Plan rechnet ab max(jetzt, letztes Ist-Ende) weiter.
+- **Erledigt-Erkennung** (nur heute): Reinigungs-Besuch = heute abgeschlossene Reinigung desselben Betriebs (echte uhrzeit_start/ende); Störung/Montage = Wegpunkt-Stempel (Ende = Stempelzeit, Start = Stempel minus geplante Dauer — Annahme, siehe OFFEN).
+- **UI:** erledigte Blöcke grün mit Haken + «X min gemessen», gemessene Fahrten grün, gelbe FreiZeile, **rote Jetzt-Linie** zwischen Ist und Plan; Minutentakt-Timer rückt Linie + Rest-Plan vor und holt frische Wegpunkte. Andere Tage unverändert.
+- 702 Tests grün, deployed (main `0af6e98`, gh-pages `aa835c2`).
+
+---
+
+## 🟢 ERLEDIGT 30.07.: Arbeitstag am Startbildschirm + Wegpunkte + Excel-Zeiten-Nachtrag (v0.55.1–v0.55.4)
+
+- **Arbeitstag-Karte auf dem Startbildschirm** (Migrationen 153/154): «Jetzt starten» erfasst Zeit + **km-Stand + GPS** (Start variiert: Domat/Ems oder Chur), «Feierabend» erfasst Ende + End-km + End-GPS → Tages-km ohne Privatfahrten. Startort-Fallback (Via Rezia 8) in Geschäftseinstellungen.
+- **Wegpunkte** (Migration 155): Zeit+GPS+Kontext-Stempel bei Reinigungs-Abschluss, Störung, Montage, Arbeitsbeginn, Feierabend — ereignisbasiert statt 5-min-GPS (Web-App drosselt Hintergrund-Tabs, Bildschirm aus = kein JS). Datengrundlage für spätere Routen-Optimierung.
+- **Fahrzeit-Lern-Guard:** Liegt ein Störungs-/Montage-Stempel zwischen zwei Reinigungen, wird die Lücke NICHT als Fahrzeit gelernt (im Zweifel nicht lernen).
+- **Zeitauswahl überall 24h** ohne AM/PM (`zeit_auswahl.dart`, alle 5 showTimePicker-Stellen).
+- **Excel-Zeiten-Nachtrag** (Sheet Reinigung, Spalten Dauer/Zeit Beginn/Zeit Ende): **7'636 Reinigungen mit echten Uhrzeiten** (vorher 895); 842 im Excel ohne Zeit («-»), 145 ohne Match. fahrzeiten-Beobachtungen komplett neu: **3'045 Paare** aus 5'616 Übergängen (vorher 216, teils durch nacherfasste 1-Minüter vergiftet). Heuristik-Faktor 2.2 → **2.5** (Median 2.53 über 2'434 Paare). Rollback: `Datenbank/wartung/zeiten_nachtrag_2026_07_30_rollback.sql`.
 
 ---
 
@@ -379,8 +400,10 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ---
 
 ## 🔴 OFFEN: Nächste Schritte
-- **Tourenplan-Zeitachse v0.55.0 — Live-Check Daniel:** Zeitleiste am Handy prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), Startort in Einstellungen→Geschäft erfassen (Koordinaten Zuhause; ohne ihn keine Anfahrt/Heimweg-Segmente), abends einmal Arbeitsende+km testen. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar (Quelle-Punkt wechselt von grau auf blau).
-- **Auswertungen Arbeitstag/km (späteres Paket, Entscheid Daniel 29.07.):** km pro Tour, Stundenauslastung, Anfahrtskosten je Kunde — Daten werden seit v0.55.0 erfasst (tagesplaene.arbeitsbeginn/arbeitsende/km_stand), Auswertung bewusst nicht gebaut.
+- **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.
+- **Kontakte-Übertragung Daniel (geplant 30.07.):** Alle Telefon-Kontakte in die App erfassen → syncen → in Google kontrollieren → erst DANN die alten Handy-Kontakte löschen (Reihenfolge wichtig; Sync löscht nur eigene «SBS App»-Karten, manuelle bleiben).
+- **Auswertungen Arbeitstag/km (späteres Paket, Entscheid Daniel 29.07.):** km pro Tour, Stundenauslastung, Anfahrtskosten je Kunde — Daten werden seit v0.55.x erfasst (tagesplaene: arbeitsbeginn/arbeitsende, km_start/km_stand, Start-/End-GPS; `wegpunkte`-Tabelle für spätere Routen-Optimierung), Auswertung bewusst nicht gebaut.
+- **Störung/Montage-Ist-Zeiten sind eine Annahme:** Im Live-Tagesplan gilt Ende = Wegpunkt-Stempel (Speichern-Zeitpunkt), Start = Stempel minus geplante Dauer. Falls das in der Praxis stört: echte Zeiterfassung (Beginn/Ende) für Störungen/Montagen nachrüsten.
 - **Muloin-Fix (v0.51.2, 21.07.):** Eröffnungs-Hinweis erschien fälschlich, obwohl die Endreinigung (30.06.) schon IN den Ferien (26.06.–27.07.) lag. Regel jetzt wörtlich umgesetzt: jede Pausen-Reinigung — auch die Endreinigung selbst — unterdrückt Hinweis UND Auto-Termin; Uhr zählt ab Wiedereröffnung (Muloin: fällig 25.08.). Gilt auch für Winterbetriebe (kein Hinweis mehr vor Saisonstart, wenn die Endreinigung in der Pause lag — Entscheid Daniel 21.07.). Live-Check durch Daniel offen.
 - **Live-Check Tourenplan v0.51.0 durch Daniel:** Fällig-Liste muss jetzt die Saison-Kunden zeigen (Stand 17.07. spätabends: 8 überfällig inkl. Tgantieni, 1 fällig Mountain Plaza, 2 bald fällig Waldhuus/Jschalp; 5 korrekt noch nicht fällig, weil erst kürzlich geöffnet — Soll = Saisonstart + Rhythmus).
 - ~~Furt, Wangs~~ **ERLEDIGT 20.07.:** Anlage war demontiert (korrekt erfasst), nur der Betrieb stand noch auf aktiv → jetzt `inaktiv` mit Grund „Anlage demontiert" (inaktiv_seit 20.07., Demontage-Datum unbekannt). Falls Daniel das echte Demontage-Datum kennt: im Betriebs-Formular nachziehen.
