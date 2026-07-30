@@ -405,6 +405,9 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 - **Anfahrtszeiten-Grundlage** (Migration 156 `anfahrtszeiten`): 804 OSRM-Standardzeiten (ohne Verkehr) von Via Rezia 8 Domat/Ems + Giacomettistrasse 89 Chur zu allen 402 Betrieben mit GPS — **kostenlos** (Google hätte ~3 USD gekostet, wäre aber auch im Freikontingent gewesen). Ø 48 min, max 200 min.
 - **Erinnerung angelegt:** «Openair Lumnezia: Montage in der App generieren», fällig Mo 03.08. (Glocke + Aufgaben-Screen).
 
+## 🟢 ERLEDIGT 30.07.: v0.62.0 — OpenStreetMap als dritter Kartenhintergrund (Standard)
+Drei Knöpfe statt zwei: **OSM** (neu Standard), swisstopo-Landeskarte, Luftbild. OSM zeigt in Ortschaften mehr von dem, was bei der Anfahrt zählt — Restaurants, Parkplätze, Einbahnen. Die Quellenangabe folgt jetzt dem gewählten Dienst («© OpenStreetMap» / «© swisstopo»); vorher stand dort fest swisstopo, was mit OSM-Kacheln falsch gewesen wäre. **Ausnahme Event-Stände-Karte:** bleibt auf Luftbild — Stände liegen auf Wiesen und Plätzen ohne Strassennetz.
+
 ## 🟢 ERLEDIGT 30.07.: v0.61.0 — Störungen/Pausen verderben die Lernkurve nicht mehr
 **Gemeldet von Daniel:** Zwischen Migros Golfpark und Restaurant Linden lagen eine Störung + 25 min Pause; nach Türmli eine Störung in Silvias Schlagerbar (Termin 16:00, also Wartezeit, ~45 min Dauer). Frage: «wie berücksichtigen wir solche Fälle ohne grossen Mehraufwand an Eingaben?»
 
