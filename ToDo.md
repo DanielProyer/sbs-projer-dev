@@ -408,6 +408,11 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ## 🔴 OFFEN: Google Routes API aktivieren (1 Klick, Daniel)
 **Damit die zweite Meinung zu den Anfahrtszeiten kommt** («2 Werte sind besser als einer»): In der Google Cloud Console im Projekt **426928923599** die **Routes API** aktivieren — [Direktlink](https://console.developers.google.com/apis/api/routes.googleapis.com/overview?project=426928923599). Die Edge-Function `anfahrt-google` ist deployed und wartet nur darauf; ein Aufruf holt dann alle 804 Google-Werte (kostenlos im Freikontingent). Danach zeigt die App automatisch die Google-Werte (Spalte `minuten` bevorzugt sie), OSRM bleibt als Vergleich in `minuten_osrm` stehen.
 
+## 🟢 ERLEDIGT 31.07.: v0.59.0 — Servicezeiten am Block, Grund der Schliessung, Anker-Warnung
+- **Servicezeiten stehen jetzt am Block** («🕐 08:00–12:00 · nachmittags kein Service · Ruhetag Mo, Di»), bei Konflikt orange. Ohne erfasste Zeiten bleibt die Zeile weg.
+- **Warnung nennt den Grund:** Ruhetag/Ferien/Zwischensaison wurden schon alle erkannt (`istOffenerTag`), aber pauschal als «Betrieb geschlossen» gemeldet. Neu: «Ruhetag», «Betriebsferien bis 16.08.», «Zwischensaison», «Betrieb inaktiv» (`schliessungsGrund`, 10 Tests inkl. Deckungsgleichheit mit `istOffenerTag`).
+- **Anker geprüft:** Berechnung war korrekt (Anker = «frühestens ab» → Wartezeit). Lücke: Liegt der Anker VOR der geplanten Ankunft, kann er den Block nicht nach vorne ziehen — der Termin wäre still verpasst worden. Neu warnt der Block: «Termin 08:00 verpasst — Reihenfolge anpassen».
+
 ## 🟢 ERLEDIGT 31.07.: v0.58.1 — Anfahrtszeit-Bug (Eich 346 → 117 min)
 **Gemeldet von Daniel:** «warum zeigt der Tagesplan von morgen 346 min Anfahrt zu Sonne Seehotel Eich?»
 
