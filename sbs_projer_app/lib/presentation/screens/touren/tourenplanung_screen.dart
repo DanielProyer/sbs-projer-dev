@@ -1412,7 +1412,21 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                   anlagenGesamt: gesamt,
                   dauerGeschaetzt: eintrag.dauerMinuten == null,
                   ruhetagKonflikt: ruhetagKonflikt,
+                  schliessungsGrund: betrieb == null
+                      ? null
+                      : schliessungsGrund(betrieb, widget.datum),
                   servicezeitKonflikt: servicezeitKonflikt,
+                  servicezeit: betrieb == null
+                      ? null
+                      : servicezeitText(
+                          betrieb.servicezeitMorgenAb,
+                          betrieb.servicezeitMorgenBis,
+                          betrieb.servicezeitNachmittagAb,
+                          betrieb.servicezeitNachmittagBis,
+                        ),
+                  ruhetage: betrieb == null
+                      ? null
+                      : ruhetageText(betrieb.ruhetage),
                   fahrtQuelle: fahrtQuellen[eintrag.id],
                   erledigt: istZeiten.containsKey(eintrag.id),
                   freiDavor: eintrag.id == ersteOffeneId ? frei : null,

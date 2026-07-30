@@ -227,8 +227,20 @@ class ZeitplanZeile extends StatelessWidget {
   /// Betrieb ist am Plantag zu (Ruhetag/Ferien/Saisonpause).
   final bool ruhetagKonflikt;
 
+  /// Konkreter Grund der Schliessung («Ruhetag», «Betriebsferien bis 15.08.»,
+  /// «Zwischensaison») — steht im Warnband statt des pauschalen
+  /// «Betrieb geschlossen» (Daniel 31.07.2026).
+  final String? schliessungsGrund;
+
   /// Ankunft liegt ausserhalb aller Servicefenster des Betriebs.
   final bool servicezeitKonflikt;
+
+  /// Servicezeit des Betriebs, z.B. «08:00–12:00 · nachmittags kein Service».
+  /// Leer/`null` = keine erfasst — dann steht auch nichts im Block.
+  final String? servicezeit;
+
+  /// Ruhetage des Betriebs, z.B. «Mo, Di» (zur Info am Block).
+  final String? ruhetage;
 
   /// 'beobachtet' | 'route' | 'heuristik' — Herkunft der Fahrzeit.
   final String? fahrtQuelle;
@@ -262,7 +274,10 @@ class ZeitplanZeile extends StatelessWidget {
     this.anlagenGesamt = 0,
     this.dauerGeschaetzt = true,
     this.ruhetagKonflikt = false,
+    this.schliessungsGrund,
     this.servicezeitKonflikt = false,
+    this.servicezeit,
+    this.ruhetage,
     this.fahrtQuelle,
     this.ankerVorschlag,
     this.onAnkerVorschlag,
@@ -368,6 +383,25 @@ class ZeitplanZeile extends StatelessWidget {
 
   // ─── Besuchs-Block ───
 
+  /// «🕐 08:00–12:00 · nachmittags kein Service · Ruhetag Mo, Di», je nachdem
+  /// was erfasst ist. `null`, wenn weder Servicezeit noch Ruhetage vorliegen.
+  String? get _infoZeile {
+    final teile = <String>[
+      if (servicezeit != null && servicezeit!.isNotEmpty) servicezeit!,
+      if (ruhetage != null && ruhetage!.isNotEmpty) 'Ruhetag $ruhetage',
+    ];
+    if (teile.isEmpty) return null;
+    return '🕐 ${teile.join(' · ')}';
+  }
+
+  /// Der Block startet nach seinem Termin-Anker. `berechneZeitplan` kann das
+  /// nicht auflösen — ein Anker schiebt nur nach hinten, nie nach vorne.
+  bool get _ankerVerpasst {
+    final anker = minutenAusHhmm(eintrag.ankerZeit);
+    // 1 Minute Toleranz: exakt getroffene Anker sind kein Konflikt.
+    return anker != null && segment.startMin > anker + 1;
+  }
+
   Widget _blockZeile() {
     final hoehe = math.max(kBlockMindestHoehe, segment.minuten * kPxProMinute);
     final farbe = blockFarbe(eintrag);
@@ -384,9 +418,18 @@ class ZeitplanZeile extends StatelessWidget {
       children: [
         // Erledigte Blöcke brauchen keine Warnungen mehr — sie sind Ist.
         if (!erledigt && ruhetagKonflikt)
-          _warnband('Betrieb geschlossen', AppColors.error)
+          _warnband(schliessungsGrund ?? 'Betrieb geschlossen', AppColors.error)
         else if (!erledigt && servicezeitKonflikt)
           _warnband('ausserhalb Servicezeit', AppColors.warning),
+        // Anker gesetzt, aber die Reihenfolge bringt mich zu spät hin: der
+        // Anker wirkt nur als «frühestens ab» — er kann den Block nicht nach
+        // VORNE ziehen. Ohne diesen Hinweis bliebe ein verpasster Termin
+        // unbemerkt (Daniel 31.07.2026).
+        if (!erledigt && _ankerVerpasst)
+          _warnband(
+            'Termin ${eintrag.ankerZeit} verpasst — Reihenfolge anpassen',
+            AppColors.error,
+          ),
         Row(
           children: [
             if (erledigt) ...[
@@ -435,6 +478,25 @@ class ZeitplanZeile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        // Servicezeit direkt am Block (Daniel 31.07.2026): ohne sie ist beim
+        // Verschieben nicht sichtbar, in welches Fenster der Besuch passen
+        // muss. Ruhetage stehen daneben, damit die Verschiebung auf einen
+        // anderen Tag gleich mitbedacht werden kann.
+        if (_infoZeile != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Text(
+              _infoZeile!,
+              style: TextStyle(
+                fontSize: 10,
+                color: servicezeitKonflikt && !erledigt
+                    ? AppColors.warning
+                    : AppColors.textSecondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         // Chip-Zeile IMMER zeigen, auch beim 28-Minuten-Normalfall: der Block
         // hat nur eine Mindesthöhe (keine Fixhöhe) und darf für den Inhalt
         // wachsen. Eine frühere Kompakt-Regel blendete Anlagen-Chip und

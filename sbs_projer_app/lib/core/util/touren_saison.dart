@@ -65,6 +65,36 @@ bool istOffenerTag(BetriebLocal b, DateTime tag) {
   return true;
 }
 
+/// Warum ist der Betrieb an diesem Tag zu? `null` = er ist offen.
+///
+/// Für die Warnung im Tagesplan: «Betrieb geschlossen» allein sagt Daniel
+/// nicht, ob er den Besuch verschieben (Ruhetag → morgen wieder offen) oder
+/// ganz streichen muss (Ferien bis in drei Wochen). Reihenfolge wie in
+/// [istOffenerTag]; genannt wird der erste zutreffende Grund.
+/// Ferien nennen zusätzlich das Enddatum, sofern erfasst.
+String? schliessungsGrund(BetriebLocal b, DateTime tag) {
+  if (b.status != 'aktiv') {
+    return b.status == 'geschlossen'
+        ? 'Betrieb geschlossen'
+        : 'Betrieb inaktiv';
+  }
+  if (istInFerien(b, tag)) {
+    for (final s in ferienSlots(b)) {
+      if (s.start == null || s.ende == null) continue;
+      if (!tag.isBefore(s.start!) && !tag.isAfter(s.ende!)) {
+        final e = s.ende!;
+        final d = e.day.toString().padLeft(2, '0');
+        final m = e.month.toString().padLeft(2, '0');
+        return 'Betriebsferien bis $d.$m.';
+      }
+    }
+    return 'Betriebsferien';
+  }
+  if (!istInAktiverSaison(b, tag)) return 'Zwischensaison';
+  if (_istRuhetag(b, tag)) return 'Ruhetag';
+  return null;
+}
+
 /// Erster offener Tag ab [ab] (vorwärts, oder [rueckwaerts]); max. 60 Tage
 /// Suchfenster, sonst null.
 DateTime? naechsterOffenerTag(

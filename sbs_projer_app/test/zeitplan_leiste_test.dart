@@ -291,5 +291,110 @@ void main() {
       expect(find.text('🚗 20 min gemessen'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    // ── Servicezeit + konkreter Schliessungsgrund (31.07.2026) ──
+
+    testWidgets('Servicezeit und Ruhetage stehen am Block', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('s', 9 * 60, 30),
+          eintrag: _eintrag('s'),
+          anlagenGesamt: 1,
+          servicezeit: '08:00–12:00 · nachmittags kein Service',
+          ruhetage: 'Mo, Di',
+        ),
+      );
+      expect(
+        find.text('🕐 08:00–12:00 · nachmittags kein Service · Ruhetag Mo, Di'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('ohne erfasste Servicezeit keine Info-Zeile', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('o', 9 * 60, 30),
+          eintrag: _eintrag('o'),
+          anlagenGesamt: 1,
+        ),
+      );
+      expect(find.textContaining('🕐'), findsNothing);
+    });
+
+    testWidgets('Schliessungsgrund statt pauschaler Warnung', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('g', 9 * 60, 30),
+          eintrag: _eintrag('g'),
+          anlagenGesamt: 1,
+          ruhetagKonflikt: true,
+          schliessungsGrund: 'Betriebsferien bis 16.08.',
+        ),
+      );
+      expect(find.text('Betriebsferien bis 16.08.'), findsOneWidget);
+      expect(find.text('Betrieb geschlossen'), findsNothing);
+    });
+
+    testWidgets('ohne Grund bleibt die alte Warnung', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('g2', 9 * 60, 30),
+          eintrag: _eintrag('g2'),
+          anlagenGesamt: 1,
+          ruhetagKonflikt: true,
+        ),
+      );
+      expect(find.text('Betrieb geschlossen'), findsOneWidget);
+    });
+
+    // ── Anker verpasst ──
+
+    testWidgets('Anker vor der Ankunft: Warnung', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          // Anker 08:00, Ankunft laut Plan aber erst 14:30.
+          segment: _besuch('v', 14 * 60 + 30, 30),
+          eintrag: _eintrag('v').copyWith(ankerZeit: '08:00'),
+          anlagenGesamt: 1,
+        ),
+      );
+      expect(
+        find.text('Termin 08:00 verpasst — Reihenfolge anpassen'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Anker exakt getroffen: keine Warnung', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('t', 8 * 60, 30),
+          eintrag: _eintrag('t').copyWith(ankerZeit: '08:00'),
+          anlagenGesamt: 1,
+        ),
+      );
+      expect(find.textContaining('verpasst'), findsNothing);
+    });
+
+    testWidgets('erledigter Block warnt nicht mehr wegen Anker', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('e2', 14 * 60, 30),
+          eintrag: _eintrag('e2').copyWith(ankerZeit: '08:00'),
+          anlagenGesamt: 1,
+          erledigt: true,
+        ),
+      );
+      expect(find.textContaining('verpasst'), findsNothing);
+    });
   });
 }
