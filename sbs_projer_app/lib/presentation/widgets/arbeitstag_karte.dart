@@ -242,16 +242,28 @@ class ArbeitstagKarte extends ConsumerWidget {
         ? at.km! - at.kmStart!
         : null;
 
-    String zeile1 = beginnErfasst ? 'Start ${at.beginn}' : 'Start —';
-    if (at.kmStart != null) zeile1 += ' · ${at.kmStart} km';
-    String zeile2 = 'Ende ${at.ende ?? '—'}';
-    if (at.km != null) zeile2 += ' · ${at.km} km';
-    if (tagesKm != null) zeile2 += ' · Tag: $tagesKm km';
+    // Eine kompakte Statuszeile statt zwei (Daniel 31.07.2026: Startbildschirm
+    // ohne Scrollen) — die km-Stände im Detail zeigt das Arbeitstag-Sheet.
+    String status;
+    if (beginnErfasst && at.ende != null) {
+      status = '${at.beginn}–${at.ende}';
+    } else if (beginnErfasst) {
+      status = 'ab ${at.beginn}';
+    } else if (at.ende != null) {
+      status = 'bis ${at.ende}';
+    } else {
+      status = 'noch nicht gestartet';
+    }
+    if (tagesKm != null) {
+      status += ' · $tagesKm km';
+    } else if (beginnErfasst && at.kmStart != null) {
+      status += ' · ${at.kmStart} km';
+    }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Row(
           children: [
             Expanded(
@@ -281,16 +293,7 @@ class ArbeitstagKarte extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    zeile1,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  Text(
-                    zeile2,
+                    status,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -303,6 +306,7 @@ class ArbeitstagKarte extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             // CanvasKit-Regel: tappbare Flächen als GestureDetector+Container.
+            // Knopfgrösse bewusst unverändert (Daniel: nicht zu klein).
             _KnopfKlein(
               text: beginnErfasst ? 'Neu starten' : 'Jetzt starten',
               farbe: beginnErfasst

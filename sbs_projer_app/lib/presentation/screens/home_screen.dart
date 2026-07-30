@@ -58,14 +58,14 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         children: [
           const _AufgabenKarte(),
           // Arbeitstag direkt auf dem Startbildschirm erfassen (Beginn mit
           // GPS-Position, abends Ende + km) — Daniel 29.07.2026.
           const ArbeitstagKarte(),
           const _TagesUebersicht(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           const _KachelGrid(),
           const SizedBox(height: 16),
           const _WeitereSection(),
@@ -102,13 +102,16 @@ class _KachelGrid extends ConsumerWidget {
             .length ??
         0;
 
+    // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: alle 10 Kacheln
+    // sollen zusammen mit Arbeitstag + Übersicht ohne Scrollen aufs Pixel 9
+    // passen (Daniel 31.07.2026).
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: 1.75,
+      crossAxisSpacing: 6,
+      mainAxisSpacing: 6,
+      childAspectRatio: 2.1,
       children: [
         _DashboardTile(
           icon: Icons.store,
@@ -296,25 +299,30 @@ class _TagesUebersicht extends ConsumerWidget {
     final total = data.total;
     final totalCHF = data.totalCHF;
 
+    // Kurzer Wochentag + enge Abstände: die Übersicht soll zusammen mit der
+    // Arbeitstag-Karte und allen Kacheln aufs Pixel 9 passen, ohne zu
+    // scrollen (Daniel 31.07.2026). Tagesumsatz wandert als Chip in dieselbe
+    // Zeile wie die Einsatz-Chips.
     final datumStr =
-        '${_wochentage[today.weekday - 1]}, ${today.day.toString().padLeft(2, '0')}.${today.month.toString().padLeft(2, '0')}.${today.year}';
+        '${_wochentage[today.weekday - 1].substring(0, 2)}, ${today.day.toString().padLeft(2, '0')}.${today.month.toString().padLeft(2, '0')}.${today.year}';
 
     return Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.today, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
+                const Icon(Icons.today, color: AppColors.primary, size: 18),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     datumStr,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -322,23 +330,23 @@ class _TagesUebersicht extends ConsumerWidget {
                   Text(
                     '${data.monatsUmsatzCHF.toStringAsFixed(0)} CHF / Monat',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             if (total == 0)
               Text(
                 'Keine Einsätze heute',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               )
-            else ...[
+            else
               Wrap(
-                spacing: 12,
-                runSpacing: 6,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   if (hR.isNotEmpty)
                     _CountChip(
@@ -370,19 +378,13 @@ class _TagesUebersicht extends ConsumerWidget {
                       '${hBP.length} Bergkunde${hBP.length > 1 ? 'n' : ''}',
                       Colors.brown,
                     ),
+                  if (totalCHF > 0)
+                    _CountChip(
+                      '${totalCHF.toStringAsFixed(0)} CHF',
+                      AppColors.primary,
+                    ),
                 ],
               ),
-              if (totalCHF > 0) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Tagesumsatz: ${totalCHF.toStringAsFixed(2)} CHF',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ],
           ],
         ),
       ),
@@ -438,12 +440,12 @@ class _DashboardTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 22),
+              Icon(icon, color: color, size: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
