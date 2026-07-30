@@ -408,6 +408,9 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ## 🔴 OFFEN: Google Routes API aktivieren (1 Klick, Daniel)
 **Damit die zweite Meinung zu den Anfahrtszeiten kommt** («2 Werte sind besser als einer»): In der Google Cloud Console im Projekt **426928923599** die **Routes API** aktivieren — [Direktlink](https://console.developers.google.com/apis/api/routes.googleapis.com/overview?project=426928923599). Die Edge-Function `anfahrt-google` ist deployed und wartet nur darauf; ein Aufruf holt dann alle 804 Google-Werte (kostenlos im Freikontingent). Danach zeigt die App automatisch die Google-Werte (Spalte `minuten` bevorzugt sie), OSRM bleibt als Vergleich in `minuten_osrm` stehen.
 
+## 🟢 ERLEDIGT 31.07.: v0.60.1 — Anfahrtszeiten für neue Betriebe automatisch
+Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet die App direkt nach dem Speichern die Anfahrtszeiten ab **Domat/Ems und Chur** und legt sie in `anfahrtszeiten` ab — nur wenn Koordinaten vorliegen und sich die Position geändert hat. Die Edge-Function `anfahrt-google` kann jetzt einen Einzelbetrieb rechnen und hat **OSRM als kostenlosen Rückfall**; Google-Werte kommen automatisch dazu, sobald die Routes API freigeschaltet ist. End-zu-End geprüft am Sunset Seehotel Eich: 121 min ab Domat/Ems (165.6 km), 115 min ab Chur (158.4 km).
+
 ## 🟢 ERLEDIGT 31.07.: v0.60.0 — Störungen/Montagen wirklich planbar (Grundsatzfund)
 **Gemeldet von Daniel:** «ich kann nirgendwo geplant oder offen definieren, das haben wir mal gelöscht»
 
