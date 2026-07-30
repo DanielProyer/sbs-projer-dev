@@ -405,8 +405,18 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 - **Anfahrtszeiten-Grundlage** (Migration 156 `anfahrtszeiten`): 804 OSRM-Standardzeiten (ohne Verkehr) von Via Rezia 8 Domat/Ems + Giacomettistrasse 89 Chur zu allen 402 Betrieben mit GPS — **kostenlos** (Google hätte ~3 USD gekostet, wäre aber auch im Freikontingent gewesen). Ø 48 min, max 200 min.
 - **Erinnerung angelegt:** «Openair Lumnezia: Montage in der App generieren», fällig Mo 03.08. (Glocke + Aufgaben-Screen).
 
-## 🔴 OFFEN: Ausbau Aufgaben & Anfahrtszeiten (Folgepaket, Daniel 31.07.)
-- **Anfahrtszeiten in die Zeitachse:** Anfahrt/Heimweg im Tagesplan sollen die `anfahrtszeiten`-Werte nutzen (Startort-Erkennung: GPS-Start nahe Domat/Ems vs. Chur → passende Spalte), statt der Luftlinien-Heuristik. Danach Routen-Optimierung (Reihenfolge-Vorschlag).
+## 🔴 OFFEN: Google Routes API aktivieren (1 Klick, Daniel)
+**Damit die zweite Meinung zu den Anfahrtszeiten kommt** («2 Werte sind besser als einer»): In der Google Cloud Console im Projekt **426928923599** die **Routes API** aktivieren — [Direktlink](https://console.developers.google.com/apis/api/routes.googleapis.com/overview?project=426928923599). Die Edge-Function `anfahrt-google` ist deployed und wartet nur darauf; ein Aufruf holt dann alle 804 Google-Werte (kostenlos im Freikontingent). Danach zeigt die App automatisch die Google-Werte (Spalte `minuten` bevorzugt sie), OSRM bleibt als Vergleich in `minuten_osrm` stehen.
+
+## 🟢 ERLEDIGT 31.07.: v0.58.1 — Anfahrtszeit-Bug (Eich 346 → 117 min)
+**Gemeldet von Daniel:** «warum zeigt der Tagesplan von morgen 346 min Anfahrt zu Sonne Seehotel Eich?»
+
+**Ursache:** Die Fahrzeit-Heuristik (Luftlinie × 2.5 ÷ 45 km/h) war an kurzen Bündner Bergstrecken kalibriert. Über 100 km lag ihr Median-Fehler bei **249 min** — auf der Autobahn gelten weder Umwegfaktor 2.5 noch 45 km/h.
+
+**Behoben:** Umwegfaktor (2.20 → 1.45) und Schnitt (32 → 78 km/h) laufen jetzt exponentiell mit der Distanz, kalibriert an den 804 echten Routen. Median-Fehler über alle: **7 min statt 35**; Gegenprobe an 2'807 beobachteten Tür-zu-Tür-Fahrten: 7 statt 12 min. Der Rüst-/Parkierzuschlag ist neu additiv (5 min) statt im Faktor versteckt — er skalierte sonst mit der Distanz. Anfahrt/Heimweg nehmen ausserdem primär die **gerechneten Werte** aus `anfahrtszeiten`; welcher Startort gilt, entscheidet die GPS-Position des Arbeitsbeginns (nächster der beiden, max. 5 km).
+
+## 🔴 OFFEN: Ausbau Aufgaben & Routen (Folgepaket, Daniel 31.07.)
+- **Routen-Optimierung:** Reihenfolge-Vorschlag für den Tagesplan auf Basis von `anfahrtszeiten` + `fahrzeiten` (Datengrundlage steht jetzt).
 - **Aufgaben ↔ Kalender + Tourenplanung verknüpfen:** Aufgaben-Einträge in den Tagesplan des jeweiligen Tages übernehmen können; Sync mit Google Kalender (Teil des geplanten Kalender-Pakets G1–G4); Störungen mit PLAN-Datum (heute nur Meldedatum).
 
 ---
