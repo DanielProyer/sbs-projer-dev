@@ -36,6 +36,7 @@ class ArbeitstagKarte extends ConsumerWidget {
     required String? beginnDb,
     ({double lat, double lng})? startPosition,
     ({double lat, double lng})? endPosition,
+    bool pauseSchreiben = false,
   }) async {
     ref.read(arbeitstagProvider(heute).notifier).state = neu;
     // Einträge bewusst leer: existiert schon eine Plan-Zeile, fasst
@@ -50,8 +51,94 @@ class ArbeitstagKarte extends ConsumerWidget {
       kmStart: neu.kmStart,
       startPosition: startPosition,
       endPosition: endPosition,
+      pauseMinuten: neu.pauseMinuten,
+      pauseStart: neu.pauseStart,
+      pauseSchreiben: pauseSchreiben,
     );
     ref.invalidate(gespeicherterTagesplanProvider(heute));
+  }
+
+  /// Pause starten oder beenden. Beim Beenden wird die Dauer zur Tagessumme
+  /// addiert — mehrere Pausen am Tag sind also möglich.
+  ///
+  /// Warum überhaupt: Eine nicht erfasste Pause landet sonst in der
+  /// Arbeitszeit UND verdirbt die Fahrzeit zwischen zwei Besuchen (Daniel
+  /// 30.07.2026: 25 min zwischen Migros Golfpark und Restaurant Linden).
+  Future<void> _pause(BuildContext context, WidgetRef ref) async {
+    final heute = _heute;
+    final at = ref.read(arbeitstagProvider(heute));
+    final messenger = ScaffoldMessenger.of(context);
+    final jetzt = DateTime.now();
+    final jetztText = hhmmAusMinuten(jetzt.hour * 60 + jetzt.minute);
+    final laeuft = at.pauseStart;
+
+    if (laeuft == null) {
+      await _speichern(
+        ref,
+        heute,
+        (
+          beginn: at.beginn,
+          ende: at.ende,
+          km: at.km,
+          kmStart: at.kmStart,
+          lat: at.lat,
+          lng: at.lng,
+          endLat: at.endLat,
+          endLng: at.endLng,
+          pauseMinuten: at.pauseMinuten,
+          pauseStart: jetztText,
+        ),
+        beginnDb: ref
+            .read(gespeicherterTagesplanProvider(heute))
+            .valueOrNull
+            ?.arbeitsbeginn,
+        pauseSchreiben: true,
+      );
+      unawaited(WegpunktRepository.stempeln(quelle: 'pause_start'));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Pause ab $jetztText läuft')),
+      );
+      return;
+    }
+
+    // Beenden: Dauer aus der laufenden Pause, negative Werte (Tagwechsel
+    // über Mitternacht) verwerfen statt die Summe zu verfälschen.
+    final von = minutenAusHhmm(laeuft);
+    final bis = jetzt.hour * 60 + jetzt.minute;
+    final dauer = (von == null || bis <= von) ? 0 : bis - von;
+    final summe = (at.pauseMinuten ?? 0) + dauer;
+
+    await _speichern(
+      ref,
+      heute,
+      (
+        beginn: at.beginn,
+        ende: at.ende,
+        km: at.km,
+        kmStart: at.kmStart,
+        lat: at.lat,
+        lng: at.lng,
+        endLat: at.endLat,
+        endLng: at.endLng,
+        pauseMinuten: summe,
+        pauseStart: null,
+      ),
+      beginnDb: ref
+          .read(gespeicherterTagesplanProvider(heute))
+          .valueOrNull
+          ?.arbeitsbeginn,
+      pauseSchreiben: true,
+    );
+    unawaited(WegpunktRepository.stempeln(quelle: 'pause_ende'));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          dauer > 0
+              ? 'Pause beendet — $dauer min (Tagessumme $summe min)'
+              : 'Pause beendet',
+        ),
+      ),
+    );
   }
 
   /// GPS holen; Fehler → null plus Hinweis (Zeit/km werden trotzdem erfasst).
@@ -143,6 +230,8 @@ class ArbeitstagKarte extends ConsumerWidget {
           lng: pos?.lng ?? bisher.lng,
           endLat: bisher.endLat,
           endLng: bisher.endLng,
+          pauseMinuten: bisher.pauseMinuten,
+          pauseStart: bisher.pauseStart,
         ),
         beginnDb: beginn,
         startPosition: pos,
@@ -196,6 +285,8 @@ class ArbeitstagKarte extends ConsumerWidget {
           lng: at.lng,
           endLat: pos?.lat ?? at.endLat,
           endLng: pos?.lng ?? at.endLng,
+          pauseMinuten: at.pauseMinuten,
+          pauseStart: at.pauseStart,
         ),
         beginnDb: eingabe.beginn,
         endPosition: pos,
@@ -229,6 +320,8 @@ class ArbeitstagKarte extends ConsumerWidget {
         lng: g.startLng,
         endLat: g.endLat,
         endLng: g.endLng,
+        pauseMinuten: g.pauseMinuten,
+        pauseStart: g.pauseStart,
       );
     });
     final gespeichert = ref
@@ -258,6 +351,12 @@ class ArbeitstagKarte extends ConsumerWidget {
       status += ' · $tagesKm km';
     } else if (beginnErfasst && at.kmStart != null) {
       status += ' · ${at.kmStart} km';
+    }
+    final pauseLaeuft = at.pauseStart != null;
+    if (pauseLaeuft) {
+      status += ' · Pause ab ${at.pauseStart}';
+    } else if ((at.pauseMinuten ?? 0) > 0) {
+      status += ' · ${at.pauseMinuten} min Pause';
     }
 
     return Card(
@@ -313,6 +412,14 @@ class ArbeitstagKarte extends ConsumerWidget {
                   ? AppColors.textSecondary
                   : AppColors.primary,
               onTap: () => _startJetzt(context, ref),
+            ),
+            const SizedBox(width: 6),
+            // Pause: läuft eine, wird der Knopf zum Beenden — die Beschriftung
+            // ist damit immer die nächste Handlung, nicht der Zustand.
+            _KnopfKlein(
+              text: pauseLaeuft ? 'Pause aus' : 'Pause',
+              farbe: pauseLaeuft ? AppColors.warning : AppColors.textSecondary,
+              onTap: () => _pause(context, ref),
             ),
             const SizedBox(width: 6),
             _KnopfKlein(

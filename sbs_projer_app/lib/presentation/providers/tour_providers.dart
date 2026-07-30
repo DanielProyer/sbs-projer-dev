@@ -983,6 +983,13 @@ typedef Arbeitstag = ({
   double? lng,
   double? endLat,
   double? endLng,
+
+  /// Summe aller Pausen des Tages (Migration 159).
+  int? pauseMinuten,
+
+  /// 'HH:mm' einer noch LAUFENDEN Pause; null = keine Pause aktiv. Damit
+  /// weiss der Knopf auch nach einem App-Neustart, dass die Pause läuft.
+  String? pauseStart,
 });
 
 final arbeitstagProvider = StateProvider.family<Arbeitstag, DateTime>(
@@ -995,6 +1002,8 @@ final arbeitstagProvider = StateProvider.family<Arbeitstag, DateTime>(
     lng: null,
     endLat: null,
     endLng: null,
+    pauseMinuten: null,
+    pauseStart: null,
   ),
 );
 
@@ -1309,6 +1318,8 @@ typedef GespeicherterTagesplan = ({
   double? startLng,
   double? endLat,
   double? endLng,
+  int? pauseMinuten,
+  String? pauseStart,
 });
 
 final gespeicherterTagesplanProvider =
@@ -1339,6 +1350,8 @@ final gespeicherterTagesplanProvider =
           startLng: (row['start_lng'] as num?)?.toDouble(),
           endLat: (row['end_lat'] as num?)?.toDouble(),
           endLng: (row['end_lng'] as num?)?.toDouble(),
+          pauseMinuten: row['pause_minuten'] as int?,
+          pauseStart: row['pause_start'] as String?,
         );
       } catch (e) {
         debugPrint('[Tagesplan] Laden fehlgeschlagen: $e');
@@ -1395,6 +1408,12 @@ Future<void> arbeitstagFelderSpeichern(
   // nur überschrieben.
   ({double lat, double lng})? startPosition,
   ({double lat, double lng})? endPosition,
+  // Pausen (Migration 159): Anders als die Positionen werden sie IMMER
+  // geschrieben — `pauseStart: null` beendet eine laufende Pause, und genau
+  // das muss auch in der DB ankommen.
+  int? pauseMinuten,
+  String? pauseStart,
+  bool pauseSchreiben = false,
 }) async {
   final datumStr =
       '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
@@ -1410,6 +1429,8 @@ Future<void> arbeitstagFelderSpeichern(
         if (startPosition != null) 'start_lng': startPosition.lng,
         if (endPosition != null) 'end_lat': endPosition.lat,
         if (endPosition != null) 'end_lng': endPosition.lng,
+        if (pauseSchreiben) 'pause_minuten': pauseMinuten,
+        if (pauseSchreiben) 'pause_start': pauseStart,
         'updated_at': DateTime.now().toIso8601String(),
       })
       .eq('user_id', userId)

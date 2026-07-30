@@ -41,6 +41,7 @@ import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_d
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_raster_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/auswertungen/arbeitstag_auswertung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_bankauszug_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_liste_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_upload_screen.dart';
@@ -101,6 +102,12 @@ final router = GoRouter(
     GoRoute(
       path: '/touren',
       builder: (context, state) => const TourenplanungScreen(),
+    ),
+
+    // Auswertung der erfassten Arbeitstage (Zeit, km, Besuche)
+    GoRoute(
+      path: '/auswertungen/arbeitstage',
+      builder: (context, state) => const ArbeitstagAuswertungScreen(),
     ),
 
     // Aufgaben (anstehende Arbeiten chronologisch)

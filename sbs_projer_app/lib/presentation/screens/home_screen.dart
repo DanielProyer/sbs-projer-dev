@@ -229,6 +229,11 @@ class _WeitereSection extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung'),
           ),
         _MenuListTile(
+          icon: Icons.query_stats,
+          label: 'Auswertung Arbeitstage',
+          onTap: () => context.push('/auswertungen/arbeitstage'),
+        ),
+        _MenuListTile(
           icon: Icons.inventory_2,
           label: 'Material',
           count: niedrigCount > 0 ? '$niedrigCount niedrig' : null,

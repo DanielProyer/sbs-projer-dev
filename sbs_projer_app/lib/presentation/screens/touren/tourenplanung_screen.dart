@@ -21,6 +21,7 @@ import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
+import 'package:sbs_projer_app/core/util/routen_optimierung.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
@@ -127,6 +128,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
               lng: gespeichert.startLng,
               endLat: gespeichert.endLat,
               endLng: gespeichert.endLng,
+              pauseMinuten: gespeichert.pauseMinuten,
+              pauseStart: gespeichert.pauseStart,
             );
           }
           final notifier = ref.read(tagesplanProvider.notifier);
@@ -270,6 +273,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                       onAusFaelligBefuellen: () =>
                           _faelligeAlleUebernehmen(angezeigtFaellig),
                       onPlanUebernehmen: _planVonDatumUebernehmen,
+                      onOptimieren: _reihenfolgeOptimieren,
                       onKarte: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) =>
@@ -517,6 +521,139 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       );
     }
     ref.read(tagesplanProvider.notifier).setzePlan(plan);
+  }
+
+  /// «Reihenfolge optimieren»: ordnet die Besuche so, dass die Summe der
+  /// Fahrzeiten (inkl. Anfahrt und Heimweg) möglichst klein wird.
+  ///
+  /// Einträge mit Termin-Anker bleiben, wo sie sind — sie sind mit dem Kunden
+  /// abgemacht. Das Verfahren prüft auch die bestehende Reihenfolge und nimmt
+  /// die bessere; es kann also nie verschlechtern (siehe
+  /// `routen_optimierung.dart`).
+  void _reihenfolgeOptimieren() {
+    final plan = ref.read(tagesplanProvider);
+    if (plan.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zu wenige Einträge zum Optimieren'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final lookup = ref.read(betriebLookupProvider);
+    final fahrzeiten =
+        ref.read(fahrzeitenMapProvider).valueOrNull ??
+        const <String, FahrzeitEintrag>{};
+    final byId = {for (final e in plan) e.id: e};
+
+    int fahrzeit(String vonId, String nachId) {
+      final v = byId[vonId]?.betriebId;
+      final n = byId[nachId]?.betriebId;
+      if (v == null || n == null) return _kFahrzeitOhneGps;
+      if (v == n) return 0;
+      final gelernt = FahrzeitRepository.ausMap(fahrzeiten, v, n);
+      if (gelernt != null) return gelernt.minuten;
+      final bv = lookup[v];
+      final bn = lookup[n];
+      if (bv?.latitude == null ||
+          bv?.longitude == null ||
+          bn?.latitude == null ||
+          bn?.longitude == null) {
+        return _kFahrzeitOhneGps;
+      }
+      return heuristikMinuten(
+        luftlinieKm: haversineKm(
+          bv!.latitude!,
+          bv.longitude!,
+          bn!.latitude!,
+          bn.longitude!,
+        ),
+      );
+    }
+
+    // Anfahrt/Heimweg nur, wenn ein Startort bekannt ist — sonst würde die
+    // Optimierung einen Tagesrand erfinden, den es nicht gibt.
+    final arbeitstag = ref.read(arbeitstagProvider(_selectedDate));
+    final tagesstart = (arbeitstag.lat != null && arbeitstag.lng != null)
+        ? (lat: arbeitstag.lat!, lng: arbeitstag.lng!)
+        : ref.read(startortProvider);
+    final anfahrtTabelle = ref.read(anfahrtszeitenProvider).valueOrNull;
+    final startKey = startortSchluessel(tagesstart);
+    final gerechnet = (startKey == null || anfahrtTabelle == null)
+        ? null
+        : anfahrtTabelle[startKey];
+
+    int? randMinuten(String blockId) {
+      final betriebId = byId[blockId]?.betriebId;
+      if (betriebId == null || tagesstart == null) return null;
+      final fertig = gerechnet?[betriebId];
+      if (fertig != null) return fertig;
+      final b = lookup[betriebId];
+      if (b?.latitude == null || b?.longitude == null) return null;
+      return heuristikMinuten(
+        luftlinieKm: haversineKm(
+          tagesstart.lat,
+          tagesstart.lng,
+          b!.latitude!,
+          b.longitude!,
+        ),
+        mitRuestzeit: false,
+      );
+    }
+
+    final rand = tagesstart == null
+        ? null
+        : (String id) => randMinuten(id) ?? _kFahrzeitOhneGps;
+
+    final ids = plan.map((e) => e.id).toList();
+    final vorher = gesamtFahrzeit(
+      reihenfolge: ids,
+      fahrzeitZwischen: fahrzeit,
+      anfahrtVomStart: rand,
+      heimwegZumStart: rand,
+    );
+    final neu = optimiereReihenfolge(
+      blockIds: ids,
+      fahrzeitZwischen: fahrzeit,
+      anfahrtVomStart: rand,
+      heimwegZumStart: rand,
+      // Termin-Anker sind mit dem Kunden abgemacht — unantastbar.
+      fixiert: {
+        for (final e in plan)
+          if (e.ankerZeit != null) e.id,
+      },
+    );
+    final nachher = gesamtFahrzeit(
+      reihenfolge: neu,
+      fahrzeitZwischen: fahrzeit,
+      anfahrtVomStart: rand,
+      heimwegZumStart: rand,
+    );
+
+    final ersparnis = vorher - nachher;
+    if (ersparnis <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reihenfolge ist bereits optimal'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    ref.read(tagesplanProvider.notifier).setzePlan([
+      for (final id in neu) byId[id]!,
+    ]);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Reihenfolge optimiert — $ersparnis min weniger Fahrzeit',
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   /// Menüpunkt „Reinigungen eines Tages übernehmen": die TATSÄCHLICH
@@ -820,6 +957,7 @@ class _TagesplanHeader extends StatelessWidget {
   final VoidCallback onAusFaelligBefuellen;
   final VoidCallback onPlanUebernehmen;
   final VoidCallback onKarte;
+  final VoidCallback onOptimieren;
 
   const _TagesplanHeader({
     required this.datum,
@@ -828,6 +966,7 @@ class _TagesplanHeader extends StatelessWidget {
     required this.onAusFaelligBefuellen,
     required this.onPlanUebernehmen,
     required this.onKarte,
+    required this.onOptimieren,
   });
 
   @override
@@ -867,6 +1006,13 @@ class _TagesplanHeader extends StatelessWidget {
               ),
             )
           else ...[
+            IconButton(
+              onPressed: onOptimieren,
+              icon: const Icon(Icons.auto_fix_high, size: 20),
+              tooltip: 'Reihenfolge optimieren (Anker bleiben)',
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
             IconButton(
               onPressed: onPlanUebernehmen,
               icon: const Icon(Icons.history, size: 20),
@@ -1972,6 +2118,8 @@ class _ArbeitstagZeile extends ConsumerWidget {
                 lng: at.lng,
                 endLat: at.endLat,
                 endLng: at.endLng,
+                pauseMinuten: at.pauseMinuten,
+                pauseStart: at.pauseStart,
               ), beginnDb: neu);
             },
           ),
@@ -1999,6 +2147,8 @@ class _ArbeitstagZeile extends ConsumerWidget {
                 lng: at.lng,
                 endLat: at.endLat,
                 endLng: at.endLng,
+                pauseMinuten: at.pauseMinuten,
+                pauseStart: at.pauseStart,
               ), beginnDb: eingabe.beginn);
             },
           ),
