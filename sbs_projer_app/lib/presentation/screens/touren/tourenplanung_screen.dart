@@ -1100,9 +1100,11 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
       return _kFahrzeitOhneGps;
     }
 
-    // Anfahrt/Heimweg ab Zuhause (Spec §3): Strecken zum/vom Startort sind
-    // bewusst IMMER Heuristik — es gibt kein Betriebspaar, also keinen
-    // Cache-Eintrag in `fahrzeiten` (anders als Fahrten zwischen Betrieben).
+    // Anfahrt/Heimweg ab Zuhause (Spec §3). Erste Wahl sind die gerechneten
+    // Werte aus `anfahrtszeiten` (Google/OSRM, Migration 156/157) — die
+    // Luftlinien-Heuristik lag bei Fernstrecken massiv daneben (Sonne
+    // Seehotel Eich: 346 statt 117 min, Daniel 31.07.2026). Sie greift nur
+    // noch, wenn für den Betrieb kein gerechneter Wert vorliegt.
     // Fehlt der Startort, oder hat der erste/letzte Eintrag keinen Betrieb
     // (z.B. eine freie Störung), entfällt das jeweilige Segment (null).
     int? anfahrtMinuten;
@@ -1114,9 +1116,22 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     final tagesstart = (arbeitstag.lat != null && arbeitstag.lng != null)
         ? (lat: arbeitstag.lat!, lng: arbeitstag.lng!)
         : startort;
+    // Gerechnete Werte des passenden Startorts (null, wenn der Tag weder in
+    // Domat/Ems noch in Chur beginnt — dann bleibt nur die Heuristik).
+    final anfahrtTabelle = ref.watch(anfahrtszeitenProvider).valueOrNull;
+    final startortKey = startortSchluessel(tagesstart);
+    final Map<String, int>? gerechneteAnfahrt =
+        (startortKey == null || anfahrtTabelle == null)
+        ? null
+        : anfahrtTabelle[startortKey];
+
     if (tagesstart != null && eintraege.isNotEmpty) {
       final basis = tagesstart; // lokale, nicht-nullbare Kopie fürs Closure
       int? minutenAbStartort(BetriebLocal? betrieb, {required bool hin}) {
+        final gerechnet = (betrieb == null || gerechneteAnfahrt == null)
+            ? null
+            : gerechneteAnfahrt[betrieb.serverId ?? betrieb.routeId];
+        if (gerechnet != null) return gerechnet;
         if (betrieb?.latitude == null || betrieb?.longitude == null) {
           // Betrieb ohne GPS -> derselbe Fallback wie bei Fahrten zwischen
           // Betrieben (kein 0, keine unberechenbare Heuristik).
@@ -1135,7 +1150,9 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                 basis.lat,
                 basis.lng,
               );
-        return heuristikMinuten(luftlinieKm: km);
+        // Reine Fahrzeit: am Tagesrand gibt es kein Umladen zwischen zwei
+        // Kunden, das den Rüstzuschlag rechtfertigen würde.
+        return heuristikMinuten(luftlinieKm: km, mitRuestzeit: false);
       }
 
       final ersterBetriebId = eintraege.first.betriebId;

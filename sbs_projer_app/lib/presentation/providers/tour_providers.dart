@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
@@ -1029,6 +1030,59 @@ final wegpunkteFuerTagProvider =
           ),
       ];
     });
+
+// ─── Anfahrtszeiten ab den festen Startorten ───
+
+/// Die beiden erfassten Startorte (Migration 156/157). Die Zeitachse wählt
+/// anhand der GPS-Position des Arbeitsbeginns den näheren aus.
+const kStartorte = <String, ({double lat, double lng})>{
+  'domat_ems': (lat: 46.8328452, lng: 9.4529918), // Via Rezia 8
+  'chur': (lat: 46.8639692, lng: 9.5278708), // Giacomettistrasse 89
+};
+
+/// Gerechnete Anfahrtszeiten je Startort: betriebId → Minuten.
+/// Quelle `anfahrtszeiten` (Google, sonst OSRM — die Spalte `minuten`
+/// entscheidet das in der DB). Ersetzt die Luftlinien-Heuristik für
+/// Anfahrt/Heimweg, die bei Fernstrecken massiv daneben lag (Fall Sonne
+/// Seehotel Eich: 346 statt 117 min, Daniel 31.07.2026).
+final anfahrtszeitenProvider = FutureProvider<Map<String, Map<String, int>>>((
+  ref,
+) async {
+  final rows = await SupabaseService.client
+      .from('anfahrtszeiten')
+      .select('startort, betrieb_id, minuten');
+  final map = <String, Map<String, int>>{};
+  for (final r in rows) {
+    final startort = r['startort'] as String;
+    final betriebId = r['betrieb_id'] as String?;
+    final minuten = (r['minuten'] as num?)?.toInt();
+    if (betriebId == null || minuten == null) continue;
+    (map[startort] ??= {})[betriebId] = minuten;
+  }
+  return map;
+});
+
+/// Welcher der erfassten Startorte passt zur heutigen Startposition?
+/// Ohne GPS (oder weiter als 5 km von beiden weg — dann ist es keiner der
+/// beiden) `null`, die Zeitachse fällt dann auf die Heuristik zurück.
+String? startortSchluessel(({double lat, double lng})? position) {
+  if (position == null) return null;
+  String? beste;
+  var besteKm = double.infinity;
+  for (final e in kStartorte.entries) {
+    final km = haversineKm(
+      position.lat,
+      position.lng,
+      e.value.lat,
+      e.value.lng,
+    );
+    if (km < besteKm) {
+      besteKm = km;
+      beste = e.key;
+    }
+  }
+  return besteKm <= 5.0 ? beste : null;
+}
 
 /// Datum der letzten Reinigung je Anlage (`AnlageLocal.routeId` — dieselbe
 /// Konvention wie `TourEintrag.anlageId` bei Reinigungs-Einträgen). Für die

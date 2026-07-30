@@ -12,28 +12,69 @@ void main() {
     });
   });
 
-  group('heuristikMinuten', () {
-    test('45 km/h Schnitt x Faktor 1.6', () {
-      // 30 km Luftlinie -> 48 km Strasse -> 64 min
-      expect(heuristikMinuten(luftlinieKm: 30, faktor: 1.6), 64);
+  group('heuristikMinuten (kalibriert 31.07.2026 an 804 echten Routen)', () {
+    test('Untergrenze 3 min bei reiner Fahrzeit', () {
+      expect(heuristikMinuten(luftlinieKm: 0.3, mitRuestzeit: false), 3);
     });
-    test('Minimum 3 min fuer Nachbarn', () {
-      expect(heuristikMinuten(luftlinieKm: 0.3, faktor: 1.6), 3);
+
+    test('Nachbarbetrieb: kurze Fahrt, aber Ruestzeit zaehlt', () {
+      // 300 m Luftlinie ist fahrtechnisch nichts — Parkieren und Umladen
+      // brauchen trotzdem ihre Minuten.
+      expect(heuristikMinuten(luftlinieKm: 0.3), kRuestzuschlagMin + 1);
     });
-    test('Standard-Faktor ist kalibriert (2.5, Stand 30.07.2026)', () {
-      // 30 km Luftlinie x 2.5 / 45 km/h = 100 min effektive Uebergangszeit
-      // (inkl. Parkieren/Umladen — geeicht an 2434 Paaren nach dem
-      // Excel-Zeiten-Nachtrag).
-      expect(kFahrzeitFaktor, 2.5);
-      expect(heuristikMinuten(luftlinieKm: 30), 100);
+
+    test('Ruestzuschlag nur zwischen Besuchen', () {
+      final mit = heuristikMinuten(luftlinieKm: 20);
+      final ohne = heuristikMinuten(luftlinieKm: 20, mitRuestzeit: false);
+      expect(mit - ohne, kRuestzuschlagMin);
+    });
+
+    test('Fernstrecke realistisch — Fall Sonne Seehotel Eich', () {
+      // Domat/Ems -> Eich: 104 km Luftlinie, echte Route 117 min.
+      // Das alte Modell (x2.5 / 45 km/h) lieferte hier 346 min.
+      final min = heuristikMinuten(luftlinieKm: 103.7, mitRuestzeit: false);
+      expect(min, closeTo(117, 12));
+    });
+
+    test('Nahbereich bleibt im Bergtempo', () {
+      // 8 km im Bündner Tal: real gut 15 min inkl. Ortsdurchfahrten.
+      final min = heuristikMinuten(luftlinieKm: 8, mitRuestzeit: false);
+      expect(min, inInclusiveRange(12, 22));
+    });
+
+    test('monoton steigend', () {
+      var vorher = 0;
+      for (final km in [1.0, 5.0, 12.0, 30.0, 60.0, 120.0, 200.0]) {
+        final min = heuristikMinuten(luftlinieKm: km);
+        expect(min, greaterThan(vorher));
+        vorher = min;
+      }
+    });
+
+    test('Schnitt bleibt in plausiblen Grenzen', () {
+      for (final km in [2.0, 10.0, 50.0, 150.0]) {
+        final stunden = reineFahrzeitMinuten(km) / 60;
+        final effektivKmh = km / stunden; // Luftlinien-Tempo
+        expect(effektivKmh, greaterThan(10));
+        expect(effektivKmh, lessThan(60));
+      }
     });
   });
 
   group('waehleFahrzeit', () {
     test('beobachtet schlaegt route schlaegt heuristik', () {
-      expect(waehleFahrzeit(beobachtet: 12, route: 20, heuristik: 30), (12, FahrzeitQuelle.beobachtet));
-      expect(waehleFahrzeit(beobachtet: null, route: 20, heuristik: 30), (20, FahrzeitQuelle.route));
-      expect(waehleFahrzeit(beobachtet: null, route: null, heuristik: 30), (30, FahrzeitQuelle.heuristik));
+      expect(waehleFahrzeit(beobachtet: 12, route: 20, heuristik: 30), (
+        12,
+        FahrzeitQuelle.beobachtet,
+      ));
+      expect(waehleFahrzeit(beobachtet: null, route: 20, heuristik: 30), (
+        20,
+        FahrzeitQuelle.route,
+      ));
+      expect(waehleFahrzeit(beobachtet: null, route: null, heuristik: 30), (
+        30,
+        FahrzeitQuelle.heuristik,
+      ));
     });
   });
 
