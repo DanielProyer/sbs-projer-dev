@@ -405,12 +405,12 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 - **Anfahrtszeiten-Grundlage** (Migration 156 `anfahrtszeiten`): 804 OSRM-Standardzeiten (ohne Verkehr) von Via Rezia 8 Domat/Ems + Giacomettistrasse 89 Chur zu allen 402 Betrieben mit GPS — **kostenlos** (Google hätte ~3 USD gekostet, wäre aber auch im Freikontingent gewesen). Ø 48 min, max 200 min.
 - **Erinnerung angelegt:** «Openair Lumnezia: Montage in der App generieren», fällig Mo 03.08. (Glocke + Aufgaben-Screen).
 
-## 🔴 OFFEN: API-Key für Routes API freigeben (Daniel, 2. Schritt)
-✅ Die **Routes API ist aktiviert** (31.07., Daniel) — der Fehler hat sich geändert. ❌ Jetzt blockiert die **Einschränkung des API-Keys**: `API_KEY_SERVICE_BLOCKED`. Der Key, der als Secret `GOOGLE_PLACES_KEY` hinterlegt ist, hat unter «API restrictions» eine Positivliste, auf der die Routes API fehlt.
+## 🟢 ERLEDIGT 30.07.: Google-Anfahrtszeiten geholt — beide Quellen vollständig
+Routes API aktiviert **und** Key freigegeben (Daniel) → Voll-Lauf der Edge-Function `anfahrt-google`: **786 Google-Werte** geschrieben, keine Fehler. Stand jetzt je Startort: 402 OSRM-Werte, 393 Google-Werte.
 
-**Zu tun:** [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials?project=426928923599) → den verwendeten API-Key öffnen → Abschnitt **«API restrictions»** → **Routes API** zur Liste «Restrict key» hinzufügen → speichern (greift nach 1–5 Minuten).
+**Die 9 Betriebe ohne Google-Route sind alle Davoser Bergbetriebe** (Weissfluhjoch, Weissfluhgipfel, Jatzhütte, Jschalp, Fuxägufer, Clavadeleralp, Chalet Güggel, Chalet Bolgen, Höhenweg) — dorthin gibt es keine durchgehende Autoroute. Für sie greift automatisch der OSRM-Wert (die Spalte `minuten` ist `coalesce(google, osrm)`).
 
-**Danach:** Ein Aufruf der Edge-Function `anfahrt-google` (ohne Body) holt alle 804 Google-Werte; die App bevorzugt sie automatisch (Spalte `minuten`), OSRM bleibt als Vergleich in `minuten_osrm`. Bis dahin läuft alles mit den OSRM-Werten — nichts ist blockiert.
+**Qualitätsvergleich der beiden Quellen** (786 Paare): mittlere Abweichung **4,3 min**, 655 Paare (83 %) liegen innerhalb 5 Minuten. Die 20 Ausreisser über 20 min sind durchwegs Bergbetriebe, wo Google deutlich schneller rechnet (Hörnlihütte 60 statt 113 min) — dort routet Google bis zur Talstation, OSRM schleppt sich über Alpwege. **Wichtig:** Bei Bergbetrieben ist der Wert die reine Autofahrt, die Bergbahn kommt obendrauf; die echte Tür-zu-Tür-Zeit lernt die App über die beobachteten Fahrten.
 
 ## 🟢 ERLEDIGT 31.07.: v0.60.1 — Anfahrtszeiten für neue Betriebe automatisch
 Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet die App direkt nach dem Speichern die Anfahrtszeiten ab **Domat/Ems und Chur** und legt sie in `anfahrtszeiten` ab — nur wenn Koordinaten vorliegen und sich die Position geändert hat. Die Edge-Function `anfahrt-google` kann jetzt einen Einzelbetrieb rechnen und hat **OSRM als kostenlosen Rückfall**; Google-Werte kommen automatisch dazu, sobald die Routes API freigeschaltet ist. End-zu-End geprüft am Sunset Seehotel Eich: 121 min ab Domat/Ems (165.6 km), 115 min ab Chur (158.4 km).
