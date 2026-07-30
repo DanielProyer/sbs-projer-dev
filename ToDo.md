@@ -455,9 +455,15 @@ Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet di
 
 **Behoben:** Umwegfaktor (2.20 → 1.45) und Schnitt (32 → 78 km/h) laufen jetzt exponentiell mit der Distanz, kalibriert an den 804 echten Routen. Median-Fehler über alle: **7 min statt 35**; Gegenprobe an 2'807 beobachteten Tür-zu-Tür-Fahrten: 7 statt 12 min. Der Rüst-/Parkierzuschlag ist neu additiv (5 min) statt im Faktor versteckt — er skalierte sonst mit der Distanz. Anfahrt/Heimweg nehmen ausserdem primär die **gerechneten Werte** aus `anfahrtszeiten`; welcher Startort gilt, entscheidet die GPS-Position des Arbeitsbeginns (nächster der beiden, max. 5 km).
 
-## 🔴 OFFEN: Ausbau Aufgaben & Routen (Folgepaket, Daniel 31.07.)
-- **Routen-Optimierung:** Reihenfolge-Vorschlag für den Tagesplan auf Basis von `anfahrtszeiten` + `fahrzeiten` (Datengrundlage steht jetzt).
+## 🔴 OFFEN: Ausbau Aufgaben (Folgepaket)
 - **Aufgaben ↔ Kalender + Tourenplanung verknüpfen:** Aufgaben-Einträge in den Tagesplan des jeweiligen Tages übernehmen können; Sync mit Google Kalender (Teil des geplanten Kalender-Pakets G1–G4); Störungen mit PLAN-Datum (heute nur Meldedatum).
+- **Echte Zeiterfassung Störung/Montage — braucht Entscheid Daniel:** Der Live-Tagesplan schätzt weiterhin (Ende = Wegpunkt-Stempel, Start = Stempel − Plandauer). Befund 30.07.: Die Felder `uhrzeit_start/ende` existieren bei beiden Tabellen und `dauer_minuten` ist eine **GENERATED**-Spalte (`ende − start`). Bei Störungen ist `uhrzeit_start` aber der **Störungseingang** (Anruf, 107 Altwerte) — trägt man dort ein Ende ein, wird die «Dauer» zur Reaktionszeit statt zur Arbeitszeit. Sauber wären eigene Felder «Arbeit von/bis» (Migration) ODER die Umdeutung des Eingangs-Felds. **Frage an Daniel:** Wie soll der Störungseingang künftig festgehalten werden?
+
+## 🟢 ERLEDIGT 30.07.: v0.63.0 — Routen-Optimierung, Arbeitstag-Auswertung, Pause-Knopf
+- **Routen-Optimierung** (`routen_optimierung.dart`, 18 Tests): Zauberstab-Knopf im Tagesplan ordnet die Besuche nach kürzester Gesamtfahrzeit (Nächster-Nachbar + 2-opt, deterministisch). **Einträge mit Termin-Anker bleiben stehen.** Das Verfahren prüft auch die bestehende Reihenfolge und nimmt die bessere — es kann nie verschlechtern. Meldet die Ersparnis in Minuten oder «bereits optimal».
+- **Auswertung Arbeitstage** (neuer Screen unter «Buchhaltung», 22 Tests): Kennzahlen je Monat — Arbeitstage, Besuche, Total/Ø km, Total/Ø Arbeitszeit, Ø Besuche/Tag, Ø km und Minuten je Besuch — plus Liste der Einzeltage. Jede Kennzahl hat ihren eigenen Nenner, ein Tag mit nur km zieht den Zeit-Schnitt also nicht nach unten.
+- **Pause-Knopf** in der Arbeitstag-Karte (Migration 159): wechselt zwischen «Pause» und «Pause aus», Tagessumme in `pause_minuten`, laufende Pause übersteht einen App-Neustart; Wegpunkt-Stempel `pause_start`/`pause_ende`. Damit landet eine Pause weder in der Arbeitszeit noch in der gelernten Fahrzeit.
+- **Hinweis zur Auswertung:** Aktuell ist **kein einziger Tag vollständig erfasst** (30.07. hat Feierabend + km, aber keinen Arbeitsbeginn — den hatte ich als Fehleingabe 19:29 gelöscht; 31.07. hat nur den vorausgeplanten Beginn 05:20). Die Kennzahlen füllen sich, sobald Beginn UND Ende UND beide km-Stände eines Tages da sind.
 
 ---
 
