@@ -36,7 +36,7 @@ class BetriebeMap extends StatefulWidget {
 
 class _BetriebeMapState extends State<BetriebeMap> {
   final _controller = MapController();
-  bool _luftbild = true;
+  Basemap _basemap = Basemap.osm;
   LatLng? _meinStandort;
   bool _standortLaedt = false;
 
@@ -60,8 +60,9 @@ class _BetriebeMapState extends State<BetriebeMap> {
       if (zentrieren) _controller.move(_meinStandort!, 14);
     } catch (e) {
       if (mounted && zentrieren) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Standort: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Standort: $e')));
       }
     } finally {
       if (mounted) setState(() => _standortLaedt = false);
@@ -71,8 +72,7 @@ class _BetriebeMapState extends State<BetriebeMap> {
   @override
   Widget build(BuildContext context) {
     final mitGps = widget.eintraege
-        .where((e) =>
-            e.betrieb.latitude != null && e.betrieb.longitude != null)
+        .where((e) => e.betrieb.latitude != null && e.betrieb.longitude != null)
         .toList();
     final punkte = mitGps
         .map((e) => LatLng(e.betrieb.latitude!, e.betrieb.longitude!))
@@ -102,8 +102,8 @@ class _BetriebeMapState extends State<BetriebeMap> {
           ),
           children: [
             TileLayer(
-              key: ValueKey(_luftbild),
-              urlTemplate: _luftbild ? swisstopoLuftbild : swisstopoKarte,
+              key: ValueKey(_basemap),
+              urlTemplate: basemapUrl(_basemap),
               userAgentPackageName: 'ch.sbsprojer.app',
               maxZoom: 19,
             ),
@@ -111,30 +111,28 @@ class _BetriebeMapState extends State<BetriebeMap> {
               markers: [
                 for (final e in mitGps)
                   Marker(
-                    point: LatLng(
-                        e.betrieb.latitude!, e.betrieb.longitude!),
+                    point: LatLng(e.betrieb.latitude!, e.betrieb.longitude!),
                     width: 40,
                     height: 40,
                     child: GestureDetector(
                       onTap: () => _zeigePopup(e),
-                      child: Icon(Icons.location_on,
-                          color: faelligkeitFarbe(e.status), size: 40),
+                      child: Icon(
+                        Icons.location_on,
+                        color: faelligkeitFarbe(e.status),
+                        size: 40,
+                      ),
                     ),
                   ),
               ],
             ),
             if (_meinStandort != null)
               MarkerLayer(markers: [meinStandortMarker(_meinStandort!)]),
-            const RichAttributionWidget(
-              attributions: [TextSourceAttribution('© swisstopo')],
+            RichAttributionWidget(
+              attributions: [TextSourceAttribution(basemapQuelle(_basemap))],
             ),
           ],
         ),
-        Positioned(
-          left: 8,
-          bottom: 8,
-          child: _Legende(),
-        ),
+        Positioned(left: 8, bottom: 8, child: _Legende()),
         Positioned(
           right: 8,
           bottom: 34,
@@ -142,14 +140,16 @@ class _BetriebeMapState extends State<BetriebeMap> {
             heroTag: 'betriebe_standort',
             backgroundColor: Colors.white,
             foregroundColor: const Color(0xFF2196F3),
-            onPressed:
-                _standortLaedt ? null : () => _ladeStandort(zentrieren: true),
+            onPressed: _standortLaedt
+                ? null
+                : () => _ladeStandort(zentrieren: true),
             tooltip: 'Mein Standort',
             child: _standortLaedt
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.my_location),
           ),
         ),
@@ -157,8 +157,8 @@ class _BetriebeMapState extends State<BetriebeMap> {
           top: 8,
           right: 8,
           child: BasemapUmschalter(
-            luftbild: _luftbild,
-            onChanged: (v) => setState(() => _luftbild = v),
+            aktiv: _basemap,
+            onChanged: (v) => setState(() => _basemap = v),
           ),
         ),
       ],
@@ -175,21 +175,28 @@ class _BetriebeMapState extends State<BetriebeMap> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(e.betrieb.name,
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                e.betrieb.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(Icons.circle,
-                      size: 12, color: faelligkeitFarbe(e.status)),
+                  Icon(
+                    Icons.circle,
+                    size: 12,
+                    color: faelligkeitFarbe(e.status),
+                  ),
                   const SizedBox(width: 6),
                   Text(faelligkeitLabel(e.status)),
                 ],
               ),
               if (e.betrieb.ort != null) ...[
                 const SizedBox(height: 4),
-                Text(e.betrieb.ort!,
-                    style: const TextStyle(color: AppColors.textSecondary)),
+                Text(
+                  e.betrieb.ort!,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
               ],
               const SizedBox(height: 12),
               Row(
@@ -252,8 +259,7 @@ class _Legende extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.circle,
-                      size: 10, color: faelligkeitFarbe(status)),
+                  Icon(Icons.circle, size: 10, color: faelligkeitFarbe(status)),
                   const SizedBox(width: 4),
                   Text(label, style: const TextStyle(fontSize: 11)),
                 ],

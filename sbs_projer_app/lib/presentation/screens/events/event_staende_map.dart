@@ -14,8 +14,11 @@ class EventStaendeMap extends StatefulWidget {
   final List<EventStandLocal> staende;
   final void Function(EventStandLocal) onStandTap;
 
-  const EventStaendeMap(
-      {super.key, required this.staende, required this.onStandTap});
+  const EventStaendeMap({
+    super.key,
+    required this.staende,
+    required this.onStandTap,
+  });
 
   @override
   State<EventStaendeMap> createState() => _EventStaendeMapState();
@@ -23,7 +26,9 @@ class EventStaendeMap extends StatefulWidget {
 
 class _EventStaendeMapState extends State<EventStaendeMap> {
   final _controller = MapController();
-  bool _luftbild = true;
+  // Stände liegen oft auf Wiesen/Plätzen ohne Strassennetz — dort bleibt das
+  // Luftbild der brauchbarste Hintergrund (anders als bei den Betriebskarten).
+  Basemap _basemap = Basemap.luftbild;
   LatLng? _meinStandort;
   bool _standortLaedt = false;
 
@@ -44,8 +49,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
       if (zentrieren) _controller.move(_meinStandort!, 15);
     } catch (e) {
       if (mounted && zentrieren) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Standort: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Standort: $e')));
       }
     } finally {
       if (mounted) setState(() => _standortLaedt = false);
@@ -58,8 +64,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
         .where((s) => s.latitude != null && s.longitude != null)
         .toList();
     // Auch ohne Stand-Standorte die Karte (mit eigenem Standort) zeigen.
-    final punkte =
-        mitGps.map((s) => LatLng(s.latitude!, s.longitude!)).toList();
+    final punkte = mitGps
+        .map((s) => LatLng(s.latitude!, s.longitude!))
+        .toList();
     final schweiz = LatLng(46.8, 8.23);
 
     return Stack(
@@ -89,8 +96,8 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
           ),
           children: [
             TileLayer(
-              key: ValueKey(_luftbild),
-              urlTemplate: _luftbild ? swisstopoLuftbild : swisstopoKarte,
+              key: ValueKey(_basemap),
+              urlTemplate: basemapUrl(_basemap),
               userAgentPackageName: 'ch.sbsprojer.app',
               maxZoom: 19,
             ),
@@ -103,16 +110,19 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                     height: 40,
                     child: GestureDetector(
                       onTap: () => widget.onStandTap(s),
-                      child: const Icon(Icons.location_on,
-                          color: Colors.red, size: 40),
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.red,
+                        size: 40,
+                      ),
                     ),
                   ),
               ],
             ),
             if (_meinStandort != null)
               MarkerLayer(markers: [meinStandortMarker(_meinStandort!)]),
-            const RichAttributionWidget(
-              attributions: [TextSourceAttribution('© swisstopo')],
+            RichAttributionWidget(
+              attributions: [TextSourceAttribution(basemapQuelle(_basemap))],
             ),
           ],
         ),
@@ -120,8 +130,8 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
           top: 8,
           right: 8,
           child: BasemapUmschalter(
-            luftbild: _luftbild,
-            onChanged: (v) => setState(() => _luftbild = v),
+            aktiv: _basemap,
+            onChanged: (v) => setState(() => _basemap = v),
           ),
         ),
         Positioned(
@@ -131,14 +141,16 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
             heroTag: 'event_standort',
             backgroundColor: Colors.white,
             foregroundColor: const Color(0xFF2196F3),
-            onPressed:
-                _standortLaedt ? null : () => _ladeStandort(zentrieren: true),
+            onPressed: _standortLaedt
+                ? null
+                : () => _ladeStandort(zentrieren: true),
             tooltip: 'Mein Standort',
             child: _standortLaedt
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.my_location),
           ),
         ),

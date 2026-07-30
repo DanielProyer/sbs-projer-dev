@@ -48,7 +48,7 @@ class TagesKarteScreen extends ConsumerStatefulWidget {
 }
 
 class _TagesKarteScreenState extends ConsumerState<TagesKarteScreen> {
-  bool _luftbild = false;
+  Basemap _basemap = Basemap.osm;
 
   static const _schweiz = LatLng(46.8182, 9.0);
 
@@ -188,9 +188,8 @@ class _TagesKarteScreenState extends ConsumerState<TagesKarteScreen> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: _luftbild
-                          ? swisstopoLuftbild
-                          : swisstopoKarte,
+                      key: ValueKey(_basemap),
+                      urlTemplate: basemapUrl(_basemap),
                       userAgentPackageName: 'ch.sbsprojer.app',
                     ),
                     if (koordinaten.length >= 2)
@@ -257,17 +256,17 @@ class _TagesKarteScreenState extends ConsumerState<TagesKarteScreen> {
                   top: 8,
                   right: 8,
                   child: BasemapUmschalter(
-                    luftbild: _luftbild,
-                    onChanged: (v) => setState(() => _luftbild = v),
+                    aktiv: _basemap,
+                    onChanged: (v) => setState(() => _basemap = v),
                   ),
                 ),
-                // © swisstopo (Nutzungsbedingungen der freien WMTS-Dienste).
-                const Positioned(
+                // Quellenangabe ist bei beiden Diensten Pflicht.
+                Positioned(
                   bottom: 4,
                   left: 8,
                   child: Text(
-                    '© swisstopo',
-                    style: TextStyle(fontSize: 10, color: Colors.black54),
+                    basemapQuelle(_basemap),
+                    style: const TextStyle(fontSize: 10, color: Colors.black54),
                   ),
                 ),
               ],
