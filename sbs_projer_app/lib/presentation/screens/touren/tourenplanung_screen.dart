@@ -884,6 +884,16 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
         widget.datum.day == j.day;
   }
 
+  bool get _istVergangen {
+    final j = DateTime.now();
+    final heute = DateTime(j.year, j.month, j.day);
+    return DateTime(
+      widget.datum.year,
+      widget.datum.month,
+      widget.datum.day,
+    ).isBefore(heute);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -902,7 +912,7 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     if (!_istHeute) return;
     _liveTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
-      ref.invalidate(wegpunkteHeuteProvider);
+      ref.invalidate(wegpunkteFuerTagProvider(widget.datum));
       setState(() {}); // Jetzt-Linie und Rest-Plan rücken mit der Uhr vor.
     });
   }
@@ -1033,15 +1043,19 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
       }
     }
 
-    // ── Live-Modus (nur am heutigen Tag): gemessene Ist-Zeiten je Eintrag ──
-    // Erledigte Besuche laufen mit ihren ECHTEN Zeiten, der Rest rechnet ab
-    // «jetzt» — Rückstand und freie Fenster sind so jederzeit ablesbar
-    // (Daniel 30.07.2026).
+    // ── Gemessene Ist-Zeiten je Eintrag ──
+    // Heute (Live-Modus): Erledigte Besuche laufen mit ihren ECHTEN Zeiten,
+    // der Rest rechnet ab «jetzt» — Rückstand und freie Fenster sind so
+    // jederzeit ablesbar (Daniel 30.07.2026).
+    // Vergangene Tage: dieselben Ist-Zeiten, aber ohne «jetzt» — der Tag
+    // zeigt, was wirklich geschah, statt einer Plan-Rechnung ab 06:00
+    // (Daniel 30.07.2026, Fall «Plan vom 17.07. geladen, Zeiten stimmen
+    // nicht»).
     final istHeute = _istHeute;
     final istZeiten = <String, ({int von, int bis})>{};
-    if (istHeute) {
-      // Reinigungs-Besuch erledigt = heute abgeschlossene Reinigung desselben
-      // Betriebs mit brauchbaren Zeiten.
+    if (istHeute || _istVergangen) {
+      // Reinigungs-Besuch erledigt = am Plantag abgeschlossene Reinigung
+      // desselben Betriebs mit brauchbaren Zeiten.
       final heutigeJeBetrieb = <String, ({int von, int bis})>{};
       for (final r in ref.watch(reinigungenProvider)) {
         if (r.status != 'abgeschlossen' || r.betriebId.isEmpty) continue;
@@ -1056,8 +1070,8 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
         heutigeJeBetrieb[r.betriebId] = (von: von, bis: bis);
       }
       final wegpunkte =
-          ref.watch(wegpunkteHeuteProvider).valueOrNull ??
-          const <WegpunktHeute>[];
+          ref.watch(wegpunkteFuerTagProvider(widget.datum)).valueOrNull ??
+          const <WegpunktTag>[];
       for (final e in eintraege) {
         if (e.typ == TourEintragTyp.reinigung) {
           final ist = e.betriebId != null
@@ -1099,11 +1113,34 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
           istEndMin: istZeiten[e.id]?.bis,
         ),
     ];
+    // Vergangene Tage ohne erfassten Arbeitsbeginn: die Achse startet beim
+    // ersten gemessenen Ereignis — sonst erschiene 06:00 bis zur ersten
+    // Reinigung als riesige «gemessene Anfahrt».
+    final erfassterBeginn = ref
+        .watch(gespeicherterTagesplanProvider(widget.datum))
+        .valueOrNull
+        ?.arbeitsbeginn;
+    final ersterIstStart = istZeiten.isEmpty
+        ? null
+        : istZeiten.values.map((z) => z.von).reduce((a, b) => a < b ? a : b);
+
     final segmente = istHeute
         ? berechneZeitplanMitIst(
             bloecke: bloecke,
             jetztMin: jetztMin,
             arbeitsbeginn: arbeitstag.beginn,
+            anfahrtMinuten: anfahrtMinuten,
+            heimwegMinuten: heimwegMinuten,
+            fahrzeitZwischen: fahrzeitZwischen,
+          )
+        : istZeiten.isNotEmpty
+        ? berechneZeitplanMitIst(
+            // Vergangener Tag: kein «jetzt» -> jetztMin 0 erzeugt weder ein
+            // frei-Segment noch verschiebt es offene Einträge — die folgen
+            // direkt auf das letzte gemessene Ereignis.
+            bloecke: bloecke,
+            jetztMin: 0,
+            arbeitsbeginn: erfassterBeginn ?? hhmmAusMinuten(ersterIstStart!),
             anfahrtMinuten: anfahrtMinuten,
             heimwegMinuten: heimwegMinuten,
             fahrzeitZwischen: fahrzeitZwischen,

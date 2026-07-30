@@ -37,6 +37,37 @@ void main() {
       expect(s[4].startMin, 460);
     });
 
+    test('Vergangener Tag (jetztMin 0): kein frei, Achse ab erstem Ist', () {
+      // Nutzung fuer vergangene Tage (31.07.2026): arbeitsbeginn = erster
+      // Ist-Start (kein erfasster Beginn), jetztMin 0 -> kein frei-Segment,
+      // offene Eintraege folgen direkt auf das letzte gemessene Ereignis.
+      final s = berechneZeitplanMitIst(
+        bloecke: [
+          ist('a', 30, von: 400, bis: 430),
+          ist('b', 45, von: 445, bis: 490),
+          b('offen', 60),
+        ],
+        jetztMin: 0,
+        arbeitsbeginn: '06:40', // = erster Ist-Start 400
+        anfahrtMinuten: 20,
+        heimwegMinuten: 15,
+        fahrzeitZwischen: (v, n) => 10,
+      );
+      expect(s.map((x) => x.art).toList(), [
+        SegmentArt.besuch, // ist a 06:40-07:10 — KEINE Fake-Anfahrt davor
+        SegmentArt.fahrt, // gemessen 07:10-07:25
+        SegmentArt.besuch, // ist b 07:25-08:10
+        SegmentArt.fahrt, // geplant ab letztem Ist-Ende
+        SegmentArt.besuch, // offen
+        SegmentArt.heimweg,
+      ]);
+      expect(s.any((x) => x.art == SegmentArt.frei), isFalse);
+      expect(s[0].startMin, 400);
+      expect(s[3].ist, isFalse);
+      expect(s[3].startMin, 490); // direkt nach Ist-Ende, nicht ab jetzt
+      expect(s[4].startMin, 500);
+    });
+
     test('Ist-Reihenfolge schlaegt Planreihenfolge', () {
       final s = berechneZeitplanMitIst(
         bloecke: [
