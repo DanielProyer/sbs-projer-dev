@@ -90,7 +90,7 @@ class AufgabenScreen extends ConsumerWidget {
 
     // Offene Störungen (Datum = Meldedatum).
     for (final s in ref.watch(stoerungenProvider)) {
-      if (s.status != 'offen') continue;
+      if (!stoerungOffen(s.status)) continue;
       final betrieb = s.betriebId != null ? lookup[s.betriebId!] : null;
       eintraege.add(
         _Eintrag(
@@ -106,7 +106,7 @@ class AufgabenScreen extends ConsumerWidget {
 
     // Geplante Montagen (inkl. HeiGenie, inkl. Rebranding als Montage-Typ).
     for (final m in ref.watch(montagenProvider)) {
-      if (m.status != 'geplant') continue;
+      if (!montageOffen(m.status)) continue;
       final betrieb = m.betriebId != null ? lookup[m.betriebId!] : null;
       eintraege.add(
         _Eintrag(

@@ -1,3 +1,18 @@
+// ─── Was ist «noch zu erledigen»? ───
+//
+// Störungen und Montagen sind planbar, solange sie nicht abgeschlossen sind.
+// Die Regel stand bis v0.60.0 an sechs Stellen einzeln im Code (Tourenplan,
+// Aufgaben-Screen, Startbildschirm-Zähler) und lief auseinander — hier ist
+// sie einmal definiert.
+
+/// Störung ist noch zu erledigen (Status 'offen' oder 'in_bearbeitung').
+bool stoerungOffen(String status) =>
+    status == 'offen' || status == 'in_bearbeitung';
+
+/// Montage ist noch zu erledigen (Status 'geplant' oder 'in_bearbeitung').
+bool montageOffen(String status) =>
+    status == 'geplant' || status == 'in_bearbeitung';
+
 /// Wie dringend eine Anlage zur Reinigung ansteht.
 ///
 /// Die Reihenfolge ist die Sortierreihenfolge im Tourenplan — dringend zuerst,
@@ -22,35 +37,35 @@ enum TourFilter { ueberfaellig, faellig, bald, saison, alle }
 /// Kurzes Label für den Chip. Bewusst knapp, damit alle fünf nebeneinander
 /// auf ein Handy-Display passen, ohne dass die Leiste umbricht.
 String tourFilterLabel(TourFilter f) => switch (f) {
-      TourFilter.ueberfaellig => 'Überfällig',
-      TourFilter.faellig => 'Fällig',
-      TourFilter.bald => 'Bald',
-      TourFilter.saison => 'Saison',
-      TourFilter.alle => 'Alle',
-    };
+  TourFilter.ueberfaellig => 'Überfällig',
+  TourFilter.faellig => 'Fällig',
+  TourFilter.bald => 'Bald',
+  TourFilter.saison => 'Saison',
+  TourFilter.alle => 'Alle',
+};
 
 /// Die Fälligkeits-Status, die dieser Filter durchlässt.
 Set<FaelligkeitsStatus> statusFuer(TourFilter f) => switch (f) {
-      TourFilter.ueberfaellig => {FaelligkeitsStatus.ueberfaellig},
-      TourFilter.faellig => {FaelligkeitsStatus.faellig},
-      TourFilter.bald => {FaelligkeitsStatus.baldFaellig},
-      TourFilter.saison => {
-          FaelligkeitsStatus.endreinigungFaellig,
-          FaelligkeitsStatus.eroeffnungFaellig,
-        },
-      // «Alle» zeigt auch Anlagen, die noch gar nicht fällig sind — etwa um
-      // eine Anlage mitzunehmen, weil man ohnehin in der Region ist.
-      TourFilter.alle => FaelligkeitsStatus.values.toSet(),
-    };
+  TourFilter.ueberfaellig => {FaelligkeitsStatus.ueberfaellig},
+  TourFilter.faellig => {FaelligkeitsStatus.faellig},
+  TourFilter.bald => {FaelligkeitsStatus.baldFaellig},
+  TourFilter.saison => {
+    FaelligkeitsStatus.endreinigungFaellig,
+    FaelligkeitsStatus.eroeffnungFaellig,
+  },
+  // «Alle» zeigt auch Anlagen, die noch gar nicht fällig sind — etwa um
+  // eine Anlage mitzunehmen, weil man ohnehin in der Region ist.
+  TourFilter.alle => FaelligkeitsStatus.values.toSet(),
+};
 
 /// Ist der Standard-Satz aktiv? Alles ausser «Alle» — so war die Leiste schon
 /// vorher eingestellt (überfällig/fällig/bald/saisonal sichtbar).
 Set<TourFilter> get standardTourFilter => {
-      TourFilter.ueberfaellig,
-      TourFilter.faellig,
-      TourFilter.bald,
-      TourFilter.saison,
-    };
+  TourFilter.ueberfaellig,
+  TourFilter.faellig,
+  TourFilter.bald,
+  TourFilter.saison,
+};
 
 /// Kommt ein Eintrag mit diesem Fälligkeits-Status durch die Auswahl?
 ///
@@ -58,8 +73,7 @@ Set<TourFilter> get standardTourFilter => {
 /// Einschränkung). Einträge ohne Fälligkeit — Störungen, Montagen — werden
 /// vom Fälligkeitsfilter grundsätzlich nicht angefasst; das entscheidet der
 /// Aufrufer.
-bool sichtbarImTourfilter(
-    FaelligkeitsStatus status, Set<TourFilter> gewaehlt) {
+bool sichtbarImTourfilter(FaelligkeitsStatus status, Set<TourFilter> gewaehlt) {
   if (gewaehlt.isEmpty) return true;
   for (final f in gewaehlt) {
     if (statusFuer(f).contains(status)) return true;
@@ -78,7 +92,9 @@ bool zeigtNichtFaellige(Set<TourFilter> gewaehlt) =>
 /// ist erlaubt — dann greift die Regel «leer = alles zeigen».
 Set<TourFilter> nachTipp(Set<TourFilter> aktuell, TourFilter getippt) {
   if (getippt == TourFilter.alle) {
-    return aktuell.contains(TourFilter.alle) ? <TourFilter>{} : {TourFilter.alle};
+    return aktuell.contains(TourFilter.alle)
+        ? <TourFilter>{}
+        : {TourFilter.alle};
   }
   final neu = {...aktuell}..remove(TourFilter.alle);
   if (neu.contains(getippt)) {

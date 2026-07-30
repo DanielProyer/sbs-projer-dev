@@ -179,7 +179,18 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     // VERGANGENE Tage zeigen nicht den (Test-)Plan, sondern die tatsächlich
     // abgeschlossenen Reinigungen des Tages — Pläne von gestern sind nicht
     // mehr relevant, nur was wirklich geschah (Daniel 31.07.2026).
-    final istVergangenTag = _istVergangenerTag;
+    //
+    // Dasselbe gilt, sobald der HEUTIGE Tag mit «Feierabend» abgeschlossen
+    // ist: dann ist der Tag Geschichte, und der Rest-Plan «ab jetzt» wäre nur
+    // noch irreführend (Daniel 31.07.2026: «es ist Feierabend, dann kannst du
+    // den Tag mit den realen Daten anzeigen»).
+    final feierabendErfasst =
+        ref
+            .watch(gespeicherterTagesplanProvider(_selectedDate))
+            .valueOrNull
+            ?.arbeitsende !=
+        null;
+    final istVergangenTag = _istVergangenerTag || feierabendErfasst;
     final angezeigtTagesplan = istVergangenTag
         ? ref.watch(tatsaechlicheReinigungenAlsEintraegeProvider(_selectedDate))
         : tagesplan;
@@ -1011,13 +1022,16 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
   @override
   void didUpdateWidget(covariant _TagesplanZeitachse alt) {
     super.didUpdateWidget(alt);
-    if (alt.datum != widget.datum) _liveTimerAktualisieren();
+    if (alt.datum != widget.datum || alt.readOnly != widget.readOnly) {
+      _liveTimerAktualisieren();
+    }
   }
 
   void _liveTimerAktualisieren() {
     _liveTimer?.cancel();
     _liveTimer = null;
-    if (!_istHeute) return;
+    // Nach dem Feierabend (readOnly) gibt es nichts mehr vorzurücken.
+    if (!_istHeute || widget.readOnly) return;
     _liveTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
       ref.invalidate(wegpunkteFuerTagProvider(widget.datum));
@@ -1176,9 +1190,12 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     // zeigt, was wirklich geschah, statt einer Plan-Rechnung ab 06:00
     // (Daniel 30.07.2026, Fall «Plan vom 17.07. geladen, Zeiten stimmen
     // nicht»).
-    final istHeute = _istHeute;
+    // Live-Modus (Rest-Plan ab «jetzt») nur solange der Tag wirklich läuft.
+    // `readOnly` heisst: vergangener Tag ODER heute mit erfasstem Feierabend
+    // — dann ist der Tag abgeschlossen und wird statisch dargestellt.
+    final istHeute = _istHeute && !widget.readOnly;
     final istZeiten = <String, ({int von, int bis})>{};
-    if (istHeute || _istVergangen) {
+    if (istHeute || _istVergangen || widget.readOnly) {
       // Reinigungs-Besuch erledigt = am Plantag abgeschlossene Reinigung
       // desselben Betriebs mit brauchbaren Zeiten. `hist_`-Einträge (die
       // tatsächlichen Reinigungen vergangener Tage) matchen exakt über ihre

@@ -37,6 +37,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   bool _isLoading = false;
   StoerungLocal? _existing;
 
+  /// Erst geplant (Status 'offen') statt erledigt ('behoben') — nur so
+  /// erscheint die Störung im Tourenplan.
+  bool _geplant = false;
+
   // Zeiterfassung
   late DateTime _datum;
   late final _heinekennrController = TextEditingController();
@@ -128,6 +132,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
 
     setState(() {
       _existing = s;
+      _geplant = s.status == 'offen' || s.status == 'in_bearbeitung';
       _datum = s.datum;
       _heinekennrController.text = s.referenzNr ?? '';
       final zeit = s.uhrzeitStart ?? '';
@@ -314,13 +319,15 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.preisBrutto = preis['total'];
       }
 
-      s.status = 'behoben';
+      s.status = _geplant ? 'offen' : 'behoben';
 
       await StoerungRepository.save(s);
-      // Wegpunkt nur beim NEU-Erfassen (nicht bei jeder Bearbeitung): der
-      // Stempel markiert den Einsatz-Zeitpunkt fuer Routen-Daten und den
-      // Fahrzeit-Guard (Daniel 30.07.2026). Fire-and-forget.
-      if (!_isEdit) {
+      // Wegpunkt nur beim NEU-Erfassen (nicht bei jeder Bearbeitung) und nur
+      // bei einem ERLEDIGTEN Einsatz: der Stempel markiert den tatsächlichen
+      // Einsatz-Zeitpunkt für Routen-Daten und den Fahrzeit-Guard. Eine bloss
+      // geplante Störung war noch nirgends — ihr Stempel würde die
+      // Fahrzeit-Lernkurve verfälschen (Daniel 30./31.07.2026).
+      if (!_isEdit && !_geplant) {
         unawaited(
           WegpunktRepository.stempeln(
             quelle: 'stoerung',
@@ -470,6 +477,28 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // === Geplant / erledigt ===
+            // Bis v0.59.0 schrieb das Formular immer 'behoben' — eine Störung
+            // liess sich also gar nicht vorausplanen und tauchte nie im
+            // Tourenplan auf (Fund Daniel 31.07.2026).
+            SwitchListTile(
+              title: const Text('Erst geplant'),
+              subtitle: Text(
+                _geplant
+                    ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
+                    : 'Erledigt — Rapport wird jetzt erfasst',
+              ),
+              secondary: Icon(
+                _geplant ? Icons.event_outlined : Icons.check_circle_outline,
+                color: _geplant ? AppColors.info : AppColors.success,
+              ),
+              value: _geplant,
+              activeTrackColor: AppColors.info,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _geplant = v),
+            ),
+            const Divider(height: 24),
+
             // === Kilometerabrechnung Switch ===
             SwitchListTile(
               title: const Text('Kilometerabrechnung'),

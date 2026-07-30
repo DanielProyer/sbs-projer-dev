@@ -68,6 +68,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
   // Betrieb
   String? _betriebId;
 
+  /// Erst geplant (Status 'geplant') statt erledigt ('abgeschlossen') — nur
+  /// so erscheint die Montage im Tourenplan.
+  bool _geplant = false;
+
   // Datum & Stunden
   late DateTime _datum;
   late final _stundenController = TextEditingController();
@@ -203,6 +207,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
     setState(() {
       _existing = m;
+      _geplant = m.status == 'geplant' || m.status == 'in_bearbeitung';
       _montageTyp = m.montageTyp;
       _betriebId = m.betriebId;
       _datum = m.datum;
@@ -374,7 +379,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       m.betriebId = _betriebDisabled ? null : _betriebId;
       m.datum = _datum;
       m.beschreibung = _beschreibungController.text.trim();
-      m.status = 'abgeschlossen';
+      m.status = _geplant ? 'geplant' : 'abgeschlossen';
 
       if (_isHeigenie) {
         // HeiGenie: Hahn-basierte Preisberechnung (Bergkunde inkl.)
@@ -465,7 +470,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       await MontageRepository.save(m);
       // Wegpunkt nur beim NEU-Erfassen — Einsatz-Zeitstempel fuer Routen-
       // Daten und den Fahrzeit-Guard (Daniel 30.07.2026). Fire-and-forget.
-      if (!_isEdit) {
+      // Nur bei erledigten Montagen — eine geplante war noch nirgends und
+      // würde die Fahrzeit-Lernkurve verfälschen (31.07.2026).
+      if (!_isEdit && !_geplant) {
         unawaited(
           WegpunktRepository.stempeln(
             quelle: 'montage',
@@ -571,6 +578,30 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // === Geplant / erledigt ===
+                // Bis v0.59.0 schrieb das Formular immer 'abgeschlossen' —
+                // eine Montage liess sich also nicht vorausplanen und tauchte
+                // nie im Tourenplan auf (Fund Daniel 31.07.2026).
+                SwitchListTile(
+                  title: const Text('Erst geplant'),
+                  subtitle: Text(
+                    _geplant
+                        ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
+                        : 'Erledigt — Rapport wird jetzt erfasst',
+                  ),
+                  secondary: Icon(
+                    _geplant
+                        ? Icons.event_outlined
+                        : Icons.check_circle_outline,
+                    color: _geplant ? AppColors.info : AppColors.success,
+                  ),
+                  value: _geplant,
+                  activeTrackColor: AppColors.info,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) => setState(() => _geplant = v),
+                ),
+                const Divider(height: 24),
+
                 // === Betrieb ===
                 _sectionTitle(context, 'Betrieb'),
                 const SizedBox(height: 8),

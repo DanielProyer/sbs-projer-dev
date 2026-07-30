@@ -98,8 +98,11 @@ class _KachelGrid extends ConsumerWidget {
     // Aufgaben-Zähler: eigene offene + offene Störungen + geplante Montagen.
     final aufgabenCount =
         (ref.watch(offeneEigeneAufgabenProvider).valueOrNull?.length ?? 0) +
-        ref.watch(stoerungenProvider).where((s) => s.status == 'offen').length +
-        ref.watch(montagenProvider).where((m) => m.status == 'geplant').length;
+        ref
+            .watch(stoerungenProvider)
+            .where((s) => stoerungOffen(s.status))
+            .length +
+        ref.watch(montagenProvider).where((m) => montageOffen(m.status)).length;
 
     // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: alle 10 Kacheln
     // sollen zusammen mit Arbeitstag + Übersicht ohne Scrollen aufs Pixel 9

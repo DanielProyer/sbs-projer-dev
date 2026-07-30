@@ -27,7 +27,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 // Tourfilter braucht ihn, ohne die Provider zu laden). Re-Export, damit die
 // bestehenden Import-Stellen unverändert bleiben.
 export 'package:sbs_projer_app/core/util/tour_filter.dart'
-    show FaelligkeitsStatus;
+    show FaelligkeitsStatus, stoerungOffen, montageOffen;
 
 // ─── Regionen ───
 
@@ -640,10 +640,10 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
     );
   }
 
-  // 2. Offene Störungen
+  // 2. Offene Störungen (inkl. angefangener — siehe stoerungOffen).
   final stoerungen = ref.watch(stoerungenProvider);
   for (final s in stoerungen) {
-    if (s.status != 'offen') continue;
+    if (!stoerungOffen(s.status)) continue;
     final betrieb = s.betriebId != null ? betriebMap[s.betriebId!] : null;
     eintraege.add(
       TourEintrag(
@@ -662,10 +662,10 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
     );
   }
 
-  // 3. Geplante Montagen / HeiGenie
+  // 3. Geplante Montagen / HeiGenie (inkl. angefangener — siehe montageOffen).
   final montagen = ref.watch(montagenProvider);
   for (final m in montagen) {
-    if (m.status != 'geplant') continue;
+    if (!montageOffen(m.status)) continue;
     final betrieb = m.betriebId != null ? betriebMap[m.betriebId!] : null;
     final istHeiGenie = m.montageTyp == 'heigenie_service';
     eintraege.add(
