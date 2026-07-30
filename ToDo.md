@@ -405,6 +405,22 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 - **Anfahrtszeiten-Grundlage** (Migration 156 `anfahrtszeiten`): 804 OSRM-Standardzeiten (ohne Verkehr) von Via Rezia 8 Domat/Ems + Giacomettistrasse 89 Chur zu allen 402 Betrieben mit GPS — **kostenlos** (Google hätte ~3 USD gekostet, wäre aber auch im Freikontingent gewesen). Ø 48 min, max 200 min.
 - **Erinnerung angelegt:** «Openair Lumnezia: Montage in der App generieren», fällig Mo 03.08. (Glocke + Aufgaben-Screen).
 
+## 🟢 ERLEDIGT 30.07.: v0.61.0 — Störungen/Pausen verderben die Lernkurve nicht mehr
+**Gemeldet von Daniel:** Zwischen Migros Golfpark und Restaurant Linden lagen eine Störung + 25 min Pause; nach Türmli eine Störung in Silvias Schlagerbar (Termin 16:00, also Wartezeit, ~45 min Dauer). Frage: «wie berücksichtigen wir solche Fälle ohne grossen Mehraufwand an Eingaben?»
+
+**Ausmass geprüft:** 652 von 2'882 beobachteten Fahrzeiten (**23 %**) lagen mehr als doppelt so hoch wie die tatsächliche Route — im Schnitt **43 min zu viel**. Die beiden heutigen Fälle entgingen dem nur zufällig, weil sie über der 120-Minuten-Grenze lagen.
+
+**Lösung — kostet keine einzige zusätzliche Eingabe:**
+- Migration 158: `fahrzeiten.referenz_minuten` — ein von Beobachtungen **nie überschriebener** Routing-Massstab je Betriebspaar. 2'882 Werte per OSRM-Matrix geholt (64 Anfragen statt 3'124 Einzelabrufen).
+- `lueckePlausibel()` (+7 Tests): Gelernt wird nur im Fenster **0,5×–2× der Route + 10 min Toleranz**. Im Zweifel nicht lernen — ein fehlender Lernschritt kostet nichts, ein falscher verdirbt die Planung für Monate.
+- `fahrzeit-route` schreibt den Referenzwert beim Routen mit, auch für Paare mit bestehender Beobachtung.
+- **652 verdorbene Altwerte** auf `referenz_minuten + 5` zurückgesetzt; Original in `import.fahrzeiten_vor_bereinigung_2026_07_30`, Rollback unter `Datenbank/wartung/`.
+
+**Beantwortete Fragen (30.07.):**
+- *Täglich Routing-Werte holen?* Ja — genau das ist die Referenz für den Filter. Nicht «täglich alle», sondern einmal je Betriebspaar beim ersten Auftauchen im Plan (passiert automatisch, kostenlos).
+- *Google Maps als Kartenhintergrund?* **Nicht möglich** — Googles Nutzungsbedingungen verbieten die Anzeige ihrer Kacheln in Fremd-Bibliotheken (unser flutter_map). Erlaubt wäre nur ein separates Google-Widget ohne swisstopo-Umschalter. Alternative bei Bedarf: OpenStreetMap als dritter Layer (frei, mehr Details in Ortschaften). Für die Navigation bleibt der Google-Maps-Button im Betriebs-Detail.
+- *Bergkunden-Erfassung (Konvention ab jetzt):* **Reinigungs-Startzeit = Abfahrt der Bahn** (Standort Talstation), **Ende = zurück beim Auto oder beim nächsten Kunden**. Bei mehreren Bergkunden nacheinander läuft die Zeit durch und wird auf die Betriebe aufgeteilt. Braucht keine neue Funktion — die Besuchsdauer-Statistik lernt die längeren Zeiten automatisch.
+
 ## 🟢 ERLEDIGT 30.07.: Google-Anfahrtszeiten geholt — beide Quellen vollständig
 Routes API aktiviert **und** Key freigegeben (Daniel) → Voll-Lauf der Edge-Function `anfahrt-google`: **786 Google-Werte** geschrieben, keine Fehler. Stand jetzt je Startort: 402 OSRM-Werte, 393 Google-Werte.
 
