@@ -145,6 +145,11 @@ Deno.serve(async (req: Request) => {
         minuten,
         quelle: "route",
         anzahl: 1,
+        // Referenzwert (Migration 158): Massstab fuer die
+        // Plausibilitaetspruefung beim Lernen. Anders als `minuten` wird er
+        // von Beobachtungen NIE ueberschrieben.
+        referenz_minuten: minuten,
+        referenz_quelle: "osrm",
         updated_at: new Date().toISOString(),
       },
       {
@@ -152,6 +157,16 @@ Deno.serve(async (req: Request) => {
         ignoreDuplicates: true,
       },
     );
+    // Referenz auch dann setzen, wenn die Zeile schon existiert (der upsert
+    // oben laesst sie wegen ignoreDuplicates unangetastet) — sonst bekaeme
+    // ein Paar, das bereits eine Beobachtung hat, nie seinen Massstab.
+    await admin
+      .from("fahrzeiten")
+      .update({ referenz_minuten: minuten, referenz_quelle: "osrm" })
+      .eq("user_id", user.id)
+      .eq("von_betrieb_id", vonBetriebId)
+      .eq("nach_betrieb_id", nachBetriebId)
+      .is("referenz_minuten", null);
     if (upsertError) {
       // Nur loggen: Die Route wurde erfolgreich berechnet, die Antwort an
       // die App bleibt gueltig -- nur der Cache wird evtl. nicht befuellt.

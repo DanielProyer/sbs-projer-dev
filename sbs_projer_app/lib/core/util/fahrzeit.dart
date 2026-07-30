@@ -67,6 +67,32 @@ int heuristikMinuten({required double luftlinieKm, bool mitRuestzeit = true}) {
   return (heuristik, FahrzeitQuelle.heuristik);
 }
 
+/// Darf eine gemessene Luecke als Fahrzeit gelernt werden?
+///
+/// Ohne diese Pruefung landet jede Stoerung, Pause oder Terminwartezeit
+/// zwischen zwei Reinigungen als «Fahrzeit» in der Lernkurve. Ein Blick in die
+/// Daten am 30.07.2026: 652 von 2882 beobachteten Werten (23 %) lagen mehr als
+/// doppelt so hoch wie die tatsaechliche Route — im Schnitt 43 min zu viel.
+///
+/// Regel: Ohne [referenzMinuten] (noch keine Route bekannt) bleibt es bei der
+/// groben Bereichspruefung des Aufrufers. Mit Referenz muss die Luecke im
+/// Fenster 0.5x–2x liegen; zusaetzlich sind [toleranzMin] Minuten Zuschlag
+/// immer erlaubt, damit kurze Strecken (Route 4 min, real 9 min inkl.
+/// Parkieren) nicht faelschlich verworfen werden.
+///
+/// Bewusst NICHT gelernt wird lieber einmal zu oft: Ein fehlender Lernschritt
+/// kostet nichts (die Route bleibt als Wert stehen), ein falscher verdirbt die
+/// Planung fuer Monate.
+bool lueckePlausibel({
+  required int lueckeMinuten,
+  required int? referenzMinuten,
+  int toleranzMin = 10,
+}) {
+  if (referenzMinuten == null || referenzMinuten <= 0) return true;
+  if (lueckeMinuten < referenzMinuten * 0.5) return false;
+  return lueckeMinuten <= referenzMinuten * 2 + toleranzMin;
+}
+
 /// Fahrt-Luecke zwischen dem Ende eines Besuchs und dem Start des naechsten
 /// (beide 'HH:mm'), fuer die Beobachtungs-Nachfuehrung (FahrzeitRepository.
 /// beobachtungNachfuehren). Gleiche Gueltigkeitsregel wie der Backfill in

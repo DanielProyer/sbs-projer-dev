@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Ein Fahrzeit-Eintrag der Tabelle `fahrzeiten` (Kaskade: beobachtet > route
@@ -103,11 +104,24 @@ class FahrzeitRepository {
     try {
       final bestehend = await SupabaseService.client
           .from('fahrzeiten')
-          .select('minuten, quelle, anzahl')
+          .select('minuten, quelle, anzahl, referenz_minuten')
           .eq('user_id', _userId)
           .eq('von_betrieb_id', vonBetriebId)
           .eq('nach_betrieb_id', nachBetriebId)
           .maybeSingle();
+
+      // Plausibilitäts-Riegel (Daniel 30.07.2026): Liegt die gemessene Lücke
+      // weit neben der tatsächlichen Route, war eine Störung, eine Pause oder
+      // eine Terminwartezeit dazwischen — dann NICHT lernen. Kostet keine
+      // zusätzliche Eingabe und hätte 652 verdorbene Altwerte verhindert.
+      final referenz = (bestehend?['referenz_minuten'] as num?)?.toInt();
+      if (!lueckePlausibel(lueckeMinuten: minuten, referenzMinuten: referenz)) {
+        debugPrint(
+          '[FahrzeitRepository] Lücke $minuten min verworfen '
+          '(Route $referenz min) — vermutlich Störung/Pause dazwischen',
+        );
+        return;
+      }
 
       if (bestehend != null && bestehend['quelle'] == 'beobachtet') {
         final alt = bestehend['minuten'] as int;
