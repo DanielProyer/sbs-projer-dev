@@ -215,5 +215,81 @@ void main() {
       expect(find.text('🚗 Anfahrt · 20 min'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('erledigter Block: Haken + gemessene Zeiten, keine Warnung', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: const ZeitSegment(
+            art: SegmentArt.besuch,
+            blockId: 'e',
+            startMin: 6 * 60 + 40,
+            endMin: 7 * 60 + 10,
+            ist: true,
+          ),
+          eintrag: _eintrag('e'),
+          anlagenGesamt: 1,
+          erledigt: true,
+          ruhetagKonflikt: true, // darf bei erledigt NICHT erscheinen
+        ),
+      );
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.textContaining('gemessen'), findsOneWidget);
+      expect(find.text('Betrieb geschlossen'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('FreiZeile und JetztLinie auf 360 px ohne Überlauf', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                FreiZeile(
+                  segment: ZeitSegment(
+                    art: SegmentArt.frei,
+                    startMin: 430,
+                    endMin: 455,
+                    ist: true,
+                  ),
+                ),
+                JetztLinie(zeit: '07:35'),
+              ],
+            ),
+          ),
+        ),
+      );
+      expect(find.text('frei · 25 min'), findsOneWidget);
+      expect(find.text('07:35'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('gemessene Fahrt ist grün beschriftet', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('f', 8 * 60, 30),
+          fahrtDavor: const ZeitSegment(
+            art: SegmentArt.fahrt,
+            blockId: 'f',
+            startMin: 7 * 60 + 40,
+            endMin: 8 * 60,
+            ist: true,
+          ),
+          eintrag: _eintrag('f'),
+          anlagenGesamt: 1,
+          erledigt: true,
+        ),
+      );
+      expect(find.text('🚗 20 min gemessen'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

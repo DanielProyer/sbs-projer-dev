@@ -132,6 +132,78 @@ class RandSegmentZeile extends StatelessWidget {
   }
 }
 
+/// Verstrichene freie Zeit zwischen letztem erledigtem Ereignis und «jetzt»
+/// (Live-Modus des heutigen Tagesplans).
+class FreiZeile extends StatelessWidget {
+  final ZeitSegment segment;
+
+  const FreiZeile({super.key, required this.segment});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12, top: 2, bottom: 2),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ZeitSpalte(zeit: hhmmAusMinuten(segment.startMin)),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withAlpha(18),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.warning.withAlpha(60)),
+                ),
+                child: Text(
+                  'frei · ${segment.minuten} min',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.warning,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Rote «Jetzt»-Linie: trennt gemessene Vergangenheit vom Rest-Plan.
+class JetztLinie extends StatelessWidget {
+  final String zeit;
+
+  const JetztLinie({super.key, required this.zeit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12, top: 2, bottom: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _kZeitSpalte,
+            child: Text(
+              zeit,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.error,
+              ),
+            ),
+          ),
+          Expanded(child: Container(height: 2, color: AppColors.error)),
+        ],
+      ),
+    );
+  }
+}
+
 /// Eine Zeile der Zeitachse: optionale Fahrt- und Wartezeit-Zeile, darunter
 /// der Besuchs-Block in Dauer-Höhe.
 class ZeitplanZeile extends StatelessWidget {
@@ -171,6 +243,16 @@ class ZeitplanZeile extends StatelessWidget {
 
   final VoidCallback? onTap;
 
+  /// Live-Modus: Block wurde heute erledigt — die Segmentzeiten sind die
+  /// GEMESSENEN Zeiten (Haken + grüner Akzent, keine Warnbänder mehr).
+  final bool erledigt;
+
+  /// Verstrichene freie Zeit VOR diesem Eintrag (Live-Modus).
+  final ZeitSegment? freiDavor;
+
+  /// «Jetzt»-Linie vor diesem Eintrag (Live-Modus, 'HH:mm').
+  final String? jetztZeit;
+
   const ZeitplanZeile({
     super.key,
     required this.segment,
@@ -186,6 +268,9 @@ class ZeitplanZeile extends StatelessWidget {
     this.onAnkerVorschlag,
     this.dragHandle,
     this.onTap,
+    this.erledigt = false,
+    this.freiDavor,
+    this.jetztZeit,
   });
 
   @override
@@ -193,6 +278,10 @@ class ZeitplanZeile extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Reihenfolge im Live-Modus: erst die verstrichene freie Zeit, dann
+        // die Jetzt-Linie, dann der (künftige) Fahrt-/Warte-/Besuchsteil.
+        if (freiDavor != null) FreiZeile(segment: freiDavor!),
+        if (jetztZeit != null) JetztLinie(zeit: jetztZeit!),
         if (fahrtDavor != null) _fahrtZeile(fahrtDavor!),
         if (wartezeitDavor != null) _warteZeile(wartezeitDavor!),
         _blockZeile(),
@@ -213,10 +302,14 @@ class ZeitplanZeile extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '🚗 ${fahrt.minuten} min',
-                  style: const TextStyle(
+                  fahrt.ist
+                      ? '🚗 ${fahrt.minuten} min gemessen'
+                      : '🚗 ${fahrt.minuten} min',
+                  style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.textSecondary,
+                    color: fahrt.ist
+                        ? AppColors.success
+                        : AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -224,7 +317,9 @@ class ZeitplanZeile extends StatelessWidget {
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: _quelleFarbe(fahrtQuelle),
+                    color: fahrt.ist
+                        ? AppColors.success
+                        : _quelleFarbe(fahrtQuelle),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -287,18 +382,30 @@ class ZeitplanZeile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (ruhetagKonflikt)
+        // Erledigte Blöcke brauchen keine Warnungen mehr — sie sind Ist.
+        if (!erledigt && ruhetagKonflikt)
           _warnband('Betrieb geschlossen', AppColors.error)
-        else if (servicezeitKonflikt)
+        else if (!erledigt && servicezeitKonflikt)
           _warnband('ausserhalb Servicezeit', AppColors.warning),
         Row(
           children: [
+            if (erledigt) ...[
+              const Icon(
+                Icons.check_circle,
+                size: 12,
+                color: AppColors.success,
+              ),
+              const SizedBox(width: 3),
+            ],
             Expanded(
               child: Text(
-                '$zeitspanne · $dauerTxt',
-                style: const TextStyle(
+                erledigt
+                    ? '$zeitspanne · ${segment.minuten} min gemessen'
+                    : '$zeitspanne · $dauerTxt',
+                style: TextStyle(
                   fontSize: 10,
-                  color: AppColors.textSecondary,
+                  fontWeight: erledigt ? FontWeight.w600 : FontWeight.w400,
+                  color: erledigt ? AppColors.success : AppColors.textSecondary,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -379,9 +486,15 @@ class ZeitplanZeile extends StatelessWidget {
                   constraints: BoxConstraints(minHeight: hoehe),
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: farbe.withAlpha(12),
+                    color: erledigt
+                        ? AppColors.success.withAlpha(10)
+                        : farbe.withAlpha(12),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.divider),
+                    border: Border.all(
+                      color: erledigt
+                          ? AppColors.success.withAlpha(120)
+                          : AppColors.divider,
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

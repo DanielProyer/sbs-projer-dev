@@ -948,6 +948,32 @@ final arbeitstagProvider = StateProvider.family<Arbeitstag, DateTime>(
   ),
 );
 
+/// Wegpunkte des heutigen Tages (Zeit + Quelle + Betrieb) — Grundlage des
+/// Live-Tagesplans: Störungs-/Montage-Stempel markieren erledigte Einsätze
+/// (Daniel 30.07.2026). Der Screen invalidiert den Provider im Minutentakt.
+typedef WegpunktHeute = ({
+  DateTime zeitpunkt,
+  String quelle,
+  String? betriebId,
+});
+
+final wegpunkteHeuteProvider = FutureProvider<List<WegpunktHeute>>((ref) async {
+  final jetzt = DateTime.now();
+  final start = DateTime(jetzt.year, jetzt.month, jetzt.day);
+  final rows = await SupabaseService.client
+      .from('wegpunkte')
+      .select('zeitpunkt, quelle, betrieb_id')
+      .gte('zeitpunkt', start.toUtc().toIso8601String());
+  return [
+    for (final r in rows)
+      (
+        zeitpunkt: DateTime.parse(r['zeitpunkt'] as String).toLocal(),
+        quelle: r['quelle'] as String,
+        betriebId: r['betrieb_id'] as String?,
+      ),
+  ];
+});
+
 /// Datum der letzten Reinigung je Anlage (`AnlageLocal.routeId` — dieselbe
 /// Konvention wie `TourEintrag.anlageId` bei Reinigungs-Einträgen). Für die
 /// Fällig-Liste (Spec §7: «zuletzt DD.MM.YYYY» unter dem Fälligkeits-Badge).

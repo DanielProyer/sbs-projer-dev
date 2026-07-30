@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +20,7 @@ import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
+import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 
@@ -870,6 +873,46 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
   /// jeder Rebuild dieselbe Route erneut anfordert.
   final Set<String> _routeAngefragt = {};
 
+  /// Minutentakt des Live-Modus (nur am HEUTIGEN Tag): rueckt die
+  /// Jetzt-Linie vor und holt frische Wegpunkte.
+  Timer? _liveTimer;
+
+  bool get _istHeute {
+    final j = DateTime.now();
+    return widget.datum.year == j.year &&
+        widget.datum.month == j.month &&
+        widget.datum.day == j.day;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _liveTimerAktualisieren();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TagesplanZeitachse alt) {
+    super.didUpdateWidget(alt);
+    if (alt.datum != widget.datum) _liveTimerAktualisieren();
+  }
+
+  void _liveTimerAktualisieren() {
+    _liveTimer?.cancel();
+    _liveTimer = null;
+    if (!_istHeute) return;
+    _liveTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      ref.invalidate(wegpunkteHeuteProvider);
+      setState(() {}); // Jetzt-Linie und Rest-Plan rücken mit der Uhr vor.
+    });
+  }
+
+  @override
+  void dispose() {
+    _liveTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final lookup = ref.watch(betriebLookupProvider);
@@ -990,32 +1033,103 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
       }
     }
 
-    final segmente = berechneZeitplan(
-      bloecke: [
-        for (final e in eintraege)
-          PlanBlock(
-            id: e.id,
-            dauerMinuten: _dauerFuer(e, historie),
-            ankerZeit: e.ankerZeit,
-          ),
-      ],
-      arbeitsbeginn: arbeitstag.beginn,
-      anfahrtMinuten: anfahrtMinuten,
-      heimwegMinuten: heimwegMinuten,
-      fahrzeitZwischen: fahrzeitZwischen,
-    );
+    // ── Live-Modus (nur am heutigen Tag): gemessene Ist-Zeiten je Eintrag ──
+    // Erledigte Besuche laufen mit ihren ECHTEN Zeiten, der Rest rechnet ab
+    // «jetzt» — Rückstand und freie Fenster sind so jederzeit ablesbar
+    // (Daniel 30.07.2026).
+    final istHeute = _istHeute;
+    final istZeiten = <String, ({int von, int bis})>{};
+    if (istHeute) {
+      // Reinigungs-Besuch erledigt = heute abgeschlossene Reinigung desselben
+      // Betriebs mit brauchbaren Zeiten.
+      final heutigeJeBetrieb = <String, ({int von, int bis})>{};
+      for (final r in ref.watch(reinigungenProvider)) {
+        if (r.status != 'abgeschlossen' || r.betriebId.isEmpty) continue;
+        if (r.datum.year != widget.datum.year ||
+            r.datum.month != widget.datum.month ||
+            r.datum.day != widget.datum.day) {
+          continue;
+        }
+        final von = minutenAusHhmm(r.uhrzeitStart);
+        final bis = minutenAusHhmm(r.uhrzeitEnde);
+        if (von == null || bis == null || bis <= von) continue;
+        heutigeJeBetrieb[r.betriebId] = (von: von, bis: bis);
+      }
+      final wegpunkte =
+          ref.watch(wegpunkteHeuteProvider).valueOrNull ??
+          const <WegpunktHeute>[];
+      for (final e in eintraege) {
+        if (e.typ == TourEintragTyp.reinigung) {
+          final ist = e.betriebId != null
+              ? heutigeJeBetrieb[e.betriebId!]
+              : null;
+          if (ist != null) istZeiten[e.id] = ist;
+        } else {
+          // Störung/Montage erledigt = heutiger Wegpunkt-Stempel desselben
+          // Betriebs. Der Stempel markiert das ENDE des Einsatzes; als Start
+          // dient Stempel minus geplante Dauer — grobe, aber ehrliche
+          // Annahme, denn Uhrzeiten werden dort nicht erfasst.
+          final quelle = e.typ == TourEintragTyp.stoerung
+              ? 'stoerung'
+              : 'montage';
+          for (final w in wegpunkte) {
+            if (w.quelle != quelle ||
+                w.betriebId == null ||
+                w.betriebId != e.betriebId) {
+              continue;
+            }
+            final bis = w.zeitpunkt.hour * 60 + w.zeitpunkt.minute;
+            final von = (bis - _dauerFuer(e, historie)).clamp(0, 1439);
+            istZeiten[e.id] = (von: von, bis: bis);
+            break;
+          }
+        }
+      }
+    }
+    final jetztNow = DateTime.now();
+    final jetztMin = jetztNow.hour * 60 + jetztNow.minute;
+
+    final bloecke = [
+      for (final e in eintraege)
+        PlanBlock(
+          id: e.id,
+          dauerMinuten: _dauerFuer(e, historie),
+          ankerZeit: e.ankerZeit,
+          istStartMin: istZeiten[e.id]?.von,
+          istEndMin: istZeiten[e.id]?.bis,
+        ),
+    ];
+    final segmente = istHeute
+        ? berechneZeitplanMitIst(
+            bloecke: bloecke,
+            jetztMin: jetztMin,
+            arbeitsbeginn: arbeitstag.beginn,
+            anfahrtMinuten: anfahrtMinuten,
+            heimwegMinuten: heimwegMinuten,
+            fahrzeitZwischen: fahrzeitZwischen,
+          )
+        : berechneZeitplan(
+            bloecke: bloecke,
+            arbeitsbeginn: arbeitstag.beginn,
+            anfahrtMinuten: anfahrtMinuten,
+            heimwegMinuten: heimwegMinuten,
+            fahrzeitZwischen: fahrzeitZwischen,
+          );
 
     final besuchSeg = <String, ZeitSegment>{};
     final fahrtSeg = <String, ZeitSegment>{};
     final warteSeg = <String, ZeitSegment>{};
     ZeitSegment? anfahrt;
     ZeitSegment? heimweg;
+    ZeitSegment? frei;
     for (final s in segmente) {
       switch (s.art) {
         case SegmentArt.anfahrt:
           anfahrt = s;
         case SegmentArt.heimweg:
           heimweg = s;
+        case SegmentArt.frei:
+          frei = s;
         case SegmentArt.besuch:
           if (s.blockId != null) besuchSeg[s.blockId!] = s;
         case SegmentArt.fahrt:
@@ -1024,6 +1138,17 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
           if (s.blockId != null) warteSeg[s.blockId!] = s;
       }
     }
+
+    // Jetzt-Linie + frei-Fenster hängen am ERSTEN offenen Eintrag; sind alle
+    // erledigt, kommen sie ans Listenende (vor den Heimweg).
+    final ersteOffeneId = eintraege
+        .where((e) => !istZeiten.containsKey(e.id))
+        .map((e) => e.id)
+        .cast<String?>()
+        .firstWhere((_) => true, orElse: () => null);
+    final alleErledigt =
+        istHeute && eintraege.isNotEmpty && ersteOffeneId == null;
+    final jetztLabel = hhmmAusMinuten(jetztMin);
 
     if (fehlendePaare.isNotEmpty) {
       // Nach dem Frame, nie während des Builds (Provider-Invalidierung).
@@ -1109,7 +1234,13 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                   ruhetagKonflikt: ruhetagKonflikt,
                   servicezeitKonflikt: servicezeitKonflikt,
                   fahrtQuelle: fahrtQuellen[eintrag.id],
-                  ankerVorschlag: vorschlagMin != null
+                  erledigt: istZeiten.containsKey(eintrag.id),
+                  freiDavor: eintrag.id == ersteOffeneId ? frei : null,
+                  jetztZeit: istHeute && eintrag.id == ersteOffeneId
+                      ? jetztLabel
+                      : null,
+                  ankerVorschlag:
+                      vorschlagMin != null && !istZeiten.containsKey(eintrag.id)
                       ? hhmmAusMinuten(vorschlagMin)
                       : null,
                   onAnkerVorschlag: vorschlagMin != null
@@ -1141,6 +1272,11 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
             },
           ),
         ),
+        // Alles erledigt: freies Fenster + Jetzt-Linie ans Listenende.
+        if (alleErledigt) ...[
+          if (frei != null) FreiZeile(segment: frei),
+          JetztLinie(zeit: jetztLabel),
+        ],
         if (heimweg != null)
           RandSegmentZeile(segment: heimweg, label: 'Heimweg'),
       ],
