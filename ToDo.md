@@ -399,6 +399,15 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 
 ---
 
+## 🟢 ERLEDIGT 31.07. (Nachtpaket): v0.57.0 — tatsächliche Tagesdaten, Tages-Karte, GPS robuster
+
+- **Vergangene Tage = tatsächliche Reinigungen:** Der Tagesplan-Tab zeigt für vergangene Tage die abgeschlossenen Reinigungen des Tages (Zeitachse readonly, Tap öffnet die Reinigung, Ist-Matching exakt je Reinigung) — gespeicherte Pläne sind Geschichte. Auch die **Plan-Übernahme** lädt jetzt die echten Reinigungen des Quelltags (ohne Störungen/Montagen), nicht mehr den damaligen Plan.
+- **Tages-Karte** (map-Icon im Tagesplan-Header, heute + Vergangenheit): nummerierte Besuchs-Marker (Betriebs-GPS) + Wegpunkt-Stempel (Störung/Montage/Arbeitsbeginn/Feierabend auf echter GPS-Position) auf swisstopo-Karte/Luftbild, zeitlich als Linie verbunden. Aussagekräftig ab 31.07. (erst seit dann gibt es Wegpunkte + Arbeitstag-GPS). Marker-Tap zeigt Zeit + Name.
+- **GPS robuster** (Openair-Befund: Stand-Erfassungen brauchten mehrere Anläufe): bis zu 3 Messungen mit höchster Genauigkeit, die genaueste gewinnt, ab 25 m sofort fertig; Timeout fällt auf die beste bisherige Messung zurück. Gilt überall (Arbeitstag, Wegpunkte, Event-Stände, Karten). Grenze: Web-App = Browser-Geolocation (fused Location), kein Roh-GNSS.
+- **DB bereinigt:** 16 Test-Tagespläne gelöscht, Einträge 30./31.07. geleert (Arbeitstag-Rahmen 30.07. mit Feierabend 18:23 + km + GPS erhalten), 02:00-Testbeginn vom 31.07. entfernt.
+
+---
+
 ## 🟢 ERLEDIGT 31.07.: v0.56.1/v0.56.2 — Ist-Zeiten für vergangene Tage, Sunset-Fix, Arbeitstag-Schutz
 
 - **v0.56.1:** Vergangene Tage im Tagesplan zeigen die GEMESSENEN Zeiten der abgeschlossenen Reinigungen (Fall «Plan vom 17.07. — Zeiten stimmen nicht»); ohne erfassten Arbeitsbeginn startet die Achse beim ersten gemessenen Ereignis.
