@@ -408,6 +408,15 @@ Zwei echte Test-Reinigungen bei Betrieben, die am 13.07. noch ausfielen. **Beide
 ## 🔴 OFFEN: Google Routes API aktivieren (1 Klick, Daniel)
 **Damit die zweite Meinung zu den Anfahrtszeiten kommt** («2 Werte sind besser als einer»): In der Google Cloud Console im Projekt **426928923599** die **Routes API** aktivieren — [Direktlink](https://console.developers.google.com/apis/api/routes.googleapis.com/overview?project=426928923599). Die Edge-Function `anfahrt-google` ist deployed und wartet nur darauf; ein Aufruf holt dann alle 804 Google-Werte (kostenlos im Freikontingent). Danach zeigt die App automatisch die Google-Werte (Spalte `minuten` bevorzugt sie), OSRM bleibt als Vergleich in `minuten_osrm` stehen.
 
+## 🟢 ERLEDIGT 31.07.: v0.60.0 — Störungen/Montagen wirklich planbar (Grundsatzfund)
+**Gemeldet von Daniel:** «ich kann nirgendwo geplant oder offen definieren, das haben wir mal gelöscht»
+
+**Befund:** Beide Formulare schrieben den Status **hart** auf erledigt (`s.status = 'behoben'` / `m.status = 'abgeschlossen'`) — eine Auswahl gab es nicht. In der DB stehen darum **alle 1'106 Störungen auf «behoben»** und **alle 809 Montagen auf «abgeschlossen»**; der Tourenplan sucht «offen»/«geplant» und fand deshalb **nie** einen Eintrag. Die Aussage der letzten Tage, Störungen/Montagen seien über den Fällig-Tab planbar, war damit theoretisch.
+
+**Behoben:** Beide Formulare haben oben einen Schalter **«Erst geplant»** (Standard aus = Rapport wie bisher). Eingeschaltet → Status «offen»/«geplant» → der Eintrag erscheint im Fällig-Tab, im Aufgaben-Screen und im Zähler. Beim Bearbeiten ist der Schalter aus dem Status vorbelegt; umlegen schliesst den Einsatz ab. **Wichtig:** Der Wegpunkt-Stempel wird nur bei *erledigten* Einsätzen gesetzt — ein geplanter war noch nirgends und würde die Fahrzeit-Lernkurve verfälschen. Neue Helfer `stoerungOffen`/`montageOffen` ersetzen die an sechs Stellen duplizierte Statusabfrage und lassen «in_bearbeitung» konsequent mitlaufen.
+
+**Ausserdem — Tagesplan nach Feierabend:** Solange nichts erledigt ist, schob der Live-Modus den ganzen Rest-Plan hinter «jetzt»; abends stand der Plan damit ab 20:00 und wirkte unbrauchbar. Ein Tag mit erfasstem **Arbeitsende** gilt jetzt als abgeschlossen → statische Ist-Ansicht wie bei einem vergangenen Tag, Minutentakt-Timer aus.
+
 ## 🟢 ERLEDIGT 31.07.: v0.59.0 — Servicezeiten am Block, Grund der Schliessung, Anker-Warnung
 - **Servicezeiten stehen jetzt am Block** («🕐 08:00–12:00 · nachmittags kein Service · Ruhetag Mo, Di»), bei Konflikt orange. Ohne erfasste Zeiten bleibt die Zeile weg.
 - **Warnung nennt den Grund:** Ruhetag/Ferien/Zwischensaison wurden schon alle erkannt (`istOffenerTag`), aber pauschal als «Betrieb geschlossen» gemeldet. Neu: «Ruhetag», «Betriebsferien bis 16.08.», «Zwischensaison», «Betrieb inaktiv» (`schliessungsGrund`, 10 Tests inkl. Deckungsgleichheit mit `istOffenerTag`).
