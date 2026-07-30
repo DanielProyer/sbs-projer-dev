@@ -1103,13 +1103,9 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
     _scheduleSave();
   }
 
-  void befuellenAusFaellig(List<TourEintrag> faellige) {
-    final existing = state.map((e) => e.id).toSet();
-    final neue = faellige.where((e) => !existing.contains(e.id)).toList();
-    if (neue.isEmpty) return;
-    state = [...state, ...neue];
-    _scheduleSave();
-  }
+  // «Fällige übernehmen» läuft seit v0.56.2 über buendleInPlan im Screen
+  // (_faelligeAlleUebernehmen) — das frühere rohe Anhängen der Fällig-
+  // Einträge umging die Besuchs-Bündelung.
 
   @override
   void dispose() {
@@ -1275,7 +1271,11 @@ Future<void> tagesplanSpeichern(
 Future<void> arbeitstagFelderSpeichern(
   DateTime datum,
   List<TourEintrag> eintraege, {
-  required String arbeitsbeginn,
+  // `null` = kein erfasster Beginn (löscht einen vorhandenen). Früher war der
+  // Parameter nicht nullbar — jeder Feierabend ohne erfassten Start schrieb
+  // so den 06:00-Standard als angeblich erfassten Beginn in die DB
+  // (Fehleingaben-Paket 31.07.2026).
+  required String? arbeitsbeginn,
   required String? arbeitsende,
   required int? kmStand,
   required int? kmStart,

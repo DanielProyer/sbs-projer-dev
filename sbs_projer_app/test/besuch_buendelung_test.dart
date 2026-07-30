@@ -124,4 +124,38 @@ void main() {
       expect(ergebnis.single.anlageId, 'a9');
     });
   });
+
+  group('ergaenzeFaelligeAnlagen (Sunset-Fall, 31.07.2026)', () {
+    test('ergänzt fällige Geschwister, vorhandene bleiben vorn', () {
+      final e = reinigung('r_alt', betriebId: 'b1', anlageIds: ['a1']);
+
+      final ergebnis = ergaenzeFaelligeAnlagen(e, ['a2', 'a1']);
+
+      expect(ergebnis.anlageIds, ['a1', 'a2']);
+      expect(ergebnis.anlageId, 'a1');
+    });
+
+    test('Altplan-Eintrag nur mit anlageId-Altfeld wird erweitert', () {
+      final e = reinigung('r_alt', betriebId: 'b1', anlageId: 'a1');
+
+      final ergebnis = ergaenzeFaelligeAnlagen(e, ['a2']);
+
+      expect(ergebnis.anlageIds, ['a1', 'a2']);
+    });
+
+    test('keine Fälligen und keine Anlagen -> unverändert', () {
+      final e = reinigung('r_leer', betriebId: 'b1');
+
+      final ergebnis = ergaenzeFaelligeAnlagen(e, const []);
+
+      expect(ergebnis.anlageIds, isEmpty);
+      expect(ergebnis.anlageId, isNull);
+    });
+
+    test('Störung bleibt unverändert', () {
+      final e = stoerung('s_1', betriebId: 'b1');
+
+      expect(ergaenzeFaelligeAnlagen(e, ['a1']), same(e));
+    });
+  });
 }

@@ -237,11 +237,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                       datum: _selectedDate,
                       onLeeren: () =>
                           ref.read(tagesplanProvider.notifier).leeren(),
-                      onAusFaelligBefuellen: () {
-                        ref
-                            .read(tagesplanProvider.notifier)
-                            .befuellenAusFaellig(angezeigtFaellig);
-                      },
+                      onAusFaelligBefuellen: () =>
+                          _faelligeAlleUebernehmen(angezeigtFaellig),
                       onPlanUebernehmen: _planVonDatumUebernehmen,
                     ),
                     _ArbeitstagZeile(datum: _selectedDate),
@@ -453,6 +450,30 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     }
   }
 
+  /// «Fällige übernehmen» (Bulk): wie das einzelne Übernehmen je Eintrag über
+  /// [buendleInPlan] — ein Betrieb mit mehreren fälligen Anlagen wird EIN
+  /// Besuchs-Block mit allen Anlagen, statt ein Block pro Anlage (das rohe
+  /// Anhängen der Fällig-Einträge liess die Bündelung aus — Sunset-Fall,
+  /// 31.07.2026).
+  void _faelligeAlleUebernehmen(List<TourEintrag> faellige) {
+    var plan = ref.read(tagesplanProvider);
+    final vorhandene = plan.map((e) => e.id).toSet();
+    final faelligeAnlagen = ref.read(faelligeAnlagenProvider(_selectedDate));
+    for (final e in faellige) {
+      if (vorhandene.contains(e.id)) continue;
+      final geschwister =
+          (e.typ == TourEintragTyp.reinigung && e.betriebId != null)
+          ? faelligeAnlagenRouteIdsFuerBetrieb(faelligeAnlagen, e.betriebId!)
+          : const <String>[];
+      plan = buendleInPlan(
+        plan: plan,
+        neu: e,
+        faelligeAnlagenDesBetriebs: geschwister,
+      );
+    }
+    ref.read(tagesplanProvider.notifier).setzePlan(plan);
+  }
+
   /// Menüpunkt „Plan von Datum übernehmen" (Spec §6): Einträge eines anderen
   /// Tages in identischer Reihenfolge an den aktuellen Plan anhängen.
   /// Betriebe, die im Zielplan schon einen Reinigungs-Besuch haben, werden
@@ -516,6 +537,18 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             eintrag.betriebId != null &&
             faelligeBetriebe.contains(eintrag.betriebId);
         eintrag = eintrag.copyWith(uebernommen: !heuteFaellig);
+        // Heute fällige Geschwister-Anlagen ergänzen: Altpläne tragen oft nur
+        // die damalige Einzel-Anlage — ohne Ergänzung fehlt z.B. die zweite
+        // Anlage eines Betriebs im Block (Sunset, 31.07.2026).
+        if (eintrag.betriebId != null) {
+          eintrag = ergaenzeFaelligeAnlagen(
+            eintrag,
+            faelligeAnlagenRouteIdsFuerBetrieb(
+              ref.read(faelligeAnlagenProvider(_selectedDate)),
+              eintrag.betriebId!,
+            ),
+          );
+        }
       }
       // ID-Kollision (z.B. zweimalige Übernahme desselben Quelltags):
       // NUR dann umbenennen, wenn die ID im Zielplan bereits existiert —
@@ -1113,9 +1146,10 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
           istEndMin: istZeiten[e.id]?.bis,
         ),
     ];
-    // Vergangene Tage ohne erfassten Arbeitsbeginn: die Achse startet beim
-    // ersten gemessenen Ereignis — sonst erschiene 06:00 bis zur ersten
-    // Reinigung als riesige «gemessene Anfahrt».
+    // Ohne ERFASSTEN Arbeitsbeginn startet die Ist-Achse beim ersten
+    // gemessenen Ereignis — sonst erschiene der 06:00-Standard bis zur
+    // ersten Reinigung als riesige «gemessene Anfahrt» (heute wie an
+    // vergangenen Tagen).
     final erfassterBeginn = ref
         .watch(gespeicherterTagesplanProvider(widget.datum))
         .valueOrNull
@@ -1123,12 +1157,17 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     final ersterIstStart = istZeiten.isEmpty
         ? null
         : istZeiten.values.map((z) => z.von).reduce((a, b) => a < b ? a : b);
+    final beginnFuerIst =
+        erfassterBeginn ??
+        (ersterIstStart != null
+            ? hhmmAusMinuten(ersterIstStart)
+            : arbeitstag.beginn);
 
     final segmente = istHeute
         ? berechneZeitplanMitIst(
             bloecke: bloecke,
             jetztMin: jetztMin,
-            arbeitsbeginn: arbeitstag.beginn,
+            arbeitsbeginn: beginnFuerIst,
             anfahrtMinuten: anfahrtMinuten,
             heimwegMinuten: heimwegMinuten,
             fahrzeitZwischen: fahrzeitZwischen,
@@ -1140,7 +1179,7 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
             // direkt auf das letzte gemessene Ereignis.
             bloecke: bloecke,
             jetztMin: 0,
-            arbeitsbeginn: erfassterBeginn ?? hhmmAusMinuten(ersterIstStart!),
+            arbeitsbeginn: beginnFuerIst,
             anfahrtMinuten: anfahrtMinuten,
             heimwegMinuten: heimwegMinuten,
             fahrzeitZwischen: fahrzeitZwischen,
@@ -1429,6 +1468,15 @@ class _BlockSheet extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (betrieb != null)
+                _SheetAktion(
+                  icon: Icons.storefront_outlined,
+                  text: 'Betriebsseite öffnen',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/betriebe/${betrieb.routeId}');
+                  },
+                ),
 
               // ─── Anlagen (nur Reinigung) ───
               if (eintrag.typ == TourEintragTyp.reinigung) ...[
@@ -1727,8 +1775,14 @@ class _ArbeitstagZeile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final at = ref.watch(arbeitstagProvider(datum));
+    // In der DB erfasster Beginn — `at.beginn` trägt sonst den
+    // 06:00-Standard und würde einen nie erfassten Start vortäuschen.
+    final erfassterBeginn = ref
+        .watch(gespeicherterTagesplanProvider(datum))
+        .valueOrNull
+        ?.arbeitsbeginn;
 
-    Future<void> speichern(Arbeitstag neu) async {
+    Future<void> speichern(Arbeitstag neu, {required String? beginnDb}) async {
       ref.read(arbeitstagProvider(datum).notifier).state = neu;
       // Datum-Guard: gehört der In-Memory-Plan inzwischen einem anderen Tag
       // (Tagwechsel während des Dialogs), würde der Fallback-Pfad die Einträge
@@ -1738,7 +1792,7 @@ class _ArbeitstagZeile extends ConsumerWidget {
         await arbeitstagFelderSpeichern(
           datum,
           ref.read(tagesplanProvider),
-          arbeitsbeginn: neu.beginn,
+          arbeitsbeginn: beginnDb,
           arbeitsende: neu.ende,
           kmStand: neu.km,
           kmStart: neu.kmStart,
@@ -1755,7 +1809,7 @@ class _ArbeitstagZeile extends ConsumerWidget {
         children: [
           _TippFeld(
             icon: Icons.schedule,
-            text: 'Start ${at.beginn}',
+            text: 'Start ${erfassterBeginn ?? '—'}',
             onTap: () async {
               final start = minutenAusHhmm(at.beginn) ?? 6 * 60;
               final gewaehlt = await zeigeZeitauswahl(
@@ -1763,8 +1817,9 @@ class _ArbeitstagZeile extends ConsumerWidget {
                 initial: TimeOfDay(hour: start ~/ 60, minute: start % 60),
               );
               if (gewaehlt == null) return;
+              final neu = hhmmAusMinuten(gewaehlt.hour * 60 + gewaehlt.minute);
               await speichern((
-                beginn: hhmmAusMinuten(gewaehlt.hour * 60 + gewaehlt.minute),
+                beginn: neu,
                 ende: at.ende,
                 km: at.km,
                 kmStart: at.kmStart,
@@ -1772,7 +1827,7 @@ class _ArbeitstagZeile extends ConsumerWidget {
                 lng: at.lng,
                 endLat: at.endLat,
                 endLng: at.endLng,
-              ));
+              ), beginnDb: neu);
             },
           ),
           const Spacer(),
@@ -1781,13 +1836,25 @@ class _ArbeitstagZeile extends ConsumerWidget {
             text:
                 'Ende ${at.ende ?? '—'} · ${at.km != null ? '${at.km} km' : '— km'}',
             onTap: () async {
-              final ergebnis = await showModalBottomSheet<Arbeitstag>(
+              final eingabe = await showModalBottomSheet<ArbeitstagEingabe>(
                 context: context,
                 isScrollControlled: true,
-                builder: (_) => ArbeitstagAbschlussSheet(aktuell: at),
+                builder: (_) => ArbeitstagAbschlussSheet(
+                  aktuell: at,
+                  erfassterBeginn: erfassterBeginn,
+                ),
               );
-              if (ergebnis == null) return;
-              await speichern(ergebnis);
+              if (eingabe == null) return;
+              await speichern((
+                beginn: eingabe.beginn ?? '06:00',
+                ende: eingabe.ende,
+                km: eingabe.km,
+                kmStart: eingabe.kmStart,
+                lat: at.lat,
+                lng: at.lng,
+                endLat: at.endLat,
+                endLng: at.endLng,
+              ), beginnDb: eingabe.beginn);
             },
           ),
         ],

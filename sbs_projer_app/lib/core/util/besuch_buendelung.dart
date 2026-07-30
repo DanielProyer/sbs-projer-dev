@@ -74,3 +74,26 @@ List<TourEintrag> buendleInPlan({
   );
   return [...plan, neuerEintrag];
 }
+
+/// Ergänzt einen Reinigungs-Eintrag um die heute fälligen Geschwister-Anlagen
+/// seines Betriebs — für Wege, die Einträge NICHT über [buendleInPlan]
+/// anlegen (Plan-Übernahme von einem anderen Datum, «Fällige übernehmen»).
+///
+/// Hintergrund (Sunset, 31.07.2026): Ein aus einem Altplan übernommener
+/// Besuch trug nur seine damalige Einzel-Anlage; die zweite, heute ebenfalls
+/// fällige Anlage fehlte im Block und musste von Hand ergänzt werden.
+///
+/// Reihenfolge stabil: vorhandene Anlagen bleiben vorn, Fällige werden hinten
+/// dedupliziert angehängt. Nicht-Reinigungen kommen unverändert zurück.
+TourEintrag ergaenzeFaelligeAnlagen(
+  TourEintrag eintrag,
+  List<String> faelligeAnlagenDesBetriebs,
+) {
+  if (eintrag.typ != TourEintragTyp.reinigung) return eintrag;
+  final alle = [..._anlagenVon(eintrag)];
+  for (final id in faelligeAnlagenDesBetriebs) {
+    if (!alle.contains(id)) alle.add(id);
+  }
+  if (alle.isEmpty) return eintrag;
+  return eintrag.copyWith(anlageIds: alle, anlageId: alle.first);
+}

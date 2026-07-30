@@ -30,6 +30,10 @@ class ArbeitstagKarte extends ConsumerWidget {
     WidgetRef ref,
     DateTime heute,
     Arbeitstag neu, {
+    // In der DB erfasster Beginn — `null` heisst «kein Beginn erfasst» und
+    // löscht einen vorhandenen. Bewusst getrennt von `neu.beginn`, das als
+    // Achsen-Fallback immer einen Wert trägt (Standard 06:00).
+    required String? beginnDb,
     ({double lat, double lng})? startPosition,
     ({double lat, double lng})? endPosition,
   }) async {
@@ -40,7 +44,7 @@ class ArbeitstagKarte extends ConsumerWidget {
     await arbeitstagFelderSpeichern(
       heute,
       const [],
-      arbeitsbeginn: neu.beginn,
+      arbeitsbeginn: beginnDb,
       arbeitsende: neu.ende,
       kmStand: neu.km,
       kmStart: neu.kmStart,
@@ -71,6 +75,40 @@ class ArbeitstagKarte extends ConsumerWidget {
     final bisher = ref.read(arbeitstagProvider(heute));
     final messenger = ScaffoldMessenger.of(context);
 
+    // Fehleingabe-Schutz (31.07.2026: versehentlicher Neustart 19:29 hat den
+    // Tag überschrieben): Läuft der Tag schon oder ist er gar abgeschlossen,
+    // erst bestätigen lassen.
+    final gespeichert = ref
+        .read(gespeicherterTagesplanProvider(heute))
+        .valueOrNull;
+    final beginnBisher = gespeichert?.arbeitsbeginn;
+    final endeBisher = gespeichert?.arbeitsende;
+    if (beginnBisher != null || endeBisher != null) {
+      final frage = beginnBisher != null
+          ? 'Arbeitsbeginn $beginnBisher ist bereits erfasst. '
+                'Durch «jetzt» ersetzen?'
+          : 'Feierabend $endeBisher ist bereits erfasst. '
+                'Arbeitsbeginn trotzdem auf «jetzt» setzen?';
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Arbeitstag neu starten?'),
+          content: Text(frage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Ersetzen'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !context.mounted) return;
+    }
+
     final km = await showModalBottomSheet<int?>(
       context: context,
       isScrollControlled: true,
@@ -93,16 +131,22 @@ class ArbeitstagKarte extends ConsumerWidget {
     final pos = await _gps(messenger, 'Arbeitsbeginn');
 
     try {
-      await _speichern(ref, heute, (
-        beginn: beginn,
-        ende: bisher.ende,
-        km: bisher.km,
-        kmStart: km ?? bisher.kmStart,
-        lat: pos?.lat ?? bisher.lat,
-        lng: pos?.lng ?? bisher.lng,
-        endLat: bisher.endLat,
-        endLng: bisher.endLng,
-      ), startPosition: pos);
+      await _speichern(
+        ref,
+        heute,
+        (
+          beginn: beginn,
+          ende: bisher.ende,
+          km: bisher.km,
+          kmStart: km ?? bisher.kmStart,
+          lat: pos?.lat ?? bisher.lat,
+          lng: pos?.lng ?? bisher.lng,
+          endLat: bisher.endLat,
+          endLng: bisher.endLng,
+        ),
+        beginnDb: beginn,
+        startPosition: pos,
+      );
       // Wegpunkt in den Routen-Datenstrom (Position ist schon geholt).
       unawaited(
         WegpunktRepository.stempeln(quelle: 'arbeitsbeginn', position: pos),
@@ -123,31 +167,37 @@ class ArbeitstagKarte extends ConsumerWidget {
   Future<void> _feierabend(BuildContext context, WidgetRef ref) async {
     final heute = _heute;
     final at = ref.read(arbeitstagProvider(heute));
+    final erfassterBeginn = ref
+        .read(gespeicherterTagesplanProvider(heute))
+        .valueOrNull
+        ?.arbeitsbeginn;
     final messenger = ScaffoldMessenger.of(context);
-    final ergebnis = await showModalBottomSheet<Arbeitstag>(
+    final eingabe = await showModalBottomSheet<ArbeitstagEingabe>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => ArbeitstagAbschlussSheet(aktuell: at),
+      builder: (_) => ArbeitstagAbschlussSheet(
+        aktuell: at,
+        erfassterBeginn: erfassterBeginn,
+      ),
     );
-    if (ergebnis == null) return;
+    if (eingabe == null) return;
     // End-Position beim Feierabend stempeln — vervollständigt den Datensatz.
     final pos = await _gps(messenger, 'Feierabend');
     try {
       await _speichern(
         ref,
         heute,
-        pos == null
-            ? ergebnis
-            : (
-                beginn: ergebnis.beginn,
-                ende: ergebnis.ende,
-                km: ergebnis.km,
-                kmStart: ergebnis.kmStart,
-                lat: ergebnis.lat,
-                lng: ergebnis.lng,
-                endLat: pos.lat,
-                endLng: pos.lng,
-              ),
+        (
+          beginn: eingabe.beginn ?? '06:00',
+          ende: eingabe.ende,
+          km: eingabe.km,
+          kmStart: eingabe.kmStart,
+          lat: at.lat,
+          lng: at.lng,
+          endLat: pos?.lat ?? at.endLat,
+          endLng: pos?.lng ?? at.endLng,
+        ),
+        beginnDb: eingabe.beginn,
         endPosition: pos,
       );
       unawaited(
@@ -404,16 +454,38 @@ class _KmSheetState extends State<_KmSheet> {
   }
 }
 
-/// Sheet «Arbeitstag abschliessen»: Arbeitsende + km-Stand am Abend.
+/// Rückgabe des Arbeitstag-Sheets. `null` heisst hier «nicht erfasst /
+/// gelöscht» — anders als im Arbeitstag-Record, dessen `beginn` als
+/// Achsen-Fallback immer einen Wert trägt (Standard 06:00).
+typedef ArbeitstagEingabe = ({
+  String? beginn,
+  String? ende,
+  int? km,
+  int? kmStart,
+});
+
+/// Sheet «Arbeitstag»: alle vier Rahmen-Felder (Beginn, km Start, Ende,
+/// km Abend) — damit lassen sich Fehleingaben direkt korrigieren oder
+/// löschen (31.07.2026: versehentlicher 19:29-Start liess sich in der App
+/// nicht entfernen).
 ///
 /// Gemeinsam genutzt von Startbildschirm und Tourenplan. Leeres Feld heisst
 /// «löschen» (null), ein unbrauchbarer Wert («12:xx», «abc») heisst
-/// «unverändert lassen» — sonst liesse sich ein falsch erfasstes Arbeitsende
-/// nie mehr entfernen.
+/// «unverändert lassen» — sonst liesse sich ein falsch erfasster Wert nie
+/// mehr entfernen.
 class ArbeitstagAbschlussSheet extends StatefulWidget {
   final Arbeitstag aktuell;
 
-  const ArbeitstagAbschlussSheet({super.key, required this.aktuell});
+  /// In der DB erfasster Beginn (`null` = nie erfasst) — bewusst nicht
+  /// `aktuell.beginn`, das den 06:00-Standard trägt und ein leeres Feld
+  /// fälschlich vorbefüllen würde.
+  final String? erfassterBeginn;
+
+  const ArbeitstagAbschlussSheet({
+    super.key,
+    required this.aktuell,
+    required this.erfassterBeginn,
+  });
 
   @override
   State<ArbeitstagAbschlussSheet> createState() =>
@@ -421,6 +493,12 @@ class ArbeitstagAbschlussSheet extends StatefulWidget {
 }
 
 class _ArbeitstagAbschlussSheetState extends State<ArbeitstagAbschlussSheet> {
+  late final TextEditingController _beginn = TextEditingController(
+    text: widget.erfassterBeginn ?? '',
+  );
+  late final TextEditingController _kmStart = TextEditingController(
+    text: widget.aktuell.kmStart?.toString() ?? '',
+  );
   late final TextEditingController _ende = TextEditingController(
     // Vorbefüllung mit «jetzt», wenn noch kein Ende erfasst ist — der Knopf
     // wird typischerweise genau beim Feierabend gedrückt.
@@ -434,9 +512,24 @@ class _ArbeitstagAbschlussSheetState extends State<ArbeitstagAbschlussSheet> {
 
   @override
   void dispose() {
+    _beginn.dispose();
+    _kmStart.dispose();
     _ende.dispose();
     _km.dispose();
     super.dispose();
+  }
+
+  /// Leer = löschen (null), unparsbar = unverändert ([fallback]).
+  String? _zeitAus(TextEditingController c, String? fallback) {
+    final text = c.text.trim();
+    if (text.isEmpty) return null;
+    return minutenAusHhmm(text) != null ? text : fallback;
+  }
+
+  int? _kmAus(TextEditingController c, int? fallback) {
+    final text = c.text.trim();
+    if (text.isEmpty) return null;
+    return int.tryParse(text) ?? fallback;
   }
 
   @override
@@ -446,87 +539,105 @@ class _ArbeitstagAbschlussSheetState extends State<ArbeitstagAbschlussSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Arbeitstag abschliessen',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              if (widget.aktuell.kmStart != null) ...[
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Arbeitstag',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 4),
-                Text(
-                  'Start heute: ${widget.aktuell.kmStart} km',
-                  style: const TextStyle(
+                const Text(
+                  'Feld leeren = Wert löschen.',
+                  style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
                 ),
-              ],
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _ende,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(
-                  labelText: 'Arbeitsende (HH:mm)',
-                  isDense: true,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _beginn,
+                        keyboardType: TextInputType.datetime,
+                        decoration: const InputDecoration(
+                          labelText: 'Beginn (HH:mm)',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _kmStart,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'km-Stand Start',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _km,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'km-Stand Abend',
-                  isDense: true,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _ende,
+                        keyboardType: TextInputType.datetime,
+                        decoration: const InputDecoration(
+                          labelText: 'Arbeitsende (HH:mm)',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _km,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'km-Stand Abend',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () {
-                  final endeText = _ende.text.trim();
-                  final kmText = _km.text.trim();
-                  final String? ende = endeText.isEmpty
-                      ? null
-                      : (minutenAusHhmm(endeText) != null
-                            ? endeText
-                            : widget.aktuell.ende);
-                  final int? km = kmText.isEmpty
-                      ? null
-                      : (int.tryParse(kmText) ?? widget.aktuell.km);
-                  Navigator.pop(context, (
-                    beginn: widget.aktuell.beginn,
-                    ende: ende,
-                    km: km,
-                    kmStart: widget.aktuell.kmStart,
-                    lat: widget.aktuell.lat,
-                    lng: widget.aktuell.lng,
-                    endLat: widget.aktuell.endLat,
-                    endLng: widget.aktuell.endLng,
-                  ));
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Speichern',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context, (
+                    beginn: _zeitAus(_beginn, widget.erfassterBeginn),
+                    ende: _zeitAus(_ende, widget.aktuell.ende),
+                    km: _kmAus(_km, widget.aktuell.km),
+                    kmStart: _kmAus(_kmStart, widget.aktuell.kmStart),
+                  )),
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Speichern',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
