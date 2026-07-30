@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/basemap_umschalter.dart';
+import 'package:sbs_projer_app/services/routing/tagesroute_service.dart';
 
 /// Ein Punkt der Tages-Route in zeitlicher Reihenfolge.
 class _TagesPunkt {
@@ -50,7 +51,33 @@ class TagesKarteScreen extends ConsumerStatefulWidget {
 class _TagesKarteScreenState extends ConsumerState<TagesKarteScreen> {
   Basemap _basemap = Basemap.osm;
 
+  /// Tatsächlicher Strassenverlauf (OSRM). `null` = noch nicht geladen oder
+  /// nicht verfügbar — dann zeichnet die Karte die Luftlinie.
+  List<LatLng>? _strassenVerlauf;
+
+  /// Für welche Punktfolge der Verlauf gilt — verhindert, dass ein später
+  /// eintreffendes Ergebnis eine inzwischen geänderte Route überschreibt.
+  String? _verlaufFuer;
+
   static const _schweiz = LatLng(46.8182, 9.0);
+
+  /// Holt den Strassenverlauf, sobald die Punkte feststehen. Läuft im
+  /// Hintergrund: Die Karte ist sofort mit Luftlinie da und schärft nach.
+  void _ladeVerlauf(List<LatLng> punkte) {
+    final schluessel = punkte
+        .map(
+          (p) =>
+              '${p.latitude.toStringAsFixed(4)},'
+              '${p.longitude.toStringAsFixed(4)}',
+        )
+        .join(';');
+    if (schluessel == _verlaufFuer) return;
+    _verlaufFuer = schluessel;
+    TagesrouteService.verlauf(punkte).then((verlauf) {
+      if (!mounted || _verlaufFuer != schluessel) return;
+      setState(() => _strassenVerlauf = verlauf);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +177,12 @@ class _TagesKarteScreenState extends ConsumerState<TagesKarteScreen> {
 
     punkte.sort((a, b) => a.zeitMin.compareTo(b.zeitMin));
     final koordinaten = punkte.map((p) => p.pos).toList();
+    if (koordinaten.length >= 2) {
+      // Nach dem Frame, nie während des Builds (setState im Callback).
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _ladeVerlauf(koordinaten),
+      );
+    }
 
     final df = DateFormat('EE, d. MMM yyyy', 'de_CH');
     return Scaffold(
@@ -192,13 +225,20 @@ class _TagesKarteScreenState extends ConsumerState<TagesKarteScreen> {
                       urlTemplate: basemapUrl(_basemap),
                       userAgentPackageName: 'ch.sbsprojer.app',
                     ),
+                    // Gefahrene Strecke: der echte Strassenverlauf, sobald er
+                    // da ist. Bis dahin (und wenn OSRM nicht antwortet) die
+                    // Luftlinie — gestrichelt wäre schöner, ist in
+                    // flutter_map aber nicht ohne Zusatzpaket zu haben, darum
+                    // stattdessen dünner und blasser als die echte Route.
                     if (koordinaten.length >= 2)
                       PolylineLayer(
                         polylines: [
                           Polyline(
-                            points: koordinaten,
-                            strokeWidth: 3,
-                            color: AppColors.primary.withAlpha(150),
+                            points: _strassenVerlauf ?? koordinaten,
+                            strokeWidth: _strassenVerlauf != null ? 4 : 2,
+                            color: AppColors.primary.withAlpha(
+                              _strassenVerlauf != null ? 190 : 90,
+                            ),
                           ),
                         ],
                       ),

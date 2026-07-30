@@ -1,4 +1,4 @@
-/// Version des GELADENEN Bundles — einkompiliert, nicht nachgeladen.
+﻿/// Version des GELADENEN Bundles — einkompiliert, nicht nachgeladen.
 ///
 /// Bewusst eine Konstante und nicht `version.json`: Letzteres sagt nur, was auf
 /// dem Server liegt. Diese hier sagt, was im Browser tatsächlich ausgeführt
@@ -7,4 +7,4 @@
 /// einem DB-Trigger (Migration 143), nicht im Bundle-Stand.
 ///
 /// MUSS bei jedem Bump von `pubspec.yaml` Zeile 4 mitgezogen werden.
-const String kAppVersion = '0.63.0';
+const String kAppVersion = '0.64.0';
