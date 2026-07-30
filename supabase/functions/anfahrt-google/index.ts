@@ -1,13 +1,18 @@
-// Anfahrtszeiten von den festen Startorten zu allen Betrieben via Google
+// Anfahrtszeiten von den festen Startorten zu Betrieben.
+//
+// Zwei Quellen (Wunsch Daniel: «2 Werte sind besser als einer»): Google
 // Routes API (computeRouteMatrix, TRAFFIC_UNAWARE = Standardzeiten ohne
-// Verkehr/Baustellen — Wunsch Daniel 31.07.2026).
+// Verkehr) und OSRM als kostenloser Rückfall. Die Tabelle `anfahrtszeiten`
+// hält beide Werte nebeneinander; `minuten` bevorzugt Google (Migration 157).
 //
-// Zweite Meinung neben OSRM: die Tabelle `anfahrtszeiten` hält beide Werte,
-// `minuten` bevorzugt automatisch Google (Migration 157).
+// Zwei Betriebsarten:
+//   POST {}                    -> alle Betriebe mit GPS (Einmal-Lauf)
+//   POST {"betriebId": "..."}  -> nur dieser Betrieb (neuer Betrieb aus dem
+//                                 Formular, direkt nach «aus Google übernehmen»)
 //
-// Einmal-Lauf, kein Client-Aufruf: POST ohne Body startet den Durchlauf.
 // Secret: GOOGLE_PLACES_KEY (derselbe Key wie betrieb-google-lookup — die
-// Routes API muss im Google-Cloud-Projekt aktiviert sein).
+// Routes API muss im Google-Cloud-Projekt aktiviert sein; ohne sie liefert
+// die Funktion die OSRM-Werte und meldet Google als übersprungen).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -26,22 +31,61 @@ function json(body: unknown, status = 200) {
   });
 }
 
+/// OSRM-Fallback: eine Strecke Startort -> Betrieb. `null` bei jedem Fehler
+/// (die Funktion soll nie am Routing scheitern — ohne Wert greift in der App
+/// weiterhin die Luftlinien-Heuristik).
+async function osrmStrecke(
+  von: { lat: number; lng: number },
+  nachLat: number,
+  nachLng: number,
+): Promise<{ minuten: number; km: number } | null> {
+  try {
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${von.lng},${von.lat};${nachLng},${nachLat}?overview=false`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "sbs-projer-app" },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const route = data?.routes?.[0];
+    if (!route?.duration) return null;
+    return {
+      minuten: Math.max(1, Math.round(route.duration / 60)),
+      km: Math.round((route.distance ?? 0) / 100) / 10,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "POST erwartet" }, 405);
 
   const apiKey = Deno.env.get("GOOGLE_PLACES_KEY");
-  if (!apiKey) return json({ error: "GOOGLE_PLACES_KEY fehlt" }, 500);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const { data: betriebe, error } = await supabase
+  // Optionaler Einzelbetrieb (Aufruf aus dem Betriebs-Formular).
+  let nurBetriebId: string | null = null;
+  try {
+    const body = await req.json();
+    if (typeof body?.betriebId === "string") nurBetriebId = body.betriebId;
+  } catch (_) {
+    // leerer Body = Voll-Lauf
+  }
+
+  let query = supabase
     .from("betriebe")
     .select("id, latitude, longitude")
     .not("latitude", "is", null)
     .not("longitude", "is", null);
+  if (nurBetriebId) query = query.eq("id", nurBetriebId);
+
+  const { data: betriebe, error } = await query;
   if (error) return json({ error: error.message }, 500);
   if (!betriebe?.length) return json({ error: "keine Betriebe mit GPS" }, 400);
 
@@ -54,7 +98,52 @@ Deno.serve(async (req) => {
   if (!userId) return json({ error: "keine user_id ermittelbar" }, 400);
 
   let geschrieben = 0;
+  let osrmGeschrieben = 0;
   const fehler: string[] = [];
+
+  // ── OSRM-Werte (kostenlos, immer) ──
+  // Beim Einzelbetrieb sind das genau zwei Anfragen; beim Voll-Lauf wäre es
+  // eine pro Paar — dort bleibt es beim separaten Matrix-Skript.
+  if (nurBetriebId) {
+    for (const b of betriebe) {
+      for (const start of STARTORTE) {
+        const r = await osrmStrecke(
+          start,
+          Number(b.latitude),
+          Number(b.longitude),
+        );
+        if (r == null) {
+          fehler.push(`osrm ${start.key}: keine Route`);
+          continue;
+        }
+        const { error: upErr } = await supabase.from("anfahrtszeiten").upsert(
+          {
+            user_id: userId,
+            startort: start.key,
+            betrieb_id: b.id,
+            minuten_osrm: r.minuten,
+            distanz_km_osrm: r.km,
+          },
+          { onConflict: "user_id,startort,betrieb_id" },
+        );
+        if (upErr) {
+          fehler.push(`osrm ${start.key}: ${upErr.message}`);
+        } else {
+          osrmGeschrieben++;
+        }
+      }
+    }
+  }
+
+  // ── Google-Werte (nur wenn Key vorhanden und API freigeschaltet) ──
+  if (!apiKey) {
+    return json({
+      geschrieben,
+      osrmGeschrieben,
+      betriebe: betriebe.length,
+      fehler: [...fehler, "GOOGLE_PLACES_KEY fehlt — nur OSRM"],
+    });
+  }
 
   for (const start of STARTORTE) {
     for (let i = 0; i < betriebe.length; i += CHUNK) {
@@ -141,5 +230,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ geschrieben, betriebe: betriebe.length, fehler });
+  return json({
+    geschrieben,
+    osrmGeschrieben,
+    betriebe: betriebe.length,
+    fehler,
+  });
 });

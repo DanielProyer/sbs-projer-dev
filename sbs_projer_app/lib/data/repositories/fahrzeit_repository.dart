@@ -41,6 +41,25 @@ class FahrzeitRepository {
     return map['$vonId>$nachId'] ?? map['$nachId>$vonId'];
   }
 
+  /// Lässt die Anfahrtszeiten von beiden Startorten (Domat/Ems, Chur) zu
+  /// EINEM Betrieb berechnen und speichern — Aufruf nach dem Anlegen eines
+  /// Betriebs mit Koordinaten (Daniel 31.07.2026: «bei aus Google übernehmen
+  /// auch die Anfahrtszeiten ermitteln»).
+  ///
+  /// Fire-and-forget: Die Edge-Function holt OSRM (immer) und Google (sobald
+  /// die Routes API freigeschaltet ist). Fehler werden still geloggt — ohne
+  /// gespeicherten Wert rechnet die Zeitachse weiter mit der Heuristik.
+  static Future<void> anfahrtBerechnen(String betriebId) async {
+    try {
+      await SupabaseService.client.functions.invoke(
+        'anfahrt-google',
+        body: {'betriebId': betriebId},
+      );
+    } catch (e) {
+      debugPrint('[FahrzeitRepository] anfahrtBerechnen fehlgeschlagen: $e');
+    }
+  }
+
   /// Fordert eine geroutete Fahrzeit von der Edge-Function `fahrzeit-route`
   /// an (OSRM-Proxy mit Cache). Fire-and-forget aus Sicht der Aufrufer:
   /// Fehler/Timeouts liefern still `null` zurueck — die App zeigt derweil die
@@ -103,19 +122,18 @@ class FahrzeitRepository {
         return;
       }
 
-      await SupabaseService.client.from('fahrzeiten').upsert(
-        {
-          'user_id': _userId,
-          'von_betrieb_id': vonBetriebId,
-          'nach_betrieb_id': nachBetriebId,
-          'minuten': minuten,
-          'quelle': 'beobachtet',
-          'anzahl': 1,
-        },
-        onConflict: 'user_id,von_betrieb_id,nach_betrieb_id',
-      );
+      await SupabaseService.client.from('fahrzeiten').upsert({
+        'user_id': _userId,
+        'von_betrieb_id': vonBetriebId,
+        'nach_betrieb_id': nachBetriebId,
+        'minuten': minuten,
+        'quelle': 'beobachtet',
+        'anzahl': 1,
+      }, onConflict: 'user_id,von_betrieb_id,nach_betrieb_id');
     } catch (e) {
-      debugPrint('[FahrzeitRepository] beobachtungNachfuehren fehlgeschlagen: $e');
+      debugPrint(
+        '[FahrzeitRepository] beobachtungNachfuehren fehlgeschlagen: $e',
+      );
     }
   }
 }

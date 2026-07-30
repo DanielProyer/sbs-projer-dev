@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -75,6 +77,11 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   List<String> _ruhetage = [];
   double? _latitude;
   double? _longitude;
+
+  /// Position beim Laden — Vergleichswert, damit die Anfahrtszeiten nur bei
+  /// einer wirklich geänderten Position neu berechnet werden.
+  double? _latitudeBeimLaden;
+  double? _longitudeBeimLaden;
   bool _googleLoading = false;
   bool _websiteLoading = false;
   List<String> _zapfsysteme = [];
@@ -175,6 +182,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _ruhetage = List<String>.from(betrieb.ruhetage);
       _latitude = betrieb.latitude;
       _longitude = betrieb.longitude;
+      // Merker für die Anfahrtszeit-Berechnung: nur bei geänderter Position
+      // wird beim Speichern neu geroutet.
+      _latitudeBeimLaden = betrieb.latitude;
+      _longitudeBeimLaden = betrieb.longitude;
       _zapfsysteme = List<String>.from(betrieb.zapfsysteme);
       _zahlerAliase = List<String>.from(betrieb.zahlerAliase);
       if (betrieb.oeffnungszeitenJson != null &&
@@ -530,6 +541,20 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       GoogleContactsService.syncImHintergrund(
         onFehler: (f) => zeigeGoogleFehler(messenger, f),
       );
+
+      // Anfahrtszeiten ab Domat/Ems und Chur berechnen lassen, sobald der
+      // Betrieb Koordinaten hat (typisch direkt nach «aus Google übernehmen»).
+      // Nur wenn sich die Position geändert hat — sonst wäre es bei jedem
+      // Speichern ein unnötiger Routing-Aufruf. Fire and forget.
+      final sid = betrieb.serverId;
+      if (_latitude != null &&
+          _longitude != null &&
+          sid != null &&
+          sid.isNotEmpty &&
+          (_latitude != _latitudeBeimLaden ||
+              _longitude != _longitudeBeimLaden)) {
+        unawaited(FahrzeitRepository.anfahrtBerechnen(sid));
+      }
 
       // Saison-/Ferien-Reinigungen optional in den Google Kalender eintragen
       // (mit Bestätigungs-Dialog, nur wenn Google verbunden).
