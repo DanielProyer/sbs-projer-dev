@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
@@ -37,6 +38,16 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   late DateTime _selectedDate;
   late TabController _tabController;
   DateTime? _loadedForDate;
+
+  bool get _istVergangenerTag {
+    final j = DateTime.now();
+    final heute = DateTime(j.year, j.month, j.day);
+    return DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    ).isBefore(heute);
+  }
 
   @override
   void initState() {
@@ -164,7 +175,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     // Eingabe-/manuellen Reihenfolge. Ein Filter würde die Anzeige-Indizes
     // gegenüber dem State verschieben → Drag-Reorder träfe die falschen
     // Einträge und die Reihenfolge ginge kaputt.
-    final angezeigtTagesplan = tagesplan;
+    //
+    // VERGANGENE Tage zeigen nicht den (Test-)Plan, sondern die tatsächlich
+    // abgeschlossenen Reinigungen des Tages — Pläne von gestern sind nicht
+    // mehr relevant, nur was wirklich geschah (Daniel 31.07.2026).
+    final istVergangenTag = _istVergangenerTag;
+    final angezeigtTagesplan = istVergangenTag
+        ? ref.watch(tatsaechlicheReinigungenAlsEintraegeProvider(_selectedDate))
+        : tagesplan;
     final angezeigtFaellig = faelligeEintraege.where(passesFilter).toList();
 
     final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
@@ -235,11 +253,18 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                   children: [
                     _TagesplanHeader(
                       datum: _selectedDate,
+                      readOnly: istVergangenTag,
                       onLeeren: () =>
                           ref.read(tagesplanProvider.notifier).leeren(),
                       onAusFaelligBefuellen: () =>
                           _faelligeAlleUebernehmen(angezeigtFaellig),
                       onPlanUebernehmen: _planVonDatumUebernehmen,
+                      onKarte: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              TagesKarteScreen(datum: _selectedDate),
+                        ),
+                      ),
                     ),
                     _ArbeitstagZeile(datum: _selectedDate),
                     if (autoTermine.isNotEmpty)
@@ -259,18 +284,27 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                     Expanded(
                       child: angezeigtTagesplan.isEmpty
                           ? _buildEmpty(
-                              'Kein Tagesplan',
-                              'Wechsle zum Tab "Fällig" um Einträge\nzum Tagesplan hinzuzufügen.',
+                              istVergangenTag
+                                  ? 'Keine Reinigungen'
+                                  : 'Kein Tagesplan',
+                              istVergangenTag
+                                  ? 'An diesem Tag wurden keine\nReinigungen abgeschlossen.'
+                                  : 'Wechsle zum Tab "Fällig" um Einträge\nzum Tagesplan hinzuzufügen.',
                             )
                           : _TagesplanZeitachse(
                               datum: _selectedDate,
                               eintraege: angezeigtTagesplan,
-                              onReorder: (old, neu) => ref
-                                  .read(tagesplanProvider.notifier)
-                                  .reorder(old, neu),
-                              onDismiss: (id) => ref
-                                  .read(tagesplanProvider.notifier)
-                                  .entfernen(id),
+                              readOnly: istVergangenTag,
+                              onReorder: istVergangenTag
+                                  ? (old, neu) {}
+                                  : (old, neu) => ref
+                                        .read(tagesplanProvider.notifier)
+                                        .reorder(old, neu),
+                              onDismiss: istVergangenTag
+                                  ? (id) {}
+                                  : (id) => ref
+                                        .read(tagesplanProvider.notifier)
+                                        .entfernen(id),
                             ),
                     ),
                   ],
@@ -474,8 +508,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     ref.read(tagesplanProvider.notifier).setzePlan(plan);
   }
 
-  /// Menüpunkt „Plan von Datum übernehmen" (Spec §6): Einträge eines anderen
-  /// Tages in identischer Reihenfolge an den aktuellen Plan anhängen.
+  /// Menüpunkt „Reinigungen eines Tages übernehmen": die TATSÄCHLICH
+  /// abgeschlossenen Reinigungen des Quelltags (ohne Störungen/Montagen) in
+  /// ihrer echten Reihenfolge an den aktuellen Plan anhängen — nicht den
+  /// damals gespeicherten Plan (Daniel 31.07.2026: vergangene Pläne sind
+  /// nicht mehr relevant, nur die tatsächlichen Tagesdaten).
   /// Betriebe, die im Zielplan schon einen Reinigungs-Besuch haben, werden
   /// nicht dupliziert; Besuche, deren Betrieb heute keine fällige Anlage
   /// hat, kommen als `uebernommen = true` (graue Darstellung) mit.
@@ -486,20 +523,21 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       context: context,
       initialDate: heuteDatum.subtract(const Duration(days: 1)),
       firstDate: DateTime(2025, 1, 1),
-      lastDate: heuteDatum.add(const Duration(days: 365)),
-      helpText: 'Plan von welchem Tag übernehmen?',
+      lastDate: heuteDatum,
+      helpText: 'Reinigungen von welchem Tag übernehmen?',
     );
     if (gewaehlt == null || !mounted) return;
     final quelltag = DateTime(gewaehlt.year, gewaehlt.month, gewaehlt.day);
 
-    final quelle = await ref.read(
-      gespeicherterTagesplanProvider(quelltag).future,
+    final quellEintraege = ref.read(
+      tatsaechlicheReinigungenAlsEintraegeProvider(quelltag),
     );
-    if (!mounted) return;
-    if (quelle == null || quelle.eintraege.isEmpty) {
+    if (quellEintraege.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Kein gespeicherter Plan am ${_formatDate(quelltag)}'),
+          content: Text(
+            'Keine abgeschlossenen Reinigungen am ${_formatDate(quelltag)}',
+          ),
         ),
       );
       return;
@@ -523,7 +561,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final vorhandeneIds = planVorher.map((e) => e.id).toSet();
 
     final uebernahme = <TourEintrag>[];
-    for (final original in quelle.eintraege) {
+    for (final original in quellEintraege) {
       final istReinigung = original.typ == TourEintragTyp.reinigung;
       if (istReinigung &&
           original.betriebId != null &&
@@ -550,10 +588,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           );
         }
       }
-      // ID-Kollision (z.B. zweimalige Übernahme desselben Quelltags):
-      // NUR dann umbenennen, wenn die ID im Zielplan bereits existiert —
-      // sonst bleibt die Original-ID stehen, damit z.B. „Reinigung starten"
-      // weiter auf denselben Eintrag verweist wie am Quelltag.
+      // `hist_`-Marker ablegen: Er kennzeichnet die tatsächlichen Reinigungen
+      // des QUELLTAGS — im heutigen Plan wäre er falsch (das Ist-Matching und
+      // der Tap-Handler behandeln `hist_`-Einträge als Vergangenheit).
+      if (eintrag.id.startsWith('hist_')) {
+        eintrag = eintrag.mitId('u_${eintrag.id.substring(5)}');
+      }
+      // ID-Kollision (z.B. zweimalige Übernahme desselben Quelltags) →
+      // eindeutig machen.
       if (vorhandeneIds.contains(eintrag.id)) {
         eintrag = eintrag.mitId(
           'u_${eintrag.id}_${quelltag.millisecondsSinceEpoch}',
@@ -759,15 +801,22 @@ class _DayChips extends StatelessWidget {
 
 class _TagesplanHeader extends StatelessWidget {
   final DateTime datum;
+
+  /// Vergangener Tag: zeigt die tatsächlichen Reinigungen — Plan-Aktionen
+  /// (Übernehmen/Leeren) sind dort sinnlos und ausgeblendet.
+  final bool readOnly;
   final VoidCallback onLeeren;
   final VoidCallback onAusFaelligBefuellen;
   final VoidCallback onPlanUebernehmen;
+  final VoidCallback onKarte;
 
   const _TagesplanHeader({
     required this.datum,
+    required this.readOnly,
     required this.onLeeren,
     required this.onAusFaelligBefuellen,
     required this.onPlanUebernehmen,
+    required this.onKarte,
   });
 
   @override
@@ -788,34 +837,55 @@ class _TagesplanHeader extends StatelessWidget {
           ),
           const Spacer(),
           IconButton(
-            onPressed: onPlanUebernehmen,
-            icon: const Icon(Icons.history, size: 20),
-            tooltip: 'Plan von Datum übernehmen',
+            onPressed: onKarte,
+            icon: const Icon(Icons.map_outlined, size: 20),
+            tooltip: 'Tag auf Karte',
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(horizontal: 4),
           ),
-          TextButton.icon(
-            onPressed: onAusFaelligBefuellen,
-            icon: const Icon(Icons.playlist_add, size: 18),
-            label: const Text(
-              'Fällige übernehmen',
-              style: TextStyle(fontSize: 12),
-            ),
-            style: TextButton.styleFrom(
+          if (readOnly)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Text(
+                'tatsächliche Reinigungen',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else ...[
+            IconButton(
+              onPressed: onPlanUebernehmen,
+              icon: const Icon(Icons.history, size: 20),
+              tooltip: 'Reinigungen eines Tages übernehmen',
               visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
             ),
-          ),
-          TextButton.icon(
-            onPressed: onLeeren,
-            icon: const Icon(Icons.clear_all, size: 18),
-            label: const Text('Leeren', style: TextStyle(fontSize: 12)),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              foregroundColor: AppColors.error,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+            TextButton.icon(
+              onPressed: onAusFaelligBefuellen,
+              icon: const Icon(Icons.playlist_add, size: 18),
+              label: const Text(
+                'Fällige übernehmen',
+                style: TextStyle(fontSize: 12),
+              ),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
             ),
-          ),
+            TextButton.icon(
+              onPressed: onLeeren,
+              icon: const Icon(Icons.clear_all, size: 18),
+              label: const Text('Leeren', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppColors.error,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -886,12 +956,17 @@ const int _kFahrzeitOhneGps = 15;
 class _TagesplanZeitachse extends ConsumerStatefulWidget {
   final DateTime datum;
   final List<TourEintrag> eintraege;
+
+  /// Vergangener Tag mit tatsächlichen Reinigungen: kein Umsortieren, kein
+  /// Entfernen, kein Block-Sheet — Tap öffnet direkt die Reinigung.
+  final bool readOnly;
   final void Function(int, int) onReorder;
   final void Function(String) onDismiss;
 
   const _TagesplanZeitachse({
     required this.datum,
     required this.eintraege,
+    this.readOnly = false,
     required this.onReorder,
     required this.onDismiss,
   });
@@ -1088,8 +1163,12 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     final istZeiten = <String, ({int von, int bis})>{};
     if (istHeute || _istVergangen) {
       // Reinigungs-Besuch erledigt = am Plantag abgeschlossene Reinigung
-      // desselben Betriebs mit brauchbaren Zeiten.
+      // desselben Betriebs mit brauchbaren Zeiten. `hist_`-Einträge (die
+      // tatsächlichen Reinigungen vergangener Tage) matchen exakt über ihre
+      // Reinigungs-Id — zwei Besuche am selben Betrieb behalten so je ihre
+      // eigenen Zeiten.
       final heutigeJeBetrieb = <String, ({int von, int bis})>{};
+      final jeReinigung = <String, ({int von, int bis})>{};
       for (final r in ref.watch(reinigungenProvider)) {
         if (r.status != 'abgeschlossen' || r.betriebId.isEmpty) continue;
         if (r.datum.year != widget.datum.year ||
@@ -1101,12 +1180,18 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
         final bis = minutenAusHhmm(r.uhrzeitEnde);
         if (von == null || bis == null || bis <= von) continue;
         heutigeJeBetrieb[r.betriebId] = (von: von, bis: bis);
+        if (r.serverId != null) {
+          jeReinigung[r.routeId] = (von: von, bis: bis);
+        }
       }
       final wegpunkte =
           ref.watch(wegpunkteFuerTagProvider(widget.datum)).valueOrNull ??
           const <WegpunktTag>[];
       for (final e in eintraege) {
-        if (e.typ == TourEintragTyp.reinigung) {
+        if (e.id.startsWith('hist_')) {
+          final ist = jeReinigung[e.id.substring(5)];
+          if (ist != null) istZeiten[e.id] = ist;
+        } else if (e.typ == TourEintragTyp.reinigung) {
           final ist = e.betriebId != null
               ? heutigeJeBetrieb[e.betriebId!]
               : null;
@@ -1289,7 +1374,9 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
 
               return Dismissible(
                 key: ValueKey(eintrag.id),
-                direction: DismissDirection.endToStart,
+                direction: widget.readOnly
+                    ? DismissDirection.none
+                    : DismissDirection.endToStart,
                 background: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20),
@@ -1329,19 +1416,21 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                               ),
                             )
                       : null,
-                  dragHandle: ReorderableDragStartListener(
-                    index: index,
-                    child: Container(
-                      width: 44,
-                      alignment: Alignment.center,
-                      color: AppColors.textSecondary.withAlpha(12),
-                      child: const Icon(
-                        Icons.drag_indicator,
-                        color: AppColors.textSecondary,
-                        size: 26,
-                      ),
-                    ),
-                  ),
+                  dragHandle: widget.readOnly
+                      ? const SizedBox(width: 10)
+                      : ReorderableDragStartListener(
+                          index: index,
+                          child: Container(
+                            width: 44,
+                            alignment: Alignment.center,
+                            color: AppColors.textSecondary.withAlpha(12),
+                            child: const Icon(
+                              Icons.drag_indicator,
+                              color: AppColors.textSecondary,
+                              size: 26,
+                            ),
+                          ),
+                        ),
                   onTap: () => _oeffneBlockSheet(eintrag),
                 ),
               );
@@ -1374,6 +1463,14 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
   }
 
   void _oeffneBlockSheet(TourEintrag eintrag) {
+    // Vergangener Tag: die Blöcke sind tatsächliche Reinigungen — Tap führt
+    // direkt zur Reinigung (das Block-Sheet bearbeitet nur Plan-Einträge).
+    if (widget.readOnly) {
+      if (eintrag.id.startsWith('hist_')) {
+        context.push('/reinigungen/${eintrag.id.substring(5)}');
+      }
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

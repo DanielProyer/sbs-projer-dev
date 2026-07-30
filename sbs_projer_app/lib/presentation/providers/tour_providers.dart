@@ -535,6 +535,55 @@ final betriebLookupProvider = Provider<Map<String, BetriebLocal>>(
 /// Servicezeit-Text eines Betriebs; null, wenn nichts erfasst ist.
 String? servicezeitAus(BetriebLocal? b) => _servicezeitAus(b);
 
+/// Tatsächliche (abgeschlossene) Reinigungen eines Tages als Besuchs-Blöcke,
+/// sortiert nach Start-Uhrzeit (ohne Uhrzeit ans Ende). Grundlage der
+/// Vergangenheits-Ansicht im Tagesplan-Tab UND der Plan-Übernahme von einem
+/// Datum — Daniel 31.07.2026: «vergangene Pläne sind nicht mehr relevant,
+/// nur die tatsächlichen Tagesdaten». Störungen/Montagen bewusst nicht
+/// enthalten.
+final tatsaechlicheReinigungenAlsEintraegeProvider =
+    Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
+      final betriebMap = _buildBetriebMap(ref.watch(betriebeProvider));
+      final desTages =
+          [
+            for (final r in ref.watch(reinigungenProvider))
+              if (r.status == 'abgeschlossen' &&
+                  r.betriebId.isNotEmpty &&
+                  r.datum.year == datum.year &&
+                  r.datum.month == datum.month &&
+                  r.datum.day == datum.day)
+                r,
+          ]..sort(
+            (a, b) => (minutenAusHhmm(a.uhrzeitStart) ?? 1440).compareTo(
+              minutenAusHhmm(b.uhrzeitStart) ?? 1440,
+            ),
+          );
+      return [
+        for (final r in desTages)
+          TourEintrag(
+            typ: TourEintragTyp.reinigung,
+            // `hist_`-Präfix: markiert einen tatsächlichen (historischen)
+            // Besuch — der Screen leitet Taps darauf zur Reinigung statt
+            // ins Block-Sheet.
+            id: 'hist_${r.routeId}',
+            betriebId: r.betriebId,
+            anlageId: r.anlageIds.isNotEmpty
+                ? r.anlageIds.first
+                : (r.anlageId.isNotEmpty ? r.anlageId : null),
+            anlageIds: r.anlageIds.isNotEmpty
+                ? r.anlageIds
+                : [if (r.anlageId.isNotEmpty) r.anlageId],
+            betriebName: betriebMap[r.betriebId]?.name ?? '?',
+            betriebOrt: betriebMap[r.betriebId]?.ort,
+            regionId: betriebMap[r.betriebId]?.regionId,
+            beschreibung: '',
+            datum: r.datum,
+            ruhetage: betriebMap[r.betriebId]?.ruhetage ?? const [],
+            servicezeit: _servicezeitAus(betriebMap[r.betriebId]),
+          ),
+      ];
+    });
+
 String? _servicezeitAus(BetriebLocal? b) {
   if (b == null) return null;
   final t = servicezeitText(
@@ -952,7 +1001,13 @@ final arbeitstagProvider = StateProvider.family<Arbeitstag, DateTime>(
 /// im Tagesplan: Störungs-/Montage-Stempel markieren erledigte Einsätze
 /// (Daniel 30.07.2026). Am heutigen Tag invalidiert der Screen den Provider
 /// im Minutentakt; für vergangene Tage liefert er die damaligen Stempel.
-typedef WegpunktTag = ({DateTime zeitpunkt, String quelle, String? betriebId});
+typedef WegpunktTag = ({
+  DateTime zeitpunkt,
+  String quelle,
+  String? betriebId,
+  double? lat,
+  double? lng,
+});
 
 final wegpunkteFuerTagProvider =
     FutureProvider.family<List<WegpunktTag>, DateTime>((ref, datum) async {
@@ -960,7 +1015,7 @@ final wegpunkteFuerTagProvider =
       final ende = start.add(const Duration(days: 1));
       final rows = await SupabaseService.client
           .from('wegpunkte')
-          .select('zeitpunkt, quelle, betrieb_id')
+          .select('zeitpunkt, quelle, betrieb_id, lat, lng')
           .gte('zeitpunkt', start.toUtc().toIso8601String())
           .lt('zeitpunkt', ende.toUtc().toIso8601String());
       return [
@@ -969,6 +1024,8 @@ final wegpunkteFuerTagProvider =
             zeitpunkt: DateTime.parse(r['zeitpunkt'] as String).toLocal(),
             quelle: r['quelle'] as String,
             betriebId: r['betrieb_id'] as String?,
+            lat: (r['lat'] as num?)?.toDouble(),
+            lng: (r['lng'] as num?)?.toDouble(),
           ),
       ];
     });
