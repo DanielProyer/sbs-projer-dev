@@ -81,7 +81,7 @@ ruhetage_bestaetigt_am timestamptz  -- trennt «kein Ruhetag bekannt» von «hat
 betrieb_vorschlaege
   id           uuid pk
   betrieb_id   uuid
-  feld         text     -- 'ruhetage' | 'oeffnungszeiten' | 'ferien' | 'status'
+  feld         text     -- 'ruhetage' | 'oeffnungszeiten' | 'ferien' | 'saison' | 'status'
   alt_wert     jsonb
   neu_wert     jsonb
   quelle       text     -- 'google' | 'website'
@@ -142,6 +142,31 @@ Ein täglicher Lauf über `pg_cron` (Extension aktivieren) stösst per `pg_net` 
 - **Widerspruch** → beide Vorschläge werden nebeneinander gezeigt, mit Datum und Quelle. Nichts wird automatisch aufgelöst — bei zwei unterschiedlichen Angaben ist die Frage beim Kunden ohnehin fällig.
 
 **Ehrliche Einordnung der Trefferquote:** Google kennt vor allem die regulären Öffnungszeiten und meldet Ferien nur, wenn der Wirt selbst «vorübergehend geschlossen» setzt — das ist die Ausnahme. Die Website ist für Ferien die bessere Quelle, weil dort oft ein konkreter Zeitraum steht. Beide zusammen ersetzen die Frage beim Kunden (B) nicht, sie verkleinern nur die Lücke.
+
+### Saisonpausen mitnehmen (Ergänzung Daniel 31.07.)
+
+Saisonzeiten stehen selten im Netz — aber wo sie stehen, sollen sie übernommen werden. Die Datenlage spricht dafür:
+
+| Saisonbetriebe (aktiv) | 92 |
+|---|---|
+| **mit Website** | **89** |
+| Sommerangaben unvollständig | 32 |
+| Winterangaben unvollständig | 41 |
+| ganz ohne Saisondaten | 12 |
+| Winterfenster mit verdrehten Jahreszahlen | 20 |
+
+Bergrestaurants und Skihütten schreiben ihre Saison fast immer auf die Startseite («Sommersaison 15. Juni bis 20. Oktober», «Winteröffnung ab Mitte Dezember»). Die Trefferquote dürfte hier höher liegen als bei den Ferien.
+
+**Nur die Website, nicht Google.** Die Places API kennt kein Saisonfeld. Google trägt hier höchstens indirekt bei, wenn ein Betrieb ausserhalb der Saison auf `CLOSED_TEMPORARILY` steht — das ist bereits als Status-Vorschlag abgedeckt.
+
+**Jahreszahlen sind die eigentliche Falle.** Websites schreiben Tag und Monat, kein Jahr. Die Extraktion liefert deshalb **nur Tag und Monat**, und die App setzt das Jahr selbst:
+
+- Sommerfenster (Start vor Ende im Jahreslauf) → beide im laufenden Jahr.
+- Winterfenster über den Jahreswechsel (Start Dezember, Ende April) → Start im laufenden Jahr, Ende im Folgejahr.
+
+Dieselbe Regel repariert nebenbei die 20 bestehenden Winterfenster, bei denen Start und Ende im selben Jahr stehen (Robinson Club Arosa: 01.12.2026–01.04.2026).
+
+**Sicherheitsregel — Saison nie in der Sammelübernahme.** Ein falscher Saisonwert wirkt anders als eine falsche Öffnungszeit: `faelligkeitsAnker()` startet die Fälligkeits-Uhr erst bei der Wiedereröffnung, ein zu spät angesetzter Saisonstart nimmt den Betrieb also **monatelang** aus der Fällig-Liste — still und ohne Fehlermeldung. Saison-Vorschläge werden deshalb immer einzeln bestätigt, mit Anzeige des alten und des neuen Fensters.
 
 ### Prüfliste
 

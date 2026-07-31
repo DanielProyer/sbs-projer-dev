@@ -25,6 +25,7 @@
 | `lib/data/repositories/betrieb_ferien_repository.dart` | Datenzugriff (kIsWeb) |
 | `lib/core/util/betrieb_ferien.dart` | **bestehend** — Aussenform bleibt, liest neu Perioden |
 | `lib/core/util/ferien_vorjahr.dart` | **neu** — Vorjahres-Hinweis (reine Funktion) |
+| `lib/core/util/saison_jahr.dart` | **neu** — Tag/Monat → Jahr, inkl. Jahreswechsel-Fenster |
 | `lib/data/models/betrieb_vorschlag.dart` + Repo/Provider | Vorschlags-Vertikale |
 | `lib/presentation/screens/betriebe/betrieb_vorschlaege_screen.dart` | Prüfliste |
 | `lib/presentation/screens/touren/tourenplanung_screen.dart` | «War geschlossen», Vorjahres-Band |
@@ -99,7 +100,7 @@ comment on column betriebe.ferien_frage_ruht_bis is
 create table if not exists betrieb_vorschlaege (
   id          uuid primary key default gen_random_uuid(),
   betrieb_id  uuid not null references betriebe(id) on delete cascade,
-  feld        text not null check (feld in ('ruhetage','oeffnungszeiten','ferien','status')),
+  feld        text not null check (feld in ('ruhetage','oeffnungszeiten','ferien','saison','status')),
   alt_wert    jsonb,
   neu_wert    jsonb not null,
   quelle      text not null check (quelle in ('google','website','google_website')),
@@ -354,6 +355,59 @@ test('zwei Jahre zurueck zaehlt auch, drei nicht mehr', () { ... });
 
 ---
 
+## Task 6b: Saison-Jahreslogik (TDD)
+
+Websites nennen Tag und Monat, kein Jahr. Diese Funktion setzt das Jahr — und repariert nebenbei die 20 Winterfenster, deren Start und Ende heute im selben Jahr stehen.
+
+**Files:**
+- Create: `lib/core/util/saison_jahr.dart`, `test/saison_jahr_test.dart`
+
+- [ ] **Schritt 1: Tests schreiben**
+
+```dart
+test('Sommerfenster liegt komplett im laufenden Jahr', () {
+  final f = saisonFenster(vonTag: 15, vonMonat: 6, bisTag: 20, bisMonat: 10,
+      heute: DateTime(2026, 7, 31));
+  expect(f.von, DateTime(2026, 6, 15));
+  expect(f.bis, DateTime(2026, 10, 20));
+});
+
+test('Winterfenster laeuft ins Folgejahr', () {
+  final f = saisonFenster(vonTag: 1, vonMonat: 12, bisTag: 1, bisMonat: 4,
+      heute: DateTime(2026, 7, 31));
+  expect(f.von, DateTime(2026, 12, 1));
+  expect(f.bis, DateTime(2027, 4, 1));   // NICHT 2026
+});
+
+test('Winterfenster mitten in der Saison behaelt den zurueckliegenden Start', () {
+  final f = saisonFenster(vonTag: 1, vonMonat: 12, bisTag: 1, bisMonat: 4,
+      heute: DateTime(2027, 2, 10));
+  expect(f.von, DateTime(2026, 12, 1));
+  expect(f.bis, DateTime(2027, 4, 1));
+});
+
+test('repariert ein Fenster mit verdrehten Jahreszahlen', () {
+  final f = jahreszahlenRichten(
+      von: DateTime(2026, 12, 1), bis: DateTime(2026, 4, 1));
+  expect(f.von, DateTime(2026, 12, 1));
+  expect(f.bis, DateTime(2027, 4, 1));
+});
+
+test('ein bereits stimmiges Fenster bleibt unveraendert', () {
+  final f = jahreszahlenRichten(
+      von: DateTime(2026, 6, 15), bis: DateTime(2026, 10, 20));
+  expect(f.von, DateTime(2026, 6, 15));
+  expect(f.bis, DateTime(2026, 10, 20));
+});
+```
+
+- [ ] **Schritt 2:** `flutter test test/saison_jahr_test.dart` → FAIL erwartet
+- [ ] **Schritt 3:** `saisonFenster(...)` und `jahreszahlenRichten(...)` implementieren, Tests grün
+- [ ] **Schritt 4:** Reparaturlauf für die 20 bestehenden Winterfenster als Wartungsskript unter `Datenbank/wartung/saison_jahreszahlen_2026_07_31.sql` **mit Rollback-Datei** (Vorher-Werte in `import.`-Tabelle sichern) — geschützte Stammdaten, deshalb erst nach Rückfrage bei Daniel ausführen.
+- [ ] **Schritt 5: Commit** `feat(saison): Jahreslogik fuer Saisonfenster ueber den Jahreswechsel`
+
+---
+
 ## Task 7: Vorschlags-Vertikale + Prüflisten-Screen
 
 **Files:**
@@ -361,7 +415,7 @@ test('zwei Jahre zurueck zaehlt auch, drei nicht mehr', () { ... });
 - Modify: `lib/core/config/router.dart` (Route `/betriebe/vorschlaege`), `lib/presentation/screens/aufgaben/aufgaben_screen.dart` (Zeile mit Zähler)
 
 - [ ] **Schritt 1:** DTO + Repository (`offene()`, `uebernehmen(id)`, `verwerfen(id)`, `alleUebernehmen(quelle)`); Web über Supabase, Native über Isar — Vorschläge sind reine Server-Daten, deshalb genügt hier der Supabase-Weg mit `kIsWeb`-Gate wie bei anderen Server-only-Listen.
-- [ ] **Schritt 2:** Screen — je Zeile Betrieb, Feld, **alt → neu**, Quelle, Datum; Aktionen Übernehmen / Verwerfen; oben «Alle übernehmen, bei denen Google und Website übereinstimmen» (`quelle = 'google_website'`).
+- [ ] **Schritt 2:** Screen — je Zeile Betrieb, Feld, **alt → neu**, Quelle, Datum; Aktionen Übernehmen / Verwerfen; oben «Alle übernehmen, bei denen Google und Website übereinstimmen» (`quelle = 'google_website'`). **Saison-Vorschläge sind von der Sammelübernahme ausgenommen** und zeigen altes und neues Fenster im Klartext nebeneinander.
 - [ ] **Schritt 3:** Übernehmen schreibt den Wert in den Betrieb und setzt `oeffnungszeiten_geprueft_am` bzw. `ruhetage_bestaetigt_am`; bei `feld = 'ferien'` entsteht eine Periode mit der jeweiligen Quelle (**ohne** `bestaetigt_am` — eine Fremdquelle bestätigt nichts).
 - [ ] **Schritt 4:** Zeile im Aufgaben-Screen: «N Änderungsvorschläge prüfen» → Route.
 - [ ] **Schritt 5:** `flutter analyze`, `flutter test`, visueller Test
@@ -396,12 +450,21 @@ test('zwei Jahre zurueck zaehlt auch, drei nicht mehr', () { ... });
 
 ```
   "ferien": [{"von":"YYYY-MM-DD","bis":"YYYY-MM-DD"}],
-  "ferien_konfidenz": 0.0
+  "ferien_konfidenz": 0.0,
+  "saison": {
+    "sommer": {"von_tag":15,"von_monat":6,"bis_tag":20,"bis_monat":10},
+    "winter": null
+  },
+  "saison_konfidenz": 0.0
 ```
 
-Regeln im Prompt: Betriebsferien erkennen an Formulierungen wie «Betriebsferien», «Ferien vom … bis …», «wir sind zurück ab …»; **Jahr nur übernehmen, wenn es dasteht** — sonst das laufende Jahr annehmen und die Konfidenz senken; nichts erfinden.
+Regeln im Prompt:
+- **Ferien** erkennen an «Betriebsferien», «Ferien vom … bis …», «wir sind zurück ab …»; Jahr nur übernehmen, wenn es dasteht — sonst das laufende Jahr annehmen und die Konfidenz senken.
+- **Saison** erkennen an «Sommersaison», «Winteröffnung», «geöffnet von … bis …» als Angabe über Monate hinweg. **Nur Tag und Monat liefern, niemals ein Jahr** — die Jahreszuordnung macht die App (Task 6b), weil Winterfenster über den Jahreswechsel laufen.
+- Saison und Ferien nicht verwechseln: Ferien sind eine Unterbrechung **innerhalb** der Saison (meist ein bis vier Wochen), die Saison umfasst Monate.
+- Nichts erfinden; fehlt eine Angabe, `null` und Konfidenz 0.
 
-- [ ] **Schritt 2:** Ergebnis in Vorschläge schreiben (`quelle='website'`), nicht direkt in den Betrieb. Betriebe ohne Website überspringen (`website` leer bei 35 der aktiven).
+- [ ] **Schritt 2:** Ergebnis in Vorschläge schreiben (`quelle='website'`), nicht direkt in den Betrieb. Betriebe ohne Website überspringen (`website` leer bei 35 der aktiven, aber nur bei 3 der 92 Saisonbetriebe). Saison-Vorschläge tragen `feld='saison'` und werden in der Prüfliste **von der Sammelübernahme ausgenommen** — ein falscher Saisonstart nimmt einen Betrieb still für Monate aus der Fällig-Liste.
 - [ ] **Schritt 3:** Modell auf Haiku stellen — reine Extraktion, deutlich billiger.
 - [ ] **Schritt 4:** Deploy + Testlauf an drei Betrieben mit bekannten Ferien-Angaben auf der Website.
 - [ ] **Schritt 5: Commit** `feat(edge): parse-oeffnungszeiten liest auch Betriebsferien`
@@ -452,3 +515,4 @@ $$);
 2. Eine Reinigung abschliessen → kommt die Ferienfrage, und schweigt sie beim nächsten Besuch desselben Betriebs?
 3. Tagesplan eines Tages, an dem im Vorjahr Ferien waren → erscheint das graue Band?
 4. Nach dem ersten nächtlichen Lauf: Sind in der Prüfliste plausible Vorschläge, und stimmen die Werte mit dem überein, was auf der Website steht?
+5. Ein Saison-Vorschlag eines Bergbetriebs: Stimmt das Fenster, und läuft ein Winterfenster korrekt ins Folgejahr?
