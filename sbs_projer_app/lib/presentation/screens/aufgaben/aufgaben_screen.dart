@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
+import 'package:sbs_projer_app/core/util/termin_abgleich.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_vorschlag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 
@@ -54,6 +57,11 @@ class _Eintrag {
   /// (Daniel 31.07.2026).
   final Future<void> Function()? onEinplanen;
 
+  /// Nur berechnete Eröffnungs-/Endreinigungs-Vorschläge (Etappe 4): legt
+  /// einen bestätigten Termin mit Kalender-Erinnerung an. «Berechnet bleibt
+  /// berechnet, bestätigt wird gespeichert.»
+  final Future<void> Function()? onBestaetigen;
+
   const _Eintrag({
     required this.datum,
     required this.icon,
@@ -63,6 +71,7 @@ class _Eintrag {
     this.onTap,
     this.onErledigt,
     this.onEinplanen,
+    this.onBestaetigen,
   });
 }
 
@@ -192,8 +201,40 @@ class AufgabenScreen extends ConsumerWidget {
       );
     }
 
-    // Anstehende Eröffnungs-/Endreinigungen (Saison-Automatik, Vorlauf 7 Tage).
+    // Bereits bestätigte Termine (Etappe 4 — «Berechnet bleibt berechnet,
+    // bestätigt wird gespeichert»). Wird auch für den Doppelanzeige-Abgleich
+    // gegen die berechneten Vorschläge unten gebraucht.
+    final offeneTermine =
+        ref.watch(offeneTermineProvider).valueOrNull ?? const [];
+    final bestehendeReinigungsTermine = [
+      for (final t in offeneTermine)
+        if (t.typ == 'eroeffnungsreinigung' || t.typ == 'endreinigung')
+          TerminVergleich(betriebId: t.betriebId, typ: t.typ, datum: t.datum),
+    ];
+
+    // Anstehende Eröffnungs-/Endreinigungen (Saison-Automatik). Ein
+    // Vorschlag wird ausgeblendet, wenn dafür schon ein bestätigter Termin
+    // existiert (±7 Tage, siehe termin_abgleich.dart) — sonst erscheint er
+    // doppelt: einmal als Vorschlag, einmal als bestätigter Termin unten.
     for (final e in ref.watch(autoTermineProvider(heuteTag))) {
+      final typ = e.faelligkeit == FaelligkeitsStatus.endreinigungFaellig
+          ? 'endreinigung'
+          : e.faelligkeit == FaelligkeitsStatus.eroeffnungFaellig
+          ? 'eroeffnungsreinigung'
+          : null;
+      final betriebId = e.betriebId;
+      final zielDatum = e.zielDatum;
+      if (typ != null &&
+          betriebId != null &&
+          zielDatum != null &&
+          terminDecktVorschlagAb(
+            vorschlagBetriebId: betriebId,
+            vorschlagTyp: typ,
+            vorschlagDatum: zielDatum,
+            bestehendeTermine: bestehendeReinigungsTermine,
+          )) {
+        continue;
+      }
       eintraege.add(
         _Eintrag(
           datum: e.zielDatum,
@@ -207,6 +248,52 @@ class AufgabenScreen extends ConsumerWidget {
                   if (b != null) context.push('/betriebe/${b.routeId}');
                 }
               : null,
+          onBestaetigen: typ == null || betriebId == null || zielDatum == null
+              ? null
+              : () async {
+                  final label = typ == 'endreinigung'
+                      ? 'Endreinigung'
+                      : 'Eröffnungsreinigung';
+                  await TerminRepository.anlegen(
+                    betriebId: betriebId,
+                    typ: typ,
+                    datum: zielDatum,
+                    titel: '$label ${e.betriebName}'.trim(),
+                    anlass: typ == 'endreinigung'
+                        ? 'saisonende'
+                        : 'saisonstart',
+                  );
+                  ref.invalidate(offeneTermineProvider);
+                },
+        ),
+      );
+    }
+
+    // Bestätigte Eröffnungs-/Endreinigungs-Termine selbst (mit
+    // Kalender-Erinnerung) — erscheinen ab jetzt als Termin, nicht mehr als
+    // Vorschlag.
+    for (final t in offeneTermine) {
+      if (t.typ != 'eroeffnungsreinigung' && t.typ != 'endreinigung') continue;
+      final betrieb = lookup[t.betriebId];
+      final label = t.typ == 'endreinigung'
+          ? 'Endreinigung'
+          : 'Eröffnungsreinigung';
+      eintraege.add(
+        _Eintrag(
+          datum: t.datum,
+          icon: Icons.cleaning_services,
+          farbe: AppColors.success,
+          titel: t.titel.isNotEmpty
+              ? t.titel
+              : '$label ${betrieb?.name ?? '?'}',
+          untertitel: betrieb?.ort,
+          onTap: betrieb != null
+              ? () => context.push('/betriebe/${betrieb.routeId}')
+              : null,
+          onErledigt: () async {
+            await TerminRepository.erledigen(t.id);
+            ref.invalidate(offeneTermineProvider);
+          },
         ),
       );
     }
@@ -391,6 +478,15 @@ class _EintragKarte extends StatelessWidget {
                   iconSize: 20,
                   visualDensity: VisualDensity.compact,
                   onPressed: () => eintrag.onEinplanen!(),
+                ),
+              if (eintrag.onBestaetigen != null)
+                IconButton(
+                  icon: const Icon(Icons.event_available_outlined),
+                  color: AppColors.primary,
+                  tooltip: 'Termin bestätigen',
+                  iconSize: 20,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => eintrag.onBestaetigen!(),
                 ),
               if (eintrag.onErledigt != null)
                 IconButton(

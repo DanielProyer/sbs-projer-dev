@@ -6,16 +6,15 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/einsatz_betrieb_match.dart'
     show BetriebEintrag;
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
-import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/models/einsatz_diktat_ergebnis.dart';
 import 'package:sbs_projer_app/data/models/google_betrieb_daten.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
-import 'package:sbs_projer_app/data/repositories/eroeffnungsreinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
@@ -273,6 +272,13 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
       _art != 'eroeffnungsreinigung' && _art != 'endreinigung';
 
   Future<void> _einsatzSpeichern() async {
+    if ((_art == 'eroeffnungsreinigung' || _art == 'endreinigung') &&
+        _betriebId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte zuerst einen Betrieb wählen.')),
+      );
+      return;
+    }
     setState(() => _loading = true);
     try {
       final beschreibung = _beschreibungCtrl.text.trim();
@@ -314,12 +320,22 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
           break;
         case 'eroeffnungsreinigung':
         case 'endreinigung':
-          final er = EroeffnungsreinigungLocal()
-            ..serverId = const Uuid().v4()
-            ..betriebId = _betriebId
-            ..art = _art == 'endreinigung' ? 'endreinigung' : 'eroeffnung'
-            ..datum = _geplantTag ?? DateTime.now();
-          await EroeffnungsreinigungRepository.save(er);
+          // Diktat legt hier einen bestätigten TERMIN an (Etappe 4:
+          // "Berechnet bleibt berechnet, bestätigt wird gespeichert"), keine
+          // Störung/Montage — inkl. Kalender-Push mit 24h-Erinnerung
+          // (siehe TerminRepository.anlegen). Betrieb-Pflicht bereits vor
+          // dem try-Block geprüft (_betriebId != null hier garantiert).
+          final label = _art == 'endreinigung'
+              ? 'Endreinigung'
+              : 'Eröffnungsreinigung';
+          await TerminRepository.anlegen(
+            betriebId: _betriebId!,
+            typ: _art,
+            datum: _geplantTag ?? DateTime.now(),
+            titel: '$label ${_betriebName ?? ''}'.trim(),
+            notizen: beschreibung.isEmpty ? null : beschreibung,
+            anlass: _art == 'endreinigung' ? 'saisonende' : 'saisonstart',
+          );
           break;
         case 'aufgabe':
         default:

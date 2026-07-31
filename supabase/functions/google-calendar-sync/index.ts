@@ -187,6 +187,27 @@ function buildEvent(entityType: string, row: Any): Any | null {
       reminders: { useDefault: false, overrides: ALLDAY },
     };
   }
+  if (entityType === "termin") {
+    // Bestätigte Eröffnungs-/Endreinigung (Migration 037+086+130, App-Etappe
+    // 4: "Berechnet bleibt berechnet, bestätigt wird gespeichert"). Analog zu
+    // "einsatz": erledigt/abgesagt oder geloescht -> null, damit pushOne den
+    // Kalendereintrag automatisch entfernt.
+    if (row.status === "erledigt" || row.status === "abgesagt") return null;
+    const label = row.typ === "endreinigung"
+      ? "Endreinigung"
+      : row.typ === "eroeffnungsreinigung"
+      ? "Eröffnungsreinigung"
+      : (row.titel ?? "Termin");
+    return {
+      summary: `SBS · ${label}: ${row.betrieb_name ?? ""}`,
+      description: row.notizen ?? undefined,
+      start: { date: row.datum },
+      end: { date: addDay(row.datum) },
+      colorId: "9",
+      extendedProperties: ext,
+      reminders: { useDefault: false, overrides: ALLDAY },
+    };
+  }
   if (entityType === "einsatz") {
     // Nur solange der Einsatz noch offen UND eingeplant ist — sonst null,
     // damit pushOne/reconcile den Kalendereintrag automatisch entfernen
@@ -225,6 +246,14 @@ function buildEvent(entityType: string, row: Any): Any | null {
 }
 
 async function loadEntity(admin: Any, entityType: string, entityId: string): Promise<Any> {
+  if (entityType === "termin") {
+    const { data } = await admin.from("termine").select("*").eq("id", entityId).maybeSingle();
+    if (data && data.betrieb_id) {
+      const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).maybeSingle();
+      data.betrieb_name = b?.name ?? "";
+    }
+    return data;
+  }
   if (entityType === "einsatz") {
     // Zusammengesetzter Schluessel "stoerung:<id>" / "montage:<id>" — Stoerungen
     // und Montagen leben in getrennten Tabellen (wie betrieb_reinigung mit
@@ -330,6 +359,11 @@ async function reconcile(admin: Any, token: string, userId: string) {
     .eq("user_id", userId).not("geplant_am", "is", null).in("status", ["offen", "in_bearbeitung"]);
   const { data: montagen } = await admin.from("montagen").select("id")
     .eq("user_id", userId).not("geplant_am", "is", null).in("status", ["geplant", "in_bearbeitung"]);
+  // Bestätigte Termine (Eröffnungs-/Endreinigung, Etappe 4) — nur "geplant"
+  // zaehlt als "worthy", erledigt/abgesagt faellt durch buildEvent() ohnehin
+  // auf null (gleiche Logik wie bei Stoerungen/Montagen oben).
+  const { data: termine } = await admin.from("termine").select("id")
+    .eq("user_id", userId).eq("status", "geplant");
   for (const p of pikett ?? []) { worthy.add("pikett:" + p.id); await pushOne(admin, token, userId, "pikett", p.id); pushed++; }
   for (const e of events ?? []) { worthy.add("event:" + e.id); await pushOne(admin, token, userId, "event", e.id); pushed++; }
   for (const s of stoerungen ?? []) {
@@ -344,8 +378,13 @@ async function reconcile(admin: Any, token: string, userId: string) {
     await pushOne(admin, token, userId, "einsatz", eid);
     pushed++;
   }
+  for (const t of termine ?? []) {
+    worthy.add("termin:" + t.id);
+    await pushOne(admin, token, userId, "termin", t.id);
+    pushed++;
+  }
   const { data: mappings } = await admin.from("google_calendar_events").select("*")
-    .eq("user_id", userId).in("entity_type", ["pikett", "event", "einsatz"]);
+    .eq("user_id", userId).in("entity_type", ["pikett", "event", "einsatz", "termin"]);
   for (const m of mappings ?? []) {
     if (!worthy.has(m.entity_type + ":" + m.entity_id)) { await deleteMapping(admin, token, m); deleted++; }
   }
