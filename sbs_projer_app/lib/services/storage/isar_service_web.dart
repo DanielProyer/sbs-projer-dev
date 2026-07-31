@@ -96,6 +96,15 @@ class IsarService {
   static dynamic betriebKontaktDelete(int id) => throw UnsupportedError('Isar not available on web');
   static dynamic betriebKontaktFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
 
+  // ─── BetriebFerien ───
+  static dynamic betriebFerienFindAll() => throw UnsupportedError('Isar not available on web');
+  static dynamic betriebFerienFilterByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
+  static dynamic betriebFerienWatchByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
+  static dynamic betriebFerienGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic betriebFerienPut(dynamic f) => throw UnsupportedError('Isar not available on web');
+  static dynamic betriebFerienDelete(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic betriebFerienFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+
   // ─── BetriebRechnungsadresse ───
   static dynamic rechnungsadresseFindByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
   static dynamic rechnungsadresseWatchByBetrieb(String betriebId) => throw UnsupportedError('Isar not available on web');
