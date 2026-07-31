@@ -559,7 +559,25 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 - **Dauer-Vorgaben** (`einsatz_dauer.dart`, 11 Tests) statt pauschal 60 min: je Störungsbereich gestaffelt (Grundzeit 20 min + Aufschläge, gedeckelt bei 180), je Montage-Typ (Neumontage 120, Demontage 75, Anlass 240, Spesen/Aufwandsentschädigung 0 = kein Kundenbesuch). Bewusst feste Werte — es gibt **keine einzige** erfasste Arbeitszeit, aus der man Mediane bilden könnte; ersetzbar, sobald Ist-Zeiten vorliegen.
 - **Abrechnung unangetastet** (Vorgabe Daniel): `dauer_stunden` bei Montagen bleibt frei editierbar, weil dort bewusst auch Anfahrtsanteile für die Heineken-Abrechnung hineingerechnet werden. Die gemessene Zeit überschreibt sie **nie**, sondern erscheint höchstens als Hinweis mit «übernehmen»-Knopf. Als Kommentar im Code festgehalten.
 
-## 🟡 Etappe 2–4 (offen): Spracheingabe, Kalender, Eröffnungs-/Endreinigungen
+## 🟢 ERLEDIGT 31.07.: Etappe 3 — geplante Einsätze im Google-Kalender (v0.68.0 live)
+
+**Warum über Google:** Eine Web-App stellt bei geschlossenem Tab **nichts** zu. Der Kalender ist der einzige Kanal, der Daniel zuverlässig erreicht. Merksatz: **Die App plant, Google erinnert.**
+
+- Neuer Kalender-Typ `einsatz` für geplante Störungen und Montagen, `entity_id` als `stoerung:<id>` / `montage:<id>`, eigene Farbe (6).
+- **Mit Uhrzeit** → echter Termin (Europe/Zurich, Ende = Start + geplante Dauer, Vorgabe 60 min), Erinnerung **60 min UND 1440 min** vorher — 24 h allein ist bei einem festen Termin gleichzeitig zu früh und zu spät. **Ohne Uhrzeit** → Ganztages-Eintrag mit Erinnerung 24 h vorher.
+- **Rücknahme automatisch:** Sobald ein Einsatz erledigt oder das Plandatum entfernt ist, liefert der Ereignis-Bau `null` → Eintrag wird gelöscht. `reconcile` räumt beim stündlichen Abgleich auf.
+- Push sitzt in `einplanen()` der Repositories (deckt alle Aufrufer ab), fire-and-forget — ein fehlender Kalenderzugang blockiert das Einplanen nie.
+- **Migration 164:** `google_calendar_events.entity_type` erlaubte `einsatz` nicht. Ohne die Erweiterung wäre der Google-Termin angelegt, die Zuordnungszeile aber an der CHECK-Regel gescheitert — **bei jedem Abgleich neue Duplikate**. Vom Agenten gemeldet statt umgangen, vor dem Deploy behoben.
+
+## 🟡 Etappe 2 (teilweise): Spracheingabe — Verstehen steht, Oberfläche fehlt
+
+**Fertig:** `parse-einsatz` (Edge-Function, deployed) versteht diktierte Sätze — relative Daten («morgen», «nächsten Dienstag», «am 15. August» → nächstes Vorkommen, notfalls Folgejahr), Uhrzeiten («halb drei» → 14:30), Art, Dauer, Beschreibung; setzt `betrieb_id` nur bei Eindeutigkeit, sonst Kandidaten + Rückfrage; Haiku, temperature 0. Dazu die **Betriebs-Erkennung** `einsatz_betrieb_match.dart` (14 Tests) — läuft **ohne Netz**, nutzt Umlaut-Faltung, Tippfehler-Toleranz und filtert Gattungswörter («Störung im Hotel» kapert keinen Betrieb); bei Mehrdeutigkeit bewusst mehrere Kandidaten.
+
+**⚠️ NICHT verifiziert:** Der inhaltliche Test der Funktion steht aus — sie verlangt eine angemeldete Sitzung, und in `sbs_projer_app/.env` liegen keine Testzugangsdaten. Bestätigt ist nur: deployed, erreichbar, weist unangemeldete Aufrufe korrekt ab (401). **Erster echter Test = Daniels erstes Diktat.**
+
+**Offen:** die Oberfläche — Freitextfeld zum Diktieren, Bestätigungsformular mit den erkannten Werten, Ablage als Entwurf bei fehlendem Netz. **Zwei Fragen an Daniel:** (1) Eingabefeld als eigene Kachel auf dem Startbildschirm oder als Knopf im Aufgaben-Screen? (2) Soll ein erkannter Einsatz mit Datum gleich **eingeplant** werden, oder erst als offener Eintrag landen?
+
+## 🟡 Etappe 4 (offen): Eröffnungs-/Endreinigungen per Sprache + Erinnerungen
 
 **Spec:** `docs/superpowers/specs/2026-07-31-einsatzplanung-sprache-design.md` · **Plan Etappe 1:** `docs/superpowers/plans/2026-07-31-einsatzplanung-etappe1.md` (7 Tasks)
 
