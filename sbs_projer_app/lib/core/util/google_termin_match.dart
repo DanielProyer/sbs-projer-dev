@@ -123,6 +123,16 @@ bool _enthaelt(List<String> haystackTokens, String needle, int maxDist) {
 int _maxTippfehler(String s) => s.replaceAll(' ', '').length <= 6 ? 1 : 2;
 
 /// Unterscheidende Namens-Tokens (ohne Gattungswörter, Länge ≥ 3).
+///
+/// Auch von `einsatz_betrieb_match.dart` genutzt (Betriebs-Erkennung aus
+/// diktiertem Text) — dieselbe Frage, dasselbe Verfahren: Welcher Teil eines
+/// Namens taugt zur Unterscheidung? «Hotel» und «Gasthof» taugen nicht.
+List<String> unterscheidendeTokens(String name) => _distinctiveTokens(name);
+
+/// Editierdistanz zwischen zwei Zeichenketten. Öffentlich, damit die
+/// Betriebs-Erkennung aus Sprachtext dieselbe Toleranz nutzt.
+int editierDistanz(String a, String b) => _levenshtein(a, b);
+
 List<String> _distinctiveTokens(String name) {
   final norm = normalisiereText(name);
   if (norm.isEmpty) return const [];
