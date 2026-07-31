@@ -61,6 +61,14 @@ class BetriebLocal {
   DateTime? ferien5Start;
   DateTime? ferien5Ende;
   bool keineBetriebsferien = false;
+
+  /// Ferien-Perioden aus der Tabelle `betrieb_ferien` (nicht gespeichert,
+  /// wird vom Provider nach dem Laden gesetzt). Ersetzt schrittweise die
+  /// obigen fuenf festen Spaltenpaare — siehe core/util/betrieb_ferien.dart.
+  /// `null` = noch nicht geladen (dann greifen die alten Spalten),
+  /// leere Liste = geladen und dieser Betrieb hat keine Ferien.
+  @ignore
+  List<({DateTime von, DateTime bis})>? ferienPerioden;
   String? oeffnungszeitenJson;
   String? servicezeitMorgenAb;
   String? servicezeitMorgenBis;
