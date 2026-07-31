@@ -547,10 +547,30 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 </details>
 
-## 🔴 OFFEN (Wunsch Daniel 31.07.): Arbeitstag sauber erfassen — zwei Themen für später
+## 🟡 GEPLANT (31.07.): Einsatzplanung mit Spracheingabe — Spec + Plan fertig, wartet auf Entscheide
+
+**Spec:** `docs/superpowers/specs/2026-07-31-einsatzplanung-sprache-design.md` · **Plan Etappe 1:** `docs/superpowers/plans/2026-07-31-einsatzplanung-etappe1.md` (7 Tasks)
+
+**Warum die Planung heute nicht funktioniert (Zahlen):** 1'108 Störungen — **alle** «behoben»; 810 Montagen — **alle** «abgeschlossen»; 109 Störungen mit Startzeit, **0 mit Endzeit**; Montagen: **0** Startzeiten. Der Schalter «Erst geplant» wurde seit v0.60.0 **nie** benutzt. Vier Ursachen: (a) **kein Plandatum** — `datum` ist im Code als Meldedatum kommentiert, «gemeldet» und «geplant für» fallen zusammen; (b) offene Einsätze erscheinen an **jedem** Tag (`faelligeEintraegeProvider` filtert Störungen/Montagen bewusst nicht nach Datum); (c) die Uhrzeit lebt als `ankerZeit` nur am **Tagesplan-Eintrag** und geht verloren, wenn man den Block entfernt; (d) `uhrzeit_ende`/`dauer_minuten` existieren in beiden Modellen, werden aber von **keinem** Formular geschrieben.
+
+**Entwarnung:** `dauer_minuten` ist überall GENERATED (Ende − Start). Abgerechnet wird davon unabhängig — Montagen über `dauer_stunden`+`stundensatz`, Störungen über Pauschalen. **Eine gemessene Arbeitszeit ändert keine Rechnung.**
+
+**Lösung:** drei getrennte Zeitbegriffe — **gemeldet** (`gemeldet_am`), **geplant** (`geplant_am`/`geplant_zeit`/`geplant_dauer_min`), **gearbeitet** (`arbeit_von`/`arbeit_bis`). Fällig-Liste zeigt nur noch, was für den Tag geplant ist oder gar kein Plandatum hat; «Einplanen» schreibt an den Einsatz und in den Tagesplan, Anker-Änderungen schreiben zurück.
+
+**Spracheingabe — Entscheid aus der Recherche:** **Keine eigene Spracherkennung.** Web Speech API schickt Audio an Google-Server (offline nutzlos, dokumentierte Chromium-Fehler bei Dauer-Erkennung auf Android), Audio-Upload zu Whisper/Deepgram hat dasselbe Offline-Problem und kostet pro Minute. Stattdessen: **Gboard-Mikrofon in ein normales Textfeld** (Betriebssystem-Ebene, null Code, kostenlos, teils on-device) + Edge-Function `parse-einsatz` (Claude, Muster von `parse-beleg`) fürs **Verstehen**. Ohne Netz bleibt der Rohtext als Entwurf liegen und wird später ausgewertet.
+
+**Erinnerungen — die harte Grenze:** Eine Web-App stellt bei geschlossenem Tab **nichts** zu. `flutter_local_notifications` steht in pubspec, wird aber nirgends verwendet. Was Daniel erreicht, ist der **Google-Kalender** (E-Mail + Popup, 24 h vorher) — der Sync existiert bereits für Pikett, Events und Saison-Reinigungen. Also: **Die App plant, Google erinnert.**
+
+**Fund:** Die Tabelle `termine` existiert mit **219 Zeilen** (135 Endreinigungen, 84 Eröffnungsreinigungen, alle Status `vorgeschlagen`, zuletzt 11.07.2026, keine mit aktiver Erinnerung) — im Flutter-Code gibt es dazu **keinen einzigen Zugriff**. Verwaist aus einem früheren Anlauf, aber mit passendem Zuschnitt inkl. Erinnerungsfeldern → in Etappe 4 wiederbeleben.
+
+**Etappen:** 1 Fundament (behebt die Kritik allein) · 2 Spracheingabe · 3 Kalender+Erinnerungen · 4 Eröffnungs-/Endreinigungen.
+
+**Vier Entscheide von Daniel offen** (Abschnitt 8 der Spec): Reaktionszeit messen? · die 219 alten Termin-Vorschläge löschen? · Kalendereintrag für jeden geplanten Einsatz oder nur mit Uhrzeit? · Arbeitszeit per «Beginn»-Knopf oder hinterher eintippen?
+
+## 🔴 OFFEN (Wunsch Daniel 31.07.): Arbeitstag sauber erfassen — Zeiterfassung
 
 - **Zeiterfassung für Störungen und Montagen**, damit der ganze Arbeitstag lückenlos erfasst ist. Bekannte Hürde (Befund 30.07.): `dauer_minuten` ist bei beiden Tabellen eine GENERATED-Spalte aus `uhrzeit_ende − uhrzeit_start`, aber `uhrzeit_start` bei Störungen ist der **Störungseingang** (Anruf, 107 Altwerte) — trägt man dort ein Ende ein, misst man die Reaktionszeit statt der Arbeitszeit. Zwei Wege: eigene Felder «Arbeit von/bis» (Migration) ODER Umdeutung des Eingangsfelds mit separatem Meldezeitpunkt. **Entscheid Daniel steht aus.**
-- **Planung von Störungen/Montagen gefällt noch nicht** (O-Ton 31.07.). Seit v0.60.0 gibt es zwar den Schalter «Erst geplant» (Status `offen`/`geplant`), aber der Weg vom offenen Einsatz in den Tagesplan ist umständlich. Gemeinsam anschauen: Wie kommt eine Störung mit Wunschtermin in die Zeitachse, wie werden Termin-Anker und Wartezeiten sichtbar.
+- **Planung von Störungen/Montagen gefällt noch nicht** (O-Ton 31.07.) → **GEPLANT, Spec + Plan liegen vor**, siehe eigener Abschnitt unten.
 
 **Langfrist-Entscheid Daniel:** Eine **Version 2 der App wird eine reine Android-App** (kein Web mehr). Erst dort sind Dinge möglich, die der Browser prinzipiell verbietet — allen voran echte Fahrterkennung im Hintergrund (Android Activity Recognition, «IN_VEHICLE») und zuverlässiges GPS bei ausgeschaltetem Bildschirm. Bis dahin gilt: alles, was Hintergrund-Tracking bräuchte, wird ereignisbasiert nachgerechnet statt live gemessen.
 
