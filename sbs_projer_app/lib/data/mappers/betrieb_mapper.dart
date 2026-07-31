@@ -49,6 +49,8 @@ class BetriebMapper {
     local.ferien5Start = dto.ferien5Start;
     local.ferien5Ende = dto.ferien5Ende;
     local.keineBetriebsferien = dto.keineBetriebsferien;
+    local.ferienBestaetigtAm = dto.ferienBestaetigtAm;
+    local.ferienFrageRuhtBis = dto.ferienFrageRuhtBis;
     local.oeffnungszeitenJson = dto.oeffnungszeiten != null
         ? jsonEncode(dto.oeffnungszeiten)
         : null;
@@ -85,18 +87,32 @@ class BetriebMapper {
       'ist_bergkunde': local.istBergkunde,
       'ist_saisonbetrieb': local.istSaisonbetrieb,
       'winter_saison_aktiv': local.winterSaisonAktiv,
-      'winter_start_datum': local.winterStartDatum?.toIso8601String().split('T').first,
-      'winter_ende_datum': local.winterEndeDatum?.toIso8601String().split('T').first,
+      'winter_start_datum': local.winterStartDatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
+      'winter_ende_datum': local.winterEndeDatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'sommer_saison_aktiv': local.sommerSaisonAktiv,
-      'sommer_start_datum': local.sommerStartDatum?.toIso8601String().split('T').first,
-      'sommer_ende_datum': local.sommerEndeDatum?.toIso8601String().split('T').first,
+      'sommer_start_datum': local.sommerStartDatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
+      'sommer_ende_datum': local.sommerEndeDatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'ruhetage': local.ruhetage,
       'zapfsysteme': local.zapfsysteme,
       'zahler_aliase': local.zahlerAliase,
       'rechnungsstellung': local.rechnungsstellung,
       'schliessungsgrund': local.schliessungsgrund,
-      'schliessungsdatum':
-          local.schliessungsdatum?.toIso8601String().split('T').first,
+      'schliessungsdatum': local.schliessungsdatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'latitude': local.latitude,
       'longitude': local.longitude,
       'ferien_start': local.ferienStart?.toIso8601String().split('T').first,
@@ -110,6 +126,11 @@ class BetriebMapper {
       'ferien5_start': local.ferien5Start?.toIso8601String().split('T').first,
       'ferien5_ende': local.ferien5Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': local.keineBetriebsferien,
+      'ferien_bestaetigt_am': local.ferienBestaetigtAm?.toIso8601String(),
+      'ferien_frage_ruht_bis': local.ferienFrageRuhtBis
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'oeffnungszeiten': local.oeffnungszeitenJson != null
           ? jsonDecode(local.oeffnungszeitenJson!)
           : {},

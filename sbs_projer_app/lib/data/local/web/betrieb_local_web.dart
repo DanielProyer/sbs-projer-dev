@@ -53,6 +53,20 @@ class BetriebLocal {
   DateTime? ferien5Ende;
   bool keineBetriebsferien = false;
 
+  /// Wann zuletzt jemand die Ferienfrage beim Reinigungs-Abschluss
+  /// beantwortet hat (`betriebe.ferien_bestaetigt_am`). Steuert zusammen mit
+  /// [ferienFrageRuhtBis], ob `ferienFrageZeigen()` erneut fragt.
+  DateTime? ferienBestaetigtAm;
+
+  /// Antwort "weiss nicht" im Abschluss-Dialog: bis dahin ruht die Frage
+  /// (`betriebe.ferien_frage_ruht_bis`), unabhaengig von [ferienBestaetigtAm].
+  DateTime? ferienFrageRuhtBis;
+
+  /// Trennt "kein Ruhetag bekannt" (null) von "geprueft, hat keinen
+  /// Ruhetag" (`betriebe.ruhetage_bestaetigt_am`) — ein leeres
+  /// `ruhetage`-Array allein ist mehrdeutig.
+  DateTime? ruhetageBestaetigtAm;
+
   /// Ferien-Perioden aus der Tabelle `betrieb_ferien` (nicht gespeichert,
   /// wird vom Provider nach dem Laden gesetzt). Ersetzt schrittweise die
   /// obigen fuenf festen Spaltenpaare — siehe core/util/betrieb_ferien.dart.

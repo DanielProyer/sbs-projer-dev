@@ -43,6 +43,13 @@ class Betrieb {
   final DateTime? ferien5Start;
   final DateTime? ferien5Ende;
   final bool keineBetriebsferien;
+  final DateTime? ferienBestaetigtAm;
+  final DateTime? ferienFrageRuhtBis;
+
+  /// Trennt «kein Ruhetag bekannt» (null) von «geprüft, hat keinen
+  /// Ruhetag» — ein leeres `ruhetage`-Array allein ist mehrdeutig
+  /// (Spec 2026-07-31, Migration 160).
+  final DateTime? ruhetageBestaetigtAm;
   final Map<String, dynamic>? oeffnungszeiten;
   final String? servicezeitMorgenAb;
   final String? servicezeitMorgenBis;
@@ -97,6 +104,9 @@ class Betrieb {
     this.ferien5Start,
     this.ferien5Ende,
     this.keineBetriebsferien = false,
+    this.ferienBestaetigtAm,
+    this.ferienFrageRuhtBis,
+    this.ruhetageBestaetigtAm,
     this.oeffnungszeiten,
     this.servicezeitMorgenAb,
     this.servicezeitMorgenBis,
@@ -129,11 +139,19 @@ class Betrieb {
       istBergkunde: json['ist_bergkunde'] ?? false,
       istSaisonbetrieb: json['ist_saisonbetrieb'] ?? false,
       winterSaisonAktiv: json['winter_saison_aktiv'] ?? false,
-      winterStartDatum: json['winter_start_datum'] != null ? DateTime.parse(json['winter_start_datum']) : null,
-      winterEndeDatum: json['winter_ende_datum'] != null ? DateTime.parse(json['winter_ende_datum']) : null,
+      winterStartDatum: json['winter_start_datum'] != null
+          ? DateTime.parse(json['winter_start_datum'])
+          : null,
+      winterEndeDatum: json['winter_ende_datum'] != null
+          ? DateTime.parse(json['winter_ende_datum'])
+          : null,
       sommerSaisonAktiv: json['sommer_saison_aktiv'] ?? false,
-      sommerStartDatum: json['sommer_start_datum'] != null ? DateTime.parse(json['sommer_start_datum']) : null,
-      sommerEndeDatum: json['sommer_ende_datum'] != null ? DateTime.parse(json['sommer_ende_datum']) : null,
+      sommerStartDatum: json['sommer_start_datum'] != null
+          ? DateTime.parse(json['sommer_start_datum'])
+          : null,
+      sommerEndeDatum: json['sommer_ende_datum'] != null
+          ? DateTime.parse(json['sommer_ende_datum'])
+          : null,
       ruhetage: json['ruhetage'] != null
           ? List<String>.from(json['ruhetage'])
           : [],
@@ -148,19 +166,52 @@ class Betrieb {
       schliessungsdatum: json['schliessungsdatum'] != null
           ? DateTime.parse(json['schliessungsdatum'])
           : null,
-      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
-      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
-      ferienStart: json['ferien_start'] != null ? DateTime.parse(json['ferien_start']) : null,
-      ferienEnde: json['ferien_ende'] != null ? DateTime.parse(json['ferien_ende']) : null,
-      ferien2Start: json['ferien2_start'] != null ? DateTime.parse(json['ferien2_start']) : null,
-      ferien2Ende: json['ferien2_ende'] != null ? DateTime.parse(json['ferien2_ende']) : null,
-      ferien3Start: json['ferien3_start'] != null ? DateTime.parse(json['ferien3_start']) : null,
-      ferien3Ende: json['ferien3_ende'] != null ? DateTime.parse(json['ferien3_ende']) : null,
-      ferien4Start: json['ferien4_start'] != null ? DateTime.parse(json['ferien4_start']) : null,
-      ferien4Ende: json['ferien4_ende'] != null ? DateTime.parse(json['ferien4_ende']) : null,
-      ferien5Start: json['ferien5_start'] != null ? DateTime.parse(json['ferien5_start']) : null,
-      ferien5Ende: json['ferien5_ende'] != null ? DateTime.parse(json['ferien5_ende']) : null,
+      latitude: json['latitude'] != null
+          ? double.tryParse(json['latitude'].toString())
+          : null,
+      longitude: json['longitude'] != null
+          ? double.tryParse(json['longitude'].toString())
+          : null,
+      ferienStart: json['ferien_start'] != null
+          ? DateTime.parse(json['ferien_start'])
+          : null,
+      ferienEnde: json['ferien_ende'] != null
+          ? DateTime.parse(json['ferien_ende'])
+          : null,
+      ferien2Start: json['ferien2_start'] != null
+          ? DateTime.parse(json['ferien2_start'])
+          : null,
+      ferien2Ende: json['ferien2_ende'] != null
+          ? DateTime.parse(json['ferien2_ende'])
+          : null,
+      ferien3Start: json['ferien3_start'] != null
+          ? DateTime.parse(json['ferien3_start'])
+          : null,
+      ferien3Ende: json['ferien3_ende'] != null
+          ? DateTime.parse(json['ferien3_ende'])
+          : null,
+      ferien4Start: json['ferien4_start'] != null
+          ? DateTime.parse(json['ferien4_start'])
+          : null,
+      ferien4Ende: json['ferien4_ende'] != null
+          ? DateTime.parse(json['ferien4_ende'])
+          : null,
+      ferien5Start: json['ferien5_start'] != null
+          ? DateTime.parse(json['ferien5_start'])
+          : null,
+      ferien5Ende: json['ferien5_ende'] != null
+          ? DateTime.parse(json['ferien5_ende'])
+          : null,
       keineBetriebsferien: json['keine_betriebsferien'] ?? false,
+      ferienBestaetigtAm: json['ferien_bestaetigt_am'] != null
+          ? DateTime.parse(json['ferien_bestaetigt_am'])
+          : null,
+      ferienFrageRuhtBis: json['ferien_frage_ruht_bis'] != null
+          ? DateTime.parse(json['ferien_frage_ruht_bis'])
+          : null,
+      ruhetageBestaetigtAm: json['ruhetage_bestaetigt_am'] != null
+          ? DateTime.parse(json['ruhetage_bestaetigt_am'])
+          : null,
       oeffnungszeiten: json['oeffnungszeiten'] is Map
           ? Map<String, dynamic>.from(json['oeffnungszeiten'])
           : null,
@@ -169,8 +220,12 @@ class Betrieb {
       servicezeitNachmittagAb: json['servicezeit_nachmittag_ab'],
       servicezeitNachmittagBis: json['servicezeit_nachmittag_bis'],
       notizen: json['notizen'],
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
     );
   }
 
@@ -196,17 +251,26 @@ class Betrieb {
       'ist_bergkunde': istBergkunde,
       'ist_saisonbetrieb': istSaisonbetrieb,
       'winter_saison_aktiv': winterSaisonAktiv,
-      'winter_start_datum': winterStartDatum?.toIso8601String().split('T').first,
+      'winter_start_datum': winterStartDatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'winter_ende_datum': winterEndeDatum?.toIso8601String().split('T').first,
       'sommer_saison_aktiv': sommerSaisonAktiv,
-      'sommer_start_datum': sommerStartDatum?.toIso8601String().split('T').first,
+      'sommer_start_datum': sommerStartDatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'sommer_ende_datum': sommerEndeDatum?.toIso8601String().split('T').first,
       'ruhetage': ruhetage,
       'zapfsysteme': zapfsysteme,
       'zahler_aliase': zahlerAliase,
       'rechnungsstellung': rechnungsstellung,
       'schliessungsgrund': schliessungsgrund,
-      'schliessungsdatum': schliessungsdatum?.toIso8601String().split('T').first,
+      'schliessungsdatum': schliessungsdatum
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'latitude': latitude,
       'longitude': longitude,
       'ferien_start': ferienStart?.toIso8601String().split('T').first,
@@ -220,6 +284,12 @@ class Betrieb {
       'ferien5_start': ferien5Start?.toIso8601String().split('T').first,
       'ferien5_ende': ferien5Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': keineBetriebsferien,
+      'ferien_bestaetigt_am': ferienBestaetigtAm?.toIso8601String(),
+      'ferien_frage_ruht_bis': ferienFrageRuhtBis
+          ?.toIso8601String()
+          .split('T')
+          .first,
+      'ruhetage_bestaetigt_am': ruhetageBestaetigtAm?.toIso8601String(),
       'oeffnungszeiten': oeffnungszeiten ?? {},
       'servicezeit_morgen_ab': servicezeitMorgenAb,
       'servicezeit_morgen_bis': servicezeitMorgenBis,
@@ -230,7 +300,12 @@ class Betrieb {
   }
 
   String get vollstaendigeAdresse {
-    final parts = [strasse, nr, plz, ort].where((p) => p != null && p.isNotEmpty);
+    final parts = [
+      strasse,
+      nr,
+      plz,
+      ort,
+    ].where((p) => p != null && p.isNotEmpty);
     return parts.join(', ');
   }
 }
