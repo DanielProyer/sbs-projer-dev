@@ -493,6 +493,31 @@ Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet di
 
 ---
 
+## 🔴 OFFEN (Planung 31.07.): Betriebsferien & geänderte Öffnungszeiten aktuell halten
+
+**Anlass Daniel:** «Heute ist es mir wieder passiert, dass ich einen Kunden hatte, der plötzlich Betriebsferien hatte und den ich nicht machen konnte.»
+
+**Befund Datenlage (31.07., 294 aktive Betriebe):**
+| | |
+|---|---|
+| mit mindestens einer Ferienperiode | **36** |
+| ausdrücklich «keine Betriebsferien» | 14 |
+| **ohne jede Aussage zu Ferien** | **244 (83 %)** |
+| erfasste Perioden gesamt | 40 (39 davon mit Start 2026) |
+| brauchbare Öffnungszeiten (jsonb mit Inhalt) | 209 |
+| Ruhetage erfasst | 214 · Servicezeiten: 102 |
+| Telefon / E-Mail vorhanden | 278 / 198 |
+
+Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund («Betriebsferien bis …», Ruhetag, Zwischensaison), der Fälligkeits-Anker rechnet ab Wiedereröffnung. Es fehlen schlicht die Daten — und es gibt keinen Ort, an dem eine vergebliche Fahrt festgehalten wird, also lernt das System aus dem Schaden nichts.
+
+**Zwei technische Randbedingungen:**
+- `betriebe` hat **keine** `google_place_id`; die Edge-Function `betrieb-google-lookup` holt nur `regularOpeningHours` — weder `businessStatus` (vorübergehend geschlossen) noch `currentOpeningHours` (enthält Sonderzeiten der nächsten 7 Tage).
+- `updated_at` taugt nicht als Pflegesignal (alle 294 Betriebe wurden in den letzten 90 Tagen durch Massen-Updates berührt) — es braucht ein eigenes Feld «Ferien bestätigt am».
+
+**Entscheid Daniel 31.07.:** Gebaut werden **A** («War geschlossen»-Knopf, aber **keine** automatische Neuplanung — Daniel plant selbst), **B** (Ferienfrage beim Reinigungs-Abschluss — bevorzugt gegenüber einem Vortages-Check), **D** (Vorjahres-Hinweis) und **F** (Website-Auswertung um Ferien erweitern) — dazu ein **regelmässiger Abgleich über Google und Website**. Kein Vortages-Check-Screen. Fremdquellen nur für **Ruhetage und Öffnungszeiten**, keine Servicezeiten.
+
+**Spec:** `docs/superpowers/specs/2026-07-31-betriebsdaten-aktuell-halten-design.md` (31.07., wartet auf Abnahme). Kern: eigene Tabelle `betrieb_ferien` statt fünf fester Spaltenpaare (sonst verdrängen neue Ferien die Historie, aus der der Vorjahres-Hinweis stammt), Vorschlagstabelle statt stiller Übernahme, täglicher `pg_cron`-Lauf über je 10 Betriebe (`pg_cron` ist noch nicht aktiviert).
+
 ## 🔴 OFFEN: Nächste Schritte
 - **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.
 - **Kontakte-Übertragung Daniel (geplant 30.07.):** Alle Telefon-Kontakte in die App erfassen → syncen → in Google kontrollieren → erst DANN die alten Handy-Kontakte löschen (Reihenfolge wichtig; Sync löscht nur eigene «SBS App»-Karten, manuelle bleiben).
