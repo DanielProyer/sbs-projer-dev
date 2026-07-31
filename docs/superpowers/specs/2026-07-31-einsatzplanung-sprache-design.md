@@ -176,9 +176,22 @@ Jede Etappe ist für sich nutzbar und wird einzeln ausgeliefert.
 
 ---
 
-## 8. Offene Punkte für Daniel
+## 8. Entscheide Daniel (31.07.)
 
-1. **Reaktionszeit messen?** Mit `gemeldet_am` liesse sich auswerten, wie schnell eine Störung erledigt wird. Willst du das (dann bei jeder Störung Meldezeitpunkt erfassen), oder reicht dir der Arbeitszeitpunkt?
-2. **Die 219 alten Termin-Vorschläge löschen?** Sie stammen vom 11.07., sind unbenutzt und werden von der Berechnung ohnehin neu erzeugt. Löschen mit Rollback-Skript — oder lieber stehen lassen?
-3. **Kalendereintrag für jeden geplanten Einsatz** — oder nur für solche mit fester Uhrzeit? Bei jedem entstehen viele Ganztages-Einträge, die den Kalender füllen.
-4. **Wie erfasst du die Arbeitszeit am liebsten?** Zwei Möglichkeiten: (a) «Beginn»-Knopf beim Ankommen und automatisches Ende beim Speichern, oder (b) beide Zeiten hinterher eintippen, vorbelegt aus der Planung. Variante (a) ist genauer, (b) stört den Arbeitsfluss nicht.
+**1. Der Lebenslauf eines Einsatzes** — bestätigt und präzisiert:
+
+| Schritt | Was passiert | Felder |
+|---|---|---|
+| **Anruf kommt** | Störung wird sofort erfasst | `gemeldet_am` = jetzt (änderbar) |
+| **Einplanen** | entweder **fixer Termin** (Tag + Uhrzeit) oder **ganztägig** (nur Tag) | `geplant_am` + optional `geplant_zeit` |
+| **Durchführung** | Start- und Endzeit werden gemessen | `arbeit_von`, `arbeit_bis` |
+
+Für Montagen gilt dasselbe, nur ohne den Anruf-Schritt.
+
+**Wichtige Folge für `datum`:** Beim Abschliessen wird `datum` auf den Tag gesetzt, an dem tatsächlich gearbeitet wurde. Damit bleibt die Abrechnung (`abrechnungs_monat`) korrekt, während `gemeldet_am` den Anruf festhält. Ohne diese Regel würde eine im Juli gemeldete, im August erledigte Störung im falschen Monat abgerechnet.
+
+**2. Die 219 alten Termin-Vorschläge werden gelöscht** — mit Sicherung, geprüfte Bedingung «keine Daten verlieren» ist erfüllt: keine Notizen (0 von 219), keine Uhrzeiten, kein abweichender Status, keine aktive Erinnerung. Titel und Anlass sind bei allen 219 gesetzt, also systematisch erzeugt. Alles ist aus Betrieb und Saisondaten neu berechenbar. Vollständige Kopie nach `import.termine_vor_loeschung_2026_07_31`.
+
+**3. Kalendereintrag für beide Formen:** mit Uhrzeit als Termin, ohne Uhrzeit als **Ganztages-Eintrag**. Beide mit Erinnerung.
+
+**4. Arbeitszeit per «Beginn»-Knopf, mit GPS.** Beim Antippen werden Zeit **und Standort** erfasst — damit fliesst der Einsatz in dieselbe Wegpunkt-Kette wie Reinigungen und schärft die Fahrzeit-Lernkurve. Nachtragen von Hand bleibt möglich, falls der Knopf vergessen wurde (analog zur Pausen-Erkennung).
