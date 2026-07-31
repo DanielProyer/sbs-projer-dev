@@ -3,12 +3,30 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Stösst den serverseitigen Push App -> Google Kalender an.
 class GoogleCalendarSyncService {
-  /// Ein Eintrag sofort synchronisieren. Fehler brechen NIE den Aufrufer.
+  /// Entity-Id für den Kalender-Push eines geplanten Einsatzes (Störung/
+  /// Montage). Muss exakt zum serverseitigen Schema in
+  /// `google-calendar-sync/index.ts` (`loadEntity`) passen: Störungen und
+  /// Montagen liegen in getrennten Tabellen, daher der zusammengesetzte
+  /// Schlüssel `stoerung:<id>` / `montage:<id>` — analog zu
+  /// `betrieb_reinigung`, das dieselbe Technik für `<betriebId>:<slotKey>`
+  /// nutzt.
+  static String einsatzEntityId({
+    required bool istStoerung,
+    required String id,
+  }) => '${istStoerung ? 'stoerung' : 'montage'}:$id';
+
+  /// Ein Eintrag sofort synchronisieren ('pikett', 'event',
+  /// 'betrieb_reinigung' oder 'einsatz' — für 'einsatz' [entityId] via
+  /// [einsatzEntityId] bilden). Fehler brechen NIE den Aufrufer.
   static Future<void> push(String entityType, String entityId) async {
     try {
       await SupabaseService.client.functions.invoke(
         'google-calendar-sync',
-        body: {'action': 'push', 'entity_type': entityType, 'entity_id': entityId},
+        body: {
+          'action': 'push',
+          'entity_type': entityType,
+          'entity_id': entityId,
+        },
       );
     } catch (e) {
       debugPrint('[GCalSync] push $entityType/$entityId: $e');
@@ -17,8 +35,10 @@ class GoogleCalendarSyncService {
 
   /// Vollabgleich (alle Einträge + Waisen löschen). Wirft bei Fehler.
   static Future<Map<String, dynamic>> reconcile() async {
-    final res = await SupabaseService.client.functions
-        .invoke('google-calendar-sync', body: {'action': 'reconcile'});
+    final res = await SupabaseService.client.functions.invoke(
+      'google-calendar-sync',
+      body: {'action': 'reconcile'},
+    );
     final d = res.data;
     return d is Map ? Map<String, dynamic>.from(d) : {};
   }

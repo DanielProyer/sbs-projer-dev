@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/models/stoerung.dart';
 import 'package:sbs_projer_app/data/mappers/stoerung_mapper.dart';
+import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -160,6 +161,13 @@ class StoerungRepository {
             'geplant_dauer_min': dauerMin,
           })
           .eq('id', id);
+      // Google-Kalender-Push: Die App plant, Google erinnert (Web-App —
+      // ohne offenen Tab kommt sonst nichts an). Fire-and-forget, `push`
+      // faengt Fehler bereits intern ab (GoogleCalendarSyncService.push).
+      await GoogleCalendarSyncService.push(
+        'einsatz',
+        GoogleCalendarSyncService.einsatzEntityId(istStoerung: true, id: id),
+      );
       return;
     }
     final local = await IsarService.stoerungGet(int.parse(id));

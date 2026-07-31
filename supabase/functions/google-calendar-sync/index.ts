@@ -1,5 +1,12 @@
 // Supabase Edge Function: google-calendar-sync
-// Push (ein Eintrag) / Reconcile (Pikett+Events) / sync_reinigungen (Betriebs-Reinigungen)
+// Push (ein Eintrag) / Reconcile (Pikett+Events+Einsaetze) / sync_reinigungen (Betriebs-Reinigungen)
+//
+// entity_type "einsatz" = geplante Stoerung ODER Montage, entity_id
+// zusammengesetzt als "stoerung:<id>" / "montage:<id>" (siehe loadEntity).
+// ACHTUNG: google_calendar_events.entity_type traegt eine DB-CHECK-
+// Constraint (Migration 133) mit fester Werteliste — 'einsatz' muss dort
+// per Migration ergaenzt werden, sonst schlaegt der Insert/Upsert mit einer
+// Constraint-Verletzung fehl.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CORS = {
@@ -13,6 +20,13 @@ const CAL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 type Any = any;
 const ALLDAY = [
   { method: "email", minutes: 1440 },
+  { method: "popup", minutes: 1440 },
+];
+// Einsatz mit fixer Uhrzeit: 24h vorher ist zu frueh UND zu spaet (man hat
+// den Tag laengst verplant) — zusaetzlich 1h vorher als eigentliche
+// Los-geht's-Erinnerung (Daniel 31.07.2026).
+const EINSATZ_TIMED = [
+  { method: "popup", minutes: 60 },
   { method: "popup", minutes: 1440 },
 ];
 
@@ -119,6 +133,23 @@ function addDay(dateStr: string): string {
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().substring(0, 10);
 }
+// Baut einen zonenlosen "YYYY-MM-DDTHH:mm:ss" fuer Google — die Wanduhrzeit
+// wird zusammen mit timeZone:"Europe/Zurich" verschickt (kein UTC-Offset
+// noetig, siehe Calendar-API-Doku zu start.timeZone). `zeit` kommt von
+// Postgres `time` als "HH:mm:ss" oder aus der App als "HH:mm".
+function zonedDateTime(dateStr: string, zeit: string): string {
+  const hhmm = zeit.length >= 5 ? zeit.substring(0, 5) : zeit;
+  return `${dateStr}T${hhmm}:00`;
+}
+// Minuten addieren, ohne echte Zeitzonen-Arithmetik: der Anker wird als "Z"
+// geparst, nur um mit Date-Millisekunden rechnen zu koennen — das Ergebnis
+// wird wieder ohne Offset zurueckgegeben. Eine Dauer in Minuten ist
+// zonenunabhaengig, das ist hier bewusst kein DST-Handling.
+function addMinutesZoneless(iso: string, minutes: number): string {
+  const d = new Date(iso + "Z");
+  d.setUTCMinutes(d.getUTCMinutes() + minutes);
+  return d.toISOString().substring(0, 19);
+}
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -156,10 +187,63 @@ function buildEvent(entityType: string, row: Any): Any | null {
       reminders: { useDefault: false, overrides: ALLDAY },
     };
   }
+  if (entityType === "einsatz") {
+    // Nur solange der Einsatz noch offen UND eingeplant ist — sonst null,
+    // damit pushOne/reconcile den Kalendereintrag automatisch entfernen
+    // (erledigt, umgeplant auf "kein Datum" oder Status wieder zurueck).
+    const offen = row.einsatz_art === "stoerung"
+      ? (row.status === "offen" || row.status === "in_bearbeitung")
+      : (row.status === "geplant" || row.status === "in_bearbeitung");
+    if (!row.geplant_am || !offen) return null;
+    const label = row.einsatz_art === "stoerung" ? "Störung" : "Montage";
+    const beschreibung = row.einsatz_art === "stoerung"
+      ? row.problem_beschreibung
+      : row.beschreibung;
+    const ev: Any = {
+      summary: `SBS · ${label}: ${row.betrieb_name ?? ""}`,
+      description: beschreibung ?? undefined,
+      colorId: "6",
+      extendedProperties: ext,
+    };
+    if (row.geplant_zeit) {
+      const dauer = row.geplant_dauer_min ?? 60;
+      const start = zonedDateTime(row.geplant_am, row.geplant_zeit);
+      ev.start = { dateTime: start, timeZone: "Europe/Zurich" };
+      ev.end = {
+        dateTime: addMinutesZoneless(start, dauer),
+        timeZone: "Europe/Zurich",
+      };
+      ev.reminders = { useDefault: false, overrides: EINSATZ_TIMED };
+    } else {
+      ev.start = { date: row.geplant_am };
+      ev.end = { date: addDay(row.geplant_am) };
+      ev.reminders = { useDefault: false, overrides: ALLDAY };
+    }
+    return ev;
+  }
   return null;
 }
 
 async function loadEntity(admin: Any, entityType: string, entityId: string): Promise<Any> {
+  if (entityType === "einsatz") {
+    // Zusammengesetzter Schluessel "stoerung:<id>" / "montage:<id>" — Stoerungen
+    // und Montagen leben in getrennten Tabellen (wie betrieb_reinigung mit
+    // "<betriebId>:<slotKey>").
+    const sep = entityId.indexOf(":");
+    if (sep < 0) return null;
+    const art = entityId.substring(0, sep);
+    const rawId = entityId.substring(sep + 1);
+    const table = art === "stoerung" ? "stoerungen" : art === "montage" ? "montagen" : null;
+    if (!table) return null;
+    const { data } = await admin.from(table).select("*").eq("id", rawId).maybeSingle();
+    if (!data) return null;
+    data.einsatz_art = art;
+    if (data.betrieb_id) {
+      const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).maybeSingle();
+      data.betrieb_name = b?.name ?? "";
+    }
+    return data;
+  }
   const table = entityType === "pikett" ? "pikett_dienste" : entityType === "event" ? "events" : null;
   if (!table) return null;
   const { data } = await admin.from(table).select("*").eq("id", entityId).maybeSingle();
@@ -238,10 +322,30 @@ async function reconcile(admin: Any, token: string, userId: string) {
   const worthy = new Set<string>();
   const { data: pikett } = await admin.from("pikett_dienste").select("id").eq("user_id", userId);
   const { data: events } = await admin.from("events").select("id").eq("user_id", userId);
+  // Nur offene, eingeplante Stoerungen/Montagen zaehlen als "worthy" — der
+  // Rest (erledigt, kein Plandatum) faellt durch buildEvent() ohnehin auf
+  // null und wuerde sonst sofort wieder als Waise geloescht; die Filterung
+  // hier erspart den unnoetigen pushOne-Roundtrip.
+  const { data: stoerungen } = await admin.from("stoerungen").select("id")
+    .eq("user_id", userId).not("geplant_am", "is", null).in("status", ["offen", "in_bearbeitung"]);
+  const { data: montagen } = await admin.from("montagen").select("id")
+    .eq("user_id", userId).not("geplant_am", "is", null).in("status", ["geplant", "in_bearbeitung"]);
   for (const p of pikett ?? []) { worthy.add("pikett:" + p.id); await pushOne(admin, token, userId, "pikett", p.id); pushed++; }
   for (const e of events ?? []) { worthy.add("event:" + e.id); await pushOne(admin, token, userId, "event", e.id); pushed++; }
+  for (const s of stoerungen ?? []) {
+    const eid = "stoerung:" + s.id;
+    worthy.add("einsatz:" + eid);
+    await pushOne(admin, token, userId, "einsatz", eid);
+    pushed++;
+  }
+  for (const m of montagen ?? []) {
+    const eid = "montage:" + m.id;
+    worthy.add("einsatz:" + eid);
+    await pushOne(admin, token, userId, "einsatz", eid);
+    pushed++;
+  }
   const { data: mappings } = await admin.from("google_calendar_events").select("*")
-    .eq("user_id", userId).in("entity_type", ["pikett", "event"]);
+    .eq("user_id", userId).in("entity_type", ["pikett", "event", "einsatz"]);
   for (const m of mappings ?? []) {
     if (!worthy.has(m.entity_type + ":" + m.entity_id)) { await deleteMapping(admin, token, m); deleted++; }
   }
