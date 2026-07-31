@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
+import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 
@@ -72,6 +73,17 @@ class HomeScreen extends StatelessWidget {
           const _WeitereSection(),
         ],
       ),
+      // Diktieren als frei schwebender Knopf statt fester Leiste: Daniel
+      // braucht ihn vor allem im Auto (einhändig, sofort da) — ein FAB
+      // liegt IMMER über dem Inhalt, ohne den gerade knapp ans Pixel-9-
+      // Display angepassten Startbildschirm (kein Scrollen mehr nötig,
+      // 31.07.2026) durch zusätzliche Leisten wieder zu sprengen.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => zeigeDiktatSheet(context),
+        icon: const Icon(Icons.mic),
+        label: const Text('Diktieren'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }
