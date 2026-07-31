@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/local/montage_local.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local.dart';
+import 'package:sbs_projer_app/data/local/betrieb_ferien_local.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local.dart';
 import 'package:sbs_projer_app/data/local/bierleitung_local.dart';
 import 'package:sbs_projer_app/data/local/lager_local.dart';
@@ -29,7 +30,9 @@ class IsarService {
 
   static Isar get instance {
     if (_instance == null) {
-      throw StateError('Isar not initialized. Call IsarService.initialize() first.');
+      throw StateError(
+        'Isar not initialized. Call IsarService.initialize() first.',
+      );
     }
     return _instance!;
   }
@@ -38,34 +41,32 @@ class IsarService {
     if (_instance != null) return;
 
     final dir = await getApplicationDocumentsDirectory();
-    _instance = await Isar.open(
-      [
-        BetriebLocalSchema,
-        AnlageLocalSchema,
-        RegionLocalSchema,
-        ReinigungLocalSchema,
-        StoerungLocalSchema,
-        MontageLocalSchema,
-        EigenauftragLocalSchema,
-        PikettDienstLocalSchema,
-        BetriebKontaktLocalSchema,
-        KontaktLocalSchema,
-        BetriebRechnungsadresseLocalSchema,
-        BierleitungLocalSchema,
-        LagerLocalSchema,
-        PreisLocalSchema,
-        EroeffnungsreinigungLocalSchema,
-        EventLocalSchema,
-        EventKontaktLocalSchema,
-        EventDokumentLocalSchema,
-        EventEinsatzLocalSchema,
-        EventAufwandLocalSchema,
-        EventStandLocalSchema,
-        EventStandAnlageLocalSchema,
-        SyncMetaLocalSchema,
-      ],
-      directory: dir.path,
-    );
+    _instance = await Isar.open([
+      BetriebLocalSchema,
+      AnlageLocalSchema,
+      RegionLocalSchema,
+      ReinigungLocalSchema,
+      StoerungLocalSchema,
+      MontageLocalSchema,
+      EigenauftragLocalSchema,
+      PikettDienstLocalSchema,
+      BetriebKontaktLocalSchema,
+      BetriebFerienLocalSchema,
+      KontaktLocalSchema,
+      BetriebRechnungsadresseLocalSchema,
+      BierleitungLocalSchema,
+      LagerLocalSchema,
+      PreisLocalSchema,
+      EroeffnungsreinigungLocalSchema,
+      EventLocalSchema,
+      EventKontaktLocalSchema,
+      EventDokumentLocalSchema,
+      EventEinsatzLocalSchema,
+      EventAufwandLocalSchema,
+      EventStandLocalSchema,
+      EventStandAnlageLocalSchema,
+      SyncMetaLocalSchema,
+    ], directory: dir.path);
   }
 
   static Future<T> writeTxn<T>(Future<T> Function() callback) =>
@@ -86,8 +87,7 @@ class IsarService {
       instance.betriebLocals.where().findAll();
   static Stream<List<BetriebLocal>> betriebWatchAll() =>
       instance.betriebLocals.where().watch(fireImmediately: true);
-  static Future<int> betriebCount() =>
-      instance.betriebLocals.count();
+  static Future<int> betriebCount() => instance.betriebLocals.count();
   static Future<BetriebLocal?> betriebGet(int id) =>
       instance.betriebLocals.get(id);
   static Future<void> betriebPut(BetriebLocal b) =>
@@ -106,8 +106,7 @@ class IsarService {
       instance.anlageLocals.where().findAll();
   static Stream<List<AnlageLocal>> anlageWatchAll() =>
       instance.anlageLocals.where().watch(fireImmediately: true);
-  static Future<int> anlageCount() =>
-      instance.anlageLocals.count();
+  static Future<int> anlageCount() => instance.anlageLocals.count();
   static Future<AnlageLocal?> anlageGet(int id) =>
       instance.anlageLocals.get(id);
   static Future<void> anlagePut(AnlageLocal a) =>
@@ -119,15 +118,17 @@ class IsarService {
   static Future<List<AnlageLocal>> anlageFilterByBetrieb(String betriebId) =>
       instance.anlageLocals.filter().betriebIdEqualTo(betriebId).findAll();
   static Stream<List<AnlageLocal>> anlageWatchByBetrieb(String betriebId) =>
-      instance.anlageLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+      instance.anlageLocals
+          .filter()
+          .betriebIdEqualTo(betriebId)
+          .watch(fireImmediately: true);
 
   // ─── Region ───
   static Future<List<RegionLocal>> regionFindAll() =>
       instance.regionLocals.where().findAll();
   static Stream<List<RegionLocal>> regionWatchAll() =>
       instance.regionLocals.where().watch(fireImmediately: true);
-  static Future<int> regionCount() =>
-      instance.regionLocals.count();
+  static Future<int> regionCount() => instance.regionLocals.count();
   static Future<RegionLocal?> regionGet(int id) =>
       instance.regionLocals.get(id);
   static Future<void> regionPut(RegionLocal r) =>
@@ -142,8 +143,7 @@ class IsarService {
       instance.reinigungLocals.where().findAll();
   static Stream<List<ReinigungLocal>> reinigungWatchAll() =>
       instance.reinigungLocals.where().watch(fireImmediately: true);
-  static Future<int> reinigungCount() =>
-      instance.reinigungLocals.count();
+  static Future<int> reinigungCount() => instance.reinigungLocals.count();
   static Future<ReinigungLocal?> reinigungGet(int id) =>
       instance.reinigungLocals.get(id);
   static Future<void> reinigungPut(ReinigungLocal r) =>
@@ -152,16 +152,31 @@ class IsarService {
       instance.writeTxn(() => instance.reinigungLocals.delete(id));
   static Future<ReinigungLocal?> reinigungFindByServerId(String serverId) =>
       instance.reinigungLocals.filter().serverIdEqualTo(serverId).findFirst();
-  static Future<List<ReinigungLocal>> reinigungFilterByAnlage(String anlageId) =>
-      instance.reinigungLocals.filter().anlageIdEqualTo(anlageId).findAll();
-  static Future<List<ReinigungLocal>> reinigungFilterByBetrieb(String betriebId) =>
-      instance.reinigungLocals.filter().betriebIdEqualTo(betriebId).findAll();
+  static Future<List<ReinigungLocal>> reinigungFilterByAnlage(
+    String anlageId,
+  ) => instance.reinigungLocals.filter().anlageIdEqualTo(anlageId).findAll();
+  static Future<List<ReinigungLocal>> reinigungFilterByBetrieb(
+    String betriebId,
+  ) => instance.reinigungLocals.filter().betriebIdEqualTo(betriebId).findAll();
   static Stream<List<ReinigungLocal>> reinigungWatchByAnlage(String anlageId) =>
-      instance.reinigungLocals.filter().anlageIdEqualTo(anlageId).watch(fireImmediately: true);
-  static Stream<List<ReinigungLocal>> reinigungWatchByBetrieb(String betriebId) =>
-      instance.reinigungLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
-  static Future<ReinigungLocal?> reinigungFindLastByBetrieb(String betriebId) async {
-    final all = await instance.reinigungLocals.filter().betriebIdEqualTo(betriebId).sortByDatumDesc().findAll();
+      instance.reinigungLocals
+          .filter()
+          .anlageIdEqualTo(anlageId)
+          .watch(fireImmediately: true);
+  static Stream<List<ReinigungLocal>> reinigungWatchByBetrieb(
+    String betriebId,
+  ) => instance.reinigungLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .watch(fireImmediately: true);
+  static Future<ReinigungLocal?> reinigungFindLastByBetrieb(
+    String betriebId,
+  ) async {
+    final all = await instance.reinigungLocals
+        .filter()
+        .betriebIdEqualTo(betriebId)
+        .sortByDatumDesc()
+        .findAll();
     return all.isEmpty ? null : all.first;
   }
 
@@ -170,8 +185,7 @@ class IsarService {
       instance.stoerungLocals.where().findAll();
   static Stream<List<StoerungLocal>> stoerungWatchAll() =>
       instance.stoerungLocals.where().watch(fireImmediately: true);
-  static Future<int> stoerungCount() =>
-      instance.stoerungLocals.count();
+  static Future<int> stoerungCount() => instance.stoerungLocals.count();
   static Future<StoerungLocal?> stoerungGet(int id) =>
       instance.stoerungLocals.get(id);
   static Future<void> stoerungPut(StoerungLocal s) =>
@@ -180,20 +194,26 @@ class IsarService {
       instance.writeTxn(() => instance.stoerungLocals.delete(id));
   static Future<List<StoerungLocal>> stoerungFilterByAnlage(String anlageId) =>
       instance.stoerungLocals.filter().anlageIdEqualTo(anlageId).findAll();
-  static Future<List<StoerungLocal>> stoerungFilterByBetrieb(String betriebId) =>
-      instance.stoerungLocals.filter().betriebIdEqualTo(betriebId).findAll();
+  static Future<List<StoerungLocal>> stoerungFilterByBetrieb(
+    String betriebId,
+  ) => instance.stoerungLocals.filter().betriebIdEqualTo(betriebId).findAll();
   static Stream<List<StoerungLocal>> stoerungWatchByAnlage(String anlageId) =>
-      instance.stoerungLocals.filter().anlageIdEqualTo(anlageId).watch(fireImmediately: true);
+      instance.stoerungLocals
+          .filter()
+          .anlageIdEqualTo(anlageId)
+          .watch(fireImmediately: true);
   static Stream<List<StoerungLocal>> stoerungWatchByBetrieb(String betriebId) =>
-      instance.stoerungLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+      instance.stoerungLocals
+          .filter()
+          .betriebIdEqualTo(betriebId)
+          .watch(fireImmediately: true);
 
   // ─── Montage ───
   static Future<List<MontageLocal>> montageFindAll() =>
       instance.montageLocals.where().findAll();
   static Stream<List<MontageLocal>> montageWatchAll() =>
       instance.montageLocals.where().watch(fireImmediately: true);
-  static Future<int> montageCount() =>
-      instance.montageLocals.count();
+  static Future<int> montageCount() => instance.montageLocals.count();
   static Future<MontageLocal?> montageGet(int id) =>
       instance.montageLocals.get(id);
   static Future<void> montagePut(MontageLocal m) =>
@@ -205,41 +225,96 @@ class IsarService {
   static Future<List<MontageLocal>> montageFilterByBetrieb(String betriebId) =>
       instance.montageLocals.filter().betriebIdEqualTo(betriebId).findAll();
   static Stream<List<MontageLocal>> montageWatchByAnlage(String anlageId) =>
-      instance.montageLocals.filter().anlageIdEqualTo(anlageId).watch(fireImmediately: true);
+      instance.montageLocals
+          .filter()
+          .anlageIdEqualTo(anlageId)
+          .watch(fireImmediately: true);
   static Stream<List<MontageLocal>> montageWatchByBetrieb(String betriebId) =>
-      instance.montageLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+      instance.montageLocals
+          .filter()
+          .betriebIdEqualTo(betriebId)
+          .watch(fireImmediately: true);
 
   // ─── Eigenauftrag ───
   static Future<List<EigenauftragLocal>> eigenauftragFindAll() =>
       instance.eigenauftragLocals.where().findAll();
   static Stream<List<EigenauftragLocal>> eigenauftragWatchAll() =>
       instance.eigenauftragLocals.where().watch(fireImmediately: true);
-  static Future<int> eigenauftragCount() =>
-      instance.eigenauftragLocals.count();
+  static Future<int> eigenauftragCount() => instance.eigenauftragLocals.count();
   static Future<EigenauftragLocal?> eigenauftragGet(int id) =>
       instance.eigenauftragLocals.get(id);
   static Future<void> eigenauftragPut(EigenauftragLocal e) =>
       instance.writeTxn(() => instance.eigenauftragLocals.put(e));
   static Future<void> eigenauftragDelete(int id) =>
       instance.writeTxn(() => instance.eigenauftragLocals.delete(id));
-  static Future<List<EigenauftragLocal>> eigenauftragFilterByBetrieb(String betriebId) =>
-      instance.eigenauftragLocals.filter().betriebIdEqualTo(betriebId).findAll();
-  static Stream<List<EigenauftragLocal>> eigenauftragWatchByBetrieb(String betriebId) =>
-      instance.eigenauftragLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+  static Future<List<EigenauftragLocal>> eigenauftragFilterByBetrieb(
+    String betriebId,
+  ) => instance.eigenauftragLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .findAll();
+  static Stream<List<EigenauftragLocal>> eigenauftragWatchByBetrieb(
+    String betriebId,
+  ) => instance.eigenauftragLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .watch(fireImmediately: true);
 
   // ─── BetriebKontakt ───
-  static Future<List<BetriebKontaktLocal>> betriebKontaktFilterByBetrieb(String betriebId) =>
-      instance.betriebKontaktLocals.filter().betriebIdEqualTo(betriebId).findAll();
-  static Stream<List<BetriebKontaktLocal>> betriebKontaktWatchByBetrieb(String betriebId) =>
-      instance.betriebKontaktLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+  static Future<List<BetriebKontaktLocal>> betriebKontaktFilterByBetrieb(
+    String betriebId,
+  ) => instance.betriebKontaktLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .findAll();
+  static Stream<List<BetriebKontaktLocal>> betriebKontaktWatchByBetrieb(
+    String betriebId,
+  ) => instance.betriebKontaktLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .watch(fireImmediately: true);
   static Future<BetriebKontaktLocal?> betriebKontaktGet(int id) =>
       instance.betriebKontaktLocals.get(id);
   static Future<void> betriebKontaktPut(BetriebKontaktLocal k) =>
       instance.writeTxn(() => instance.betriebKontaktLocals.put(k));
   static Future<void> betriebKontaktDelete(int id) =>
       instance.writeTxn(() => instance.betriebKontaktLocals.delete(id));
-  static Future<BetriebKontaktLocal?> betriebKontaktFindByServerId(String serverId) =>
-      instance.betriebKontaktLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<BetriebKontaktLocal?> betriebKontaktFindByServerId(
+    String serverId,
+  ) => instance.betriebKontaktLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
+
+  // ─── BetriebFerien ───
+  static Future<List<BetriebFerienLocal>> betriebFerienFindAll() =>
+      instance.betriebFerienLocals.where().sortByVon().findAll();
+  static Future<List<BetriebFerienLocal>> betriebFerienFilterByBetrieb(
+    String betriebId,
+  ) => instance.betriebFerienLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .sortByVon()
+      .findAll();
+  static Stream<List<BetriebFerienLocal>> betriebFerienWatchByBetrieb(
+    String betriebId,
+  ) => instance.betriebFerienLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .sortByVon()
+      .watch(fireImmediately: true);
+  static Future<BetriebFerienLocal?> betriebFerienGet(int id) =>
+      instance.betriebFerienLocals.get(id);
+  static Future<void> betriebFerienPut(BetriebFerienLocal f) =>
+      instance.writeTxn(() => instance.betriebFerienLocals.put(f));
+  static Future<void> betriebFerienDelete(int id) =>
+      instance.writeTxn(() => instance.betriebFerienLocals.delete(id));
+  static Future<BetriebFerienLocal?> betriebFerienFindByServerId(
+    String serverId,
+  ) => instance.betriebFerienLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
 
   // ─── Kontakt ───
   static Future<List<KontaktLocal>> kontaktFindAll() =>
@@ -247,9 +322,13 @@ class IsarService {
   static Future<List<KontaktLocal>> kontaktFilterByBetrieb(String betriebId) =>
       instance.kontaktLocals.filter().betriebIdEqualTo(betriebId).findAll();
   static Stream<List<KontaktLocal>> kontaktWatchByBetrieb(String betriebId) =>
-      instance.kontaktLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
-  static Future<List<KontaktLocal>> kontaktFilterByKategorie(String kategorie) =>
-      instance.kontaktLocals.filter().kategorieEqualTo(kategorie).findAll();
+      instance.kontaktLocals
+          .filter()
+          .betriebIdEqualTo(betriebId)
+          .watch(fireImmediately: true);
+  static Future<List<KontaktLocal>> kontaktFilterByKategorie(
+    String kategorie,
+  ) => instance.kontaktLocals.filter().kategorieEqualTo(kategorie).findAll();
   static Future<KontaktLocal?> kontaktGet(int id) =>
       instance.kontaktLocals.get(id);
   static Future<void> kontaktPut(KontaktLocal k) =>
@@ -262,8 +341,7 @@ class IsarService {
   // ─── Event ───
   static Future<List<EventLocal>> eventFindAll() =>
       instance.eventLocals.where().findAll();
-  static Future<EventLocal?> eventGet(int id) =>
-      instance.eventLocals.get(id);
+  static Future<EventLocal?> eventGet(int id) => instance.eventLocals.get(id);
   static Future<EventLocal?> eventFindByServerId(String serverId) =>
       instance.eventLocals.filter().serverIdEqualTo(serverId).findFirst();
   static Future<void> eventPut(EventLocal e) =>
@@ -274,46 +352,66 @@ class IsarService {
   // ─── EventKontakt ───
   static Future<EventKontaktLocal?> eventKontaktGet(int id) =>
       instance.eventKontaktLocals.get(id);
-  static Future<List<EventKontaktLocal>> eventKontaktFindByEvent(String eventId) =>
-      instance.eventKontaktLocals.filter().eventIdEqualTo(eventId).findAll();
-  static Future<EventKontaktLocal?> eventKontaktFindByServerId(String serverId) =>
-      instance.eventKontaktLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<List<EventKontaktLocal>> eventKontaktFindByEvent(
+    String eventId,
+  ) => instance.eventKontaktLocals.filter().eventIdEqualTo(eventId).findAll();
+  static Future<EventKontaktLocal?> eventKontaktFindByServerId(
+    String serverId,
+  ) => instance.eventKontaktLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
   static Future<void> eventKontaktPut(EventKontaktLocal e) =>
       instance.writeTxn(() => instance.eventKontaktLocals.put(e));
   static Future<void> eventKontaktDelete(int id) =>
       instance.writeTxn(() => instance.eventKontaktLocals.delete(id));
 
   // ─── EventDokument ───
-  static Future<List<EventDokumentLocal>> eventDokumentFindByEvent(String eventId) =>
-      instance.eventDokumentLocals.filter().eventIdEqualTo(eventId).findAll();
+  static Future<List<EventDokumentLocal>> eventDokumentFindByEvent(
+    String eventId,
+  ) => instance.eventDokumentLocals.filter().eventIdEqualTo(eventId).findAll();
   static Future<EventDokumentLocal?> eventDokumentGet(int id) =>
       instance.eventDokumentLocals.get(id);
-  static Future<EventDokumentLocal?> eventDokumentFindByServerId(String serverId) =>
-      instance.eventDokumentLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<EventDokumentLocal?> eventDokumentFindByServerId(
+    String serverId,
+  ) => instance.eventDokumentLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
   static Future<void> eventDokumentPut(EventDokumentLocal d) =>
       instance.writeTxn(() => instance.eventDokumentLocals.put(d));
   static Future<void> eventDokumentDelete(int id) =>
       instance.writeTxn(() => instance.eventDokumentLocals.delete(id));
 
   // ─── EventEinsatz ───
-  static Future<List<EventEinsatzLocal>> eventEinsatzFindByEvent(String eventId) =>
-      instance.eventEinsatzLocals.filter().eventIdEqualTo(eventId).findAll();
+  static Future<List<EventEinsatzLocal>> eventEinsatzFindByEvent(
+    String eventId,
+  ) => instance.eventEinsatzLocals.filter().eventIdEqualTo(eventId).findAll();
   static Future<EventEinsatzLocal?> eventEinsatzGet(int id) =>
       instance.eventEinsatzLocals.get(id);
-  static Future<EventEinsatzLocal?> eventEinsatzFindByServerId(String serverId) =>
-      instance.eventEinsatzLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<EventEinsatzLocal?> eventEinsatzFindByServerId(
+    String serverId,
+  ) => instance.eventEinsatzLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
   static Future<void> eventEinsatzPut(EventEinsatzLocal e) =>
       instance.writeTxn(() => instance.eventEinsatzLocals.put(e));
   static Future<void> eventEinsatzDelete(int id) =>
       instance.writeTxn(() => instance.eventEinsatzLocals.delete(id));
 
   // ─── EventAufwand ───
-  static Future<List<EventAufwandLocal>> eventAufwandFindByEvent(String eventId) =>
-      instance.eventAufwandLocals.filter().eventIdEqualTo(eventId).findAll();
+  static Future<List<EventAufwandLocal>> eventAufwandFindByEvent(
+    String eventId,
+  ) => instance.eventAufwandLocals.filter().eventIdEqualTo(eventId).findAll();
   static Future<EventAufwandLocal?> eventAufwandGet(int id) =>
       instance.eventAufwandLocals.get(id);
-  static Future<EventAufwandLocal?> eventAufwandFindByServerId(String serverId) =>
-      instance.eventAufwandLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<EventAufwandLocal?> eventAufwandFindByServerId(
+    String serverId,
+  ) => instance.eventAufwandLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
   static Future<void> eventAufwandPut(EventAufwandLocal e) =>
       instance.writeTxn(() => instance.eventAufwandLocals.put(e));
   static Future<void> eventAufwandDelete(int id) =>
@@ -332,36 +430,67 @@ class IsarService {
       instance.writeTxn(() => instance.eventStandLocals.delete(id));
 
   // ─── EventStandAnlage ───
-  static Future<List<EventStandAnlageLocal>> eventStandAnlageFindByStand(String standId) =>
-      instance.eventStandAnlageLocals.filter().standIdEqualTo(standId).findAll();
+  static Future<List<EventStandAnlageLocal>> eventStandAnlageFindByStand(
+    String standId,
+  ) => instance.eventStandAnlageLocals
+      .filter()
+      .standIdEqualTo(standId)
+      .findAll();
   static Future<EventStandAnlageLocal?> eventStandAnlageGet(int id) =>
       instance.eventStandAnlageLocals.get(id);
-  static Future<EventStandAnlageLocal?> eventStandAnlageFindByServerId(String serverId) =>
-      instance.eventStandAnlageLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<EventStandAnlageLocal?> eventStandAnlageFindByServerId(
+    String serverId,
+  ) => instance.eventStandAnlageLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
   static Future<void> eventStandAnlagePut(EventStandAnlageLocal a) =>
       instance.writeTxn(() => instance.eventStandAnlageLocals.put(a));
   static Future<void> eventStandAnlageDelete(int id) =>
       instance.writeTxn(() => instance.eventStandAnlageLocals.delete(id));
 
   // ─── BetriebRechnungsadresse ───
-  static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByBetrieb(String betriebId) =>
-      instance.betriebRechnungsadresseLocals.filter().betriebIdEqualTo(betriebId).findFirst();
-  static Stream<List<BetriebRechnungsadresseLocal>> rechnungsadresseWatchByBetrieb(String betriebId) =>
-      instance.betriebRechnungsadresseLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+  static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByBetrieb(
+    String betriebId,
+  ) => instance.betriebRechnungsadresseLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .findFirst();
+  static Stream<List<BetriebRechnungsadresseLocal>>
+  rechnungsadresseWatchByBetrieb(String betriebId) => instance
+      .betriebRechnungsadresseLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .watch(fireImmediately: true);
   static Future<BetriebRechnungsadresseLocal?> rechnungsadresseGet(int id) =>
       instance.betriebRechnungsadresseLocals.get(id);
   static Future<void> rechnungsadressePut(BetriebRechnungsadresseLocal r) =>
       instance.writeTxn(() => instance.betriebRechnungsadresseLocals.put(r));
-  static Future<void> rechnungsadresseDelete(int id) =>
-      instance.writeTxn(() => instance.betriebRechnungsadresseLocals.delete(id));
-  static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByServerId(String serverId) =>
-      instance.betriebRechnungsadresseLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<void> rechnungsadresseDelete(int id) => instance.writeTxn(
+    () => instance.betriebRechnungsadresseLocals.delete(id),
+  );
+  static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByServerId(
+    String serverId,
+  ) => instance.betriebRechnungsadresseLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
 
   // ─── Bierleitung ───
-  static Future<List<BierleitungLocal>> bierleitungFilterByAnlage(String anlageId) =>
-      instance.bierleitungLocals.filter().anlageIdEqualTo(anlageId).sortByLeitungsNummer().findAll();
-  static Stream<List<BierleitungLocal>> bierleitungWatchByAnlage(String anlageId) =>
-      instance.bierleitungLocals.filter().anlageIdEqualTo(anlageId).sortByLeitungsNummer().watch(fireImmediately: true);
+  static Future<List<BierleitungLocal>> bierleitungFilterByAnlage(
+    String anlageId,
+  ) => instance.bierleitungLocals
+      .filter()
+      .anlageIdEqualTo(anlageId)
+      .sortByLeitungsNummer()
+      .findAll();
+  static Stream<List<BierleitungLocal>> bierleitungWatchByAnlage(
+    String anlageId,
+  ) => instance.bierleitungLocals
+      .filter()
+      .anlageIdEqualTo(anlageId)
+      .sortByLeitungsNummer()
+      .watch(fireImmediately: true);
   static Future<BierleitungLocal?> bierleitungGet(int id) =>
       instance.bierleitungLocals.get(id);
   static Future<void> bierleitungPut(BierleitungLocal l) =>
@@ -374,21 +503,26 @@ class IsarService {
       instance.pikettDienstLocals.where().findAll();
   static Stream<List<PikettDienstLocal>> pikettDienstWatchAll() =>
       instance.pikettDienstLocals.where().watch(fireImmediately: true);
-  static Future<int> pikettDienstCount() =>
-      instance.pikettDienstLocals.count();
+  static Future<int> pikettDienstCount() => instance.pikettDienstLocals.count();
   static Future<PikettDienstLocal?> pikettDienstGet(int id) =>
       instance.pikettDienstLocals.get(id);
   static Future<void> pikettDienstPut(PikettDienstLocal p) =>
       instance.writeTxn(() => instance.pikettDienstLocals.put(p));
   static Future<void> pikettDienstDelete(int id) =>
       instance.writeTxn(() => instance.pikettDienstLocals.delete(id));
-  static Future<PikettDienstLocal?> pikettDienstFindByServerId(String serverId) =>
-      instance.pikettDienstLocals.filter().serverIdEqualTo(serverId).findFirst();
+  static Future<PikettDienstLocal?> pikettDienstFindByServerId(
+    String serverId,
+  ) => instance.pikettDienstLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
 
   // ─── Eroeffnungsreinigung ───
-  static Future<List<EroeffnungsreinigungLocal>> eroeffnungsreinigungFindAll() =>
+  static Future<List<EroeffnungsreinigungLocal>>
+  eroeffnungsreinigungFindAll() =>
       instance.eroeffnungsreinigungLocals.where().findAll();
-  static Stream<List<EroeffnungsreinigungLocal>> eroeffnungsreinigungWatchAll() =>
+  static Stream<List<EroeffnungsreinigungLocal>>
+  eroeffnungsreinigungWatchAll() =>
       instance.eroeffnungsreinigungLocals.where().watch(fireImmediately: true);
   static Future<int> eroeffnungsreinigungCount() =>
       instance.eroeffnungsreinigungLocals.count();
@@ -398,10 +532,18 @@ class IsarService {
       instance.writeTxn(() => instance.eroeffnungsreinigungLocals.put(e));
   static Future<void> eroeffnungsreinigungDelete(int id) =>
       instance.writeTxn(() => instance.eroeffnungsreinigungLocals.delete(id));
-  static Future<List<EroeffnungsreinigungLocal>> eroeffnungsreinigungFilterByBetrieb(String betriebId) =>
-      instance.eroeffnungsreinigungLocals.filter().betriebIdEqualTo(betriebId).findAll();
-  static Stream<List<EroeffnungsreinigungLocal>> eroeffnungsreinigungWatchByBetrieb(String betriebId) =>
-      instance.eroeffnungsreinigungLocals.filter().betriebIdEqualTo(betriebId).watch(fireImmediately: true);
+  static Future<List<EroeffnungsreinigungLocal>>
+  eroeffnungsreinigungFilterByBetrieb(String betriebId) => instance
+      .eroeffnungsreinigungLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .findAll();
+  static Stream<List<EroeffnungsreinigungLocal>>
+  eroeffnungsreinigungWatchByBetrieb(String betriebId) => instance
+      .eroeffnungsreinigungLocals
+      .filter()
+      .betriebIdEqualTo(betriebId)
+      .watch(fireImmediately: true);
 
   // ─── Cascade Deletes ───
   static Future<void> anlageDeleteCascade(int id) async {
@@ -410,12 +552,27 @@ class IsarService {
     final serverId = anlage.serverId ?? '';
     await instance.writeTxn(() async {
       // Kinder löschen
-      final bierleitungen = await instance.bierleitungLocals.filter().anlageIdEqualTo(serverId).findAll();
-      await instance.bierleitungLocals.deleteAll(bierleitungen.map((e) => e.id).toList());
-      final reinigungen = await instance.reinigungLocals.filter().anlageIdEqualTo(serverId).findAll();
-      await instance.reinigungLocals.deleteAll(reinigungen.map((e) => e.id).toList());
-      final stoerungen = await instance.stoerungLocals.filter().anlageIdEqualTo(serverId).findAll();
-      await instance.stoerungLocals.deleteAll(stoerungen.map((e) => e.id).toList());
+      final bierleitungen = await instance.bierleitungLocals
+          .filter()
+          .anlageIdEqualTo(serverId)
+          .findAll();
+      await instance.bierleitungLocals.deleteAll(
+        bierleitungen.map((e) => e.id).toList(),
+      );
+      final reinigungen = await instance.reinigungLocals
+          .filter()
+          .anlageIdEqualTo(serverId)
+          .findAll();
+      await instance.reinigungLocals.deleteAll(
+        reinigungen.map((e) => e.id).toList(),
+      );
+      final stoerungen = await instance.stoerungLocals
+          .filter()
+          .anlageIdEqualTo(serverId)
+          .findAll();
+      await instance.stoerungLocals.deleteAll(
+        stoerungen.map((e) => e.id).toList(),
+      );
       // Anlage selbst löschen
       await instance.anlageLocals.delete(id);
     });
@@ -426,18 +583,39 @@ class IsarService {
     if (betrieb == null) return;
     final serverId = betrieb.serverId ?? '';
     // Anlagen des Betriebs finden
-    final anlagen = await instance.anlageLocals.filter().betriebIdEqualTo(serverId).findAll();
+    final anlagen = await instance.anlageLocals
+        .filter()
+        .betriebIdEqualTo(serverId)
+        .findAll();
     // Jede Anlage kaskadierend löschen
     for (final anlage in anlagen) {
       await anlageDeleteCascade(anlage.id);
     }
     await instance.writeTxn(() async {
       // Kontakte löschen
-      final kontakte = await instance.betriebKontaktLocals.filter().betriebIdEqualTo(serverId).findAll();
-      await instance.betriebKontaktLocals.deleteAll(kontakte.map((e) => e.id).toList());
+      final kontakte = await instance.betriebKontaktLocals
+          .filter()
+          .betriebIdEqualTo(serverId)
+          .findAll();
+      await instance.betriebKontaktLocals.deleteAll(
+        kontakte.map((e) => e.id).toList(),
+      );
+      // Ferien-Perioden löschen
+      final ferien = await instance.betriebFerienLocals
+          .filter()
+          .betriebIdEqualTo(serverId)
+          .findAll();
+      await instance.betriebFerienLocals.deleteAll(
+        ferien.map((e) => e.id).toList(),
+      );
       // Rechnungsadresse löschen
-      final adressen = await instance.betriebRechnungsadresseLocals.filter().betriebIdEqualTo(serverId).findAll();
-      await instance.betriebRechnungsadresseLocals.deleteAll(adressen.map((e) => e.id).toList());
+      final adressen = await instance.betriebRechnungsadresseLocals
+          .filter()
+          .betriebIdEqualTo(serverId)
+          .findAll();
+      await instance.betriebRechnungsadresseLocals.deleteAll(
+        adressen.map((e) => e.id).toList(),
+      );
       // Betrieb selbst löschen
       await instance.betriebLocals.delete(id);
     });
