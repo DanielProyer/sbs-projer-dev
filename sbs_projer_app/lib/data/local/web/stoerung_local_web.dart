@@ -17,6 +17,14 @@ class StoerungLocal {
   DateTime datum = DateTime.now();
   String? uhrzeitStart;
   String? uhrzeitEnde;
+
+  // Einsatzplanung (Migration 163): gemeldet / geplant / gearbeitet getrennt.
+  DateTime? geplantAm;
+  String? geplantZeit;
+  int? geplantDauerMin;
+  String? arbeitVon;
+  String? arbeitBis;
+  DateTime? gemeldetAm;
   String? anlageTyp;
   String problemBeschreibung = '';
   String? loesungBeschreibung;

@@ -18,6 +18,13 @@ class MontageLocal {
   DateTime datum = DateTime.now();
   String? uhrzeitStart;
   String? uhrzeitEnde;
+
+  // Einsatzplanung (Migration 163): geplant / gearbeitet getrennt.
+  DateTime? geplantAm;
+  String? geplantZeit;
+  int? geplantDauerMin;
+  String? arbeitVon;
+  String? arbeitBis;
   String status = 'geplant';
 
   // Preis

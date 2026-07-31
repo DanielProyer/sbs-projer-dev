@@ -26,6 +26,14 @@ class StoerungLocal {
   late DateTime datum;
   String? uhrzeitStart;
   String? uhrzeitEnde;
+
+  // Einsatzplanung (Migration 163): gemeldet / geplant / gearbeitet getrennt.
+  DateTime? geplantAm;
+  String? geplantZeit;
+  int? geplantDauerMin;
+  String? arbeitVon;
+  String? arbeitBis;
+  DateTime? gemeldetAm;
   String? anlageTyp;
   late String problemBeschreibung;
   String? loesungBeschreibung;

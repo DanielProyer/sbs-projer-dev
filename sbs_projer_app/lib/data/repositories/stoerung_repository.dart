@@ -10,8 +10,10 @@ class StoerungRepository {
 
   /// Holt ALLE Zeilen seitenweise (PostgREST deckelt sonst bei 1000).
   /// Erste Seite + Folgeseiten parallel; `.order('id')` = stabile Seitengrenzen.
-  static Future<List<Map<String, dynamic>>> _pagedByUser(
-      {String? col, String? val}) async {
+  static Future<List<Map<String, dynamic>>> _pagedByUser({
+    String? col,
+    String? val,
+  }) async {
     const pageSize = 1000;
 
     Future<List<Map<String, dynamic>>> fetchPage(int page) {
@@ -35,9 +37,9 @@ class StoerungRepository {
     const batch = 4;
     int nextPage = 1;
     while (true) {
-      final pages = await Future.wait(
-        [for (int i = 0; i < batch; i++) fetchPage(nextPage + i)],
-      );
+      final pages = await Future.wait([
+        for (int i = 0; i < batch; i++) fetchPage(nextPage + i),
+      ]);
       for (final rows in pages) {
         all.addAll(rows);
       }
@@ -50,7 +52,9 @@ class StoerungRepository {
   static Future<List<StoerungLocal>> getAll() async {
     if (kIsWeb) {
       final rows = await _pagedByUser();
-      return rows.map((r) => StoerungMapper.fromDto(Stoerung.fromJson(r))).toList();
+      return rows
+          .map((r) => StoerungMapper.fromDto(Stoerung.fromJson(r)))
+          .toList();
     }
     return IsarService.stoerungFindAll();
   }
@@ -58,7 +62,10 @@ class StoerungRepository {
   static Future<StoerungLocal?> getById(String id) async {
     if (kIsWeb) {
       final rows = await SupabaseService.client
-          .from('stoerungen').select().eq('id', id).limit(1);
+          .from('stoerungen')
+          .select()
+          .eq('id', id)
+          .limit(1);
       if (rows.isEmpty) return null;
       return StoerungMapper.fromDto(Stoerung.fromJson(rows.first));
     }
@@ -73,7 +80,9 @@ class StoerungRepository {
   static Future<List<StoerungLocal>> getByAnlage(String anlageId) async {
     if (kIsWeb) {
       final rows = await _pagedByUser(col: 'anlage_id', val: anlageId);
-      return rows.map((r) => StoerungMapper.fromDto(Stoerung.fromJson(r))).toList();
+      return rows
+          .map((r) => StoerungMapper.fromDto(Stoerung.fromJson(r)))
+          .toList();
     }
     return IsarService.stoerungFilterByAnlage(anlageId);
   }
@@ -81,7 +90,9 @@ class StoerungRepository {
   static Future<List<StoerungLocal>> getByBetrieb(String betriebId) async {
     if (kIsWeb) {
       final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
-      return rows.map((r) => StoerungMapper.fromDto(Stoerung.fromJson(r))).toList();
+      return rows
+          .map((r) => StoerungMapper.fromDto(Stoerung.fromJson(r)))
+          .toList();
     }
     return IsarService.stoerungFilterByBetrieb(betriebId);
   }
@@ -123,9 +134,64 @@ class StoerungRepository {
     // Native: Supabase löschen, dann Isar aufräumen
     final local = await IsarService.stoerungGet(int.parse(id));
     if (local?.serverId != null) {
-      await SupabaseService.client.from('stoerungen').delete().eq('id', local!.serverId!);
+      await SupabaseService.client
+          .from('stoerungen')
+          .delete()
+          .eq('id', local!.serverId!);
     }
     await IsarService.stoerungDelete(int.parse(id));
   }
 
+  /// Plant den Einsatz auf einen Tag. [zeit] null = ganztaegig (Entscheid
+  /// Daniel 31.07.2026: entweder fixer Termin oder ganztaegig).
+  static Future<void> einplanen({
+    required String id,
+    required DateTime tag,
+    String? zeit,
+    int? dauerMin,
+  }) async {
+    final geplantAm = tag.toIso8601String().split('T').first;
+    if (kIsWeb) {
+      await SupabaseService.client
+          .from('stoerungen')
+          .update({
+            'geplant_am': geplantAm,
+            'geplant_zeit': zeit,
+            'geplant_dauer_min': dauerMin,
+          })
+          .eq('id', id);
+      return;
+    }
+    final local = await IsarService.stoerungGet(int.parse(id));
+    if (local == null) return;
+    local.geplantAm = tag;
+    local.geplantZeit = zeit;
+    local.geplantDauerMin = dauerMin;
+    await save(local);
+  }
+
+  /// Setzt die tatsaechliche Arbeitszeit.
+  ///
+  /// ACHTUNG: Beide Werte werden geschrieben, auch `null`. Wer nur das Ende
+  /// setzen will, muss den bereits erfassten Beginn mitgeben — sonst wird er
+  /// geloescht. Beim "Beginn"-Knopf ist `bis: null` richtig (es gibt noch
+  /// kein Ende), beim Abschliessen gehoeren beide Werte hinein.
+  static Future<void> arbeitszeitSetzen({
+    required String id,
+    String? von,
+    String? bis,
+  }) async {
+    if (kIsWeb) {
+      await SupabaseService.client
+          .from('stoerungen')
+          .update({'arbeit_von': von, 'arbeit_bis': bis})
+          .eq('id', id);
+      return;
+    }
+    final local = await IsarService.stoerungGet(int.parse(id));
+    if (local == null) return;
+    local.arbeitVon = von;
+    local.arbeitBis = bis;
+    await save(local);
+  }
 }

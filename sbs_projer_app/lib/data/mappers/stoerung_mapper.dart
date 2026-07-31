@@ -14,6 +14,12 @@ class StoerungMapper {
     local.uhrzeitStart = dto.uhrzeitStart;
     local.uhrzeitEnde = dto.uhrzeitEnde;
     // dauerMinuten is GENERATED, not stored locally
+    local.geplantAm = dto.geplantAm;
+    local.geplantZeit = dto.geplantZeit;
+    local.geplantDauerMin = dto.geplantDauerMin;
+    local.arbeitVon = dto.arbeitVon;
+    local.arbeitBis = dto.arbeitBis;
+    local.gemeldetAm = dto.gemeldetAm;
     local.anlageTyp = dto.anlageTyp;
     local.problemBeschreibung = dto.problemBeschreibung;
     local.loesungBeschreibung = dto.loesungBeschreibung;
@@ -64,6 +70,12 @@ class StoerungMapper {
       'uhrzeit_start': local.uhrzeitStart,
       'uhrzeit_ende': local.uhrzeitEnde,
       // dauerMinuten is GENERATED, not included
+      'geplant_am': local.geplantAm?.toIso8601String().split('T').first,
+      'geplant_zeit': local.geplantZeit,
+      'geplant_dauer_min': local.geplantDauerMin,
+      'arbeit_von': local.arbeitVon,
+      'arbeit_bis': local.arbeitBis,
+      'gemeldet_am': local.gemeldetAm?.toIso8601String(),
       'anlage_typ': local.anlageTyp,
       'problem_beschreibung': local.problemBeschreibung,
       'loesung_beschreibung': local.loesungBeschreibung,
@@ -92,7 +104,10 @@ class StoerungMapper {
       'material_4_menge': local.material4Menge,
       'material_5_id': local.material5Id,
       'material_5_menge': local.material5Menge,
-      'abrechnungs_monat': local.abrechnungsMonat?.toIso8601String().split('T').first,
+      'abrechnungs_monat': local.abrechnungsMonat
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'abgerechnet': local.abgerechnet,
       'ist_kilometerabrechnung': local.istKilometerabrechnung,
       'notizen': local.notizen,

@@ -15,6 +15,11 @@ class MontageMapper {
     local.uhrzeitStart = dto.uhrzeitStart;
     local.uhrzeitEnde = dto.uhrzeitEnde;
     // dauerMinuten is GENERATED, not stored locally
+    local.geplantAm = dto.geplantAm;
+    local.geplantZeit = dto.geplantZeit;
+    local.geplantDauerMin = dto.geplantDauerMin;
+    local.arbeitVon = dto.arbeitVon;
+    local.arbeitBis = dto.arbeitBis;
     local.status = dto.status;
     local.preislisteId = dto.preislisteId;
     local.stundensatz = dto.stundensatz;
@@ -59,12 +64,20 @@ class MontageMapper {
       'uhrzeit_start': local.uhrzeitStart,
       'uhrzeit_ende': local.uhrzeitEnde,
       // dauerMinuten is GENERATED, not included
+      'geplant_am': local.geplantAm?.toIso8601String().split('T').first,
+      'geplant_zeit': local.geplantZeit,
+      'geplant_dauer_min': local.geplantDauerMin,
+      'arbeit_von': local.arbeitVon,
+      'arbeit_bis': local.arbeitBis,
       'status': local.status,
       'preisliste_id': local.preislisteId,
       'stundensatz': local.stundensatz,
       'dauer_stunden': local.dauerStunden,
       'kosten_arbeit': local.kostenArbeit,
-      'abrechnungs_monat': local.abrechnungsMonat?.toIso8601String().split('T').first,
+      'abrechnungs_monat': local.abrechnungsMonat
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'abgerechnet': local.abgerechnet,
       'material_1_id': local.material1Id,
       'material_1_menge': local.material1Menge,

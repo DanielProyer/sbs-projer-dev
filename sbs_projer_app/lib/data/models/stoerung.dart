@@ -9,6 +9,14 @@ class Stoerung {
   final String? uhrzeitStart;
   final String? uhrzeitEnde;
   final int? dauerMinuten;
+
+  // Einsatzplanung (Migration 163): gemeldet / geplant / gearbeitet getrennt.
+  final DateTime? geplantAm;
+  final String? geplantZeit;
+  final int? geplantDauerMin;
+  final String? arbeitVon;
+  final String? arbeitBis;
+  final DateTime? gemeldetAm;
   final String? anlageTyp;
   final String problemBeschreibung;
   final String? loesungBeschreibung;
@@ -56,6 +64,12 @@ class Stoerung {
     this.uhrzeitStart,
     this.uhrzeitEnde,
     this.dauerMinuten,
+    this.geplantAm,
+    this.geplantZeit,
+    this.geplantDauerMin,
+    this.arbeitVon,
+    this.arbeitBis,
+    this.gemeldetAm,
     this.anlageTyp,
     required this.problemBeschreibung,
     this.loesungBeschreibung,
@@ -105,6 +119,16 @@ class Stoerung {
       uhrzeitStart: json['uhrzeit_start'],
       uhrzeitEnde: json['uhrzeit_ende'],
       dauerMinuten: json['dauer_minuten'],
+      geplantAm: json['geplant_am'] != null
+          ? DateTime.parse(json['geplant_am'])
+          : null,
+      geplantZeit: _toHmm(json['geplant_zeit']),
+      geplantDauerMin: json['geplant_dauer_min'],
+      arbeitVon: _toHmm(json['arbeit_von']),
+      arbeitBis: _toHmm(json['arbeit_bis']),
+      gemeldetAm: json['gemeldet_am'] != null
+          ? DateTime.parse(json['gemeldet_am'])
+          : null,
       anlageTyp: json['anlage_typ'],
       problemBeschreibung: json['problem_beschreibung'],
       loesungBeschreibung: json['loesung_beschreibung'],
@@ -140,8 +164,12 @@ class Stoerung {
       istKilometerabrechnung: json['ist_kilometerabrechnung'] ?? false,
       notizen: json['notizen'],
       istSynced: json['ist_synced'] ?? false,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
     );
   }
 
@@ -156,6 +184,12 @@ class Stoerung {
       'datum': datum.toIso8601String().split('T').first,
       'uhrzeit_start': uhrzeitStart,
       'uhrzeit_ende': uhrzeitEnde,
+      'geplant_am': geplantAm?.toIso8601String().split('T').first,
+      'geplant_zeit': geplantZeit,
+      'geplant_dauer_min': geplantDauerMin,
+      'arbeit_von': arbeitVon,
+      'arbeit_bis': arbeitBis,
+      'gemeldet_am': gemeldetAm?.toIso8601String(),
       'anlage_typ': anlageTyp,
       'problem_beschreibung': problemBeschreibung,
       'loesung_beschreibung': loesungBeschreibung,
@@ -194,5 +228,13 @@ class Stoerung {
   static double? _toDouble(dynamic value) {
     if (value == null) return null;
     return double.tryParse(value.toString());
+  }
+
+  /// `time`-Spalten kommen von PostgREST als "HH:mm:ss" — fuer die App
+  /// genuegt "HH:mm" (Sekunden werden nirgends erfasst).
+  static String? _toHmm(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString();
+    return s.length >= 5 ? s.substring(0, 5) : s;
   }
 }
