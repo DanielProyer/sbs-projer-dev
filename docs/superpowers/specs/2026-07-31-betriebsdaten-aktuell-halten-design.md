@@ -68,9 +68,12 @@ ferien_bestaetigt_am   timestamptz  -- wann zuletzt jemand die Ferienfrage beant
 ferien_frage_ruht_bis  date         -- «weiss nicht» → 30 Tage Ruhe, damit die Frage nicht nervt
 google_place_id        text         -- einmalig gespeichert, macht den Abgleich billig und eindeutig
 oeffnungszeiten_geprueft_am timestamptz
+ruhetage_bestaetigt_am timestamptz  -- trennt «kein Ruhetag bekannt» von «hat keinen Ruhetag»
 ```
 
 `keine_betriebsferien` bleibt wie bisher, wird aber zusammen mit `ferien_bestaetigt_am` gesetzt.
+
+**Warum `ruhetage_bestaetigt_am` nötig ist:** Ein leeres `ruhetage`-Array heisst heute zweierlei — «durchgehend offen» oder «nie erfasst». 80 aktive Betriebe haben kein Ruhetags-Array, und nur 16 davon haben überhaupt Öffnungszeiten mit Inhalt; bei den übrigen 64 ist gar nichts bekannt. Erst mit einem Bestätigungsdatum lässt sich «geprüft, hat keinen Ruhetag» von «ungeprüft» unterscheiden — sonst fragt die App entweder ewig nach oder hält Unwissen für eine Aussage.
 
 ### 3.3 Neue Tabelle `betrieb_vorschlaege`
 
@@ -132,6 +135,12 @@ Ein täglicher Lauf über `pg_cron` (Extension aktivieren) stösst per `pg_net` 
 
 **Website** (`parse-oeffnungszeiten`, erweitert): Der bestehende Prompt ignoriert Sonderzeiten ausdrücklich. Er wird um Betriebsferien ergänzt («Betriebsferien vom … bis …», auch «Ferien», «Wir sind zurück ab …») und liefert zusätzlich `ferien: [{von, bis}]` mit eigener Konfidenz. Läuft mit Haiku statt eines grösseren Modells — es ist reine Extraktion.
 
+**Immer beide Quellen** (Entscheid Daniel 31.07.): Jeder Betrieb wird im selben Lauf bei Google **und** auf seiner Website geprüft, nicht entweder/oder. Das ergibt drei Fälle:
+
+- **Beide einig** → ein Vorschlag, Quelle «Google + Website», hohe Konfidenz. Diese eignen sich für die Sammelübernahme.
+- **Nur eine Quelle liefert etwas** → ein Vorschlag mit dieser Quelle.
+- **Widerspruch** → beide Vorschläge werden nebeneinander gezeigt, mit Datum und Quelle. Nichts wird automatisch aufgelöst — bei zwei unterschiedlichen Angaben ist die Frage beim Kunden ohnehin fällig.
+
 **Ehrliche Einordnung der Trefferquote:** Google kennt vor allem die regulären Öffnungszeiten und meldet Ferien nur, wenn der Wirt selbst «vorübergehend geschlossen» setzt — das ist die Ausnahme. Die Website ist für Ferien die bessere Quelle, weil dort oft ein konkreter Zeitraum steht. Beide zusammen ersetzen die Frage beim Kunden (B) nicht, sie verkleinern nur die Lücke.
 
 ### Prüfliste
@@ -165,7 +174,8 @@ Schritte 1–5 bringen für sich genommen schon den Nutzen; 6–9 sind die Autom
 
 ---
 
-## 7. Offene Punkte für Daniel
+## 7. Entscheide Daniel (31.07.)
 
-- **Datenmodell:** Der Umstieg von fünf festen Ferien-Spaltenpaaren auf eine Tabelle ist der grösste Einzelposten. Ohne ihn bleibt der Vorjahres-Hinweis ein Behelf, weil neue Ferien die Historie verdrängen. Einverstanden?
-- **Erster Schwung Vorschläge:** 80 Betriebe haben gar keine Ruhetage. Sollen leere Felder direkt gefüllt werden (statt über die Prüfliste zu laufen), oder willst du auch die einzeln sehen?
+- **Datenmodell:** eigene Tabelle `betrieb_ferien` — bestätigt.
+- **Leere Felder:** Auch sie laufen über die Prüfliste; die 80 Betriebe ohne Ruhetage werden geprüft und einzeln bestätigt, nicht blind gefüllt. Für den ersten Schwung gibt es die Sammelübernahme «alle, bei denen Google und Website übereinstimmen».
+- **Quellen:** immer beide (Google und Website) je Betrieb, siehe Abschnitt 4.
