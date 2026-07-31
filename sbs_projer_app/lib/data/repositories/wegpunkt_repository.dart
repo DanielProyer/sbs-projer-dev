@@ -21,6 +21,7 @@ class WegpunktRepository {
     required String quelle,
     String? betriebId,
     String? referenzId,
+    String? notiz,
     ({double lat, double lng})? position,
   }) async {
     try {
@@ -43,6 +44,7 @@ class WegpunktRepository {
         'quelle': quelle,
         if (betriebId != null) 'betrieb_id': betriebId,
         if (referenzId != null) 'referenz_id': referenzId,
+        if (notiz != null && notiz.isNotEmpty) 'notiz': notiz,
       });
     } catch (e) {
       debugPrint('[Wegpunkt] Stempeln uebersprungen: $e');

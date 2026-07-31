@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/core/util/touren_saison.dart';
+import 'package:sbs_projer_app/core/util/war_geschlossen.dart';
 import 'package:sbs_projer_app/core/util/zeitplan.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -24,6 +25,7 @@ import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/core/util/routen_optimierung.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
+import 'package:sbs_projer_app/presentation/widgets/war_geschlossen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
@@ -1668,7 +1670,7 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _BlockSheet(eintragId: eintrag.id),
+      builder: (_) => _BlockSheet(eintragId: eintrag.id, datum: widget.datum),
     );
   }
 }
@@ -1677,8 +1679,9 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
 
 class _BlockSheet extends ConsumerWidget {
   final String eintragId;
+  final DateTime datum;
 
-  const _BlockSheet({required this.eintragId});
+  const _BlockSheet({required this.eintragId, required this.datum});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1906,6 +1909,22 @@ class _BlockSheet extends ConsumerWidget {
                     ),
                 ],
               ),
+
+              // ─── War geschlossen (nur heute/vergangen — für künftige
+              // Tage steht noch nichts fest, Daniel 31.07.2026) ───
+              if (betrieb != null && istHeuteOderVergangenerTag(datum))
+                _SheetAktion(
+                  icon: Icons.event_busy,
+                  text: 'War geschlossen',
+                  onTap: () {
+                    Navigator.pop(context);
+                    zeigeWarGeschlossenSheet(
+                      context,
+                      eintragId: eintragId,
+                      betrieb: betrieb,
+                    );
+                  },
+                ),
 
               const Divider(height: 20),
               _SheetAktion(

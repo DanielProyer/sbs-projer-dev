@@ -51,6 +51,7 @@ class BetriebMapper {
     local.keineBetriebsferien = dto.keineBetriebsferien;
     local.ferienBestaetigtAm = dto.ferienBestaetigtAm;
     local.ferienFrageRuhtBis = dto.ferienFrageRuhtBis;
+    local.ruhetageBestaetigtAm = dto.ruhetageBestaetigtAm;
     local.oeffnungszeitenJson = dto.oeffnungszeiten != null
         ? jsonEncode(dto.oeffnungszeiten)
         : null;
@@ -131,6 +132,7 @@ class BetriebMapper {
           ?.toIso8601String()
           .split('T')
           .first,
+      'ruhetage_bestaetigt_am': local.ruhetageBestaetigtAm?.toIso8601String(),
       'oeffnungszeiten': local.oeffnungszeitenJson != null
           ? jsonDecode(local.oeffnungszeitenJson!)
           : {},
