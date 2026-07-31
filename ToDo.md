@@ -493,7 +493,32 @@ Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet di
 
 ---
 
-## 🔴 OFFEN (Planung 31.07.): Betriebsferien & geänderte Öffnungszeiten aktuell halten
+## 🟢 ERLEDIGT 31.07.: Betriebsferien & Öffnungszeiten aktuell halten — gebaut, noch NICHT deployed
+
+**Stand: alles committet und gepusht, 871 Tests grün, analyze auf Baseline 54. Der App-Deploy fehlt bewusst** — die drei neuen Oberflächen (War-geschlossen-Sheet, Ferienfrage-Sheet, Prüfliste) sind noch nicht visuell geprüft, und die Projektregel verlangt das vor dem Livegang. Server-seitig läuft dagegen schon alles.
+
+**In der App (auf main, wartet auf Deploy):**
+- **«War geschlossen»** im Tagesplan-Block (heutige + vergangene Tage): Grund erfassen → Betriebsferien (Datumsbereich, `quelle='vor_ort'`), Ruhetag (Wochentag) oder «niemand da» (nur Notiz). Immer ein Wegpunkt `quelle='vergeblich'` mit Zeit + GPS + Notiz. **Keine** automatische Neuplanung (Entscheid Daniel) — Besuch bleibt fällig.
+- **Ferienfrage beim Reinigungs-Abschluss** (vor dem Speichern, Entscheid Daniel): «Keine geplant» / «Von–bis» / «Weiss nicht» (30 Tage Ruhe). Erscheint nur, wenn nie beantwortet oder älter als 12 Monate. Blockiert den Abschluss unter keinen Umständen (eigener try/catch).
+- **Graues Vorjahres-Band** am Block: «Letztes Jahr hier Betriebsferien (20.07.–10.08.) — nachfragen». Rein informativ, optisch klar von der roten Warnung getrennt, schweigt sobald für das Jahr eine Aussage vorliegt.
+- **Prüfliste** `/betriebe/vorschlaege` (Zeile im Aufgaben-Screen): alter → neuer Wert, Quelle, Datum; «Alle übernehmen, bei denen Google und Website übereinstimmen»; **Saison ist von der Sammelübernahme ausgenommen** und orange hervorgehoben.
+
+**Datenmodell (Migrationen 160–162, alle angewendet):** Tabelle `betrieb_ferien` (39 Altperioden übernommen, Quelle + Bestätigungsdatum je Zeile), Pflegefelder auf `betriebe` (`ferien_bestaetigt_am`, `ferien_frage_ruht_bis`, `ruhetage_bestaetigt_am`, `oeffnungszeiten_geprueft_am`, `google_place_id`), Tabelle `betrieb_vorschlaege`, Wegpunkt-Quelle `vergeblich` + `wegpunkte.notiz`. Die alten fünf Ferien-Spaltenpaare stehen als Rückweg noch da.
+
+**Wichtige Regel im Code:** `BetriebLocal.ferienPerioden` ist `null` = noch nicht geladen (dann greifen die alten Spalten) vs. leere Liste = geladen, keine Ferien (dann schweigen die alten Spalten). Ohne diese Trennung käme eine gelöschte Ferienperiode über den Altbestand zurück.
+
+**Server (läuft bereits):** Edge-Functions `betrieb-google-abgleich` (Places: `regularOpeningHours`, `currentOpeningHours`, `businessStatus`, speichert `google_place_id`) und `betriebsdaten-abgleich` (Orchestrator, fragt je Betrieb **beide** Quellen); `parse-oeffnungszeiten` liest neu auch Ferien und Saison und läuft auf Haiku. **pg_cron-Job `betriebsdaten-abgleich`, täglich 03:20 UTC, 10 Betriebe** → ganzer Bestand in ~4 Wochen.
+
+**Zwei Funde aus dem ersten Testlauf, sofort behoben:** (1) Eine Website hatte noch eine Ferienmeldung von **November 2024** stehen — abgelaufene Zeiträume werden jetzt verworfen. (2) Ein Saison-Vorschlag entstand für einen ganzjährig offenen Betrieb — Saison gibt es jetzt nur noch bei `ist_saisonbetrieb`. Testlauf danach an 3 Betrieben: 6 plausible Vorschläge, 0 Fehler (Ruhetage Mo/Di von beiden Quellen bestätigt, Öffnungszeiten Google vs. Website 22:30 vs. 23:00 → korrekt zwei getrennte Vorschläge, Saison nur beim Berggasthaus Arflina).
+
+**Noch offen:**
+- **App-Deploy** (Version bumpen, Build, gh-pages) nach visueller Prüfung der drei neuen Oberflächen.
+- **20 Winterfenster mit verdrehten Jahreszahlen reparieren** — Stammdaten, deshalb erst nach Daniels Wort. Die Logik dafür (`saison_jahr.dart`) ist gebaut und getestet, das Wartungsskript fehlt noch.
+- **Rössli:** Ferienbeginn 29.05.2026 ohne Enddatum (wandert nicht in die neue Tabelle, war auch bisher wirkungslos) — Ende nachtragen.
+
+<details><summary>Ursprüngliche Planung (31.07.)</summary>
+
+## Planung: Betriebsferien & geänderte Öffnungszeiten aktuell halten
 
 **Anlass Daniel:** «Heute ist es mir wieder passiert, dass ich einen Kunden hatte, der plötzlich Betriebsferien hatte und den ich nicht machen konnte.»
 
@@ -518,7 +543,9 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 **Spec:** `docs/superpowers/specs/2026-07-31-betriebsdaten-aktuell-halten-design.md` · **Plan:** `docs/superpowers/plans/2026-07-31-betriebsdaten-aktuell-halten.md` (11 Tasks, wartet auf Startfreigabe).
 
-**Nachtrag Daniel 31.07. — Saisonpausen mitnehmen:** Von 92 aktiven Saisonbetrieben haben **89 eine Website**; Bergrestaurants schreiben ihre Saison fast immer aufs Netz. Unvollständig: 32 Sommer-, 41 Winterangaben, 12 ganz ohne Daten. Google kennt **kein** Saisonfeld — das läuft nur über die Website. Die Extraktion liefert **nur Tag und Monat**, das Jahr setzt die App (`saison_jahr.dart`, Task 6b), weil Winterfenster über den Jahreswechsel laufen; dieselbe Logik repariert die **20 Winterfenster mit verdrehten Jahreszahlen** (Robinson Club Arosa: 01.12.2026–01.04.2026). **Saison-Vorschläge nie per Sammelübernahme** — ein zu spät angesetzter Saisonstart nimmt einen Betrieb still für Monate aus der Fällig-Liste (`faelligkeitsAnker` zählt ab Wiedereröffnung). Kern: eigene Tabelle `betrieb_ferien` statt fünf fester Spaltenpaare (sonst verdrängen neue Ferien die Historie, aus der der Vorjahres-Hinweis stammt), Vorschlagstabelle statt stiller Übernahme, täglicher `pg_cron`-Lauf über je 10 Betriebe (`pg_cron` ist noch nicht aktiviert).
+**Nachtrag Daniel 31.07. — Saisonpausen mitnehmen (umgesetzt):** Von 92 aktiven Saisonbetrieben haben **89 eine Website**; Bergrestaurants schreiben ihre Saison fast immer aufs Netz. Unvollständig: 32 Sommer-, 41 Winterangaben, 12 ganz ohne Daten. Google kennt **kein** Saisonfeld — das läuft nur über die Website. Die Extraktion liefert **nur Tag und Monat**, das Jahr setzt die App (`saison_jahr.dart`, Task 6b), weil Winterfenster über den Jahreswechsel laufen; dieselbe Logik repariert die **20 Winterfenster mit verdrehten Jahreszahlen** (Robinson Club Arosa: 01.12.2026–01.04.2026). **Saison-Vorschläge nie per Sammelübernahme** — ein zu spät angesetzter Saisonstart nimmt einen Betrieb still für Monate aus der Fällig-Liste (`faelligkeitsAnker` zählt ab Wiedereröffnung). Kern: eigene Tabelle `betrieb_ferien` statt fünf fester Spaltenpaare (sonst verdrängen neue Ferien die Historie, aus der der Vorjahres-Hinweis stammt), Vorschlagstabelle statt stiller Übernahme, täglicher `pg_cron`-Lauf über je 10 Betriebe.
+
+</details>
 
 ## 🔴 OFFEN: Nächste Schritte
 - **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.

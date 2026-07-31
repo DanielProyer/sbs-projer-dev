@@ -121,8 +121,13 @@ function normOeffnungszeiten(map?: Oeffnungszeiten | null): Oeffnungszeiten {
 }
 
 function normFerien(list?: FerienPeriode[] | null): FerienPeriode[] {
+  // Abgelaufene Zeitraeume fliegen raus. Auf Gastro-Websites bleiben alte
+  // Ferienmeldungen oft jahrelang stehen (Fund im ersten Testlauf: eine
+  // Meldung von November 2024). Ein Vorschlag fuer vergangene Ferien ist
+  // wertlos und verstopft nur die Pruefliste.
+  const heute = new Date().toISOString().slice(0, 10);
   return (list ?? [])
-    .filter((f) => f?.von && f?.bis)
+    .filter((f) => f?.von && f?.bis && f.bis >= heute)
     .map((f) => ({ von: f.von, bis: f.bis }))
     .sort((a, b) => a.von.localeCompare(b.von));
 }
@@ -349,7 +354,13 @@ async function verarbeiteBetrieb(
     : null;
   const istSaison = { sommer: normFenster(istSommer), winter: normFenster(istWinter) };
 
-  const websiteSaisonOk = website != null && (website.saison_konfidenz ?? 0) >= MIN_KONFIDENZ &&
+  // Nur bei Saisonbetrieben. Bei allen anderen bleibt die Saisonpruefung in
+  // der App wirkungslos (`istInAktiverSaison` gibt fuer Nicht-Saisonbetriebe
+  // immer true zurueck) — ein Vorschlag dort waere reine Ablenkung. Fund aus
+  // dem ersten Testlauf: Das Modell deutete eine Sommerpause im Fliesstext
+  // als Saisonfenster eines ganzjaehrig offenen Betriebs.
+  const websiteSaisonOk = website != null && betrieb.ist_saisonbetrieb === true &&
+    (website.saison_konfidenz ?? 0) >= MIN_KONFIDENZ &&
     (website.saison?.sommer != null || website.saison?.winter != null);
   kandidaten.push({
     feld: "saison",
