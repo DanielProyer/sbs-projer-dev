@@ -75,33 +75,63 @@ void main() {
   });
 
   group('vorschlagWertAnzeige — saison', () {
+    // Saison-Vorschlaege tragen Tag und Monat OHNE Jahr — Websites nennen
+    // kein Jahr, und ein Winterfenster laeuft ueber den Jahreswechsel.
     test('nur Sommerfenster', () {
       final wert = {
-        'sommer_start_datum': '2026-06-15',
-        'sommer_ende_datum': '2026-10-20',
+        'sommer': {
+          'von_tag': 15,
+          'von_monat': 6,
+          'bis_tag': 20,
+          'bis_monat': 10,
+        },
+        'winter': null,
       };
       expect(vorschlagWertAnzeige('saison', wert), '15.06.–20.10.');
     });
 
     test('nur Winterfenster (über Jahreswechsel, ohne Jahr)', () {
       final wert = {
-        'winter_start_datum': '2026-12-01',
-        'winter_ende_datum': '2027-04-01',
+        'sommer': null,
+        'winter': {'von_tag': 1, 'von_monat': 12, 'bis_tag': 1, 'bis_monat': 4},
       };
       expect(vorschlagWertAnzeige('saison', wert), '01.12.–01.04.');
     });
 
     test('Sommer und Winter zugleich -> beide mit Label', () {
       final wert = {
-        'sommer_start_datum': '2026-06-15',
-        'sommer_ende_datum': '2026-10-20',
-        'winter_start_datum': '2026-12-01',
-        'winter_ende_datum': '2027-04-01',
+        'sommer': {
+          'von_tag': 15,
+          'von_monat': 6,
+          'bis_tag': 20,
+          'bis_monat': 10,
+        },
+        'winter': {'von_tag': 1, 'von_monat': 12, 'bis_tag': 1, 'bis_monat': 4},
       };
       expect(
         vorschlagWertAnzeige('saison', wert),
         'Sommer 15.06.–20.10. / Winter 01.12.–01.04.',
       );
+    });
+
+    test('unvollstaendiges Fenster zaehlt nicht', () {
+      final wert = {
+        'sommer': {'von_tag': 15, 'von_monat': 6},
+        'winter': null,
+      };
+      expect(vorschlagWertAnzeige('saison', wert), 'keine Angabe');
+    });
+
+    test('Zahlen als Text werden akzeptiert', () {
+      final wert = {
+        'sommer': {
+          'von_tag': '15',
+          'von_monat': '6',
+          'bis_tag': '20',
+          'bis_monat': '10',
+        },
+      };
+      expect(vorschlagWertAnzeige('saison', wert), '15.06.–20.10.');
     });
 
     test('leere Map -> "keine Angabe"', () {

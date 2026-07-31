@@ -141,17 +141,38 @@ Antworte NUR mit validem JSON (kein Markdown, keine Erklärung) in genau diesem 
     "So": []
   },
   "ruhetage": ["Di","Mi"],
-  "konfidenz": 0.0
+  "konfidenz": 0.0,
+  "ferien": [{"von":"YYYY-MM-DD","bis":"YYYY-MM-DD"}],
+  "ferien_konfidenz": 0.0,
+  "saison": {
+    "sommer": {"von_tag":15,"von_monat":6,"bis_tag":20,"bis_monat":10},
+    "winter": null
+  },
+  "saison_konfidenz": 0.0
 }
 
-Regeln:
+Regeln Öffnungszeiten:
 - Zeiten im 24h-Format HH:MM. Mittagspausen als ZWEI Slots (z.B. 11:30-14:00 und 18:00-23:00).
 - Statt "24:00" oder "durchgehend bis Mitternacht" verwende "23:59".
 - "ruhetage": Liste der geschlossenen Wochentage (Mo/Di/Mi/Do/Fr/Sa/So). Ein Tag ohne Zeiten, der klar als Ruhetag genannt ist, gehört hierhin.
 - Wochentags-Kürzel exakt: Mo, Di, Mi, Do, Fr, Sa, So.
 - Wenn für einen Tag keine Info vorhanden ist: leeres Array, und NICHT als Ruhetag markieren.
-- NICHTS erfinden. Wenn gar keine Öffnungszeiten auffindbar sind: alle Arrays leer, ruhetage leer, konfidenz 0.
 - Ignoriere Feiertags-Sonderzeiten und Küchenschluss; nimm die regulären Öffnungszeiten des Lokals.
+
+Regeln BETRIEBSFERIEN ("ferien"):
+- Erkenne Formulierungen wie "Betriebsferien", "Ferien vom … bis …", "wir sind zurück ab …", "geschlossen vom … bis …".
+- Ein Jahr NUR übernehmen, wenn es dasteht. Fehlt es, nimm das laufende Jahr und senke "ferien_konfidenz" deutlich.
+- Ferien sind eine Unterbrechung INNERHALB der Saison, typisch ein bis vier Wochen.
+- Keine Ferienangabe gefunden: leeres Array und ferien_konfidenz 0.
+
+Regeln SAISON ("saison"):
+- Erkenne Angaben über Monate hinweg: "Sommersaison", "Winteröffnung", "geöffnet von Mitte Juni bis Oktober".
+- Gib NUR Tag und Monat an, NIEMALS ein Jahr — die Jahreszuordnung macht die App, weil Winterfenster über den Jahreswechsel laufen.
+- Ist nur ein Monat genannt ("ab Mitte Dezember"), nimm Tag 15 bzw. bei "Anfang" 1 und bei "Ende" 28, und senke die Konfidenz.
+- Kein Saisonbetrieb erkennbar (ganzjährig offen): beide Felder null, saison_konfidenz 0.
+- Verwechsle Saison und Ferien nicht: Die Saison umfasst Monate, Ferien sind kurze Unterbrechungen darin.
+
+NICHTS erfinden. Im Zweifel lieber leer und Konfidenz 0 — ein falscher Wert ist schlimmer als ein fehlender, weil er die Tourenplanung in die Irre führt.
 
 Website-Text:
 ${text}`;
@@ -167,8 +188,11 @@ ${text}`;
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 1024,
+        // Haiku genuegt: reine Extraktion aus vorgegebenem Text, kein
+        // Ermessen. Beim taeglichen Lauf ueber ~260 Websites im Monat macht
+        // das den Unterschied zwischen Rappen und Franken.
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1500,
         temperature: 0,
         messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
       }),

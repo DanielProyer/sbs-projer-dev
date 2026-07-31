@@ -120,32 +120,53 @@ String _formatFerien(dynamic wert) {
   return teile.join('; ');
 }
 
+/// Saison-Vorschlaege tragen bewusst NUR Tag und Monat, nie ein Jahr:
+/// Kundenwebsites schreiben «Sommersaison 15. Juni bis 20. Oktober», und ein
+/// Winterfenster laeuft ueber den Jahreswechsel. Die Jahreszuordnung macht
+/// erst die Uebernahme mit `saisonFenster()` aus core/util/saison_jahr.dart.
+///
+/// Erwartete Form: `{"sommer": {"von_tag":15,"von_monat":6,"bis_tag":20,
+/// "bis_monat":10}, "winter": null}`. Der Ist-Zustand des Betriebs kommt als
+/// dieselbe Struktur herein, aus den vier Datumsspalten reduziert.
 String _formatSaison(dynamic wert) {
   if (wert is! Map) return _kKeineAngabe;
   final teile = <String>[];
-  final sommerVon = _parseDatum(wert['sommer_start_datum']);
-  final sommerBis = _parseDatum(wert['sommer_ende_datum']);
-  final winterVon = _parseDatum(wert['winter_start_datum']);
-  final winterBis = _parseDatum(wert['winter_ende_datum']);
-  final hatSommer = sommerVon != null && sommerBis != null;
-  final hatWinter = winterVon != null && winterBis != null;
-  if (hatSommer) {
-    teile.add(
-      hatWinter
-          ? 'Sommer ${_kurz(sommerVon)}–${_kurz(sommerBis)}'
-          : '${_kurz(sommerVon)}–${_kurz(sommerBis)}',
-    );
+  final sommer = _saisonFenstertext(wert['sommer']);
+  final winter = _saisonFenstertext(wert['winter']);
+  if (sommer != null) {
+    teile.add(winter != null ? 'Sommer $sommer' : sommer);
   }
-  if (hatWinter) {
-    teile.add(
-      hatSommer
-          ? 'Winter ${_kurz(winterVon)}–${_kurz(winterBis)}'
-          : '${_kurz(winterVon)}–${_kurz(winterBis)}',
-    );
+  if (winter != null) {
+    teile.add(sommer != null ? 'Winter $winter' : winter);
   }
   if (teile.isEmpty) return _kKeineAngabe;
   return teile.join(' / ');
 }
+
+/// «15.06.–20.10.» aus einem Tag/Monat-Fenster, oder null wenn unvollstaendig.
+String? _saisonFenstertext(dynamic fenster) {
+  if (fenster is! Map) return null;
+  final vonTag = _alsZahl(fenster['von_tag']);
+  final vonMonat = _alsZahl(fenster['von_monat']);
+  final bisTag = _alsZahl(fenster['bis_tag']);
+  final bisMonat = _alsZahl(fenster['bis_monat']);
+  if (vonTag == null ||
+      vonMonat == null ||
+      bisTag == null ||
+      bisMonat == null) {
+    return null;
+  }
+  return '${_zwei(vonTag)}.${_zwei(vonMonat)}.–${_zwei(bisTag)}.${_zwei(bisMonat)}.';
+}
+
+int? _alsZahl(dynamic v) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v);
+  return null;
+}
+
+String _zwei(int n) => n.toString().padLeft(2, '0');
 
 String _formatStatus(dynamic wert) {
   final status = wert is Map ? wert['status']?.toString() : wert?.toString();

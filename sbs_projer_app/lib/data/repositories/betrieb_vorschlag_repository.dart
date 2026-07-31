@@ -1,15 +1,7 @@
+import 'package:sbs_projer_app/core/util/saison_jahr.dart';
 import 'package:sbs_projer_app/data/models/betrieb_vorschlag.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_ferien_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-
-/// Felder, die beim Übernehmen eines `saison`-Vorschlags gesetzt werden
-/// dürfen — nur diese vier Spalten, alles andere wird ignoriert.
-const _kSaisonFelder = {
-  'sommer_start_datum',
-  'sommer_ende_datum',
-  'winter_start_datum',
-  'winter_ende_datum',
-};
 
 /// Zugriff auf die Prüfliste `betrieb_vorschlaege` (Migration 160).
 ///
@@ -117,21 +109,72 @@ class BetriebVorschlagRepository {
     }
   }
 
-  /// Übernimmt nur die in `neu_wert` tatsächlich vorhandenen Saisonfelder —
-  /// üblicherweise nur Sommer ODER Winter, nicht beide.
+  /// Übernimmt die Saisonfenster — üblicherweise nur Sommer ODER Winter.
+  ///
+  /// Der Vorschlag trägt bewusst nur Tag und Monat: Kundenwebsites schreiben
+  /// «Sommersaison 15. Juni bis 20. Oktober» ohne Jahr. Die Jahreszahl setzt
+  /// erst [saisonFenster] — entscheidend beim Winterfenster, das über den
+  /// Jahreswechsel läuft (1. Dezember bis 1. April ist NICHT dasselbe Jahr).
   static Future<void> _uebernehmeSaison(BetriebVorschlagDto v) async {
     final neu = v.neuWert;
     if (neu is! Map) return;
-    final patch = <String, dynamic>{
-      for (final key in _kSaisonFelder)
-        if (neu[key] != null) key: neu[key],
-    };
+    final heute = DateTime.now();
+    final patch = <String, dynamic>{};
+
+    for (final (schluessel, vonSpalte, bisSpalte) in const [
+      ('sommer', 'sommer_start_datum', 'sommer_ende_datum'),
+      ('winter', 'winter_start_datum', 'winter_ende_datum'),
+    ]) {
+      final fenster = _tagMonatFenster(neu[schluessel]);
+      if (fenster == null) continue;
+      final datiert = saisonFenster(
+        vonTag: fenster.vonTag,
+        vonMonat: fenster.vonMonat,
+        bisTag: fenster.bisTag,
+        bisMonat: fenster.bisMonat,
+        heute: heute,
+      );
+      patch[vonSpalte] = _alsDatum(datiert.von);
+      patch[bisSpalte] = _alsDatum(datiert.bis);
+    }
+
     if (patch.isEmpty) return;
     await SupabaseService.client
         .from(_betriebeTable)
         .update(patch)
         .eq('id', v.betriebId);
   }
+
+  /// Liest ein Tag/Monat-Fenster aus dem Vorschlag; null wenn unvollständig.
+  static ({int vonTag, int vonMonat, int bisTag, int bisMonat})?
+  _tagMonatFenster(dynamic roh) {
+    if (roh is! Map) return null;
+    final vonTag = _alsZahl(roh['von_tag']);
+    final vonMonat = _alsZahl(roh['von_monat']);
+    final bisTag = _alsZahl(roh['bis_tag']);
+    final bisMonat = _alsZahl(roh['bis_monat']);
+    if (vonTag == null ||
+        vonMonat == null ||
+        bisTag == null ||
+        bisMonat == null) {
+      return null;
+    }
+    return (
+      vonTag: vonTag,
+      vonMonat: vonMonat,
+      bisTag: bisTag,
+      bisMonat: bisMonat,
+    );
+  }
+
+  static int? _alsZahl(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
+  static String _alsDatum(DateTime d) => d.toIso8601String().split('T').first;
 
   /// Übernimmt alle offenen Vorschläge, bei denen Google und Website
   /// übereinstimmen (`quelle == 'google_website'`) — mit Ausnahme von
