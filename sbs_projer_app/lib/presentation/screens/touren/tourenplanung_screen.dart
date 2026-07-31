@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/besuch_buendelung.dart';
 import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
+import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/core/util/touren_saison.dart';
@@ -1580,6 +1581,9 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                   schliessungsGrund: betrieb == null
                       ? null
                       : schliessungsGrund(betrieb, widget.datum),
+                  vorjahresFerienText: betrieb == null
+                      ? null
+                      : _vorjahresFerienText(betrieb, widget.datum),
                   servicezeitKonflikt: servicezeitKonflikt,
                   servicezeit: betrieb == null
                       ? null
@@ -2620,4 +2624,21 @@ class _FaelligEintragKarte extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// «Letztes Jahr hier Betriebsferien (20.07.–10.08.) — nachfragen»: der
+/// Vorjahres-Ferienhinweis fuer den Besuchs-Block, oder `null`, wenn fuers
+/// Jahr von [tag] schon etwas feststeht oder keine Vorjahresperiode passt.
+/// Siehe `core/util/ferien_vorjahr.dart` (Daniel 31.07.2026).
+String? _vorjahresFerienText(BetriebLocal b, DateTime tag) {
+  final fenster = vorjahresFerienHinweis(
+    perioden: b.ferienPerioden ?? const [],
+    tag: tag,
+    hatAussageFuerJahr: hatFerienAussageFuerJahr(b, tag.year),
+  );
+  if (fenster == null) return null;
+  String d(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.';
+  return 'Letztes Jahr hier Betriebsferien '
+      '(${d(fenster.von)}–${d(fenster.bis)}) — nachfragen';
 }

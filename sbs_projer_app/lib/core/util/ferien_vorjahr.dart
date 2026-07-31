@@ -11,6 +11,8 @@
 /// anstossen, beim Kunden nachzufragen.
 library;
 
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
+
 /// Ein Ferienfenster. Absichtlich als schlichter Record, damit diese Datei
 /// nichts aus der Datenschicht braucht und rein testbar bleibt.
 typedef FerienFenster = ({DateTime von, DateTime bis});
@@ -73,4 +75,37 @@ FerienFenster? vorjahresFerienHinweis({
   }
 
   return treffer;
+}
+
+/// Steht fuer [jahr] beim Betrieb [b] bereits eine Ferien-Aussage fest?
+///
+/// Fuettert [vorjahresFerienHinweis]s `hatAussageFuerJahr` direkt aus den
+/// Feldern, die der Tagesplan ohnehin schon laedt (`betriebeProvider`) —
+/// anders als [vorjahresFerienHinweis] selbst braucht dieser Helfer die
+/// Datenschicht, bleibt aber eine reine Funktion (keine Queries).
+///
+/// Trifft eine von drei Bedingungen zu, gilt das Jahr als geklaert:
+/// - eine erfasste Ferienperiode faellt in [jahr] (Start- ODER Endjahr, wegen
+///   Perioden ueber den Jahreswechsel),
+/// - [BetriebLocal.keineBetriebsferien] ist gesetzt (Betrieb macht grundsaetzlich
+///   keine Ferien),
+/// - [BetriebLocal.ferienBestaetigtAm] liegt im selben Jahr (die Ferienfrage
+///   wurde fuer dieses Jahr beim Reinigungs-Abschluss schon beantwortet).
+///
+/// `null` in [BetriebLocal.ferienPerioden] heisst "noch nicht geladen" — dann
+/// zaehlt fuer den ersten Punkt nichts, die anderen beiden bleiben gueltig.
+bool hatFerienAussageFuerJahr(BetriebLocal b, int jahr) {
+  if (b.keineBetriebsferien) return true;
+
+  final bestaetigt = b.ferienBestaetigtAm;
+  if (bestaetigt != null && bestaetigt.year == jahr) return true;
+
+  final perioden = b.ferienPerioden;
+  if (perioden != null) {
+    for (final p in perioden) {
+      if (p.von.year == jahr || p.bis.year == jahr) return true;
+    }
+  }
+
+  return false;
 }

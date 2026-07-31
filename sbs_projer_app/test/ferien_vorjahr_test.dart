@@ -1,10 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 
 void main() {
   List<({DateTime von, DateTime bis})> p(String von, String bis) => [
     (von: DateTime.parse(von), bis: DateTime.parse(bis)),
   ];
+
+  BetriebLocal betrieb({
+    List<({DateTime von, DateTime bis})>? ferienPerioden,
+    bool keineBetriebsferien = false,
+    DateTime? ferienBestaetigtAm,
+  }) => BetriebLocal()
+    ..userId = 'test'
+    ..name = 'Testbetrieb'
+    ..ferienPerioden = ferienPerioden
+    ..keineBetriebsferien = keineBetriebsferien
+    ..ferienBestaetigtAm = ferienBestaetigtAm;
 
   group('vorjahresFerienHinweis', () {
     test('Tag liegt im Fenster des Vorjahres', () {
@@ -149,6 +161,75 @@ void main() {
         hatAussageFuerJahr: false,
       );
       expect(h, isNotNull);
+    });
+  });
+
+  group('hatFerienAussageFuerJahr', () {
+    test('erfasste Periode im geplanten Jahr -> Aussage vorhanden', () {
+      final b = betrieb(ferienPerioden: p('2026-07-20', '2026-08-10'));
+      expect(hatFerienAussageFuerJahr(b, 2026), isTrue);
+    });
+
+    test('Periode ueber den Jahreswechsel zaehlt fuer beide Jahre', () {
+      final b = betrieb(
+        ferienPerioden: [
+          (von: DateTime(2025, 12, 27), bis: DateTime(2026, 1, 6)),
+        ],
+      );
+      expect(hatFerienAussageFuerJahr(b, 2025), isTrue);
+      expect(hatFerienAussageFuerJahr(b, 2026), isTrue);
+    });
+
+    test('keineBetriebsferien gesetzt -> Aussage vorhanden', () {
+      final b = betrieb(keineBetriebsferien: true);
+      expect(hatFerienAussageFuerJahr(b, 2026), isTrue);
+    });
+
+    test('ferienBestaetigtAm im selben Jahr -> Aussage vorhanden', () {
+      final b = betrieb(ferienBestaetigtAm: DateTime(2026, 3, 1));
+      expect(hatFerienAussageFuerJahr(b, 2026), isTrue);
+    });
+
+    test('ferienBestaetigtAm in anderem Jahr -> keine Aussage', () {
+      final b = betrieb(ferienBestaetigtAm: DateTime(2025, 3, 1));
+      expect(hatFerienAussageFuerJahr(b, 2026), isFalse);
+    });
+
+    test('nichts bekannt -> keine Aussage', () {
+      final b = betrieb();
+      expect(hatFerienAussageFuerJahr(b, 2026), isFalse);
+    });
+
+    test('Perioden aus anderem Jahr sagen ueber das geplante Jahr nichts', () {
+      final b = betrieb(ferienPerioden: p('2025-07-20', '2025-08-10'));
+      expect(hatFerienAussageFuerJahr(b, 2026), isFalse);
+    });
+
+    test(
+      'nichts bekannt + Vorjahresperiode passt -> Hinweis (Zusammenspiel)',
+      () {
+        final b = betrieb(ferienPerioden: p('2025-07-20', '2025-08-10'));
+        final hatAussage = hatFerienAussageFuerJahr(b, 2026);
+        expect(hatAussage, isFalse);
+        final h = vorjahresFerienHinweis(
+          perioden: b.ferienPerioden!,
+          tag: DateTime(2026, 7, 31),
+          hatAussageFuerJahr: hatAussage,
+        );
+        expect(h, isNotNull);
+      },
+    );
+
+    test('Aussage fuers Jahr vorhanden -> kein Hinweis (Zusammenspiel)', () {
+      final b = betrieb(ferienPerioden: p('2026-07-20', '2026-08-10'));
+      final hatAussage = hatFerienAussageFuerJahr(b, 2026);
+      expect(hatAussage, isTrue);
+      final h = vorjahresFerienHinweis(
+        perioden: b.ferienPerioden!,
+        tag: DateTime(2026, 7, 31),
+        hatAussageFuerJahr: hatAussage,
+      );
+      expect(h, isNull);
     });
   });
 }

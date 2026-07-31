@@ -396,5 +396,66 @@ void main() {
       );
       expect(find.textContaining('verpasst'), findsNothing);
     });
+
+    // ── Vorjahres-Ferienhinweis (Daniel 31.07.2026) ──
+
+    testWidgets('graues Band zeigt den Vorjahres-Ferienhinweis', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('vf', 9 * 60, 30),
+          eintrag: _eintrag('vf'),
+          anlagenGesamt: 1,
+          vorjahresFerienText:
+              'Letztes Jahr hier Betriebsferien (20.07.–10.08.) — nachfragen',
+        ),
+      );
+      expect(
+        find.text(
+          'Letztes Jahr hier Betriebsferien (20.07.–10.08.) — nachfragen',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('ohne Vorjahres-Ferienhinweis kein Band', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('vf2', 9 * 60, 30),
+          eintrag: _eintrag('vf2'),
+          anlagenGesamt: 1,
+        ),
+      );
+      expect(find.byIcon(Icons.info_outline), findsNothing);
+      expect(find.textContaining('Letztes Jahr'), findsNothing);
+    });
+
+    testWidgets('erledigter Block zeigt den Vorjahres-Hinweis nicht mehr', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: const ZeitSegment(
+            art: SegmentArt.besuch,
+            blockId: 'vf3',
+            startMin: 9 * 60,
+            endMin: 9 * 60 + 30,
+            ist: true,
+          ),
+          eintrag: _eintrag('vf3'),
+          anlagenGesamt: 1,
+          erledigt: true,
+          vorjahresFerienText:
+              'Letztes Jahr hier Betriebsferien (20.07.–10.08.) — nachfragen',
+        ),
+      );
+      expect(find.textContaining('Letztes Jahr'), findsNothing);
+    });
   });
 }

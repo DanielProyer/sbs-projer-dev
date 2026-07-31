@@ -232,6 +232,13 @@ class ZeitplanZeile extends StatelessWidget {
   /// «Betrieb geschlossen» (Daniel 31.07.2026).
   final String? schliessungsGrund;
 
+  /// «Letztes Jahr hier Betriebsferien (20.07.–10.08.) — nachfragen», wenn
+  /// `core/util/ferien_vorjahr.dart` fuer diesen Betrieb/Tag ein passendes
+  /// Vorjahresfenster gefunden hat, sonst `null`. Rein informativ — anders
+  /// als [schliessungsGrund] KEIN gesicherter Fakt, daher grau statt rot
+  /// (Daniel 31.07.2026).
+  final String? vorjahresFerienText;
+
   /// Ankunft liegt ausserhalb aller Servicefenster des Betriebs.
   final bool servicezeitKonflikt;
 
@@ -275,6 +282,7 @@ class ZeitplanZeile extends StatelessWidget {
     this.dauerGeschaetzt = true,
     this.ruhetagKonflikt = false,
     this.schliessungsGrund,
+    this.vorjahresFerienText,
     this.servicezeitKonflikt = false,
     this.servicezeit,
     this.ruhetage,
@@ -430,6 +438,11 @@ class ZeitplanZeile extends StatelessWidget {
             'Termin ${eintrag.ankerZeit} verpasst — Reihenfolge anpassen',
             AppColors.error,
           ),
+        // Grau statt rot: eine Vermutung aus dem Vorjahr, kein gesicherter
+        // Fakt — sie darf nicht wie die echten Warnungen oben aussehen
+        // (Daniel 31.07.2026).
+        if (!erledigt && vorjahresFerienText != null)
+          _infoband(vorjahresFerienText!),
         Row(
           children: [
             if (erledigt) ...[
@@ -600,6 +613,37 @@ class ZeitplanZeile extends StatelessWidget {
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: farbe,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dezentes graues Band fuer den Vorjahres-Ferienhinweis — bewusst nicht
+  /// fett und ohne Warn-Icon, damit es auf einen Blick von [_warnband]
+  /// (gesicherte Warnung) zu unterscheiden ist.
+  Widget _infoband(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline,
+            size: 11,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 3),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textSecondary,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
