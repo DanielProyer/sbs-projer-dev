@@ -107,6 +107,12 @@ Ausgabe:
 
 Regeln im Prompt: relative Datumsangaben auflösen; Betrieb nur zuordnen, wenn er eindeutig ist, sonst Kandidaten zurückgeben; **nichts erfinden** — was nicht gesagt wurde, bleibt leer; bei Unklarheit eine `rueckfrage` formulieren statt zu raten.
 
+### 5.2a Wo der Knopf sitzt (Entscheid Daniel 31.07.)
+
+**Prominent auf der Startseite**, nicht in einem Untermenü. Begründung aus Daniels Alltag: «Ich bekomme häufig Anrufe während dem Autofahren oder zwischendurch während der Arbeit» — der Knopf muss ohne Suchen und ohne Scrollen erreichbar sein, mit grosser Trefffläche und einhändig bedienbar.
+
+**Was mit einem erkannten Einsatz passiert:** Steht ein Datum im Diktat, wird er **gleich eingeplant**; ohne Datum entsteht ein offener Eintrag, den Daniel wie gewohnt einplant. Das entspricht der natürlichen Lesart von «morgen um vierzehn Uhr Störung beim Sunset».
+
 ### 5.3 Bestätigen statt blind anlegen
 
 Das Ergebnis erscheint als **vorausgefülltes Formular**, nicht als fertiger Eintrag. Daniel sieht auf einen Blick, was verstanden wurde, korrigiert bei Bedarf und speichert. Grund: Ein falsch verstandener Betrieb oder ein um eine Woche verschobener Termin fällt beim Bestätigen sofort auf — nach dem stillen Anlegen erst, wenn er vor der falschen Tür steht.
@@ -114,6 +120,18 @@ Das Ergebnis erscheint als **vorausgefülltes Formular**, nicht als fertiger Ein
 ### 5.4 Offline — der entscheidende Teil
 
 Ohne Netz schlägt der KI-Aufruf fehl. Dann wird der **Rohtext lokal als Entwurf** gespeichert («3 Diktate warten auf Auswertung»), und die App wertet ihn aus, sobald wieder Empfang da ist. Das Diktat selbst geht nie verloren — genau das ist der Unterschied zu einer Lösung, die Spracherkennung online braucht.
+
+### 5.4a Neue Betriebe diktieren (Erweiterung Daniel 31.07.)
+
+Daniel bekommt Anrufe unterwegs — auch solche, aus denen ein **neuer Kunde** wird. Er nennt Name und Ort, dazu Anlagentyp und ob es sein Kunde ist; alles Übrige holt die App:
+
+> «Neuer Betrieb Restaurant Adler in Chur, Heigenie-Anlage, mein Kunde»
+
+Die Auswertung liefert dann `art: "neuer_betrieb"` mit `betrieb_neu_name`, `betrieb_neu_ort`, `anlagen_typ` und `ist_mein_kunde`. Adresse, Telefon, Website und Koordinaten kommen aus dem bestehenden Google-Lookup (`BetriebGoogleService`), die Öffnungszeiten bei Bedarf zusätzlich von der Website (`parse-oeffnungszeiten`) — beides existiert bereits und wird nur wiederverwendet.
+
+**Auch hier wird bestätigt, nicht still angelegt.** Die gefundenen Google-Daten erscheinen zur Kontrolle, bevor der Betrieb entsteht. Ein aus einem Telefonat heraus falsch angelegter Betrieb wäre schwer zu bemerken und würde die Stammdaten verschmutzen.
+
+Bei den Produktnamen ist Grosszügigkeit nötig: Die Tastatur-Spracherkennung verhört sich bei «HeiGenie» regelmässig («Hei Genie», «Heigeni», «Heikeni»).
 
 ### 5.5 Betriebs-Zuordnung
 

@@ -103,8 +103,13 @@ Antworte NUR mit validem JSON (kein Markdown, keine Erklärung) in genau diesem 
   "geplant_dauer_min": 45,
   "beschreibung": "Zapfhahn tropft",
   "konfidenz": 0.85,
-  "rueckfrage": "Meintest du Sunset Seehotel Eich oder Sunset Bar Chur?"
+  "rueckfrage": "Meintest du Sunset Seehotel Eich oder Sunset Bar Chur?",
+  "betrieb_neu_name": "Restaurant Adler",
+  "betrieb_neu_ort": "Chur",
+  "anlagen_typ": "heigenie|david|konventionell|orion oder null",
+  "ist_mein_kunde": true
 }
+Die vier letzten Felder ("betrieb_neu_name", "betrieb_neu_ort", "anlagen_typ", "ist_mein_kunde") sind NUR bei "art": "neuer_betrieb" relevant — in allen anderen Fällen bleiben sie null.
 
 REGEL — DATUM ("geplant_am"):
 - Löse relative Angaben anhand von HEUTIGES DATUM auf:
@@ -128,13 +133,21 @@ REGEL — DAUER ("geplant_dauer_min"):
 - Nur setzen, wenn explizit genannt: "zwei Stunden" → 120, "eine halbe Stunde" → 30, "45 Minuten" → 45.
 - Nicht genannt → null. NICHT aus der Art des Einsatzes schätzen.
 
-REGEL — ART ("art", genau einer dieser 5 Werte):
+REGEL — ART ("art", genau einer dieser 6 Werte):
 - "stoerung": Defekt, Reparatur, Ausfall — Formulierungen wie "geht nicht", "tropft", "kein Druck", "kaputt", "defekt", "funktioniert nicht", "Schaden"
 - "montage": neue Anlage, Umbau, Demontage, Rebranding, Neuanschluss, Installation einer Zapfanlage
 - "eroeffnungsreinigung": Reinigung zum Saisonbeginn/Saisonöffnung
 - "endreinigung": Reinigung zum Saisonende/Saisonschluss
+- "neuer_betrieb": Daniel will einen neuen Kunden/Betrieb anlegen — Auslöser wie "neuer Betrieb", "neuen Kunden erfassen", "Betrieb anlegen", "neu aufnehmen". Siehe eigener Regelblock unten.
 - "aufgabe": alles andere, das keiner der obigen Kategorien eindeutig zuzuordnen ist (Default/Fallback)
 - Erkenne die Art an den tatsächlich genannten Wörtern, nicht durch Vermutung.
+
+REGEL — NEUER BETRIEB (nur bei "art": "neuer_betrieb"):
+- "betrieb_neu_name": Name und Ort im Text trennen. "Restaurant Adler in Chur" → Name "Restaurant Adler", Ort "Chur". Ist kein Ort erkennbar, bleibt "betrieb_neu_ort" null und der ganze Rest gilt als Name.
+- "anlagen_typ": erkenne den genannten Anlagentyp — "Heigenie"/"HeiGenie" → "heigenie", "David" → "david", "konventionell"/"normal" → "konventionell", "Orion" → "orion". Die Spracherkennung verhört sich bei diesen Produktnamen häufig (z.B. "Hei Genie", "Heigeni", "Heikeni", "Davit") — sei hier grosszügig und ordne solche Verhörer trotzdem zu. Kein Anlagentyp genannt → null.
+- "ist_mein_kunde": "mein Kunde"/"eigener Kunde" → true. "Heineken"/"Heineken-Kunde"/"nicht mein Kunde" → false. Nicht genannt → null (die App fragt dann selbst nach).
+- "betrieb_id", "geplant_am", "geplant_zeit", "geplant_dauer_min" bleiben bei dieser Art immer null — es geht ums Anlegen eines Betriebs, nicht ums Planen eines Termins. Adresse, Telefon, Website und Koordinaten holt die App später selbst bei Google, dazu wird hier nichts erfasst.
+- Enthält der Satz zusätzlich noch einen Einsatz für den neuen Betrieb (z.B. "…und morgen um 10 Uhr Störung dort"), bleibt "art" trotzdem "neuer_betrieb" (Betrieb zuerst, das ist die natürliche Reihenfolge) — der Einsatz-Teil kommt dann einfach in "beschreibung", "geplant_am"/"geplant_zeit" bleiben trotzdem null.
 
 REGEL — BETRIEB ZUORDNEN ("betrieb_id", "betrieb_name_erkannt", "betrieb_kandidaten", Teil von "rueckfrage"):
 - "betrieb_name_erkannt": der Namens-/Ortsfragment, den du im diktierten Text als Betriebsnamen identifiziert hast — so wie er im Text vorkommt (nicht der offizielle Name aus der Liste). Kein Name im Text erkennbar → null.
@@ -171,6 +184,16 @@ BEISPIELE (nur zur Veranschaulichung, nicht wörtlich übernehmen):
 4. "Übermorgen Endreinigung Piz Piz"
    → art="endreinigung", geplant_am=heute+2 Tage, geplant_zeit=null, geplant_dauer_min=null,
      betrieb_name_erkannt="Piz Piz", beschreibung=null oder leer
+5. "Neuer Betrieb Restaurant Adler in Chur, Heigenie-Anlage, mein Kunde"
+   → art="neuer_betrieb", betrieb_neu_name="Restaurant Adler", betrieb_neu_ort="Chur",
+     anlagen_typ="heigenie", ist_mein_kunde=true, betrieb_id=null, geplant_am=null, geplant_zeit=null
+6. "Neuen Kunden erfassen: Pizzeria Bellavista Landquart, konventionell, Heineken-Kunde"
+   → art="neuer_betrieb", betrieb_neu_name="Pizzeria Bellavista", betrieb_neu_ort="Landquart",
+     anlagen_typ="konventionell", ist_mein_kunde=false, betrieb_id=null, geplant_am=null, geplant_zeit=null
+7. "Betrieb anlegen Bar Nautilus in Davos, David-Anlage, und morgen um 10 Uhr Störung dort"
+   → art="neuer_betrieb" (Betrieb geht vor), betrieb_neu_name="Bar Nautilus", betrieb_neu_ort="Davos",
+     anlagen_typ="david", ist_mein_kunde=null, geplant_am=null, geplant_zeit=null,
+     beschreibung="morgen um 10 Uhr Störung"
 
 Antworte ausschliesslich mit dem JSON-Objekt.`;
 
