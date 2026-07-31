@@ -24,6 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 
 /// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
 class MontageVorbefuellung {
@@ -480,6 +481,16 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             referenzId: m.serverId,
           ),
         );
+        // Vergessene Pause abfangen (Daniel 31.07.2026): laeuft noch eine
+        // Pause, jetzt anhand der aktuellen Position pruefen — NIE
+        // blockierend, eigener try/catch.
+        if (mounted) {
+          try {
+            await pausePruefenNachEreignis(context, ref);
+          } catch (e) {
+            debugPrint('[Pause-Pruefung] uebersprungen, Fehler: $e');
+          }
+        }
       }
       if (_materialIds.any((id) => id != null)) {
         ref.invalidate(materialienStreamProvider);

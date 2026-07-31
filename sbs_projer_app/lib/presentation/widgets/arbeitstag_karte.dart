@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
@@ -18,16 +19,59 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 /// festen Startort (Zuhause Domat/Ems), sondern oft anderswo (Chur):
 /// Anfahrt/Heimweg der Zeitachse rechnen von der gestempelten Startposition;
 /// schlägt GPS fehl, wird trotzdem gespeichert (Rückfall fester Startort).
-class ArbeitstagKarte extends ConsumerWidget {
+class ArbeitstagKarte extends ConsumerStatefulWidget {
   const ArbeitstagKarte({super.key});
+
+  @override
+  ConsumerState<ArbeitstagKarte> createState() => _ArbeitstagKarteState();
+}
+
+class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
+  /// Minutentakt, solange eine Pause läuft — lässt die mitlaufende Dauer im
+  /// Balken («Pause seit 14:10 · 47 min») live vorrücken (Vorbild: der
+  /// Live-Timer der Tourenplan-Zeitachse, `_liveTimerAktualisieren`).
+  Timer? _pauseTimer;
 
   DateTime get _heute {
     final jetzt = DateTime.now();
     return DateTime(jetzt.year, jetzt.month, jetzt.day);
   }
 
+  @override
+  void initState() {
+    super.initState();
+    final laeuft = ref.read(arbeitstagProvider(_heute)).pauseStart != null;
+    _pauseTimerSicherstellen(laeuft);
+  }
+
+  @override
+  void dispose() {
+    _pauseTimer?.cancel();
+    super.dispose();
+  }
+
+  void _pauseTimerSicherstellen(bool laeuft) {
+    if (laeuft) {
+      _pauseTimer ??= Timer.periodic(const Duration(minutes: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      _pauseTimer?.cancel();
+      _pauseTimer = null;
+    }
+  }
+
+  /// Dauer der laufenden Pause in Minuten (0, wenn die Uhr über Mitternacht
+  /// gelaufen ist statt eines negativen Werts).
+  int _laufendePauseMinuten(String pauseStart) {
+    final von = minutenAusHhmm(pauseStart) ?? 0;
+    final jetzt = DateTime.now();
+    final bis = jetzt.hour * 60 + jetzt.minute;
+    final dauer = bis - von;
+    return dauer < 0 ? 0 : dauer;
+  }
+
   Future<void> _speichern(
-    WidgetRef ref,
     DateTime heute,
     Arbeitstag neu, {
     // In der DB erfasster Beginn — `null` heisst «kein Beginn erfasst» und
@@ -64,7 +108,7 @@ class ArbeitstagKarte extends ConsumerWidget {
   /// Warum überhaupt: Eine nicht erfasste Pause landet sonst in der
   /// Arbeitszeit UND verdirbt die Fahrzeit zwischen zwei Besuchen (Daniel
   /// 30.07.2026: 25 min zwischen Migros Golfpark und Restaurant Linden).
-  Future<void> _pause(BuildContext context, WidgetRef ref) async {
+  Future<void> _pause() async {
     final heute = _heute;
     final at = ref.read(arbeitstagProvider(heute));
     final messenger = ScaffoldMessenger.of(context);
@@ -74,7 +118,6 @@ class ArbeitstagKarte extends ConsumerWidget {
 
     if (laeuft == null) {
       await _speichern(
-        ref,
         heute,
         (
           beginn: at.beginn,
@@ -109,7 +152,6 @@ class ArbeitstagKarte extends ConsumerWidget {
     final summe = (at.pauseMinuten ?? 0) + dauer;
 
     await _speichern(
-      ref,
       heute,
       (
         beginn: at.beginn,
@@ -157,7 +199,7 @@ class ArbeitstagKarte extends ConsumerWidget {
     }
   }
 
-  Future<void> _startJetzt(BuildContext context, WidgetRef ref) async {
+  Future<void> _startJetzt() async {
     final heute = _heute;
     final bisher = ref.read(arbeitstagProvider(heute));
     final messenger = ScaffoldMessenger.of(context);
@@ -193,7 +235,9 @@ class ArbeitstagKarte extends ConsumerWidget {
           ],
         ),
       );
-      if (ok != true || !context.mounted) return;
+      // State.mounted (nicht context.mounted): Seit dem Umbau auf
+      // ConsumerStatefulWidget ist das der zustaendige Check nach einem await.
+      if (ok != true || !mounted) return;
     }
 
     final km = await showModalBottomSheet<int?>(
@@ -219,7 +263,6 @@ class ArbeitstagKarte extends ConsumerWidget {
 
     try {
       await _speichern(
-        ref,
         heute,
         (
           beginn: beginn,
@@ -253,7 +296,7 @@ class ArbeitstagKarte extends ConsumerWidget {
     }
   }
 
-  Future<void> _feierabend(BuildContext context, WidgetRef ref) async {
+  Future<void> _feierabend() async {
     final heute = _heute;
     final at = ref.read(arbeitstagProvider(heute));
     final erfassterBeginn = ref
@@ -274,7 +317,6 @@ class ArbeitstagKarte extends ConsumerWidget {
     final pos = await _gps(messenger, 'Feierabend');
     try {
       await _speichern(
-        ref,
         heute,
         (
           beginn: eingabe.beginn ?? '06:00',
@@ -300,10 +342,24 @@ class ArbeitstagKarte extends ConsumerWidget {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
     }
+
+    // Vergessene Pause abfangen (Daniel 31.07.2026): Lief die Pause noch,
+    // wuerde sie sonst bis in alle Ewigkeit weiterlaufen — Feierabend ist
+    // das letzte Ereignis des Tages, an dem sich das noch auffangen laesst.
+    // NIE blockierend, eigener try/catch: ein Fehler hier darf den bereits
+    // gespeicherten Feierabend nicht antasten (analog Ferienfrage in
+    // reinigung_form_screen.dart).
+    if (mounted) {
+      try {
+        await pausePruefenNachEreignis(context, ref, position: pos);
+      } catch (e) {
+        debugPrint('[Pause-Pruefung] uebersprungen, Fehler: $e');
+      }
+    }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final heute = _heute;
     // Beim App-Start den gespeicherten Stand des Tages in den State holen
     // (gleiche Übernahme-Regel wie im Tourenplan: Zeile ist massgebend).
@@ -323,6 +379,13 @@ class ArbeitstagKarte extends ConsumerWidget {
         pauseMinuten: g.pauseMinuten,
         pauseStart: g.pauseStart,
       );
+    });
+    // Pause-Balken: Minutentakt starten/stoppen, sobald sich der Lauf-Status
+    // ändert (Timer-Start beim allerersten Build übernimmt initState).
+    ref.listen(arbeitstagProvider(heute), (vorher, nachher) {
+      final vorherLief = vorher?.pauseStart != null;
+      final laeuftJetzt = nachher.pauseStart != null;
+      if (vorherLief != laeuftJetzt) _pauseTimerSicherstellen(laeuftJetzt);
     });
     final gespeichert = ref
         .watch(gespeicherterTagesplanProvider(heute))
@@ -353,9 +416,9 @@ class ArbeitstagKarte extends ConsumerWidget {
       status += ' · ${at.kmStart} km';
     }
     final pauseLaeuft = at.pauseStart != null;
-    if (pauseLaeuft) {
-      status += ' · Pause ab ${at.pauseStart}';
-    } else if ((at.pauseMinuten ?? 0) > 0) {
+    // «Pause ab HH:mm» steht jetzt im auffälligen Balken unten — in der
+    // kompakten Statuszeile nur noch die abgeschlossene Tagessumme.
+    if (!pauseLaeuft && (at.pauseMinuten ?? 0) > 0) {
       status += ' · ${at.pauseMinuten} min Pause';
     }
 
@@ -363,70 +426,121 @@ class ArbeitstagKarte extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Arbeitstag',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                      Row(
+                        children: [
+                          const Text(
+                            'Arbeitstag',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (at.lat != null) ...[
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.location_on,
+                              size: 13,
+                              color: AppColors.success,
+                            ),
+                          ],
+                          if (at.endLat != null)
+                            const Icon(
+                              Icons.flag,
+                              size: 13,
+                              color: AppColors.info,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                      if (at.lat != null) ...[
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.location_on,
-                          size: 13,
-                          color: AppColors.success,
-                        ),
-                      ],
-                      if (at.endLat != null)
-                        const Icon(Icons.flag, size: 13, color: AppColors.info),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    status,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                // CanvasKit-Regel: tappbare Flächen als GestureDetector+Container.
+                // Knopfgrösse bewusst unverändert (Daniel: nicht zu klein).
+                _KnopfKlein(
+                  text: beginnErfasst ? 'Neu starten' : 'Jetzt starten',
+                  farbe: beginnErfasst
+                      ? AppColors.textSecondary
+                      : AppColors.primary,
+                  onTap: _startJetzt,
+                ),
+                const SizedBox(width: 6),
+                // Pause: läuft eine, wird der Knopf zum Beenden — die
+                // Beschriftung ist damit immer die nächste Handlung, nicht
+                // der Zustand.
+                _KnopfKlein(
+                  text: pauseLaeuft ? 'Pause aus' : 'Pause',
+                  farbe: pauseLaeuft
+                      ? AppColors.warning
+                      : AppColors.textSecondary,
+                  onTap: _pause,
+                ),
+                const SizedBox(width: 6),
+                _KnopfKlein(
+                  text: 'Feierabend',
+                  farbe: AppColors.info,
+                  onTap: _feierabend,
+                ),
+              ],
+            ),
+            // Auffälliger Balken mit mitlaufender Dauer, solange eine Pause
+            // läuft (Daniel 31.07.2026: sonst wird das Ausstempeln beim
+            // Weiterfahren vergessen — die Minuten laufen sonst unbemerkt
+            // weiter in Arbeitszeit UND Fahrzeit-Lernkurve).
+            if (pauseLaeuft) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withAlpha(38),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.warning),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.pause_circle_filled,
+                      size: 16,
+                      color: AppColors.warning,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Pause seit ${at.pauseStart} · '
+                        '${_laufendePauseMinuten(at.pauseStart!)} min',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.warning,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            // CanvasKit-Regel: tappbare Flächen als GestureDetector+Container.
-            // Knopfgrösse bewusst unverändert (Daniel: nicht zu klein).
-            _KnopfKlein(
-              text: beginnErfasst ? 'Neu starten' : 'Jetzt starten',
-              farbe: beginnErfasst
-                  ? AppColors.textSecondary
-                  : AppColors.primary,
-              onTap: () => _startJetzt(context, ref),
-            ),
-            const SizedBox(width: 6),
-            // Pause: läuft eine, wird der Knopf zum Beenden — die Beschriftung
-            // ist damit immer die nächste Handlung, nicht der Zustand.
-            _KnopfKlein(
-              text: pauseLaeuft ? 'Pause aus' : 'Pause',
-              farbe: pauseLaeuft ? AppColors.warning : AppColors.textSecondary,
-              onTap: () => _pause(context, ref),
-            ),
-            const SizedBox(width: 6),
-            _KnopfKlein(
-              text: 'Feierabend',
-              farbe: AppColors.info,
-              onTap: () => _feierabend(context, ref),
-            ),
+            ],
           ],
         ),
       ),

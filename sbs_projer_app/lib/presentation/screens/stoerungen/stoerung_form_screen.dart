@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 
 class StoerungFormScreen extends ConsumerStatefulWidget {
   final String? stoerungId; // null = neu
@@ -335,6 +336,16 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
             referenzId: s.serverId,
           ),
         );
+        // Vergessene Pause abfangen (Daniel 31.07.2026): laeuft noch eine
+        // Pause, jetzt anhand der aktuellen Position pruefen — NIE
+        // blockierend, eigener try/catch.
+        if (mounted) {
+          try {
+            await pausePruefenNachEreignis(context, ref);
+          } catch (e) {
+            debugPrint('[Pause-Pruefung] uebersprungen, Fehler: $e');
+          }
+        }
       }
       if (_materialIds.any((id) => id != null)) {
         ref.invalidate(materialienStreamProvider);

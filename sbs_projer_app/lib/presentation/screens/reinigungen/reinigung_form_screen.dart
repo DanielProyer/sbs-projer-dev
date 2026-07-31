@@ -37,6 +37,7 @@ import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_qr_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/ferien_frage_sheet.dart';
+import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -607,6 +608,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             referenzId: r.serverId,
           ),
         );
+        // Vergessene Pause abfangen (Daniel 31.07.2026): laeuft noch eine
+        // Pause, jetzt anhand der aktuellen Position pruefen — NIE
+        // blockierend, eigener try/catch (analog Ferienfrage oben).
+        if (mounted) {
+          try {
+            await pausePruefenNachEreignis(context, ref);
+          } catch (e) {
+            debugPrint('[Pause-Pruefung] uebersprungen, Fehler: $e');
+          }
+        }
       }
 
       // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung

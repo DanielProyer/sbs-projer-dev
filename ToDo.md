@@ -547,6 +547,13 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 </details>
 
+## 🔴 OFFEN (Wunsch Daniel 31.07.): Arbeitstag sauber erfassen — zwei Themen für später
+
+- **Zeiterfassung für Störungen und Montagen**, damit der ganze Arbeitstag lückenlos erfasst ist. Bekannte Hürde (Befund 30.07.): `dauer_minuten` ist bei beiden Tabellen eine GENERATED-Spalte aus `uhrzeit_ende − uhrzeit_start`, aber `uhrzeit_start` bei Störungen ist der **Störungseingang** (Anruf, 107 Altwerte) — trägt man dort ein Ende ein, misst man die Reaktionszeit statt der Arbeitszeit. Zwei Wege: eigene Felder «Arbeit von/bis» (Migration) ODER Umdeutung des Eingangsfelds mit separatem Meldezeitpunkt. **Entscheid Daniel steht aus.**
+- **Planung von Störungen/Montagen gefällt noch nicht** (O-Ton 31.07.). Seit v0.60.0 gibt es zwar den Schalter «Erst geplant» (Status `offen`/`geplant`), aber der Weg vom offenen Einsatz in den Tagesplan ist umständlich. Gemeinsam anschauen: Wie kommt eine Störung mit Wunschtermin in die Zeitachse, wie werden Termin-Anker und Wartezeiten sichtbar.
+
+**Langfrist-Entscheid Daniel:** Eine **Version 2 der App wird eine reine Android-App** (kein Web mehr). Erst dort sind Dinge möglich, die der Browser prinzipiell verbietet — allen voran echte Fahrterkennung im Hintergrund (Android Activity Recognition, «IN_VEHICLE») und zuverlässiges GPS bei ausgeschaltetem Bildschirm. Bis dahin gilt: alles, was Hintergrund-Tracking bräuchte, wird ereignisbasiert nachgerechnet statt live gemessen.
+
 ## 🔴 OFFEN: Nächste Schritte
 - **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.
 - **Kontakte-Übertragung Daniel (geplant 30.07.):** Alle Telefon-Kontakte in die App erfassen → syncen → in Google kontrollieren → erst DANN die alten Handy-Kontakte löschen (Reihenfolge wichtig; Sync löscht nur eigene «SBS App»-Karten, manuelle bleiben).
