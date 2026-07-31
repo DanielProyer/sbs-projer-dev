@@ -569,13 +569,27 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 - Push sitzt in `einplanen()` der Repositories (deckt alle Aufrufer ab), fire-and-forget — ein fehlender Kalenderzugang blockiert das Einplanen nie.
 - **Migration 164:** `google_calendar_events.entity_type` erlaubte `einsatz` nicht. Ohne die Erweiterung wäre der Google-Termin angelegt, die Zuordnungszeile aber an der CHECK-Regel gescheitert — **bei jedem Abgleich neue Duplikate**. Vom Agenten gemeldet statt umgangen, vor dem Deploy behoben.
 
-## 🟡 Etappe 2 (teilweise): Spracheingabe — Verstehen steht, Oberfläche fehlt
+## 🟢 ERLEDIGT 31.07.: Etappe 2 — Diktierfunktion live (v0.69.0)
+
+**Wunsch Daniel:** «Diktierfeld auf die Startseite als Button, relativ prominent, da ich das häufig brauche und meistens im Auto benutze» — er bekommt Anrufe während der Fahrt und zwischendurch bei der Arbeit.
+
+- **Knopf:** schwebender Knopf mit Mikrofon-Symbol, unten mittig (Daumenbereich, einhändig). Bewusst **kein** Banner über den Kacheln — der Startbildschirm wurde am 31.07. gerade erst so eingerichtet, dass alle Kacheln ohne Scrollen aufs Pixel 9 passen; ein Balken hätte das sofort gesprengt. Keine Kollision mit der Aufgaben-Glocke (links, 96 px höher).
+- **Sheet:** grosses Textfeld mit Autofokus — Tastatur und damit das Gboard-Mikrofon sind sofort da. **Wir bauen keine Spracherkennung**, die kommt vom Betriebssystem.
+- **Einsätze:** Art, Betrieb, Datum, Zeit, Dauer, Beschreibung als Bestätigungsformular. **Datum im Diktat → wird gleich eingeplant; ohne Datum → offener Eintrag.** Betriebs-Kandidaten als Chips, wenn die Zuordnung nicht eindeutig ist.
+- **Neue Betriebe per Sprache:** «Neuer Betrieb Restaurant Adler in Chur, Heigenie, mein Kunde» → Name, Ort, Anlagentyp, Kundenstatus aus dem Satz; Adresse/Telefon/Website/Koordinaten über den bestehenden Google-Lookup, **Vorschau vor dem Speichern**. Kombi-Satz («…und morgen 10 Uhr Störung dort») → erst Betrieb, Einsatz-Teil in die Beschreibung.
+- **Offline (Kernanforderung):** Schlägt die Auswertung fehl, wird der Rohtext **sofort** lokal abgelegt, bevor irgendetwas anderes passiert — «Kein Netz, Diktat gespeichert». Im Sheet erscheint «N Diktate warten» mit Wiederholen und Löschen je Eintrag. Jeder Entwurf ist ein eigener Eintrag, ein defekter reisst die Liste nicht mit.
+
+**⚠️ Weiterhin nicht verifiziert:** Ob die Auswertung die Sätze inhaltlich richtig versteht. Die Funktion verlangt eine angemeldete Sitzung, in `.env` liegen keine Testzugangsdaten. **Daniels erstes Diktat ist der erste echte Test.**
+
+<details><summary>Vorheriger Stand (Verstehen steht, Oberfläche fehlte)</summary>
 
 **Fertig:** `parse-einsatz` (Edge-Function, deployed) versteht diktierte Sätze — relative Daten («morgen», «nächsten Dienstag», «am 15. August» → nächstes Vorkommen, notfalls Folgejahr), Uhrzeiten («halb drei» → 14:30), Art, Dauer, Beschreibung; setzt `betrieb_id` nur bei Eindeutigkeit, sonst Kandidaten + Rückfrage; Haiku, temperature 0. Dazu die **Betriebs-Erkennung** `einsatz_betrieb_match.dart` (14 Tests) — läuft **ohne Netz**, nutzt Umlaut-Faltung, Tippfehler-Toleranz und filtert Gattungswörter («Störung im Hotel» kapert keinen Betrieb); bei Mehrdeutigkeit bewusst mehrere Kandidaten.
 
 **⚠️ NICHT verifiziert:** Der inhaltliche Test der Funktion steht aus — sie verlangt eine angemeldete Sitzung, und in `sbs_projer_app/.env` liegen keine Testzugangsdaten. Bestätigt ist nur: deployed, erreichbar, weist unangemeldete Aufrufe korrekt ab (401). **Erster echter Test = Daniels erstes Diktat.**
 
-**Offen:** die Oberfläche — Freitextfeld zum Diktieren, Bestätigungsformular mit den erkannten Werten, Ablage als Entwurf bei fehlendem Netz. **Zwei Fragen an Daniel:** (1) Eingabefeld als eigene Kachel auf dem Startbildschirm oder als Knopf im Aufgaben-Screen? (2) Soll ein erkannter Einsatz mit Datum gleich **eingeplant** werden, oder erst als offener Eintrag landen?
+**Offen war:** die Oberfläche. Beide Fragen sind beantwortet — Knopf prominent auf der Startseite (Daniel), Einsatz mit Datum wird gleich eingeplant (meine Entscheidung mangels Antwort, von Daniel nicht widersprochen).
+
+</details>
 
 ## 🟡 Etappe 4 (offen): Eröffnungs-/Endreinigungen per Sprache + Erinnerungen
 
