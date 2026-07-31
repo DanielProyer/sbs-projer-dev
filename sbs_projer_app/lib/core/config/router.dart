@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_list_scree
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_rechnungsadresse_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_vorschlaege_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlagen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_form_screen.dart';
@@ -124,6 +125,12 @@ final router = GoRouter(
     GoRoute(
       path: '/betriebe/neu',
       builder: (context, state) => const BetriebFormScreen(),
+    ),
+    // VOR "/betriebe/:id", sonst würde "vorschlaege" als Betriebs-Id
+    // interpretiert.
+    GoRoute(
+      path: '/betriebe/vorschlaege',
+      builder: (context, state) => const BetriebVorschlaegeScreen(),
     ),
     GoRoute(
       path: '/betriebe/:id',

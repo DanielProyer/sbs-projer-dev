@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_vorschlag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
@@ -69,6 +70,21 @@ class AufgabenScreen extends ConsumerWidget {
     final heuteTag = DateTime(heute.year, heute.month, heute.day);
     final lookup = ref.watch(betriebLookupProvider);
     final eintraege = <_Eintrag>[];
+
+    // Änderungsvorschläge aus Google/Website (Prüfliste, Migration 160) —
+    // ohne Datum, damit sie nicht in einem bestimmten Tag "verschwinden".
+    final vorschlaegeAnzahl = ref.watch(offeneVorschlaegeAnzahlProvider);
+    if (vorschlaegeAnzahl > 0) {
+      eintraege.add(
+        _Eintrag(
+          datum: null,
+          icon: Icons.fact_check_outlined,
+          farbe: AppColors.info,
+          titel: '$vorschlaegeAnzahl Änderungsvorschläge prüfen',
+          onTap: () => context.push('/betriebe/vorschlaege'),
+        ),
+      );
+    }
 
     // Eigene Aufgaben (auch künftige).
     final eigene =
