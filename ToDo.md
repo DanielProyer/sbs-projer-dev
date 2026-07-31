@@ -591,7 +591,16 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 </details>
 
-## 🟡 Etappe 4 (offen): Eröffnungs-/Endreinigungen per Sprache + Erinnerungen
+## 🟢 ERLEDIGT 31.07.: Etappe 4 — Eröffnungs-/Endreinigungen als Termine (v0.70.0 live)
+
+**Leitgedanke:** *Berechnet bleibt berechnet, bestätigt wird gespeichert.* Die Saison-Logik rechnet die Vorschläge weiter (passt sich an, wenn Saisondaten sich ändern); erst beim Annehmen entsteht ein Termin in `termine` — mit Kalender-Erinnerung 24 h vorher.
+
+- **Aufgaben-Screen:** Knopf «Termin bestätigen» bei berechneten Vorschlägen, bestätigte Termine als eigener Block mit «Erledigt».
+- **Keine Doppelanzeige:** `termin_abgleich.dart` (7 Tests) blendet einen Vorschlag aus, wenn ein bestätigter Termin für denselben Betrieb, denselben Typ und ein Datum **±7 Tage** existiert — Saisondaten verschieben sich leicht, sonst stünde der Vorschlag neben dem Termin.
+- **Kalender:** Ganztages-Eintrag, eigene Farbe (9), Titel `SBS · Eröffnungsreinigung: {Betrieb}`. Erledigt/abgesagt/gelöscht → Eintrag verschwindet beim nächsten Abgleich. Keine Migration nötig, `termin` war im entity_type-CHECK schon erlaubt.
+- **Bugfix nebenbei:** Das Diktier-Sheet legte bei «Eröffnungsreinigung» einen **Abrechnungseintrag** (`eroeffnungsreinigungen`) statt eines Termins an — jetzt korrigiert.
+
+**Damit sind alle vier Etappen der Einsatzplanung live.** 923 Tests grün.
 
 **Spec:** `docs/superpowers/specs/2026-07-31-einsatzplanung-sprache-design.md` · **Plan Etappe 1:** `docs/superpowers/plans/2026-07-31-einsatzplanung-etappe1.md` (7 Tasks)
 
