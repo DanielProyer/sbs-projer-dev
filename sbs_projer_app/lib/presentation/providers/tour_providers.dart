@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/core/util/touren_saison.dart';
@@ -382,6 +383,14 @@ class TourEintrag {
   /// Aus einer Plan-Übernahme entstanden, heute nicht fällig → grau markiert.
   final bool uebernommen;
 
+  // ─── Einsatzplanung (Migration 163, Störung/Montage) ───
+  /// Rohwerte aus `geplant_am`/`geplant_zeit`/`geplant_dauer_min` — nur zum
+  /// Anzeigen (`planungsText`) und als Vorbelegung fürs Einplanen-Sheet.
+  /// Fachlich führend für die Zeitachse ist weiterhin `ankerZeit` (oben).
+  final DateTime? geplantAm;
+  final String? geplantZeit;
+  final int? geplantDauerMin;
+
   const TourEintrag({
     required this.typ,
     required this.id,
@@ -401,6 +410,9 @@ class TourEintrag {
     this.dauerMinuten,
     this.ankerZeit,
     this.uebernommen = false,
+    this.geplantAm,
+    this.geplantZeit,
+    this.geplantDauerMin,
   });
 
   /// Version für den gespeicherten Plan (kein Auto-Marker mehr).
@@ -421,6 +433,9 @@ class TourEintrag {
     dauerMinuten: dauerMinuten,
     ankerZeit: ankerZeit,
     uebernommen: uebernommen,
+    geplantAm: geplantAm,
+    geplantZeit: geplantZeit,
+    geplantDauerMin: geplantDauerMin,
   );
 
   /// Kopie mit neuer `id`, alle anderen Felder unverändert. Nur für die
@@ -446,6 +461,9 @@ class TourEintrag {
     dauerMinuten: dauerMinuten,
     ankerZeit: ankerZeit,
     uebernommen: uebernommen,
+    geplantAm: geplantAm,
+    geplantZeit: geplantZeit,
+    geplantDauerMin: geplantDauerMin,
   );
 
   /// Kopie mit geänderten Feldern. `typ`/`id` sind fest (Identität eines
@@ -493,6 +511,9 @@ class TourEintrag {
         ? this.ankerZeit
         : ankerZeit as String?,
     uebernommen: uebernommen ?? this.uebernommen,
+    geplantAm: geplantAm,
+    geplantZeit: geplantZeit,
+    geplantDauerMin: geplantDauerMin,
   );
 }
 
@@ -641,9 +662,13 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
   }
 
   // 2. Offene Störungen (inkl. angefangener — siehe stoerungOffen).
+  // Datumsfilter (Migration 163, `core/util/einsatz_faellig.dart`): ein für
+  // einen SPÄTEREN Tag eingeplanter Einsatz taucht an [datum] nicht auf —
+  // ungeplante und überfällige Einsätze bleiben sichtbar.
   final stoerungen = ref.watch(stoerungenProvider);
   for (final s in stoerungen) {
     if (!stoerungOffen(s.status)) continue;
+    if (!einsatzGehoertZuTag(geplantAm: s.geplantAm, tag: datum)) continue;
     final betrieb = s.betriebId != null ? betriebMap[s.betriebId!] : null;
     eintraege.add(
       TourEintrag(
@@ -658,6 +683,12 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
         datum: s.datum,
         ruhetage: betrieb?.ruhetage ?? const [],
         servicezeit: _servicezeitAus(betrieb),
+        // Geplante Uhrzeit wandert als Termin-Anker in die Zeitachse — sonst
+        // stünde der abgemachte Termin nirgends im Tagesplan.
+        ankerZeit: s.geplantZeit,
+        geplantAm: s.geplantAm,
+        geplantZeit: s.geplantZeit,
+        geplantDauerMin: s.geplantDauerMin,
       ),
     );
   }
@@ -666,6 +697,7 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
   final montagen = ref.watch(montagenProvider);
   for (final m in montagen) {
     if (!montageOffen(m.status)) continue;
+    if (!einsatzGehoertZuTag(geplantAm: m.geplantAm, tag: datum)) continue;
     final betrieb = m.betriebId != null ? betriebMap[m.betriebId!] : null;
     final istHeiGenie = m.montageTyp == 'heigenie_service';
     eintraege.add(
@@ -681,6 +713,10 @@ final faelligeEintraegeProvider = Provider.family<List<TourEintrag>, DateTime>((
         datum: m.datum,
         ruhetage: betrieb?.ruhetage ?? const [],
         servicezeit: _servicezeitAus(betrieb),
+        ankerZeit: m.geplantZeit,
+        geplantAm: m.geplantAm,
+        geplantZeit: m.geplantZeit,
+        geplantDauerMin: m.geplantDauerMin,
       ),
     );
   }

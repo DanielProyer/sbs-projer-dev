@@ -17,7 +17,12 @@ import 'package:sbs_projer_app/core/util/zeitplan.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
+import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
+import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
@@ -167,7 +172,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           !selectedRegionen.contains(e.regionId)) {
         return false;
       }
-      // Fälligkeits-Filter nur auf Reinigungen; Störungen/Montagen durchlassen.
+      // Fälligkeits-Filter (überfällig/fällig/bald fällig/Saison/Alle) gilt
+      // nur für Reinigungen — Störungen/Montagen kennen keine Fälligkeits-
+      // Stufen. Ihr Datumsfilter läuft separat: `faelligeEintraegeProvider`
+      // lässt sie nur an ihrem geplanten Tag durch (oder immer, solange sie
+      // ungeplant/überfällig sind — Migration 163, `einsatz_faellig.dart`).
       if (selectedFaelligkeit.isNotEmpty && e.typ == TourEintragTyp.reinigung) {
         if (e.faelligkeit == null ||
             !sichtbarImTourfilter(e.faelligkeit!, selectedFaelligkeit)) {
@@ -1716,8 +1725,17 @@ class _BlockSheet extends ConsumerWidget {
             a,
     ];
 
-    void ersetze(TourEintrag neu) =>
-        ref.read(tagesplanProvider.notifier).ersetze(eintragId, neu);
+    // Störung/Montage: Anker-Zeit und Dauer leben nicht nur am Tagesplan-
+    // Eintrag, sondern werden auch an den Einsatz zurückgeschrieben
+    // (`geplant_am`/`geplant_zeit`/`geplant_dauer_min`) — sonst ginge die
+    // Planung verloren, sobald der Block aus dem Plan entfernt wird (Daniel
+    // 31.07.2026, siehe `core/util/einsatz_faellig.dart`).
+    void ersetze(TourEintrag neu) {
+      ref.read(tagesplanProvider.notifier).ersetze(eintragId, neu);
+      if (neu.typ != TourEintragTyp.reinigung) {
+        _einsatzEinplanungZurueckschreiben(ref, neu, datum);
+      }
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -1946,6 +1964,36 @@ class _BlockSheet extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// Schreibt Anker-Zeit + Dauer eines Störungs-/Montage-Blocks an den
+/// zugrundeliegenden Einsatz zurück (`StoerungRepository`/
+/// `MontageRepository.einplanen`). `eintrag.id` trägt das Präfix `s_`/`m_`
+/// vor der eigentlichen `routeId` (siehe `faelligeEintraegeProvider`,
+/// gleiche Konvention wie `_navigateToDetail`). Fire-and-forget, dann die
+/// Störung/Montage-Liste auffrischen (Web lädt sonst nicht neu).
+void _einsatzEinplanungZurueckschreiben(
+  WidgetRef ref,
+  TourEintrag eintrag,
+  DateTime datum,
+) {
+  final id = eintrag.id.substring(2);
+  final dauer = eintrag.dauerMinuten ?? kDauerDefaultMinuten;
+  if (eintrag.typ == TourEintragTyp.stoerung) {
+    StoerungRepository.einplanen(
+      id: id,
+      tag: datum,
+      zeit: eintrag.ankerZeit,
+      dauerMin: dauer,
+    ).then((_) => ref.invalidate(stoerungenStreamProvider));
+  } else {
+    MontageRepository.einplanen(
+      id: id,
+      tag: datum,
+      zeit: eintrag.ankerZeit,
+      dauerMin: dauer,
+    ).then((_) => ref.invalidate(montagenStreamProvider));
   }
 }
 
@@ -2601,6 +2649,18 @@ class _FaelligEintragKarte extends ConsumerWidget {
                             ),
                         ],
                       ),
+                      // Einplanen: nur Störung/Montage/HeiGenie — Reinigungen
+                      // folgen der Fälligkeits-Rechnung, kein Plandatum
+                      // (Migration 163, `core/util/einsatz_faellig.dart`).
+                      if (eintrag.typ != TourEintragTyp.reinigung)
+                        IconButton(
+                          icon: const Icon(Icons.event_outlined),
+                          color: AppColors.textSecondary,
+                          onPressed: () => _einplanen(context, ref),
+                          tooltip: 'Einplanen',
+                          iconSize: 22,
+                          visualDensity: VisualDensity.compact,
+                        ),
                       const SizedBox(width: 4),
                       IconButton(
                         icon: Icon(
@@ -2623,6 +2683,42 @@ class _FaelligEintragKarte extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Öffnet das Einplanen-Sheet und schreibt das Ergebnis an den passenden
+  /// Einsatz (`StoerungRepository`/`MontageRepository.einplanen`). `id`
+  /// trägt das Präfix `s_`/`m_` vor der `routeId` — gleiche Konvention wie
+  /// `_navigateToDetail` im Screen.
+  Future<void> _einplanen(BuildContext context, WidgetRef ref) async {
+    final ergebnis = await zeigeEinplanenSheet(
+      context,
+      titel: eintrag.betriebOrt != null && eintrag.betriebOrt!.isNotEmpty
+          ? '${eintrag.betriebName} - ${eintrag.betriebOrt}'
+          : eintrag.betriebName,
+      untertitel: eintrag.beschreibung,
+      initialTag: eintrag.geplantAm,
+      initialZeit: eintrag.geplantZeit,
+      initialDauerMin: eintrag.geplantDauerMin,
+    );
+    if (ergebnis == null) return;
+    final id = eintrag.id.substring(2);
+    if (eintrag.typ == TourEintragTyp.stoerung) {
+      await StoerungRepository.einplanen(
+        id: id,
+        tag: ergebnis.tag,
+        zeit: ergebnis.zeit,
+        dauerMin: ergebnis.dauerMin,
+      );
+      ref.invalidate(stoerungenStreamProvider);
+    } else {
+      await MontageRepository.einplanen(
+        id: id,
+        tag: ergebnis.tag,
+        zeit: ergebnis.zeit,
+        dauerMin: ergebnis.dauerMin,
+      );
+      ref.invalidate(montagenStreamProvider);
+    }
   }
 }
 

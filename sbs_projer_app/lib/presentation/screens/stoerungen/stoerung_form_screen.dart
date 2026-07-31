@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
+import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 class StoerungFormScreen extends ConsumerStatefulWidget {
   final String? stoerungId; // null = neu
@@ -46,6 +47,14 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   late DateTime _datum;
   late final _heinekennrController = TextEditingController();
   late final _stoerungseingangController = TextEditingController();
+
+  // Arbeitszeit-Erfassung (Migration 163 / Daniel 31.07.2026): "Beginn"-Knopf
+  // mit GPS-Stempel + Status "in_bearbeitung"; beide Zeiten bleiben zusaetzlich
+  // von Hand aenderbar, falls der Knopf vergessen wurde.
+  late final _arbeitVonController = TextEditingController();
+  late final _arbeitBisController = TextEditingController();
+  bool _arbeitBeginnLaeuft = false;
+  Timer? _laufendZeitTimer;
 
   // Störungsdetails
   late final _beschreibungController = TextEditingController();
@@ -148,6 +157,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       _istBergkunde = s.istBergkunde;
       _istKilometerabrechnung = s.istKilometerabrechnung;
       _notizenController.text = s.notizen ?? '';
+      _arbeitVonController.text = s.arbeitVon ?? '';
+      _arbeitBisController.text = s.arbeitBis ?? '';
       _anfahrtKmController.text = s.anfahrtKm.toString();
       _komplexitaetController.text = (s.komplexitaetZuschlag ?? 0)
           .toStringAsFixed(0);
@@ -169,7 +180,93 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         );
       }
     });
+    _ensureLaufendZeitTimer();
     _loadPreisData();
+  }
+
+  /// Startet — falls noch nicht aktiv — einen periodischen Timer, der die
+  /// laufende Zeitanzeige ("seit HH:mm · NN min") beim Beginn-Knopf aktuell
+  /// haelt, solange ein Beginn ohne Ende erfasst ist.
+  void _ensureLaufendZeitTimer() {
+    if (_laufendZeitTimer != null) return;
+    if (_emptyToNull(_arbeitVonController.text) == null) return;
+    if (_emptyToNull(_arbeitBisController.text) != null) return;
+    _laufendZeitTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  bool get _warGeplant =>
+      _isEdit &&
+      _existing != null &&
+      (_existing!.status == 'offen' || _existing!.status == 'in_bearbeitung');
+
+  /// "seit HH:mm · NN min" fuer die laufende Arbeitszeit-Anzeige.
+  String? _elapsedText() {
+    final von = _parseZeit(_arbeitVonController.text);
+    if (von == null) return null;
+    final now = DateTime.now();
+    var start = DateTime(now.year, now.month, now.day, von.hour, von.minute);
+    if (start.isAfter(now)) start = start.subtract(const Duration(days: 1));
+    final minuten = now.difference(start).inMinutes;
+    return 'seit ${_arbeitVonController.text} · $minuten min';
+  }
+
+  TimeOfDay? _parseZeit(String text) {
+    final t = text.trim();
+    if (!t.contains(':')) return null;
+    final parts = t.split(':');
+    if (parts.length != 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  /// "Beginn"-Knopf: setzt Arbeit-von auf jetzt, stempelt einen Wegpunkt mit
+  /// GPS und setzt den Status auf "in_bearbeitung" — gezielt und sofort
+  /// persistiert, unabhaengig vom Haupt-Speichern (das Formular kann noch
+  /// unvollstaendig sein). Fehler duerfen die App nicht blockieren.
+  Future<void> _arbeitBeginnen() async {
+    final zeitStr = _formatTime(TimeOfDay.now());
+    setState(() {
+      _arbeitVonController.text = zeitStr;
+      _existing?.status = 'in_bearbeitung';
+      _arbeitBeginnLaeuft = true;
+    });
+    _ensureLaufendZeitTimer();
+
+    final id = widget.stoerungId;
+    try {
+      if (id != null) {
+        await StoerungRepository.arbeitszeitSetzen(
+          id: id,
+          von: zeitStr,
+          bis: _emptyToNull(_arbeitBisController.text),
+        );
+        await StoerungRepository.statusSetzen(id: id, status: 'in_bearbeitung');
+      }
+    } catch (e) {
+      debugPrint('[Arbeitszeit] Beginn konnte nicht gespeichert werden: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Beginn nicht gespeichert: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _arbeitBeginnLaeuft = false);
+    }
+
+    // Wegpunkt mit GPS stempeln — Ist-Ort bei Arbeitsbeginn (fire-and-forget,
+    // stoert das Formular nicht bei Fehlern).
+    unawaited(
+      WegpunktRepository.stempeln(
+        quelle: 'stoerung',
+        betriebId: _betriebId,
+        referenzId: _existing?.serverId,
+        notiz: 'Arbeitsbeginn',
+      ),
+    );
   }
 
   Future<void> _loadPreisData() async {
@@ -239,6 +336,15 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
 
     setState(() => _isLoading = true);
 
+    // Muss VOR jeder Statusmutation unten erfasst werden: "war der Einsatz
+    // bislang geplant/laufend?" entscheidet, ob dies ein echter Abschluss-
+    // Moment ist (Datum auf heute korrigieren, Wegpunkt/Pause pruefen) oder
+    // nur eine Bearbeitung eines bereits erledigten Eintrags (Daniel
+    // 31.07.2026).
+    final warGeplant = _warGeplant;
+    final schliesstJetztAb = warGeplant && !_geplant;
+    final istWegpunktMoment = (!_isEdit && !_geplant) || schliesstJetztAb;
+
     try {
       final s = _existing ?? StoerungLocal();
 
@@ -300,13 +406,32 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
       }
 
-      s.datum = _datum;
+      // datum steuert die Abrechnung (abrechnungs_monat). Normal aus dem
+      // Formular — AUSSER beim echten Abschluss eines vorher geplanten
+      // Einsatzes: dann zaehlt der tatsaechliche Arbeitstag (heute), sonst
+      // wuerde eine im Juli gemeldete, im August erledigte Stoerung im
+      // falschen Monat abgerechnet (Daniel 31.07.2026). gemeldet_am bleibt
+      // davon unberuehrt.
+      if (schliesstJetztAb) {
+        final heute = DateTime.now();
+        s.datum = DateTime(heute.year, heute.month, heute.day);
+      } else {
+        s.datum = _datum;
+      }
       s.uhrzeitStart = _emptyToNull(_stoerungseingangController.text);
       s.problemBeschreibung = _beschreibungController.text.trim();
       s.istPikettEinsatz = _istPikettWochenende;
       s.istBergkunde = _istBergkunde;
       s.istWochenende = _istPikettWochenende;
       s.notizen = _emptyToNull(_notizenController.text);
+
+      // Arbeitszeit: von Hand aenderbar (Beginn-Knopf ggf. vergessen). Beim
+      // Abschliessen wird das Ende automatisch nachgetragen, wenn noch leer.
+      if (schliesstJetztAb && _emptyToNull(_arbeitBisController.text) == null) {
+        _arbeitBisController.text = _formatTime(TimeOfDay.now());
+      }
+      s.arbeitVon = _emptyToNull(_arbeitVonController.text);
+      s.arbeitBis = _emptyToNull(_arbeitBisController.text);
 
       // Preis-Felder
       s.anfahrtKm = int.tryParse(_anfahrtKmController.text) ?? 0;
@@ -320,15 +445,20 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.preisBrutto = preis['total'];
       }
 
-      s.status = _geplant ? 'offen' : 'behoben';
+      // "in_bearbeitung" statt "offen", wenn per Beginn-Knopf bereits
+      // gestartet wurde, aber noch nicht abgeschlossen ist.
+      s.status = _geplant
+          ? (s.arbeitVon != null ? 'in_bearbeitung' : 'offen')
+          : 'behoben';
 
       await StoerungRepository.save(s);
-      // Wegpunkt nur beim NEU-Erfassen (nicht bei jeder Bearbeitung) und nur
-      // bei einem ERLEDIGTEN Einsatz: der Stempel markiert den tatsächlichen
-      // Einsatz-Zeitpunkt für Routen-Daten und den Fahrzeit-Guard. Eine bloss
-      // geplante Störung war noch nirgends — ihr Stempel würde die
-      // Fahrzeit-Lernkurve verfälschen (Daniel 30./31.07.2026).
-      if (!_isEdit && !_geplant) {
+      // Wegpunkt beim NEU-Erfassen eines sofort erledigten Einsatzes UND
+      // beim Abschliessen eines vorher geplanten Einsatzes: der Stempel
+      // markiert den tatsächlichen Einsatz-Zeitpunkt für Routen-Daten und
+      // den Fahrzeit-Guard. Eine bloss geplante/laufende Störung, die so
+      // bleibt, war noch nirgends — ihr Stempel würde die Fahrzeit-
+      // Lernkurve verfälschen (Daniel 30./31.07.2026).
+      if (istWegpunktMoment) {
         unawaited(
           WegpunktRepository.stempeln(
             quelle: 'stoerung',
@@ -452,8 +582,11 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
 
   @override
   void dispose() {
+    _laufendZeitTimer?.cancel();
     _heinekennrController.dispose();
     _stoerungseingangController.dispose();
+    _arbeitVonController.dispose();
+    _arbeitBisController.dispose();
     _beschreibungController.dispose();
     _notizenController.dispose();
     _anfahrtKmController.dispose();
@@ -558,6 +691,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
             // === Zeiterfassung ===
             _sectionTitle(context, 'Zeiterfassung'),
             const SizedBox(height: 8),
+            _buildArbeitBeginnBlock(),
             Row(
               children: [
                 Expanded(
@@ -613,6 +747,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                 onChanged: (_) => _updatePikettAuto(),
               ),
             ],
+            const SizedBox(height: 12),
+            _buildArbeitZeitfelder(),
             const SizedBox(height: 24),
 
             // === Störungsbereiche (nur bei normaler Störung) ===
@@ -1144,5 +1280,89 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  /// «Arbeit beginnen»-Knopf — nur beim Bearbeiten eines noch geplanten/
+  /// laufenden Einsatzes. Nach dem ersten Tap zeigt derselbe Platz die
+  /// laufende Zeit an (Daniel 31.07.2026).
+  Widget _buildArbeitBeginnBlock() {
+    if (!_warGeplant) return const SizedBox.shrink();
+    final von = _emptyToNull(_arbeitVonController.text);
+    if (von == null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: FilledButton.icon(
+            onPressed: _arbeitBeginnLaeuft ? null : _arbeitBeginnen,
+            style: FilledButton.styleFrom(backgroundColor: AppColors.info),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text(
+              'Arbeit beginnen',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.success.withAlpha(30),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.success),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.timer, color: AppColors.success),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _elapsedText() ?? 'Arbeit läuft seit $von',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Zwei von Hand änderbare Zeitfelder — für den Fall, dass der
+  /// «Beginn»-Knopf vergessen wurde oder eine Korrektur nötig ist.
+  Widget _buildArbeitZeitfelder() {
+    Widget feld(String label, TextEditingController controller, IconData icon) {
+      return Expanded(
+        child: InkWell(
+          onTap: () async {
+            final initial = _parseZeit(controller.text) ?? TimeOfDay.now();
+            final picked = await zeigeZeitauswahl(context, initial: initial);
+            if (picked != null) {
+              setState(() {
+                controller.text =
+                    '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+              });
+            }
+          },
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: Icon(icon),
+              isDense: true,
+            ),
+            child: Text(controller.text.isEmpty ? '—' : controller.text),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        feld('Arbeit von', _arbeitVonController, Icons.play_circle_outline),
+        const SizedBox(width: 12),
+        feld('Arbeit bis', _arbeitBisController, Icons.stop_circle_outlined),
+      ],
+    );
   }
 }

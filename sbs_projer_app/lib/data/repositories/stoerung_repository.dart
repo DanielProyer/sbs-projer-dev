@@ -194,4 +194,26 @@ class StoerungRepository {
     local.arbeitBis = bis;
     await save(local);
   }
+
+  /// Setzt nur den Status (z.B. "in_bearbeitung" beim "Beginn"-Knopf).
+  ///
+  /// Gezielter Teil-Update statt vollem [save] — schreibt nichts von den
+  /// restlichen Formularfeldern, die zu diesem Zeitpunkt evtl. noch
+  /// unvollstaendig/ungeprueft im UI stehen (Daniel 31.07.2026).
+  static Future<void> statusSetzen({
+    required String id,
+    required String status,
+  }) async {
+    if (kIsWeb) {
+      await SupabaseService.client
+          .from('stoerungen')
+          .update({'status': status})
+          .eq('id', id);
+      return;
+    }
+    final local = await IsarService.stoerungGet(int.parse(id));
+    if (local == null) return;
+    local.status = status;
+    await save(local);
+  }
 }

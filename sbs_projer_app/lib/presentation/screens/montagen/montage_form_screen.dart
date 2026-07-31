@@ -25,6 +25,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
+import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 /// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
 class MontageVorbefuellung {
@@ -80,6 +81,16 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
   // Details
   late final _beschreibungController = TextEditingController();
+
+  // Arbeitszeit-Erfassung (Migration 163 / Daniel 31.07.2026): "Beginn"-Knopf
+  // mit GPS-Stempel + Status "in_bearbeitung"; beide Zeiten bleiben
+  // zusaetzlich von Hand aenderbar. WICHTIG: Das ist reine Ist-Zeit-
+  // Beobachtung — sie darf `dauerStunden` (das Abrechnungsfeld) NIE
+  // automatisch ueberschreiben, siehe Kommentar bei `_gemesseneStunden`.
+  late final _arbeitVonController = TextEditingController();
+  late final _arbeitBisController = TextEditingController();
+  bool _arbeitBeginnLaeuft = false;
+  Timer? _laufendZeitTimer;
 
   // Material
   List<Lager> _lagerItems = [];
@@ -220,6 +231,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         _betragController.text = m.kostenArbeit!.toStringAsFixed(2);
       }
       _beschreibungController.text = m.beschreibung;
+      _arbeitVonController.text = m.arbeitVon ?? '';
+      _arbeitBisController.text = m.arbeitBis ?? '';
       if (m.stundensatz != null) _stundensatz = m.stundensatz!;
 
       // HeiGenie-Felder
@@ -260,6 +273,119 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         }
       }
     });
+    _ensureLaufendZeitTimer();
+  }
+
+  /// Startet — falls noch nicht aktiv — einen periodischen Timer, der die
+  /// laufende Zeitanzeige ("seit HH:mm · NN min") beim Beginn-Knopf aktuell
+  /// haelt, solange ein Beginn ohne Ende erfasst ist.
+  void _ensureLaufendZeitTimer() {
+    if (_laufendZeitTimer != null) return;
+    if (_emptyToNull(_arbeitVonController.text) == null) return;
+    if (_emptyToNull(_arbeitBisController.text) != null) return;
+    _laufendZeitTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  String? _emptyToNull(String text) {
+    final t = text.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  bool get _warGeplant =>
+      _isEdit &&
+      _existing != null &&
+      (_existing!.status == 'geplant' || _existing!.status == 'in_bearbeitung');
+
+  /// "seit HH:mm · NN min" fuer die laufende Arbeitszeit-Anzeige.
+  String? _elapsedText() {
+    final von = _parseZeit(_arbeitVonController.text);
+    if (von == null) return null;
+    final now = DateTime.now();
+    var start = DateTime(now.year, now.month, now.day, von.hour, von.minute);
+    if (start.isAfter(now)) start = start.subtract(const Duration(days: 1));
+    final minuten = now.difference(start).inMinutes;
+    return 'seit ${_arbeitVonController.text} · $minuten min';
+  }
+
+  String _formatZeit(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  TimeOfDay? _parseZeit(String text) {
+    final t = text.trim();
+    if (!t.contains(':')) return null;
+    final parts = t.split(':');
+    if (parts.length != 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  /// Gemessene Arbeitszeit aus Arbeit-von/-bis (nur Anzeige/Vorschlag).
+  ///
+  /// SEHR WICHTIG (Daniel 31.07.2026): `dauerStunden` ist das
+  /// Abrechnungsfeld einer Montage — der Nutzer traegt dort bewusst auch
+  /// Teile der Anfahrt ein (Heineken-Abrechnung). Diese gemessene Zeit
+  /// ueberschreibt `dauerStunden` NIEMALS automatisch. Sie wird nur als
+  /// Hinweis mit einem bewusst zu druckenden "übernehmen"-Knopf angezeigt.
+  /// NICHT "optimieren"/automatisieren — das würde die Abrechnung verfälschen.
+  double? get _gemesseneStunden {
+    final von = _parseZeit(_arbeitVonController.text);
+    final bis = _parseZeit(_arbeitBisController.text);
+    if (von == null || bis == null) return null;
+    final vonMin = von.hour * 60 + von.minute;
+    var bisMin = bis.hour * 60 + bis.minute;
+    if (bisMin < vonMin) bisMin += 24 * 60; // ueber Mitternacht (Pikett)
+    final diffMin = bisMin - vonMin;
+    if (diffMin <= 0) return null;
+    return diffMin / 60.0;
+  }
+
+  /// «Beginn»-Knopf: setzt Arbeit-von auf jetzt, stempelt einen Wegpunkt mit
+  /// GPS und setzt den Status auf "in_bearbeitung" — gezielt und sofort
+  /// persistiert, unabhaengig vom Haupt-Speichern (das Formular kann noch
+  /// unvollstaendig sein). Fehler duerfen die App nicht blockieren.
+  Future<void> _arbeitBeginnen() async {
+    final zeitStr = _formatZeit(TimeOfDay.now());
+    setState(() {
+      _arbeitVonController.text = zeitStr;
+      _existing?.status = 'in_bearbeitung';
+      _arbeitBeginnLaeuft = true;
+    });
+    _ensureLaufendZeitTimer();
+
+    final id = widget.montageId;
+    try {
+      if (id != null) {
+        await MontageRepository.arbeitszeitSetzen(
+          id: id,
+          von: zeitStr,
+          bis: _emptyToNull(_arbeitBisController.text),
+        );
+        await MontageRepository.statusSetzen(id: id, status: 'in_bearbeitung');
+      }
+    } catch (e) {
+      debugPrint('[Arbeitszeit] Beginn konnte nicht gespeichert werden: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Beginn nicht gespeichert: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _arbeitBeginnLaeuft = false);
+    }
+
+    unawaited(
+      WegpunktRepository.stempeln(
+        quelle: 'montage',
+        betriebId: _betriebDisabled ? null : _betriebId,
+        referenzId: _existing?.serverId,
+        notiz: 'Arbeitsbeginn',
+      ),
+    );
   }
 
   // ── Foto-Methoden (Pattern aus reinigung_form_screen.dart) ────────
@@ -369,6 +495,15 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
     setState(() => _isLoading = true);
 
+    // Muss VOR jeder Statusmutation unten erfasst werden: "war die Montage
+    // bislang geplant/laufend?" entscheidet, ob dies ein echter Abschluss-
+    // Moment ist (Datum auf heute korrigieren, Wegpunkt/Pause pruefen) oder
+    // nur eine Bearbeitung eines bereits erledigten Eintrags (Daniel
+    // 31.07.2026).
+    final warGeplant = _warGeplant;
+    final schliesstJetztAb = warGeplant && !_geplant;
+    final istWegpunktMoment = (!_isEdit && !_geplant) || schliesstJetztAb;
+
     try {
       final m = _existing ?? MontageLocal();
 
@@ -378,9 +513,33 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
       m.montageTyp = _montageTyp;
       m.betriebId = _betriebDisabled ? null : _betriebId;
-      m.datum = _datum;
+      // datum steuert die Abrechnung (abrechnungs_monat). Normal aus dem
+      // Formular — AUSSER beim echten Abschluss einer vorher geplanten
+      // Montage: dann zaehlt der tatsaechliche Arbeitstag (heute), sonst
+      // wuerde eine im Juli geplante, im August erledigte Montage im
+      // falschen Monat abgerechnet (Daniel 31.07.2026).
+      if (schliesstJetztAb) {
+        final heute = DateTime.now();
+        m.datum = DateTime(heute.year, heute.month, heute.day);
+      } else {
+        m.datum = _datum;
+      }
       m.beschreibung = _beschreibungController.text.trim();
-      m.status = _geplant ? 'geplant' : 'abgeschlossen';
+
+      // Arbeitszeit: von Hand aenderbar (Beginn-Knopf ggf. vergessen). Beim
+      // Abschliessen wird das Ende automatisch nachgetragen, wenn noch leer.
+      // NIEMALS `dauerStunden` (Abrechnungsfeld) automatisch antasten!
+      if (schliesstJetztAb && _emptyToNull(_arbeitBisController.text) == null) {
+        _arbeitBisController.text = _formatZeit(TimeOfDay.now());
+      }
+      m.arbeitVon = _emptyToNull(_arbeitVonController.text);
+      m.arbeitBis = _emptyToNull(_arbeitBisController.text);
+
+      // "in_bearbeitung" statt "geplant", wenn per Beginn-Knopf bereits
+      // gestartet wurde, aber noch nicht abgeschlossen ist.
+      m.status = _geplant
+          ? (m.arbeitVon != null ? 'in_bearbeitung' : 'geplant')
+          : 'abgeschlossen';
 
       if (_isHeigenie) {
         // HeiGenie: Hahn-basierte Preisberechnung (Bergkunde inkl.)
@@ -469,11 +628,13 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       m.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
 
       await MontageRepository.save(m);
-      // Wegpunkt nur beim NEU-Erfassen — Einsatz-Zeitstempel fuer Routen-
-      // Daten und den Fahrzeit-Guard (Daniel 30.07.2026). Fire-and-forget.
-      // Nur bei erledigten Montagen — eine geplante war noch nirgends und
-      // würde die Fahrzeit-Lernkurve verfälschen (31.07.2026).
-      if (!_isEdit && !_geplant) {
+      // Wegpunkt beim NEU-Erfassen einer sofort erledigten Montage UND beim
+      // Abschliessen einer vorher geplanten Montage — Einsatz-Zeitstempel
+      // fuer Routen-Daten und den Fahrzeit-Guard (Daniel 30./31.07.2026).
+      // Fire-and-forget. Eine bloss geplante/laufende Montage, die so
+      // bleibt, war noch nirgends und würde die Fahrzeit-Lernkurve
+      // verfälschen.
+      if (istWegpunktMoment) {
         unawaited(
           WegpunktRepository.stempeln(
             quelle: 'montage',
@@ -560,8 +721,11 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
 
   @override
   void dispose() {
+    _laufendZeitTimer?.cancel();
     _stundenController.dispose();
     _betragController.dispose();
+    _arbeitVonController.dispose();
+    _arbeitBisController.dispose();
     _beschreibungController.dispose();
     for (final c in _materialControllers) {
       c.dispose();
@@ -612,6 +776,14 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                   onChanged: (v) => setState(() => _geplant = v),
                 ),
                 const Divider(height: 24),
+
+                // === Arbeitszeit (Beginn-Knopf + von Hand aenderbare
+                // Zeitfelder) — typ-unabhaengig, gilt fuer jede Montage. ===
+                _buildArbeitBeginnBlock(),
+                _sectionTitle(context, 'Arbeitszeit'),
+                const SizedBox(height: 8),
+                _buildArbeitZeitfelder(),
+                const SizedBox(height: 24),
 
                 // === Betrieb ===
                 _sectionTitle(context, 'Betrieb'),
@@ -886,6 +1058,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                   ),
                   if (!_isAnlass) ...[
                     const SizedBox(height: 12),
+                    if (!_isSpesen) _buildGemesseneZeitHinweis(),
                     _buildKostenPreview(),
                   ],
                   const SizedBox(height: 24),
@@ -1645,6 +1818,130 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  /// «Arbeit beginnen»-Knopf — nur beim Bearbeiten einer noch geplanten/
+  /// laufenden Montage. Nach dem ersten Tap zeigt derselbe Platz die
+  /// laufende Zeit an (Daniel 31.07.2026).
+  Widget _buildArbeitBeginnBlock() {
+    if (!_warGeplant) return const SizedBox.shrink();
+    final von = _emptyToNull(_arbeitVonController.text);
+    if (von == null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: FilledButton.icon(
+            onPressed: _arbeitBeginnLaeuft ? null : _arbeitBeginnen,
+            style: FilledButton.styleFrom(backgroundColor: AppColors.info),
+            icon: const Icon(Icons.play_arrow),
+            label: const Text(
+              'Arbeit beginnen',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.success.withAlpha(30),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.success),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.timer, color: AppColors.success),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _elapsedText() ?? 'Arbeit läuft seit $von',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Zwei von Hand änderbare Zeitfelder — für den Fall, dass der
+  /// «Beginn»-Knopf vergessen wurde oder eine Korrektur nötig ist.
+  Widget _buildArbeitZeitfelder() {
+    Widget feld(String label, TextEditingController controller, IconData icon) {
+      return Expanded(
+        child: InkWell(
+          onTap: () async {
+            final initial = _parseZeit(controller.text) ?? TimeOfDay.now();
+            final picked = await zeigeZeitauswahl(context, initial: initial);
+            if (picked != null) {
+              setState(() => controller.text = _formatZeit(picked));
+            }
+          },
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: Icon(icon),
+              isDense: true,
+            ),
+            child: Text(controller.text.isEmpty ? '—' : controller.text),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        feld('Arbeit von', _arbeitVonController, Icons.play_circle_outline),
+        const SizedBox(width: 12),
+        feld('Arbeit bis', _arbeitBisController, Icons.stop_circle_outlined),
+      ],
+    );
+  }
+
+  /// Hinweis «gemessen: 1h20» mit «übernehmen»-Knopf. Reine Anzeige — siehe
+  /// Kommentar bei [_gemesseneStunden]: `dauerStunden` wird NIE automatisch
+  /// überschrieben, nur auf ausdrücklichen Tap des Nutzers.
+  Widget _buildGemesseneZeitHinweis() {
+    final gemessen = _gemesseneStunden;
+    if (gemessen == null) return const SizedBox.shrink();
+    final h = gemessen.floor();
+    final min = ((gemessen - h) * 60).round();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'gemessen: ${h}h ${min.toString().padLeft(2, '0')}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _stundenController.text = gemessen.toStringAsFixed(2);
+              });
+            },
+            child: Text(
+              'übernehmen',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

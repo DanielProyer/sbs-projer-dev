@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
+import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
+import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_vorschlag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 
 /// Offene EIGENE Aufgaben — ALLE, auch mit Fälligkeitsdatum in der Zukunft.
 /// Bewusst nicht `aufgabenProvider`: der filtert für die Erinnerungs-Glocke
@@ -45,6 +49,11 @@ class _Eintrag {
   final VoidCallback? onTap;
   final Future<void> Function()? onErledigt;
 
+  /// Nur Störung/Montage: öffnet das Einplanen-Sheet (Migration 163) — die
+  /// bisher einzige Lücke im Screen war fehlende Aktion ausser Navigation
+  /// (Daniel 31.07.2026).
+  final Future<void> Function()? onEinplanen;
+
   const _Eintrag({
     required this.datum,
     required this.icon,
@@ -53,6 +62,7 @@ class _Eintrag {
     this.untertitel,
     this.onTap,
     this.onErledigt,
+    this.onEinplanen,
   });
 }
 
@@ -104,18 +114,41 @@ class AufgabenScreen extends ConsumerWidget {
       );
     }
 
-    // Offene Störungen (Datum = Meldedatum).
+    // Offene Störungen (Datum = Meldedatum; Planungstext = geplant_am/_zeit).
     for (final s in ref.watch(stoerungenProvider)) {
       if (!stoerungOffen(s.status)) continue;
       final betrieb = s.betriebId != null ? lookup[s.betriebId!] : null;
+      final plan = planungsText(
+        geplantAm: s.geplantAm,
+        geplantZeit: s.geplantZeit,
+      );
       eintraege.add(
         _Eintrag(
           datum: s.datum,
           icon: Icons.warning_amber,
           farbe: AppColors.error,
           titel: 'Störung ${betrieb?.name ?? '?'}',
-          untertitel: s.problemBeschreibung,
+          untertitel: '${s.problemBeschreibung} · $plan',
           onTap: () => context.push('/stoerungen/${s.routeId}'),
+          onEinplanen: () async {
+            final titel = betrieb?.name ?? '?';
+            final ergebnis = await zeigeEinplanenSheet(
+              context,
+              titel: titel,
+              untertitel: s.problemBeschreibung,
+              initialTag: s.geplantAm,
+              initialZeit: s.geplantZeit,
+              initialDauerMin: s.geplantDauerMin,
+            );
+            if (ergebnis == null) return;
+            await StoerungRepository.einplanen(
+              id: s.routeId,
+              tag: ergebnis.tag,
+              zeit: ergebnis.zeit,
+              dauerMin: ergebnis.dauerMin,
+            );
+            ref.invalidate(stoerungenStreamProvider);
+          },
         ),
       );
     }
@@ -124,14 +157,37 @@ class AufgabenScreen extends ConsumerWidget {
     for (final m in ref.watch(montagenProvider)) {
       if (!montageOffen(m.status)) continue;
       final betrieb = m.betriebId != null ? lookup[m.betriebId!] : null;
+      final plan = planungsText(
+        geplantAm: m.geplantAm,
+        geplantZeit: m.geplantZeit,
+      );
       eintraege.add(
         _Eintrag(
           datum: m.datum,
           icon: Icons.construction,
           farbe: AppColors.info,
           titel: 'Montage ${betrieb?.name ?? '?'}',
-          untertitel: m.montageTyp,
+          untertitel: '${m.montageTyp} · $plan',
           onTap: () => context.push('/montagen/${m.routeId}'),
+          onEinplanen: () async {
+            final titel = betrieb?.name ?? '?';
+            final ergebnis = await zeigeEinplanenSheet(
+              context,
+              titel: titel,
+              untertitel: m.montageTyp,
+              initialTag: m.geplantAm,
+              initialZeit: m.geplantZeit,
+              initialDauerMin: m.geplantDauerMin,
+            );
+            if (ergebnis == null) return;
+            await MontageRepository.einplanen(
+              id: m.routeId,
+              tag: ergebnis.tag,
+              zeit: ergebnis.zeit,
+              dauerMin: ergebnis.dauerMin,
+            );
+            ref.invalidate(montagenStreamProvider);
+          },
         ),
       );
     }
@@ -327,6 +383,15 @@ class _EintragKarte extends StatelessWidget {
                   ],
                 ),
               ),
+              if (eintrag.onEinplanen != null)
+                IconButton(
+                  icon: const Icon(Icons.event_outlined),
+                  color: AppColors.textSecondary,
+                  tooltip: 'Einplanen',
+                  iconSize: 20,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => eintrag.onEinplanen!(),
+                ),
               if (eintrag.onErledigt != null)
                 IconButton(
                   icon: const Icon(

@@ -547,7 +547,19 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 </details>
 
-## 🟡 GEPLANT (31.07.): Einsatzplanung mit Spracheingabe — Spec + Plan fertig, wartet auf Entscheide
+## 🟢 ERLEDIGT 31.07.: Einsatzplanung Etappe 1 — Störungen und Montagen sind planbar
+
+**Das war Daniels Kritik:** «die Planung von Störungen und Montagen gefällt mir noch nicht». Etappe 1 behebt sie vollständig (Sprache und Kalender folgen als Etappe 2/3).
+
+- **Migration 163:** `geplant_am`, `geplant_zeit`, `geplant_dauer_min`, `arbeit_von`, `arbeit_bis` an beiden Tabellen, `gemeldet_am` bei Störungen. Die 109 alten «Störungseingang»-Zeiten sind nach `gemeldet_am` umgezogen (gesichert in `import.stoerung_uhrzeit_start_vor_163`). Die 219 verwaisten Termin-Vorschläge wurden gelöscht — Bedingung Daniels («nur wenn wir keine Daten verlieren») vorher geprüft: 0 Notizen, 0 Uhrzeiten, 0 abweichende Status, alles aus Saisondaten neu berechenbar; Kopie in `import.termine_vor_loeschung_2026_07_31`.
+- **Drei Zeitbegriffe getrennt:** gemeldet (Anruf) · geplant (Termin oder ganztägig) · gearbeitet (Ist-Zeit). Beim Abschliessen wandert `datum` auf den Tag der tatsächlichen Arbeit — sonst würde eine im Juli gemeldete, im August erledigte Störung im falschen Monat abgerechnet.
+- **Sichtbarkeitsregel** (`einsatz_faellig.dart`, 12 Tests): Ein Einsatz verschwindet nur, wenn er für einen **späteren** Tag geplant ist. Ungeplante bleiben immer sichtbar (sie sind das, was einzuplanen ist), verpasste Termine ebenfalls (verpasst ≠ erledigt).
+- **«Einplanen»-Sheet:** Tag (heute/morgen/Datum), Umschalter **ganztägig ↔ fixer Termin**, Dauer in 15-Minuten-Schritten. Erreichbar aus der Fällig-Liste **und aus dem Aufgaben-Screen**, wo es bisher ausser Navigation keine Aktion gab.
+- **Rückschreiben:** Anker-Zeit oder Dauer im Block-Sheet zu ändern schreibt an den Einsatz zurück — bisher lebte die Uhrzeit nur am Tagesplan-Eintrag und ging beim Entfernen des Blocks verloren.
+- **Dauer-Vorgaben** (`einsatz_dauer.dart`, 11 Tests) statt pauschal 60 min: je Störungsbereich gestaffelt (Grundzeit 20 min + Aufschläge, gedeckelt bei 180), je Montage-Typ (Neumontage 120, Demontage 75, Anlass 240, Spesen/Aufwandsentschädigung 0 = kein Kundenbesuch). Bewusst feste Werte — es gibt **keine einzige** erfasste Arbeitszeit, aus der man Mediane bilden könnte; ersetzbar, sobald Ist-Zeiten vorliegen.
+- **Abrechnung unangetastet** (Vorgabe Daniel): `dauer_stunden` bei Montagen bleibt frei editierbar, weil dort bewusst auch Anfahrtsanteile für die Heineken-Abrechnung hineingerechnet werden. Die gemessene Zeit überschreibt sie **nie**, sondern erscheint höchstens als Hinweis mit «übernehmen»-Knopf. Als Kommentar im Code festgehalten.
+
+## 🟡 Etappe 2–4 (offen): Spracheingabe, Kalender, Eröffnungs-/Endreinigungen
 
 **Spec:** `docs/superpowers/specs/2026-07-31-einsatzplanung-sprache-design.md` · **Plan Etappe 1:** `docs/superpowers/plans/2026-07-31-einsatzplanung-etappe1.md` (7 Tasks)
 
