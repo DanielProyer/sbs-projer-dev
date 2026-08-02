@@ -150,20 +150,27 @@ class AufgabenScreen extends ConsumerWidget {
               initialDauerMin: s.geplantDauerMin,
             );
             if (ergebnis == null) return;
-            await StoerungRepository.einplanen(
-              id: s.routeId,
-              tag: ergebnis.tag,
-              zeit: ergebnis.zeit,
-              dauerMin: ergebnis.dauerMin,
-            );
-            ref.invalidate(stoerungenStreamProvider);
-            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
-            // Zieltags, nie in der Zeitachse — siehe Doku bei
-            // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
-            await einsatzInTagesplanAufnehmen(
+            // Muss VOR dem Schreiben gelesen werden — siehe Doku bei
+            // `einsatzUmplanen`. Ohne das Aufnehmen in den Tagesplan landet
+            // der Einsatz nur in der Fällig-Liste des Zieltags, nie in der
+            // Zeitachse; ohne das Entfernen aus dem alten Tag bleibt er
+            // dort als „Geisterblock" stehen (Fehlerbericht 02.08.2026,
+            // beide Teile).
+            final altesDatum = s.geplantAm;
+            await einsatzUmplanen(
               ref,
-              ergebnis.tag,
-              geplanterEinsatzEintrag(
+              altesDatum: altesDatum,
+              neuesDatum: ergebnis.tag,
+              schreiben: () async {
+                await StoerungRepository.einplanen(
+                  id: s.routeId,
+                  tag: ergebnis.tag,
+                  zeit: ergebnis.zeit,
+                  dauerMin: ergebnis.dauerMin,
+                );
+                ref.invalidate(stoerungenStreamProvider);
+              },
+              eintrag: geplanterEinsatzEintrag(
                 typ: TourEintragTyp.stoerung,
                 routeId: s.routeId,
                 betriebId: s.betriebId,
@@ -211,20 +218,27 @@ class AufgabenScreen extends ConsumerWidget {
               initialDauerMin: m.geplantDauerMin,
             );
             if (ergebnis == null) return;
-            await MontageRepository.einplanen(
-              id: m.routeId,
-              tag: ergebnis.tag,
-              zeit: ergebnis.zeit,
-              dauerMin: ergebnis.dauerMin,
-            );
-            ref.invalidate(montagenStreamProvider);
-            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
-            // Zieltags, nie in der Zeitachse — siehe Doku bei
-            // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
-            await einsatzInTagesplanAufnehmen(
+            // Muss VOR dem Schreiben gelesen werden — siehe Doku bei
+            // `einsatzUmplanen`. Ohne das Aufnehmen in den Tagesplan landet
+            // der Einsatz nur in der Fällig-Liste des Zieltags, nie in der
+            // Zeitachse; ohne das Entfernen aus dem alten Tag bleibt er
+            // dort als „Geisterblock" stehen (Fehlerbericht 02.08.2026,
+            // beide Teile).
+            final altesDatum = m.geplantAm;
+            await einsatzUmplanen(
               ref,
-              ergebnis.tag,
-              geplanterEinsatzEintrag(
+              altesDatum: altesDatum,
+              neuesDatum: ergebnis.tag,
+              schreiben: () async {
+                await MontageRepository.einplanen(
+                  id: m.routeId,
+                  tag: ergebnis.tag,
+                  zeit: ergebnis.zeit,
+                  dauerMin: ergebnis.dauerMin,
+                );
+                ref.invalidate(montagenStreamProvider);
+              },
+              eintrag: geplanterEinsatzEintrag(
                 typ: m.montageTyp == 'heigenie_service'
                     ? TourEintragTyp.heigenie
                     : TourEintragTyp.montage,

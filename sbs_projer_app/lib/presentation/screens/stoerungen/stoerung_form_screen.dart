@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
@@ -452,6 +453,21 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           : 'behoben';
 
       await StoerungRepository.save(s);
+      // Ein erledigter Einsatz gehört in die Ist-Ansicht, nicht mehr in den
+      // Plan — sonst steht die (jetzt behobene) Störung als „Geisterblock"
+      // weiter in der Zeitachse des Tages, für den sie geplant war (Daniel
+      // 02.08.2026). `s.geplantAm` ist hier noch das VOR dem Speichern
+      // geladene Plandatum (`save` fasst `geplantAm` nicht an).
+      if (schliesstJetztAb && s.geplantAm != null) {
+        final geplanterTag = DateTime(
+          s.geplantAm!.year,
+          s.geplantAm!.month,
+          s.geplantAm!.day,
+        );
+        unawaited(
+          einsatzAusTagesplanEntfernen(ref, geplanterTag, 's_${s.routeId}'),
+        );
+      }
       // Wegpunkt beim NEU-Erfassen eines sofort erledigten Einsatzes UND
       // beim Abschliessen eines vorher geplanten Einsatzes: der Stempel
       // markiert den tatsächlichen Einsatz-Zeitpunkt für Routen-Daten und

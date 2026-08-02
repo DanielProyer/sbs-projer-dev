@@ -42,6 +42,25 @@ bool einsatzIstUeberfaellig({
   return plan.isBefore(ziel);
 }
 
+/// Muss der Eintrag beim Umplanen aus dem Tagesplan des ALTEN Tages entfernt
+/// werden?
+///
+/// Nur wenn zuvor überhaupt ein Plandatum bestand UND sich das Datum durch
+/// die Umplanung tatsächlich ändert — sonst bliebe ein „Geisterblock" am
+/// alten Tag stehen (Fehlerbericht 02.08.2026: eine auf einen anderen Tag
+/// umgeplante Störung/Montage stand danach an ZWEI Tagen in der Zeitachse,
+/// weil der alte Tagesplan-Eintrag nie entfernt wurde). Ein Wechsel nur der
+/// Uhrzeit (gleicher Tag) zählt NICHT als Umplanung auf einen anderen Tag.
+bool mussAusAltemPlanEntfernt({
+  required DateTime? altesDatum,
+  required DateTime neuesDatum,
+}) {
+  if (altesDatum == null) return false;
+  final alt = DateTime(altesDatum.year, altesDatum.month, altesDatum.day);
+  final neu = DateTime(neuesDatum.year, neuesDatum.month, neuesDatum.day);
+  return alt != neu;
+}
+
 /// Kurztext für die Anzeige: «01.08. 14:00», «01.08. ganztägig» oder
 /// «nicht geplant». Ohne Uhrzeit heisst ganztägig — Daniels Entscheid vom
 /// 31.07.2026: entweder fixer Termin oder ganztägig an einem Datum.

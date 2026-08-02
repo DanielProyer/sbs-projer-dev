@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/image/document_enhancer.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -628,6 +629,22 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       m.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
 
       await MontageRepository.save(m);
+      // Eine erledigte Montage gehört in die Ist-Ansicht, nicht mehr in den
+      // Plan — sonst steht die (jetzt abgeschlossene) Montage als
+      // „Geisterblock" weiter in der Zeitachse des Tages, für den sie
+      // geplant war (Daniel 02.08.2026). `m.geplantAm` ist hier noch das
+      // VOR dem Speichern geladene Plandatum (`save` fasst `geplantAm`
+      // nicht an).
+      if (schliesstJetztAb && m.geplantAm != null) {
+        final geplanterTag = DateTime(
+          m.geplantAm!.year,
+          m.geplantAm!.month,
+          m.geplantAm!.day,
+        );
+        unawaited(
+          einsatzAusTagesplanEntfernen(ref, geplanterTag, 'm_${m.routeId}'),
+        );
+      }
       // Wegpunkt beim NEU-Erfassen einer sofort erledigten Montage UND beim
       // Abschliessen einer vorher geplanten Montage — Einsatz-Zeitstempel
       // fuer Routen-Daten und den Fahrzeit-Guard (Daniel 30./31.07.2026).

@@ -1482,10 +1482,10 @@ TourEintrag geplanterEinsatzEintrag({
 /// gespeicherte Plan des Zieltags geladen, der Eintrag eingefügt/ersetzt und
 /// direkt zurückgeschrieben.
 ///
-/// Bewegt eine Umplanung den Einsatz auf einen ANDEREN Tag, bleibt der
-/// (jetzt veraltete) Eintrag im alten Tag stehen — das Aufräumen dort ist
-/// nicht Teil dieser Funktion (kein gemeldeter Fall, ausserhalb des Scopes
-/// vom 02.08.2026).
+/// Bewegt eine Umplanung den Einsatz auf einen ANDEREN Tag, muss der
+/// (sonst veraltete) Eintrag im alten Tag separat entfernt werden — siehe
+/// [einsatzAusTagesplanEntfernen] und, gekapselt für den kompletten Ablauf,
+/// [einsatzUmplanen].
 Future<void> einsatzInTagesplanAufnehmen(
   WidgetRef ref,
   DateTime tag,
@@ -1522,6 +1522,84 @@ Future<void> einsatzInTagesplanAufnehmen(
   }
   await tagesplanSpeichern(tagOhneZeit, eintraege);
   ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
+}
+
+/// Entfernt den Eintrag mit [eintragId] aus dem Tagesplan von [tag] —
+/// Gegenstück zu [einsatzInTagesplanAufnehmen], nach demselben Muster: läuft
+/// der Tourenplan-Screen gerade auf diesem Tag, über den In-Memory-State
+/// (`TagesplanNotifier`, inkl. Auto-Save), sonst wird der gespeicherte Plan
+/// des Tages geladen, der Eintrag entfernt und zurückgeschrieben. Steht der
+/// Eintrag dort gar nicht (mehr), passiert nichts — idempotent.
+Future<void> einsatzAusTagesplanEntfernen(
+  WidgetRef ref,
+  DateTime tag,
+  String eintragId,
+) async {
+  final tagOhneZeit = DateTime(tag.year, tag.month, tag.day);
+  final notifier = ref.read(tagesplanProvider.notifier);
+  final aktivesDatum = notifier.datum;
+  final istAktiverTag =
+      aktivesDatum != null &&
+      aktivesDatum.year == tagOhneZeit.year &&
+      aktivesDatum.month == tagOhneZeit.month &&
+      aktivesDatum.day == tagOhneZeit.day;
+  if (istAktiverTag) {
+    notifier.entfernen(eintragId);
+    return;
+  }
+  final gespeichert = await ref.read(
+    gespeicherterTagesplanProvider(tagOhneZeit).future,
+  );
+  if (gespeichert == null) return;
+  final eintraege = List<TourEintrag>.of(gespeichert.eintraege);
+  final vorherigeLaenge = eintraege.length;
+  eintraege.removeWhere((e) => e.id == eintragId);
+  if (eintraege.length == vorherigeLaenge) return; // war gar nicht drin
+  await tagesplanSpeichern(tagOhneZeit, eintraege);
+  ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
+}
+
+/// Verschiebt einen Störungs-/Montage-Einsatz vollständig auf ein neues
+/// Plandatum — EINE Funktion für den kompletten Ablauf, damit keine
+/// Aufrufstelle einen Teilschritt vergisst. Genau das war die Ursache des
+/// Fehlerberichts vom 02.08.2026: vier Aufrufer von
+/// [einsatzInTagesplanAufnehmen] (Diktat, Tourenplanung, Aufgaben), die beim
+/// Umplanen auf einen anderen Tag den alten Tagesplan-Eintrag nicht
+/// entfernten — der Einsatz stand danach an ZWEI Tagen in der Zeitachse.
+///
+/// Ablauf:
+/// 1. [schreiben] ausführen — schreibt das neue `geplant_am` an den Einsatz
+///    (Aufrufer liefert den passenden `StoerungRepository`/
+///    `MontageRepository.einplanen`-Aufruf samt Stream-Invalidierung).
+/// 2. Ändert sich dabei das Plandatum wirklich (siehe
+///    [mussAusAltemPlanEntfernt]), den veralteten Eintrag aus dem Tagesplan
+///    des ALTEN Tages entfernen.
+/// 3. Den neuen Eintrag in den Tagesplan des Zieltags aufnehmen.
+///
+/// WICHTIG: [altesDatum] muss VOR dem Schreiben (also vor dem Aufruf dieser
+/// Funktion) aus dem bisherigen `geplant_am` des Einsatzes gelesen worden
+/// sein — danach steht dort bereits das neue Datum und der Vergleich wäre
+/// wertlos.
+Future<void> einsatzUmplanen(
+  WidgetRef ref, {
+  required DateTime? altesDatum,
+  required DateTime neuesDatum,
+  required Future<void> Function() schreiben,
+  required TourEintrag eintrag,
+}) async {
+  await schreiben();
+  if (mussAusAltemPlanEntfernt(
+    altesDatum: altesDatum,
+    neuesDatum: neuesDatum,
+  )) {
+    final alterTag = DateTime(
+      altesDatum!.year,
+      altesDatum.month,
+      altesDatum.day,
+    );
+    await einsatzAusTagesplanEntfernen(ref, alterTag, eintrag.id);
+  }
+  await einsatzInTagesplanAufnehmen(ref, neuesDatum, eintrag);
 }
 
 /// Speichert NUR den Arbeitstag-Rahmen (Beginn/Ende/km) und schreibt die drei

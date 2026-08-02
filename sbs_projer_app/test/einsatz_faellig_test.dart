@@ -82,6 +82,53 @@ void main() {
     });
   });
 
+  group('mussAusAltemPlanEntfernt', () {
+    test(
+      'kein altes Datum -> nicht entfernen (neuer, nie geplanter Einsatz)',
+      () {
+        expect(
+          mussAusAltemPlanEntfernt(
+            altesDatum: null,
+            neuesDatum: DateTime(2026, 8, 2),
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('gleiches Datum -> nicht entfernen (nur Uhrzeit geaendert)', () {
+      expect(
+        mussAusAltemPlanEntfernt(
+          altesDatum: DateTime(2026, 8, 1, 9, 0),
+          neuesDatum: DateTime(2026, 8, 1, 14, 0),
+        ),
+        isFalse,
+      );
+    });
+
+    test('anderes Datum -> entfernen', () {
+      expect(
+        mussAusAltemPlanEntfernt(
+          altesDatum: DateTime(2026, 8, 1),
+          neuesDatum: DateTime(2026, 8, 2),
+        ),
+        isTrue,
+      );
+    });
+
+    test('altes Datum liegt in der Vergangenheit -> trotzdem entfernen', () {
+      // Ein verpasster, dann neu eingeplanter Einsatz darf im alten
+      // (laengst vergangenen) Tagesplan keine Leiche hinterlassen.
+      expect(
+        mussAusAltemPlanEntfernt(
+          altesDatum: DateTime(2026, 7, 20),
+          neuesDatum: DateTime(2026, 8, 5),
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('planungsText', () {
     test('mit Uhrzeit -> Datum und Zeit', () {
       expect(

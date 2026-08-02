@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/besuch_buendelung.dart';
 import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
+import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
@@ -1980,20 +1981,46 @@ void _einsatzEinplanungZurueckschreiben(
 ) {
   final id = eintrag.id.substring(2);
   final dauer = eintrag.dauerMinuten ?? kDauerDefaultMinuten;
+  // Muss VOR dem Schreiben gelesen werden (siehe Doku bei `einsatzUmplanen`
+  // in tour_providers.dart) — danach steht in der DB bereits das neue
+  // Datum. Normalfall: der Block liegt schon im Plan von [datum], also
+  // ändert sich hier nichts. Kam er aber per «Fällig übernehmen» aus einem
+  // anderen (z.B. überfälligen) Tag in diesen Plan, schreibt dieser Aufruf
+  // das Plandatum jetzt auf [datum] um — dann muss der alte Tagesplan-
+  // Eintrag verschwinden, sonst bleibt er dort als „Geisterblock" stehen
+  // (Fehlerbericht 02.08.2026).
+  final altesDatum = eintrag.geplantAm;
+  Future<void> alterEintragAufraeumen() async {
+    if (mussAusAltemPlanEntfernt(altesDatum: altesDatum, neuesDatum: datum)) {
+      final alterTag = DateTime(
+        altesDatum!.year,
+        altesDatum.month,
+        altesDatum.day,
+      );
+      await einsatzAusTagesplanEntfernen(ref, alterTag, eintrag.id);
+    }
+  }
+
   if (eintrag.typ == TourEintragTyp.stoerung) {
     StoerungRepository.einplanen(
       id: id,
       tag: datum,
       zeit: eintrag.ankerZeit,
       dauerMin: dauer,
-    ).then((_) => ref.invalidate(stoerungenStreamProvider));
+    ).then((_) {
+      ref.invalidate(stoerungenStreamProvider);
+      alterEintragAufraeumen();
+    });
   } else {
     MontageRepository.einplanen(
       id: id,
       tag: datum,
       zeit: eintrag.ankerZeit,
       dauerMin: dauer,
-    ).then((_) => ref.invalidate(montagenStreamProvider));
+    ).then((_) {
+      ref.invalidate(montagenStreamProvider);
+      alterEintragAufraeumen();
+    });
   }
 }
 
@@ -2702,31 +2729,36 @@ class _FaelligEintragKarte extends ConsumerWidget {
     );
     if (ergebnis == null) return;
     final id = eintrag.id.substring(2);
-    if (eintrag.typ == TourEintragTyp.stoerung) {
-      await StoerungRepository.einplanen(
-        id: id,
-        tag: ergebnis.tag,
-        zeit: ergebnis.zeit,
-        dauerMin: ergebnis.dauerMin,
-      );
-      ref.invalidate(stoerungenStreamProvider);
-    } else {
-      await MontageRepository.einplanen(
-        id: id,
-        tag: ergebnis.tag,
-        zeit: ergebnis.zeit,
-        dauerMin: ergebnis.dauerMin,
-      );
-      ref.invalidate(montagenStreamProvider);
-    }
-    // Ohne das hier landet der Einsatz nur in der Fällig-Liste des Zieltags,
-    // nie in der Zeitachse — siehe Doku bei `einsatzInTagesplanAufnehmen`
-    // (Fehlerbericht 02.08.2026, gilt fürs Einplanen-Sheet genauso wie fürs
-    // Diktat).
-    await einsatzInTagesplanAufnehmen(
+    // Muss VOR dem Schreiben gelesen werden — siehe Doku bei
+    // `einsatzUmplanen`. Ohne das Aufnehmen in den Tagesplan landet der
+    // Einsatz nur in der Fällig-Liste des Zieltags, nie in der Zeitachse;
+    // ohne das Entfernen aus dem alten Tag bleibt er dort als
+    // „Geisterblock" stehen (Fehlerbericht 02.08.2026, beide Teile).
+    final altesDatum = eintrag.geplantAm;
+    await einsatzUmplanen(
       ref,
-      ergebnis.tag,
-      geplanterEinsatzEintrag(
+      altesDatum: altesDatum,
+      neuesDatum: ergebnis.tag,
+      schreiben: () async {
+        if (eintrag.typ == TourEintragTyp.stoerung) {
+          await StoerungRepository.einplanen(
+            id: id,
+            tag: ergebnis.tag,
+            zeit: ergebnis.zeit,
+            dauerMin: ergebnis.dauerMin,
+          );
+          ref.invalidate(stoerungenStreamProvider);
+        } else {
+          await MontageRepository.einplanen(
+            id: id,
+            tag: ergebnis.tag,
+            zeit: ergebnis.zeit,
+            dauerMin: ergebnis.dauerMin,
+          );
+          ref.invalidate(montagenStreamProvider);
+        }
+      },
+      eintrag: geplanterEinsatzEintrag(
         typ: eintrag.typ,
         routeId: id,
         betriebId: eintrag.betriebId,
