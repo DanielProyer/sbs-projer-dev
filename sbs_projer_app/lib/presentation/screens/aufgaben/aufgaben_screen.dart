@@ -157,6 +157,28 @@ class AufgabenScreen extends ConsumerWidget {
               dauerMin: ergebnis.dauerMin,
             );
             ref.invalidate(stoerungenStreamProvider);
+            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
+            // Zieltags, nie in der Zeitachse — siehe Doku bei
+            // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
+            await einsatzInTagesplanAufnehmen(
+              ref,
+              ergebnis.tag,
+              geplanterEinsatzEintrag(
+                typ: TourEintragTyp.stoerung,
+                routeId: s.routeId,
+                betriebId: s.betriebId,
+                anlageId: s.anlageId,
+                betriebName: betrieb?.name ?? '?',
+                betriebOrt: betrieb?.ort,
+                regionId: betrieb?.regionId,
+                beschreibung: s.problemBeschreibung,
+                ruhetage: betrieb?.ruhetage ?? const [],
+                servicezeit: servicezeitAus(betrieb),
+                tag: ergebnis.tag,
+                zeit: ergebnis.zeit,
+                dauerMin: ergebnis.dauerMin,
+              ),
+            );
           },
         ),
       );
@@ -196,6 +218,31 @@ class AufgabenScreen extends ConsumerWidget {
               dauerMin: ergebnis.dauerMin,
             );
             ref.invalidate(montagenStreamProvider);
+            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
+            // Zieltags, nie in der Zeitachse — siehe Doku bei
+            // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
+            await einsatzInTagesplanAufnehmen(
+              ref,
+              ergebnis.tag,
+              geplanterEinsatzEintrag(
+                typ: m.montageTyp == 'heigenie_service'
+                    ? TourEintragTyp.heigenie
+                    : TourEintragTyp.montage,
+                routeId: m.routeId,
+                betriebId: m.betriebId,
+                anlageId: m.anlageId,
+                betriebName: betrieb?.name ?? '?',
+                betriebOrt: betrieb?.ort,
+                regionId: betrieb?.regionId,
+                beschreibung: m.beschreibung,
+                ruhetage: betrieb?.ruhetage ?? const [],
+                servicezeit: servicezeitAus(betrieb),
+                tag: ergebnis.tag,
+                zeit: ergebnis.zeit,
+                dauerMin: ergebnis.dauerMin,
+                montageTyp: m.montageTyp,
+              ),
+            );
           },
         ),
       );

@@ -2719,6 +2719,29 @@ class _FaelligEintragKarte extends ConsumerWidget {
       );
       ref.invalidate(montagenStreamProvider);
     }
+    // Ohne das hier landet der Einsatz nur in der Fällig-Liste des Zieltags,
+    // nie in der Zeitachse — siehe Doku bei `einsatzInTagesplanAufnehmen`
+    // (Fehlerbericht 02.08.2026, gilt fürs Einplanen-Sheet genauso wie fürs
+    // Diktat).
+    await einsatzInTagesplanAufnehmen(
+      ref,
+      ergebnis.tag,
+      geplanterEinsatzEintrag(
+        typ: eintrag.typ,
+        routeId: id,
+        betriebId: eintrag.betriebId,
+        anlageId: eintrag.anlageId,
+        betriebName: eintrag.betriebName,
+        betriebOrt: eintrag.betriebOrt,
+        regionId: eintrag.regionId,
+        beschreibung: eintrag.beschreibung,
+        ruhetage: eintrag.ruhetage,
+        servicezeit: eintrag.servicezeit,
+        tag: ergebnis.tag,
+        zeit: ergebnis.zeit,
+        dauerMin: ergebnis.dauerMin,
+      ),
+    );
   }
 }
 

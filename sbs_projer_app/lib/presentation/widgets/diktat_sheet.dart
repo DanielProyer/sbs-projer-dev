@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
 import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_entwurf_speicher.dart';
@@ -298,6 +299,29 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
               zeit: _geplantZeit,
               dauerMin: _geplantDauerMin,
             );
+            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
+            // Zieltags, nie in der Zeitachse — siehe Doku bei
+            // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
+            final betrieb = ref.read(betriebLookupProvider)[_betriebId];
+            await einsatzInTagesplanAufnehmen(
+              ref,
+              _geplantTag!,
+              geplanterEinsatzEintrag(
+                typ: TourEintragTyp.stoerung,
+                routeId: s.routeId,
+                betriebId: _betriebId,
+                anlageId: null,
+                betriebName: betrieb?.name ?? _betriebName ?? '?',
+                betriebOrt: betrieb?.ort,
+                regionId: betrieb?.regionId,
+                beschreibung: beschreibung,
+                ruhetage: betrieb?.ruhetage ?? const [],
+                servicezeit: servicezeitAus(betrieb),
+                tag: _geplantTag!,
+                zeit: _geplantZeit,
+                dauerMin: _geplantDauerMin,
+              ),
+            );
           }
           break;
         case 'montage':
@@ -315,6 +339,30 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
               tag: _geplantTag!,
               zeit: _geplantZeit,
               dauerMin: _geplantDauerMin,
+            );
+            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
+            // Zieltags, nie in der Zeitachse — siehe Doku bei
+            // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
+            final betrieb = ref.read(betriebLookupProvider)[_betriebId];
+            await einsatzInTagesplanAufnehmen(
+              ref,
+              _geplantTag!,
+              geplanterEinsatzEintrag(
+                typ: TourEintragTyp.montage,
+                routeId: m.routeId,
+                betriebId: _betriebId,
+                anlageId: null,
+                betriebName: betrieb?.name ?? _betriebName ?? '?',
+                betriebOrt: betrieb?.ort,
+                regionId: betrieb?.regionId,
+                beschreibung: beschreibung,
+                ruhetage: betrieb?.ruhetage ?? const [],
+                servicezeit: servicezeitAus(betrieb),
+                tag: _geplantTag!,
+                zeit: _geplantZeit,
+                dauerMin: _geplantDauerMin,
+                montageTyp: 'neumontage',
+              ),
             );
           }
           break;

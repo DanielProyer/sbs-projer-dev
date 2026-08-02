@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
 import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
@@ -1415,6 +1416,112 @@ Future<void> tagesplanSpeichern(
     if (arbeitsende != null) 'arbeitsende': arbeitsende,
     if (kmStand != null) 'km_stand': kmStand,
   }, onConflict: 'user_id,datum');
+}
+
+/// Baut den Tagesplan-Eintrag für einen geplanten Störungs-/Montage-Einsatz
+/// — gemeinsam genutzt von Diktat und dem Einplanen-Sheet (Fehlerbericht
+/// 02.08.2026: Diktat «Montage Sartons Valbella für morgen» erschien im
+/// Google-Kalender, aber nicht im Tourenplan — beide Wege setzten bisher nur
+/// `geplant_am` auf dem Einsatz selbst, nie einen echten Tagesplan-Eintrag.
+/// Sichtbar in der Fällig-Liste war der Einsatz damit sofort, in der
+/// Zeitachse nie, solange niemand zusätzlich auf «+ Zum Tagesplan» tippte).
+///
+/// Fehlt [dauerMin] (keine Dauer genannt/gewählt — kommt nur beim Diktat vor,
+/// das Einplanen-Sheet liefert immer einen Wert), greift die Vorgabe aus
+/// [einsatzDauerVorgabe] statt der pauschalen 60-Minuten-Standardhöhe, damit
+/// der Block in der Zeitachse eine sinnvolle Grösse hat.
+TourEintrag geplanterEinsatzEintrag({
+  required TourEintragTyp typ, // stoerung, montage oder heigenie
+  required String routeId,
+  required String? betriebId,
+  required String? anlageId,
+  required String betriebName,
+  String? betriebOrt,
+  String? regionId,
+  required String beschreibung,
+  List<String> ruhetage = const [],
+  String? servicezeit,
+  required DateTime tag,
+  String? zeit,
+  int? dauerMin,
+  String? montageTyp,
+}) {
+  final dauer =
+      dauerMin ??
+      einsatzDauerVorgabe(
+        art: typ == TourEintragTyp.stoerung ? 'stoerung' : 'montage',
+        montageTyp: montageTyp,
+      );
+  return TourEintrag(
+    typ: typ,
+    id: '${typ == TourEintragTyp.stoerung ? 's' : 'm'}_$routeId',
+    betriebId: betriebId,
+    anlageId: anlageId,
+    betriebName: betriebName,
+    betriebOrt: betriebOrt,
+    regionId: regionId,
+    beschreibung: beschreibung,
+    ruhetage: ruhetage,
+    servicezeit: servicezeit,
+    ankerZeit: zeit,
+    geplantAm: tag,
+    geplantZeit: zeit,
+    geplantDauerMin: dauerMin,
+    dauerMinuten: dauer,
+  );
+}
+
+/// Nimmt [eintrag] in den Tagesplan von [tag] auf — unabhängig davon, ob
+/// dieser Tag gerade im Tourenplanungs-Screen geöffnet ist.
+///
+/// [tagesplanProvider] hält nur den Plan des Tages, den der Screen aktuell
+/// anzeigt (`TagesplanNotifier.datum`). Ist [tag] genau dieser Tag, läuft es
+/// über den In-Memory-State (hält die UI live in Sync, inkl. Auto-Save) —
+/// ist der Eintrag dort schon vorhanden (Umplanung eines bereits im Plan
+/// stehenden Einsatzes), wird er ersetzt statt ignoriert. Sonst wird der
+/// gespeicherte Plan des Zieltags geladen, der Eintrag eingefügt/ersetzt und
+/// direkt zurückgeschrieben.
+///
+/// Bewegt eine Umplanung den Einsatz auf einen ANDEREN Tag, bleibt der
+/// (jetzt veraltete) Eintrag im alten Tag stehen — das Aufräumen dort ist
+/// nicht Teil dieser Funktion (kein gemeldeter Fall, ausserhalb des Scopes
+/// vom 02.08.2026).
+Future<void> einsatzInTagesplanAufnehmen(
+  WidgetRef ref,
+  DateTime tag,
+  TourEintrag eintrag,
+) async {
+  final tagOhneZeit = DateTime(tag.year, tag.month, tag.day);
+  final notifier = ref.read(tagesplanProvider.notifier);
+  final aktivesDatum = notifier.datum;
+  final istAktiverTag =
+      aktivesDatum != null &&
+      aktivesDatum.year == tagOhneZeit.year &&
+      aktivesDatum.month == tagOhneZeit.month &&
+      aktivesDatum.day == tagOhneZeit.day;
+  if (istAktiverTag) {
+    final vorhanden = ref
+        .read(tagesplanProvider)
+        .any((e) => e.id == eintrag.id);
+    if (vorhanden) {
+      notifier.ersetze(eintrag.id, eintrag);
+    } else {
+      notifier.hinzufuegen(eintrag);
+    }
+    return;
+  }
+  final gespeichert = await ref.read(
+    gespeicherterTagesplanProvider(tagOhneZeit).future,
+  );
+  final eintraege = List<TourEintrag>.of(gespeichert?.eintraege ?? const []);
+  final index = eintraege.indexWhere((e) => e.id == eintrag.id);
+  if (index >= 0) {
+    eintraege[index] = eintrag;
+  } else {
+    eintraege.add(eintrag);
+  }
+  await tagesplanSpeichern(tagOhneZeit, eintraege);
+  ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
 }
 
 /// Speichert NUR den Arbeitstag-Rahmen (Beginn/Ende/km) und schreibt die drei
