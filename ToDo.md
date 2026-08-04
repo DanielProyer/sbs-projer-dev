@@ -627,6 +627,21 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 **Langfrist-Entscheid Daniel:** Eine **Version 2 der App wird eine reine Android-App** (kein Web mehr). Erst dort sind Dinge möglich, die der Browser prinzipiell verbietet — allen voran echte Fahrterkennung im Hintergrund (Android Activity Recognition, «IN_VEHICLE») und zuverlässiges GPS bei ausgeschaltetem Bildschirm. Bis dahin gilt: alles, was Hintergrund-Tracking bräuchte, wird ereignisbasiert nachgerechnet statt live gemessen.
 
+## 🔴 OFFEN (nächste Session): Eröffnungs-/Endreinigung am Schliessungstag auswählbar machen
+
+**Gemeldet Daniel 04.08.2026:** «warum erscheint Löwen Grossdietwil nicht zur Auswahl im Tourenplan, ich habe dort am Donnerstag einen Termin für die Eröffnung (letzter Tag der Betriebsferien)»
+
+**Befund (Daten geprüft):** `Gasthof Löwen`, Grossdietwil, id `a1000000-0000-4000-8000-000000000730` — Status aktiv, Ruhetage Mo/Di, **Betriebsferien 18.07.–06.08.2026** (Quelle `import`). Donnerstag = 06.08. = **letzter Ferientag**. Die Fällig-Liste blendet ihn aus, weil `istOffenerTag()` / `schliessungsGrund()` in `lib/core/util/touren_saison.dart` einen Betrieb in Ferien als geschlossen führt.
+
+**Das ist für normale Reinigungen richtig, für Saison-Reinigungen falsch:** Eine **Eröffnungsreinigung** findet naturgemäss statt, solange der Betrieb noch zu ist (kurz vor Wiedereröffnung, Wirt da, Lokal leer). Spiegelbildlich die **Endreinigung** am ersten Schliessungstag.
+
+**Zu bauen:**
+- Eröffnungs-/Endreinigungen (`autoTermineProvider`, `istAutoTermin: true`, und bestätigte Termine aus `termine`) sollen in der Fällig-Liste und im Tagesplan auch dann erscheinen, wenn der Betrieb an diesem Tag geschlossen ist. Normale Reinigungen bleiben ausgeblendet.
+- Am Block ein Hinweis, warum er trotz Schliessung dasteht: «letzter Ferientag — Eröffnung» bzw. «erster Schliessungstag — Endreinigung».
+- Reine Funktion + Tests (z.B. `darfTrotzSchliessungGeplantWerden({art, betrieb, tag})`), Randfälle: letzter Ferientag, erster Ferientag, mitten in den Ferien, Ruhetag, Zwischensaison, inaktiver Betrieb (der bleibt aus).
+
+**Für Donnerstag selbst braucht Daniel das nicht** — Umgehung: diktieren («Donnerstag Eröffnungsreinigung Gasthof Löwen Grossdietwil») legt einen Termin unabhängig von der Ferienprüfung an.
+
 ## 🔴 OFFEN: Nächste Schritte
 - **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.
 - **Kontakte-Übertragung Daniel (geplant 30.07.):** Alle Telefon-Kontakte in die App erfassen → syncen → in Google kontrollieren → erst DANN die alten Handy-Kontakte löschen (Reihenfolge wichtig; Sync löscht nur eigene «SBS App»-Karten, manuelle bleiben).
