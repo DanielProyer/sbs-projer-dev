@@ -898,6 +898,22 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                 }
               }
             }
+            // Bei "Rechnung Tresen": kein Mailversand — die Rechnung wird
+            // persönlich am Tresen übergeben. Das Datum gehört in
+            // uebergeben_am, NICHT in versendet_am (das bleibt echtem
+            // Mail-/Postversand vorbehalten).
+            else if (rechnung != null && zahlungsart == 'rechnung_tresen') {
+              try {
+                await RechnungRepository.update(rechnung.id, {
+                  'uebergeben_am': DateTime.now()
+                      .toIso8601String()
+                      .split('T')
+                      .first,
+                });
+              } catch (e) {
+                debugPrint('[Tresen-Übergabe] Fehler: $e');
+              }
+            }
           } catch (e) {
             debugPrint('Rechnungs-/Mailerstellung fehlgeschlagen: $e');
             // Fehler NICHT verschlucken: der Nutzer muss sehen, dass Rechnung/

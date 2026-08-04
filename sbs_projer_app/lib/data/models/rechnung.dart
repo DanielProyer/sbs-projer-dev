@@ -14,6 +14,7 @@ class Rechnung {
   final String zahlungsstatus;
   final String? versandart;
   final DateTime? versendetAm;
+  final DateTime? uebergebenAm;
   final DateTime? zahlungEingegangenAm;
   final double? zahlungBetrag;
   final int mahnungStufe;
@@ -23,6 +24,7 @@ class Rechnung {
   final DateTime? mahnung2Am;
   final String? pdfUrl;
   final String? qrReferenz;
+
   /// Optionale, pro Rechnung abweichende Rechnungsadresse (Override/Snapshot).
   /// null = es gilt die Betriebs-Rechnungsadresse. Keys: firma, vorname,
   /// nachname, strasse, nr, plz, ort, email.
@@ -47,6 +49,7 @@ class Rechnung {
     this.zahlungsstatus = 'offen',
     this.versandart,
     this.versendetAm,
+    this.uebergebenAm,
     this.zahlungEingegangenAm,
     this.zahlungBetrag,
     this.mahnungStufe = 0,
@@ -83,6 +86,9 @@ class Rechnung {
       versendetAm: json['versendet_am'] != null
           ? DateTime.parse(json['versendet_am'])
           : null,
+      uebergebenAm: json['uebergeben_am'] != null
+          ? DateTime.parse(json['uebergeben_am'])
+          : null,
       zahlungEingegangenAm: json['zahlung_eingegangen_am'] != null
           ? DateTime.parse(json['zahlung_eingegangen_am'])
           : null,
@@ -106,8 +112,12 @@ class Rechnung {
           ? Map<String, dynamic>.from(json['rechnungsadresse'])
           : null,
       notizen: json['notizen'],
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
     );
   }
 
@@ -128,7 +138,11 @@ class Rechnung {
       'zahlungsstatus': zahlungsstatus,
       'versandart': versandart,
       'versendet_am': versendetAm?.toIso8601String().split('T').first,
-      'zahlung_eingegangen_am': zahlungEingegangenAm?.toIso8601String().split('T').first,
+      'uebergeben_am': uebergebenAm?.toIso8601String().split('T').first,
+      'zahlung_eingegangen_am': zahlungEingegangenAm
+          ?.toIso8601String()
+          .split('T')
+          .first,
       'zahlung_betrag': zahlungBetrag,
       'mahnung_stufe': mahnungStufe,
       'letzte_mahnung_am': letzteMahnungAm?.toIso8601String().split('T').first,
@@ -145,10 +159,7 @@ class Rechnung {
   /// Erzeugt eine Kopie mit einzeln überschreibbaren Feldern.
   /// Aktuell genutzt, um für die PDF-Generierung ein abweichendes
   /// Fälligkeitsdatum zu setzen, ohne die DB-Rechnung zu verändern.
-  Rechnung copyWith({
-    DateTime? rechnungsdatum,
-    DateTime? faelligkeitsdatum,
-  }) {
+  Rechnung copyWith({DateTime? rechnungsdatum, DateTime? faelligkeitsdatum}) {
     return Rechnung(
       id: id,
       userId: userId,
@@ -165,6 +176,7 @@ class Rechnung {
       zahlungsstatus: zahlungsstatus,
       versandart: versandart,
       versendetAm: versendetAm,
+      uebergebenAm: uebergebenAm,
       zahlungEingegangenAm: zahlungEingegangenAm,
       zahlungBetrag: zahlungBetrag,
       mahnungStufe: mahnungStufe,

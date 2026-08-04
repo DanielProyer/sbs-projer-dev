@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
+import 'package:sbs_projer_app/core/util/rechnung_zustellung.dart';
 import 'package:sbs_projer_app/core/util/rechnungsadresse_resolver.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -80,18 +81,21 @@ class _RechnungDetailContentState
 
   Future<void> _loadDetails() async {
     try {
-      final positionen =
-          await RechnungsPositionRepository.getByRechnung(_rechnung.id);
+      final positionen = await RechnungsPositionRepository.getByRechnung(
+        _rechnung.id,
+      );
 
       String? betriebName;
       BetriebRechnungsadresseLocal? betriebRa;
       if (_rechnung.betriebId != null) {
-        final betrieb =
-            await BetriebRepository.getByServerId(_rechnung.betriebId!);
+        final betrieb = await BetriebRepository.getByServerId(
+          _rechnung.betriebId!,
+        );
         betriebName = betrieb?.name;
         _betriebId = betrieb?.routeId;
-        betriebRa = await BetriebRechnungsadresseRepository
-            .getByBetrieb(_rechnung.betriebId!);
+        betriebRa = await BetriebRechnungsadresseRepository.getByBetrieb(
+          _rechnung.betriebId!,
+        );
       }
 
       if (mounted) {
@@ -140,8 +144,11 @@ class _RechnungDetailContentState
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.mark_email_unread,
-                      color: AppColors.error, size: 20),
+                  Icon(
+                    Icons.mark_email_unread,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -161,15 +168,16 @@ class _RechnungDetailContentState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Status',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text(
+                    'Status',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   _StatusChip(status: _rechnung.zahlungsstatus),
                 ],
               ),
               if (_rechnung.versandart != null) ...[
                 const SizedBox(height: 8),
-                _InfoRow(
-                    'Versandart', _versandartLabel(_rechnung.versandart!)),
+                _InfoRow('Versandart', _versandartLabel(_rechnung.versandart!)),
               ],
             ],
           ),
@@ -185,13 +193,17 @@ class _RechnungDetailContentState
                       : null,
                   child: Row(
                     children: [
-                      const Icon(Icons.store,
-                          size: 20, color: AppColors.primary),
+                      const Icon(
+                        Icons.store,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(_betriebName!,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w600)),
+                        child: Text(
+                          _betriebName!,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
                       if (_betriebId != null)
                         const Icon(Icons.chevron_right, size: 20),
@@ -209,13 +221,23 @@ class _RechnungDetailContentState
           // Rechnungsinfo
           _SectionCard(
             children: [
-              const Text('Rechnungsdetails',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              const Text(
+                'Rechnungsdetails',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
               const SizedBox(height: 8),
-              _InfoRow(
-                  'Rechnungs-Nr.', _rechnung.rechnungsnummer ?? 'Entwurf'),
+              _InfoRow('Rechnungs-Nr.', _rechnung.rechnungsnummer ?? 'Entwurf'),
               _InfoRow('Datum', _formatDate(_rechnung.rechnungsdatum)),
               _InfoRow('Fällig bis', _formatDate(_rechnung.faelligkeitsdatum)),
+              if (_rechnung.uebergebenAm != null ||
+                  _rechnung.versendetAm != null)
+                _InfoRow(
+                  'Zustellung',
+                  zustellungsText(
+                    uebergebenAm: _rechnung.uebergebenAm,
+                    versendetAm: _rechnung.versendetAm,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -223,35 +245,48 @@ class _RechnungDetailContentState
           // Positionen
           _SectionCard(
             children: [
-              const Text('Positionen',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              const Text(
+                'Positionen',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
               const SizedBox(height: 8),
               if (_loadingPositionen)
                 const Center(child: CircularProgressIndicator())
               else if (_positionen != null && _positionen!.isNotEmpty)
-                ..._positionen!.map((p) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            child: Text('${p.position}.',
-                                style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 13)),
+                ..._positionen!.map(
+                  (p) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          child: Text(
+                            '${p.position}.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
                           ),
-                          Expanded(
-                            child: Text(p.beschreibung,
-                                style: const TextStyle(fontSize: 13)),
+                        ),
+                        Expanded(
+                          child: Text(
+                            p.beschreibung,
+                            style: const TextStyle(fontSize: 13),
                           ),
-                          Text('CHF ${p.betragNetto.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 13)),
-                        ],
-                      ),
-                    ))
+                        ),
+                        Text(
+                          'CHF ${p.betragNetto.toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               else
-                Text('Keine Positionen',
-                    style: TextStyle(color: AppColors.textSecondary)),
+                Text(
+                  'Keine Positionen',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -262,7 +297,8 @@ class _RechnungDetailContentState
               _SummenRow('Netto', _rechnung.betragNetto),
               _SummenRow(
                 'MwSt ${_rechnung.betragNetto > 0 ? (_rechnung.mwstBetrag / _rechnung.betragNetto * 100).toStringAsFixed(1) : '8.1'}%',
-                _rechnung.mwstBetrag),
+                _rechnung.mwstBetrag,
+              ),
               const Divider(),
               _SummenRow(
                 'Total CHF',
@@ -276,8 +312,10 @@ class _RechnungDetailContentState
           // Zahlungsinfo
           _SectionCard(
             children: [
-              const Text('Zahlungsinformationen',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              const Text(
+                'Zahlungsinformationen',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
               const SizedBox(height: 8),
               const _InfoRow('Zahlungsfrist', '30 Tage netto'),
               const _InfoRow('Bank', 'Graubündner Kantonalbank'),
@@ -290,8 +328,10 @@ class _RechnungDetailContentState
           if (_hasMahnungen()) ...[
             _SectionCard(
               children: [
-                const Text('Mahnverlauf',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                const Text(
+                  'Mahnverlauf',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
                 const SizedBox(height: 8),
                 if (_rechnung.erinnerungAm != null)
                   _MahnungPdfRow(
@@ -326,15 +366,19 @@ class _RechnungDetailContentState
     final ra = _betriebRa;
     return _SectionCard(
       children: [
-        const Text('Rechnungsadresse',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+        const Text(
+          'Rechnungsadresse',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         Text(
           ra != null
               ? _betriebRaText(ra)
               : 'Keine separate Rechnungsadresse beim Betrieb hinterlegt.',
           style: TextStyle(
-              fontSize: 13, color: ra != null ? null : AppColors.textSecondary),
+            fontSize: 13,
+            color: ra != null ? null : AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 10),
         // GestureDetector statt Material-Button (CanvasKit-Render-Bug im Body).
@@ -342,11 +386,17 @@ class _RechnungDetailContentState
           spacing: 8,
           runSpacing: 8,
           children: [
-            _tapButton('Adresse beim Betrieb bearbeiten', _adresseBeiBetrieb,
-                icon: Icons.edit_location_alt),
+            _tapButton(
+              'Adresse beim Betrieb bearbeiten',
+              _adresseBeiBetrieb,
+              icon: Icons.edit_location_alt,
+            ),
             if (_rechnung.betriebId != null)
-              _tapButton('Rechnung erneut senden', _rechnungErneutSenden,
-                  icon: Icons.send),
+              _tapButton(
+                'Rechnung erneut senden',
+                _rechnungErneutSenden,
+                icon: Icons.send,
+              ),
           ],
         ),
       ],
@@ -357,7 +407,8 @@ class _RechnungDetailContentState
     final lines = <String>[
       (a.firma ?? '').trim(),
       a.nachname.trim(),
-      '${a.strasse}${a.nr != null && a.nr!.isNotEmpty ? ' ${a.nr}' : ''}'.trim(),
+      '${a.strasse}${a.nr != null && a.nr!.isNotEmpty ? ' ${a.nr}' : ''}'
+          .trim(),
       '${a.plz} ${a.ort}'.trim(),
       (a.email ?? '').trim(),
     ].where((s) => s.isNotEmpty).toList();
@@ -377,7 +428,8 @@ class _RechnungDetailContentState
   Future<void> _rechnungErneutSenden() async {
     final email = _betriebRa?.email;
     await _neuVersendenAnbieten(
-        (email != null && email.trim().isNotEmpty) ? email.trim() : null);
+      (email != null && email.trim().isNotEmpty) ? email.trim() : null,
+    );
   }
 
   /// Bietet den Neu-Versand an (Bestätigung).
@@ -389,19 +441,23 @@ class _RechnungDetailContentState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Rechnung neu versenden?'),
-        content: Text(to.isEmpty
-            ? 'Keine E-Mail in der Rechnungsadresse hinterlegt — kein Versand möglich.'
-            : 'Die Rechnung wird neu erzeugt und per Mail an\n$to\nversendet.\n\n'
-                'Fällig bis wird auf ${_formatDate(neueFaelligkeit)} '
-                '(heute + 30 Tage) gesetzt.'),
+        content: Text(
+          to.isEmpty
+              ? 'Keine E-Mail in der Rechnungsadresse hinterlegt — kein Versand möglich.'
+              : 'Die Rechnung wird neu erzeugt und per Mail an\n$to\nversendet.\n\n'
+                    'Fällig bis wird auf ${_formatDate(neueFaelligkeit)} '
+                    '(heute + 30 Tage) gesetzt.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Nein')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Nein'),
+          ),
           if (to.isNotEmpty)
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Neu versenden')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Neu versenden'),
+            ),
         ],
       ),
     );
@@ -430,7 +486,8 @@ class _RechnungDetailContentState
       if (betrieb == null) throw Exception('Betrieb nicht gefunden');
       BetriebRechnungsadresse? betriebRa;
       final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
-          _rechnung.betriebId!);
+        _rechnung.betriebId!,
+      );
       if (raLocal != null) {
         betriebRa = BetriebRechnungsadresse(
           id: raLocal.serverId ?? '',
@@ -447,11 +504,14 @@ class _RechnungDetailContentState
         );
       }
       final effRa = effektiveRechnungsadresse(
-          _rechnung.rechnungsadresse, betriebRa,
-          betriebId: _rechnung.betriebId ?? '');
+        _rechnung.rechnungsadresse,
+        betriebRa,
+        betriebId: _rechnung.betriebId ?? '',
+      );
 
       // 3. PDF neu erzeugen (neue Adresse + Fälligkeit) + hochladen.
-      final positionen = _positionen ??
+      final positionen =
+          _positionen ??
           await RechnungsPositionRepository.getByRechnung(_rechnung.id);
       final g = ref.read(geschaeftProvider).valueOrNull;
       final pdfBytes = await RechnungPdfService.generate(
@@ -476,22 +536,26 @@ class _RechnungDetailContentState
           : betrieb.name;
       final betragStr = ((_rechnung.betragBrutto * 20).roundToDouble() / 20)
           .toStringAsFixed(2);
-      await SupabaseService.client.functions.invoke('send-rechnung-mail', body: {
-        'to': empfaenger,
-        'subject':
-            'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
-        'bodyText': 'Guten Tag\n\n'
-            'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
-            'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
-            'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
-            'mit dem beiliegenden Einzahlungsschein zu begleichen.\n\n'
-            'Mit freundlichen Grüssen\n\n'
-            'Daniel Projer\n\n'
-            'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
-        'rechnungId': _rechnung.id,
-        'userId': SupabaseService.dataUserId,
-        if (protokoll != null) 'protokollFotoPfad': protokoll,
-      });
+      await SupabaseService.client.functions.invoke(
+        'send-rechnung-mail',
+        body: {
+          'to': empfaenger,
+          'subject':
+              'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
+          'bodyText':
+              'Guten Tag\n\n'
+              'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
+              'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
+              'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
+              'mit dem beiliegenden Einzahlungsschein zu begleichen.\n\n'
+              'Mit freundlichen Grüssen\n\n'
+              'Daniel Projer\n\n'
+              'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
+          'rechnungId': _rechnung.id,
+          'userId': SupabaseService.dataUserId,
+          if (protokoll != null) 'protokollFotoPfad': protokoll,
+        },
+      );
 
       // 5. versendet_am setzen (nur bei scharfem Versand).
       final istScharf = MailConfig.istScharf('reinigung');
@@ -505,17 +569,22 @@ class _RechnungDetailContentState
       ref.invalidate(rechnungenStreamProvider);
       if (mounted) {
         Navigator.of(context).pop(); // Lade-Dialog
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(istScharf
-              ? 'Rechnung neu versendet an $empfaenger (Fällig bis ${_formatDate(neueFaelligkeit)}).'
-              : 'TEST: Mail ging an $empfaenger (nicht an Kunde).'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              istScharf
+                  ? 'Rechnung neu versendet an $empfaenger (Fällig bis ${_formatDate(neueFaelligkeit)}).'
+                  : 'TEST: Mail ging an $empfaenger (nicht an Kunde).',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Neu-Versand fehlgeschlagen: $e')));
+          SnackBar(content: Text('Neu-Versand fehlgeschlagen: $e')),
+        );
       }
     }
   }
@@ -547,8 +616,19 @@ class _RechnungDetailContentState
 
   static String _monatName(int m) {
     const namen = [
-      '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
-      'August', 'September', 'Oktober', 'November', 'Dezember'
+      '',
+      'Januar',
+      'Februar',
+      'März',
+      'April',
+      'Mai',
+      'Juni',
+      'Juli',
+      'August',
+      'September',
+      'Oktober',
+      'November',
+      'Dezember',
     ];
     return (m >= 1 && m <= 12) ? namen[m] : '';
   }
@@ -572,9 +652,13 @@ class _RechnungDetailContentState
               Icon(icon, size: 18, color: AppColors.primary),
               const SizedBox(width: 6),
             ],
-            Text(label,
-                style: const TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -602,7 +686,8 @@ class _RechnungDetailContentState
       BetriebRechnungsadresse? ra;
       if (_rechnung.betriebId != null) {
         final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
-            _rechnung.betriebId!);
+          _rechnung.betriebId!,
+        );
         if (raLocal != null) {
           ra = BetriebRechnungsadresse(
             id: raLocal.serverId ?? '',
@@ -621,7 +706,8 @@ class _RechnungDetailContentState
       }
 
       // Positionen laden falls noch nicht vorhanden
-      final positionen = _positionen ??
+      final positionen =
+          _positionen ??
           await RechnungsPositionRepository.getByRechnung(_rechnung.id);
 
       if (betrieb == null) {
@@ -635,8 +721,10 @@ class _RechnungDetailContentState
         positionen: positionen,
         betrieb: betrieb,
         rechnungsadresse: effektiveRechnungsadresse(
-            _rechnung.rechnungsadresse, ra,
-            betriebId: _rechnung.betriebId ?? ''),
+          _rechnung.rechnungsadresse,
+          ra,
+          betriebId: _rechnung.betriebId ?? '',
+        ),
         firmaName: g?.firma,
         firmaStrasse: g?.adresseStrasse,
         firmaPlzOrt: g?.adressePlzOrt,
@@ -647,16 +735,16 @@ class _RechnungDetailContentState
         Navigator.of(context).pop();
         await Printing.layoutPdf(
           onLayout: (_) => pdfBytes,
-          name:
-              'Rechnung_${_rechnung.rechnungsnummer ?? _rechnung.id}'.replaceAll('/', '_'),
+          name: 'Rechnung_${_rechnung.rechnungsnummer ?? _rechnung.id}'
+              .replaceAll('/', '_'),
         );
       }
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
       }
     }
   }
@@ -681,7 +769,8 @@ class _RechnungDetailContentState
       BetriebRechnungsadresse? ra;
       if (_rechnung.betriebId != null) {
         final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
-            _rechnung.betriebId!);
+          _rechnung.betriebId!,
+        );
         if (raLocal != null) {
           ra = BetriebRechnungsadresse(
             id: raLocal.serverId ?? '',
@@ -708,8 +797,10 @@ class _RechnungDetailContentState
         rechnung: _rechnung,
         betrieb: betrieb,
         rechnungsadresse: effektiveRechnungsadresse(
-            _rechnung.rechnungsadresse, ra,
-            betriebId: _rechnung.betriebId ?? ''),
+          _rechnung.rechnungsadresse,
+          ra,
+          betriebId: _rechnung.betriebId ?? '',
+        ),
         mahnStufe: stufe,
       );
 
@@ -718,8 +809,8 @@ class _RechnungDetailContentState
         final titel = stufe == 0
             ? 'Zahlungserinnerung'
             : stufe == 1
-                ? '1_Mahnung'
-                : '2_Mahnung';
+            ? '1_Mahnung'
+            : '2_Mahnung';
         await Printing.layoutPdf(
           onLayout: (_) => pdfBytes,
           name: '${titel}_${_rechnung.rechnungsnummer ?? _rechnung.id}'
@@ -729,9 +820,9 @@ class _RechnungDetailContentState
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
       }
     }
   }
@@ -744,8 +835,7 @@ class _RechnungDetailContentState
     );
 
     try {
-      final url =
-          await RechnungPdfStorage.getProtokollSignedUrl(_rechnung.id);
+      final url = await RechnungPdfStorage.getProtokollSignedUrl(_rechnung.id);
       if (context.mounted) {
         Navigator.of(context).pop();
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -754,8 +844,7 @@ class _RechnungDetailContentState
       if (context.mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Keine Protokolle vorhanden oder Fehler: $e')),
+          SnackBar(content: Text('Keine Protokolle vorhanden oder Fehler: $e')),
         );
       }
     }
@@ -811,9 +900,10 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 13, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
           Text(value, style: const TextStyle(fontSize: 13)),
         ],
       ),
@@ -870,11 +960,11 @@ class _MahnungPdfRow extends StatelessWidget {
           children: [
             const Icon(Icons.picture_as_pdf, size: 18, color: AppColors.error),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(label, style: const TextStyle(fontSize: 13)),
+            Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
+            Text(
+              datumStr,
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
-            Text(datumStr,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, size: 18),
           ],
@@ -910,25 +1000,39 @@ class _StatusChip extends StatelessWidget {
 
   String get _label {
     switch (status) {
-      case 'offen': return 'Offen';
-      case 'bezahlt': return 'Bezahlt';
-      case 'erinnert': return 'Erinnert';
-      case 'mahnung_1': return 'Mahnung 1';
-      case 'mahnung_2': return 'Mahnung 2';
-      case 'abgeschrieben': return 'Abgeschrieben';
-      default: return status;
+      case 'offen':
+        return 'Offen';
+      case 'bezahlt':
+        return 'Bezahlt';
+      case 'erinnert':
+        return 'Erinnert';
+      case 'mahnung_1':
+        return 'Mahnung 1';
+      case 'mahnung_2':
+        return 'Mahnung 2';
+      case 'abgeschrieben':
+        return 'Abgeschrieben';
+      default:
+        return status;
     }
   }
 
   Color get _color {
     switch (status) {
-      case 'offen': return AppColors.warning;
-      case 'bezahlt': return AppColors.success;
-      case 'erinnert': return const Color(0xFFE65100);
-      case 'mahnung_1': return AppColors.error;
-      case 'mahnung_2': return const Color(0xFF8B0000);
-      case 'abgeschrieben': return AppColors.inaktiv;
-      default: return AppColors.textSecondary;
+      case 'offen':
+        return AppColors.warning;
+      case 'bezahlt':
+        return AppColors.success;
+      case 'erinnert':
+        return const Color(0xFFE65100);
+      case 'mahnung_1':
+        return AppColors.error;
+      case 'mahnung_2':
+        return const Color(0xFF8B0000);
+      case 'abgeschrieben':
+        return AppColors.inaktiv;
+      default:
+        return AppColors.textSecondary;
     }
   }
 }

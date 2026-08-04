@@ -84,7 +84,8 @@ class ReinigungRechnungVersand {
 
     // 3. Versand je nach Rechnungsstellung
     final rs = resolveZahlungsart(r.zahlungsart, betrieb.rechnungsstellung);
-    final datumStr = '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
+    final datumStr =
+        '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
     final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
         ? '${betrieb.name} ${betrieb.ort}'
         : betrieb.name;
@@ -92,7 +93,10 @@ class ReinigungRechnungVersand {
     if (rs == 'rechnung_mail') {
       final kundenEmail = await _kundenEmail(betrieb);
       final keineKundenadresse = kundenEmail == null;
-      final empfaenger = MailConfig.empfaenger(kundenEmail, bereich: 'reinigung');
+      final empfaenger = MailConfig.empfaenger(
+        kundenEmail,
+        bereich: 'reinigung',
+      );
       final betragRounded = (rechnung.betragBrutto * 20).roundToDouble() / 20;
       final betragStr = betragRounded.toStringAsFixed(2);
 
@@ -102,7 +106,8 @@ class ReinigungRechnungVersand {
           'to': empfaenger,
           'subject':
               'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
-          'bodyText': 'Guten Tag\n\n'
+          'bodyText':
+              'Guten Tag\n\n'
               'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
               'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
               'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
@@ -134,7 +139,7 @@ class ReinigungRechnungVersand {
         keineKundenadresse: keineKundenadresse,
         meldung: keineKundenadresse
             ? 'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
-                'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.'
+                  'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.'
             : 'Rechnung per Mail versendet an $empfaenger',
       );
     }
@@ -145,10 +150,11 @@ class ReinigungRechnungVersand {
         'send-rechnung-mail',
         body: {
           'to': MailConfig.testEmpfaenger, // dani.proyer@gmail.com (intern)
-          'subject': 'Post-Rechnung zum Ausdrucken: $betriebLabel vom $datumStr',
+          'subject':
+              'Post-Rechnung zum Ausdrucken: $betriebLabel vom $datumStr',
           'bodyText':
               'Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr '
-                  'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
+              'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
           'rechnungId': rechnung.id,
           'userId': SupabaseService.dataUserId,
           if (r.protokollFotoPfad != null)
@@ -173,8 +179,26 @@ class ReinigungRechnungVersand {
       );
     }
 
-    // Andere Verrechnungsarten (z.B. rechnung_tresen): Rechnung erstellt, aber
-    // kein automatischer Mailversand.
+    if (rs == 'rechnung_tresen') {
+      // Persönliche Übergabe am Tresen — kein Mailversand. Das Datum gehört
+      // in uebergeben_am, NICHT in versendet_am (das bleibt echtem Mail-/
+      // Postversand vorbehalten, sonst geht der Übergabezeitpunkt bei einem
+      // späteren Mailversand verloren).
+      await RechnungRepository.update(rechnung.id, {
+        'uebergeben_am': DateTime.now().toIso8601String().split('T').first,
+      });
+      return ReinigungVersandErgebnis(
+        rechnungErstellt: !warVorhanden,
+        warVorhanden: warVorhanden,
+        mailGesendet: false,
+        empfaenger: null,
+        keineKundenadresse: false,
+        meldung: 'Rechnung erstellt — Übergabe am Tresen.',
+      );
+    }
+
+    // Andere Verrechnungsarten: Rechnung erstellt, aber kein automatischer
+    // Mailversand.
     return ReinigungVersandErgebnis(
       rechnungErstellt: !warVorhanden,
       warVorhanden: warVorhanden,
@@ -199,15 +223,28 @@ class ReinigungRechnungVersand {
         if (mail is String && mail.isNotEmpty) return mail;
       }
     } catch (e) {
-      debugPrint('[ReinigungVersand] Rechnungsadresse-Query fehlgeschlagen: $e');
+      debugPrint(
+        '[ReinigungVersand] Rechnungsadresse-Query fehlgeschlagen: $e',
+      );
     }
     return null;
   }
 
   static String _monatName(int monat) {
     const namen = [
-      '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+      '',
+      'Januar',
+      'Februar',
+      'März',
+      'April',
+      'Mai',
+      'Juni',
+      'Juli',
+      'August',
+      'September',
+      'Oktober',
+      'November',
+      'Dezember',
     ];
     return namen[monat];
   }
