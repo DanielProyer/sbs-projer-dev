@@ -457,5 +457,46 @@ void main() {
       );
       expect(find.textContaining('Letztes Jahr'), findsNothing);
     });
+
+    // ── Saison-Hinweis trotz Schliessung (Fall Löwen Grossdietwil) ──
+
+    testWidgets('graues Band zeigt den Saison-Hinweis', (tester) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: _besuch('sh', 9 * 60, 30),
+          eintrag: _eintrag('sh'),
+          anlagenGesamt: 1,
+          saisonHinweis: 'Letzter Ferientag — Eröffnung',
+        ),
+      );
+      expect(find.text('Letzter Ferientag — Eröffnung'), findsOneWidget);
+      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+      // Kein rotes Warnband daneben — der Tag ist gewollt.
+      expect(find.byIcon(Icons.warning_amber), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('erledigter Block zeigt den Saison-Hinweis nicht mehr', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        ZeitplanZeile(
+          segment: const ZeitSegment(
+            art: SegmentArt.besuch,
+            blockId: 'sh2',
+            startMin: 9 * 60,
+            endMin: 9 * 60 + 30,
+            ist: true,
+          ),
+          eintrag: _eintrag('sh2'),
+          anlagenGesamt: 1,
+          erledigt: true,
+          saisonHinweis: 'Letzter Ferientag — Eröffnung',
+        ),
+      );
+      expect(find.textContaining('Letzter Ferientag'), findsNothing);
+    });
   });
 }

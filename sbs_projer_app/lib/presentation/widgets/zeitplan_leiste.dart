@@ -227,6 +227,13 @@ class ZeitplanZeile extends StatelessWidget {
   /// Betrieb ist am Plantag zu (Ruhetag/Ferien/Saisonpause).
   final bool ruhetagKonflikt;
 
+  /// «Letzter Ferientag — Eröffnung» / «Erster Schliessungstag —
+  /// Endreinigung»: Die Saison-Reinigung darf trotz Schliessung hier stehen
+  /// (`saisonPlanungsHinweis` in `touren_saison.dart`). Ist der Hinweis
+  /// gesetzt, liefert der Screen KEIN [ruhetagKonflikt] — statt des roten
+  /// Warnbands erscheint dieses graue Band (Fall Löwen Grossdietwil).
+  final String? saisonHinweis;
+
   /// Konkreter Grund der Schliessung («Ruhetag», «Betriebsferien bis 15.08.»,
   /// «Zwischensaison») — steht im Warnband statt des pauschalen
   /// «Betrieb geschlossen» (Daniel 31.07.2026).
@@ -281,6 +288,7 @@ class ZeitplanZeile extends StatelessWidget {
     this.anlagenGesamt = 0,
     this.dauerGeschaetzt = true,
     this.ruhetagKonflikt = false,
+    this.saisonHinweis,
     this.schliessungsGrund,
     this.vorjahresFerienText,
     this.servicezeitKonflikt = false,
@@ -429,6 +437,10 @@ class ZeitplanZeile extends StatelessWidget {
           _warnband(schliessungsGrund ?? 'Betrieb geschlossen', AppColors.error)
         else if (!erledigt && servicezeitKonflikt)
           _warnband('ausserhalb Servicezeit', AppColors.warning),
+        // Saison-Reinigung am Rand einer Schliessung: erklärt, warum der
+        // Block trotz «geschlossen» dasteht — grau, weil gewollt und kein
+        // Konflikt (Fall Löwen Grossdietwil, 04.08.2026).
+        if (!erledigt && saisonHinweis != null) _infoband(saisonHinweis!),
         // Anker gesetzt, aber die Reihenfolge bringt mich zu spät hin: der
         // Anker wirkt nur als «frühestens ab» — er kann den Block nicht nach
         // VORNE ziehen. Ohne diesen Hinweis bliebe ein verpasster Termin

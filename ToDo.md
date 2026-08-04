@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 30.07.2026 · **Live:** v0.64.0
+**Stand:** 04.08.2026 · **Live:** v0.72.0
 
 ---
 
@@ -627,20 +627,19 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 **Langfrist-Entscheid Daniel:** Eine **Version 2 der App wird eine reine Android-App** (kein Web mehr). Erst dort sind Dinge möglich, die der Browser prinzipiell verbietet — allen voran echte Fahrterkennung im Hintergrund (Android Activity Recognition, «IN_VEHICLE») und zuverlässiges GPS bei ausgeschaltetem Bildschirm. Bis dahin gilt: alles, was Hintergrund-Tracking bräuchte, wird ereignisbasiert nachgerechnet statt live gemessen.
 
-## 🔴 OFFEN (nächste Session): Eröffnungs-/Endreinigung am Schliessungstag auswählbar machen
+## 🟢 ERLEDIGT 04.08. (v0.72.0): Eröffnungs-/Endreinigung am Schliessungstag auswählbar
 
 **Gemeldet Daniel 04.08.2026:** «warum erscheint Löwen Grossdietwil nicht zur Auswahl im Tourenplan, ich habe dort am Donnerstag einen Termin für die Eröffnung (letzter Tag der Betriebsferien)»
 
-**Befund (Daten geprüft):** `Gasthof Löwen`, Grossdietwil, id `a1000000-0000-4000-8000-000000000730` — Status aktiv, Ruhetage Mo/Di, **Betriebsferien 18.07.–06.08.2026** (Quelle `import`). Donnerstag = 06.08. = **letzter Ferientag**. Die Fällig-Liste blendet ihn aus, weil `istOffenerTag()` / `schliessungsGrund()` in `lib/core/util/touren_saison.dart` einen Betrieb in Ferien als geschlossen führt.
+**Befund:** `Gasthof Löwen`, Grossdietwil (id `1c4a9f7f-cf76-44f7-8e8f-a58ded45e58c`), Betriebsferien 18.07.–06.08.2026 → Donnerstag 06.08. = letzter Ferientag. Drei Lücken: (1) `istOffenerTag()` führt Ferien-Betriebe als geschlossen — richtig für normale Reinigungen, falsch für Saison-Reinigungen; (2) die Auto-Vorschläge (`autoTermineProvider`) zielten via `naechsterOffenerTag()` nie auf einen Schliessungstag; (3) bestätigte Termine aus `termine` erschienen im Tourenplan gar nicht (nur im Aufgaben-Screen). Löwen fiel zusätzlich durch die 21-Tage-Schwelle (Ferien nur 20 Tage → keine Saison-Automatik).
 
-**Das ist für normale Reinigungen richtig, für Saison-Reinigungen falsch:** Eine **Eröffnungsreinigung** findet naturgemäss statt, solange der Betrieb noch zu ist (kurz vor Wiedereröffnung, Wirt da, Lokal leer). Spiegelbildlich die **Endreinigung** am ersten Schliessungstag.
-
-**Zu bauen:**
-- Eröffnungs-/Endreinigungen (`autoTermineProvider`, `istAutoTermin: true`, und bestätigte Termine aus `termine`) sollen in der Fällig-Liste und im Tagesplan auch dann erscheinen, wenn der Betrieb an diesem Tag geschlossen ist. Normale Reinigungen bleiben ausgeblendet.
-- Am Block ein Hinweis, warum er trotz Schliessung dasteht: «letzter Ferientag — Eröffnung» bzw. «erster Schliessungstag — Endreinigung».
-- Reine Funktion + Tests (z.B. `darfTrotzSchliessungGeplantWerden({art, betrieb, tag})`), Randfälle: letzter Ferientag, erster Ferientag, mitten in den Ferien, Ruhetag, Zwischensaison, inaktiver Betrieb (der bleibt aus).
-
-**Für Donnerstag selbst braucht Daniel das nicht** — Umgehung: diktieren («Donnerstag Eröffnungsreinigung Gasthof Löwen Grossdietwil») legt einen Termin unabhängig von der Ferienprüfung an.
+**Gebaut (v0.72.0):**
+- **`darfTrotzSchliessungGeplantWerden({art, betrieb, tag})`** + `saisonPlanungsHinweis(...)` in `touren_saison.dart` (rein, 20 Tests): Eröffnung erlaubt am **letzten** Schliessungstag (morgen offen), Endreinigung am **ersten** (gestern offen); mitten in der Schliessung, inaktiv/geschlossen → nein; Ruhetage zählen nicht.
+- **`autoTermineProvider`**: Eröffnungs-Vorschlag erscheint zusätzlich am letzten Schliessungstag, Endreinigungs-Vorschlag am ersten (zielDatum = der Tag selbst).
+- **Bestätigte Termine im Tourenplan**: neue Sektion «Saison-Termine» (vorher «Automatische Termine») zeigt Eröffnungs-/Endreinigungs-Termine aus `termine` am Termin-Tag — auch an Schliessungstagen; `uhrzeit_von` wird zum Zeitachsen-Anker. Abgleich ±7 Tage verdrängt den Auto-Vorschlag (gleiche Regel wie Aufgaben-Screen). Reine Funktion `saisonTermineFuerTag` (11 Tests, `test/termin_tourenplan_test.dart`).
+- **Tagesplan-Block**: statt rotem «Betriebsferien»-Warnband ein graues Infoband «Letzter Ferientag — Eröffnung» / «Erster Ferientag/Schliessungstag — Endreinigung» (2 Widget-Tests).
+- **Für Donnerstag angelegt:** Termin `eroeffnungsreinigung` Gasthof Löwen, 06.08.2026 (id `61555540-8807-472a-98b9-363f7812c647`) — direkt in DB, daher **ohne Google-Kalender-Push** (der läuft erst beim nächsten App-seitigen Termin-Ereignis mit).
+- ⚠️ Visueller Browser-Check vor Deploy war nicht möglich (Browser-Pane ohne Anzeige, Login) — kompensiert durch Widget-Tests; **Live-Check Daniel am Handy offen**: Tourenplan Donnerstag 06.08. muss Löwen in «Saison-Termine» zeigen.
 
 ## 🔴 OFFEN: Nächste Schritte
 - **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.

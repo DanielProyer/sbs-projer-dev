@@ -110,7 +110,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final faelligeEintraege = ref.watch(
       faelligeEintraegeProvider(_selectedDate),
     );
-    final autoTermine = ref.watch(autoTermineProvider(_selectedDate));
+    // Bestätigte Saison-Termine + Auto-Vorschläge — erscheinen auch an
+    // einem Schliessungstag (Fall Löwen Grossdietwil, 04.08.2026).
+    final autoTermine = ref.watch(saisonTermineFuerTagProvider(_selectedDate));
 
     // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag.
     final gespeichertAsync = ref.watch(
@@ -1535,8 +1537,26 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
               final betrieb = eintrag.betriebId == null
                   ? null
                   : lookup[eintrag.betriebId!];
+              // Saison-Reinigungen dürfen am Rand einer Schliessung trotz
+              // «geschlossen» geplant werden (Eröffnung am letzten, End-
+              // reinigung am ersten Schliessungstag) — dann grauer Hinweis
+              // statt rotem Warnband (Fall Löwen Grossdietwil, 04.08.2026).
+              final saisonArt = switch (eintrag.faelligkeit) {
+                FaelligkeitsStatus.eroeffnungFaellig => 'eroeffnungsreinigung',
+                FaelligkeitsStatus.endreinigungFaellig => 'endreinigung',
+                _ => null,
+              };
+              final saisonHinweis = (betrieb != null && saisonArt != null)
+                  ? saisonPlanungsHinweis(
+                      art: saisonArt,
+                      betrieb: betrieb,
+                      tag: widget.datum,
+                    )
+                  : null;
               final ruhetagKonflikt =
-                  betrieb != null && !istOffenerTag(betrieb, widget.datum);
+                  betrieb != null &&
+                  !istOffenerTag(betrieb, widget.datum) &&
+                  saisonHinweis == null;
               // Spec §4: der ganze Besuch (Ankunft bis Ende) muss ins
               // Servicefenster passen, nicht nur die Ankunft.
               final servicezeitKonflikt =
@@ -1588,6 +1608,7 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                   anlagenGesamt: gesamt,
                   dauerGeschaetzt: eintrag.dauerMinuten == null,
                   ruhetagKonflikt: ruhetagKonflikt,
+                  saisonHinweis: saisonHinweis,
                   schliessungsGrund: betrieb == null
                       ? null
                       : schliessungsGrund(betrieb, widget.datum),
@@ -2331,7 +2352,7 @@ class _AutoTermineSektion extends StatelessWidget {
                 const Icon(Icons.auto_awesome, size: 16, color: AppColors.info),
                 const SizedBox(width: 6),
                 Text(
-                  'Automatische Termine (${eintraege.length})',
+                  'Saison-Termine (${eintraege.length})',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,

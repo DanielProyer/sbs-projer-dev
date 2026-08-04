@@ -95,6 +95,59 @@ String? schliessungsGrund(BetriebLocal b, DateTime tag) {
   return null;
 }
 
+/// Darf eine Saison-Reinigung an einem Schliessungstag geplant werden?
+///
+/// Regel (Fall Löwen Grossdietwil, 04.08.2026): Eine **Eröffnungsreinigung**
+/// findet naturgemäss statt, solange der Betrieb noch zu ist — am letzten
+/// Schliessungstag, kurz vor der Wiedereröffnung. Spiegelbildlich die
+/// **Endreinigung** am ersten Schliessungstag. Mitten in der Schliessung
+/// bleibt beides ausgeblendet; normale Reinigungen sowieso.
+///
+/// [art] wie `TerminDto.typ`: 'eroeffnungsreinigung' | 'endreinigung'.
+/// Schliessung = Saisonpause oder Ferien ([istInSchliessung]) — Ruhetage
+/// zählen bewusst nicht, ein inaktiver/geschlossener Betrieb nie.
+bool darfTrotzSchliessungGeplantWerden({
+  required String art,
+  required BetriebLocal betrieb,
+  required DateTime tag,
+}) {
+  if (betrieb.status != 'aktiv') return false;
+  final t = DateTime(tag.year, tag.month, tag.day);
+  if (!istInSchliessung(betrieb, t)) return false;
+  switch (art) {
+    case 'eroeffnungsreinigung':
+      // Letzter Schliessungstag: morgen ist wieder offen.
+      return !istInSchliessung(betrieb, t.add(const Duration(days: 1)));
+    case 'endreinigung':
+      // Erster Schliessungstag: gestern war noch offen.
+      return !istInSchliessung(betrieb, t.subtract(const Duration(days: 1)));
+    default:
+      return false;
+  }
+}
+
+/// Hinweis-Text, warum eine Saison-Reinigung trotz Schliessung im Plan
+/// stehen darf — fürs Band am Tagesplan-Block. `null`, wenn
+/// [darfTrotzSchliessungGeplantWerden] den Tag nicht zulässt.
+String? saisonPlanungsHinweis({
+  required String art,
+  required BetriebLocal betrieb,
+  required DateTime tag,
+}) {
+  if (!darfTrotzSchliessungGeplantWerden(art: art, betrieb: betrieb, tag: tag)) {
+    return null;
+  }
+  final inFerien = istInFerien(betrieb, tag);
+  if (art == 'eroeffnungsreinigung') {
+    return inFerien
+        ? 'Letzter Ferientag — Eröffnung'
+        : 'Letzter Schliessungstag — Eröffnung';
+  }
+  return inFerien
+      ? 'Erster Ferientag — Endreinigung'
+      : 'Erster Schliessungstag — Endreinigung';
+}
+
 /// Erster offener Tag ab [ab] (vorwärts, oder [rueckwaerts]); max. 60 Tage
 /// Suchfenster, sonst null.
 DateTime? naechsterOffenerTag(

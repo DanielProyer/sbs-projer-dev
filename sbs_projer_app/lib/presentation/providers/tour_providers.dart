@@ -7,9 +7,11 @@ import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
 import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
+import 'package:sbs_projer_app/core/util/termin_abgleich.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/core/util/touren_saison.dart';
+import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
@@ -23,6 +25,7 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 // FaelligkeitsStatus lebt seit 29.07.2026 in core/util/tour_filter.dart (der
@@ -765,12 +768,21 @@ final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
         ? serviceArtMap[a.serverId!]
         : null;
 
-    // Endreinigung: letzter offener Tag vor der nächsten Schliessung
+    // Endreinigung: letzter offener Tag vor der nächsten Schliessung — ODER
+    // der erste Schliessungstag selbst (Fall Löwen Grossdietwil, 04.08.2026:
+    // Saison-Reinigungen finden naturgemäss statt, wenn der Betrieb zu ist).
     if (letzteServiceArt != 'endreinigung') {
       final s = qualifizierteSchliessung(betrieb, tag);
       if (s != null) {
         final ziel = naechsterOffenerTag(betrieb, s.datum, rueckwaerts: true);
-        if (ziel != null && ziel == tag) {
+        final amSchliessungstag =
+            DateTime(s.datum.year, s.datum.month, s.datum.day) == tag &&
+            darfTrotzSchliessungGeplantWerden(
+              art: 'endreinigung',
+              betrieb: betrieb,
+              tag: tag,
+            );
+        if ((ziel != null && ziel == tag) || amSchliessungstag) {
           result.add(
             TourEintrag(
               typ: TourEintragTyp.reinigung,
@@ -785,7 +797,7 @@ final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
               ruhetage: betrieb.ruhetage,
               servicezeit: _servicezeitAus(betrieb),
               istAutoTermin: true,
-              zielDatum: ziel,
+              zielDatum: amSchliessungstag ? tag : ziel,
             ),
           );
           continue;
@@ -803,7 +815,22 @@ final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
       final oeffnung = oeffnungNach(betrieb, ab);
       if (oeffnung != null) {
         final ziel = naechsterOffenerTag(betrieb, oeffnung, rueckwaerts: false);
-        if (ziel != null && ziel == tag) {
+        // Auch der letzte Schliessungstag vor der Wiedereröffnung ist
+        // wählbar — die Eröffnungsreinigung passiert, solange noch zu ist
+        // (Wirt da, Lokal leer; Fall Löwen Grossdietwil, 04.08.2026).
+        final amVortag =
+            DateTime(
+                  oeffnung.year,
+                  oeffnung.month,
+                  oeffnung.day,
+                ).subtract(const Duration(days: 1)) ==
+                tag &&
+            darfTrotzSchliessungGeplantWerden(
+              art: 'eroeffnungsreinigung',
+              betrieb: betrieb,
+              tag: tag,
+            );
+        if ((ziel != null && ziel == tag) || amVortag) {
           result.add(
             TourEintrag(
               typ: TourEintragTyp.reinigung,
@@ -818,7 +845,7 @@ final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
               ruhetage: betrieb.ruhetage,
               servicezeit: _servicezeitAus(betrieb),
               istAutoTermin: true,
-              zielDatum: ziel,
+              zielDatum: amVortag ? tag : ziel,
             ),
           );
         }
@@ -828,6 +855,141 @@ final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
 
   return result;
 });
+
+// ─── Bestätigte Saison-Termine im Tourenplan (Fall Löwen Grossdietwil) ───
+
+/// Sektion «Saison-Termine» über der Fällig-Liste: bestätigte Eröffnungs-/
+/// Endreinigungs-Termine (Tabelle `termine`) des Tages plus die
+/// Auto-Vorschläge, soweit kein bestätigter Termin sie schon abdeckt
+/// (±7 Tage, gleiche Regel wie im Aufgaben-Screen).
+///
+/// Bestätigte Termine erscheinen bewusst AUCH an einem Schliessungstag —
+/// eine Eröffnungsreinigung findet naturgemäss statt, solange der Betrieb
+/// noch zu ist (letzter Ferientag), die Endreinigung am ersten
+/// Schliessungstag (Daniel 04.08.2026, Fall Löwen Grossdietwil).
+///
+/// Reine Funktion (testbar, `test/termin_tourenplan_test.dart`).
+List<TourEintrag> saisonTermineFuerTag({
+  required DateTime tag,
+  required List<TourEintrag> autoTermine,
+  required List<TerminDto> offeneTermine,
+  required Map<String, BetriebLocal> betriebMap,
+  required List<AnlageLocal> anlagen,
+}) {
+  final t0 = DateTime(tag.year, tag.month, tag.day);
+  final result = <TourEintrag>[];
+
+  final reinigungsTermine = [
+    for (final t in offeneTermine)
+      if (t.typ == 'eroeffnungsreinigung' || t.typ == 'endreinigung') t,
+  ];
+
+  // 1. Bestätigte Termine des Tages als planbare Reinigungs-Einträge.
+  for (final t in reinigungsTermine) {
+    if (DateTime(t.datum.year, t.datum.month, t.datum.day) != t0) continue;
+    final betrieb = betriebMap[t.betriebId];
+    if (betrieb == null) continue;
+    // Anlagen des Betriebs — `betriebId` der Anlage kann routeId ODER
+    // serverId tragen, deshalb gegen beide (und die Termin-Id) prüfen.
+    final betriebAnlagen = [
+      for (final a in anlagen)
+        if (a.status == 'aktiv' &&
+            (a.betriebId == t.betriebId ||
+                a.betriebId == betrieb.routeId ||
+                (betrieb.serverId != null && a.betriebId == betrieb.serverId)))
+          a,
+    ];
+    final istEroeffnung = t.typ == 'eroeffnungsreinigung';
+    result.add(
+      TourEintrag(
+        typ: TourEintragTyp.reinigung,
+        // Anlage-basierte Id, damit die Dedupe gegen Fällig-Liste/Auto-
+        // Vorschläge und «bereits im Plan» greift; ohne aktive Anlage
+        // bleibt der Termin über seine eigene Id trotzdem sichtbar.
+        id: betriebAnlagen.isNotEmpty
+            ? 'r_${betriebAnlagen.first.routeId}'
+            : 't_${t.id}',
+        betriebId: t.betriebId,
+        anlageId: betriebAnlagen.isNotEmpty
+            ? betriebAnlagen.first.routeId
+            : null,
+        anlageIds: [for (final a in betriebAnlagen) a.routeId],
+        betriebName: betrieb.name,
+        betriebOrt: betrieb.ort,
+        regionId: betrieb.regionId,
+        beschreibung: istEroeffnung
+            ? 'Eröffnungsreinigung · Termin'
+            : 'Endreinigung · Termin',
+        faelligkeit: istEroeffnung
+            ? FaelligkeitsStatus.eroeffnungFaellig
+            : FaelligkeitsStatus.endreinigungFaellig,
+        datum: t.datum,
+        ruhetage: betrieb.ruhetage,
+        servicezeit: _servicezeitAus(betrieb),
+        // 'HH:mm:ss' aus Postgres auf 'HH:mm' kürzen — der Termin wirkt als
+        // Anker in der Zeitachse.
+        ankerZeit: t.uhrzeitVon == null
+            ? null
+            : (t.uhrzeitVon!.length > 5
+                  ? t.uhrzeitVon!.substring(0, 5)
+                  : t.uhrzeitVon),
+        zielDatum: DateTime(t.datum.year, t.datum.month, t.datum.day),
+      ),
+    );
+  }
+
+  // 2. Auto-Vorschläge, die kein bestätigter Termin abdeckt (±7 Tage) und
+  // die nicht mit einem Termin-Eintrag kollidieren.
+  final vergleich = [
+    for (final t in reinigungsTermine)
+      TerminVergleich(betriebId: t.betriebId, typ: t.typ, datum: t.datum),
+  ];
+  final belegteIds = {for (final e in result) e.id};
+  for (final e in autoTermine) {
+    if (belegteIds.contains(e.id)) continue;
+    final typ = e.faelligkeit == FaelligkeitsStatus.endreinigungFaellig
+        ? 'endreinigung'
+        : e.faelligkeit == FaelligkeitsStatus.eroeffnungFaellig
+        ? 'eroeffnungsreinigung'
+        : null;
+    if (typ != null &&
+        e.betriebId != null &&
+        e.zielDatum != null &&
+        terminDecktVorschlagAb(
+          vorschlagBetriebId: e.betriebId!,
+          vorschlagTyp: typ,
+          vorschlagDatum: e.zielDatum!,
+          bestehendeTermine: vergleich,
+        )) {
+      continue;
+    }
+    result.add(e);
+  }
+
+  return result;
+}
+
+/// Provider-Verdrahtung zu [saisonTermineFuerTag]: bestätigte Termine +
+/// Auto-Vorschläge des Tages, ohne die bereits im Tagesplan liegenden.
+final saisonTermineFuerTagProvider =
+    Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
+      final autoTermine = ref.watch(autoTermineProvider(datum));
+      final offeneTermine =
+          ref.watch(offeneTermineProvider).valueOrNull ?? const <TerminDto>[];
+      final betriebMap = _buildBetriebMap(ref.watch(betriebeProvider));
+      final anlagen = ref.watch(anlagenProvider);
+      final imPlan = ref.watch(tagesplanProvider).map((e) => e.id).toSet();
+      return [
+        for (final e in saisonTermineFuerTag(
+          tag: datum,
+          autoTermine: autoTermine,
+          offeneTermine: offeneTermine,
+          betriebMap: betriebMap,
+          anlagen: anlagen,
+        ))
+          if (!imPlan.contains(e.id)) e,
+      ];
+    });
 
 String _montageTypLabel(String typ) {
   switch (typ) {
