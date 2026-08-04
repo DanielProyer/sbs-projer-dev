@@ -513,7 +513,7 @@ Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet di
 
 **Noch offen:**
 - **App-Deploy** (Version bumpen, Build, gh-pages) nach visueller Prüfung der drei neuen Oberflächen.
-- **20 Winterfenster mit verdrehten Jahreszahlen reparieren** — Stammdaten, deshalb erst nach Daniels Wort. Die Logik dafür (`saison_jahr.dart`) ist gebaut und getestet, das Wartungsskript fehlt noch.
+- ~~20 Winterfenster mit verdrehten Jahreszahlen~~ **ERLEDIGT 04.08.2026** (Freigabe Daniel): Alle 20 Winterfenster «Start Ende 2026, Ende April 2026» auf Ende **April 2027** angehoben (Regel `jahreszahlenRichten()`: bis < von → bis + 1 Jahr; verhindert die «ewige Saison» im Wrap-Zweig von `_imFenster()`). Starts unverändert, Sommerfenster waren sauber, Kontrolle 0/0/20. Skript `Datenbank/wartung/winterfenster_jahreszahlen_2026_08_04.sql`, Rückweg `rollback_winterfenster_2026_08_04.sql` (Snapshot `snapshot_winterfenster_2026_08_04`).
 - **Rössli:** Ferienbeginn 29.05.2026 ohne Enddatum (wandert nicht in die neue Tabelle, war auch bisher wirkungslos) — Ende nachtragen.
 
 <details><summary>Ursprüngliche Planung (31.07.)</summary>
@@ -653,7 +653,7 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 - **Warnleiste „Saisondaten fehlen" zeigt aktuell 15 Betriebe** — überwiegend Winter-Betriebe (Davos/Laax/Lenzerheide: Fuxägufer, Piz Piz, Frosch, Bolgenschanze, Il Pub, Indy Bar, Snake Bar, Acla Grischuna, Clubhotel, Dischma, Hotel Sport Klosters, Kartitscha, Obertor Parpan/Ilanz, Gemsli Mels), deren Endreinigung im Frühjahr war und deren **nächster Winterstart noch nicht eingetragen** ist. Daniel pflegt die Saisondaten nach, sobald bekannt — die Uhr startet dann automatisch; bis dahin erinnert die Leiste.
 
 - **Saisondaten pflegen (nach dem Fix v0.54.18):** Die Tourenplanung liest ein leeres Datum jetzt als „offen" — fehlendes Ende = Saison läuft weiter, fehlender Start = hat schon begonnen (Entscheid Daniel 29.07.2026). Damit sind 35 still unsichtbare Betriebe wieder da. Sauber wird die Planung aber erst mit gepflegten Daten: **33 Betriebe** haben unvollständige Sommer-, **39** unvollständige Winterangaben. Betriebe ganz ohne Daten (z. B. Lenzerhorn, Weiss Kreuz Splügen, BARacca Vella) gelten dadurch als ganzjährig offen — falls das nicht stimmt, Saison eintragen.
-- **Winterbetriebe mit Jahreswechsel-Saison:** 20 Betriebe haben ein Fenster wie 01.12.–01.04. Das versteht die App seit v0.54.18. Bei einigen stehen aber beide Daten im selben Jahr (Robinson Club Arosa: 01.12.2026–01.04.2026) — beim nächsten Saisonwechsel die Jahreszahlen mitziehen.
+- **Winterbetriebe mit Jahreswechsel-Saison:** 20 Betriebe haben ein Fenster wie 01.12.–01.04. Das versteht die App seit v0.54.18. ~~Bei einigen stehen beide Daten im selben Jahr~~ **Jahreszahlen am 04.08.2026 gerichtet** (alle 20 auf Ende im Folgejahr, siehe Eintrag im Ferien-Paket) — beim nächsten Saisonwechsel die Jahreszahlen weiterhin mitziehen.
 
 ---
 
