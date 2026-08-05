@@ -4,6 +4,27 @@
 
 ---
 
+## 🔴 NEU 05.08.2026: Datenprüfung — Vollbericht `docs/datenpruefung-2026-08-05.md`
+
+Sechs Bereiche geprüft (Stammdaten, Anlagen/Reinigungen, Rechnungen, Buchhaltung, Bankauszug, Saison/Touren), nur lesend. Die schwersten Funde am Code und an den Buchungen gegengeprüft. **Übersicht als Artifact veröffentlicht.**
+
+**Zwei Fehler laufen heute noch weiter — zuerst anfassen:**
+
+1. **MwSt doppelt gebucht — CHF 10'172.28, 890 Buchungen seit 01.12.2025, jede neue Rechnung betroffen.** Die Hauptbuchung setzt `mwst_konto=2200` (→ `saldo_expansion.dart` teilt bereits auf), zusätzlich erzeugt `reinigung_buchung_service.dart:125-141` bzw. `heineken_buchung_service.dart:60-75` eine zweite MwSt-Buchung 3400/2200. Folge: Ertrag 10'172.28 zu tief, MwSt-Schuld ebenso zu hoch (2025: 1'343.91 · 2026: 8'828.37). Bilanz + Erfolgsrechnung betroffen. **Entscheid Daniel:** rückwirkend stornieren oder Korrekturbuchung — hängt daran, ob Q4/2025 + Q1/2026 schon abgerechnet sind.
+2. **camt-Stichtag Off-by-One — Risiko CHF 6'283.85.** `camt_stichtag.dart:6` `!isBefore(stichtag)` schliesst den 11.03.2026 EIN, der ist aber schon aus Excel gebucht (Beleg: SVA 5'962.20 + Kehricht 153.00 = exakt die camt-Belastung 6'115.20). Fix `isAfter(stichtag)`. **Vor dem nächsten Import.**
+
+**Geldseite steht still:** Konto 1020 seit 11.03.2026 ohne jede Buchung (147 Tage), ≥ CHF 99'470 unverbucht; keine Zahlungszuordnung mehr seit 11.03.; Franchisegebühr Heineken 2026 CHF 0.00 (Vorjahr 45'272.40), Löhne seit 04.03. gestoppt → Ergebnis 2026 erheblich zu hoch. **Gute Nachricht:** Bankabstimmung bis 11.03. exakt null Differenz über 2'668 Transaktionen.
+
+**Forderungen:** CHF 173'123 offen. Davon **342 Live-Rechnungen (CHF 34'478) nie zugestellt** — 85 per Mail, Ø 146 Tage alt (Calanda Chur, Stadtcafé Sursee, Posthotel Valbella). Mahnwesen komplett ungenutzt, 140 Rechnungen (CHF 12'865) nach Art. 128 OR verjährt.
+
+**Blue Cinema: Verdacht widerlegt** — die Zentrale ist längst erfasst; Ursache ist, dass keine der 38 Rechnungen je versendet wurde. Der ToDo-Eintrag weiter unten ist damit erledigt/umgedeutet.
+
+**Behoben während der Prüfung:** RLS auf den beiden Wartungs-Snapshots (waren über die API lesbar), Migration `rls_auf_wartungs_snapshots`.
+
+Vollständige Liste inkl. Stammdaten-Befunden (5 Betriebe bedient aber nicht als Kunde geführt, 66 Reinigungen ohne Anlage, 125 überfällige Anlagen teils wegen falschem Rhythmus, Rovanada fehlende 2. Anlage) und 10 Entscheidungsfragen: siehe Bericht.
+
+---
+
 ## 🟢 ERLEDIGT 30.07.: Live-Tagesplan v0.56.0 — heutiger Plan zeigt gemessene Ist-Zeiten
 
 **Wunsch Daniel:** «kannst du mit den Daten (Stempel bei allen Ereignissen) den Tourenplan (vom aktuellen Tag) interaktiv halten … alle erledigten Arbeiten/Wege direkt mit den gemessenen Zeiten darstellen und die Tour entsprechend anpassen»
