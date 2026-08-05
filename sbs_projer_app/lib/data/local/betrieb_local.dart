@@ -62,13 +62,16 @@ class BetriebLocal {
   DateTime? ferien5Ende;
   bool keineBetriebsferien = false;
 
-  /// Wann zuletzt jemand die Ferienfrage beim Reinigungs-Abschluss
-  /// beantwortet hat (`betriebe.ferien_bestaetigt_am`). Steuert zusammen mit
-  /// [ferienFrageRuhtBis], ob `ferienFrageZeigen()` erneut fragt.
+  /// Wann zuletzt eine Ferien-Aussage bestaetigt wurde
+  /// (`betriebe.ferien_bestaetigt_am`). Die Ferienfrage beim
+  /// Reinigungs-Abschluss wurde am 05.08.2026 entfernt (Daniel: stoert mehr
+  /// als sie nuetzt) — das Feld bleibt fuer Betriebs-Formular und
+  /// Google/Website-Abgleich erhalten.
   DateTime? ferienBestaetigtAm;
 
-  /// Antwort "weiss nicht" im Abschluss-Dialog: bis dahin ruht die Frage
-  /// (`betriebe.ferien_frage_ruht_bis`), unabhaengig von [ferienBestaetigtAm].
+  /// Historisch: Antwort "weiss nicht" der frueheren Abschluss-Ferienfrage
+  /// (`betriebe.ferien_frage_ruht_bis`). Wird nur noch gemappt, nicht mehr
+  /// gesetzt.
   DateTime? ferienFrageRuhtBis;
 
   /// Trennt "kein Ruhetag bekannt" (null) von "geprueft, hat keinen

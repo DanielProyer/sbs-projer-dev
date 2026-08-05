@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 04.08.2026 · **Live:** v0.72.0
+**Stand:** 05.08.2026 · **Live:** v0.72.1
 
 ---
 
@@ -499,7 +499,7 @@ Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet di
 
 **In der App (auf main, wartet auf Deploy):**
 - **«War geschlossen»** im Tagesplan-Block (heutige + vergangene Tage): Grund erfassen → Betriebsferien (Datumsbereich, `quelle='vor_ort'`), Ruhetag (Wochentag) oder «niemand da» (nur Notiz). Immer ein Wegpunkt `quelle='vergeblich'` mit Zeit + GPS + Notiz. **Keine** automatische Neuplanung (Entscheid Daniel) — Besuch bleibt fällig.
-- **Ferienfrage beim Reinigungs-Abschluss** (vor dem Speichern, Entscheid Daniel): «Keine geplant» / «Von–bis» / «Weiss nicht» (30 Tage Ruhe). Erscheint nur, wenn nie beantwortet oder älter als 12 Monate. Blockiert den Abschluss unter keinen Umständen (eigener try/catch).
+- ~~Ferienfrage beim Reinigungs-Abschluss~~ **WIEDER ENTFERNT 05.08.2026 (v0.72.1, Entscheid Daniel):** «stört im Moment mehr, als es nützt — ein Klick mehr bei der Reinigung». Sheet + Logik + Tests gelöscht; die DB-Felder (`ferien_bestaetigt_am`, `ferien_frage_ruht_bis`) und die Tabelle `betrieb_ferien` bleiben. Ferien/Saisonpausen laufen weiterhin über Betriebs-Formular + täglichen Google/Website-Abgleich mit Prüfliste; ggf. künftig ein neuer Erfassungsweg (Ideen offen, siehe «Betriebsdaten aktuell halten»).
 - **Graues Vorjahres-Band** am Block: «Letztes Jahr hier Betriebsferien (20.07.–10.08.) — nachfragen». Rein informativ, optisch klar von der roten Warnung getrennt, schweigt sobald für das Jahr eine Aussage vorliegt.
 - **Prüfliste** `/betriebe/vorschlaege` (Zeile im Aufgaben-Screen): alter → neuer Wert, Quelle, Datum; «Alle übernehmen, bei denen Google und Website übereinstimmen»; **Saison ist von der Sammelübernahme ausgenommen** und orange hervorgehoben.
 

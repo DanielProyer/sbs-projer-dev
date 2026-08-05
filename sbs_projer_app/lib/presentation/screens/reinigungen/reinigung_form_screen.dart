@@ -11,7 +11,6 @@ import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
-import 'package:sbs_projer_app/data/repositories/betrieb_ferien_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
@@ -19,7 +18,6 @@ import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
-import 'package:sbs_projer_app/core/util/ferien_frage.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -36,7 +34,6 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_qr_dialog.dart';
-import 'package:sbs_projer_app/presentation/widgets/ferien_frage_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
@@ -610,7 +607,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         );
         // Vergessene Pause abfangen (Daniel 31.07.2026): laeuft noch eine
         // Pause, jetzt anhand der aktuellen Position pruefen — NIE
-        // blockierend, eigener try/catch (analog Ferienfrage oben).
+        // blockierend, eigener try/catch (der Abschluss ist das Wichtige).
         if (mounted) {
           try {
             await pausePruefenNachEreignis(context, ref);
@@ -1290,19 +1287,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       if (kIsWeb && mounted) ref.invalidate(betriebeStreamProvider);
     }
 
-    // Ferienfrage (Baustein B, docs/superpowers/specs/2026-07-31-
-    // betriebsdaten-aktuell-halten-design.md): höchstens einmal pro Jahr je
-    // Betrieb, und NIE blockierend — die Reinigung ist das Wichtige, die
-    // Ferienangabe ist Beifang. Eigener try/catch: ein Fehler hier (Sheet,
-    // Speichern) darf den Abschluss unten (_save) unter keinen Umständen
-    // verhindern.
-    if (mounted && betrieb != null) {
-      try {
-        await _ferienFrageStellen(betrieb);
-      } catch (e) {
-        debugPrint('[Ferienfrage] übersprungen, Fehler: $e');
-      }
-    }
+    // Die Ferienfrage an dieser Stelle wurde am 05.08.2026 wieder entfernt
+    // (Daniel: «stört im Moment mehr, als es nützt — ein Klick mehr bei der
+    // Reinigung»). Betriebsferien laufen über das Betriebs-Formular und den
+    // täglichen Google/Website-Abgleich mit Prüfliste.
 
     setState(() {
       _rechnungsstellung = selected;
@@ -1311,52 +1299,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     await _save(abschliessen: true);
   }
 
-  /// Fragt — falls fällig — nach den nächsten Betriebsferien und speichert
-  /// die Antwort. Wird aus [_abschlussDialogFlow] mit eigenem try/catch
-  /// aufgerufen: nichts hier darf den Reinigungs-Abschluss verhindern.
-  Future<void> _ferienFrageStellen(BetriebLocal betrieb) async {
-    if (!ferienFrageZeigen(
-      bestaetigtAm: betrieb.ferienBestaetigtAm,
-      ruhtBis: betrieb.ferienFrageRuhtBis,
-      heute: DateTime.now(),
-    )) {
-      return;
-    }
-    if (!mounted) return;
-    final antwort = await zeigeFerienFrageSheet(
-      context,
-      betriebName: betrieb.name,
-    );
-    // Übersprungen (weggetippt/zugezogen) -> nichts zu tun, kein Fehler.
-    if (antwort == null) return;
-
-    final jetzt = DateTime.now();
-    switch (antwort) {
-      case FerienFrageKeineGeplant():
-        betrieb.keineBetriebsferien = true;
-        betrieb.ferienBestaetigtAm = jetzt;
-        await BetriebRepository.save(betrieb);
-      case FerienFrageVonBis(:final von, :final bis):
-        if (betrieb.serverId != null) {
-          await BetriebFerienRepository.periodeErfassen(
-            betriebId: betrieb.serverId!,
-            von: von,
-            bis: bis,
-            quelle: 'kunde',
-          );
-          // Ohne diese Invalidierung sieht der Tagesplan die neue Periode
-          // nicht (ferienPeriodenProvider ist ein FutureProvider, cached bis
-          // zur expliziten Invalidierung — auf beiden Plattformen).
-          ref.invalidate(ferienPeriodenProvider);
-        }
-        betrieb.ferienBestaetigtAm = jetzt;
-        await BetriebRepository.save(betrieb);
-      case FerienFrageWeissNicht():
-        betrieb.ferienFrageRuhtBis = jetzt.add(const Duration(days: 30));
-        await BetriebRepository.save(betrieb);
-    }
-    if (kIsWeb && mounted) ref.invalidate(betriebeStreamProvider);
-  }
 
   String? _emptyToNull(String text) {
     final trimmed = text.trim();

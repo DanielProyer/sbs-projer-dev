@@ -1117,7 +1117,7 @@ class _BetriebPickerSheetState extends State<_BetriebPickerSheet> {
   }
 }
 
-// ─── Bausteine (gleicher Stil wie einplanen_sheet.dart / ferien_frage_sheet.dart
+// ─── Bausteine (gleicher Stil wie einplanen_sheet.dart
 // — CanvasKit-Regel: kein ElevatedButton/TextButton in Bottom-Sheets) ───
 
 class _SheetTitel extends StatelessWidget {

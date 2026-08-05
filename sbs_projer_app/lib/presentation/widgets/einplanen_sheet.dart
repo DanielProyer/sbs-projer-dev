@@ -324,7 +324,7 @@ class _EinplanenSheetState extends State<_EinplanenSheet> {
               // Speichern — bewusst GestureDetector + Container statt
               // ElevatedButton (CanvasKit-Regel: Material-Buttons in
               // Bottom-Sheets werden auf Web nicht zuverlässig gezeichnet,
-              // siehe tourenplanung_screen.dart / ferien_frage_sheet.dart).
+              // siehe tourenplanung_screen.dart).
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: GestureDetector(
@@ -359,7 +359,7 @@ class _EinplanenSheetState extends State<_EinplanenSheet> {
   }
 }
 
-// ─── Bausteine (bewusst lokal, gleicher Stil wie ferien_frage_sheet.dart /
+// ─── Bausteine (bewusst lokal, gleicher Stil wie
 // tourenplanung_screen.dart — CanvasKit-Regel: kein ElevatedButton/
 // TextButton in Bottom-Sheets) ───
 

@@ -134,7 +134,7 @@ class _PausePruefenSheet extends StatelessWidget {
 
 /// Tippbare Zeile — GestureDetector + Container statt Material-Button
 /// (CanvasKit-Regel: Material-Buttons in Sheets werden auf Web nicht
-/// zuverlässig gezeichnet, siehe ferien_frage_sheet.dart).
+/// zuverlässig gezeichnet, siehe einplanen_sheet.dart).
 class _PausePruefenZeile extends StatelessWidget {
   final IconData icon;
   final String text;
