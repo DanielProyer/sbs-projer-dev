@@ -1,5 +1,31 @@
 # MWST Q4/2025 — Nachreichung inkl. Korrektur 2025
 
+> ## ⚠️ ÜBERHOLT — KORREKTUR 06.08.2026 (spätabends)
+>
+> **Q4/2025 wurde sehr wahrscheinlich bereits eingereicht und bezahlt.** In der
+> camt-Datei liegt eine Zahlung vom **18.05.2026 über CHF 1'735.04** an die
+> Eidg. Steuerverwaltung mit SCOR-Referenz `RF35K8QT0042025354005` /
+> Zusatzinfo `K8QT0042025` — nach dem Muster der übrigen Abrechnungen
+> (K8QT001 2025 = Q1/2025) ist das **Q4/2025**. Die Zahlung lief nach dem
+> Bankstopp (11.03.) und war deshalb im Journal unsichtbar; das PDF fehlt im
+> Ordner (Stand 08.06.).
+>
+> **Neue Rechnung:** bezahlt 2025 = 8'160.61 (Q1–Q3) + 1'735.04 (Q4) =
+> 9'895.65. Jahres-Soll 11'404.27. → **Rest-Korrektur 2025: CHF 1'508.62**,
+> einzureichen als **Berichtigungsabrechnung/Jahresabstimmung** (Schritt 2
+> unten — Schritt 1 entfällt). Die deklarierten Q4-Werte weichen erneut vom
+> Journal ab (1'735.04 statt 2'386.13, Differenz 651.09 — passt zum
+> Netto-statt-Brutto-Muster, exakt klärbar erst mit dem Q4-PDF).
+>
+> **Daniel checkt morgen (07.08.) im ePortal:** (a) Q4/2025 wirklich
+> eingereicht? PDF herunterladen; (b) Q2+Q3/2025-PDFs gleich mit; (c) Status
+> Q1/2026 (bleibt nach camt-Datenlage überfällig — bis 19.06. keine weitere
+> ESTV-Zahlung). Danach rechne ich die Berichtigung rappengenau.
+> Erinnerung ist eingerichtet.
+>
+> Der Rest dieses Dokuments bleibt als Zahlengrundlage stehen (Jahreswerte
+> 2025 und die Q4-Journalwerte gelten unverändert).
+
 **Erstellt 06.08.2026** auf Auftrag Daniel («korrigiere die 858 bei der Q4
 Nachreichung»). Alle Werte aus dem Buchungsjournal, belegweise gerechnet und um
 die MwSt-Doppelbuchung bereinigt (Trennbuchungen tragen kein `mwst_konto` und
