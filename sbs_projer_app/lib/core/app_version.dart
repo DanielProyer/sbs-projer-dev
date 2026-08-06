@@ -7,4 +7,6 @@
 /// einem DB-Trigger (Migration 143), nicht im Bundle-Stand.
 ///
 /// MUSS bei jedem Bump von `pubspec.yaml` Zeile 4 mitgezogen werden.
-const String kAppVersion = '0.71.0';
+/// `test/app_version_test.dart` erzwingt das — die Konstante stand am
+/// 06.08.2026 drei Auslieferungen zurueck, ohne dass es jemand merkte.
+const String kAppVersion = '0.72.2';

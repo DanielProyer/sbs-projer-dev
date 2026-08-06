@@ -39,6 +39,7 @@ Branch `gh-pages`, Source: Root (`/`), NICHT `docs/`. Dateien aus `sbs_projer_ap
 **WICHTIG:**
 - Vor dem Deploy IMMER alle Änderungen committen — NIEMALS `git stash` nutzen (Vorfall 03.05.2026: stash pop Konflikt → Code verloren)
 - In `pubspec.yaml` Zeile 4 die Version bumpen (`version: 0.X.Y+Z`, beide Teile erhöhen)
+- **UND `kAppVersion` in `lib/core/app_version.dart` mitziehen** — das ist die Nummer, die die App anzeigt. Läuft sie auseinander, zeigt die App einen falschen Stand und man weiss nicht mehr, ob ein Fix angekommen ist (passiert am 06.08.2026, drei Auslieferungen lang). `test/app_version_test.dart` bricht ab, wenn es vergessen wird.
 - Nach dem Build `main.dart.js` in `flutter_bootstrap.js` cache-busten
 
 ```bash
