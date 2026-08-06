@@ -87,6 +87,54 @@ class ReinigungRepository {
     return all;
   }
 
+  static String _datumStr(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  /// Besuche eines Monats — nur `datum` + `betrieb_id`, server-seitig auf
+  /// abgeschlossene Reinigungen des Monats eingegrenzt.
+  ///
+  /// Bewusst NICHT über [getAll]: Die Arbeitstag-Auswertung braucht rund 130
+  /// Zeilen eines Monats, nicht die ~8'500 der ganzen Historie (~4,8 MB in 9
+  /// Anfragen). Der grosse Load war der Grund, warum die Auswertung ihre
+  /// Besuche zeitweise gar nicht hatte (Befund 06.08.2026).
+  ///
+  /// Ein Monat bleibt weit unter dem PostgREST-Deckel von 1000 Zeilen —
+  /// Seitenlogik ist hier deshalb nicht nötig.
+  static Future<List<({DateTime datum, String betriebId})>> getBesucheImMonat(
+    int jahr,
+    int monat,
+  ) async {
+    final von = DateTime(jahr, monat, 1);
+    final bis = DateTime(jahr, monat + 1, 1); // Monat 13 → Januar Folgejahr
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('reinigungen')
+          .select('datum, betrieb_id')
+          .eq('user_id', _userId)
+          .eq('status', 'abgeschlossen')
+          .gte('datum', _datumStr(von))
+          .lt('datum', _datumStr(bis));
+      return [
+        for (final r in rows)
+          if (r['betrieb_id'] != null)
+            (
+              datum: DateTime.parse(r['datum'] as String),
+              betriebId: r['betrieb_id'] as String,
+            ),
+      ];
+    }
+    final all = await IsarService.reinigungFindAll();
+    return [
+      for (final r in all)
+        if (r.status == 'abgeschlossen' &&
+            r.betriebId.isNotEmpty &&
+            !r.datum.isBefore(von) &&
+            r.datum.isBefore(bis))
+          (datum: r.datum, betriebId: r.betriebId),
+    ];
+  }
+
   static Future<List<ReinigungLocal>> getAll() async {
     if (kIsWeb) {
       final rows = await _pagedByUser();

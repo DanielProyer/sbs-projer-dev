@@ -123,7 +123,11 @@ class Reinigung {
     return Reinigung(
       id: json['id'],
       userId: json['user_id'],
-      anlageId: json['anlage_id'],
+      // 1'707 Altzeilen haben keine Anlage (Historik-Import + Besuche ohne
+      // Anlagenbezug). Leerer String = «keine Anlage», so prueft die App das
+      // ohnehin (`anlageId.isNotEmpty`). Ohne diesen Fallback wirft der
+      // Massen-Load, sobald die impliziten Typpruefungen aktiv sind.
+      anlageId: json['anlage_id'] ?? '',
       betriebId: json['betrieb_id'],
       datum: DateTime.parse(json['datum']),
       uhrzeitStart: json['uhrzeit_start'],

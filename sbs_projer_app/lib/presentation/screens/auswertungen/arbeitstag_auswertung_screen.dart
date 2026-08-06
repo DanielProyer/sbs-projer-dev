@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/arbeitstag_auswertung.dart';
-import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
+import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Monats-Schlüssel der Auswertung. Record statt DateTime, damit zwei
@@ -57,6 +57,18 @@ final arbeitstageProvider =
             kmEnde: (r['km_stand'] as num?)?.toInt(),
           ),
       ];
+    });
+
+/// Besuche je Tag des Monats (Betrieb + Tag = ein Besuch).
+///
+/// Eigene Monatsabfrage statt des allgemeinen Reinigungs-Providers: der lädt
+/// auf Web zuerst die ganze Historie (~8'500 Zeilen / ~4,8 MB). Solange das
+/// lief, stand hier still «0 Besuche» — ununterscheidbar von einer echten
+/// Null (Befund 06.08.2026). Ein Monat sind rund 130 Zeilen.
+final besucheImMonatProvider =
+    FutureProvider.family<Map<DateTime, int>, AuswertungsMonat>((ref, m) async {
+      final rows = await ReinigungRepository.getBesucheImMonat(m.jahr, m.monat);
+      return besucheJeTag(rows);
     });
 
 const _wochentagKurz = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -148,14 +160,66 @@ class _ArbeitstagAuswertungScreenState
       ..sort((a, b) => b.datum.compareTo(a.datum));
   }
 
+  Widget _inhalt({required Object? fehler, required bool ladend}) {
+    if (fehler != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Daten konnten nicht geladen werden.\n$fehler',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+    if (ladend) return const Center(child: CircularProgressIndicator());
+
+    final rohdaten = ref.read(arbeitstageProvider(_monat)).requireValue;
+    final besuche = ref.read(besucheImMonatProvider(_monat)).requireValue;
+    final tage = _tage(rohdaten, besuche);
+    if (tage.isEmpty) return const _LeererMonat();
+    final k = berechneKennzahlen(tage);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(arbeitstageProvider(_monat));
+        ref.invalidate(besucheImMonatProvider(_monat));
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
+        children: [
+          _Kennzahlen(k: k),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 4),
+            child: Text(
+              'Einzelne Tage',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          for (final t in tage) _TagesZeile(t: t),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(arbeitstageProvider(_monat));
-    final besuche = besucheJeTag([
-      for (final r in ref.watch(reinigungenProvider))
-        if (r.status == 'abgeschlossen' && r.betriebId.isNotEmpty)
-          (datum: r.datum, betriebId: r.betriebId),
-    ]);
+    // Beide Quellen zählen gleich viel: Ohne die Besuche wäre die Seite zwar
+    // vollständig gezeichnet, würde aber überall 0 Besuche behaupten. Deshalb
+    // wird erst gezeigt, wenn beide da sind — und ein Fehler wird benannt.
+    final tageAsync = ref.watch(arbeitstageProvider(_monat));
+    final besucheAsync = ref.watch(besucheImMonatProvider(_monat));
+    final fehler = tageAsync.error ?? besucheAsync.error;
+    final ladend = tageAsync.isLoading || besucheAsync.isLoading;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Auswertung Arbeitstage')),
@@ -166,52 +230,7 @@ class _ArbeitstagAuswertungScreenState
             onZurueck: () => _blaettern(-1),
             onVor: _kannVorwaerts ? () => _blaettern(1) : null,
           ),
-          Expanded(
-            child: async.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Daten konnten nicht geladen werden.\n$e',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-              data: (rohdaten) {
-                final tage = _tage(rohdaten, besuche);
-                if (tage.isEmpty) return const _LeererMonat();
-                final k = berechneKennzahlen(tage);
-                return RefreshIndicator(
-                  onRefresh: () async =>
-                      ref.invalidate(arbeitstageProvider(_monat)),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
-                    children: [
-                      _Kennzahlen(k: k),
-                      const SizedBox(height: 12),
-                      const Padding(
-                        padding: EdgeInsets.only(left: 4, bottom: 4),
-                        child: Text(
-                          'Einzelne Tage',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                      for (final t in tage) _TagesZeile(t: t),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
+          Expanded(child: _inhalt(fehler: fehler, ladend: ladend)),
         ],
       ),
     );

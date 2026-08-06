@@ -1,28 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
-import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/auswertungen/arbeitstag_auswertung_screen.dart';
 
-// Diagnose 06.08.2026 («Warum hat es keine Besuche?»): Der Screen holt den
-// Tagesrahmen aus `tagesplaene` (winzige Monatsabfrage) und die Besuche aus
-// `reinigungenProvider` — der auf Web ZUERST alle ~8'500 Reinigungen laedt.
+// Befund 06.08.2026 («Warum hat es keine Besuche?»): Die Besuchszahl kam aus
+// dem allgemeinen Reinigungs-Provider, der auf Web zuerst ALLE ~8'500
+// Reinigungen laedt (~4,8 MB in 9 Anfragen). Der Screen wartete darauf nicht:
+// sein Ladezustand deckte nur die winzige Tagesplan-Abfrage ab, die Besuche
+// kamen ueber `valueOrNull ?? []` herein. Solange der grosse Load lief — oder
+// wenn er scheiterte — zeigte der Screen eine fertig aussehende Seite mit
+// «0 Besuche», ununterscheidbar von einer echten Null.
 //
-// Der `async.when(...)`-Ladezustand deckt nur die Tagesplan-Abfrage ab. Die
-// Besuche kommen ueber `valueOrNull ?? []` herein: solange der grosse Load
-// laeuft (oder wenn er scheitert), rendert der Screen eine vollstaendig
-// aussehende Seite mit «0 Besuche» — ununterscheidbar von einer echten Null.
-//
-// Beide Tests halten genau diesen Unterschied fest.
-
-ReinigungLocal _reinigung(String betriebId, DateTime datum) => ReinigungLocal()
-  ..serverId = 'r-$betriebId-${datum.day}'
-  ..userId = 'u1'
-  ..anlageId = 'a1'
-  ..betriebId = betriebId
-  ..datum = datum
-  ..status = 'abgeschlossen';
+// Soll: Besuche monatsweise laden (~130 statt 8'500 Zeilen) UND ihren Lade-
+// bzw. Fehlerzustand sichtbar machen.
 
 /// Die echten Tagesplan-Zeilen vom August 2026.
 final _august = <ArbeitstagRohdaten>[
@@ -50,16 +42,16 @@ final _august = <ArbeitstagRohdaten>[
 ];
 
 /// 9 Besuche am 03.08., 2 am 04.08., 7 am 05.08. — wie in der Datenbank.
-List<ReinigungLocal> _reinigungenAugust() => [
-  for (var i = 0; i < 9; i++) _reinigung('b$i', DateTime(2026, 8, 3)),
-  for (var i = 0; i < 2; i++) _reinigung('c$i', DateTime(2026, 8, 4)),
-  for (var i = 0; i < 7; i++) _reinigung('d$i', DateTime(2026, 8, 5)),
-];
+final _besucheAugust = <DateTime, int>{
+  DateTime(2026, 8, 3): 9,
+  DateTime(2026, 8, 4): 2,
+  DateTime(2026, 8, 5): 7,
+};
 
 Future<void> _pumpe(
-  WidgetTester tester,
-  List<ReinigungLocal> reinigungen,
-) async {
+  WidgetTester tester, {
+  required Future<Map<DateTime, int>> Function() besuche,
+}) async {
   // Hoher Ausschnitt, damit auch die Tagesliste unter den Kennzahlen baut.
   tester.view.physicalSize = const Size(1100, 2600);
   tester.view.devicePixelRatio = 1.0;
@@ -68,40 +60,53 @@ Future<void> _pumpe(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        reinigungenProvider.overrideWithValue(reinigungen),
         arbeitstageProvider.overrideWith((ref, m) async => _august),
+        besucheImMonatProvider.overrideWith((ref, m) async => besuche()),
       ],
       child: const MaterialApp(home: ArbeitstagAuswertungScreen()),
     ),
   );
-  await tester.pumpAndSettle();
+  await tester.pump(); // Tagesplan da, Besuche je nach Future noch nicht
 }
 
 void main() {
   group('Arbeitstag-Auswertung — Besuche', () {
-    testWidgets('mit geladenen Reinigungen stimmen Kennzahl und Tageszeilen', (
+    testWidgets('beide Quellen geladen: Kennzahl und Tageszeilen stimmen', (
       tester,
     ) async {
-      await _pumpe(tester, _reinigungenAugust());
+      await _pumpe(tester, besuche: () async => _besucheAugust);
+      await tester.pumpAndSettle();
 
-      // Kennzahl «Besuche» = 9 + 2 + 7
-      expect(find.text('18'), findsOneWidget);
+      expect(find.text('18'), findsOneWidget); // 9 + 2 + 7
       expect(find.textContaining('9 Besuche'), findsOneWidget);
       expect(find.textContaining('2 Besuche'), findsOneWidget);
       expect(find.textContaining('7 Besuche'), findsOneWidget);
     });
 
-    testWidgets(
-      'ohne geladene Reinigungen: Tage erscheinen, Besuche still auf 0',
-      (tester) async {
-        await _pumpe(tester, const []);
+    testWidgets('Besuche laden noch: Ladeanzeige statt stiller Null', (
+      tester,
+    ) async {
+      final nieFertig = Completer<Map<DateTime, int>>();
+      addTearDown(() => nieFertig.complete(const {}));
+      await _pumpe(tester, besuche: () => nieFertig.future);
+      await tester.pump();
 
-        // Die Tage sind da (aus dem Tagesplan) …
-        expect(find.textContaining('07:03–17:35'), findsOneWidget);
-        // … aber jeder Tag meldet 0 Besuche, ohne jeden Hinweis darauf,
-        // dass die Grundlage noch fehlt. Genau das sieht der Nutzer.
-        expect(find.textContaining('0 Besuche'), findsNWidgets(3));
-      },
-    );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Es darf KEINE fertige Seite mit 0 Besuchen erscheinen.
+      expect(find.textContaining('0 Besuche'), findsNothing);
+    });
+
+    testWidgets('Besuche scheitern: Fehlerhinweis statt stiller Null', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        besuche: () async => throw 'keine Verbindung',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('nicht geladen'), findsOneWidget);
+      expect(find.textContaining('0 Besuche'), findsNothing);
+    });
   });
 }
