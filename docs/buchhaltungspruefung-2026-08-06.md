@@ -303,6 +303,48 @@ lassen.
 11. Erfassungsrhythmus: feste Wochenroutine oder bewusst quartalsweise?
 12. SSS-Frage nach der Bereinigung nochmals rechnen und entscheiden?
 
+## Nachtrag 06.08.2026 (abends): Die echten ESTV-Abrechnungen — drei Fragen beantwortet, ein neuer Fund
+
+Daniel hat den Ordner `00_Rechnungen/02_MWST Abrechnung/` gezeigt: die offiziellen
+ESTV-Abrechnungs-PDFs **Q2/2019 bis Q1/2025** (Altportal bis Q1/2022 als
+UUID-Dateien, neues Portal ab Q2/2022 als `ABR_*`).
+
+**Damit beantwortet (Fragen G1–G3):**
+- **Methode: Effektiv. Periode: quartalsweise.** Offiziell auf jedem Dokument.
+  MWST-pflichtig seit 01.05.2019. ESTV-ID 052.0248.5626.
+- **Q4/2025 und Q1/2026 sind nicht eingereicht** (keine PDFs, keine Zahlungen) —
+  der Überfälligkeits-Befund A1 ist damit hart bestätigt. Q2+Q3/2025 wurden
+  bezahlt und sind sehr wahrscheinlich eingereicht (PDFs fehlen nur im Ordner).
+- **Einreichungspraxis:** chronisch spät (Q2/2019 am 23.12.2019, Q1/2022 am
+  07.10.2022, Q1/2025 am 06.10.2025 — je mit Verzugszins-Valuta). Das erklärt
+  die «Einschätzung → definitiv»-Muster in den 2202-Buchungen.
+
+**Der neue Fund — NETTO statt BRUTTO ins neue Portal (WICHTIG):**
+
+Q1/2025 deklariert: Ziff. 200 = 51'017.09. Das ist **exakt der Netto-Ertrag**
+des Journals (51'017.09; brutto wäre 55'149.73). Das neue Portal behandelt
+Ziff. 200 aber als **Brutto** und rechnet die Steuer mit 8.1/108.1 heraus:
+deklarierte Steuer 3'822.74 statt korrekt 4'132.64 (= exakt die gebuchte USt).
+
+→ **Unterdeklaration 309.90 in Q1/2025** — und dasselbe Muster erklärt die
+bislang unerklärte Zahlungs-Differenz aller drei 2025er-Quartale
+(Q1 244.49 / Q2 260.43 / Q3 352.61 — zusammen **~858 CHF zu wenig
+deklarierte Steuer 2025**). Ursache: Das Altportal verlangte zeitweise
+Netto-Angaben (Q1/2022: «Alle Umsatzangaben sind netto», dort stimmte die
+Deklaration), das neue Portal verlangt Brutto — die Eingabepraxis blieb Netto.
+
+**Konsequenz:** Die ~858 CHF sind echte Steuerschuld gegenüber der ESTV und
+gehören per Korrektur-/Jahresabstimmung (Art. 72 MWSTG) bereinigt —
+praktischerweise zusammen mit der Nachreichung von Q4/2025. Der
+2'847.94-Altbestand auf Konto 2200 (G3) passt zu diesem Muster
+(Alt-Differenzen aus Einschätzungen/Netto-Brutto), ist aber noch nicht
+einzeln belegt.
+
+**Nebenbeobachtung:** Daniel deklariert Ziff. 400 = Konto 1170 (848.07,
+Franchise) und Ziff. 405 = Konto 1171 — dieselbe Zuordnung wie die App-View.
+Fachlich gehörte die Franchisegebühr in Ziff. 405; steuerlich neutral
+(Total zählt), aber die künftige App-Abrechnung sollte es richtig machen.
+
 ## H. Verifikationsvermerk
 
 Von mir persönlich am Code/an den Daten nachgeprüft (nicht nur Agent-Aussage):
