@@ -55,8 +55,19 @@ alle diese Saldenrechnung, der Fehler schlägt also überall durch.
 hoch. Eine MwSt-Abrechnung auf dieser Basis wäre zu hoch. Je Jahr: 2025 CHF 1'343.91,
 2026 CHF 8'828.37.
 
-**Wo:** `services/buchhaltung/reinigung_buchung_service.dart` Zeilen 125–141 und
-`heineken_buchung_service.dart` Zeilen 60–75. Zwei Wege: entweder die Zusatzbuchung
+**NACHTRAG 06.08.2026 — betrifft auch die Spesen:** Der Prüfbericht gab für den
+Spesen-Scanner Entwarnung («Hauptbuchung ohne `mwst_konto`, Trennbuchung also
+korrekt»). **Das stimmt nicht.** Nachgezählt: Von den Spesen-Buchungen seit
+03.06.2026 haben **alle 79** Hauptbuchungen ein `mwst_konto` gesetzt, dazu
+kommen **77 separate Vorsteuer-Buchungen über CHF 177.44**. Damit läuft dort
+dasselbe Muster — die Vorsteuer wird doppelt erfasst, der Aufwand um denselben
+Betrag zu tief. Beispiel Diesel vom 06.08.: Konto 6200 erhält 92.21 − 7.47 =
+84.74 statt 92.21, Konto 1171 bekommt 7.47 zweimal. Der Entscheid unter H1 gilt
+damit für beide Wege.
+
+**Wo:** `services/buchhaltung/reinigung_buchung_service.dart` Zeilen 125–141,
+`heineken_buchung_service.dart` Zeilen 60–75 und der Spesen-Pfad in
+`services/spesen/spesen_import_service.dart`. Zwei Wege: entweder die Zusatzbuchung
 entfällt (dann erledigt `mwst_konto` die Aufteilung), oder die Hauptbuchung lässt
 `mwst_konto` leer (dann ist die Zusatzbuchung die richtige). **Nicht geändert** — das
 ist deine Entscheidung, und sie hängt daran, ob für Q4/2025 und Q1/2026 bereits

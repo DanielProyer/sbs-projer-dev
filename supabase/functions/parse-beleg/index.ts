@@ -128,7 +128,17 @@ KATEGORIE-ERKENNUNG - ZUERST Artikel prüfen, DANN gruppieren:
    Schutzausrüstung ("berufskleider"). Ein unklarer Artikel in einem
    Baumarkt ist "material", NIEMALS "essen".
 3. Dann gruppieren nach EINZIGARTIGER Kombination von (kategorie + mwst_satz)
-3. Pro Gruppe: Beträge summieren → eine Position
+4. BETRÄGE AUS DER MwSt-TABELLE HOLEN, NICHT AUS DEN ARTIKELZEILEN:
+   - Gehört ein MwSt-Satz zu GENAU EINER Kategorie (Normalfall), dann nimm
+     den Brutto-Wert für diesen Satz DIREKT aus der MwSt-Tabelle. Summiere
+     NICHT die Artikelpreise — eine einzige verlesene oder übersehene Zeile
+     verfälscht sonst die ganze Position (real passiert: 18.30 statt 18.40,
+     Landi 06.08.2026).
+   - Verteilt sich ein Satz auf MEHRERE Kategorien (z.B. Diesel 8.1% und
+     Getränke 8.1%), dann teile über die Artikelzeilen auf — aber die Summe
+     dieser Positionen MUSS den Brutto-Wert dieses Satzes aus der MwSt-Tabelle
+     exakt treffen. Trifft sie ihn nicht, hast du eine Zeile falsch gelesen
+     oder übersehen: lies die Artikelzeilen dieses Satzes nochmals.
 
 GRUPPIERUNGS-REGELN:
 - Eine Position pro EINZIGARTIGER (kategorie + mwst_satz) Kombination
@@ -205,10 +215,19 @@ Belegtext aufrecht und von links nach rechts lesbar ist?
 - 270 = Beleg liegt auf der rechten Seite (Text läuft von oben nach unten)
 Beurteile das am gedruckten Text, nicht an der Form des Belegs. Im Zweifel 0.
 
-PLAUSIBILITÄTS-PRÜFUNG (MUSS stimmen):
-- total_brutto MUSS = Summe aller positionen.betrag_brutto sein (auf 5 Rappen gerundet)
-- Vergleiche dein total_brutto mit dem "Total"/"Gesamt"/"TOTAL CHF"-Wert auf dem Beleg
-- Wenn die Summe nicht stimmt: Prüfe nochmal die MwSt-Tabelle und korrigiere
+SCHLUSSKONTROLLE — RECHNE DAS AUS, BEVOR DU ANTWORTEST:
+Diese Prüfung ist nicht optional. Gib niemals ein Ergebnis aus, das sie nicht besteht.
+1. Je MwSt-Satz: Addiere alle deine Positionen mit diesem Satz. Das Ergebnis
+   MUSS dem Brutto-Wert dieses Satzes in der MwSt-Tabelle entsprechen.
+2. Gesamt: Addiere ALLE deine Positionen. Das Ergebnis MUSS dem gedruckten
+   "Total"/"Gesamt"/"TOTAL CHF" auf dem Beleg entsprechen, und total_brutto
+   MUSS genau dieser Wert sein.
+3. Stimmt etwas nicht, ist der GEDRUCKTE Beleg massgebend, nicht deine Summe:
+   Geh zurück zur MwSt-Tabelle und zu den Artikelzeilen des betroffenen Satzes
+   und finde den falsch gelesenen Betrag. Typische Ursachen: eine übersehene
+   Artikelzeile, eine verlesene Ziffer (3.60 als 3.00), ein nicht beachteter
+   Rabatt/Bon oder eine Depot-/Pfandzeile.
+4. Erst wenn beide Proben aufgehen, gibst du das JSON aus.
 
 KONFIDENZ-REGELN (bewerte, was du GELESEN hast — nicht wie der Beleg aussieht):
 - 0.95-1.0: Datum, Geschäft und alle Beträge klar lesbar UND deine
@@ -275,7 +294,107 @@ Weitere Regeln:
       jsonText = jsonMatch[1].trim();
     }
 
-    const parsed = JSON.parse(jsonText);
+    let parsed = JSON.parse(jsonText);
+
+    // Deterministische Gegenprobe: Der Prompt verlangt, dass die Positionen
+    // das gedruckte Total ergeben — verlassen kann man sich darauf nicht.
+    // Geht die Rechnung nicht auf, bekommt das Modell die Abweichung EINMAL
+    // beziffert zurück. Das trifft nur den Ausnahmefall (1 von ~40 Belegen,
+    // Landi 06.08.2026: 122.88 statt 122.98) und kostet sonst nichts.
+    const summeVon = (p: { positionen?: { betrag_brutto?: number }[] }) =>
+      Math.round(
+        (p.positionen ?? []).reduce((s, x) => s + (x.betrag_brutto ?? 0), 0) * 100,
+      ) / 100;
+
+    const summe = summeVon(parsed);
+    const total = parsed.total_brutto ?? 0;
+    const abweichung = Math.round((total - summe) * 100) / 100;
+
+    if (Math.abs(abweichung) > 0.05) {
+      console.warn(
+        `Positionen ${summe} != Total ${total} (${abweichung}) — Nachfrage ans Modell`,
+      );
+      try {
+        const nachControl = new AbortController();
+        const nachTimeout = setTimeout(() => nachControl.abort(), 30000);
+        const nachfrage = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          signal: nachControl.signal,
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6",
+            max_tokens: 2000,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: media_type,
+                      data: image_base64,
+                    },
+                  },
+                  {
+                    type: "text",
+                    text:
+                      `Deine Erfassung dieses Belegs geht nicht auf:\n\n` +
+                      `${JSON.stringify(parsed, null, 2)}\n\n` +
+                      `Deine Positionen ergeben ${summe.toFixed(2)}, ` +
+                      `total_brutto sagt ${Number(total).toFixed(2)} — ` +
+                      `Abweichung ${abweichung.toFixed(2)} CHF.\n\n` +
+                      `Lies die MwSt-Tabelle und die Artikelzeilen des betroffenen ` +
+                      `MwSt-Satzes nochmals genau. Es fehlt oder stimmt ein Betrag ` +
+                      `nicht — typisch sind eine übersehene Artikelzeile, eine ` +
+                      `verlesene Ziffer, ein Rabatt/Bon oder eine Depot-/Pfandzeile.\n` +
+                      `Der GEDRUCKTE Beleg ist massgebend, nicht deine bisherige Summe.\n\n` +
+                      `Gib dasselbe JSON nochmals aus, mit korrigierten Beträgen, ` +
+                      `sodass die Summe der Positionen exakt total_brutto ergibt. ` +
+                      `Nur das JSON, keine Erklärung.`,
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+        clearTimeout(nachTimeout);
+
+        if (nachfrage.ok) {
+          const nachJson = await nachfrage.json();
+          const nachText = nachJson.content?.find(
+            (c: { type: string }) => c.type === "text",
+          )?.text;
+          if (nachText) {
+            let t = nachText.trim();
+            const m = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (m) t = m[1].trim();
+            const korrigiert = JSON.parse(t);
+            const neueAbweichung =
+              Math.round(((korrigiert.total_brutto ?? 0) - summeVon(korrigiert)) * 100) / 100;
+            // Nur übernehmen, wenn es wirklich besser wurde — nie verschlimmern.
+            if (Math.abs(neueAbweichung) < Math.abs(abweichung)) {
+              console.log(
+                `Nachfrage half: Abweichung ${abweichung} -> ${neueAbweichung}`,
+              );
+              parsed = korrigiert;
+            } else {
+              console.warn(
+                `Nachfrage brachte nichts (${neueAbweichung}) — erste Antwort behalten`,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        // Die Nachfrage ist Kür: schlägt sie fehl, liefern wir die erste
+        // Antwort aus. Die App zeigt die Abweichung ohnehin rot an.
+        console.error("Nachfrage fehlgeschlagen:", (e as Error).message);
+      }
+    }
     // bild_drehung mitloggen: Bei quer gespeicherten Belegen ist das der
     // einzige Weg zu sehen, ob das Modell die Drehung erkannt hat oder ob
     // die App sie falsch anwendet (Daniel 28.07.2026).
