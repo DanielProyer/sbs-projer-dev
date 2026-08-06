@@ -4,6 +4,18 @@
 
 ---
 
+## 🔴 NEU 06.08.2026: Buchhaltungs-Gesamtprüfung — Vollbericht `docs/buchhaltungspruefung-2026-08-06.md`
+
+Auftrag Daniel («gesamte Buchhaltung prüfen, muss alles stimmen»), Massstab = Recherchen aus `D:\Projekte\KMU Tool 2\02_Recherche\` (02 Buchhaltung, 07 MWST). Vier Opus-Agenten (MWST-Abrechnung, Code-Audit 20 Buchungspfade, Journal-Audit, Rechnungsstellung), schwerste Befunde einzeln verifiziert.
+
+**Das Dringendste:** MWST **Q4/2025 und Q1/2026 überfällig** (Fristen 01.03./31.05. verstrichen; eingereicht+bezahlt bis Q3/2025); eine heute erstellte Q1/2026-Abrechnung wäre **+159 % zu hoch** (8'598 statt 3'323 — Doppelbuchung + fehlende Vorsteuer). Q2/2026-Frist: **31.08.2026**.
+
+**Neue Kernbefunde (alle verifiziert):** Lohn-Verbindlichkeitskonten seit 2019 um eine Position verschoben (2271=AHV, 2272=BVG, 2273=UVG, 2270 leer); AHV-Abzug 8 % vom Netto statt 6.4 % vom Brutto; NBU seit Dez 2024 = 0.00; FAK nie als Aufwand; Heineken-Franchise 2026 komplett ungebucht (27'920 + 2'261 VSt); Storno-Mechanik dreifach defekt (mwst_konto, Datum=heute, nur 1 Zeile) — latent, vor Bereinigung reparieren; Heineken-Rundung verletzt brutto=netto+mwst (Debug-assert!); camt-Ausgabenbucher ignoriert Buchungsrichtung (vor Nachhol-Import fixen!); drei widersprüchliche MWST-Auswertungen (View ist die richtige); Idempotenz-Lücken (Lohnlauf!), Hard-Deletes, Rundungs-Wildwuchs, Trigger-Leiche. **Rechnungsstellung dagegen weitgehend sauber** (Art. 26 erfüllt, QR Typ S — Frist 30.09.2026 unkritisch; 2 kleine PDF-Fixes). SSS 4.6 % wäre ~1'000–1'600/Jahr günstiger — erst nach Bereinigung entscheiden.
+
+**Fahrplan mit Reihenfolge** (Rundung → Doppelbuchung → camt-Fixes → Nachhol-Import → Nachbuchungen → MWST einreichen → Lohnblock → Härtung) und **12 Entscheidungsfragen** im Bericht, Abschnitt F/G.
+
+---
+
 ## 🔴 NEU 05.08.2026: Datenprüfung — Vollbericht `docs/datenpruefung-2026-08-05.md`
 
 Sechs Bereiche geprüft (Stammdaten, Anlagen/Reinigungen, Rechnungen, Buchhaltung, Bankauszug, Saison/Touren), nur lesend. Die schwersten Funde am Code und an den Buchungen gegengeprüft. **Übersicht als Artifact veröffentlicht.**

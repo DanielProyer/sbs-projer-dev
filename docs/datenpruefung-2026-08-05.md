@@ -1,5 +1,12 @@
 # Datenprüfung SBS Projer — 05.08.2026
 
+> **NACHTRAG 06.08.2026:** Die vertiefte Buchhaltungs-Gesamtprüfung (vier Agenten,
+> gegen die KMU-Tool-2-Recherchen zu MWST und Buchhaltung Schweiz) liegt in
+> **`docs/buchhaltungspruefung-2026-08-06.md`** — sie präzisiert und erweitert die
+> Buchhaltungsbefunde dieses Berichts erheblich (u. a. MWST Q4/2025+Q1/2026
+> überfällig, Lohnblock-Fehler seit 2019, Storno-Mechanik defekt, Fahrplan mit
+> Reihenfolge). Für die Sitzung «genau anschauen und lösen» zuerst dort einsteigen.
+
 **Stand:** 05.08.2026 · **App live:** v0.72.1 · **Datenbank:** sbs-projer-prod
 **Umfang:** 6 Prüfbereiche (Stammdaten, Anlagen/Reinigungen, Rechnungen, Buchhaltung,
 Bankauszug, Saison/Touren), nur lesend. Die schwersten Funde habe ich am Code und an
