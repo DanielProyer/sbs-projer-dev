@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/auto_match_tile.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/paar_badge.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
 import 'package:sbs_projer_app/services/camt/sammelzahler.dart';
@@ -342,12 +343,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   Future<bool> _pruefeDatumsfolge(
       List<CamtTransaction> gutschriften, Iterable<Rechnung> forderungen) async {
     if (gutschriften.isEmpty) return true;
-    final paarung = paareNachDatum<CamtTransaction>(
+    final paarung = paareMitBetrag<CamtTransaction>(
       zahlungen: gutschriften,
       datumVon: (g) => g.bookingDate,
+      betragVon: (g) => g.amount,
       forderungen: [
         for (final r in forderungen)
-          (id: r.id, rechnungsdatum: r.rechnungsdatum)
+          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto)
       ],
     );
     final zeilen = <String>[];
@@ -432,6 +434,55 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
 
   String _datumKurz(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+  /// Live-Paarung für die Zuordnungs-Dialoge: Welche gewählte Zahlung
+  /// begleicht welche gewählte Forderung? Dieselbe Logik wie beim Verbuchen
+  /// ([paareMitBetrag]) — die Anzeige zeigt exakt, was gebucht würde.
+  ///
+  /// Rückgabe: Paar-Nummer je Gutschrift (Reihenfolge = Anzeige-Reihenfolge)
+  /// und je Forderungs-Id die Nummer der zugeordneten Gutschrift.
+  ({Map<CamtTransaction, int> gut, Map<String, int> ford}) _paarNummern({
+    required List<CamtTransaction> gutsAnzeige,
+    required Set<CamtTransaction> gewaehlteGuts,
+    required Set<Rechnung> gewaehlteForderungen,
+  }) {
+    final selGuts =
+        [for (final g in gutsAnzeige) if (gewaehlteGuts.contains(g)) g];
+    final gutNr = <CamtTransaction, int>{
+      for (var i = 0; i < selGuts.length; i++) selGuts[i]: i + 1
+    };
+    if (selGuts.isEmpty || gewaehlteForderungen.isEmpty) {
+      return (gut: gutNr, ford: const {});
+    }
+    final paarung = paareMitBetrag<CamtTransaction>(
+      zahlungen: selGuts,
+      datumVon: (g) => g.bookingDate,
+      betragVon: (g) => g.amount,
+      forderungen: [
+        for (final r in gewaehlteForderungen)
+          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto)
+      ],
+    );
+    return (
+      gut: gutNr,
+      ford: {
+        for (final e in paarung.entries)
+          if (gutNr[e.value] != null) e.key: gutNr[e.value]!
+      },
+    );
+  }
+
+  /// Zeilen-Titel mit optionalem Paar-Punkt davor.
+  Widget _mitPaarBadge(int? nr, String text) {
+    if (nr == null) return Text(text);
+    return Row(
+      children: [
+        PaarBadge(nummer: nr),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text)),
+      ],
+    );
+  }
 
   /// Entfernt verbuchte Forderungen aus **jeder** Liste des Abgleichs — auch
   /// aus anderen Manuell-Fällen und Auto-Treffern. Vorher verschwanden sie nur
@@ -590,6 +641,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             // Forderungen chronologisch (neueste zuoberst, nach Datum — nicht Nr.).
             final forderungenSortiert = [...f.forderungen]
               ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+            // Paar-Punkte: zeigen, welche gewählte Zahlung welche Rechnung
+            // begleicht (gleiche Nummer + Farbe = ein Paar).
+            final badges = _paarNummern(
+              gutsAnzeige: gutschriftenSortiert,
+              gewaehlteGuts: gewaehlteGutschriften,
+              gewaehlteForderungen: gewaehlteForderungen,
+            );
 
             return AlertDialog(
               // Schmaler Rand → auf dem Handy zählt jeder Pixel Textbreite.
@@ -614,7 +672,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
                         value: gewaehlteGutschriften.contains(g),
-                        title: Text(
+                        title: _mitPaarBadge(
+                          badges.gut[g],
                           '${_dateFormat.format(g.bookingDate)} — '
                           '${g.amount.toStringAsFixed(2)} CHF',
                         ),
@@ -662,7 +721,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             ? AppColors.success.withAlpha(20)
                             : null,
                         value: gewaehlteForderungen.contains(r),
-                        title: Text(
+                        title: _mitPaarBadge(
+                          badges.ford[r.id],
                           '${_dateFormat.format(r.rechnungsdatum)} — '
                           '${r.betragBrutto.toStringAsFixed(2)} CHF',
                         ),
@@ -679,6 +739,24 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         }),
                       ),
                     const SizedBox(height: 12),
+                    if (badges.ford.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const PaarBadge(nummer: 1),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Gleicher Punkt = Zahlung und Rechnung werden '
+                              'einander zugeordnet.',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     // Summen + Differenz-Hinweis (gespiegelt aus rechnung_detail_screen).
                     Text(
                       'Zahlung: CHF ${zahlSumme.toStringAsFixed(2)}\n'
@@ -1247,6 +1325,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           final info = bewerteDifferenz(zahlSumme, fordSumme);
           final kannVerbuchen =
               gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
+          final badges = _paarNummern(
+            gutsAnzeige: sortiertGuts,
+            gewaehlteGuts: gewaehlteGuts,
+            gewaehlteForderungen: gewaehlteForderungen,
+          );
           return AlertDialog(
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
@@ -1267,7 +1350,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
                         value: gewaehlteGuts.contains(g),
-                        title: Text('${_dateFormat.format(g.bookingDate)} — '
+                        title: _mitPaarBadge(
+                            badges.gut[g],
+                            '${_dateFormat.format(g.bookingDate)} — '
                             '${g.amount.toStringAsFixed(2)} CHF'),
                         subtitle: _zahlungInfoText(g),
                         onChanged: (sel) => setDialogState(() {
@@ -1302,7 +1387,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
                         value: gewaehlteForderungen.contains(r),
-                        title: Text('${_dateFormat.format(r.rechnungsdatum)} — '
+                        title: _mitPaarBadge(
+                            badges.ford[r.id],
+                            '${_dateFormat.format(r.rechnungsdatum)} — '
                             '${r.betragBrutto.toStringAsFixed(2)} CHF'),
                         subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
                             '${widget.betriebName[r.betriebId] ?? '?'}'),
@@ -1316,6 +1403,24 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         }),
                       ),
                     const SizedBox(height: 12),
+                    if (badges.ford.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const PaarBadge(nummer: 1),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Gleicher Punkt = Zahlung und Rechnung werden '
+                              'einander zugeordnet.',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     Text(
                       'Zahlung: CHF ${zahlSumme.toStringAsFixed(2)}\n'
                       'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',

@@ -224,14 +224,21 @@ class ForderungsAbgleichService {
     }
 
     // Paarung nur nötig, wenn mehrere Zahlungen im Spiel sind.
+    // Betrag-exakte Paare zuerst (Sammelzahler: mehrere gleichtägige
+    // Zahlungen ↔ gleichtägige Rechnungen), Rest nach Datum.
     final paarung = gutschriften.length < 2
         ? const <String, CamtTransaction>{}
-        : paareNachDatum<CamtTransaction>(
+        : paareMitBetrag<CamtTransaction>(
             zahlungen: gutschriften,
             datumVon: (g) => g.bookingDate,
+            betragVon: (g) => g.amount,
             forderungen: [
               for (final r in forderungen)
-                (id: r.id, rechnungsdatum: r.rechnungsdatum)
+                (
+                  id: r.id,
+                  rechnungsdatum: r.rechnungsdatum,
+                  betrag: r.betragBrutto
+                )
             ],
           );
 

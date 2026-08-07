@@ -64,25 +64,35 @@ class CamtBetriebMatcher {
   }
 
   /// Matcht eine im Verwendungszweck genannte **Betriebnummer** (z.B. Davos
-  /// Klosters Bergbahnen: `0151_2026_04_04` → Heineken-Nr. 0151 = Armando
-  /// Klosters) gegen die Nummern-Felder `nr` / `we_nummer` / `ag_nummer` /
-  /// `heineken_nr`. Leading-Zero-tolerant (Zahlvergleich). Nur bei
-  /// EINDEUTIGKEIT ein Treffer, sonst null.
+  /// Klosters Bergbahnen / Weisse Arena: `0151_2026_04_04` → Heineken-Nr. 0151
+  /// = Armando Klosters). Leading-Zero-tolerant (Zahlvergleich).
+  ///
+  /// Vorrang-Stufen (Fix 07.08.2026): Zuerst NUR `heineken_nr` — das ist die
+  /// eigene Betriebsnummer und DB-weit eindeutig. Erst wenn dort nichts trifft,
+  /// zählen `we_nummer`/`ag_nummer`. Die Hausnummer `nr` zählt gar nicht mehr:
+  /// 185 Betriebe hatten eine Haus-/WE-/AG-Nummer, die mit der heineken_nr
+  /// eines anderen Betriebs kollidierte → «mehrdeutig» → das Routing der
+  /// Sammelzahler (Weisse Arena, Davos Klosters) fiel auf den unscharfen
+  /// Namens-Match zurück und traf den falschen Betrieb.
   static Map<String, String>? matchByNummer(
     String? nummer,
     List<Map<String, String>> betriebe,
   ) {
     final norm = _normNr(nummer);
     if (norm == null) return null;
+    // Stufe 1: eigene Betriebsnummer (heineken_nr) — eindeutig oder gar nicht.
     Map<String, String>? treffer;
     for (final b in betriebe) {
-      final kandidaten = [
-        b['nr'],
-        b['we_nummer'],
-        b['ag_nummer'],
-        b['heineken_nr']
-      ];
-      if (kandidaten.any((k) => _normNr(k) == norm)) {
+      if (_normNr(b['heineken_nr']) == norm) {
+        if (treffer != null) return null; // mehrdeutig
+        treffer = b;
+      }
+    }
+    if (treffer != null) return treffer;
+    // Stufe 2: WE-/AG-Nummer (Heineken-Fremdnummern). Hausnummer `nr` bewusst
+    // NICHT — eine Strassen-Hausnummer identifiziert keinen Betrieb.
+    for (final b in betriebe) {
+      if ([b['we_nummer'], b['ag_nummer']].any((k) => _normNr(k) == norm)) {
         if (treffer != null) return null; // mehrdeutig
         treffer = b;
       }

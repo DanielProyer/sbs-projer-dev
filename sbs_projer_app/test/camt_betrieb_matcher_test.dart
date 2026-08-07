@@ -40,12 +40,12 @@ void main() {
   });
 
   final mitNr = [
-    {'id': 'b1', 'name': 'A', 'nr': '0151', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': ''},
+    {'id': 'b1', 'name': 'A', 'nr': '', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0151'},
     {'id': 'b2', 'name': 'B', 'nr': '', 'we_nummer': '77', 'ag_nummer': '', 'heineken_nr': ''},
     {'id': 'b3', 'name': 'Armando', 'nr': '21', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0088'},
   ];
 
-  test('matchByNummer: leading-zero-tolerant über nr/we/ag/heineken_nr', () {
+  test('matchByNummer: leading-zero-tolerant über heineken_nr/we/ag', () {
     expect(CamtBetriebMatcher.matchByNummer('151', mitNr)?['id'], 'b1');
     expect(CamtBetriebMatcher.matchByNummer('0151', mitNr)?['id'], 'b1');
     expect(CamtBetriebMatcher.matchByNummer('77', mitNr)?['id'], 'b2');
@@ -55,10 +55,30 @@ void main() {
     expect(CamtBetriebMatcher.matchByNummer(null, mitNr), isNull);
   });
 
-  test('matchByNummer: mehrdeutig → null', () {
+  test('matchByNummer: heineken_nr schlägt Hausnummer-/WE-Kollision (Fix 07.08.)', () {
+    // Betrieb b9 hat heineken_nr 0089; ein ANDERER Betrieb hat Hausnummer 89
+    // und ein dritter die WE-Nummer 89. Früher → mehrdeutig → null; jetzt
+    // gewinnt die eigene Betriebsnummer.
+    final kollision = [
+      {'id': 'b9', 'name': 'Bolgen Plaza', 'nr': '', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0089'},
+      {'id': 'bx', 'name': 'Hausnr-Betrieb', 'nr': '89', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0500'},
+      {'id': 'by', 'name': 'WE-Betrieb', 'nr': '', 'we_nummer': '89', 'ag_nummer': '', 'heineken_nr': '0501'},
+    ];
+    expect(CamtBetriebMatcher.matchByNummer('0089', kollision)?['id'], 'b9');
+    expect(CamtBetriebMatcher.matchByNummer('89', kollision)?['id'], 'b9');
+  });
+
+  test('matchByNummer: Hausnummer allein matcht NICHT mehr', () {
+    final nurHausnr = [
+      {'id': 'b1', 'name': 'A', 'nr': '42', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0700'},
+    ];
+    expect(CamtBetriebMatcher.matchByNummer('42', nurHausnr), isNull);
+  });
+
+  test('matchByNummer: mehrdeutig innerhalb heineken_nr → null', () {
     final ambig = [
-      {'id': 'b1', 'name': 'A', 'nr': '5'},
-      {'id': 'b2', 'name': 'B', 'nr': '5'},
+      {'id': 'b1', 'name': 'A', 'heineken_nr': '5'},
+      {'id': 'b2', 'name': 'B', 'heineken_nr': '05'},
     ];
     expect(CamtBetriebMatcher.matchByNummer('5', ambig), isNull);
   });

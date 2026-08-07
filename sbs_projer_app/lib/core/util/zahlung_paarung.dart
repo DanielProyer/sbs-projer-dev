@@ -33,3 +33,61 @@ Map<String, T> paareNachDatum<T>({
   }
   return ergebnis;
 }
+
+/// Wie [paareNachDatum], aber mit **Betrags-Vorrang**: Zuerst werden Paare
+/// gebildet, deren Beträge exakt übereinstimmen (neueste Forderung zuerst),
+/// nur der Rest läuft über die Datums-Regel.
+///
+/// Grund (Sammelzahler wie Weisse Arena / Davos Klosters Bergbahnen,
+/// 07.08.2026): Mehrere Zahlungen desselben Tages begleichen mehrere
+/// Rechnungen desselben Tages — die reine Datums-Paarung ist dann Zufall und
+/// hängt z.B. die 74.60-Zahlung an die 132.95-Rechnung. Der Betrag ist in
+/// diesem Fall das eindeutige Signal.
+Map<String, T> paareMitBetrag<T>({
+  required List<T> zahlungen,
+  required DateTime Function(T) datumVon,
+  required double Function(T) betragVon,
+  required List<({String id, DateTime rechnungsdatum, double betrag})>
+      forderungen,
+}) {
+  if (zahlungen.isEmpty || forderungen.isEmpty) return {};
+
+  final ergebnis = <String, T>{};
+  final freieZahlungen = [...zahlungen]
+    ..sort((a, b) => datumVon(b).compareTo(datumVon(a)));
+  final freieForderungen = [...forderungen]
+    ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+
+  // 1. Betrag-exakte Paare (auf den Rappen), neueste Forderung zuerst.
+  for (final f in [...freieForderungen]) {
+    T? passend;
+    for (final z in freieZahlungen) {
+      if ((betragVon(z) - f.betrag).abs() < 0.005) {
+        passend = z;
+        break;
+      }
+    }
+    if (passend != null) {
+      ergebnis[f.id] = passend;
+      freieZahlungen.remove(passend);
+      freieForderungen.remove(f);
+    }
+  }
+
+  // 2. Rest über die Datums-Regel. Sind alle Zahlungen betragsgepaart,
+  //    erhalten übrige Forderungen die älteste Zahlung (wie [paareNachDatum]).
+  if (freieForderungen.isNotEmpty) {
+    final restZahlungen = freieZahlungen.isNotEmpty
+        ? freieZahlungen
+        : <T>[([...zahlungen]..sort((a, b) => datumVon(b).compareTo(datumVon(a)))).last];
+    ergebnis.addAll(paareNachDatum<T>(
+      zahlungen: restZahlungen,
+      datumVon: datumVon,
+      forderungen: [
+        for (final f in freieForderungen)
+          (id: f.id, rechnungsdatum: f.rechnungsdatum)
+      ],
+    ));
+  }
+  return ergebnis;
+}
