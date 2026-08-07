@@ -1,6 +1,36 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 06.08.2026 · **Live:** v0.72.2
+**Stand:** 08.08.2026 (nachts) · **Live:** v0.73.1
+
+---
+
+## 🟢 ERLEDIGT 07./08.08. (v0.72.11–v0.73.1): NACHHOL-IMPORT KOMPLETT — Bank stimmt TX-genau mit E-Banking
+
+**Der grosse Meilenstein: Fahrplan-Schritt 4 abgeschlossen.** Daniel hat den frischen GKB-Export (12.03.–06.08., 364 Einträge) durch den Bestätigungs-Flow gearbeitet; ~373 camt-Buchungen entstanden. **Bank 1020 per 06.08. = 14'952.97 + 2 offene Schaltereinzahlungen (212.95) = exakt der E-Banking-Schlusssaldo 15'165.92** — verifiziert per Skript-Abgleich JEDER Transaktion Datei↔DB (`tx_diff.py`-Methodik). Alle 28 Belastungen gebucht (Franchise 6301 4×15'090.80 MIT VSt, Löhne, SVA, AXA, Steuern, MWST Q4/25). Konto 1020 läuft damit nach 149 Tagen Stillstand wieder durchgehend.
+
+**Iterativ gebaute Abgleich-Verbesserungen (Feedback-Schleife mit Daniel):**
+- **v0.72.11:** Auto-Match-Details (Zahler/Treffer-Grund/Bemerkung), Schaltereinzahlungs-Rohtext, «Keine Zahlung» mit Betrieb+Datum+PDF-Link.
+- **v0.72.12:** Betriebsnummer-Routing (heineken_nr-Vorrang statt 185 Hausnummer-Kollisionen), betrags-bewusste Zahlungspaarung (`paareMitBetrag`), **Paar-Badges** (nummerierte Farbpunkte zeigen live, welche Zahlung welche Rechnung begleicht — identische Funktion wie die Buchung).
+- **v0.72.13:** «Später klären» parkt Kundenzahlungen in der Prüfliste (+«Zuordnen»-Dialog dort); WE/AG-Nummern raus aus dem Match.
+- **v0.72.14:** ⚠️ Betrags-Routing über alle Rechnungen WIEDER ENTFERNT (warf Zahlungen in fremde Betriebe mit zufällig gleichem Betrag — Fall Waldhuus). **Regel jetzt hart: Sammelzahler routen NUR via Vermerk** (Betriebsnummer `0089_2026_04_04` oder Rechnungsnummer `2026-04-0505`, DKB/WA neuer Stil ab Mai), nie über Name/Alias/Betrag; ohne Treffer → «Nicht zugeordnet» gruppiert mit 💰-Betrags-Markierung. «Keine Zahlung gefunden» aus der Anzeige entfernt. **8 Zahler-Aliase gesetzt** (Schlegmul→Central Bad Ragaz, A la Nina→Jschalp, Mahalo→Montana Bar, Bergbahnen Disentis→Milez, RhB→Stiva Raetica, GG Althof→Gasthaus am Brunnen, SV Schweiz→Spiga, Ott-Ruf→Chleina Pub). Allegra Vinum bewusst OHNE Alias: zahlt für DREI Betriebe (Franziskaner 74.60, Fondue Beizli 94.05, **La Meridiana ebenfalls 94.05!**).
+- **v0.72.15/16:** **«Zahlung rückgängig (Bankabgleich)»** im Kundenrechnungs-Detail (löscht camt-Zahlungsbuchungen inkl. Differenzzeilen, Rechnung zurück auf offen/gesendet, TX wieder importierbar) + **Gesamt-Rollback-Netz** (Schema `snapshot_camt_abgleich`, Skript `Datenbank/wartung/rollback_camt_abgleich_2026_08_07.sql`). Praxistest bestanden: 5 Allegra-Fehlgriffe rückgängig gemacht und neu zugeordnet.
+- **v0.72.17:** Doppel-Tausch-Bug: Bareinzahlungs-Vorlage (1020 an 1000) wurde vom v0.72.8-Richtungsfix nochmals gedreht → 2 Automaten-Einzahlungen (8'050) standen als Kasse-an-Bank; Daten korrigiert + `kontenWerdenGetauscht` (tauscht nur noch, wenn Bank nicht schon im Soll).
+- **v0.72.18:** Sammelzahlung mit erlassener Differenz buchte das volle Rechnungsbrutto auf die Bank statt den Zahlbetrag (Bank +12.20 überschossen) — Code + 2 Buchungen korrigiert. Heineken zahlte die April-Rechnung 1 Rp. unter Brutto → Bank auf Zahlbetrag, Rappen als Debitorenverlust. **Heineken Feb+März-Zahlungseingänge (12'899.79) nachgebucht** — die Backfill-Rechnungen vom 14.07. standen auf «bezahlt» ohne Zahlungsbuchung.
+
+**Chleina Pub geklärt:** Die 74.60 vom 30.04. war eine Doppelzahlung der April-Rechnung → als a.o. Ertrag 8000 gebucht, **Ausgleich per Kulanz beim nächsten Service** (Service-Hinweis am Betrieb gesetzt).
+
+**Noch offen aus dem Abgleich:**
+- [ ] 2 Schaltereinzahlungen zuordnen (74.60 vom 05.05. · 138.35 vom 09.06., beide Bern) — nur Daniel weiss, wer bar einzahlte (Prüfliste → «Zuordnen» bzw. nächster Import).
+- [ ] Prüfpunkt: Sammelzahlung 26.06. Weisse Arena — **126.50 als «Mehrzahlung» auf 8000** gebucht (ZV20260626/988854/30); riecht nach fehlender Rechnung in der Auswahl → ggf. «Zahlung rückgängig» + neu zuordnen.
+- [ ] Merkposten: 2× Klara Maria Thomann und 2× Weisse Arena tragen überkreuzte camt-Schlüssel (netto null, nur Kosmetik fürs Rückgängigmachen).
+
+---
+
+## 🟢 ERLEDIGT 08.08. (v0.73.0/v0.73.1): Kontoauszug-PDF, Service-Hinweis, Forderungen-Umbau
+
+1. **Kontoauszug pro Betrieb mit PDF-Export** (Betrieb-Detail → 📄-Icon): professionelles A4 im Rechnungs-Briefkopf-Stil — Summen-Kacheln (Fakturiert/Zahlungen/Abschreibungen/Offener Saldo), chronologische Tabelle aller Rechnungen+Zahlungen mit laufendem Saldo (rot/grün), mehrseitenfähig, Zahlungsaufforderung mit IBAN. Für Mahn-Diskussionen. `services/pdf/kontoauszug_pdf_service.dart`. **v0.73.1:** Sonderzeichen-Fix (eingebaute PDF-Schrift kennt ’ – — … nicht → `_safe()`-Sanitizer für alle dynamischen Texte; Beträge mit geradem Apostroph). ⚠️ Bei neuen PDF-Services beachten!
+2. **Service-Hinweis pro Betrieb** (Migration `betriebe_service_hinweis`): Feld im Betrieb-Formular; erscheint als oranges Band **im Reinigungs-Abschluss-Dialog** und im Betriebs-Steckbrief. Gesetzt bei Chleina Pub: «Nächste Reinigung GRATIS (Kulanz)…» — nach Einlösung im Formular löschen.
+3. **Forderungen-Screen umgebaut** (Wunsch Daniel): «Offene Forderungen»-Karte ganz oben (antippen → Filter Offen/Alle Jahre) + Debitoren/Abschreibungen direkt darunter, dann Trennlinie «ALLE RECHNUNGEN», darunter Suche + **drei Filter nebeneinander** (Status · Jahr **inkl. «Alle Jahre»** · Monat); Monatsheader tragen die Jahreszahl.
 
 ---
 
