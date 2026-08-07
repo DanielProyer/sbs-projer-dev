@@ -279,4 +279,26 @@ class ForderungsAbgleichService {
       });
     }
   }
+
+  /// Macht eine per camt-Abgleich verbuchte Kundenzahlung rückgängig
+  /// (Fehlgriff-Korrektur): Löscht die Zahlungs-Buchung(en) der Rechnung, die
+  /// einen `camt_tx_key` tragen — die Bank-Gutschrift wird damit beim nächsten
+  /// Import wieder als offener Vorschlag angeboten — und setzt die Rechnung
+  /// zurück auf `gesendet` (falls je versendet) bzw. `offen`.
+  ///
+  /// Liefert die Anzahl gelöschter Buchungen (0 = war keine camt-Zahlung).
+  static Future<int> zahlungRueckgaengig(Rechnung r) async {
+    final ids = await BuchungRepository.getAktiveCamtZahlungsIds(r.id);
+    for (final id in ids) {
+      await BuchungRepository.delete(id);
+    }
+    if (ids.isNotEmpty) {
+      await RechnungRepository.update(r.id, {
+        'zahlungsstatus': r.versendetAm != null ? 'gesendet' : 'offen',
+        'zahlung_eingegangen_am': null,
+        'zahlung_betrag': null,
+      });
+    }
+    return ids.length;
+  }
 }

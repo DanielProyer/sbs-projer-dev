@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/pdf/mahnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
@@ -111,6 +112,60 @@ class _RechnungDetailContentState
     }
   }
 
+  /// «Zahlung rückgängig (Bankabgleich)»: Korrektur eines Fehlgriffs im
+  /// camt-Abgleich. Löscht die Zahlungs-Buchung(en) mit camt-Schlüssel,
+  /// setzt die Rechnung zurück (gesendet/offen) — die Bank-Gutschrift wird
+  /// beim nächsten Import wieder zum Zuordnen angeboten.
+  Future<void> _zahlungRueckgaengig() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Zahlung rückgängig machen?'),
+        content: const Text(
+            'Die Zahlungs-Buchung aus dem Bankabgleich wird gelöscht und die '
+            'Rechnung wieder auf offen/gesendet gesetzt. Die Bank-Gutschrift '
+            'erscheint beim nächsten Import erneut zum Zuordnen.\n\n'
+            'Nur für falsch zugeordnete Zahlungen gedacht.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Rückgängig machen')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final anzahl =
+          await ForderungsAbgleichService.zahlungRueckgaengig(_rechnung);
+      if (!mounted) return;
+      if (anzahl == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Keine Bankabgleich-Zahlung gefunden — nichts geändert. '
+                '(Diese Rechnung wurde nicht über den camt-Abgleich bezahlt.)')));
+        return;
+      }
+      final frisch = await RechnungRepository.getById(_rechnung.id);
+      ref.invalidate(rechnungenStreamProvider);
+      if (!mounted) return;
+      setState(() {
+        if (frisch != null) _rechnung = frisch;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$anzahl Buchung(en) gelöscht — Rechnung wieder '
+              '${_rechnung.zahlungsstatus}. Gutschrift ist beim nächsten '
+              'Import erneut zuordenbar.')));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,6 +233,25 @@ class _RechnungDetailContentState
               if (_rechnung.versandart != null) ...[
                 const SizedBox(height: 8),
                 _InfoRow('Versandart', _versandartLabel(_rechnung.versandart!)),
+              ],
+              // Korrektur-Weg für Fehlgriffe im Bankabgleich: löscht die
+              // camt-Zahlungsbuchung(en), setzt die Rechnung zurück und macht
+              // die Bank-Gutschrift wieder importier-/zuordenbar.
+              if (_rechnung.zahlungsstatus == 'bezahlt' &&
+                  _rechnung.rechnungstyp != 'heineken_monat') ...[
+                if (_rechnung.zahlungEingegangenAm != null)
+                  _InfoRow(
+                    'Zahlung eingegangen',
+                    _formatDate(_rechnung.zahlungEingegangenAm!),
+                  ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _zahlungRueckgaengig,
+                    icon: const Icon(Icons.undo, size: 16),
+                    label: const Text('Zahlung rückgängig (Bankabgleich)'),
+                  ),
+                ),
               ],
             ],
           ),

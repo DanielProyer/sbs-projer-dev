@@ -193,6 +193,26 @@ class BuchungRepository {
     return (rows as List).map((r) => r['camt_tx_key'] as String).toSet();
   }
 
+  /// Aktive Zahlungs-Buchungen eines Belegs, die aus dem camt-Abgleich
+  /// stammen (tragen `camt_tx_key`). Grundlage für «Zahlung rückgängig» bei
+  /// Kundenrechnungen: genau diese Buchungen werden gelöscht, damit die
+  /// Bank-Gutschrift wieder importierbar wird.
+  static Future<List<String>> getAktiveCamtZahlungsIds(String belegId) async {
+    final rows = await SupabaseService.client
+        .from('buchungen')
+        .select('id, camt_tx_key, ist_storniert, storno_von_id')
+        .eq('user_id', _userId)
+        .eq('beleg_id', belegId)
+        .eq('beleg_typ', 'zahlung');
+    return [
+      for (final r in rows)
+        if (r['camt_tx_key'] != null &&
+            r['ist_storniert'] != true &&
+            r['storno_von_id'] == null)
+          r['id'] as String
+    ];
+  }
+
   /// Ist diese camt-Transaktion bereits aktiv verbucht? Schützt vor einer
   /// zweiten Buchung derselben Zahlung (z.B. beim Buchen aus der Prüfliste).
   static Future<bool> existiertCamtTxKey(String txKey) async {
