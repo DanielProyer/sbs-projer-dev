@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/heineken_pdf_regenerierbar.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
@@ -85,6 +86,26 @@ class _HeinekenRechnungDetailScreenState
   /// bleiben unverändert.
   Future<void> _regenerierePdf() async {
     if (_rechnung == null) return;
+    if (!darfHeinekenPdfNeuGenerieren(_rechnung!.heinekenMonat)) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Gesperrt — Original-PDF'),
+          content: const Text(
+              'Für Monate vor April 2026 liegt das versendete Original-PDF '
+              'mit den Heineken-Formularen im Speicher (Import 07.08.2026). '
+              'Neu-Generieren würde es durch eine Fassung ohne Formulare '
+              'ersetzen und ist deshalb gesperrt.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Verstanden'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     setState(() => _loading = true);
     try {
       await HeinekenRechnungService.regenerierePdf(_rechnung!);
@@ -323,9 +344,18 @@ class _HeinekenRechnungDetailScreenState
                 const PopupMenuItem(
                     value: 'gesendet',
                     child: Text('Auf gesendet zurücksetzen')),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'pdf_neu',
-                child: Text('PDF neu generieren'),
+                child: darfHeinekenPdfNeuGenerieren(r.heinekenMonat)
+                    ? const Text('PDF neu generieren')
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_outline, size: 18),
+                          SizedBox(width: 8),
+                          Text('PDF neu generieren'),
+                        ],
+                      ),
               ),
               const PopupMenuDivider(),
               const PopupMenuItem(
