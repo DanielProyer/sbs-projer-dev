@@ -11,6 +11,10 @@ class Betrieb {
   final String? email;
   final String? website;
   final String? zugangNotizen;
+
+  /// Prominenter Hinweis beim Reinigungs-Abschluss (z.B. «Nächste Reinigung
+  /// GRATIS — Kulanz»). Leer/NULL = kein Hinweis.
+  final String? serviceHinweis;
   final String? betriebNr;
   final String? weNummer;
   final String? agNummer;
@@ -72,6 +76,7 @@ class Betrieb {
     this.email,
     this.website,
     this.zugangNotizen,
+    this.serviceHinweis,
     this.betriebNr,
     this.weNummer,
     this.agNummer,
@@ -131,6 +136,7 @@ class Betrieb {
       email: json['email'],
       website: json['website'],
       zugangNotizen: json['zugang_notizen'],
+      serviceHinweis: json['service_hinweis'],
       betriebNr: json['heineken_nr'],
       weNummer: json['we_nummer'],
       agNummer: json['ag_nummer'],
@@ -243,6 +249,7 @@ class Betrieb {
       'email': email,
       'website': website,
       'zugang_notizen': zugangNotizen,
+      'service_hinweis': serviceHinweis,
       'heineken_nr': betriebNr,
       'we_nummer': weNummer,
       'ag_nummer': agNummer,

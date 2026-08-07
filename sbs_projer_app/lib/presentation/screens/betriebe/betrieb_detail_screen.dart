@@ -23,8 +23,13 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
+import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
+import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
+import 'package:printing/printing.dart';
 
 class BetriebDetailScreen extends ConsumerWidget {
   final String betriebId;
@@ -77,6 +82,11 @@ class _BetriebDetailContent extends ConsumerWidget {
               ),
             ),
           if (!SupabaseService.isGuest) ...[
+            IconButton(
+              icon: const Icon(Icons.receipt_long),
+              tooltip: 'Kontoauszug (PDF) — alle Rechnungen & Zahlungen',
+              onPressed: () => _zeigeKontoauszug(context, ref),
+            ),
             IconButton(
               icon: const Icon(Icons.edit),
               tooltip: 'Bearbeiten',
@@ -235,6 +245,33 @@ class _BetriebDetailContent extends ConsumerWidget {
               ],
             ),
 
+          // Service-Hinweis (erscheint auch beim Reinigungs-Abschluss)
+          if ((betrieb.serviceHinweis ?? '').trim().isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withAlpha(30),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.warning.withAlpha(120)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.campaign, color: AppColors.warning, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      betrieb.serviceHinweis!.trim(),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Zugang & Notizen
           if (betrieb.zugangNotizen != null || betrieb.notizen != null)
             _SectionCard(
@@ -372,6 +409,64 @@ class _BetriebDetailContent extends ConsumerWidget {
       case 'jahresrechnung': return 'Jahresrechnung';
       case 'heineken': return 'Via Heineken';
       default: return value;
+    }
+  }
+
+  /// Kontoauszug des Betriebs (alle Rechnungen + Zahlungen, laufender Saldo)
+  /// als PDF öffnen/teilen — Grundlage für Mahn-Gespräche.
+  Future<void> _zeigeKontoauszug(BuildContext context, WidgetRef ref) async {
+    final serverId = betrieb.serverId;
+    if (serverId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Betrieb noch nicht synchronisiert — kein Auszug möglich.')));
+      return;
+    }
+    try {
+      final rechnungen = await RechnungRepository.getByBetrieb(serverId);
+      if (rechnungen.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Keine Rechnungen für diesen Betrieb.')));
+        }
+        return;
+      }
+      final raLocal =
+          await BetriebRechnungsadresseRepository.getByBetrieb(serverId);
+      final ra = raLocal == null
+          ? null
+          : BetriebRechnungsadresse(
+              id: raLocal.serverId ?? '',
+              userId: raLocal.userId,
+              betriebId: serverId,
+              firma: raLocal.firma,
+              vorname: raLocal.vorname,
+              nachname: raLocal.nachname,
+              strasse: raLocal.strasse,
+              nr: raLocal.nr,
+              plz: raLocal.plz,
+              ort: raLocal.ort,
+              email: raLocal.email,
+            );
+      final g = ref.read(geschaeftProvider).valueOrNull;
+      final bytes = await KontoauszugPdfService.generate(
+        betrieb: betrieb,
+        rechnungen: rechnungen,
+        rechnungsadresse: ra,
+        firmaName: g?.firma,
+        firmaStrasse: g?.adresseStrasse,
+        firmaPlzOrt: g?.adressePlzOrt,
+        firmaMwst: g?.mwstZeile,
+      );
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename:
+            'Kontoauszug_${betrieb.name.replaceAll(RegExp(r'[^A-Za-z0-9äöüÄÖÜ]+'), '_')}.pdf',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Kontoauszug-Fehler: $e')));
+      }
     }
   }
 

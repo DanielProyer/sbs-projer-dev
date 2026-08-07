@@ -12,7 +12,6 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' sh
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
-import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_monat_leiste.dart';
 
 const _monatNamen = [
   '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -65,8 +64,8 @@ class RechnungenListScreen extends ConsumerStatefulWidget {
 class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   String _searchQuery = '';
   String _statusFilter = 'alle';
-  int _selectedYear = DateTime.now().year;
-  int _selectedMonth = 0;
+  int _selectedYear = DateTime.now().year; // 0 = Alle Jahre
+  int _selectedMonth = 0; // 0 = Alle Monate
 
 
   /// Frühwarnung: abgeschlossene Reinigungen ohne Rechnung. Stumm, solange
@@ -133,6 +132,89 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     );
   }
 
+  /// Kopf-Karte «Offene Forderungen» — immer sichtbar, zuoberst (Wunsch
+  /// Daniel 07.08.2026). Antippen filtert die Liste auf «Offen».
+  Widget _offeneSummaryCard(
+      List<Rechnung> offene, double offenSumme, int ueberfaellige) {
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: AppColors.primary.withAlpha(80)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => setState(() {
+          _statusFilter = 'offen';
+          _selectedYear = 0;
+          _selectedMonth = 0;
+        }),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Offene Forderungen',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${offenSumme.toStringAsFixed(2)} CHF',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '${offene.length} offene Rechnungen · antippen zum Filtern',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (ueberfaellige > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '$ueberfaellige',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.error,
+                        ),
+                      ),
+                      Text(
+                        'Überfällig',
+                        style: TextStyle(fontSize: 11, color: AppColors.error),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final rechnungen = ref.watch(rechnungenProvider);
@@ -145,13 +227,17 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     }
     final jahre = jahreSet.toList()..sort((a, b) => b.compareTo(a));
     if (jahre.isEmpty) jahre.add(DateTime.now().year);
-    if (!jahre.contains(_selectedYear)) _selectedYear = jahre.first;
+    if (_selectedYear != 0 && !jahre.contains(_selectedYear)) {
+      _selectedYear = jahre.first;
+    }
 
     final sorted = List<Rechnung>.from(rechnungen)
       ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
 
     final filtered = sorted.where((r) {
-      if (r.rechnungsdatum.year != _selectedYear) return false;
+      if (_selectedYear != 0 && r.rechnungsdatum.year != _selectedYear) {
+        return false;
+      }
       if (_selectedMonth != 0 && r.rechnungsdatum.month != _selectedMonth) {
         return false;
       }
@@ -174,13 +260,15 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       return true;
     }).toList();
 
-    // Monats- und Tagesgruppierung
+    // Monats- und Tagesgruppierung (jahresübergreifend bei «Alle Jahre»).
     final groups = <_MonatsGruppe>[];
     for (final r in filtered) {
       final m = r.rechnungsdatum.month;
       final d = DateTime(
           r.rechnungsdatum.year, r.rechnungsdatum.month, r.rechnungsdatum.day);
-      if (groups.isEmpty || groups.last.monat != m) {
+      if (groups.isEmpty ||
+          groups.last.monat != m ||
+          groups.last.jahr != r.rechnungsdatum.year) {
         groups.add(_MonatsGruppe(jahr: r.rechnungsdatum.year, monat: m));
       }
       final g = groups.last;
@@ -214,12 +302,42 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       body: Column(
         children: [
           _warnungOhneRechnung(),
+          // ── Abschnitt 1: Offene Forderungen + Debitoren/Abschreibungen ──
+          // (Wunsch Daniel 07.08.2026: offene Rechnungen ganz nach oben,
+          //  klar getrennt vom Rechnungs-Archiv darunter.)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _offeneSummaryCard(offene.toList(), offenSumme,
+                ueberfaellige),
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: DebitorenHeader(),
           ),
+          // ── Klare Trennung zum Rechnungs-Archiv ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              children: [
+                const Expanded(child: Divider(thickness: 1.5)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'ALLE RECHNUNGEN',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider(thickness: 1.5)),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SearchBar(
               hintText: 'Rechnung suchen...',
               leading: const Padding(
@@ -229,7 +347,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
-          // Status-Filter (einheitliche Filter-Leiste statt AppBar-Popup)
+          // Drei Filter nebeneinander: Status · Jahr (inkl. «Alle Jahre») · Monat
           AppFilterBar(
             items: [
               AppFilterDropdown<String>(
@@ -253,6 +371,26 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                   const ('abgeschrieben', 'Abgeschrieben'),
                 ],
                 onChanged: (v) => setState(() => _statusFilter = v ?? 'alle'),
+              ),
+              AppFilterDropdown<int>(
+                hint: 'Alle Jahre',
+                nullable: false,
+                value: _selectedYear,
+                options: [
+                  const (0, 'Alle Jahre'),
+                  for (final y in jahre) (y, '$y'),
+                ],
+                onChanged: (y) => setState(() => _selectedYear = y ?? 0),
+              ),
+              AppFilterDropdown<int>(
+                hint: 'Alle Monate',
+                nullable: false,
+                value: _selectedMonth,
+                options: [
+                  const (0, 'Alle Monate'),
+                  for (int m = 1; m <= 12; m++) (m, _monatNamen[m]),
+                ],
+                onChanged: (m) => setState(() => _selectedMonth = m ?? 0),
               ),
             ],
           ),
@@ -289,84 +427,19 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                 ),
               ),
             ),
-          // Summary Card
-          if (_statusFilter == 'alle' || _statusFilter == 'offen' ||
-              _statusFilter == 'erinnert' || _statusFilter == 'mahnung_1' ||
-              _statusFilter == 'mahnung_2' || _statusFilter == 'mahnfaellig')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${offenSumme.toStringAsFixed(2)} CHF',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              '${offene.length} offene Rechnungen',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (ueberfaellige > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withAlpha(25),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                '$ueberfaellige',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.error,
-                                ),
-                              ),
-                              Text(
-                                'Überfällig',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.error,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+          // Anzahl/Summe der gefilterten Liste
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                jahrSumme > 0
+                    ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
+                    : '${filtered.length} Rechnungen',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
               ),
-            ),
-          AppJahrMonatLeiste(
-            jahre: jahre,
-            selectedJahr: _selectedYear,
-            onJahrChanged: (y) => setState(() => _selectedYear = y),
-            selectedMonat: _selectedMonth,
-            onMonatChanged: (m) => setState(() => _selectedMonth = m),
-            trailing: Text(
-              jahrSumme > 0
-                  ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
-                  : '${filtered.length} Rechnungen',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
             ),
           ),
           Expanded(

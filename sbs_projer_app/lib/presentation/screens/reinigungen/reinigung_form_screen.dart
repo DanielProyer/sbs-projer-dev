@@ -1134,6 +1134,36 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Service-Hinweis des Betriebs (z.B. «Nächste Reinigung GRATIS
+                // — Kulanz») — prominent, damit er beim Abschluss nicht
+                // untergeht (Wunsch Daniel 07.08.2026, Fall Chleina Pub).
+                if ((betrieb?.serviceHinweis ?? '').trim().isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withAlpha(30),
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: AppColors.warning.withAlpha(120)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.campaign,
+                            color: AppColors.warning, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            betrieb!.serviceHinweis!.trim(),
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 const Text('Zahlungsart für DIESE Reinigung:'),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(

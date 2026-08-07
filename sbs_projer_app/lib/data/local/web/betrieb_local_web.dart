@@ -20,6 +20,7 @@ class BetriebLocal {
   String? email;
   String? website;
   String? zugangNotizen;
+  String? serviceHinweis;
   String? betriebNr;
   String? weNummer;
   String? agNummer;

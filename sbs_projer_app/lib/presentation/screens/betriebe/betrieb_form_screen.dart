@@ -52,6 +52,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   late final _weNummerController = TextEditingController();
   late final _agNummerController = TextEditingController();
   late final _zugangController = TextEditingController();
+  late final _serviceHinweisController = TextEditingController();
   late final _notizenController = TextEditingController();
 
   String _status = 'aktiv';
@@ -133,6 +134,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _weNummerController.text = betrieb.weNummer ?? '';
       _agNummerController.text = betrieb.agNummer ?? '';
       _zugangController.text = betrieb.zugangNotizen ?? '';
+      _serviceHinweisController.text = betrieb.serviceHinweis ?? '';
       _notizenController.text = betrieb.notizen ?? '';
       _servicezeitMorgenAbCtrl.text = betrieb.servicezeitMorgenAb ?? '';
       _servicezeitMorgenBisCtrl.text = betrieb.servicezeitMorgenBis ?? '';
@@ -484,6 +486,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       betrieb.weNummer = _emptyToNull(_weNummerController.text);
       betrieb.agNummer = _emptyToNull(_agNummerController.text);
       betrieb.zugangNotizen = _emptyToNull(_zugangController.text);
+      betrieb.serviceHinweis = _emptyToNull(_serviceHinweisController.text);
       betrieb.notizen = _emptyToNull(_notizenController.text);
       betrieb.status = _status;
       betrieb.schliessungsgrund = _status == 'geschlossen'
@@ -715,6 +718,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     _weNummerController.dispose();
     _agNummerController.dispose();
     _zugangController.dispose();
+    _serviceHinweisController.dispose();
     _notizenController.dispose();
     _servicezeitMorgenAbCtrl.dispose();
     _servicezeitMorgenBisCtrl.dispose();
@@ -1440,6 +1444,18 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
               decoration: const InputDecoration(
                 labelText: 'Zugang / Schlüssel',
                 prefixIcon: Icon(Icons.vpn_key),
+                alignLabelWithHint: true,
+              ),
+              maxLines: 2,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _serviceHinweisController,
+              decoration: const InputDecoration(
+                labelText: 'Service-Hinweis (erscheint beim Reinigungs-Abschluss)',
+                helperText: 'z.B. «Nächste Reinigung GRATIS — Kulanz». Nach dem Einlösen hier wieder löschen.',
+                prefixIcon: Icon(Icons.campaign),
                 alignLabelWithHint: true,
               ),
               maxLines: 2,

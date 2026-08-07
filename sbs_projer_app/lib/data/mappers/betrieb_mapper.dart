@@ -17,6 +17,7 @@ class BetriebMapper {
     local.email = dto.email;
     local.website = dto.website;
     local.zugangNotizen = dto.zugangNotizen;
+    local.serviceHinweis = dto.serviceHinweis;
     local.betriebNr = dto.betriebNr;
     local.weNummer = dto.weNummer;
     local.agNummer = dto.agNummer;
@@ -80,6 +81,7 @@ class BetriebMapper {
       'email': local.email,
       'website': local.website,
       'zugang_notizen': local.zugangNotizen,
+      'service_hinweis': local.serviceHinweis,
       'heineken_nr': local.betriebNr,
       'we_nummer': local.weNummer,
       'ag_nummer': local.agNummer,
