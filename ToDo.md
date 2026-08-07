@@ -10,7 +10,7 @@
 
 **Erledigt:** Originale von der Festplatte (`00_Buchhaltung/Monatsrechnungen Heineken 2019-2026/`) in den Bucket `rechnung-pdfs` geladen. Ab 08/2023 lag das versendete Kombi-PDF vor (1:1 übernommen); 05/2019–07/2023 aus `00_Rechnung.pdf` + Einzel-Formularen in Kategorien-Reihenfolge (01_Störung…06_Gratisreinigung) zusammengeführt. **Verifiziert:** 83/83 DB-Bruttobetrag im PDF-Text gefunden, 3 Stichproben-Hashes nach Roundtrip identisch, Live-Rechnungen 04–06/2026 unangetastet. Upload über temporäre, token-geschützte Edge Function `temp-pdf-import` — danach durch 410-Stub ersetzt (kann in der Supabase-Konsole gelöscht werden).
 
-> ⚠️ **«PDF neu generieren» bei historischen Monatsrechnungen (vor 04/2026) nicht mehr verwenden** — es würde das Original-PDF durch die 3-Seiten-Skelettfassung ersetzen (die Excel-importierten Werkstatt-Daten tragen die Formularfelder nicht). Quelle bleibt die Festplatte; Alt-Stand der generierten PDFs lag im Session-Scratchpad (reproduzierbar, nicht dauerhaft gesichert).
+> ✅ **Sperre eingebaut (v0.72.4, live 07.08.):** «PDF neu generieren» ist für Monatsrechnungen vor 04/2026 gesperrt (`darfHeinekenPdfNeuGenerieren` in `core/util/heineken_pdf_regenerierbar.dart`, +3 Tests). Menüpunkt zeigt ein Schloss, Tap erklärt die Sperre im Dialog. Hintergrund: Neu-Generieren würde das Original durch die 3-Seiten-Fassung ohne Formulare ersetzen (Excel-Backfill trägt die Formularfelder nicht). Quelle der Originale bleibt die Festplatte.
 
 ---
 
