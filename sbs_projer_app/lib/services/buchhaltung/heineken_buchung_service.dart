@@ -60,22 +60,9 @@ class HeinekenBuchungService {
         'geschaeftsjahr': rechnung.rechnungsdatum.year,
       });
 
-      // 2. MwSt-Buchung: Soll 3400 / Haben 2200 (Bruttomethode)
-      if (mwstBetrag > 0) {
-        await BuchungRepository.create({
-          'datum': datumStr,
-          'soll_konto': 3400,
-          'haben_konto': 2200,
-          'betrag_netto': mwstBetrag,
-          'mwst_satz': 0,
-          'mwst_betrag': 0,
-          'betrag_brutto': mwstBetrag,
-          'beschreibung': 'MwSt Heineken $monatLabel',
-          'beleg_typ': 'mwst',
-          'beleg_id': rechnung.id,
-          'geschaeftsjahr': rechnung.rechnungsdatum.year,
-        });
-      }
+      // KEINE separate MwSt-Trennbuchung mehr: die Hauptbuchung trägt
+      // mwst_konto 2200, die SaldoExpansion teilt Netto/MwSt/Brutto bereits
+      // auf. Die frühere Zeile 3400/2200 verdoppelte die MwSt (Befund B1).
 
       debugPrint(
           '[HeiBuch] Freigabe: Netto $netto, MwSt $mwstBetrag, Brutto $brutto');

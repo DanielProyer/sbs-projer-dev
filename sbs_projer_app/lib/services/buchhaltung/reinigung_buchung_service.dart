@@ -122,25 +122,11 @@ class ReinigungBuchungService {
         'geschaeftsjahr': reinigung.datum.year,
       });
 
-      // 2. MwSt-Buchung: Soll 3400 / Haben 2200 (Bruttomethode)
-      if (mwstBetrag > 0 && vorlage.mwstKonto != null) {
-        await BuchungRepository.create({
-          'datum': datumStr,
-          'vorlage_id': vorlage.id,
-          'soll_konto': vorlage.habenKonto, // 3400
-          'haben_konto': vorlage.mwstKonto, // 2200
-          'betrag_netto': mwstBetrag,
-          'mwst_satz': 0,
-          'mwst_betrag': 0,
-          'betrag_brutto': mwstBetrag,
-          'beschreibung': 'MwSt $mwstSatz% – Reinigung $typLabel ${betrieb.name}',
-          'beleg_typ': 'mwst',
-          'beleg_id': reinigung.serverId,
-          'geschaeftsjahr': reinigung.datum.year,
-        });
-      }
+      // KEINE separate MwSt-Trennbuchung mehr: die Hauptbuchung trägt
+      // mwst_konto, die SaldoExpansion teilt Netto/MwSt/Brutto bereits auf.
+      // Die frühere Zeile 3400/2200 verdoppelte die MwSt (Befund B1, 06.08.2026).
 
-      // 3. Reinigungsprotokoll als Beleg anhängen
+      // 2. Reinigungsprotokoll als Beleg anhängen
       await _attachProtokoll(buchung.id, reinigung, betrieb);
 
       debugPrint('ReinigungBuchung ($typLabel): Netto $netto, MwSt $mwstBetrag, Brutto $brutto');

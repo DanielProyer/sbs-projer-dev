@@ -140,37 +140,10 @@ class SpesenImportService {
         'notizen': 'Spesen-Scanner Import ${now.toIso8601String().split('T').first}',
       });
 
-      // 2. Vorsteuer-Buchung: Soll 1171 (Vorsteuer) / Haben Aufwandkonto → MwSt-Betrag
-      //    Reduziert den Aufwand um die Vorsteuer (MwSt ist bereits im Brutto der Aufwand-Buchung)
-      if (mwstBetrag > 0) {
-        final mwstBuchung = await BuchungRepository.create({
-          'datum': datumStr,
-          'soll_konto': 1171, // Vorsteuer Betrieb
-          'haben_konto': _sollKonto(kat), // Aufwandkonto (5820/6200), NICHT Zahlungskonto
-          'betrag_netto': mwstBetrag,
-          'mwst_satz': 0,
-          'mwst_betrag': 0,
-          'betrag_brutto': mwstBetrag,
-          'beschreibung': 'Vorsteuer ${pos.mwstSatz}% - $beschreibung',
-          'zahlungsweg': _zahlungswegLabel(zahlungsweg),
-          'belegordner': _belegordner(kat),
-          'beleg_typ': 'sonstiges',
-          'geschaeftsjahr': scanResult.datum.year,
-          'notizen': 'Spesen-Scanner Import ${now.toIso8601String().split('T').first}',
-        });
-
-        // Beleg auch zur Vorsteuer-Buchung
-        await BuchungsBelegRepository.upload(
-          buchungId: mwstBuchung.id,
-          dateiname: dateiname,
-          dateityp: dateityp,
-          bytes: belegBytes,
-          belegQuelle: 'spesen_scan',
-          beschreibung: 'Vorsteuer - ${scanResult.geschaeft}',
-        );
-
-        buchungen.add(mwstBuchung);
-      }
+      // KEINE separate Vorsteuer-Trennzeile mehr: die Aufwand-Buchung trägt
+      // mwst_konto 1171, die SaldoExpansion teilt Netto/Vorsteuer/Brutto
+      // bereits auf. Die frühere Zeile 1171/Aufwand verdoppelte die
+      // Vorsteuer (Befund B1, Buchhaltungsprüfung 06.08.2026).
 
       // Beleg zur Aufwand-Buchung
       await BuchungsBelegRepository.upload(

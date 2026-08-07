@@ -1,10 +1,10 @@
 /// Reine Berechnungslogik für die Kreditoren-Buchung (Stufe 1) einer
 /// Eingangsrechnung nach der Bruttomethode.
 ///
-/// Liefert 1–2 Buchungszeilen:
-///  - Zeile 1: Aufwand (brutto) an Kreditor (2000)
-///  - Zeile 2 (nur wenn MwSt > 0 und Vorsteuerkonto gesetzt):
-///    Vorsteuer-Korrektur (Vorsteuer an Aufwand)
+/// Liefert EINE Buchungszeile: Aufwand (brutto) an Kreditor (2000), mit
+/// `mwstKonto` = Vorsteuerkonto — die SaldoExpansion teilt daraus Netto/
+/// Vorsteuer/Brutto auf. Die frühere zweite Zeile (Vorsteuer an Aufwand)
+/// verdoppelte die Vorsteuer (Befund B1, Buchhaltungsprüfung 06.08.2026).
 class KreditorBuchungZeile {
   final int sollKonto;
   final int habenKonto;
@@ -51,20 +51,6 @@ List<KreditorBuchungZeile> kreditorBuchungsZeilen({
     mwstKonto: mwstBetrag > 0 ? vorsteuerKonto : null,
     beschreibung: beschreibung,
   );
-
-  if (mwstBetrag > 0 && vorsteuerKonto != null) {
-    final zeile2 = KreditorBuchungZeile(
-      sollKonto: vorsteuerKonto,
-      habenKonto: aufwandskonto,
-      betragNetto: mwstBetrag,
-      mwstSatz: 0,
-      mwstBetrag: 0,
-      betragBrutto: mwstBetrag,
-      mwstKonto: null,
-      beschreibung: 'Vorsteuer $mwstSatz% - $beschreibung',
-    );
-    return [zeile1, zeile2];
-  }
 
   return [zeile1];
 }
