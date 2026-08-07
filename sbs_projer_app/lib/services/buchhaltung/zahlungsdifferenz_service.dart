@@ -33,6 +33,18 @@ class ZahlungsdifferenzService {
       gesamtBrutto += _round5Rappen(r.betragBrutto);
     }
     gesamtBrutto = _round5Rappen(gesamtBrutto);
+    final differenz = _round5Rappen(_round5Rappen(zahlungBetrag) - gesamtBrutto);
+    // Erlassene Minderzahlung: Die Bank erhält nur den Zahlbetrag — die
+    // Hauptzeile der LETZTEN Rechnung wird um den Verlust gekürzt (der
+    // Debitor gleicht über die 3805-Verlustzeile trotzdem exakt aus).
+    // Vorher buchte jede Hauptzeile das volle Rechnungsbrutto auf 1020 →
+    // Bank überschoss um den erlassenen Betrag (Befund Nachhol-Import
+    // 07.08.2026: 12.20 über dem E-Banking-Saldo).
+    final bankKuerzung = (differenz < 0 &&
+            rechnungen.isNotEmpty &&
+            differenz.abs() < _round5Rappen(rechnungen.last.betragBrutto))
+        ? _round5Rappen(differenz.abs())
+        : 0.0;
 
     for (final rechnung in rechnungen) {
       final rechnungBrutto = _round5Rappen(rechnung.betragBrutto);
@@ -47,16 +59,19 @@ class ZahlungsdifferenzService {
         continue;
       }
 
+      final bankBetrag = identical(rechnung, rechnungen.last)
+          ? _round5Rappen(rechnungBrutto - bankKuerzung)
+          : rechnungBrutto;
       final rechnungDatum = datumFuer(rechnung);
       final buchung = await BuchungRepository.create({
         'datum': alsText(rechnungDatum),
         'belegnummer': rgNr,
         'soll_konto': 1020,
         'haben_konto': 1100,
-        'betrag_netto': rechnungBrutto,
+        'betrag_netto': bankBetrag,
         'mwst_satz': 0,
         'mwst_betrag': 0,
-        'betrag_brutto': rechnungBrutto,
+        'betrag_brutto': bankBetrag,
         'beschreibung': 'Zahlungseingang $rgNr (Sammelzahlung)',
         'zahlungsweg': 'bank',
         'beleg_typ': 'zahlung',
@@ -66,7 +81,6 @@ class ZahlungsdifferenzService {
       erstellteBuchungen.add(buchung);
     }
 
-    final differenz = _round5Rappen(_round5Rappen(zahlungBetrag) - gesamtBrutto);
     if (differenz.abs() >= 0.01) {
       final letzte = rechnungen.last;
       final rgNr = letzte.rechnungsnummer ?? '';
