@@ -268,15 +268,22 @@ lassen.
    Invariante DB-weit: 0 Verletzungen. Nebeneffekt: künftige
    Heineken-Zahlungseingänge gleichen 1100 rappengenau aus (B8-Rundungspunkt
    für Heineken miterledigt).
-2. **B1** Doppelbuchung: 4 Code-Blöcke streichen (Variante A), dann die
-   895 + 79 Trennbuchungen bereinigen. ✅ **Vorbedingung erledigt 07.08.2026:
-   B6.1–B6.3 repariert** (v0.72.6): Gegenbuchung datiert aufs Original und
-   trägt kein `mwst_konto` mehr (`storno_logik.dart`, 7 Tests); zugehörige
-   MwSt-Trennbuchungen werden mitstorniert; Ausschluss-Filter
-   (`zaehltFuerSaldo`) in getAllSaldi, MWST-Quartals-Provider und 5
-   Idempotenz-Guards; Migration 166 härtet die MWST-View
-   (`storno_von_id IS NULL`). Der Storni-Weg für die Bereinigung ist damit
-   frei — Entscheid Storni vs. Migration (G4) steht noch aus.
+2. ✅ **B1 + B6 — KOMPLETT ERLEDIGT 07.08.2026:**
+   - **B6 Storno-Reparatur** (v0.72.6): Gegenbuchung datiert aufs Original,
+     ohne `mwst_konto` (`storno_logik.dart`, 7 Tests); Trennbuchungen werden
+     mitstorniert; Ausschluss-Filter in getAllSaldi/MWST-Provider/5 Guards;
+     Migration 166 härtet die MWST-View.
+   - **B1 Code-Fix** (v0.72.7): alle 4 Trennbuchungs-Blöcke gestrichen
+     (Reinigung, Heineken, Spesen, Kreditor-`zeile2`) — Bruttomethode läuft
+     allein über `mwst_konto`/SaldoExpansion.
+   - **B1 Datenbereinigung** (Entscheid G4 = Migration mit Snapshot): **977
+     Trennbuchungen gelöscht** (898 USt 3400/2200 = 10'219.98 + 79 VSt
+     Spesen = 184.26; 3 mehr als im Bericht — der Fehler lief bis zum Fix
+     weiter). Snapshot `snapshot_mwst_trennbuchungen.geloescht`, Skript
+     `Datenbank/wartung/bereinigung_mwst_trennbuchungen_2026_08_07.sql`.
+     Wirkung: Ertrag 3400 +10'219.98, MwSt-Schuld 2200 −10'219.98,
+     Vorsteuer 1171 −184.26. Verifiziert: 0 Muster-Reste, 0
+     Invarianten-Verletzungen, MWST-View unverändert (war immun).
 3. **camt-Vorbereitung:** Stichtag-Off-by-One + B8-Richtungsfehler fixen,
    frische camt-Datei ab 15.07. besorgen, dann Nachhol-Import 12.03.–heute
    (mit Alias-Lernen).

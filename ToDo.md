@@ -4,6 +4,15 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08. (v0.72.7): Fahrplan Schritt 2b — MwSt-Doppelbuchung behoben (B1)
+
+- **Code-Fix (v0.72.7, live):** Alle 4 Trennbuchungs-Blöcke ersatzlos gestrichen — `reinigung_buchung_service` (MwSt 3400/2200), `heineken_buchung_service` (MwSt 3400/2200), `spesen_import_service` (Vorsteuer 1171/Aufwand), `kreditor_buchung.zeile2` (rein, Test zuerst angepasst). Die Bruttomethode läuft allein über `mwst_konto` + SaldoExpansion — wie bei allen Vorlagen und der Excel-Historik. 969 Tests grün.
+- **Datenbereinigung (Entscheid Daniel: Migration mit Snapshot):** **977 Zeilen gelöscht** — 898 USt-Trennbuchungen 3400/2200 (CHF 10'219.98, davon 3 erst nach dem Bericht entstanden: der Fehler lief bis zum Deploy weiter) + 79 Spesen-Vorsteuer-Zeilen (CHF 184.26). Snapshot: `snapshot_mwst_trennbuchungen.geloescht` (Rollback = INSERT zurück), Skript `Datenbank/wartung/bereinigung_mwst_trennbuchungen_2026_08_07.sql`. Beleg-Verknüpfungen der Spesen-Zeilen via CASCADE mit; Dateien werden Waisen («Speicher aufräumen»).
+- **Wirkung:** Ertrag 3400 **+10'219.98**, MwSt-Schuld 2200 **−10'219.98**, Vorsteuer 1171 −184.26, Aufwand +184.26. **Verifiziert:** 0 Muster-Reste, 0 Invarianten-Verletzungen, `view_mwst_abrechnung` unverändert (die View war immun — sie bleibt die massgebende MWST-Zahl). Kontensaldi/Bilanz/ER zeigen jetzt dieselben Werte wie die View.
+- **Nächster Fahrplan-Schritt (3):** camt vorbereiten — Stichtag-Off-by-One (`camt_stichtag.dart`) + Richtungsfehler `camt_ausgabe_booker` fixen, frische GKB-Datei ab 15.07. besorgen, dann Nachhol-Import.
+
+---
+
 ## 🟢 ERLEDIGT 07.08. (v0.72.6): Fahrplan Schritt 2a — Storno-Mechanik repariert (B6.1–B6.3)
 
 - **Neue reine Logik** `services/buchhaltung/storno_logik.dart` (TDD, 7 Tests): Gegenbuchung datiert **aufs Original** (Datum + Geschäftsjahr aus dem Original-Datum, nicht «heute»), trägt **kein `mwst_konto`** mehr (Ausschluss-Modell: storniertes Original UND Gegenbuchung zählen in keiner Auswertung — wie Bilanz/ER seit v0.16.15); `stornieren()` nimmt **zugehörige MwSt-Trennbuchungen desselben Belegs/Tages mit** (Zahlungen nie); Gegenbuchungen selbst sind nicht stornierbar.
