@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/util/heineken_buchung_betraege.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
@@ -8,8 +9,6 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 /// - Freigabe → Debitoren-Buchung (Soll 1100 / Haben 3400) + MwSt
 /// - Bezahlt → Zahlungseingang (Soll 1020 / Haben 1100)
 class HeinekenBuchungService {
-  static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
-
   /// Erstellt Buchung wenn Heineken-Rechnung freigegeben wird.
   /// Soll 1100 (Debitoren) / Haben 3400 (Dienstleistungsertrag)
   /// + MwSt-Buchung: Soll 3400 / Haben 2200 (Geschuldete MwSt)
@@ -27,10 +26,13 @@ class HeinekenBuchungService {
       return null;
     }
 
-    // Beträge aus Rechnung (bereits 5-Rappen-gerundet)
-    final netto = rechnung.betragNetto;
-    final mwstBetrag = rechnung.mwstBetrag;
-    final brutto = _round5Rappen(rechnung.betragBrutto);
+    // Beträge exakt aus der Rechnung — Heineken fakturiert ungerundet,
+    // KEINE 5-Rappen-Rundung (sonst brutto ≠ netto + mwst; Befund B2 06.08.2026).
+    final betraege = heinekenBuchungsBetraege(
+        netto: rechnung.betragNetto, brutto: rechnung.betragBrutto);
+    final netto = betraege.netto;
+    final mwstBetrag = betraege.mwst;
+    final brutto = betraege.brutto;
     final mwstSatz = netto > 0 ? (mwstBetrag / netto * 100) : 8.1;
 
     final monatLabel = rechnung.heinekenMonat != null
