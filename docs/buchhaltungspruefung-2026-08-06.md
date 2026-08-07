@@ -260,8 +260,14 @@ lassen.
 
 ## F. Fahrplan (Reihenfolge ist Teil des Befunds)
 
-1. **B2** Heineken-Rundung fixen (3 Zeilen Code + 3 Datenzeilen) — sonst
-   crasht Schritt 2 im Debug-Build.
+1. ✅ **B2** Heineken-Rundung — **ERLEDIGT 07.08.2026:** Buchung übernimmt
+   Netto/Brutto jetzt exakt aus der Rechnung, MwSt = brutto − netto
+   (`heinekenBuchungsBetraege`, v0.72.5 live, +3 Tests); die 3 Buchungen
+   04–06/2026 auf das Rechnungsbrutto korrigiert
+   (`Datenbank/wartung/korrektur_heineken_brutto_2026_08_07.sql`).
+   Invariante DB-weit: 0 Verletzungen. Nebeneffekt: künftige
+   Heineken-Zahlungseingänge gleichen 1100 rappengenau aus (B8-Rundungspunkt
+   für Heineken miterledigt).
 2. **B1** Doppelbuchung: 4 Code-Blöcke streichen (Variante A), dann die
    895 + 79 Trennbuchungen bereinigen. **Vorher B6.1–B6.3 reparieren**, wenn
    die Bereinigung als Storni laufen soll (empfohlen wegen GeBüV) — sonst per

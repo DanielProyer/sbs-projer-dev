@@ -4,6 +4,15 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08. (v0.72.5): Buchhaltungs-Fahrplan Schritt 1 — Heineken-Rundung (B2)
+
+- **Code:** `heineken_buchung_service.dart` rundet das Brutto nicht mehr auf 5 Rappen — Heineken wird ungerundet fakturiert (Regel 15.07.). Neue reine Funktion `heinekenBuchungsBetraege` (`core/util/heineken_buchung_betraege.dart`, TDD, 3 Tests): Netto/Brutto exakt aus der Rechnung, MwSt = brutto − netto → Invariante `brutto = netto + mwst` gilt konstruktiv. 962 Tests grün, live v0.72.5.
+- **Daten:** Die 3 betroffenen Hauptbuchungen 04–06/2026 aufs Rechnungsbrutto gesetzt (6288.60→6288.62 · 6198.25→6198.24 · 6594.95→6594.96); Skript inkl. Rollback-Werten: `Datenbank/wartung/korrektur_heineken_brutto_2026_08_07.sql`. **Verifiziert: 0 Invarianten-Verletzungen in der ganzen DB.** Damit ist auch der Debug-Assert-Crash weg und die −0.02-Bilanzdifferenz 2026 erklärt/behoben.
+- **Nebeneffekt:** Buchungs-Brutto = Rechnungs-Brutto = Zahlungsbetrag → Heineken-Zahlungseingänge gleichen 1100 künftig rappengenau aus (B8-Rundungspunkt für Heineken miterledigt).
+- **Nächster Schritt (2):** Storno-Mechanik reparieren (B6.1–B6.3), dann MwSt-Doppelbuchung (B1: 4 Code-Blöcke + 895+79 Zeilen bereinigen).
+
+---
+
 ## 🟢 ERLEDIGT 07.08.: Original-Monatsrechnungen (Heineken) in den Storage geladen — 83 PDFs
 
 **Befund (aus Projekt Heineken):** Die 83 historischen Heineken-Monatsrechnungen (05/2019–03/2026) wurden am 14.07.2026 als Daten-Backfill per SQL-Batch angelegt; ihre Storage-PDFs waren nur die 3-seitige Übersicht+Detail (~130–175 KB) — die Formularseiten (Rapporte) entstanden damals ausserhalb der App (Heineken-Excel-Vorlagen, von Hand angehängt) und fehlten komplett. Die App-Rechnungen ab 04/2026 waren korrekt.

@@ -6,7 +6,9 @@
 
 **Erstellt:** 14.07.2026 (nach 5-Agenten-Vollcheck). **Detailbefunde:** Memory `buchhaltung_vollcheck_2026_07.md` · Kurz-Aktionsliste: `ToDo.md` → „Buchhaltung-Vollcheck 14.07.2026".
 
-**Aktueller Stand:** 🟡 Phase 0 offen (Daniel macht zuerst andere Sachen; danach camt-Test + Testdaten löschen). Umsetzung ab Phase 1 hat **noch nicht begonnen**.
+**Aktueller Stand (07.08.2026):** ✅ Phase 1 komplett erledigt am 28.07.2026 (Delta-Import 220 Zahlungseingänge, Bank per 11.03. = +3'322.26 exakt; siehe ToDo.md). 🟡 Phase 0.2–0.4 (camt-Test, Testdaten, frischer Export) weiter offen — Vorbedingung für Phase 2.
+
+> **⚠️ Seit 06.08.2026 gilt zusätzlich der Fahrplan der Buchhaltungs-Gesamtprüfung** (`docs/buchhaltungspruefung-2026-08-06.md`, Abschnitt F — 7 Schritte mit fester Reihenfolge). Er schiebt sich VOR Phase 2 dieses Plans: Erst Rundung/Doppelbuchung/camt-Codefixes (Schritte 1–3), dann deckt Schritt 3–5 die Phasen 2–3 ab. Stand: **Schritt 1 (B2 Heineken-Rundung) ✅ erledigt 07.08.2026** (v0.72.5 + 3 Datenzeilen, `Datenbank/wartung/korrektur_heineken_brutto_2026_08_07.sql`); Schritte 2–7 offen.
 
 ---
 
@@ -48,9 +50,9 @@ Buchhaltung ab dem Übergang lückenlos in der App führen. Die **Ertragsseite**
 
 ## PHASE 1 — Bank an das Excel-Ende anschliessen (mechanisch, Claude nach Freigabe)
 
-- [ ] **1.1** Die 1 unklare Excel-Zeile klären: `020_2025_12_05_XXX_00007460` (74.60, Bemerkung „UNKLAR für welchen Betrieb NOCH ABKLÄREN") — welcher Betrieb/welche Rechnung?
-- [ ] **1.2** **Delta-Import der 220 Zahlungseingänge** aus dem Excel-Journal (01.12.2025–11.03.2026): 217× Soll 1020 / Haben 1100 (Debitoren-Eingänge, 49'546.65) + 3× Soll 1020 / Haben 1000 (Bareinlagen, 5'645.05) = CHF 55'191.70. Quelle: `journal.tsv`, eindeutig per `id_bs` → idempotent per `belegnummer` (Doppelimport-Schutz).
-- [ ] **1.3** **Verifikation:** Bank 1020 per 11.03.2026 = **+3'322.26** (auf den Rappen = camt-Opening-Balance und Excel-Bilanz). Debitoren 1100 sinkt entsprechend.
+- [x] **1.1** ✅ 28.07.2026: `020_2025_12_05_XXX_00007460` (74.60) = **Blockhuus Davos (0080)**, Zahler Gehri Gastronomie GmbH (Alias + Rechnungsadresse beim Betrieb erfasst).
+- [x] **1.2** ✅ 28.07.2026: **Delta-Import der 220 Zahlungseingänge** ausgeführt (217× 1020/1100 + 3× 1020/1000 = CHF 55'191.70, `notizen = 'Excel-Delta-Import Zahlungseingaenge 28.07.2026'`).
+- [x] **1.3** ✅ Verifiziert: Bank 1020 per 11.03.2026 = **+3'322.26** exakt (= E-Banking-Stand); Debitoren 176'228.04, Kasse 18'697.78 — alle drei Salden treffen die Prognose.
 
 ---
 
