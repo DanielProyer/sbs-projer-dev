@@ -36,9 +36,10 @@ void main() {
     expect(keys.length, 2);
   });
 
-  test('Stichtag: vor 11.03.2026 nicht automatisiert', () {
+  test('Stichtag: bis und mit 11.03.2026 nicht automatisiert (Excel-Ende)', () {
     expect(CamtStichtag.istAutomatisierbar(DateTime(2026, 3, 10)), false);
-    expect(CamtStichtag.istAutomatisierbar(DateTime(2026, 3, 11)), true);
+    expect(CamtStichtag.istAutomatisierbar(DateTime(2026, 3, 11)), false);
+    expect(CamtStichtag.istAutomatisierbar(DateTime(2026, 3, 12)), true);
   });
 
   test('Kollidierende Fallback-txKeys werden disambiguiert', () {

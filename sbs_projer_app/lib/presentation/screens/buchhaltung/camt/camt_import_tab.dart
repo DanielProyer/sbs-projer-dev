@@ -219,7 +219,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
               '$_automatisierbarCount von ${txs.length} Transaktion${txs.length == 1 ? '' : 'en'} '
-              'liegen am/nach dem Stichtag ${_dateFormat.format(CamtStichtag.stichtag)}. '
+              'liegen nach dem Stichtag ${_dateFormat.format(CamtStichtag.stichtag)} (der Tag selbst ist aus dem Excel gebucht). '
               'Nichts wird automatisch gebucht — du bestätigst jede Buchung danach selbst.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
