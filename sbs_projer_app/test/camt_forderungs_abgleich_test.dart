@@ -129,9 +129,11 @@ void main() {
   });
 
   test('Sammelzahler (Weisse Arena/Davos Klosters) nie AUTO — auch mit gelerntem Alias', () {
-    // «Weisse Arena Hospitality AG» zahlt für mehrere Objekte. Selbst wenn ein
-    // Alias auf einen Betrieb gelernt wurde, darf der Alias-Pfad nicht
-    // automatisch verbuchen — die Zahlung gehört evtl. einem Schwester-Objekt.
+    // «Weisse Arena Hospitality AG» zahlt für mehrere Objekte. Ohne
+    // Vermerk-Hinweis (Betriebs-/Rechnungsnummer) wird sie seit 07.08.2026
+    // gar nicht mehr über den Namen geroutet — auch nicht als Vorschlag beim
+    // Alias-Betrieb (vorher sammelten sich alle Zahlungen bei IKIGAI).
+    // Sie bleibt in «Nicht zugeordnet» für die manuelle Gruppen-Zuordnung.
     final betriebeMitAlias = [
       {'id': 'b_ikigai', 'name': 'IKIGAI', 'ort': 'Laax', 'aliase': 'weisse arena hospitality ag', 'nr': ''},
     ];
@@ -141,6 +143,8 @@ void main() {
       betriebe: betriebeMitAlias,
     );
     expect(erg.auto, isEmpty);
-    expect(erg.manuell.length, 1, reason: 'als Vorschlag in die manuelle Prüfung');
+    expect(erg.manuell, isEmpty);
+    expect(erg.unbekannteGutschriften.length, 1,
+        reason: 'bleibt zur manuellen Zuordnung in «Nicht zugeordnet»');
   });
 }

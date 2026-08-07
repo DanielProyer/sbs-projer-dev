@@ -212,9 +212,12 @@ void main() {
     expect(r.auto.first.forderungen.first.id, 'r1');
   });
 
-  group('Sammelzahler-Betrags-Routing (Regel Daniel 07.08.2026)', () {
-    test('Goodfast: eindeutiger Betrag routet zum Betrieb — manuell, nie auto',
+  group('Sammelzahler-Routing (Regel Daniel 07.08.2026)', () {
+    test('Goodfast ohne Vermerk-Hinweis → Nicht zugeordnet (kein Betrags-/Namens-Routing)',
         () {
+      // Bewusst KEIN Routing über den Betrag: Das warf Zahlungen in fremde
+      // Betriebe mit zufällig gleichem Betrag (Fall Waldhuus). Zuordnung
+      // manuell — der Dialog hebt Betrags-Treffer hervor.
       final r = ForderungsAbgleichService.abgleich(
         gutschriften: [_gut(143.75, 'Goodfast Hotels AG')],
         offeneForderungen: [
@@ -223,28 +226,28 @@ void main() {
         ],
         betriebe: betriebe,
       );
-      expect(r.auto, isEmpty); // Sammelzahler nie auto
-      expect(r.manuell.single.betriebId, 'b1');
-      expect(r.manuell.single.gutschriften.single.amount, 143.75);
-    });
-
-    test('Goodfast: Betrag passt auf ZWEI Forderungen → kein Betrags-Routing',
-        () {
-      final r = ForderungsAbgleichService.abgleich(
-        gutschriften: [_gut(143.75, 'Goodfast Hotels AG')],
-        offeneForderungen: [
-          _rg('r1', 'b1', 143.75),
-          _rg('r2', 'b2', 143.75),
-        ],
-        betriebe: betriebe,
-      );
-      // Mehrdeutig → bleibt unbekannt (kein Alias im Test-Setup).
       expect(r.auto, isEmpty);
       expect(r.manuell, isEmpty);
       expect(r.unbekannteGutschriften.single.amount, 143.75);
     });
 
-    test('Vermerk-Betriebsnummer schlägt Betrags-Routing', () {
+    test('Sammelzahler wird NICHT über Alias/Namen geroutet', () {
+      // Weisse Arena hat einen gelernten Alias auf IKIGAI — ohne Vermerk darf
+      // die Zahlung trotzdem nicht bei IKIGAI landen (sie kann jedem der
+      // sechs Objekte gehören).
+      final r = ForderungsAbgleichService.abgleich(
+        gutschriften: [_gut(74.60, 'Weisse Arena Hospitality AG')],
+        offeneForderungen: [_rg('r1', 'b1', 74.60)],
+        betriebe: [
+          {'id': 'b1', 'name': 'IKIGAI', 'aliase': 'weisse arena hospitality ag'},
+        ],
+      );
+      expect(r.auto, isEmpty);
+      expect(r.manuell, isEmpty);
+      expect(r.unbekannteGutschriften.single.amount, 74.60);
+    });
+
+    test('Vermerk-Betriebsnummer routet den Sammelzahler', () {
       final betriebeMitNr = [
         {'id': 'b1', 'name': 'Grischa', 'heineken_nr': '0089'},
         {'id': 'b2', 'name': 'Golden Dragon', 'heineken_nr': '0090'},
@@ -269,6 +272,41 @@ void main() {
         betriebe: betriebeMitNr,
       );
       expect(r.manuell.single.betriebId, 'b2');
+    });
+
+    test('Rechnungsnummer im Vermerk routet den Sammelzahler (DKB neuer Stil)',
+        () {
+      // Seit Mai schreiben DKB/Weisse Arena die Rechnungsnummer statt der
+      // Betriebsnummer: «01.05.2026 2026-04-0505».
+      final g = CamtTransaction(
+        amount: 74.60,
+        currency: 'CHF',
+        isCredit: true,
+        bookingDate: DateTime(2026, 5, 12),
+        partyName: 'Davos Klosters Bergbahnen AG',
+        remittanceInfo: '01.05.2026 2026-04-0505',
+        txKey: 'tx-dkb-rn',
+      );
+      final rMitNr = Rechnung(
+        id: 'r1',
+        userId: 'u',
+        rechnungsnummer: '2026-04-0505',
+        rechnungstyp: 'kundenrechnung',
+        betriebId: 'b1',
+        rechnungsdatum: DateTime(2026, 4, 4),
+        faelligkeitsdatum: DateTime(2026, 5, 4),
+        betragNetto: 74.60,
+        mwstBetrag: 0,
+        betragBrutto: 74.60,
+        zahlungsstatus: 'offen',
+      );
+      final r = ForderungsAbgleichService.abgleich(
+        gutschriften: [g],
+        offeneForderungen: [rMitNr, _rg('r2', 'b2', 55.0)],
+        betriebe: betriebe,
+      );
+      expect(r.manuell.single.betriebId, 'b1');
+      expect(r.manuell.single.gutschriften.single.txKey, 'tx-dkb-rn');
     });
   });
 

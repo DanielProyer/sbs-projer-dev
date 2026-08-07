@@ -43,13 +43,13 @@ class AutoMatchTile extends StatelessWidget {
       softWrap: false,
       style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
     );
-    // Detail-Zeile (Zahler/Treffer-Grund/Bemerkung) — darf umbrechen, damit
-    // die Kontroll-Info auch auf dem Handy vollständig lesbar bleibt.
+    // Detail-Block (Zahler/Grund, Rechnungszeilen, Bemerkung) — mehrzeilig,
+    // damit die Kontroll-Info auch auf dem Handy vollständig lesbar bleibt.
     final detailText = (detail == null || detail!.isEmpty)
         ? null
         : Text(
             detail!,
-            maxLines: 3,
+            maxLines: 8,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
           );

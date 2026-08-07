@@ -18,7 +18,6 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/auto_mat
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/paar_badge.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
-import 'package:sbs_projer_app/services/camt/sammelzahler.dart';
 import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -52,9 +51,6 @@ class AbgleichVorschau extends ConsumerStatefulWidget {
 class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   final _dateFormat = DateFormat('dd.MM.yyyy');
 
-  // Max. gerenderte Zeilen pro Gruppe (verhindert die 1000-Zeilen-Wand).
-  static const _maxZeilen = 50;
-
   // Auch bei Auto-Treffern den Zahlernamen als Alias des Betriebs lernen.
   // Standard an; pro Abgleich/Import abschaltbar (Schutz gegen Festschreiben
   // eines falschen unscharfen Treffers).
@@ -64,7 +60,6 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   Widget build(BuildContext context) {
     final erg = widget.ergebnis;
     final autoSumme = erg.auto.fold<double>(0, (s, t) => s + t.gutschrift.amount);
-    final offenSumme = erg.keineZahlung.fold<double>(0, (s, r) => s + r.betragBrutto);
     final unbekanntSumme =
         erg.unbekannteGutschriften.fold<double>(0, (s, g) => s + g.amount);
     return ListView(
@@ -72,7 +67,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _uebersicht(erg, autoSumme, offenSumme, unbekanntSumme),
+        _uebersicht(erg, autoSumme, unbekanntSumme),
 
         // 🟢 Auto-gematcht
         _GruppeCard(
@@ -145,60 +140,17 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           children: _unbekanntZeilen(erg.unbekannteGutschriften),
         ),
 
-        // 🔴 Keine Zahlung gefunden (standardmäßig zugeklappt, Deckel 50 Zeilen)
-        _GruppeCard(
-          emoji: '🔴',
-          titel: 'Keine Zahlung gefunden',
-          anzahl: erg.keineZahlung.length,
-          summe: erg.keineZahlung.isEmpty ? null : offenSumme,
-          farbe: AppColors.error,
-          initiallyExpanded: false,
-          children: [
-            for (final r in _keineZahlungSortiert(erg))
-              ListTile(
-                dense: true,
-                title: Text(
-                  '${r.rechnungsnummer ?? '?'} — ${r.betragBrutto.toStringAsFixed(2)} CHF',
-                ),
-                subtitle: Text(
-                  '${widget.betriebName[r.betriebId] ?? '?'} · '
-                  'Rechnung vom ${_dateFormat.format(r.rechnungsdatum)}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: _forderungPdfLink(r),
-              ),
-            if (erg.keineZahlung.length > _maxZeilen)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: Text(
-                  '… und ${erg.keineZahlung.length - _maxZeilen} weitere '
-                  '(im Forderungen-Hub)',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-          ],
-        ),
+        // 🔴 «Keine Zahlung gefunden» bewusst NICHT mehr angezeigt (Entscheid
+        // Daniel 07.08.2026): offene Rechnungen ohne Zahlung sind für den
+        // Abgleich irrelevant — dafür gibt es den Forderungen-Hub.
       ],
     );
   }
 
-  /// „Keine Zahlung gefunden" neueste zuoberst — die jüngsten Rechnungen sind
-  /// die, bei denen eine fehlende Zahlung noch etwas bedeutet.
-  List<Rechnung> _keineZahlungSortiert(AbgleichErgebnis erg) {
-    final sortiert = [...erg.keineZahlung]
-      ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
-    return sortiert.take(_maxZeilen).toList();
-  }
-
-  /// Kompakte Kopf-Übersicht: vier KPIs (umbrechend auf Smartphone).
+  /// Kompakte Kopf-Übersicht: drei KPIs (umbrechend auf Smartphone).
   Widget _uebersicht(
     AbgleichErgebnis erg,
     double autoSumme,
-    double offenSumme,
     double unbekanntSumme,
   ) {
     return Card(
@@ -229,12 +181,6 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                   anzahl: erg.unbekannteGutschriften.length,
                   sub: '${chf(unbekanntSumme)} CHF',
                 ),
-                _Kpi(
-                  farbe: AppColors.error,
-                  label: 'Keine Zahlung',
-                  anzahl: erg.keineZahlung.length,
-                  sub: '${chf(offenSumme)} CHF offen',
-                ),
               ],
             ),
           ],
@@ -244,28 +190,32 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   }
 
   /// Baut die Beschreibung + delegiert an das getestete, responsive
-  /// [AutoMatchTile] (Betrag/Beschreibung strikt einzeilig).
+  /// [AutoMatchTile] (Betrag/Beschreibung strikt einzeilig, Details darunter
+  /// mehrzeilig — alle Kontroll-Infos auf einen Blick, Wunsch Daniel 07.08.).
   Widget _autoZeile(AutoTreffer t) {
     final betrieb = widget.betriebName[t.forderungen.first.betriebId] ?? '';
-    final rechnungen = t.forderungen.length == 1
-        ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}'
-        : '${t.forderungen.length} Rechnungen '
-            '(${t.forderungen.map((r) => r.rechnungsnummer ?? '?').join(', ')})';
     final teile = [
       if (betrieb.isNotEmpty) betrieb,
-      rechnungen,
-      _dateFormat.format(t.gutschrift.bookingDate),
+      'Zahlung ${_dateFormat.format(t.gutschrift.bookingDate)}',
     ];
-    // Kontroll-Zeile: Zahler + wie der Treffer zustande kam + Bemerkung.
+    // Kontroll-Block: Zahler + Treffer-Grund, jede Rechnung mit Nummer, Datum
+    // und Betrag, zuletzt die Bank-Bemerkung.
     final zahler = effektiverZahlername(
         partyName: t.gutschrift.partyName,
         additionalInfo: t.gutschrift.additionalInfo);
     final remit = t.gutschrift.remittanceInfo?.trim();
-    final detail = [
+    final kopf = [
       if (zahler != null) 'Zahler: $zahler',
       if (t.grund.isNotEmpty) t.grund,
-      if (remit != null && remit.isNotEmpty) 'Bemerkung: $remit',
     ].join(' · ');
+    final detail = [
+      if (kopf.isNotEmpty) kopf,
+      for (final r in t.forderungen)
+        'Rechnung ${r.rechnungsnummer ?? '?'} vom '
+            '${_dateFormat.format(r.rechnungsdatum)} — '
+            '${r.betragBrutto.toStringAsFixed(2)} CHF',
+      if (remit != null && remit.isNotEmpty) 'Bemerkung: $remit',
+    ].join('\n');
     return AutoMatchTile(
       betrag: '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
       beschreibung: teile.join(' · '),
@@ -931,6 +881,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final anzahlAlte = widget.alleOffenen
         .where((r) => !istImAbgleichsfenster(r.rechnungsdatum, jetzt))
         .length;
+    // Exakte Betrags-Treffer nach oben + markieren — bei Sammelzahlern ohne
+    // Vermerk (Goodfast) ist der Betrag das beste Signal für die Handarbeit.
+    bool passtBetrag(Rechnung r) => (r.betragBrutto - g.amount).abs() < 0.005;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -945,7 +898,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             final betrieb = (widget.betriebName[r.betriebId] ?? '').toLowerCase();
             return nr.contains(q) || betrieb.contains(q);
           }).toList()
-            ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+            ..sort((a, b) {
+              final ba = passtBetrag(a) ? 0 : 1;
+              final bb = passtBetrag(b) ? 0 : 1;
+              if (ba != bb) return ba - bb;
+              return b.rechnungsdatum.compareTo(a.rechnungsdatum);
+            });
           final zahlSumme = g.amount;
           final fordSumme = gewaehlt.fold<double>(0, (s, r) => s + r.betragBrutto);
           final info = bewerteDifferenz(zahlSumme, fordSumme);
@@ -1009,10 +967,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             contentPadding: EdgeInsets.zero,
                             controlAffinity: ListTileControlAffinity.leading,
                             value: gewaehlt.contains(r),
+                            tileColor: passtBetrag(r)
+                                ? AppColors.success.withAlpha(20)
+                                : null,
                             title: Text('${_dateFormat.format(r.rechnungsdatum)} — '
                                 '${r.betragBrutto.toStringAsFixed(2)} CHF'),
                             subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
-                                '${widget.betriebName[r.betriebId] ?? '?'}'),
+                                '${widget.betriebName[r.betriebId] ?? '?'}'
+                                '${passtBetrag(r) ? ' · 💰 Betrag passt' : ''}'),
                             secondary: _forderungPdfLink(r),
                             onChanged: (sel) => setDialogState(() {
                               if (sel == true) {
@@ -1284,13 +1246,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     );
   }
 
-  // Zahler, die für MEHRERE Betriebe zahlen → in „Nicht zugeordnet" NICHT
-  // gruppieren (jede Zahlung geht an einen anderen Kunden). Liste zentral in
-  // services/camt/sammelzahler.dart (dort auch der Auto-Match-Ausschluss).
-  bool _istMehrKundenZahler(String? name) => istSammelzahler(name);
-
   /// „Nicht zugeordnet": Zahlungen gleicher Einzahler gruppieren (Header +
-  /// Zeilen); Mehr-Kunden-Zahler (Davos Klosters, Weisse Arena) bleiben einzeln.
+  /// Zeilen). Auch Sammelzahler (Davos Klosters, Weisse Arena, Goodfast)
+  /// werden gruppiert — der Gruppen-Dialog zeigt alle ihre Zahlungen
+  /// beisammen, mit 💰-Betrags-Markierung und Paar-Punkten (vorher standen
+  /// sie einzeln verstreut in der Liste, Wunsch Daniel 07.08.2026).
   List<Widget> _unbekanntZeilen(List<CamtTransaction> guts) {
     final sortiert = [...guts]
       ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
@@ -1299,7 +1259,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     for (final g in sortiert) {
       final name = effektiverZahlername(
           partyName: g.partyName, additionalInfo: g.additionalInfo);
-      if (name == null || _istMehrKundenZahler(name)) {
+      if (name == null) {
         einzeln.add(g);
       } else {
         gruppen.putIfAbsent(zahlernameNorm(name), () => []).add(g);
@@ -1388,6 +1348,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             partyName: guts.first.partyName,
             additionalInfo: guts.first.additionalInfo) ??
         '?';
+    // Betrags-Treffer gegen IRGENDEINE Zahlung der Gruppe nach oben + markieren.
+    bool passtBetrag(Rechnung r) =>
+        guts.any((g) => (r.betragBrutto - g.amount).abs() < 0.005);
 
     final ok = await showDialog<bool>(
       context: context,
@@ -1402,7 +1365,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             return (r.rechnungsnummer ?? '').toLowerCase().contains(q) ||
                 (widget.betriebName[r.betriebId] ?? '').toLowerCase().contains(q);
           }).toList()
-            ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+            ..sort((a, b) {
+              final ba = passtBetrag(a) ? 0 : 1;
+              final bb = passtBetrag(b) ? 0 : 1;
+              if (ba != bb) return ba - bb;
+              return b.rechnungsdatum.compareTo(a.rechnungsdatum);
+            });
           final zahlSumme =
               gewaehlteGuts.fold<double>(0, (s, g) => s + g.amount);
           final fordSumme = gewaehlteForderungen.fold<double>(
@@ -1472,12 +1440,16 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
                         value: gewaehlteForderungen.contains(r),
+                        tileColor: passtBetrag(r)
+                            ? AppColors.success.withAlpha(20)
+                            : null,
                         title: _mitPaarBadge(
                             badges.ford[r.id],
                             '${_dateFormat.format(r.rechnungsdatum)} — '
                             '${r.betragBrutto.toStringAsFixed(2)} CHF'),
                         subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
-                            '${widget.betriebName[r.betriebId] ?? '?'}'),
+                            '${widget.betriebName[r.betriebId] ?? '?'}'
+                            '${passtBetrag(r) ? ' · 💰 Betrag passt' : ''}'),
                         secondary: _forderungPdfLink(r),
                         onChanged: (sel) => setDialogState(() {
                           if (sel == true) {
