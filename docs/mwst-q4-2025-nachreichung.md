@@ -1,5 +1,23 @@
 # MWST Q4/2025 — Nachreichung inkl. Korrektur 2025
 
+> ## ✅ BESTÄTIGT 07.08.2026 — ePortal-Check Daniel (Screenshot)
+>
+> Das ePortal zeigt: **Q4/2025 Status «Eingereicht»** (Frist war 31.05.2026,
+> Valuta 28.02.2026) — die camt-Vermutung von unten ist damit hart bestätigt.
+> **Offen sind nur noch Q1/2026 und Q2/2026, beide «Zu erledigen» mit
+> Einreichefrist Ende August** (Q1/2026: **31.08.2026** — Frist im Portal
+> verlängert; Q2/2026: 30.08.2026). Achtung: Die Verzugszins-Valuta von
+> Q1/2026 bleibt der 30.05.2026 — die Fristverlängerung stoppt den Zins
+> nicht, bei diesen Beträgen aber überschaubar.
+>
+> **Nächster Schritt für die rappengenaue Berichtigung 2025:** Daniel lädt im
+> Portal (…-Menü der Zeile) die Abrechnungs-PDFs **Q4/2025, Q3/2025, Q2/2025**
+> und legt sie in `00_Rechnungen/02_MWST Abrechnung/` ab — daraus rechne ich
+> die deklarierten Ziffern nach und ersetze die Schätzung 1'508.62 durch den
+> exakten Berichtigungswert. Zeitplan: Fahrplan-Schritte 2–4 bis ~20.08.,
+> dann Q1+Q2/2026 zusammen einreichen + Berichtigung 2025 im selben
+> Portalbesuch.
+
 > ## ⚠️ ÜBERHOLT — KORREKTUR 06.08.2026 (spätabends)
 >
 > **Q4/2025 wurde sehr wahrscheinlich bereits eingereicht und bezahlt.** In der
