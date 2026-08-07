@@ -24,10 +24,8 @@ class Camt053Parser {
 
     // Zeitraum
     final frToDt = _findElement(stmt, 'FrToDt');
-    final fromDate = DateTime.parse(
-        _text(_findElement(frToDt, 'FrDtTm')) ?? DateTime.now().toIso8601String());
-    final toDate = DateTime.parse(
-        _text(_findElement(frToDt, 'ToDtTm')) ?? DateTime.now().toIso8601String());
+    final fromDate = _parseDatum(_text(_findElement(frToDt, 'FrDtTm')), 'FrDtTm');
+    final toDate = _parseDatum(_text(_findElement(frToDt, 'ToDtTm')), 'ToDtTm');
 
     // Salden
     double openingBalance = 0;
@@ -63,15 +61,28 @@ class Camt053Parser {
     );
   }
 
+  /// Datum mit verständlicher Fehlermeldung parsen — ein exotisches Format
+  /// soll nicht als roher «FormatException»-Stack im UI landen. Fehlender
+  /// Zeitraum (FrDtTm/ToDtTm) fällt auf «jetzt» zurück (wie bisher).
+  static DateTime _parseDatum(String? roh, String feld) {
+    if (roh == null) return DateTime.now();
+    final d = DateTime.tryParse(roh.trim());
+    if (d == null) {
+      throw FormatException(
+          'camt-Datei: unlesbares Datum in <$feld>: «$roh»');
+    }
+    return d;
+  }
+
   /// Parst eine Ntry und gibt eine oder mehrere Transaktionen zurück.
   /// Sammelaufträge (mehrere TxDtls-Einträge) werden in Einzeltransaktionen gesplittet.
   static List<CamtTransaction> _parseEntries(XmlElement ntry, String defaultCcy) {
     final isCredit = _text(_findElement(ntry, 'CdtDbtInd')) == 'CRDT';
     final bookingDtStr = _text(_findElement(_findElement(ntry, 'BookgDt'), 'Dt'));
     if (bookingDtStr == null) return [];
-    final bookingDate = DateTime.parse(bookingDtStr);
+    final bookingDate = _parseDatum(bookingDtStr, 'BookgDt');
     final valueDtStr = _text(_findElement(_findElement(ntry, 'ValDt'), 'Dt'));
-    final valueDate = valueDtStr != null ? DateTime.parse(valueDtStr) : null;
+    final valueDate = valueDtStr != null ? _parseDatum(valueDtStr, 'ValDt') : null;
     final ntryRef = _text(_findElement(ntry, 'AcctSvcrRef'));
     final ntryAddtlInfo = _text(_findElement(ntry, 'AddtlNtryInf'));
 

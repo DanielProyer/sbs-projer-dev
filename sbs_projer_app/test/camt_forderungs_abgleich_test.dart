@@ -127,4 +127,20 @@ void main() {
     expect(erg.auto.length, 1);
     expect(erg.auto.first.forderungen.first.id, 'r3');
   });
+
+  test('Sammelzahler (Weisse Arena/Davos Klosters) nie AUTO — auch mit gelerntem Alias', () {
+    // «Weisse Arena Hospitality AG» zahlt für mehrere Objekte. Selbst wenn ein
+    // Alias auf einen Betrieb gelernt wurde, darf der Alias-Pfad nicht
+    // automatisch verbuchen — die Zahlung gehört evtl. einem Schwester-Objekt.
+    final betriebeMitAlias = [
+      {'id': 'b_ikigai', 'name': 'IKIGAI', 'ort': 'Laax', 'aliase': 'weisse arena hospitality ag', 'nr': ''},
+    ];
+    final erg = ForderungsAbgleichService.abgleich(
+      gutschriften: [_gut(betrag: 250, name: 'Weisse Arena Hospitality AG')],
+      offeneForderungen: [_ford(id: 'r9', betriebId: 'b_ikigai', betrag: 250)],
+      betriebe: betriebeMitAlias,
+    );
+    expect(erg.auto, isEmpty);
+    expect(erg.manuell.length, 1, reason: 'als Vorschlag in die manuelle Prüfung');
+  });
 }

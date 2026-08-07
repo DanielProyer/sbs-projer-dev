@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/auto_match_tile.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
+import 'package:sbs_projer_app/services/camt/sammelzahler.dart';
 import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1094,14 +1095,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   }
 
   // Zahler, die für MEHRERE Betriebe zahlen → in „Nicht zugeordnet" NICHT
-  // gruppieren (jede Zahlung geht an einen anderen Kunden).
-  static const _mehrKundenZahler = ['davos klosters', 'weisse arena'];
-
-  bool _istMehrKundenZahler(String? name) {
-    if (name == null) return false;
-    final n = name.toLowerCase();
-    return _mehrKundenZahler.any(n.contains);
-  }
+  // gruppieren (jede Zahlung geht an einen anderen Kunden). Liste zentral in
+  // services/camt/sammelzahler.dart (dort auch der Auto-Match-Ausschluss).
+  bool _istMehrKundenZahler(String? name) => istSammelzahler(name);
 
   /// „Nicht zugeordnet": Zahlungen gleicher Einzahler gruppieren (Header +
   /// Zeilen); Mehr-Kunden-Zahler (Davos Klosters, Weisse Arena) bleiben einzeln.

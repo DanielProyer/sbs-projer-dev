@@ -3,7 +3,16 @@ import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 
+import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
+
 double _round2(double v) => (v * 100).roundToDouble() / 100;
+
+/// Löst die Konten einer Vorlage für den camt-Kontext auf. Phase-0a-Vorlagen
+/// (art 'ausgabe'/'einnahme') tragen das Konto in `hauptkonto` und haben
+/// soll/haben = NULL — der direkte Zugriff crashte dort (Fall «Bussen»/
+/// «Fahrbewilligung»). camt läuft immer über die Bank → Zahlungsweg 'bank'.
+AufgeloesteBuchung kontenFuerCamt(BuchungsVorlage vorlage) =>
+    GeschaeftsfallResolver.aufloesen(vorlage, 'bank');
 
 /// Konten und Beträge einer camt-Ausgabe-Buchung — richtungsbewusst (B8-Fix,
 /// Buchhaltungsprüfung 06.08.2026):
@@ -51,13 +60,14 @@ Map<String, dynamic> ausgabeBuchungsFelder({
 /// camt_tx_key direkt für robusten Dedup.
 class CamtAusgabeBooker {
   static Future<Buchung> book(CamtTransaction tx, BuchungsVorlage vorlage) async {
+    final konten = kontenFuerCamt(vorlage);
     final felder = ausgabeBuchungsFelder(
       betrag: tx.amount,
       isCredit: tx.isCredit,
       mwstSatz: vorlage.mwstSatz ?? 0,
-      vorlageSoll: vorlage.sollKonto!,
-      vorlageHaben: vorlage.habenKonto!,
-      vorlageMwstKonto: vorlage.mwstKonto,
+      vorlageSoll: konten.sollKonto,
+      vorlageHaben: konten.habenKonto,
+      vorlageMwstKonto: konten.mwstKonto,
     );
     final datumStr = tx.bookingDate.toIso8601String().split('T').first;
     final beschreibung = tx.partyName != null

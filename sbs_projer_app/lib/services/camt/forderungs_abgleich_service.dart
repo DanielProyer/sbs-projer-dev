@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
+import 'package:sbs_projer_app/services/camt/sammelzahler.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
 import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
@@ -84,10 +85,14 @@ class ForderungsAbgleichService {
     final unscharfeGuts = <CamtTransaction>{};
     for (final g in gutschriftenAktiv.where((g) => g.isCredit)) {
       final name = effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo);
-      final sicher = name == null
+      final treffer = name == null
           ? null
           : (CamtBetriebMatcher.matchByAlias(name, betriebe) ??
               CamtBetriebMatcher.matchExakt(name, betriebe));
+      // Sammelzahler (Zentrale zahlt für mehrere Objekte) sind nie «sicher» —
+      // auch nicht über einen gelernten Alias (Fall Weisse Arena → IKIGAI).
+      // Der Treffer bleibt aber als VORSCHLAG für die manuelle Prüfung stehen.
+      final sicher = (treffer != null && !istSammelzahler(name)) ? treffer : null;
       // Auflösungs-Reihenfolge: sicher → Bemerkung-Rechnungsnummer (direkte
       // Forderung) → Vermerk-Betriebnummer → unscharfer Name. Nur „sicher" ist
       // auto-fähig; alles andere landet als Vorschlag in der manuellen Prüfung.
@@ -97,6 +102,7 @@ class ForderungsAbgleichService {
       final zielId = sicher?['id'] ??
           refFord?.betriebId ??
           CamtBetriebMatcher.matchByNummer(vermerk.betriebNummer, betriebe)?['id'] ??
+          treffer?['id'] ??
           (name == null ? null : CamtBetriebMatcher.findBestMatch(name, betriebe)?['id']);
       if (zielId == null) continue;
       gutProBetrieb.putIfAbsent(zielId, () => []).add(g);

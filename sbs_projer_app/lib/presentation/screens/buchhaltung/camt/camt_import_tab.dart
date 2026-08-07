@@ -313,14 +313,6 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
         );
         if (weiter != true) { setState(() => _loading = false); return; }
       }
-      final gutAnzahl = stmt.transactions.where((t) => t.isCredit).length;
-      // Archiv-Kopie (UTF-8-normalisiert).
-      await CamtDateiRepository.speichern(
-        CamtDatei(id: '', userId: '', dateiname: _dateiname ?? 'camt.xml',
-          zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
-          anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
-        Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
-
       final betriebe = ref.read(betriebeProvider)
           .where((b) => b.serverId != null)
           .map((b) => {
@@ -348,9 +340,12 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       final ausgeblendeteAltposten = alleOffenen.length - offeneRechnungen.length;
       final heinekenRechnungen = alleRechnungen.where((r) =>
           r.rechnungstyp == 'heineken_monat' && r.zahlungsstatus != 'bezahlt').toList();
+      // Gebuchte TX + erledigte/ignorierte Prüflisten-Einträge blockieren.
+      // OFFENE Prüflisten-Einträge werden bewusst neu bewertet (Upsert
+      // verhindert Duplikate; nach einer Buchung wird der Eintrag gelöscht).
       final bereitsVerarbeitet = <String>{
         ...await BuchungRepository.getAlleCamtTxKeys(),
-        ...await CamtPrueflisteRepository.getAlleTxKeys(),
+        ...await CamtPrueflisteRepository.getBlockierendeTxKeys(),
       };
       final regeln = await CamtRegelRepository.getAktive();
       final vorlagen = (await BuchungsVorlageRepository.getAll())
@@ -400,6 +395,16 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
         offeneForderungen: offeneRechnungen,
         betriebe: betriebe,
       );
+
+      // Archiv-Kopie ERST nach erfolgreicher Verarbeitung (UTF-8-normalisiert)
+      // — sonst blockiert eine gescheiterte Verarbeitung über die
+      // Duplikatprüfung jeden weiteren Versuch mit derselben Datei.
+      final gutAnzahl = stmt.transactions.where((t) => t.isCredit).length;
+      await CamtDateiRepository.speichern(
+        CamtDatei(id: '', userId: '', dateiname: _dateiname ?? 'camt.xml',
+          zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
+          anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
+        Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
 
       setState(() {
         _vorschlaege = plan.vorschlaege;

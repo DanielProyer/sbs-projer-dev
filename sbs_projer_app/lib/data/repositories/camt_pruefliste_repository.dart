@@ -20,6 +20,20 @@ class CamtPrueflisteRepository {
     return rows.map((r) => r['tx_key'] as String).toSet();
   }
 
+  /// txKeys, die einen Re-Import blockieren sollen: nur ERLEDIGTE/IGNORIERTE
+  /// Einträge. Offene Einträge werden beim nächsten Import neu bewertet —
+  /// mit aktuellem Datenstand kann aus einem offenen Fall ein buchbarer
+  /// Vorschlag werden (Fall Heineken-Gutschriften: Monatsrechnungen
+  /// existierten beim ersten Import noch nicht). Der Upsert in [insert]
+  /// verhindert Duplikate, [deleteByTxKey] räumt nach einer Buchung ab.
+  static Future<Set<String>> getBlockierendeTxKeys() async {
+    final rows = await SupabaseService.client
+        .from('camt_pruefliste')
+        .select('tx_key')
+        .neq('status', 'offen');
+    return rows.map((r) => r['tx_key'] as String).toSet();
+  }
+
   static Future<void> insert(CamtPrueflisteEintrag e) async {
     await SupabaseService.client
         .from('camt_pruefliste')

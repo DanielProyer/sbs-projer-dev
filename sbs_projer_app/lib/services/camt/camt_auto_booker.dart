@@ -274,6 +274,9 @@ class CamtAutoBooker {
         }
         break;
     }
+    // Ein evtl. offener Prüflisten-Eintrag derselben Transaktion (aus einem
+    // früheren Import, als noch kein Treffer möglich war) ist damit erledigt.
+    await CamtPrueflisteRepository.deleteByTxKey(v.tx.txKey);
   }
 
   /// Schreibt ungetroffene Transaktionen in die Prüfliste (manuell zu klären).
