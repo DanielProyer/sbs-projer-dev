@@ -10,13 +10,38 @@
 > Q1/2026 bleibt der 30.05.2026 — die Fristverlängerung stoppt den Zins
 > nicht, bei diesen Beträgen aber überschaubar.
 >
-> **Nächster Schritt für die rappengenaue Berichtigung 2025:** Daniel lädt im
-> Portal (…-Menü der Zeile) die Abrechnungs-PDFs **Q4/2025, Q3/2025, Q2/2025**
-> und legt sie in `00_Rechnungen/02_MWST Abrechnung/` ab — daraus rechne ich
-> die deklarierten Ziffern nach und ersetze die Schätzung 1'508.62 durch den
-> exakten Berichtigungswert. Zeitplan: Fahrplan-Schritte 2–4 bis ~20.08.,
-> dann Q1+Q2/2026 zusammen einreichen + Berichtigung 2025 im selben
-> Portalbesuch.
+> ## ✅ FINAL 07.08.2026 (abends) — Berichtigung rappengenau: **CHF 1'508.62**
+>
+> Die drei Portal-PDFs (Q2–Q4/2025, abgelegt in
+> `00_Rechnungen/02_MWST Abrechnung/`) sind ausgewertet. Deklariert wurde:
+>
+> | Quartal | Ziff. 200 | Steuer | Vorsteuer (400/405) | Zahllast |
+> |---|---:|---:|---:|---:|
+> | Q1 (06.10.25) | 51'017.09 | 3'822.74 | 1'181.20 | 2'641.54 |
+> | Q2 (06.10.25) | 43'394.33 | 3'251.56 | 848.07 / 218.16 | 2'185.33 |
+> | Q3 (10.02.26) | 59'695.40 | 4'473.01 | 848.07 / 291.20 | 3'333.74 |
+> | Q4 (18.05.26) | 43'457.72 | 3'256.31 | 1'130.76 / 390.51 | 1'735.04 |
+> | **Summe** | **197'564.54** | **14'803.62** | **4'907.97** | **9'895.65** |
+>
+> **Beweis Netto-statt-Brutto:** Σ Ziff. 200 = 197'564.54 ≈ Jahres-NETTO
+> 197'566.76 (Diff 2.22), und die deklarierte Steuer ist in jedem Quartal
+> exakt `Ziff. 200 × 8.1/108.1` — das Portal hat den Netto-Eintrag als Brutto
+> interpretiert und herausgerechnet.
+>
+> **Berichtigung = 11'404.27 (Jahres-Soll) − 9'895.65 (deklariert/bezahlt)
+> = 1'508.62** — zerlegt: 1'200.79 zu wenig deklarierte Steuer + 307.83 zu
+> viel deklarierte Vorsteuer. Die frühere Schätzung ist damit exakt bestätigt.
+>
+> ⚠️ **Ein Prüfpunkt für Daniel:** Die deklarierte Vorsteuer (4'907.97) liegt
+> 307.83 ÜBER dem Journal (4'600.14) — vermutlich aus dem Excel-Hauptbuch.
+> Gibt es dafür Belege, die das Journal nicht kennt, würde die Berichtigung
+> entsprechend kleiner; sonst gilt das belegbasierte Journal.
+>
+> **Einreichung** (im selben Portalbesuch wie Q1+Q2/2026, bis Ende August):
+> nur noch «Schritt 2 — Berichtigungsabrechnung/Jahresabstimmung» unten;
+> Schritt 1 (Q4-Formular) und die «Alternative» sind hinfällig, Q4 ist
+> eingereicht. Jahreswerte fürs Portal: Ziff. 200 = **213'571.17** (BRUTTO!),
+> Steuer 16'004.41, Vorsteuer 4'600.14 (400: 1'207.86 · 405: 3'392.28).
 
 > ## ⚠️ ÜBERHOLT — KORREKTUR 06.08.2026 (spätabends)
 >
