@@ -40,7 +40,8 @@ class ZahlungsdifferenzService {
 
       final existing = await BuchungRepository.getByBeleg(rechnung.id);
       final hatZahlung =
-          existing.any((b) => b.belegTyp == 'zahlung' && !b.istStorniert);
+          existing.any((b) =>
+              b.belegTyp == 'zahlung' && !b.istStorniert && b.stornoVonId == null);
       if (hatZahlung) {
         debugPrint('[ZahlDiff] Überspringe ${rechnung.id} – bereits bezahlt');
         continue;
@@ -132,7 +133,8 @@ class ZahlungsdifferenzService {
     // Duplikat-Check: schon Zahlungseingang gebucht?
     final existing = await BuchungRepository.getByBeleg(rechnung.id);
     final hatZahlung =
-        existing.any((b) => b.belegTyp == 'zahlung' && !b.istStorniert);
+        existing.any((b) =>
+            b.belegTyp == 'zahlung' && !b.istStorniert && b.stornoVonId == null);
     if (hatZahlung) {
       debugPrint('[ZahlDiff] Zahlungseingang existiert bereits für ${rechnung.id}');
       return [];

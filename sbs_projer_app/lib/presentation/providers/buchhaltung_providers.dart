@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/saldo_expansion.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Erfolgsrechnung aus DB-View (monatlich/jährlich).
@@ -39,7 +40,7 @@ final mwstQuartalDetailProvider =
   for (int from = 0;; from += 1000) {
     final page = await SupabaseService.client
         .from('buchungen')
-        .select('quartal, soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
+        .select('quartal, soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert, storno_von_id')
         .eq('user_id', SupabaseService.dataUserId)
         .eq('geschaeftsjahr', jahr)
         .range(from, from + 999);
@@ -51,7 +52,13 @@ final mwstQuartalDetailProvider =
   for (int q = 1; q <= 4; q++) {
     final saldi = <int, double>{};
     for (final b in buchungen) {
-      if (b['quartal'] != q || b['ist_storniert'] == true) continue;
+      if (b['quartal'] != q) continue;
+      // Ausschluss-Modell: stornierte Originale UND Gegenbuchungen zählen nicht.
+      if (!zaehltFuerSaldo(
+          istStorniert: b['ist_storniert'] == true,
+          stornoVonId: b['storno_von_id'] as String?)) {
+        continue;
+      }
       final brutto = _toDouble(b['betrag_brutto']);
       final netto = b['betrag_netto'] != null ? _toDouble(b['betrag_netto']) : brutto;
       final mwst = _toDouble(b['mwst_betrag']);

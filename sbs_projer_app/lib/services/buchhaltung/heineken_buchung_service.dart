@@ -20,7 +20,7 @@ class HeinekenBuchungService {
     final existing = await BuchungRepository.getByBeleg(rechnung.id);
     // Bereits eine Hauptbuchung (nicht Zahlung, nicht MwSt) vorhanden?
     final hatHauptbuchung = existing.any((b) =>
-        b.belegTyp == 'rechnung' && !b.istStorniert);
+        b.belegTyp == 'rechnung' && !b.istStorniert && b.stornoVonId == null);
     if (hatHauptbuchung) {
       debugPrint('[HeiBuch] Buchung existiert bereits für ${rechnung.id}');
       return null;
@@ -93,8 +93,8 @@ class HeinekenBuchungService {
       {DateTime? datum}) async {
     // Duplikat-Check: schon Zahlungseingang gebucht?
     final existing = await BuchungRepository.getByBeleg(rechnung.id);
-    final hatZahlung =
-        existing.any((b) => b.belegTyp == 'zahlung' && !b.istStorniert);
+    final hatZahlung = existing.any((b) =>
+        b.belegTyp == 'zahlung' && !b.istStorniert && b.stornoVonId == null);
     if (hatZahlung) {
       debugPrint('[HeiBuch] Zahlungseingang existiert bereits für ${rechnung.id}');
       return null;

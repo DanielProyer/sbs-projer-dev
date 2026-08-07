@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
 import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/saldo_expansion.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class BuchungService {
@@ -60,7 +61,7 @@ class BuchungService {
     while (true) {
       final page = await SupabaseService.client
           .from('buchungen')
-          .select('soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert')
+          .select('soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert, storno_von_id')
           .eq('user_id', SupabaseService.dataUserId)
           .range(from, from + pageSize - 1);
       rows.addAll(List<Map<String, dynamic>>.from(page));
@@ -70,7 +71,13 @@ class BuchungService {
 
     final saldi = <int, double>{};
     for (final row in rows) {
-      if (row['ist_storniert'] == true) continue;
+      // Stornierte Originale UND Gegenbuchungen raus — sonst zeigt der Saldo
+      // nach einem Storno −Original statt 0 (Ausschluss-Modell wie Bilanz/ER).
+      if (!zaehltFuerSaldo(
+          istStorniert: row['ist_storniert'] == true,
+          stornoVonId: row['storno_von_id'] as String?)) {
+        continue;
+      }
       final brutto = double.tryParse(row['betrag_brutto'].toString()) ?? 0;
       final netto = row['betrag_netto'] != null
           ? (double.tryParse(row['betrag_netto'].toString()) ?? brutto)

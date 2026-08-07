@@ -20,7 +20,8 @@ class EingangsrechnungBuchungService {
     // Aufwand-an-Kreditor-Buchung existiert (verhindert Doppel-Aufwand, z.B.
     // nach einem Zahlung-Rückgängig, wenn die Rechnung wieder 'gebucht' ist).
     final bestehend = await BuchungRepository.getByBeleg(e.id);
-    if (bestehend.any((b) => b.belegTyp == 'eingang' && !b.istStorniert)) {
+    if (bestehend.any((b) =>
+        b.belegTyp == 'eingang' && !b.istStorniert && b.stornoVonId == null)) {
       throw Exception('Eingangsrechnung ist bereits gebucht (Stufe 1)');
     }
 

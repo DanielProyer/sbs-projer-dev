@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/core/util/beleg_korrektur.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Supabase-only Repository für Buchungen (kein Isar).
@@ -213,37 +214,36 @@ class BuchungRepository {
         .eq('beleg_id', belegId);
   }
 
-  /// Storniert eine Buchung: Setzt ist_storniert und erstellt Gegenbuchung.
+  /// Storniert eine Buchung: Setzt ist_storniert und erstellt die Gegenbuchung
+  /// (Datum/Geschäftsjahr des Originals, ohne mwst_konto — siehe
+  /// `storno_logik.dart`). Zugehörige MwSt-Trennbuchungen desselben Belegs
+  /// werden mitstorniert (B6.3), Zahlungen nie.
   static Future<Buchung> stornieren(String id) async {
     final original = await getById(id);
     if (original == null) throw Exception('Buchung nicht gefunden');
     if (original.istStorniert) {
       throw Exception('Buchung ist bereits storniert');
     }
+    if (original.stornoVonId != null) {
+      throw Exception('Eine Storno-Gegenbuchung kann nicht storniert werden');
+    }
 
-    // Original als storniert markieren
+    // Original als storniert markieren, dann Gegenbuchung
     await update(id, {'ist_storniert': true});
+    final gegenbuchung = await create(gegenbuchungFuer(original));
 
-    // Gegenbuchung erstellen (Soll/Haben vertauscht)
-    return create({
-      'datum': DateTime.now().toIso8601String().split('T').first,
-      'belegnummer': 'STORNO-${original.belegnummer ?? original.id.substring(0, 8)}',
-      'vorlage_id': original.vorlageId,
-      'soll_konto': original.habenKonto,
-      'haben_konto': original.sollKonto,
-      'mwst_konto': original.mwstKonto,
-      'betrag_netto': original.betragNetto,
-      'mwst_satz': original.mwstSatz,
-      'mwst_betrag': original.mwstBetrag,
-      'betrag_brutto': original.betragBrutto,
-      'beschreibung': 'Storno: ${original.beschreibung}',
-      'zahlungsweg': original.zahlungsweg,
-      'belegordner': original.belegordner,
-      'beleg_typ': original.belegTyp,
-      'beleg_id': original.belegId,
-      'geschaeftsjahr': DateTime.now().year,
-      'storno_von_id': id,
-      'notizen': 'Stornierung von Buchung ${original.belegnummer ?? id}',
-    });
+    // Zugehörige MwSt-Trennbuchungen mitnehmen (solange es sie noch gibt)
+    if (original.belegId != null) {
+      final geschwister = await getByBeleg(original.belegId!);
+      for (final g in geschwister) {
+        if (!istZugehoerigeTrennbuchung(original: original, kandidat: g)) {
+          continue;
+        }
+        await update(g.id, {'ist_storniert': true});
+        await create(gegenbuchungFuer(g));
+      }
+    }
+
+    return gegenbuchung;
   }
 }
