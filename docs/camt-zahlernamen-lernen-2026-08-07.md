@@ -1,5 +1,43 @@
 # Zahlernamen aus der Zahlungshistorie gelernt (07.08.2026)
 
+> ## ✅ NACHTRAG (07.08. abends): Internet-Recherche zu den 53 offenen Fällen
+>
+> Drei Recherche-Agenten (Zefix/Handelsregister, Impressen, Lokalnews) haben
+> **49 der 53 Fälle aufgeklärt** — Ergebnis: **52 weitere Aliase auf 42
+> Betriebe gesetzt** (u. a. per wörtlichem Impressum-/HR-Beleg), dazu zwei
+> Korrekturen:
+> - Alias «hotel alpenblick weggis ag» von **Alpenblick [Arosa] entfernt**
+>   (HR-Zweck nennt explizit das Hotel in Weggis) → jetzt korrekt auf
+>   Hotel Alpenblick [Weggis].
+> - Alias «hotel lenzerhorn spa & wellness ag» von **Lenzerhorn entfernt**:
+>   das Hotel betreibt AUCH das Haus Spescha → Zwei-Betriebe-Zahler, Zuordnung
+>   manuell (wie HR Seehof: Seehof+Chesa · M&M Gastro: Giodavin+Ochsen ·
+>   Allegra Vinum: Franziskaner+Fondue Beizli — alle bewusst OHNE Alias).
+> - **AlpinTrend-Gruppe (Luzius Bergamin)** erklärt fünf Zahler: Pradaschier→
+>   Portal, Luber AG+Posthotel Valbella AG→Posthotel, Gastromagia (=ex
+>   Gonglis!)→Löwen Maienfeld, Lupiz→da Elio, Lenzerhorn→(auch) Spescha.
+> - Fehlpaarungen erkannt: Alexanderplatz gehört der «Café Alexanderplatz
+>   Chur KLG» (Fetz), nicht Pradaschier; «Bahnhof Trübbach (Corca)» war der
+>   VORGÄNGER des Steak House (gleiche Adresse, Firma 01/2025 gelöscht);
+>   «Traube Senti» war der Alt-Wirt des Don Camillo (heute Blazevic).
+>
+> **Offen bleiben 4 Fragen an Daniel:** (1) BARacca [Vella] — zahlt Florian
+> Pagels? (HR-Betreiberin ist Carolin Kertz, «Kertz Gastronomie & Events»);
+> (2) Weissfluhgipfel — Zahler «Racine» = Pascal Racine (Racine Gastro,
+> Davos Wolfgang, Gastgeber «Kevin and Pascal») → plausibel, bestätigen?;
+> (3) Weissfluhjoch — «Surselva Hospitality AG» = neuer Pächter ab Saison
+> 2025/26 («Joch Mountain Diamond»)? Firma nirgends registriert auffindbar;
+> (4) Don Camillo [Quarten] — heutiger Wirt Ivan Blazevic: Alias erst setzen,
+> wenn eine Zahlung von ihm auftaucht.
+>
+> **Kenntnisnahmen:** Löwen [Sins] hat seit ~04/2026 einen neuen Betreiber
+> (Urs Peterhans, Landgasthof Löwen GmbH — Almepa-Alias deckt nur die alten
+> Zahlungen); Cresta [Flumserberg] (CFB Gastro) evtl. in Liquidation/Übergabe;
+> HH Gastro AG (Alpina Schiers) könnte die Helvetia Bar übernommen haben —
+> bisher unbelegt, Helvetia behält ihren Haldi-Alias.
+>
+> **Stand danach: 120 Betriebe mit 132 Zahler-Aliasen** (vor heute: 25).
+
 **Auftrag Daniel:** «Zahlernamen aus den bereits bezahlten Rechnungen bei den
 Reinigungen ermitteln (letzte 4 Zahlungen, falls alle gleich automatisch
 Zahlername setzen, sonst nachfragen).»
