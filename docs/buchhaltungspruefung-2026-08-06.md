@@ -284,9 +284,14 @@ lassen.
      Wirkung: Ertrag 3400 +10'219.98, MwSt-Schuld 2200 −10'219.98,
      Vorsteuer 1171 −184.26. Verifiziert: 0 Muster-Reste, 0
      Invarianten-Verletzungen, MWST-View unverändert (war immun).
-3. **camt-Vorbereitung:** Stichtag-Off-by-One + B8-Richtungsfehler fixen,
-   frische camt-Datei ab 15.07. besorgen, dann Nachhol-Import 12.03.–heute
-   (mit Alias-Lernen).
+3. **camt-Vorbereitung:** ✅ **Code-Fixes erledigt 07.08.2026 (v0.72.8):**
+   Stichtag exklusiv (`camt_stichtag.dart` — der 11.03. selbst ist
+   Excel-gebucht, `isAfter` statt `!isBefore`; Schaden war noch keiner
+   entstanden, 0 camt-TX gebucht) + Ausgabe-Booker richtungsbewusst
+   (`ausgabeBuchungsFelder`: Gutschrift auf Ausgabe-Regel tauscht die Konten,
+   bucht brutto ohne MwSt-Split + Prüfhinweis in den Notizen; 3 neue Tests).
+   **Offen:** frische camt-Datei ab 15.07. besorgen (Daniel, GKB-E-Banking),
+   dann Nachhol-Import 12.03.–heute (mit Alias-Lernen).
 4. **Nachbuchungen:** Franchise Jan–Aug (27'920 + 2'261 VSt — vorher klären,
    ob der Vertrag unverändert läuft), Löhne ab April, Miete/Versicherungen.
 5. **MWST Q4/2025 + Q1/2026** aus bereinigten Zahlen erstellen und einreichen;

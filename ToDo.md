@@ -4,6 +4,14 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08. (v0.72.8): Fahrplan Schritt 3 (Code-Teil) — die beiden camt-Fixes
+
+- **Stichtag-Off-by-One behoben:** `CamtStichtag.istAutomatisierbar` nutzt `isAfter` statt `!isBefore` — der 11.03.2026 (letzter Excel-Banktag, SVA 5'962.20 + Kehricht 153.00 bereits gebucht) wird nicht mehr eingeschlossen; camt beginnt am 12.03. Schaden war keiner entstanden (bis heute 0 camt-TX gebucht). Import-Tab-Hinweistext angepasst; Tests auf Soll-Verhalten umgestellt (TDD, inkl. `camt_parser_test`).
+- **Ausgabe-Booker richtungsbewusst (B8):** Neue reine Funktion `ausgabeBuchungsFelder` (3 Tests): Belastung = Konten wie Vorlage mit MwSt-Split über `mwst_konto`; **Gutschrift** (z. B. Prämien-Rückerstattung auf einer Ausgabe-Regel) = **Konten getauscht** (Bank im Soll), brutto **ohne** MwSt-Split (der Vorsteuer-Split ist in einer Zeile nicht invertierbar — SaldoExpansion wählt den Zweig nach Konto-Klasse) + Notiz «GUTSCHRIFT auf Ausgabe-Regel — MwSt manuell prüfen».
+- 972 Tests grün, live v0.72.8. **Damit ist der Nachhol-Import entminte Zone — es fehlt nur noch die frische GKB-camt-Datei (Daniel: E-Banking, Export ab 15.07.2026 bis heute; ab 21.06. fehlen Rohdaten, Überlappung ist dank txKey-Dedup unkritisch).**
+
+---
+
 ## 🟢 ERLEDIGT 07.08. (v0.72.7): Fahrplan Schritt 2b — MwSt-Doppelbuchung behoben (B1)
 
 - **Code-Fix (v0.72.7, live):** Alle 4 Trennbuchungs-Blöcke ersatzlos gestrichen — `reinigung_buchung_service` (MwSt 3400/2200), `heineken_buchung_service` (MwSt 3400/2200), `spesen_import_service` (Vorsteuer 1171/Aufwand), `kreditor_buchung.zeile2` (rein, Test zuerst angepasst). Die Bruttomethode läuft allein über `mwst_konto` + SaldoExpansion — wie bei allen Vorlagen und der Excel-Historik. 969 Tests grün.
