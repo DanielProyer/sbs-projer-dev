@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
@@ -150,6 +151,9 @@ class _RechnungDetailContentState
       }
       final frisch = await RechnungRepository.getById(_rechnung.id);
       ref.invalidate(rechnungenStreamProvider);
+      // Auch Buchungs-Sichten auffrischen — Kontensaldi/Journal zeigen die
+      // gelöschten Zahlungszeilen sonst bis zum Neuladen weiter an.
+      ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
       setState(() {
         if (frisch != null) _rechnung = frisch;
