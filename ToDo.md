@@ -4,6 +4,16 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08.: Original-Monatsrechnungen (Heineken) in den Storage geladen — 83 PDFs
+
+**Befund (aus Projekt Heineken):** Die 83 historischen Heineken-Monatsrechnungen (05/2019–03/2026) wurden am 14.07.2026 als Daten-Backfill per SQL-Batch angelegt; ihre Storage-PDFs waren nur die 3-seitige Übersicht+Detail (~130–175 KB) — die Formularseiten (Rapporte) entstanden damals ausserhalb der App (Heineken-Excel-Vorlagen, von Hand angehängt) und fehlten komplett. Die App-Rechnungen ab 04/2026 waren korrekt.
+
+**Erledigt:** Originale von der Festplatte (`00_Buchhaltung/Monatsrechnungen Heineken 2019-2026/`) in den Bucket `rechnung-pdfs` geladen. Ab 08/2023 lag das versendete Kombi-PDF vor (1:1 übernommen); 05/2019–07/2023 aus `00_Rechnung.pdf` + Einzel-Formularen in Kategorien-Reihenfolge (01_Störung…06_Gratisreinigung) zusammengeführt. **Verifiziert:** 83/83 DB-Bruttobetrag im PDF-Text gefunden, 3 Stichproben-Hashes nach Roundtrip identisch, Live-Rechnungen 04–06/2026 unangetastet. Upload über temporäre, token-geschützte Edge Function `temp-pdf-import` — danach durch 410-Stub ersetzt (kann in der Supabase-Konsole gelöscht werden).
+
+> ⚠️ **«PDF neu generieren» bei historischen Monatsrechnungen (vor 04/2026) nicht mehr verwenden** — es würde das Original-PDF durch die 3-Seiten-Skelettfassung ersetzen (die Excel-importierten Werkstatt-Daten tragen die Formularfelder nicht). Quelle bleibt die Festplatte; Alt-Stand der generierten PDFs lag im Session-Scratchpad (reproduzierbar, nicht dauerhaft gesichert).
+
+---
+
 ## 🟢 ERLEDIGT 07.08. (v0.72.3): Sicherheitsbefunde aus Projekt Heineken — Buckets privat
 
 1. **Öffentliche Buckets geschlossen:** `material-fotos` (public seit 17.02.) und `raster-pdfs` (public seit 10.05. — enthielt den Serviceraster mit allen Kundennamen) auf privat gestellt (Migration `buckets_material_fotos_raster_pdfs_privat`). Vorher verifiziert: material-fotos nutzt nur signierte URLs + Owner-Policies; raster-pdfs hat authenticated-Policies, die Mail-Function lädt per Service-Role. Einzige `getPublicUrl`-Stelle der App (Raster-Download) auf `createSignedUrl` umgestellt. Praxistest: anonymer Abruf → HTTP 400. **Kein Bucket mehr public.**
