@@ -80,5 +80,26 @@ void main() {
     test('3-stellige Rechnungsnummer-Sequenz', () {
       expect(parseVermerk('2025-12-007').rechnungsnummer, '2025-12-007');
     });
+
+    test('mehrere Rechnungsnummern im Vermerk → alle erkannt', () {
+      final h = parseVermerk('2026-04-0396 1394924888 2026-04-0505 1394922659');
+      expect(h.rechnungsnummern, ['2026-04-0396', '2026-04-0505']);
+      expect(h.rechnungsnummer, '2026-04-0396');
+    });
+
+    test('umbrochene Nummer wird repariert (GKB bricht mitten in der Sequenz)', () {
+      // Realer Vermerk LHG 26.06.2026: «2026-04-047 5» = 2026-04-0475.
+      final h = parseVermerk('2026-04-0396 1394924888 2026-04-047 5 1394922659');
+      expect(h.rechnungsnummern, ['2026-04-0396', '2026-04-0475']);
+    });
+
+    test('Umbruch direkt nach dem zweiten Bindestrich', () {
+      expect(parseVermerk('Zahlung 2026-04- 0475').rechnungsnummern, ['2026-04-0475']);
+    });
+
+    test('vollständige Nummer wird NICHT mit Folgeziffern verschmolzen', () {
+      final h = parseVermerk('2026-04-0396 1394924888');
+      expect(h.rechnungsnummern, ['2026-04-0396']);
+    });
   });
 }

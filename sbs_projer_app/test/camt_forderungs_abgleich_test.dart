@@ -117,6 +117,57 @@ void main() {
     expect(erg.manuell.first.betriebId, 'b_bp');
   });
 
+  test('Vermerk nennt zwei Rechnungsnummern, Summe passt → AUTO mit beiden (Fall LHG)', () {
+    // Realer Fall 26.06.2026: LHG zahlt 253.00 für zwei 126.50er-Rechnungen,
+    // die zweite Nummer im Vermerk umbrochen («2026-04-047 5»). Drei gleiche
+    // offene Beträge → Betrags-Subset wäre mehrdeutig; die Vermerk-Nummern
+    // machen den Treffer eindeutig.
+    final erg = ForderungsAbgleichService.abgleich(
+      gutschriften: [
+        _gut(
+            betrag: 253.00,
+            name: 'LHG Lifestyle Hotels Schweiz GmbH',
+            vermerk: '2026-04-0396 1394924888 2026-04-047 5 1394922659'),
+      ],
+      offeneForderungen: [
+        _ford(id: 'r_396', betriebId: 'b_flims', betrag: 126.50, nr: '2026-04-0396'),
+        _ford(id: 'r_475', betriebId: 'b_flims', betrag: 126.50, nr: '2026-04-0475'),
+        _ford(id: 'r_604', betriebId: 'b_flims', betrag: 126.50, nr: '2026-05-0604'),
+      ],
+      betriebe: [
+        ...betriebe,
+        {'id': 'b_flims', 'name': 'Me and All Hotel Flims by Hyatt', 'ort': 'Flims Dorf', 'aliase': 'lhg lifestyle hotels schweiz gmbh', 'nr': ''},
+      ],
+    );
+    expect(erg.auto.length, 1);
+    expect(erg.auto.first.forderungen.map((r) => r.id).toSet(), {'r_396', 'r_475'});
+    expect(erg.auto.first.grund, contains('Vermerk'));
+    expect(erg.keineZahlung.map((r) => r.id), contains('r_604'));
+  });
+
+  test('zwei Vermerk-Nummern, Summe passt NICHT → kein Stufe-1.5-Auto', () {
+    // Betrag deckt nur eine der beiden genannten Rechnungen → kein sicherer
+    // Treffer über die Nummern; der Fall läuft in den normalen Pfad.
+    final erg = ForderungsAbgleichService.abgleich(
+      gutschriften: [
+        _gut(
+            betrag: 126.50,
+            name: 'Unbekannte Verwaltungs AG',
+            vermerk: '2026-04-0396 2026-04-0475'),
+      ],
+      offeneForderungen: [
+        _ford(id: 'r_396', betriebId: 'b_flims', betrag: 126.50, nr: '2026-04-0396'),
+        _ford(id: 'r_475', betriebId: 'b_flims', betrag: 126.50, nr: '2026-04-0475'),
+      ],
+      betriebe: [
+        ...betriebe,
+        {'id': 'b_flims', 'name': 'Me and All Hotel Flims by Hyatt', 'ort': 'Flims Dorf', 'aliase': '', 'nr': ''},
+      ],
+    );
+    expect(
+        erg.auto.where((a) => a.grund.contains('Vermerk')), isEmpty);
+  });
+
   test('QR-/SCOR-Referenz → AUTO (unabhängig vom Namen)', () {
     const ref = '210000000003139471430009017';
     final erg = ForderungsAbgleichService.abgleich(

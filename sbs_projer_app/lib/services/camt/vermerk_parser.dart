@@ -1,21 +1,27 @@
 /// Aus dem camt-Verwendungszweck (`remittanceInfo`) extrahierte Hinweise zur
 /// Zuordnung einer Zahlung:
-/// - [rechnungsnummer]: direkt genannte Rechnungsnummer `YYYY-MM-NNNN` (z.B.
+/// - [rechnungsnummern]: direkt genannte Rechnungsnummern `YYYY-MM-NNNN` (z.B.
 ///   Davos Klosters Bergbahnen „01.05.2026 2026-04-0505") — stärkstes Signal,
-///   matcht die Forderung exakt.
+///   matcht die Forderung exakt. Sammelzahlungen nennen mehrere Nummern.
 /// - [betriebNummer]: Betriebnummer aus einem strukturierten `Nummer_yyyy_MM_dd`.
 /// - [datum]: Datum aus dem Betreff (z.B. HAPIMAG-Reinigungsdatum).
 ///
-/// Reine Funktion — dient nur der **Vorauswahl** im manuellen Zuordnungs-
-/// Dialog bzw. dem Routing zum Betrieb, löst NIE eine automatische Buchung aus.
+/// Reine Funktion — dient der **Vorauswahl** im manuellen Zuordnungs-Dialog
+/// bzw. dem Routing zum Betrieb; nur wenn ALLE genannten Nummern offen sind
+/// und ihre Summe exakt dem Zahlbetrag entspricht, entsteht ein Auto-Vorschlag.
 class VermerkHinweis {
-  final String? rechnungsnummer;
+  final List<String> rechnungsnummern;
   final String? betriebNummer;
   final DateTime? datum;
-  const VermerkHinweis({this.rechnungsnummer, this.betriebNummer, this.datum});
+  const VermerkHinweis(
+      {this.rechnungsnummern = const [], this.betriebNummer, this.datum});
+
+  /// Erste genannte Rechnungsnummer (Kompatibilität für Einzelnummer-Nutzer).
+  String? get rechnungsnummer =>
+      rechnungsnummern.isEmpty ? null : rechnungsnummern.first;
 
   bool get istLeer =>
-      rechnungsnummer == null && betriebNummer == null && datum == null;
+      rechnungsnummern.isEmpty && betriebNummer == null && datum == null;
 }
 
 /// Baut ein gültiges Datum oder null (fängt Monat 13, 31.02. etc.).
@@ -34,15 +40,27 @@ VermerkHinweis parseVermerk(String? remittanceInfo) {
   final raw = remittanceInfo?.trim() ?? '';
   if (raw.isEmpty) return const VermerkHinweis();
 
-  // 1. Rechnungsnummer YYYY-MM-NNNN zuerst extrahieren und aus dem Rest
+  // 1. Rechnungsnummern YYYY-MM-NNNN zuerst extrahieren und aus dem Rest
   //    entfernen, damit ihre Ziffern nicht als Datum fehlinterpretiert werden.
-  String? rechnungsnummer;
+  //    Vorab Bank-Zeilenumbrüche MITTEN in einer Nummer reparieren (Fall LHG
+  //    26.06.2026: «2026-04-047 5» = 2026-04-0475): Sequenz-Teile, die
+  //    zusammen exakt 4 Stellen ergeben (Live-Format), werden verbunden —
+  //    eine bereits vollständige Nummer bleibt unangetastet, weil ihre
+  //    4-stellige Sequenz nicht auf \d{1,3} passt.
   var s = raw;
-  final rn = RegExp(r'\b(\d{4}-\d{2}-\d{3,5})\b').firstMatch(s);
-  if (rn != null) {
-    rechnungsnummer = rn.group(1);
-    s = s.replaceRange(rn.start, rn.end, ' ');
-  }
+  s = s.replaceAllMapped(
+      RegExp(r'(\d{4}-\d{2}-)(\d{1,3})\s+(\d{1,3})(?!\d)'), (m) {
+    final seq = '${m.group(2)}${m.group(3)}';
+    return seq.length == 4 ? '${m.group(1)}$seq' : m.group(0)!;
+  });
+  // Umbruch direkt nach dem zweiten Bindestrich («2026-04- 0475»).
+  s = s.replaceAllMapped(RegExp(r'(\d{4}-\d{2}-)\s+(\d{3,5})\b'),
+      (m) => '${m.group(1)}${m.group(2)}');
+  final rechnungsnummern = <String>[];
+  s = s.replaceAllMapped(RegExp(r'\b(\d{4}-\d{2}-\d{3,5})\b'), (m) {
+    rechnungsnummern.add(m.group(1)!);
+    return ' ';
+  });
 
   // 2. Strukturiert: <Betriebnummer>_<yyyy>_<MM>_<dd> (Davos Klosters
   //    Bergbahnen, z.B. „0151_2026_04_04"). Die führende Zahl ist die
@@ -81,7 +99,7 @@ VermerkHinweis parseVermerk(String? remittanceInfo) {
   }
 
   return VermerkHinweis(
-      rechnungsnummer: rechnungsnummer,
+      rechnungsnummern: rechnungsnummern,
       betriebNummer: betriebNummer,
       datum: datum);
 }

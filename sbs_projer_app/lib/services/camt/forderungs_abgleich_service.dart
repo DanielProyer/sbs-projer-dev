@@ -66,6 +66,44 @@ class ForderungsAbgleichService {
       verbrauchteGuts.add(g);
       verbrauchteFordIds.add(r.id);
     }
+    // STUFE 1.5: Der Vermerk nennt MEHRERE Rechnungsnummern und die
+    // zugehörigen offenen Forderungen ergeben zusammen exakt den Zahlbetrag →
+    // Auto-Vorschlag über das stärkste Signal (Fall LHG 26.06.2026:
+    // «2026-04-0396 … 2026-04-0475», 253.00 = 2 × 126.50 — zugeordnet wurde
+    // nur die erste Nummer, die zweite Hälfte landete als Mehrzahlung auf
+    // 8000). Einzelne Nummern laufen wie bisher übers Routing + Betrags-Match
+    // (Sammelzahler bleiben dort bewusst manuell).
+    final fordByNrAlle = <String, Rechnung>{
+      for (final r in offeneForderungen)
+        if ((r.rechnungsnummer ?? '').isNotEmpty && r.betriebId != null)
+          r.rechnungsnummer!: r
+    };
+    for (final g in gutschriften.where((g) => g.isCredit)) {
+      if (verbrauchteGuts.contains(g)) continue;
+      final nummern =
+          parseVermerk(g.remittanceInfo).rechnungsnummern.toSet().toList();
+      if (nummern.length < 2) continue;
+      final fords = <Rechnung>[];
+      var alleOffen = true;
+      for (final nr in nummern) {
+        final r = fordByNrAlle[nr];
+        if (r == null || verbrauchteFordIds.contains(r.id)) {
+          alleOffen = false;
+          break;
+        }
+        fords.add(r);
+      }
+      if (!alleOffen) continue;
+      final summe = fords.fold<double>(0, (sum, r) => sum + r.betragBrutto);
+      if ((summe - g.amount).abs() > 0.005) continue;
+      refTreffer.add(AutoTreffer(g, fords,
+          grund: 'Rechnungsnummern im Vermerk · Betrag passt'));
+      verbrauchteGuts.add(g);
+      for (final r in fords) {
+        verbrauchteFordIds.add(r.id);
+      }
+    }
+
     final gutschriftenAktiv =
         gutschriften.where((g) => !verbrauchteGuts.contains(g)).toList();
     final offeneAktiv = offeneForderungen
