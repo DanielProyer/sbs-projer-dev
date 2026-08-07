@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 class AutoMatchTile extends StatelessWidget {
   final String betrag; // z.B. "135.70 CHF"
   final String beschreibung; // z.B. "Hotel Alpina · Rechnung RG-123 · 05.01.2026"
+  final String? detail; // z.B. "Zahler: Gehri Gastronomie · QR-Referenz"
   final VoidCallback onVerbuchen;
   final VoidCallback? onKorrigieren; // optional: „Anders zuordnen"
 
@@ -21,6 +22,7 @@ class AutoMatchTile extends StatelessWidget {
     super.key,
     required this.betrag,
     required this.beschreibung,
+    this.detail,
     required this.onVerbuchen,
     this.onKorrigieren,
   });
@@ -41,6 +43,16 @@ class AutoMatchTile extends StatelessWidget {
       softWrap: false,
       style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
     );
+    // Detail-Zeile (Zahler/Treffer-Grund/Bemerkung) — darf umbrechen, damit
+    // die Kontroll-Info auch auf dem Handy vollständig lesbar bleibt.
+    final detailText = (detail == null || detail!.isEmpty)
+        ? null
+        : Text(
+            detail!,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          );
     final button = FilledButton(
       onPressed: onVerbuchen,
       child: const Text('Verbuchen'),
@@ -72,6 +84,10 @@ class AutoMatchTile extends StatelessWidget {
                 betragText,
                 const SizedBox(height: 2),
                 beschreibungText,
+                if (detailText != null) ...[
+                  const SizedBox(height: 2),
+                  detailText,
+                ],
                 const SizedBox(height: 8),
                 // Ohne Korrigieren-Button exakt wie vorher (nur Button);
                 // mit Korrigieren als Wrap (umbricht bei wenig Platz).
@@ -88,16 +104,26 @@ class AutoMatchTile extends StatelessWidget {
               ],
             );
           }
-          // Breit (Desktop): eine Zeile.
-          return Row(
+          // Breit (Desktop): eine Zeile — Detail (falls vorhanden) darunter.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              betragText,
-              const SizedBox(width: 16),
-              Expanded(child: beschreibungText),
-              const SizedBox(width: 8),
-              if (korrigieren != null) korrigieren,
-              if (korrigieren != null) const SizedBox(width: 4),
-              button,
+              Row(
+                children: [
+                  betragText,
+                  const SizedBox(width: 16),
+                  Expanded(child: beschreibungText),
+                  const SizedBox(width: 8),
+                  if (korrigieren != null) korrigieren,
+                  if (korrigieren != null) const SizedBox(width: 4),
+                  button,
+                ],
+              ),
+              if (detailText != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: detailText,
+                ),
             ],
           );
         },

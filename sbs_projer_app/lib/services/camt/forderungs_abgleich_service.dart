@@ -15,7 +15,11 @@ import 'package:sbs_projer_app/core/util/zahlung_paarung.dart';
 class AutoTreffer {
   final CamtTransaction gutschrift;
   final List<Rechnung> forderungen;
-  AutoTreffer(this.gutschrift, this.forderungen);
+
+  /// Wie der Treffer zustande kam ('QR-Referenz', 'Zahler-Alias · Betrag passt',
+  /// 'Zahlername exakt · Betrag passt') — wird dem User zur Kontrolle angezeigt.
+  final String grund;
+  AutoTreffer(this.gutschrift, this.forderungen, {this.grund = ''});
 }
 
 /// Ein manuell zu klärender Fall: ein Betrieb mit übrigen Gutschriften + Forderungen.
@@ -58,7 +62,7 @@ class ForderungsAbgleichService {
       if (sref == null || sref.trim().isEmpty) continue;
       final r = refIndex[scorRefNorm(sref)];
       if (r == null || verbrauchteFordIds.contains(r.id)) continue;
-      refTreffer.add(AutoTreffer(g, [r]));
+      refTreffer.add(AutoTreffer(g, [r], grund: 'QR-Referenz'));
       verbrauchteGuts.add(g);
       verbrauchteFordIds.add(r.id);
     }
@@ -83,16 +87,22 @@ class ForderungsAbgleichService {
 
     final gutProBetrieb = <String, List<CamtTransaction>>{};
     final unscharfeGuts = <CamtTransaction>{};
+    // Merkt sich je sicherer Gutschrift, WORÜBER der Betrieb gefunden wurde —
+    // fürs Anzeigen des Treffer-Grunds in der Auto-Liste.
+    final sicherGrund = <CamtTransaction, String>{};
     for (final g in gutschriftenAktiv.where((g) => g.isCredit)) {
       final name = effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo);
-      final treffer = name == null
-          ? null
-          : (CamtBetriebMatcher.matchByAlias(name, betriebe) ??
-              CamtBetriebMatcher.matchExakt(name, betriebe));
+      final alias =
+          name == null ? null : CamtBetriebMatcher.matchByAlias(name, betriebe);
+      final treffer = alias ??
+          (name == null ? null : CamtBetriebMatcher.matchExakt(name, betriebe));
       // Sammelzahler (Zentrale zahlt für mehrere Objekte) sind nie «sicher» —
       // auch nicht über einen gelernten Alias (Fall Weisse Arena → IKIGAI).
       // Der Treffer bleibt aber als VORSCHLAG für die manuelle Prüfung stehen.
       final sicher = (treffer != null && !istSammelzahler(name)) ? treffer : null;
+      if (sicher != null) {
+        sicherGrund[g] = alias != null ? 'Zahler-Alias' : 'Zahlername exakt';
+      }
       // Auflösungs-Reihenfolge: sicher → Bemerkung-Rechnungsnummer (direkte
       // Forderung) → Vermerk-Betriebnummer → unscharfer Name. Nur „sicher" ist
       // auto-fähig; alles andere landet als Vorschlag in der manuellen Prüfung.
@@ -146,7 +156,8 @@ class ForderungsAbgleichService {
         if (unscharfeGuts.contains(g)) continue;
         final m = RechnungMatcher.match(zahlbetrag: g.amount, offeneRechnungen: offen);
         if (m.eindeutig) {
-          auto.add(AutoTreffer(g, m.rechnungen));
+          auto.add(AutoTreffer(g, m.rechnungen,
+              grund: '${sicherGrund[g] ?? 'Zahlername'} · Betrag passt'));
           offen.removeWhere((r) => m.rechnungen.any((x) => x.id == r.id));
           guts.remove(g);
         }

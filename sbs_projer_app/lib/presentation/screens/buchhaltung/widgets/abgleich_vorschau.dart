@@ -150,12 +150,19 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           farbe: AppColors.error,
           initiallyExpanded: false,
           children: [
-            for (final r in erg.keineZahlung.take(_maxZeilen))
+            for (final r in _keineZahlungSortiert(erg))
               ListTile(
                 dense: true,
                 title: Text(
                   '${r.rechnungsnummer ?? '?'} — ${r.betragBrutto.toStringAsFixed(2)} CHF',
                 ),
+                subtitle: Text(
+                  '${widget.betriebName[r.betriebId] ?? '?'} · '
+                  'Rechnung vom ${_dateFormat.format(r.rechnungsdatum)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: _forderungPdfLink(r),
               ),
             if (erg.keineZahlung.length > _maxZeilen)
               Padding(
@@ -173,6 +180,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         ),
       ],
     );
+  }
+
+  /// „Keine Zahlung gefunden" neueste zuoberst — die jüngsten Rechnungen sind
+  /// die, bei denen eine fehlende Zahlung noch etwas bedeutet.
+  List<Rechnung> _keineZahlungSortiert(AbgleichErgebnis erg) {
+    final sortiert = [...erg.keineZahlung]
+      ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+    return sortiert.take(_maxZeilen).toList();
   }
 
   /// Kompakte Kopf-Übersicht: vier KPIs (umbrechend auf Smartphone).
@@ -230,15 +245,27 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final betrieb = widget.betriebName[t.forderungen.first.betriebId] ?? '';
     final rechnungen = t.forderungen.length == 1
         ? 'Rechnung ${t.forderungen.first.rechnungsnummer ?? '?'}'
-        : '${t.forderungen.length} Rechnungen';
+        : '${t.forderungen.length} Rechnungen '
+            '(${t.forderungen.map((r) => r.rechnungsnummer ?? '?').join(', ')})';
     final teile = [
       if (betrieb.isNotEmpty) betrieb,
       rechnungen,
       _dateFormat.format(t.gutschrift.bookingDate),
     ];
+    // Kontroll-Zeile: Zahler + wie der Treffer zustande kam + Bemerkung.
+    final zahler = effektiverZahlername(
+        partyName: t.gutschrift.partyName,
+        additionalInfo: t.gutschrift.additionalInfo);
+    final remit = t.gutschrift.remittanceInfo?.trim();
+    final detail = [
+      if (zahler != null) 'Zahler: $zahler',
+      if (t.grund.isNotEmpty) t.grund,
+      if (remit != null && remit.isNotEmpty) 'Bemerkung: $remit',
+    ].join(' · ');
     return AutoMatchTile(
       betrag: '${t.gutschrift.amount.toStringAsFixed(2)} CHF',
       beschreibung: teile.join(' · '),
+      detail: detail.isEmpty ? null : detail,
       onVerbuchen: () => _verbuche(t),
       // Falscher Treffer (z.B. Betreiber-Name)? Neu zuordnen + Alias lernen.
       onKorrigieren: () => _ordneZu(t.gutschrift, korrigiereAuto: t),
@@ -1156,16 +1183,25 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   }
 
   Widget _unbekanntZeile(CamtTransaction g, {bool eingerueckt = false}) {
+    final name = effektiverZahlername(
+        partyName: g.partyName, additionalInfo: g.additionalInfo);
     final remit = g.remittanceInfo?.trim();
+    // Ohne Zahlername (Schalter-/Automaten-/Posteinzahlung): den rohen
+    // Bank-Text zeigen — der enthält bei Automaten Ort/Datum/Uhrzeit und ist
+    // die einzige Spur, welche Einzahlung das war.
+    final addtl = g.additionalInfo?.trim();
+    final adr = g.partyAddress.trim();
     final sub = [
       _dateFormat.format(g.bookingDate),
+      if (adr.isNotEmpty) adr,
       if (remit != null && remit.isNotEmpty) remit,
+      if (name == null && addtl != null && addtl.isNotEmpty) addtl,
     ].join(' · ');
     return ListTile(
       contentPadding: EdgeInsets.only(left: eingerueckt ? 32 : 16, right: 8),
       title: Text('${g.amount.toStringAsFixed(2)} CHF — '
-          '${effektiverZahlername(partyName: g.partyName, additionalInfo: g.additionalInfo) ?? '?'}'),
-      subtitle: Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis),
+          '${name ?? 'Einzahlung ohne Zahlername (Schalter/Automat)'}'),
+      subtitle: Text(sub, maxLines: 3, overflow: TextOverflow.ellipsis),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _ordneZu(g),
     );

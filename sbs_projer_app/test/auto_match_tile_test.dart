@@ -41,4 +41,32 @@ void main() {
           reason: 'Betrag bei Breite $breite ist $hoehe px hoch → mehrzeilig');
     });
   }
+
+  for (final breite in [800.0, 320.0]) {
+    testWidgets('Detail-Zeile (Zahler/Grund) wird angezeigt bei Breite $breite',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: breite,
+              child: AutoMatchTile(
+                betrag: _betrag,
+                beschreibung: 'Hotel Alpina · Rechnung RG-2025-0123 · 05.01.2026',
+                detail: 'Zahler: Gehri Gastronomie GmbH · QR-Referenz',
+                onVerbuchen: () {},
+              ),
+            ),
+          ),
+        ),
+      ));
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Gehri Gastronomie'), findsOneWidget);
+    });
+  }
+
+  testWidgets('ohne detail keine zusätzliche Zeile', (tester) async {
+    await tester.pumpWidget(_harness(800));
+    expect(find.textContaining('Zahler:'), findsNothing);
+  });
 }

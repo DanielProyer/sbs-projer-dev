@@ -211,4 +211,39 @@ void main() {
     expect(r.auto.length, 1);
     expect(r.auto.first.forderungen.first.id, 'r1');
   });
+
+  group('Treffer-Grund (Anzeige zur Kontrolle)', () {
+    test('QR-Referenz-Treffer trägt Grund "QR-Referenz"', () {
+      final gut = _gutMitRef(100.00, 'Wildfremd AG', 'RF18539007547034');
+      final rg = _rgMitRef('r1', 'b1', 100.00, 'RF18539007547034');
+      final erg = ForderungsAbgleichService.abgleich(
+        gutschriften: [gut],
+        offeneForderungen: [rg],
+        betriebe: [
+          {'id': 'b1', 'name': 'Hotel Alpina', 'aliase': ''},
+        ],
+      );
+      expect(erg.auto.single.grund, 'QR-Referenz');
+    });
+
+    test('exakter Zahlername trägt Grund "Zahlername exakt · Betrag passt"', () {
+      final r = ForderungsAbgleichService.abgleich(
+        gutschriften: [_gut(67.85, 'Hotel Alpina')],
+        offeneForderungen: [_rg('r1', 'b1', 67.85)],
+        betriebe: betriebe,
+      );
+      expect(r.auto.single.grund, 'Zahlername exakt · Betrag passt');
+    });
+
+    test('Alias-Treffer trägt Grund "Zahler-Alias · Betrag passt"', () {
+      final r = ForderungsAbgleichService.abgleich(
+        gutschriften: [_gut(100.00, 'Znueni Beiz')],
+        offeneForderungen: [_rg('r1', 'b1', 100.00)],
+        betriebe: [
+          {'id': 'b1', 'name': 'Hotel Alpina', 'aliase': 'znueni beiz'},
+        ],
+      );
+      expect(r.auto.single.grund, 'Zahler-Alias · Betrag passt');
+    });
+  });
 }
