@@ -21,14 +21,14 @@
 >   VORGÄNGER des Steak House (gleiche Adresse, Firma 01/2025 gelöscht);
 >   «Traube Senti» war der Alt-Wirt des Don Camillo (heute Blazevic).
 >
-> **Offen bleiben 4 Fragen an Daniel:** (1) BARacca [Vella] — zahlt Florian
-> Pagels? (HR-Betreiberin ist Carolin Kertz, «Kertz Gastronomie & Events»);
-> (2) Weissfluhgipfel — Zahler «Racine» = Pascal Racine (Racine Gastro,
-> Davos Wolfgang, Gastgeber «Kevin and Pascal») → plausibel, bestätigen?;
-> (3) Weissfluhjoch — «Surselva Hospitality AG» = neuer Pächter ab Saison
-> 2025/26 («Joch Mountain Diamond»)? Firma nirgends registriert auffindbar;
-> (4) Don Camillo [Quarten] — heutiger Wirt Ivan Blazevic: Alias erst setzen,
-> wenn eine Zahlung von ihm auftaucht.
+> **✅ Restfragen von Daniel beantwortet (07.08. spätabends) — ALLE 53 FÄLLE
+> ABGESCHLOSSEN:** (1) BARacca ← Florian Pagels bestätigt («F. Pagels
+> Erlebnis-Gastronomie BARacca», moneyhouse.ch/…/f-pagels-erlebnis-gastronomie-baracca-10975808571)
+> → Alias gesetzt; (2) Weissfluhgipfel ← «racine» bestätigt → gesetzt;
+> (3) Weissfluhjoch ← «surselva hospitality ag» bestätigt (Joch im Sommer 2026
+> zu, neuer Pächter ab Winter — vgl. Kundenmutations-Mails) → gesetzt.
+> Einzig offen als Merkposten: Don Camillo [Quarten] — Alias für den heutigen
+> Wirt Ivan Blazevic erst setzen, wenn eine Zahlung von ihm auftaucht.
 >
 > **Kenntnisnahmen:** Löwen [Sins] hat seit ~04/2026 einen neuen Betreiber
 > (Urs Peterhans, Landgasthof Löwen GmbH — Almepa-Alias deckt nur die alten
