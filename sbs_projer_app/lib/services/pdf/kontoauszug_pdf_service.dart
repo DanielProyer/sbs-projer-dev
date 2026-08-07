@@ -40,8 +40,24 @@ class KontoauszugPdfService {
 
   static const _ibanFormatted = 'CH66 0077 4010 3765 5060 1';
 
-  static final _chf = NumberFormat('#,##0.00', 'de_CH');
+  // Bewusst en_US formatieren und das Komma durch den GERADEN Apostroph
+  // (U+0027) ersetzen: de_CH liefert das typografische ’ (U+2019), und das
+  // fehlt in der eingebauten PDF-Schrift → Kästchen statt Tausender-Zeichen
+  // (Befund Daniel 08.08.2026, erster Kontoauszug).
+  static final _chf = NumberFormat('#,##0.00', 'en_US');
   static String _fmt(double v) => _chf.format(v).replaceAll(',', "'");
+
+  /// Ersetzt typografische Zeichen, die der eingebauten PDF-Schrift fehlen
+  /// (Kästchen-Symptom), durch sichere Entsprechungen — für alle dynamischen
+  /// Texte (Namen, Adressen, Belegnummern).
+  static String _safe(String s) => s
+      .replaceAll('’', "'")
+      .replaceAll('‘', "'")
+      .replaceAll('“', '"')
+      .replaceAll('”', '"')
+      .replaceAll('–', '-')
+      .replaceAll('—', '-')
+      .replaceAll('…', '...');
 
   static Future<Uint8List> generate({
     required BetriebLocal betrieb,
@@ -60,7 +76,7 @@ class KontoauszugPdfService {
     final bewegungen = <_Bewegung>[];
     double totalFakturiert = 0, totalZahlungen = 0, totalAbgeschrieben = 0;
     for (final r in rechnungen) {
-      final nr = r.rechnungsnummer ?? '—';
+      final nr = _safe(r.rechnungsnummer ?? '-');
       bewegungen.add(_Bewegung(
         datum: r.rechnungsdatum,
         vorgang: 'Rechnung',
@@ -122,7 +138,7 @@ class KontoauszugPdfService {
           alignment: pw.Alignment.centerRight,
           margin: const pw.EdgeInsets.only(top: 8),
           child: pw.Text(
-            'Kontoauszug ${betrieb.name} · Seite ${ctx.pageNumber} von ${ctx.pagesCount}',
+            _safe('Kontoauszug ${betrieb.name} · Seite ${ctx.pageNumber} von ${ctx.pagesCount}'),
             style: const pw.TextStyle(fontSize: 8, color: _grey),
           ),
         ),
@@ -249,16 +265,19 @@ class KontoauszugPdfService {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             for (final z in zeilen)
-              pw.Text(z, style: const pw.TextStyle(fontSize: 10)),
+              pw.Text(_safe(z), style: const pw.TextStyle(fontSize: 10)),
           ],
         ),
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
-            pw.Text('Objekt: ${betrieb.name}'
-                '${(betrieb.ort ?? '').isNotEmpty ? ', ${betrieb.ort}' : ''}',
+            pw.Text(
+                _safe('Objekt: ${betrieb.name}'
+                    '${(betrieb.ort ?? '').isNotEmpty ? ', ${betrieb.ort}' : ''}'),
                 style: const pw.TextStyle(fontSize: 9, color: _grey)),
-            pw.Text('Zeitraum: $von – $bis',
+            // Bindestrich statt Gedankenstrich (–, U+2013): fehlt in der
+            // eingebauten PDF-Schrift.
+            pw.Text('Zeitraum: $von - $bis',
                 style: const pw.TextStyle(fontSize: 9, color: _grey)),
             pw.Text('Erstellt am: $bis',
                 style: const pw.TextStyle(fontSize: 9, color: _grey)),
@@ -415,7 +434,7 @@ class KontoauszugPdfService {
           pw.Text(
             offen > 0.005
                 ? 'Wir bitten um Überweisung des offenen Saldos von CHF ${_fmt(offen)} auf das untenstehende Konto. Bereits erfolgte Zahlungen sind in diesem Auszug berücksichtigt.'
-                : 'Das Konto ist ausgeglichen — besten Dank.',
+                : 'Das Konto ist ausgeglichen - besten Dank.',
             style: const pw.TextStyle(fontSize: 8.5),
           ),
           pw.SizedBox(height: 5),
