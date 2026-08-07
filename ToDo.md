@@ -4,6 +4,15 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08. (v0.72.6): Fahrplan Schritt 2a — Storno-Mechanik repariert (B6.1–B6.3)
+
+- **Neue reine Logik** `services/buchhaltung/storno_logik.dart` (TDD, 7 Tests): Gegenbuchung datiert **aufs Original** (Datum + Geschäftsjahr aus dem Original-Datum, nicht «heute»), trägt **kein `mwst_konto`** mehr (Ausschluss-Modell: storniertes Original UND Gegenbuchung zählen in keiner Auswertung — wie Bilanz/ER seit v0.16.15); `stornieren()` nimmt **zugehörige MwSt-Trennbuchungen desselben Belegs/Tages mit** (Zahlungen nie); Gegenbuchungen selbst sind nicht stornierbar.
+- **Ausschluss-Filter nachgezogen:** `getAllSaldi` (Kontensaldi/Audit/Debitoren) und `mwstQuartalDetailProvider` überspringen jetzt auch Gegenbuchungen (`zaehltFuerSaldo`); **5 Idempotenz-Guards** (Heineken Haupt+Zahlung, Zahlungsdifferenz 2×, Eingangsrechnung Stufe 1) prüfen `stornoVonId == null` — nach einem Storno kann der Beleg wieder gebucht werden.
+- **Migration 166:** `view_mwst_abrechnung` schliesst `storno_von_id IS NOT NULL` aus (Härtung; App setzt mwst_konto bei Gegenbuchungen eh auf NULL). Verifiziert: 0 Gegenbuchungen im Bestand → alle View-/Saldo-Zahlen unverändert; 969 Tests grün.
+- **Damit ist der Storni-Weg für die B1-Bereinigung frei.** Offen: Entscheid G4 (Storni vs. dokumentierte Migration) + B1-Code-Fix (4 Trennbuchungs-Blöcke streichen).
+
+---
+
 ## 🟢 ERLEDIGT 07.08. (v0.72.5): Buchhaltungs-Fahrplan Schritt 1 — Heineken-Rundung (B2)
 
 - **Code:** `heineken_buchung_service.dart` rundet das Brutto nicht mehr auf 5 Rappen — Heineken wird ungerundet fakturiert (Regel 15.07.). Neue reine Funktion `heinekenBuchungsBetraege` (`core/util/heineken_buchung_betraege.dart`, TDD, 3 Tests): Netto/Brutto exakt aus der Rechnung, MwSt = brutto − netto → Invariante `brutto = netto + mwst` gilt konstruktiv. 962 Tests grün, live v0.72.5.

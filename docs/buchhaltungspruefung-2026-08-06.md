@@ -269,9 +269,14 @@ lassen.
    Heineken-Zahlungseingänge gleichen 1100 rappengenau aus (B8-Rundungspunkt
    für Heineken miterledigt).
 2. **B1** Doppelbuchung: 4 Code-Blöcke streichen (Variante A), dann die
-   895 + 79 Trennbuchungen bereinigen. **Vorher B6.1–B6.3 reparieren**, wenn
-   die Bereinigung als Storni laufen soll (empfohlen wegen GeBüV) — sonst per
-   dokumentierter Migration mit Snapshot.
+   895 + 79 Trennbuchungen bereinigen. ✅ **Vorbedingung erledigt 07.08.2026:
+   B6.1–B6.3 repariert** (v0.72.6): Gegenbuchung datiert aufs Original und
+   trägt kein `mwst_konto` mehr (`storno_logik.dart`, 7 Tests); zugehörige
+   MwSt-Trennbuchungen werden mitstorniert; Ausschluss-Filter
+   (`zaehltFuerSaldo`) in getAllSaldi, MWST-Quartals-Provider und 5
+   Idempotenz-Guards; Migration 166 härtet die MWST-View
+   (`storno_von_id IS NULL`). Der Storni-Weg für die Bereinigung ist damit
+   frei — Entscheid Storni vs. Migration (G4) steht noch aus.
 3. **camt-Vorbereitung:** Stichtag-Off-by-One + B8-Richtungsfehler fixen,
    frische camt-Datei ab 15.07. besorgen, dann Nachhol-Import 12.03.–heute
    (mit Alias-Lernen).
