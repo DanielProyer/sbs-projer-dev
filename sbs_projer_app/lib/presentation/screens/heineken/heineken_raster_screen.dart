@@ -279,13 +279,14 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
             fileOptions: const FileOptions(upsert: true, contentType: 'application/pdf'),
           );
 
-      final url = SupabaseService.client.storage
+      // Signierte URL statt getPublicUrl: der Bucket ist seit 07.08.2026
+      // privat (Sicherheitsbefund — Raster mit allen Kundennamen war
+      // öffentlich abrufbar). 1 h Gültigkeit reicht fürs Öffnen; der Token
+      // macht jede URL einzigartig, ein Cache-Buster ist damit überflüssig.
+      final url = await SupabaseService.client.storage
           .from('raster-pdfs')
-          .getPublicUrl(storagePath);
-
-      // Cache-Buster damit der Browser nicht das alte PDF zeigt
-      final cacheBustedUrl = '$url?t=${DateTime.now().millisecondsSinceEpoch}';
-      await launchUrl(Uri.parse(cacheBustedUrl), mode: LaunchMode.externalApplication);
+          .createSignedUrl(storagePath, 3600);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
