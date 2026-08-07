@@ -4,6 +4,14 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08. (v0.72.3): Sicherheitsbefunde aus Projekt Heineken — Buckets privat
+
+1. **Öffentliche Buckets geschlossen:** `material-fotos` (public seit 17.02.) und `raster-pdfs` (public seit 10.05. — enthielt den Serviceraster mit allen Kundennamen) auf privat gestellt (Migration `buckets_material_fotos_raster_pdfs_privat`). Vorher verifiziert: material-fotos nutzt nur signierte URLs + Owner-Policies; raster-pdfs hat authenticated-Policies, die Mail-Function lädt per Service-Role. Einzige `getPublicUrl`-Stelle der App (Raster-Download) auf `createSignedUrl` umgestellt. Praxistest: anonymer Abruf → HTTP 400. **Kein Bucket mehr public.**
+2. **«Fehlende Sicherung Material»:** Die Material-/Lager-Tabellen selbst waren alle mit RLS+Policy gesichert — der Befund war der public material-fotos-Bucket (Punkt 1). Kein weiterer Handlungsbedarf.
+3. Nebenbei geklärt: Versionsanzeige-Verwirrung (Browser 0.72.1 / App 0.71.0) = veraltete `kAppVersion` im 0.72.1-Bundle; v0.72.2 (Fix + Test) hing seit 06.08. in der GitHub-Actions-Störung, am 07.08. nachgeschoben; v0.72.3 direkt hinterher.
+
+---
+
 ## 🔴 NEU 06.08.2026: Buchhaltungs-Gesamtprüfung — Vollbericht `docs/buchhaltungspruefung-2026-08-06.md`
 
 Auftrag Daniel («gesamte Buchhaltung prüfen, muss alles stimmen»), Massstab = Recherchen aus `D:\Projekte\KMU Tool 2\02_Recherche\` (02 Buchhaltung, 07 MWST). Vier Opus-Agenten (MWST-Abrechnung, Code-Audit 20 Buchungspfade, Journal-Audit, Rechnungsstellung), schwerste Befunde einzeln verifiziert.
