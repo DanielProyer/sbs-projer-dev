@@ -20,7 +20,7 @@
 **Chleina Pub geklärt:** Die 74.60 vom 30.04. war eine Doppelzahlung der April-Rechnung → als a.o. Ertrag 8000 gebucht, **Ausgleich per Kulanz beim nächsten Service** (Service-Hinweis am Betrieb gesetzt).
 
 **Noch offen aus dem Abgleich:**
-- [ ] 2 Schaltereinzahlungen zuordnen (74.60 vom 05.05. · 138.35 vom 09.06., beide Bern) — nur Daniel weiss, wer bar einzahlte (Prüfliste → «Zuordnen» bzw. nächster Import).
+- [x] ~~2 Schaltereinzahlungen zuordnen~~ **ERLEDIGT 08.08. (v0.73.2):** 138.35 vom 09.06. = **Sunset Sursee** (Rechnung 2026-06-0662, Name «Sunset Bar» stand im Rohtext) · 74.60 vom 05.05. = **Pizzeria Paradies Bad Ragaz** (Rechnung 2026-04-0537; Einzahler Nuriman Mustafi = Familie der Geschäftsleitung Gezim+Burim Mustafi, Beleg: Gemeinde-Website Bad Ragaz). Beide über den App-Buchungspfad gebucht (1020/1100 mit camt_tx_key), Alias `nuriman mustafi` gesetzt. **Bank 1020 per 06.08. = 15'165.92 = E-Banking EXAKT, Prüfliste leer (0 offene).** Ursache, warum die Namen unsichtbar waren: GKB setzt bei Schaltereinzahlungen den Zahlernamen wörtlich auf «Schaltereinzahlung» — galt als gültiger Name, darum zeigte der Abgleich den Rohtext («Gutschrift <Name>») nicht und das Matching lief ins Leere. Fix v0.73.2: Platzhalter zählt nicht als Name (`zahlername.dart`, +2 Tests) → Name erscheint überall und matcht künftig automatisch.
 - [ ] Prüfpunkt: Sammelzahlung 26.06. Weisse Arena — **126.50 als «Mehrzahlung» auf 8000** gebucht (ZV20260626/988854/30); riecht nach fehlender Rechnung in der Auswahl → ggf. «Zahlung rückgängig» + neu zuordnen.
 - [ ] Merkposten: 2× Klara Maria Thomann und 2× Weisse Arena tragen überkreuzte camt-Schlüssel (netto null, nur Kosmetik fürs Rückgängigmachen).
 
