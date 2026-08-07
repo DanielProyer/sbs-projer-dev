@@ -4,6 +4,15 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08. (v0.72.10): camt-Antworten Daniel umgesetzt + Zahlernamen-Lernen aus Historie
+
+1. **Sammelzahler bestätigt + erweitert:** Weisse Arena → IKIGAI, Il Pub, Indy Bar, Signina, Legna, Nagens; **Goodfast Hotels AG → Grischa, Golden Dragon, Jodys, Bräma** (alle Davos). `goodfast` neu in `kSammelzahler` (nie auto, +Test).
+2. **Stammdaten Davos-Vierergruppe:** Rechnungsadresse aus Grischa (Goodfast Hotels AG, invoice@hotelgrischa.com) auf Golden Dragon/Jodys/Bräma übernommen (mit Objektnamen), **alle 4 auf `rechnung_mail`** (waren rechnung_tresen).
+3. **Franchise-Vorlage umgestellt (OK Daniel):** «Heineken-Franchise (Aufwand direkt, VSt 1170)» = 6301/1020, MwSt 8.1 % → der Nachhol-Import bucht die Franchise-Belastungen richtig inkl. 282.69 VSt/Monat; Regel-Match verengt auf `heineken switzerland`.
+4. **Zahlernamen aus Zahlungshistorie gelernt** (Auftrag Daniel: letzte 4 Zahlungen, alle gleich → auto): 1'606 Gutschriften ab 2024 aus der Voll-camt gegen bezahlte Rechnungen gematcht (nur eindeutige Datum+Betrag-Paare). **57 Aliase automatisch gesetzt**; 53 Nachfragen (32 nur-eine-Zahlung, 11 verschiedene Namen, 10 Konflikte) → Listen in `docs/camt-zahlernamen-lernen-2026-08-07.md`. ⚠️ Dabei gefunden: Alias «hotel alpenblick weggis ag» liegt auf Alpenblick [Arosa] — vermutlich am 15.07. falsch gelernt. Arbeitstabellen/Rollback: Schema `tmp_zahlername`.
+
+---
+
 ## 🟢 ERLEDIGT 07.08. (v0.72.9): camt-Import-Gesamtprüfung — Härtung + Verbesserungsplan
 
 **Vollbericht:** `docs/camt-import-pruefung-2026-08-07.md` (Code-Kartierung des ganzen Subsystems + Datenbestand + Analyse der echten camt-Datei 12.03.–20.06.).
