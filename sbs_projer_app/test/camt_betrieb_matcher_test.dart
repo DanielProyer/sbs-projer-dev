@@ -45,20 +45,22 @@ void main() {
     {'id': 'b3', 'name': 'Armando', 'nr': '21', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0088'},
   ];
 
-  test('matchByNummer: leading-zero-tolerant über heineken_nr/we/ag', () {
+  test('matchByNummer: leading-zero-tolerant, NUR heineken_nr zählt', () {
     expect(CamtBetriebMatcher.matchByNummer('151', mitNr)?['id'], 'b1');
     expect(CamtBetriebMatcher.matchByNummer('0151', mitNr)?['id'], 'b1');
-    expect(CamtBetriebMatcher.matchByNummer('77', mitNr)?['id'], 'b2');
-    expect(CamtBetriebMatcher.matchByNummer('88', mitNr)?['id'], 'b3'); // heineken_nr
+    expect(CamtBetriebMatcher.matchByNummer('88', mitNr)?['id'], 'b3');
     expect(CamtBetriebMatcher.matchByNummer('0088', mitNr)?['id'], 'b3');
     expect(CamtBetriebMatcher.matchByNummer('999', mitNr), isNull);
     expect(CamtBetriebMatcher.matchByNummer(null, mitNr), isNull);
   });
 
-  test('matchByNummer: heineken_nr schlägt Hausnummer-/WE-Kollision (Fix 07.08.)', () {
-    // Betrieb b9 hat heineken_nr 0089; ein ANDERER Betrieb hat Hausnummer 89
-    // und ein dritter die WE-Nummer 89. Früher → mehrdeutig → null; jetzt
-    // gewinnt die eigene Betriebsnummer.
+  test('matchByNummer: WE-/AG-Nummern matchen NICHT (stehen nie auf Rechnungen)', () {
+    // Regel Daniel 07.08.2026: WE/AG kennt der Betrieb nicht — nur die eigene
+    // Betriebsnummer (heineken_nr) identifiziert.
+    expect(CamtBetriebMatcher.matchByNummer('77', mitNr), isNull);
+  });
+
+  test('matchByNummer: heineken_nr trotz Hausnummer-/WE-Kollision (Fix 07.08.)', () {
     final kollision = [
       {'id': 'b9', 'name': 'Bolgen Plaza', 'nr': '', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0089'},
       {'id': 'bx', 'name': 'Hausnr-Betrieb', 'nr': '89', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0500'},
@@ -68,7 +70,7 @@ void main() {
     expect(CamtBetriebMatcher.matchByNummer('89', kollision)?['id'], 'b9');
   });
 
-  test('matchByNummer: Hausnummer allein matcht NICHT mehr', () {
+  test('matchByNummer: Hausnummer allein matcht NICHT', () {
     final nurHausnr = [
       {'id': 'b1', 'name': 'A', 'nr': '42', 'we_nummer': '', 'ag_nummer': '', 'heineken_nr': '0700'},
     ];

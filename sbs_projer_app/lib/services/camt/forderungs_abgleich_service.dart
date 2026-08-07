@@ -104,14 +104,35 @@ class ForderungsAbgleichService {
         sicherGrund[g] = alias != null ? 'Zahler-Alias' : 'Zahlername exakt';
       }
       // Auflösungs-Reihenfolge: sicher → Bemerkung-Rechnungsnummer (direkte
-      // Forderung) → Vermerk-Betriebnummer → unscharfer Name. Nur „sicher" ist
-      // auto-fähig; alles andere landet als Vorschlag in der manuellen Prüfung.
+      // Forderung) → Vermerk-Betriebnummer → Sammelzahler-Betrag → unscharfer
+      // Name. Nur „sicher" ist auto-fähig; alles andere landet als Vorschlag
+      // in der manuellen Prüfung.
       final vermerk = parseVermerk(g.remittanceInfo);
       final refFord =
           vermerk.rechnungsnummer == null ? null : fordByNr[vermerk.rechnungsnummer!];
+      // Sammelzahler ohne Vermerk-Hinweis (Goodfast schreibt nur «Kreditoren»):
+      // eindeutiger Betrags-Treffer über ALLE offenen Forderungen routet zum
+      // Betrieb — die Beträge sind praktisch immer eindeutig (Regel Daniel
+      // 07.08.2026). Bleibt manueller Vorschlag, nie auto.
+      String? betragZielId;
+      if (istSammelzahler(name)) {
+        Rechnung? einzig;
+        var mehrdeutig = false;
+        for (final r in offeneAktiv) {
+          if ((r.betragBrutto - g.amount).abs() < 0.005) {
+            if (einzig != null) {
+              mehrdeutig = true;
+              break;
+            }
+            einzig = r;
+          }
+        }
+        if (!mehrdeutig) betragZielId = einzig?.betriebId;
+      }
       final zielId = sicher?['id'] ??
           refFord?.betriebId ??
           CamtBetriebMatcher.matchByNummer(vermerk.betriebNummer, betriebe)?['id'] ??
+          betragZielId ??
           treffer?['id'] ??
           (name == null ? null : CamtBetriebMatcher.findBestMatch(name, betriebe)?['id']);
       if (zielId == null) continue;

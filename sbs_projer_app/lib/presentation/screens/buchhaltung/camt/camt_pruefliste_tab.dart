@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt/camt_regeln_tab.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt/kundenzahlung_zuordnen_dialog.dart';
 
 /// camt-Prüfliste — persistente Liste der Transaktionen, die der Auto-Booker
 /// nicht sicher verbuchen konnte.
@@ -114,6 +115,11 @@ class CamtPrueflisteTab extends ConsumerWidget {
                         buchenFuer: e,
                       )
                   : null,
+              // Geparkte Kundenzahlungen (aus «Später klären» im Abgleich)
+              // lassen sich hier direkt offenen Rechnungen zuordnen.
+              onZuordnen: e.kategorie == 'kundenzahlung' && e.istGutschrift
+                  ? () => showKundenzahlungZuordnenDialog(context, ref, e)
+                  : null,
             );
           },
         );
@@ -127,12 +133,14 @@ class _PrueflisteCard extends StatelessWidget {
   final VoidCallback onErledigt;
   final VoidCallback onIgnorieren;
   final VoidCallback? onRegelAnlegen;
+  final VoidCallback? onZuordnen;
 
   const _PrueflisteCard({
     required this.eintrag,
     required this.onErledigt,
     required this.onIgnorieren,
     this.onRegelAnlegen,
+    this.onZuordnen,
   });
 
   @override
@@ -236,12 +244,14 @@ class _PrueflisteCard extends StatelessWidget {
               ),
             ],
 
-            // Aktionen
+            // Aktionen (Wrap: auf dem Handy umbrechend statt abgeschnitten)
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 4,
               children: [
-                if (onRegelAnlegen != null) ...[
+                if (onRegelAnlegen != null)
                   TextButton.icon(
                     onPressed: onRegelAnlegen,
                     icon: const Icon(Icons.rule, size: 16),
@@ -250,8 +260,6 @@ class _PrueflisteCard extends StatelessWidget {
                       foregroundColor: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                ],
                 TextButton.icon(
                   onPressed: onIgnorieren,
                   icon: const Icon(Icons.block, size: 16),
@@ -260,12 +268,29 @@ class _PrueflisteCard extends StatelessWidget {
                     foregroundColor: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: onErledigt,
-                  icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Erledigt'),
-                ),
+                if (onZuordnen == null)
+                  FilledButton.icon(
+                    onPressed: onErledigt,
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Erledigt'),
+                  )
+                else ...[
+                  // Geparkte Kundenzahlung: primäre Aktion ist das Zuordnen;
+                  // «Erledigt» bleibt für ausserhalb gelöste Fälle.
+                  TextButton.icon(
+                    onPressed: onErledigt,
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Erledigt'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: onZuordnen,
+                    icon: const Icon(Icons.link, size: 16),
+                    label: const Text('Zuordnen'),
+                  ),
+                ],
               ],
             ),
           ],

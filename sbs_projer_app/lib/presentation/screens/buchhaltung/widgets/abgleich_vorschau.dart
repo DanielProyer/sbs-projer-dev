@@ -6,9 +6,12 @@ import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/abgleich_fenster.dart';
 import 'package:sbs_projer_app/core/util/zahlung_paarung.dart';
+import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/auto_match_tile.dart';
@@ -607,7 +610,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final vorschlagFordIds = <String>{};
     for (final g in gutschriftenSortiert) {
       final v = parseVermerk(g.remittanceInfo);
-      // Rechnungsnummer aus der Bemerkung exakt (stärkstes Signal), sonst Datum.
+      // Rechnungsnummer aus der Bemerkung exakt (stärkstes Signal), sonst
+      // Datum, sonst exakter Betrag (Goodfast nennt weder Nummer noch Datum —
+      // die Beträge sind praktisch immer eindeutig, Regel Daniel 07.08.2026).
       var treffer = v.rechnungsnummer == null
           ? const <Rechnung>[]
           : f.forderungen
@@ -616,6 +621,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       if (treffer.isEmpty && v.datum != null) {
         treffer = f.forderungen
             .where((r) => _sameDay(r.rechnungsdatum, v.datum!))
+            .toList();
+      }
+      if (treffer.isEmpty) {
+        treffer = f.forderungen
+            .where((r) => (r.betragBrutto - g.amount).abs() < 0.005)
             .toList();
       }
       if (treffer.length == 1 && !vorschlagFordIds.contains(treffer.first.id)) {
@@ -727,7 +737,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           '${r.betragBrutto.toStringAsFixed(2)} CHF',
                         ),
                         subtitle: Text(vorschlagFordIds.contains(r.id)
-                            ? 'Rechnung ${r.rechnungsnummer ?? '?'} · 📌 laut Bemerkung'
+                            ? 'Rechnung ${r.rechnungsnummer ?? '?'} · 📌 Vorschlag (Bemerkung/Betrag)'
                             : 'Rechnung ${r.rechnungsnummer ?? '?'}'),
                         secondary: _forderungPdfLink(r),
                         onChanged: (sel) => setDialogState(() {
@@ -915,6 +925,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final gewaehlt = <Rechnung>{};
     var suche = '';
     var zeigeAlte = false;
+    // „Später klären": Zahlung in die Prüfliste parken (Recherche-Fall).
+    var spaeterKlaeren = false;
     final jetzt = DateTime.now();
     final anzahlAlte = widget.alleOffenen
         .where((r) => !istImAbgleichsfenster(r.rechnungsdatum, jetzt))
@@ -1041,6 +1053,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             ),
             actions: [
               TextButton(
+                onPressed: () {
+                  spaeterKlaeren = true;
+                  Navigator.pop(ctx, false);
+                },
+                child: const Text('Später klären'),
+              ),
+              TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
                   child: const Text('Abbrechen')),
               FilledButton(
@@ -1072,6 +1091,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         },
       ),
     );
+    if (spaeterKlaeren) {
+      await _parkeInPruefliste(g,
+          korrigiereAuto: korrigiereAuto, korrigiereManuell: korrigiereManuell);
+      return;
+    }
     if (ok == true) {
       // Lernen nur bei eindeutigem Betrieb der gewählten Forderungen.
       final betriebIds =
@@ -1121,6 +1145,67 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
       }
+    }
+  }
+
+  /// Parkt eine Kundenzahlung in der Prüfliste (Status offen, Kategorie
+  /// „kundenzahlung") — für die seltenen Fälle, in denen die Zuordnung erst
+  /// nach Recherche möglich ist. Aus der Prüfliste lässt sie sich später über
+  /// „Zuordnen" verbuchen; der nächste Import bewertet offene Einträge neu.
+  Future<void> _parkeInPruefliste(CamtTransaction g,
+      {AutoTreffer? korrigiereAuto, ManuellFall? korrigiereManuell}) async {
+    try {
+      await CamtPrueflisteRepository.insert(CamtPrueflisteEintrag(
+        txKey: g.txKey,
+        bookingDatum: g.bookingDate,
+        betrag: g.amount,
+        istGutschrift: g.isCredit,
+        parteiName: effektiverZahlername(
+                partyName: g.partyName, additionalInfo: g.additionalInfo) ??
+            g.partyName,
+        parteiIban: g.partyIban,
+        belegRef: g.accountServiceRef,
+        referenz: g.remittanceInfo ?? g.additionalInfo,
+        kategorie: 'kundenzahlung',
+      ));
+      ref.invalidate(camtPrueflisteProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Parken fehlgeschlagen: $e')));
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      if (korrigiereAuto != null) {
+        // Auto-Treffer auflösen; seine Forderungen bleiben sichtbar offen.
+        widget.ergebnis.auto.remove(korrigiereAuto);
+        for (final r in korrigiereAuto.forderungen) {
+          if (widget.alleOffenen.any((o) => o.id == r.id) &&
+              !widget.ergebnis.keineZahlung.any((k) => k.id == r.id)) {
+            widget.ergebnis.keineZahlung.add(r);
+          }
+        }
+      } else if (korrigiereManuell != null) {
+        korrigiereManuell.gutschriften.remove(g);
+        if (korrigiereManuell.gutschriften.isEmpty) {
+          for (final r in korrigiereManuell.forderungen) {
+            if (widget.alleOffenen.any((o) => o.id == r.id) &&
+                !widget.ergebnis.keineZahlung.any((k) => k.id == r.id)) {
+              widget.ergebnis.keineZahlung.add(r);
+            }
+          }
+          widget.ergebnis.manuell.remove(korrigiereManuell);
+        }
+      } else {
+        widget.ergebnis.unbekannteGutschriften.remove(g);
+      }
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('In die Prüfliste gelegt — dort später über „Zuordnen" verbuchen.')));
     }
   }
 

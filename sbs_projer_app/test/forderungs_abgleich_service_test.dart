@@ -212,6 +212,66 @@ void main() {
     expect(r.auto.first.forderungen.first.id, 'r1');
   });
 
+  group('Sammelzahler-Betrags-Routing (Regel Daniel 07.08.2026)', () {
+    test('Goodfast: eindeutiger Betrag routet zum Betrieb — manuell, nie auto',
+        () {
+      final r = ForderungsAbgleichService.abgleich(
+        gutschriften: [_gut(143.75, 'Goodfast Hotels AG')],
+        offeneForderungen: [
+          _rg('r1', 'b1', 143.75),
+          _rg('r2', 'b2', 99.0),
+        ],
+        betriebe: betriebe,
+      );
+      expect(r.auto, isEmpty); // Sammelzahler nie auto
+      expect(r.manuell.single.betriebId, 'b1');
+      expect(r.manuell.single.gutschriften.single.amount, 143.75);
+    });
+
+    test('Goodfast: Betrag passt auf ZWEI Forderungen → kein Betrags-Routing',
+        () {
+      final r = ForderungsAbgleichService.abgleich(
+        gutschriften: [_gut(143.75, 'Goodfast Hotels AG')],
+        offeneForderungen: [
+          _rg('r1', 'b1', 143.75),
+          _rg('r2', 'b2', 143.75),
+        ],
+        betriebe: betriebe,
+      );
+      // Mehrdeutig → bleibt unbekannt (kein Alias im Test-Setup).
+      expect(r.auto, isEmpty);
+      expect(r.manuell, isEmpty);
+      expect(r.unbekannteGutschriften.single.amount, 143.75);
+    });
+
+    test('Vermerk-Betriebsnummer schlägt Betrags-Routing', () {
+      final betriebeMitNr = [
+        {'id': 'b1', 'name': 'Grischa', 'heineken_nr': '0089'},
+        {'id': 'b2', 'name': 'Golden Dragon', 'heineken_nr': '0090'},
+      ];
+      final g = CamtTransaction(
+        amount: 100.0,
+        currency: 'CHF',
+        isCredit: true,
+        bookingDate: DateTime(2026, 4, 22),
+        partyName: 'Davos Klosters Bergbahnen AG',
+        remittanceInfo: '04.04.2026 0090_2026_04_04',
+        txKey: 'tx-dkb',
+      );
+      final r = ForderungsAbgleichService.abgleich(
+        gutschriften: [g],
+        // Betrag 100 passt exakt auf die b1-Forderung — die Nummer im Vermerk
+        // sagt aber b2, und die gewinnt.
+        offeneForderungen: [
+          _rg('r1', 'b1', 100.0),
+          _rg('r2', 'b2', 55.0),
+        ],
+        betriebe: betriebeMitNr,
+      );
+      expect(r.manuell.single.betriebId, 'b2');
+    });
+  });
+
   group('Treffer-Grund (Anzeige zur Kontrolle)', () {
     test('QR-Referenz-Treffer trägt Grund "QR-Referenz"', () {
       final gut = _gutMitRef(100.00, 'Wildfremd AG', 'RF18539007547034');
