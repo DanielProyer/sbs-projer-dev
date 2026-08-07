@@ -14,15 +14,32 @@ double _round2(double v) => (v * 100).roundToDouble() / 100;
 AufgeloesteBuchung kontenFuerCamt(BuchungsVorlage vorlage) =>
     GeschaeftsfallResolver.aufloesen(vorlage, 'bank');
 
+/// Das Bank-Konto, über das jede camt-Transaktion läuft.
+const int kCamtBankKonto = 1020;
+
+/// Muss bei einer Gutschrift getauscht werden? Nur, wenn die Vorlage die Bank
+/// NICHT schon im Soll führt. Eine Einzahlungs-Vorlage wie «Bargeldeinzahlung»
+/// (1020 an 1000) ist bereits richtig herum — der pauschale Tausch von
+/// v0.72.8 drehte sie fälschlich zu «Kasse an Bank» (Doppel-Tausch-Bug,
+/// gefunden beim Nachhol-Import 07.08.2026: 2 Automaten-Einzahlungen 8'050).
+bool kontenWerdenGetauscht({
+  required bool isCredit,
+  required int vorlageSoll,
+}) =>
+    isCredit && vorlageSoll != kCamtBankKonto;
+
 /// Konten und Beträge einer camt-Ausgabe-Buchung — richtungsbewusst (B8-Fix,
-/// Buchhaltungsprüfung 06.08.2026):
+/// Buchhaltungsprüfung 06.08.2026; präzisiert 07.08.2026):
 /// - **Belastung** (Normalfall): Konten wie in der Vorlage, MwSt-Split über
 ///   `mwst_konto` (SaldoExpansion).
-/// - **Gutschrift** (z. B. Prämien-Rückerstattung auf einer Ausgabe-Regel):
-///   Konten getauscht, damit die Bank im Soll steht. Der Vorsteuer-Split
-///   lässt sich in einer Zeile nicht invertieren (die SaldoExpansion wählt
-///   den Zweig nach Konto-Klasse) → brutto ohne Split buchen; die MwSt ist
-///   im Einzelfall manuell zu prüfen (Hinweis in den Notizen).
+/// - **Gutschrift** auf einer Vorlage, die die Bank bereits im Soll führt
+///   (Einzahlungs-Vorlage, z. B. Bargeldeinzahlung 1020/1000): Konten wie in
+///   der Vorlage, Split wie Vorlage — nichts zu drehen.
+/// - **Gutschrift** auf einer echten Ausgabe-Vorlage (Bank im Haben, z. B.
+///   Prämien-Rückerstattung): Konten getauscht, damit die Bank im Soll steht.
+///   Der Vorsteuer-Split lässt sich in einer Zeile nicht invertieren (die
+///   SaldoExpansion wählt den Zweig nach Konto-Klasse) → brutto ohne Split
+///   buchen; die MwSt ist im Einzelfall manuell zu prüfen (Notiz-Hinweis).
 Map<String, dynamic> ausgabeBuchungsFelder({
   required double betrag,
   required bool isCredit,
@@ -32,7 +49,7 @@ Map<String, dynamic> ausgabeBuchungsFelder({
   int? vorlageMwstKonto,
 }) {
   final brutto = _round2(betrag);
-  if (isCredit) {
+  if (kontenWerdenGetauscht(isCredit: isCredit, vorlageSoll: vorlageSoll)) {
     return {
       'soll_konto': vorlageHaben,
       'haben_konto': vorlageSoll,
@@ -74,7 +91,8 @@ class CamtAusgabeBooker {
         ? '${tx.isCredit ? "Zahlung" : "Belastung"} ${tx.partyName}'
         : (tx.additionalInfo ?? vorlage.bezeichnung);
     final notizen = <String>[
-      if (tx.isCredit)
+      if (kontenWerdenGetauscht(
+          isCredit: tx.isCredit, vorlageSoll: konten.sollKonto))
         'GUTSCHRIFT auf Ausgabe-Regel (Konten getauscht) — MwSt manuell prüfen',
       if (tx.strukturierteReferenz != null) 'Ref: ${tx.strukturierteReferenz}',
       if (tx.partyIban != null) 'IBAN: ${tx.partyIban}',

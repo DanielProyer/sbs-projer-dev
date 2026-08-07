@@ -63,6 +63,26 @@ void main() {
       expect(f['betrag_brutto'], 108.10);
     });
 
+    test('Gutschrift auf Einzahlungs-Vorlage (Bank schon im Soll): NICHT tauschen',
+        () {
+      // Doppel-Tausch-Bug 07.08.2026: «Bargeldeinzahlung» ist als 1020 an 1000
+      // definiert — der pauschale Gutschrift-Tausch machte daraus «Kasse an
+      // Bank» (2 Automaten-Einzahlungen, 8'050.00, von Hand korrigiert).
+      final f = ausgabeBuchungsFelder(
+          betrag: 5300.00, isCredit: true, mwstSatz: 0,
+          vorlageSoll: 1020, vorlageHaben: 1000);
+      expect(f['soll_konto'], 1020);
+      expect(f['haben_konto'], 1000);
+      expect(f['betrag_brutto'], 5300.00);
+    });
+
+    test('kontenWerdenGetauscht: nur Gutschrift auf Nicht-Einzahlungs-Vorlage', () {
+      expect(kontenWerdenGetauscht(isCredit: true, vorlageSoll: 6200), isTrue);
+      expect(kontenWerdenGetauscht(isCredit: true, vorlageSoll: 1020), isFalse);
+      expect(kontenWerdenGetauscht(isCredit: false, vorlageSoll: 6200), isFalse);
+      expect(kontenWerdenGetauscht(isCredit: false, vorlageSoll: 1020), isFalse);
+    });
+
     test('Invariante brutto = netto + mwst gilt in beiden Richtungen', () {
       for (final credit in [false, true]) {
         final f = ausgabeBuchungsFelder(
