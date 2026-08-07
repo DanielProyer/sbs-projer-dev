@@ -4,6 +4,23 @@
 
 ---
 
+## 🟢 ERLEDIGT 07.08. (v0.72.9): camt-Import-Gesamtprüfung — Härtung + Verbesserungsplan
+
+**Vollbericht:** `docs/camt-import-pruefung-2026-08-07.md` (Code-Kartierung des ganzen Subsystems + Datenbestand + Analyse der echten camt-Datei 12.03.–20.06.).
+
+**Sofort behoben (v0.72.9, live):**
+1. **Ausgabe-Booker löst Geschäftsfall-Vorlagen auf** (`kontenFuerCamt` via Resolver, Zahlungsweg 'bank') — Phase-0a-Vorlagen (Bussen 6280, Fahrbewilligung 6275) hatten Soll/Haben NULL → Buchung crashte; betroffen genau die 2 offenen Ausgabe-Prüflistenfälle (Flims 40.00, Luzern 20.00).
+2. **Offene Prüflisten-Einträge blockieren den Re-Import nicht mehr** (nur erledigt/ignoriert blockiert); Buchung eines Vorschlags räumt den Prüflisten-Eintrag ab → die 2 festgesteckten **Heineken-Gutschriften (7'104.98/5'794.81)** werden beim Nachhol-Import zu buchbaren Vorschlägen (Feb/März-Monatsrechnungen existieren jetzt).
+3. **Sammelzahler (Davos Klosters, Weisse Arena) nie auto** — auch nicht via gelerntem Alias (Weisse Arena→IKIGAI wäre scharf gewesen); Treffer bleibt manueller Vorschlag. Zentrale Liste `services/camt/sammelzahler.dart`.
+4. **Archiv-Kopie erst nach erfolgreicher Verarbeitung** (vorher blockierte ein Fehlversuch via Duplikatprüfung jeden Retry) + **verständliche Parser-Datumsfehler**.
+5. **Dateien-Archiv bereinigt:** 11 Duplikatzeilen weg, 2 saubere Einträge (damit ist auch ToDo-Punkt (10) «8 von 9 Duplikate» erledigt). 976 Tests grün.
+
+**Fragen an Daniel (im Bericht, Abschnitt B):** (1) Zahlt Weisse Arena nur für IKIGAI? (2) Goodfast Hotels AG = welcher Betrieb? (3) **Franchise-Regel umstellen auf 6301 + VSt 1170/8.1 %** statt Kreditor 2000 ohne VSt (sonst verschenkt der Nachhol-Import 282.69 VSt/Monat) — Empfehlung ja, hängt mit Fahrplan-Schritt 4 zusammen.
+
+**Geplant (Bericht Abschnitt C):** Regel-Politur (heineken→heineken switzerland, Prio-Feld im Dialog, 11 Alt-Vorlagen), RechnungMatcher-Grenzen sichtbar machen (take(20)/max 4 scheitern stumm), IBAN-Norm + Bereichs-Keywords vereinheitlichen, toten Code raus (`camt_import_service.dart`, `run()`, tote Felder), Tests für HeinekenMatcher/verbuche(), Dateien-Löschen im UI.
+
+---
+
 ## 🟢 ERLEDIGT 07.08. (v0.72.8): Fahrplan Schritt 3 (Code-Teil) — die beiden camt-Fixes
 
 - **Stichtag-Off-by-One behoben:** `CamtStichtag.istAutomatisierbar` nutzt `isAfter` statt `!isBefore` — der 11.03.2026 (letzter Excel-Banktag, SVA 5'962.20 + Kehricht 153.00 bereits gebucht) wird nicht mehr eingeschlossen; camt beginnt am 12.03. Schaden war keiner entstanden (bis heute 0 camt-TX gebucht). Import-Tab-Hinweistext angepasst; Tests auf Soll-Verhalten umgestellt (TDD, inkl. `camt_parser_test`).
