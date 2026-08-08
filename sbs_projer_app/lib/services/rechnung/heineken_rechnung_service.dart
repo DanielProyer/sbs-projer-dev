@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:sbs_projer_app/data/models/preis.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class HeinekenRechnungService {
   // Defaults als Fallback, werden dynamisch aus Preisen geladen
@@ -193,7 +194,7 @@ class HeinekenRechnungService {
       }
 
       debugPrint('[HEI] Step 3b: PDF Seiten erstellen...');
-      final pdf = pw.Document();
+      final pdf = await pdfDokument();
 
       // Hauptrechnung: Übersicht + Detail
       pdf.addPage(HeinekenPdfService.buildUebersichtPage(
@@ -267,7 +268,7 @@ class HeinekenRechnungService {
       debugPrint('[HEI] Logo laden fehlgeschlagen: $e');
     }
 
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     pdf.addPage(HeinekenPdfService.buildUebersichtPage(
         daten, rechnung.rechnungsnummer,
         logoBytes: logoBytes,

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class ProtokollFotoStorage {
   static const _bucket = 'reinigung-fotos';
@@ -43,7 +44,7 @@ class ProtokollFotoStorage {
 
   /// Bild (JPEG) in ein einseitiges PDF-Dokument einbetten.
   static Future<Uint8List> _wrapImageInPdf(Uint8List imageBytes) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final image = pw.MemoryImage(imageBytes);
 
     pdf.addPage(

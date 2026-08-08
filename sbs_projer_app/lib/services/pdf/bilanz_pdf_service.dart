@@ -5,11 +5,12 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/pdf/bericht_pdf_common.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class BilanzPdfService {
   static Future<Uint8List> generate(BilanzDaten b, DateTime stichtag,
       {String? firmaName, String? firmaStrasse, String? firmaOrt, String? mwstZeile}) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final df = DateFormat('dd.MM.yyyy');
 
     pw.Widget seite(String titel, List<BilanzGruppe> gruppen, double total) => pw.Column(

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 /// Generiert die Heineken-Monatsrechnung als PDF im exakten Original-Layout.
 class HeinekenPdfService {
@@ -49,7 +50,7 @@ class HeinekenPdfService {
       debugPrint('Heineken Logo laden fehlgeschlagen: $e');
     }
 
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
 
     // Seite 1: Übersicht
     pdf.addPage(buildUebersichtPage(daten, rechnungsnummer, logoBytes: logoBytes));

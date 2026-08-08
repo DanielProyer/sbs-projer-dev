@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/lohn_einstellungen.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class LohnausweisPdfService {
   static const _grey = PdfColor.fromInt(0xFF666666);
@@ -13,7 +14,7 @@ class LohnausweisPdfService {
     Map<String, double> totale,
     int jahr,
   ) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final df = DateFormat('dd.MM.yyyy');
 
     final brutto = totale['brutto'] ?? 0;
@@ -75,11 +76,8 @@ class LohnausweisPdfService {
               if (einst.arbeitnehmerGeburtsdatum != null)
                 _infoRow('Geburtsdatum',
                     df.format(einst.arbeitnehmerGeburtsdatum!)),
-              // ASCII-Bindestrich statt Gedankenstrich: die eingebaute
-              // PDF-Schrift kennt U+2013 nicht (Kästchen-Problem wie beim
-              // Kontoauszug, v0.73.1).
               _infoRow('Beschäftigungsperiode',
-                  '01.01.$jahr - 31.12.$jahr ($anzahlAuszahlungen Auszahlungen)'),
+                  '01.01.$jahr – 31.12.$jahr ($anzahlAuszahlungen Auszahlungen)'),
               pw.SizedBox(height: 16),
 
               // Lohn
@@ -90,14 +88,14 @@ class LohnausweisPdfService {
                 ['1', 'Bruttolohn ($anzahlAuszahlungen Auszahlungen)', _chf(brutto)],
                 ['', '', ''],
                 ['', 'Abzüge Arbeitnehmer:', ''],
-                ['2', 'AHV/IV/EO ${einst.ahvIvEoAnSatz}%', '- ${_chf(ahvAn)}'],
-                ['3', 'ALV ${einst.alvAnSatz}%', '- ${_chf(alvAn)}'],
+                ['2', 'AHV/IV/EO ${einst.ahvIvEoAnSatz}%', '– ${_chf(ahvAn)}'],
+                ['3', 'ALV ${einst.alvAnSatz}%', '– ${_chf(alvAn)}'],
                 if (nbuAn > 0)
-                  ['4', 'NBU ${einst.nbuAnSatz}%', '- ${_chf(nbuAn)}'],
-                if (bvgAn > 0) ['5', 'BVG AN', '- ${_chf(bvgAn)}'],
+                  ['4', 'NBU ${einst.nbuAnSatz}%', '– ${_chf(nbuAn)}'],
+                if (bvgAn > 0) ['5', 'BVG AN', '– ${_chf(bvgAn)}'],
                 if (ktgAn > 0)
-                  ['6', 'KTG ${einst.ktgAnSatz}%', '- ${_chf(ktgAn)}'],
-                ['', 'Total Abzüge AN', '- ${_chf(totalAnAbzuege)}'],
+                  ['6', 'KTG ${einst.ktgAnSatz}%', '– ${_chf(ktgAn)}'],
+                ['', 'Total Abzüge AN', '– ${_chf(totalAnAbzuege)}'],
                 ['', '', ''],
                 ['7', 'Nettolohn', _chf(netto)],
               ]),

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 /// Generiert ein A4-PDF als Bankbeleg für eine camt.053-Transaktion.
 class BankbelegPdfService {
@@ -15,7 +16,7 @@ class BankbelegPdfService {
     required String iban,
     required String kontoinhaber,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final dateFormat = DateFormat('dd.MM.yyyy');
     final tx = transaction;
 

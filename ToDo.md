@@ -1,6 +1,10 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 08.08.2026 · **Live:** v0.73.5
+**Stand:** 08.08.2026 · **Live:** v0.73.7
+
+## 🟢 ERLEDIGT 08.08. (v0.73.7): Sonderzeichen-Problem in PDFs ENDGÜLTIG behoben
+
+**Auftrag Daniel: «das ist jetzt schon mehrmals passiert».** Stimmt — dreimal (Rechnung, Kontoauszug v0.73.1, Lohnausweis v0.73.6), jedes Mal per Zeichenersatz geflickt. **Ursache:** Die im `pdf`-Paket eingebauten Schriften können nur WinAnsi; ’ – — … „" fehlen → schwarze Kästchen. **Lösung statt Flicken:** Unicode-Schrift **Roboto** (Apache 2.0, aus dem Flutter-SDK, 4 Schnitte à ~170 KB) in `assets/fonts/` eingebettet; neue Factory `pdfDokument()` (`services/pdf/pdf_schrift.dart`) liefert ein Dokument mit Roboto-Theme, Schriften werden einmalig gecacht. **Alle 23 `pw.Document()`-Stellen in 17 Services umgestellt.** **Regressionsschutz:** `test/pdf_schrift_test.dart` scannt `lib/` und schlägt fehl, sobald wieder ein nacktes `pw.Document()` auftaucht (+ Rendering-Test mit genau den heiklen Zeichen + Asset-Prüfung); Regel zusätzlich in `CLAUDE.md`. **Aufgeräumt:** `_safe()`-Sanitizer im Kontoauszug (5 Aufrufe) entfernt, ASCII-Behelfe im Lohnausweis auf typografische Zeichen zurück. 1012 Tests grün. ⚠️ Bereits erzeugte PDFs behalten ihre Kästchen — neu generieren (z. B. Lohnausweis 2025).
 
 ## 🟢 ERLEDIGT 08.08. (v0.73.5): Lohnlauf-Nachholung April–Juli — Fahrplan-Schritt 5b
 

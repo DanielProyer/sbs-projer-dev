@@ -3,6 +3,8 @@ import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart
 import 'package:sbs_projer_app/services/pdf/erfolgsrechnung_pdf_service.dart';
 
 void main() {
+  // PDF-Services laden die Unicode-Schrift aus den Assets (rootBundle).
+  TestWidgetsFlutterBinding.ensureInitialized();
   test('ER-PDF wird ohne Layout-Fehler erzeugt und ist ein echtes PDF', () async {
     const er = ErfolgsrechnungDaten(
       nettoerloes: 50000,

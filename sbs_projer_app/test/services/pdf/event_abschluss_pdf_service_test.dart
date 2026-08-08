@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/services/pdf/event_abschluss_pdf_service.dart';
 
 void main() {
+  // PDF-Services laden die Unicode-Schrift aus den Assets (rootBundle).
+  TestWidgetsFlutterBinding.ensureInitialized();
   test('build liefert nicht-leere PDF-Bytes (mit Daten)', () async {
     final daten = EventAbschlussDaten(
       eventName: 'Openair Val Lumnezia',

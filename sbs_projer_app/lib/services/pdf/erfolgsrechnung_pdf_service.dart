@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart' show Zeitraum;
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
 import 'package:sbs_projer_app/services/pdf/bericht_pdf_common.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class ErfolgsrechnungPdfService {
   static Future<Uint8List> generate(
@@ -18,7 +19,7 @@ class ErfolgsrechnungPdfService {
     String? firmaOrt,
     String? mwstZeile,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final df = DateFormat('dd.MM.yyyy');
     final periode = '${df.format(z.von)} - ${df.format(z.bis)}';
 

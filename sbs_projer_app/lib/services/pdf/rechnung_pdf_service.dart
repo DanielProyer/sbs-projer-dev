@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class RechnungPdfService {
   static const _darkBlue = PdfColor.fromInt(0xFF1A3A5C);
@@ -42,7 +43,7 @@ class RechnungPdfService {
     String? firmaPlzOrt,
     String? firmaMwst,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final dateFormat = DateFormat('dd.MM.yyyy');
     final brutto = _roundTo5Rappen(rechnung.betragBrutto);
 

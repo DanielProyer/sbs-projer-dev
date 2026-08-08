@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class ReinigungPdfService {
   static const _heinGreen = PdfColor.fromInt(0xFF008200);
@@ -32,7 +33,7 @@ class ReinigungPdfService {
       // Fallback: Text-Header
     }
 
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final dateFormat = DateFormat('dd.MM.yyyy');
 
     pdf.addPage(

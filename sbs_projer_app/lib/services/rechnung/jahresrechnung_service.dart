@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class JahresrechnungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
@@ -261,7 +262,7 @@ class JahresrechnungService {
     String betriebName,
     int jahr,
   ) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
 
     // Titelseite
     pdf.addPage(

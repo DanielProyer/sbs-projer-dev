@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 /// Eine Bewegung auf dem Kunden-Konto: Rechnung (Soll) oder Zahlung (Haben).
 class _Bewegung {
@@ -40,24 +41,11 @@ class KontoauszugPdfService {
 
   static const _ibanFormatted = 'CH66 0077 4010 3765 5060 1';
 
-  // Bewusst en_US formatieren und das Komma durch den GERADEN Apostroph
-  // (U+0027) ersetzen: de_CH liefert das typografische ’ (U+2019), und das
-  // fehlt in der eingebauten PDF-Schrift → Kästchen statt Tausender-Zeichen
-  // (Befund Daniel 08.08.2026, erster Kontoauszug).
+  // Schweizer Schreibweise mit geradem Apostroph als Tausendertrennung
+  // (einheitlich zu den übrigen Auswertungen; seit der eingebetteten
+  // Unicode-Schrift wäre auch ’ möglich — siehe services/pdf/pdf_schrift.dart).
   static final _chf = NumberFormat('#,##0.00', 'en_US');
   static String _fmt(double v) => _chf.format(v).replaceAll(',', "'");
-
-  /// Ersetzt typografische Zeichen, die der eingebauten PDF-Schrift fehlen
-  /// (Kästchen-Symptom), durch sichere Entsprechungen — für alle dynamischen
-  /// Texte (Namen, Adressen, Belegnummern).
-  static String _safe(String s) => s
-      .replaceAll('’', "'")
-      .replaceAll('‘', "'")
-      .replaceAll('“', '"')
-      .replaceAll('”', '"')
-      .replaceAll('–', '-')
-      .replaceAll('—', '-')
-      .replaceAll('…', '...');
 
   static Future<Uint8List> generate({
     required BetriebLocal betrieb,
@@ -68,7 +56,7 @@ class KontoauszugPdfService {
     String? firmaPlzOrt,
     String? firmaMwst,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final dateFormat = DateFormat('dd.MM.yyyy');
 
     // Bewegungen aufbauen: je Rechnung eine Soll-Zeile; Zahlung bzw.
@@ -76,7 +64,7 @@ class KontoauszugPdfService {
     final bewegungen = <_Bewegung>[];
     double totalFakturiert = 0, totalZahlungen = 0, totalAbgeschrieben = 0;
     for (final r in rechnungen) {
-      final nr = _safe(r.rechnungsnummer ?? '-');
+      final nr = r.rechnungsnummer ?? '-';
       bewegungen.add(_Bewegung(
         datum: r.rechnungsdatum,
         vorgang: 'Rechnung',
@@ -138,7 +126,7 @@ class KontoauszugPdfService {
           alignment: pw.Alignment.centerRight,
           margin: const pw.EdgeInsets.only(top: 8),
           child: pw.Text(
-            _safe('Kontoauszug ${betrieb.name} · Seite ${ctx.pageNumber} von ${ctx.pagesCount}'),
+            'Kontoauszug ${betrieb.name} · Seite ${ctx.pageNumber} von ${ctx.pagesCount}',
             style: const pw.TextStyle(fontSize: 8, color: _grey),
           ),
         ),
@@ -265,15 +253,15 @@ class KontoauszugPdfService {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             for (final z in zeilen)
-              pw.Text(_safe(z), style: const pw.TextStyle(fontSize: 10)),
+              pw.Text(z, style: const pw.TextStyle(fontSize: 10)),
           ],
         ),
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
             pw.Text(
-                _safe('Objekt: ${betrieb.name}'
-                    '${(betrieb.ort ?? '').isNotEmpty ? ', ${betrieb.ort}' : ''}'),
+                'Objekt: ${betrieb.name}'
+                    '${(betrieb.ort ?? '').isNotEmpty ? ', ${betrieb.ort}' : ''}',
                 style: const pw.TextStyle(fontSize: 9, color: _grey)),
             // Bindestrich statt Gedankenstrich (–, U+2013): fehlt in der
             // eingebauten PDF-Schrift.

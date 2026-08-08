@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class MahnungPdfService {
   static const _darkBlue = PdfColor.fromInt(0xFF1A3A5C);
@@ -28,7 +29,7 @@ class MahnungPdfService {
     BetriebRechnungsadresse? rechnungsadresse,
     required int mahnStufe,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     final df = DateFormat('dd.MM.yyyy');
     final brutto = _roundTo5Rappen(rechnung.betragBrutto);
     final titel = _titel(mahnStufe);

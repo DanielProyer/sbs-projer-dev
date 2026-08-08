@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/bierleitung_local_export.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 /// Erzeugt den Anlagen-Steckbrief als **einseitiges**, professionell gestaltetes
 /// PDF (Anthrazit-Text, dezenter grüner Akzent, 2-Spalten-Grunddaten,
@@ -22,7 +23,7 @@ class AnlagePdfService {
     List<Uint8List> fotos = const [],
     List<BierleitungLocal> bierleitungen = const [],
   }) async {
-    final doc = pw.Document();
+    final doc = await pdfDokument();
 
     String s(String? v) => (v == null || v.trim().isEmpty)
         ? '-'

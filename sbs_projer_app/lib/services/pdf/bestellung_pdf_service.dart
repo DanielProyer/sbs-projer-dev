@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/material_bestellung.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class BestellungPdfService {
   static const _heinekenGreen = PdfColor.fromInt(0xFF00843D);
@@ -24,7 +25,7 @@ class BestellungPdfService {
     required MaterialBestellung bestellung,
     required List<MaterialBestellposition> positionen,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
 
     int dboSort(MaterialBestellposition a, MaterialBestellposition b) {
       final aDbo = a.dboNr ?? '';

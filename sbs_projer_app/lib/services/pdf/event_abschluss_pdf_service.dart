@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/services/pdf/bericht_pdf_common.dart';
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 /// Reine Eingabedaten für das Abschluss-PDF (keine Isar-/Provider-Abhängigkeit).
 class EventAbschlussDaten {
@@ -34,7 +35,7 @@ class EventAbschlussPdfService {
   };
 
   static Future<Uint8List> build(EventAbschlussDaten d) async {
-    final doc = pw.Document();
+    final doc = await pdfDokument();
     final totalStunden = d.aufwaende.fold<double>(0, (s, a) => s + a.stunden);
     final jetzt = DateTime.now();
 

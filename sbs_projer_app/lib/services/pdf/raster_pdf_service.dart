@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 class RasterBetrieb {
   final String? weNummer;
@@ -66,7 +67,7 @@ class RasterPdfService {
     required int jahr,
     required Map<String, List<RasterBetrieb>> betriebeProRegion,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
 
     final headerStyle = pw.TextStyle(
       fontSize: 6,

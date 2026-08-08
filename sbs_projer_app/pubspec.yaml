@@ -1,7 +1,7 @@
 ﻿name: sbs_projer_app
 description: "SBS Projer - Service-Management App für Zapfanlagen-Service"
 publish_to: 'none'
-version: 0.73.6+678
+version: 0.73.7+679
 
 environment:
   sdk: ^3.11.0
@@ -87,3 +87,8 @@ flutter:
   assets:
     - .env
     - assets/images/
+    # Schriften für die PDF-Erzeugung (NICHT für die App-Oberfläche): Die im
+    # pdf-Paket eingebauten Standardschriften können nur WinAnsi — jedes ’ – —
+    # … wurde zum Kästchen (dreimal aufgetreten, zuletzt v0.73.6). Roboto ist
+    # Unicode-fähig und liegt unter Apache 2.0 (Lizenz im Ordner).
+    - assets/fonts/

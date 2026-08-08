@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 /// Generiert die 6 Heineken-Rapport-Formulare als PDFs.
 /// Design matcht die Original-Heineken-Excel-Vorlagen mit Logo,
@@ -146,7 +147,7 @@ class HeinekenRapportService {
     List<(String name, double menge)> materialien = const [],
   }) async {
     final logo = await _loadLogo();
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     pdf.addPage(buildStoerungPage(
       referenzNr: referenzNr,
       stoerungsnummer: stoerungsnummer,
@@ -280,7 +281,7 @@ class HeinekenRapportService {
     List<(String name, double menge)> materialien = const [],
   }) async {
     final logo = await _loadLogo();
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     pdf.addPage(buildEigenauftragPage(
       referenzNr: referenzNr,
       stoerungsnummer: stoerungsnummer,
@@ -383,7 +384,7 @@ class HeinekenRapportService {
     List<(String name, double menge)> materialien = const [],
   }) async {
     final logo = await _loadLogo();
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     pdf.addPage(buildEEReinigungPage(
       referenzNr: referenzNr,
       stoerungsnummer: stoerungsnummer,
@@ -499,7 +500,7 @@ class HeinekenRapportService {
     List<(String name, double menge)> materialien = const [],
   }) async {
     final logo = await _loadLogo();
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     pdf.addPage(buildMontagePage(
       referenzNr: referenzNr,
       datum: datum,
@@ -636,7 +637,7 @@ class HeinekenRapportService {
     double? pauschaleGesamt,
   }) async {
     final logo = await _loadLogo();
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     pdf.addPage(buildPikettPage(
       referenzNr: referenzNr,
       datumStart: datumStart,
@@ -727,7 +728,7 @@ class HeinekenRapportService {
     required String ort,
   }) async {
     final logo = await _loadLogo();
-    final pdf = pw.Document();
+    final pdf = await pdfDokument();
     pdf.addPage(buildAnfahrtspauschPage(
       referenzNr: referenzNr,
       datum: datum,

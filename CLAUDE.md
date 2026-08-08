@@ -90,6 +90,24 @@ sbs_projer_app/       # Flutter-App
       supabase/       # supabase_service.dart (Client, Auth)
 ```
 
+## PDF-Erzeugung: immer `pdfDokument()`, nie `pw.Document()`
+
+```dart
+final pdf = await pdfDokument();   // services/pdf/pdf_schrift.dart
+```
+
+Die im `pdf`-Paket eingebauten Schriften können nur WinAnsi — typografischer
+Apostroph ’, Gedankenstriche – —, Auslassungszeichen … wurden zu schwarzen
+Kästchen. Das ist dreimal passiert (Rechnung, Kontoauszug v0.73.1, Lohnausweis
+v0.73.6) und wurde jeweils per Zeichenersatz geflickt. Seit v0.73.7 bettet
+`pdfDokument()` Roboto (Unicode, Apache 2.0, `assets/fonts/`) als Theme ein —
+Sonderzeichen brauchen **keinen** Ersatz mehr.
+
+`test/pdf_schrift_test.dart` scannt `lib/` und bricht ab, sobald irgendwo wieder
+ein nacktes `pw.Document()` steht. Tests, die PDF-Services aufrufen, brauchen
+`TestWidgetsFlutterBinding.ensureInitialized()` (die Schrift kommt aus dem
+rootBundle).
+
 ## Kritisches Architektur-Pattern: Conditional Exports (Isar ↔ Web)
 
 Jede gesynkte Entity hat 3 Dateien:

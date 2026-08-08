@@ -10,6 +10,8 @@ import 'package:sbs_projer_app/services/pdf/anlage_pdf_service.dart';
 final Uint8List _pngBytes = img.encodePng(img.Image(width: 4, height: 4));
 
 void main() {
+  // PDF-Services laden die Unicode-Schrift aus den Assets (rootBundle).
+  TestWidgetsFlutterBinding.ensureInitialized();
   final a = AnlageLocal()
     ..bezeichnung = 'Warm 1'
     ..typAnlage = 'Warmanstich'

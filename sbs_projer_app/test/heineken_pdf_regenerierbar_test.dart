@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/heineken_pdf_regenerierbar.dart';
 
 void main() {
+  // PDF-Services laden die Unicode-Schrift aus den Assets (rootBundle).
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('darfHeinekenPdfNeuGenerieren', () {
     test('App-Ära ab April 2026 ist erlaubt', () {
       expect(darfHeinekenPdfNeuGenerieren(DateTime(2026, 4, 1)), isTrue);

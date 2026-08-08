@@ -12,6 +12,8 @@ AnlageLocal _a(String typ, String status, {DateTime? naechste, String rhythmus =
 }
 
 void main() {
+  // PDF-Services laden die Unicode-Schrift aus den Assets (rootBundle).
+  TestWidgetsFlutterBinding.ensureInitialized();
   final jetzt = DateTime(2026, 7, 10);
 
   group('anlagenKennzahlen', () {
