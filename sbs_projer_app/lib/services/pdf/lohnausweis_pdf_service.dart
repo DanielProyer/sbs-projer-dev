@@ -75,8 +75,11 @@ class LohnausweisPdfService {
               if (einst.arbeitnehmerGeburtsdatum != null)
                 _infoRow('Geburtsdatum',
                     df.format(einst.arbeitnehmerGeburtsdatum!)),
+              // ASCII-Bindestrich statt Gedankenstrich: die eingebaute
+              // PDF-Schrift kennt U+2013 nicht (Kästchen-Problem wie beim
+              // Kontoauszug, v0.73.1).
               _infoRow('Beschäftigungsperiode',
-                  '01.01.$jahr – 31.12.$jahr ($anzahlAuszahlungen Monate)'),
+                  '01.01.$jahr - 31.12.$jahr ($anzahlAuszahlungen Auszahlungen)'),
               pw.SizedBox(height: 16),
 
               // Lohn
@@ -84,17 +87,17 @@ class LohnausweisPdfService {
               pw.SizedBox(height: 4),
               _table([
                 ['Pos.', 'Bezeichnung', 'Betrag CHF'],
-                ['1', 'Bruttolohn (${anzahlAuszahlungen}x ${einst.bruttolohnMonatlich.toStringAsFixed(2)})', _chf(brutto)],
+                ['1', 'Bruttolohn ($anzahlAuszahlungen Auszahlungen)', _chf(brutto)],
                 ['', '', ''],
                 ['', 'Abzüge Arbeitnehmer:', ''],
-                ['2', 'AHV/IV/EO ${einst.ahvIvEoAnSatz}%', '– ${_chf(ahvAn)}'],
-                ['3', 'ALV ${einst.alvAnSatz}%', '– ${_chf(alvAn)}'],
-                ['4', 'NBU ${einst.nbuAnSatz}%', '– ${_chf(nbuAn)}'],
-                if (bvgAn > 0)
-                  ['5', 'BVG AN (${einst.bvgAnBetrag.toStringAsFixed(2)}/Mt)', '– ${_chf(bvgAn)}'],
+                ['2', 'AHV/IV/EO ${einst.ahvIvEoAnSatz}%', '- ${_chf(ahvAn)}'],
+                ['3', 'ALV ${einst.alvAnSatz}%', '- ${_chf(alvAn)}'],
+                if (nbuAn > 0)
+                  ['4', 'NBU ${einst.nbuAnSatz}%', '- ${_chf(nbuAn)}'],
+                if (bvgAn > 0) ['5', 'BVG AN', '- ${_chf(bvgAn)}'],
                 if (ktgAn > 0)
-                  ['6', 'KTG ${einst.ktgAnSatz}%', '– ${_chf(ktgAn)}'],
-                ['', 'Total Abzüge AN', '– ${_chf(totalAnAbzuege)}'],
+                  ['6', 'KTG ${einst.ktgAnSatz}%', '- ${_chf(ktgAn)}'],
+                ['', 'Total Abzüge AN', '- ${_chf(totalAnAbzuege)}'],
                 ['', '', ''],
                 ['7', 'Nettolohn', _chf(netto)],
               ]),
@@ -109,8 +112,7 @@ class LohnausweisPdfService {
                 ['9', 'ALV AG ${einst.alvAgSatz}%', _chf(alvAg)],
                 ['10', 'BU/UVG AG ${einst.buAgSatz}%', _chf(buAg)],
                 ['11', 'FAK AG ${einst.fakAgSatz}%', _chf(fakAg)],
-                if (bvgAg > 0)
-                  ['12', 'BVG AG (${einst.bvgAgBetrag.toStringAsFixed(2)}/Mt)', _chf(bvgAg)],
+                if (bvgAg > 0) ['12', 'BVG AG', _chf(bvgAg)],
                 if (ktgAg > 0)
                   ['13', 'KTG AG ${einst.ktgAgSatz}%', _chf(ktgAg)],
               ]),
