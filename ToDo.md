@@ -24,7 +24,7 @@
 | Café Mühle, Nottwil | 18.08. | 23 T | 09.07. (30 T) |
 | Mastro Alfonso, Cham | 18.08. | 27 T | 19.06. (50 T) |
 
-**Sofort erledigt (ohne Deploy):** Für **Flora** und **Pizzeria Paradies** je ein Termin `eroeffnungsreinigung` am **10.08.2026** angelegt (Status `geplant`, ohne Uhrzeit → kein Zeitanker, frei planbar). Bestätigte Termine zeigt der Tourenplan bewusst auch an Schliessungs- und Ruhetagen ([tour_providers.dart:866](sbs_projer_app/lib/presentation/providers/tour_providers.dart:866)) — beide stehen am Montag unter «Saison-Termine».
+**Sofort erledigt (ohne Deploy):** Für **Flora Landquart**, **Pizzeria Paradies Bad Ragaz** und **Traube Mels** (Entscheid Daniel) je ein Termin `eroeffnungsreinigung` am **10.08.2026** angelegt (Status `geplant`, ohne Uhrzeit → kein Zeitanker, frei planbar). Bestätigte Termine zeigt der Tourenplan bewusst auch an Schliessungs- und Ruhetagen ([tour_providers.dart:866](sbs_projer_app/lib/presentation/providers/tour_providers.dart:866)) — alle drei stehen am Montag unter «Saison-Termine». Tour-Linie ab Domat/Ems: **Landquart → Bad Ragaz → Mels**, je 1 Hahn (Flora/Paradies Warmanstich, Traube Kaltanstich). ⚠️ Direkt in der DB angelegt → **kein Google-Kalender-Push** (Daniel hat manuelle Einträge).
 
 **Code-Fix (offen, für die nächste Session):**
 - [ ] **Bedingung `letzteServiceArt == 'endreinigung'` streichen.** Auslöser soll allein sein: qualifizierte Schliessung (≥21 Tage) + Anlage wurde während der Schliessung nicht gereinigt. Die bestehende Regel «lag die Endreinigung selbst in der Schliessung → kein Vorschlag» (Muloin-Fall) bleibt.
