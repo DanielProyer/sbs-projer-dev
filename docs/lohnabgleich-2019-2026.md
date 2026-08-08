@@ -43,6 +43,22 @@ Korrekt (Netto-Deal): Brutto = (Netto + BVG-AN) ÷ (1 − AN-Satz). BVG-AN = geb
 
 (Alte Konstruktionsmethode hätte 82'329 ergeben — der korrekte Wert liegt 795 darüber.)
 
+## 4b. Stufe (b) AUSGEFÜHRT 08.08.2026 — Umgliederung statt Massen-Umbuchung
+
+Reines Umbenennen war nicht mehr möglich (seit den April–Juli-Lohnläufen tragen die Konten die korrekte Semantik, Alt-Bestände lagen verschoben darunter). Stattdessen **3 Salden-Umgliederungen per 31.03.2026** (reiner Passivtausch, ergebnisneutral):
+
+| Buchung per 31.03.2026 | Betrag |
+|---|---|
+| 2271 an 2270 (AHV/ALV/FAK-Schuld an den richtigen Platz) | 4'055.97 |
+| 2272 an 2271 (BVG-Schuld an den richtigen Platz) | 5'945.97 |
+| 2272 an 2273 (UVG/SUVA-Soll-Saldo von 2273 weg) | 5'494.11 |
+
+**Salden danach (heute):** 2002 = 0.00 · 2270 AHV/ALV/FAK = 6'780.87 · 2271 BVG = 7'071.82 (rechnerisch exakt: Alt 5'945.97 + 4 Läufe 4'503.60 − AXA-Q2 3'377.75) · 2272 UVG = **−5'249.16 (Merkposten:** SUVA-/AXA-Prämien seit Dez 2024 bezahlt ohne Aufwandbuchung, Audit B4.3 — Aufwand-Nachholung wäre eine ECHTE Ergebniskorrektur der Alt-Ära → separater Entscheid Daniel) · 2273 KTG = 0.00. Kontobezeichnungen in der DB waren bereits korrekt — Inhalt und Beschriftung passen jetzt zusammen.
+
+**FAK-Korrektur:** SVA-Factsheet (Scan) belegt FAK GR 2026 = **1.50 %** (2025: 1.60 %) — App-Einstellung stand auf 1.35 %. Einstellung + die 4 gebuchten FAK-Zeilen der Nachhol-Läufe korrigiert (April 89.15 · Mai 145.25 · Juni 121.20 · Juli 169.30).
+
+**Amtliche Bestätigung der Soll-Formel:** Die SVA-«Anleitung zur Lohndeklaration» (ab 2023, Scan in `04_SVA/Unterlagen/`) schreibt die Aufrechnung wörtlich vor: «Werden Löhne ohne Abzug der Beiträge ausbezahlt, muss der Nettolohn mit 6,4 Prozent in einen Bruttolohn aufgerechnet werden: CHF 50'000 ÷ (100−6,4) × 100» — exakt die Divisions-Formel aus Abschnitt 2.
+
 ## 5. Offene Punkte für den Vollabschluss
 
 - [ ] **5.1 SVA-Jahresabrechnungen 2019–2025 beiziehen** (Daniel: Ordner/Post SVA GR): bestätigt, welche Lohnsumme effektiv deklariert wurde (Erwartung: = Lohnausweis-Brutto). Erst damit ist die Behörden-Seite hart bewiesen. Auch: exakte FAK-/VK-Sätze GR pro Jahr daraus ablesen.
