@@ -73,6 +73,12 @@ Die Excel-Stil-Lohnblöcke Jan+März 2026 (24 Zeilen, «Auszahlung als Brutto + 
 
 **End-Salden (alle rappengenau hergeleitet):** 2002 = 0.00 · **2270 AHV/ALV/FAK = 6'777.62** · **2271 BVG = 6'510.32** · **2272 UVG = +844.15** · 2273 KTG = 0.00. Nebenbefund: Die SVA hat 2025 **definitiv abgerechnet** («SVA 2025 - Restbetrag» 5'962.20 am 11.03.2026).
 
+## 4d. Lohnausweis 2025 ERSTELLT + in der App verfügbar (08.08.2026)
+
+- **Formular-PDF:** `00_Rechnungen/12_Lohnausweis/Lohnausweis 2025.pdf` (Form-11-Struktur, Ziff. 15 dokumentiert die Netto-Aufrechnung).
+- **App:** `lohn_einstellungen` 2025 (Sätze 5.3/1.1/NBU 0/BU 0.66/FAK 1.60) + **12 Monats-`lohn_abrechnungen` 2025** angelegt (Netto = effektive Monatsauszahlungen, Brutto per SVA-Aufrechnungsformel, BVG = gebuchte Monatsanteile). Jahres-Totale runden auf **exakt dieselben Werte wie das Formular-PDF: 83'124 / 5'320 / 7'104 / 70'700.** → Lohnlauf-Screen, Jahr 2025, «Lohnausweis generieren».
+- ⚠️ Semantik: Die 2025er-`lohn_abrechnungen` sind die **Soll-Darstellung fürs Lohnausweis-Modul** (`ist_gebucht=true` verhindert Doppelbuchung); die 2025er-BUCHUNGEN bleiben bewusst Excel-Journal-treu (siehe Abschnitt 3 — interne Systematik ≠ Lohnausweis).
+
 ## 5. Offene Punkte für den Vollabschluss
 
 - [ ] **5.1 SVA-Jahresabrechnungen 2019–2025 beiziehen** (Daniel: Ordner/Post SVA GR): bestätigt, welche Lohnsumme effektiv deklariert wurde (Erwartung: = Lohnausweis-Brutto). Erst damit ist die Behörden-Seite hart bewiesen. Auch: exakte FAK-/VK-Sätze GR pro Jahr daraus ablesen.
