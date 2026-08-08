@@ -46500,7 +46500,7 @@ return A.l($async$my,r)},
 nm(a,b,c,d,e,f,g,h){var s=0,r=A.m(t.H)
 var $async$nm=A.i(function(i,j){if(i===1)return A.j(j,r)
 for(;;)switch(s){case 0:s=2
-return A.d(A.kc(A.Y(["datum",a,"soll_konto",b,"haben_konto",c,"betrag_netto",d,"mwst_satz",0,"mwst_betrag",0,"betrag_brutto",d,"beschreibung",e,"geschaeftsjahr",f,"monat",g,"belegordner","lohn","beleg_id",h],t.N,t.z)),$async$nm)
+return A.d(A.kc(A.Y(["datum",a,"soll_konto",b,"haben_konto",c,"betrag_netto",d,"mwst_satz",0,"mwst_betrag",0,"betrag_brutto",d,"beschreibung",e,"geschaeftsjahr",f,"belegordner","lohn","beleg_id",h],t.N,t.z)),$async$nm)
 case 2:return A.k(null,r)}})
 return A.l($async$nm,r)},
 al_(a){var s=0,r=A.m(t.H),q
@@ -200732,7 +200732,7 @@ d=e.bl(0,0,new A.c4O())
 s=e.$ti
 c=new A.ae(e,new A.c4P(),s.i("ae<v.E>")).gv(0)
 b=b0.eS(b1,A.dg2()).gv(0)
-b0=A.bW(a9,a9,!0,a9,a9,a9,a9,a9,a9,a9,A.e("Forderungen  \xb7  v0.73.4",a9,a9,a9,a9,B.c_V,a9,a9,a9),a9)
+b0=A.bW(a9,a9,!0,a9,a9,a9,a9,a9,a9,a9,A.e("Forderungen  \xb7  v0.73.5",a9,a9,a9,a9,B.c_V,a9,a9,a9),a9)
 n=a8.bdb()
 s=A.F(e,s.i("v.E"))
 s=a8.b1y(s,d,c)
@@ -230770,7 +230770,7 @@ B.qq=new A.pW(null,null)
 B.aR=new A.CW(0,"alphabetic")
 B.c5T=new A.u("SBS Projer",null,null,null,null,null,null,null,null,null,null)
 B.bT=new A.cW(6,null,null,null)
-B.c7f=new A.u("(v0.73.4)",null,B.bJ,null,null,null,null,null,null,null,null)
+B.c7f=new A.u("(v0.73.5)",null,B.bJ,null,null,null,null,null,null,null,null)
 B.boz=s([B.c5T,B.bT,B.c7f],t.p)
 B.bRy=new A.jY(B.be,B.p,B.r,B.kG,null,B.y,B.aR,0,B.boz,null)
 B.ayW=new A.ad(B.C3,14,B.au,null,null)
