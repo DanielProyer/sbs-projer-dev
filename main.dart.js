@@ -200732,7 +200732,7 @@ d=e.bl(0,0,new A.c4O())
 s=e.$ti
 c=new A.ae(e,new A.c4P(),s.i("ae<v.E>")).gv(0)
 b=b0.eS(b1,A.dg2()).gv(0)
-b0=A.bW(a9,a9,!0,a9,a9,a9,a9,a9,a9,a9,A.e("Forderungen  \xb7  v0.73.5",a9,a9,a9,a9,B.c_V,a9,a9,a9),a9)
+b0=A.bW(a9,a9,!0,a9,a9,a9,a9,a9,a9,a9,A.e("Forderungen  \xb7  v0.73.6",a9,a9,a9,a9,B.c_V,a9,a9,a9),a9)
 n=a8.bdb()
 s=A.F(e,s.i("v.E"))
 s=a8.b1y(s,d,c)
@@ -210020,18 +210020,20 @@ if(o!=null)k.push(A.BL("AHV-Nr.",o))
 o=l.dx
 if(o!=null)k.push(A.BL("Geburtsdatum",s.c.aY(o)))
 o=""+s.d
-k.push(A.BL("Besch\xe4ftigungsperiode","01.01."+p+" \u2013 31.12."+p+" ("+o+" Monate)"))
+k.push(A.BL("Besch\xe4ftigungsperiode","01.01."+p+" - 31.12."+p+" ("+o+" Auszahlungen)"))
 k.push(new A.ak(r,16,r))
 k.push(A.b4S("Lohn und Abz\xfcge"))
 k.push(new A.ak(r,4,r))
 p=t.s
 n=t.rj
-o=A.a([A.a(["Pos.","Bezeichnung","Betrag CHF"],p),A.a(["1","Bruttolohn ("+o+"x "+B.f.D(l.d,2)+")",B.f.D(s.e,2)],p),A.a(["","",""],p),A.a(["","Abz\xfcge Arbeitnehmer:",""],p),A.a(["2","AHV/IV/EO "+A.f(l.f)+"%","\u2013 "+B.f.D(s.f,2)],p),A.a(["3","ALV "+A.f(l.w)+"%","\u2013 "+B.f.D(s.r,2)],p),A.a(["4","NBU "+A.f(l.y)+"%","\u2013 "+B.f.D(s.w,2)],p)],n)
+o=A.a([A.a(["Pos.","Bezeichnung","Betrag CHF"],p),A.a(["1","Bruttolohn ("+o+" Auszahlungen)",B.f.D(s.e,2)],p),A.a(["","",""],p),A.a(["","Abz\xfcge Arbeitnehmer:",""],p),A.a(["2","AHV/IV/EO "+A.f(l.f)+"%","- "+B.f.D(s.f,2)],p),A.a(["3","ALV "+A.f(l.w)+"%","- "+B.f.D(s.r,2)],p)],n)
+m=s.w
+if(m>0)o.push(A.a(["4","NBU "+A.f(l.y)+"%","- "+B.f.D(m,2)],p))
 m=s.x
-if(m>0)o.push(A.a(["5","BVG AN ("+B.f.D(l.Q,2)+"/Mt)","\u2013 "+B.f.D(m,2)],p))
+if(m>0)o.push(A.a(["5","BVG AN","- "+B.f.D(m,2)],p))
 m=s.y
-if(m>0)o.push(A.a(["6","KTG "+A.f(l.ax)+"%","\u2013 "+B.f.D(m,2)],p))
-o.push(A.a(["","Total Abz\xfcge AN","\u2013 "+B.f.D(s.z,2)],p))
+if(m>0)o.push(A.a(["6","KTG "+A.f(l.ax)+"%","- "+B.f.D(m,2)],p))
+o.push(A.a(["","Total Abz\xfcge AN","- "+B.f.D(s.z,2)],p))
 o.push(A.a(["","",""],p))
 o.push(A.a(["7","Nettolohn",B.f.D(s.Q,2)],p))
 k.push(A.cG0(o))
@@ -210040,7 +210042,7 @@ k.push(A.b4S("Arbeitgeberbeitr\xe4ge (informativ)"))
 k.push(new A.ak(r,4,r))
 o=A.a([A.a(["Pos.","Bezeichnung","Betrag CHF"],p),A.a(["8","AHV/IV/EO AG "+A.f(l.r)+"%",B.f.D(s.as,2)],p),A.a(["9","ALV AG "+A.f(l.x)+"%",B.f.D(s.at,2)],p),A.a(["10","BU/UVG AG "+A.f(l.z)+"%",B.f.D(s.ax,2)],p),A.a(["11","FAK AG "+A.f(l.at)+"%",B.f.D(s.ay,2)],p)],n)
 n=s.ch
-if(n>0)o.push(A.a(["12","BVG AG ("+B.f.D(l.as,2)+"/Mt)",B.f.D(n,2)],p))
+if(n>0)o.push(A.a(["12","BVG AG",B.f.D(n,2)],p))
 n=s.CW
 if(n>0)o.push(A.a(["13","KTG AG "+A.f(l.ay)+"%",B.f.D(n,2)],p))
 k.push(A.cG0(o))
@@ -230770,7 +230772,7 @@ B.qq=new A.pW(null,null)
 B.aR=new A.CW(0,"alphabetic")
 B.c5T=new A.u("SBS Projer",null,null,null,null,null,null,null,null,null,null)
 B.bT=new A.cW(6,null,null,null)
-B.c7f=new A.u("(v0.73.5)",null,B.bJ,null,null,null,null,null,null,null,null)
+B.c7f=new A.u("(v0.73.6)",null,B.bJ,null,null,null,null,null,null,null,null)
 B.boz=s([B.c5T,B.bT,B.c7f],t.p)
 B.bRy=new A.jY(B.be,B.p,B.r,B.kG,null,B.y,B.aR,0,B.boz,null)
 B.ayW=new A.ad(B.C3,14,B.au,null,null)
