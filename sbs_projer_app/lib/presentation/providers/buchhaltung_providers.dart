@@ -43,6 +43,7 @@ final mwstQuartalDetailProvider =
         .select('quartal, soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert, storno_von_id')
         .eq('user_id', SupabaseService.dataUserId)
         .eq('geschaeftsjahr', jahr)
+        .order('id') // eindeutig sortieren, sonst verliert die Pagination Zeilen
         .range(from, from + 999);
     buchungen.addAll(List<Map<String, dynamic>>.from(page));
     if (page.length < 1000) break;
@@ -130,6 +131,7 @@ final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) as
     final page = await SupabaseService.client
         .from('rechnungen')
         .select('betrag_brutto, zahlungsstatus')
+        .order('id') // eindeutig sortieren, sonst verliert die Pagination Zeilen
         .range(from, from + 999);
     rgRows.addAll(List<Map<String, dynamic>>.from(page));
     if (page.length < 1000) break;

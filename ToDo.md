@@ -1,6 +1,10 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 08.08.2026 · **Live:** v0.73.8
+**Stand:** 08.08.2026 · **Live:** v0.74.0
+
+## 🔴🟢 ERLEDIGT 08.08. (v0.74.0): KRITISCH — Bilanz zeigte zufällig falsche Zahlen (instabile Pagination)
+
+**Entdeckt durch Daniels Frage zu den Konten 2000/2002.** Die Bilanz zeigte **Bank 15'057.97**, in der DB stehen aber **15'816.07** (−758.10); Kasse 11'042.13 statt 11'084.28 (−42.15). **Ursache:** `BuchungRepository.getAll()` lädt die 16'449 Buchungen seitenweise (17 Seiten à 1'000) und sortierte dabei nur nach `datum` — **1'874 Tage tragen mehrere Buchungen**, also ist die Reihenfolge zwischen zwei Seiten nicht definiert. Postgres darf gleichrangige Zeilen pro Request anders anordnen → Zeilen erscheinen doppelt oder fallen ganz durch. Die Salden waren damit **bei jedem Neuladen zufällig anders** (betraf Bilanz, Erfolgsrechnung, Kontensaldi, MWST-Detail, Debitoren-Kachel). **Fix:** `.order('id')` als eindeutiger letzter Sortierschlüssel in **9 paginierten Abfragen** (buchung_repository ×3, buchung_service, rechnung_repository ×3, reinigung_repository ×2, camt_datei_repository, buchhaltung_providers ×2). **Regressionsschutz:** `test/pagination_stabil_test.dart` scannt `lib/` und schlägt bei jeder `.range()`-Abfrage ohne `.order('id')` fehl — hat prompt 2 weitere Stellen in den Providern gefunden. 1015 Tests grün. ⚠️ Alle bisher aus der App abgelesenen Bilanz-/ER-Zahlen waren potenziell zu tief — die DB-Werte (und damit alle heutigen Abstimmungen) waren immer korrekt.
 
 ## 🟢 ERLEDIGT 08.08. (v0.73.8): Lohnausweis im amtlichen Formular-11-Layout
 

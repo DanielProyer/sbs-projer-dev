@@ -17,6 +17,7 @@ class CamtDateiRepository {
           .select()
           .eq('user_id', _userId)
           .order('zeitraum_von', ascending: true)
+          .order('id') // stabile Pagination
           .range(from, from + pageSize - 1);
       all.addAll(rows);
       if (rows.length < pageSize) break;

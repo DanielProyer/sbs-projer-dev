@@ -15,7 +15,10 @@ class RechnungRepository {
     while (true) {
       var q = SupabaseService.client.from('rechnungen').select().eq('user_id', _userId);
       if (col != null) q = q.eq(col, val!);
-      final rows = await q.order('created_at', ascending: false).range(from, from + pageSize - 1);
+      final rows = await q
+          .order('created_at', ascending: false)
+          .order('id') // stabile Pagination
+          .range(from, from + pageSize - 1);
       all.addAll(rows);
       if (rows.length < pageSize) break;
       from += pageSize;
@@ -58,7 +61,7 @@ class RechnungRepository {
     while (true) {
       final rows = await SupabaseService.client
           .from('rechnungen').select('id').eq('user_id', _userId)
-          .range(from, from + pageSize - 1);
+          .order('id').range(from, from + pageSize - 1);
       total += rows.length;
       if (rows.length < pageSize) break;
       from += pageSize;
@@ -74,7 +77,7 @@ class RechnungRepository {
       final rows = await SupabaseService.client
           .from('rechnungen').select('id').eq('user_id', _userId)
           .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")')
-          .range(from, from + pageSize - 1);
+          .order('id').range(from, from + pageSize - 1);
       total += rows.length;
       if (rows.length < pageSize) break;
       from += pageSize;

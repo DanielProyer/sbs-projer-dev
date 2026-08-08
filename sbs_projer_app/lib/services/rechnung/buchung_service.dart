@@ -63,6 +63,7 @@ class BuchungService {
           .from('buchungen')
           .select('soll_konto, haben_konto, mwst_konto, betrag_netto, mwst_betrag, betrag_brutto, ist_storniert, storno_von_id')
           .eq('user_id', SupabaseService.dataUserId)
+          .order('id') // stabile Pagination (sonst fallen Zeilen durch)
           .range(from, from + pageSize - 1);
       rows.addAll(List<Map<String, dynamic>>.from(page));
       if (page.length < pageSize) break;

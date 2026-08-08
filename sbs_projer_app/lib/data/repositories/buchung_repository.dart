@@ -18,6 +18,10 @@ class BuchungRepository {
           .select()
           .eq('user_id', _userId)
           .order('datum', ascending: false)
+          // Eindeutiger Zweitschlüssel: ohne ihn ist die Reihenfolge zwischen
+          // den Seiten nicht stabil (tausende Buchungen teilen sich ein
+          // Datum) und es fallen Zeilen durch → falsche Bilanz/Saldi.
+          .order('id')
           .range(from, from + pageSize - 1);
       all.addAll(rows);
       if (rows.length < pageSize) break;
@@ -111,6 +115,7 @@ class BuchungRepository {
           .eq('user_id', _userId)
           .or('soll_konto.eq.$kontonummer,haben_konto.eq.$kontonummer')
           .order('datum', ascending: false)
+          .order('id') // stabile Pagination
           .range(from, from + pageSize - 1);
       all.addAll(rows);
       if (rows.length < pageSize) break;

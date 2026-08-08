@@ -166,7 +166,7 @@ class ReinigungRepository {
             .from('reinigungen')
             .select('datum')
             .eq('user_id', _userId)
-            .range(from, from + pageSize - 1);
+            .order('id').range(from, from + pageSize - 1);
         for (final r in rows) {
           final d = DateTime.tryParse(r['datum'] as String? ?? '');
           if (d != null) jahre.add(d.year);
@@ -238,7 +238,7 @@ class ReinigungRepository {
       while (true) {
         final rows = await SupabaseService.client
             .from('reinigungen').select('id').eq('user_id', _userId)
-            .range(from, from + pageSize - 1);
+            .order('id').range(from, from + pageSize - 1);
         total += rows.length;
         if (rows.length < pageSize) break;
         from += pageSize;

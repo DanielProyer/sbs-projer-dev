@@ -90,6 +90,21 @@ sbs_projer_app/       # Flutter-App
       supabase/       # supabase_service.dart (Client, Auth)
 ```
 
+## Seitenweises Laden: immer `.order('id')` als letzten Sortierschlüssel
+
+```dart
+.order('datum', ascending: false)
+.order('id')              // eindeutig — sonst verliert die Pagination Zeilen
+.range(from, from + pageSize - 1);
+```
+
+PostgREST deckelt bei 1000 Zeilen, deshalb wird seitenweise geladen. Sortiert
+eine solche Abfrage nur nach einer **nicht eindeutigen** Spalte (`datum`,
+`created_at`), ist die Reihenfolge zwischen zwei Requests nicht definiert:
+Zeilen erscheinen doppelt oder fallen durch. Am 08.08.2026 zeigte die Bilanz
+deshalb Bank 15'057.97 statt 15'816.07 — bei jedem Neuladen ein anderer Wert.
+`test/pagination_stabil_test.dart` erzwingt die Regel.
+
 ## PDF-Erzeugung: immer `pdfDokument()`, nie `pw.Document()`
 
 ```dart
