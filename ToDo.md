@@ -2,6 +2,35 @@
 
 **Stand:** 08.08.2026 · **Live:** v0.74.0
 
+## 🔴 OFFEN 08.08.: Eröffnungsreinigungen erscheinen nicht — Auto-Vorschlag hat zwei zu enge Bedingungen
+
+**Gemeldet Daniel:** «warum sehe ich Flora Landquart nicht am Montag 10.08.?» — und zum Befund «dass die letzte Reinigung als Endreinigung erfasst wurde macht keinen Sinn».
+
+**Er hat recht.** Der Eröffnungs-Vorschlag in `autoTermineProvider` ([tour_providers.dart:811](sbs_projer_app/lib/presentation/providers/tour_providers.dart:811)) verlangt `letzteServiceArt == 'endreinigung'`. Eine Eröffnungsreinigung ist aber nötig, **weil die Anlage lange stillstand** — nicht, weil vorher jemand eine Endreinigung als solche erfasst hat. In der Praxis wird sie das fast nie.
+
+**Zweite, ebenso enge Bedingung:** `darfTrotzSchliessungGeplantWerden` erlaubt die Eröffnung nur am **letzten** Schliessungstag. Daniel plant den Service aber dann, wenn er in die Tour passt — Pizzeria Paradies hat Ferien bis 11.08., er will am 10.08. hin. Dazu ist Montag dort **Ruhetag**, also ohnehin nie ein «offener Tag».
+
+**Warum der Montag ideal ist (O-Ton Daniel):** «offen erst ab 11.08., aber so kann ich den ganzen Tag den Service machen» — im geschlossenen Betrieb ist man nicht an Servicezeiten gebunden.
+
+**Betroffen sind sieben Betriebe** (Ferienende zwischen 06.08. und 18.08., alle über der 21-Tage-Schwelle, keiner mit Auto-Vorschlag):
+
+| Betrieb | Ferien bis | Dauer | überfällig seit |
+|---|---|---|---|
+| Flora, Landquart | 10.08. | 22 T | 27.07. (12 T) |
+| **Traube, Mels** | **10.08.** | 29 T | 01.06. (**68 T**) |
+| Pizzeria Paradies, Bad Ragaz | 11.08. | 23 T | 01.07. (38 T) |
+| **Thai-Food Curling Bistro, Küssnacht** | 11.08. | 37 T | 15.05. (**85 T**) |
+| Calanda, Felsberg | 13.08. | 26 T | noch nicht fällig |
+| Café Mühle, Nottwil | 18.08. | 23 T | 09.07. (30 T) |
+| Mastro Alfonso, Cham | 18.08. | 27 T | 19.06. (50 T) |
+
+**Sofort erledigt (ohne Deploy):** Für **Flora** und **Pizzeria Paradies** je ein Termin `eroeffnungsreinigung` am **10.08.2026** angelegt (Status `geplant`, ohne Uhrzeit → kein Zeitanker, frei planbar). Bestätigte Termine zeigt der Tourenplan bewusst auch an Schliessungs- und Ruhetagen ([tour_providers.dart:866](sbs_projer_app/lib/presentation/providers/tour_providers.dart:866)) — beide stehen am Montag unter «Saison-Termine».
+
+**Code-Fix (offen, für die nächste Session):**
+- [ ] **Bedingung `letzteServiceArt == 'endreinigung'` streichen.** Auslöser soll allein sein: qualifizierte Schliessung (≥21 Tage) + Anlage wurde während der Schliessung nicht gereinigt. Die bestehende Regel «lag die Endreinigung selbst in der Schliessung → kein Vorschlag» (Muloin-Fall) bleibt.
+- [ ] **Eröffnungsfenster statt Einzeltag:** `darfTrotzSchliessungGeplantWerden` für `eroeffnungsreinigung` auf die **letzten ~7 Tage vor Wiedereröffnung** öffnen statt nur den letzten Schliessungstag. Endreinigung spiegelbildlich (erste Tage der Schliessung). Sonst fällt jeder Betrieb durch, dessen letzter Schliessungstag nicht in die Tour passt.
+- [ ] Danach prüfen: erscheinen die restlichen fünf Betriebe automatisch? Regressionstests in `test/termin_tourenplan_test.dart` + `touren_saison`-Tests ergänzen.
+
 ## 🔴 OFFEN 08.08.: Lohnbuchhaltung 2019–2024 geprüft + SVA-Originalbelege gesichtet
 
 **Auftrag Daniel:** «und jetzt noch die Lohnbuchhaltung 2019 bis und mit 2024», dann «die SVA-Schlussabrechnungen hast du ja bereits». Grundlage: 115 Lohnläufe vom 28.05.2019 bis 05.12.2024 (je 7 Buchungen) **plus 20 gesichtete Original-Scans aus `00_Rechnungen/04_SVA/`**. Vollständige Auswertung: `docs/lohnabgleich-2019-2026.md`, Abschnitt 4e.
