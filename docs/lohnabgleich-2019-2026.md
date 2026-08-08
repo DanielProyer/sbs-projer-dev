@@ -53,7 +53,15 @@ Reines Umbenennen war nicht mehr möglich (seit den April–Juli-Lohnläufen tra
 | 2272 an 2271 (BVG-Schuld an den richtigen Platz) | 5'945.97 |
 | 2272 an 2273 (UVG/SUVA-Soll-Saldo von 2273 weg) | 5'494.11 |
 
-**Salden danach (heute):** 2002 = 0.00 · 2270 AHV/ALV/FAK = 6'780.87 · 2271 BVG = 7'071.82 (rechnerisch exakt: Alt 5'945.97 + 4 Läufe 4'503.60 − AXA-Q2 3'377.75) · 2272 UVG = **−5'249.16 (Merkposten:** SUVA-/AXA-Prämien seit Dez 2024 bezahlt ohne Aufwandbuchung, Audit B4.3 — Aufwand-Nachholung wäre eine ECHTE Ergebniskorrektur der Alt-Ära → separater Entscheid Daniel) · 2273 KTG = 0.00. Kontobezeichnungen in der DB waren bereits korrekt — Inhalt und Beschriftung passen jetzt zusammen.
+**Salden danach:** 2002 = 0.00 · 2270 AHV/ALV/FAK = 6'780.87 · 2271 BVG = 7'071.82 (rechnerisch exakt: Alt 5'945.97 + 4 Läufe 4'503.60 − AXA-Q2 3'377.75) · 2273 KTG = 0.00. Kontobezeichnungen in der DB waren bereits korrekt — Inhalt und Beschriftung passen jetzt zusammen.
+
+**Aufwand-Nachholung B4.3 (Entscheid Daniel «Ja», 08.08.2026):** Der 2272-Negativsaldo (Prämien seit Dez 2024 bezahlt ohne Aufwandwirkung) ist mit 4 belegten Nachbuchungen aufgelöst:
+- 31.12.2025: SUVA **definitive** Prämie 2025 = **1'125.40** (Beleg SUVA-Abrechnung 10.02.2026, Lohnsumme 70'700, BUV 0.6618 % + NBUV 0.93 %; prov. 1'910.15 bezahlt, 784.75 Rückerstattung = camt-Gutschrift 12.02. ✓)
+- 31.12.2025: AXA Personenversicherung Professional 2025 = **1'290.00** (Police 44.127.389)
+- 02.01.2026: SUVA provisorisch 2026 = **1'768.80** (Zahlung war 08.12.2025, Periode 2026)
+- 28.01.2026: AXA Personenversicherung 2026 = **1'796.00**
+
+Wirkung: Ergebnis 2025 −2'415.40, Ergebnis 2026 −3'564.80. **2272 danach = +731.04** = Altbestand 486.09 + aufgelaufene BU-AG-Beiträge 244.95 — rappengenau konsistent. Nebenbefund SUVA 2025: deklarierte Lohnsumme = 70'700 (= Auszahlungs-/Nettosumme) — bei der 2025er-Lohndeklaration (Soll-Brutto 83'124) mitziehen.
 
 **FAK-Korrektur:** SVA-Factsheet (Scan) belegt FAK GR 2026 = **1.50 %** (2025: 1.60 %) — App-Einstellung stand auf 1.35 %. Einstellung + die 4 gebuchten FAK-Zeilen der Nachhol-Läufe korrigiert (April 89.15 · Mai 145.25 · Juni 121.20 · Juli 169.30).
 
