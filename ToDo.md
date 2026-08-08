@@ -2,6 +2,144 @@
 
 **Stand:** 08.08.2026 · **Live:** v0.74.0
 
+## 🔴 OFFEN 08.08.: Lohnbuchhaltung 2019–2024 geprüft + SVA-Originalbelege gesichtet
+
+**Auftrag Daniel:** «und jetzt noch die Lohnbuchhaltung 2019 bis und mit 2024», dann «die SVA-Schlussabrechnungen hast du ja bereits». Grundlage: 115 Lohnläufe vom 28.05.2019 bis 05.12.2024 (je 7 Buchungen) **plus 20 gesichtete Original-Scans aus `00_Rechnungen/04_SVA/`**. Vollständige Auswertung: `docs/lohnabgleich-2019-2026.md`, Abschnitt 4e.
+
+> ⚠️ **Zwei Befunde aus meiner ersten Durchsicht sind durch die Belege überholt** — korrigiert weiter unten: die Kontenverschiebung war bereits am selben Tag gelöst, und der vermutete fehlende FAK-Aufwand existiert nicht.
+
+**Die Struktur ist im Kern sauber.** Bruttolohn (5000) = Nettolohn + AN-Abzüge geht in jedem Jahr rappengenau auf; das Lohn-Durchlaufkonto **2002 steht in allen sechs Jahren exakt auf 0.00** (396'600.00 gutgeschrieben, 396'600.00 ausbezahlt), ebenso das Kurzarbeits-Kontokorrent **2276** (38'351.35 durchgelaufen, Saldo 0). Corona-KAE 2020/21 sauber als Lohnersatz 5005 (−36'069.75) erfasst.
+
+| Total 2019–2024 | Betrag |
+|---|---|
+| Bruttolohn 5000 | 468'940.51 |
+| Nettolohn (an 2002) | 396'600.00 |
+| AN-AHV / AG-AHV | 29'928.47 / **29'928.47** (identisch) + 2'090.77 Verwaltungskosten |
+| AN-BVG / AG-BVG | 34'451.18 / 34'451.18 |
+| AN-NBU / AG-NBU | 7'960.86 / 7'687.24 |
+| FAK | **0.00** |
+| KTG | **0.00** |
+
+### 🔴 Befund 1 (NEU, aus den Belegen): Der SVA wurde der NETTOlohn deklariert — nicht das Lohnausweis-Brutto
+
+**Beleg A — Schlussrechnung 2020** (`04_SVA/1033649102.jpg`, Chur 25.01.2021): AHV/IV/EO 10.550 % auf **Basis 88'500.00** = 9'336.75 · ALV AG 2.200 % = 1'947.00 · FAK AG 1.650 % = 1'460.25 · Verwaltungskosten 5.000 % = 466.85 · Verzugszins 34.85 → **Total 13'245.70** (Ratenzahlung beantragt, 10 Raten à 1'330).
+
+**Beleg B — «Lohnsummen: Anpassen der Grundlagen»** (`04_SVA/1203094480.jpg`, 25.01.2021): Jahreslohnsumme AHV/IV/EO = FAK = ALV 1 = **CHF 88'500.00** für 2021.
+
+**88'500.00 ist exakt die Auszahlungssumme 2020** (Konto 2002). Der **Lohnausweis 2020 weist unter Ziff. 8 aber 101'395 aus** → Steuer- und AHV-Deklaration widersprechen sich um **12'895**. Damit ist die bisherige Erwartung («deklariert = Lohnausweis-Brutto», Punkt 5.1 im Lohnabgleich) **widerlegt**, und die frühere Bagatell-Schätzung von «~170 CHF über sechs Jahre» ist hinfällig. Dritte, unabhängige Bestätigung: die CO2-Rückverteilung 2022 nennt als Grundlage «AHV-Lohnsumme 2020 … 88'500.00».
+
+**Die Auflösung — 2019 war noch korrigiert worden:** Die Schlussrechnung 2019 (`1375181113`) rechnete zunächst ebenfalls auf **52'000 = Nettolohn**; Daniels Handnotiz darauf lautet «*Nachtrag Differenz — sva.gr.ch Nachtrag zur Lohndekl.*». Die Nachtragsrechnung vom 24.08.2020 (`1332133964`) korrigierte die Basis dann auf **59'571.00 = exakt das Lohnausweis-Brutto**. **Ab 2020 unterblieb dieser Nachtrag.**
+
+| Jahr | deklariert | Netto | Lohnausweis Z.8 | |
+|---|---|---|---|---|
+| 2019 | **59'571** | 52'000 | 59'571 | ✅ korrekt (nach Nachtrag) |
+| 2020 | **88'500** | 88'500 | 101'395 | ❌ belegt |
+| 2021 | ⌂ 77'100 | 77'100 | 89'035 | Schlussrechnung passt |
+| 2022 | ⌂ 61'000 | 61'000 | 71'092 | **rappengenau nachgerechnet** |
+| 2023 | **58'500** | 58'500 | 68'480 | ❌ belegt |
+| 2024 | ⌂ 59'500 | 59'500 | 69'593 | Schlussrechnung passt |
+| 2025 | **70'700** | 70'700 | *(83'124)* | ❌ belegt |
+
+Nicht deklarierte Lohnsumme **2020–2024 rund 55'900** → bei ~14.9 % Gesamtbeitrag grob **~8'300 CHF zu wenig Beiträge** (2025 zusätzlich ~1'850).
+
+- [x] ~~Restliche SVA-Scans sichten~~ **ERLEDIGT 08.08.:** alle 67 Dokumente gesichtet. Ausgefüllte Lohndeklarationen existieren nicht als Scan — Einreichung läuft über AHVeasy.
+- [x] **ENTSCHIEDEN (Daniel, 08.08.): bisherige Deklaration belassen**, keine Nachmeldung. Bewusst in Kauf genommen: tiefere AHV-Gutschrift auf dem individuellen Konto, Lohnausweis ≠ AHV-Deklaration für 2020–2024, und bei einer AHV-Arbeitgeberkontrolle wäre nachzuzahlen (Beitragsverjährung 5 Jahre, Art. 16 AHVG → 2020 ist verjährt, 2021 bis Ende 2026, 2022–2025 noch offen). **Ab 2026 wird korrekt aufgerechnet deklariert** — der Fehler läuft nicht weiter.
+
+### 🟢 Befund 1a (ERLEDIGT, war schon gelöst): Kontenverschiebung
+
+Ich hatte die verschobenen Alt-Konten zunächst als akut gemeldet — **die Umgliederung ist aber bereits am 08.08. erfolgt** (Lohnabgleich-Doc, Abschnitt 4b/4c): drei Salden-Umgliederungen, End-Salden 2270 AHV = 6'777.62 · 2271 BVG = 6'510.32 · 2272 UVG = +844.15 · 2273 KTG = 0.00 — deckt sich rappengenau mit den heute nachgerechneten Werten. Zur Dokumentation, wie es dazu kam: Die Alt-Ära buchte nach dem Excel-Kontenplan, die App nach ihrem eigenen — **um genau eine Position verschoben**:
+
+| Konto | App-Kontenplan sagt | Alt-Ära 2019–2024 bucht tatsächlich |
+|---|---|---|
+| 2270 | AHV/IV/EO/ALV | *leer* (erst ab 2026 bespielt) |
+| 2271 | BVG / Pensionskasse | **AHV/IV/EO/ALV** (Belege: «AN/AG - AHV/IV/EO/ALV», Zahlungen «SVA 2019…») |
+| 2272 | UVG / SUVA | **BVG** (Belege: «AN/AG - BVG», Zahlungen «Q1 - 2020…») |
+| 2273 | KTG | **NBU/UVG** (Belege: «AN/AG - NBU», Zahlungen «AXA - Personenversicherung Professional») |
+
+Gelöst wurde das nicht durch Massen-Umbuchung der 115 Lohnläufe, sondern durch **drei Salden-Umgliederungen** (reiner Passivtausch, ergebnisneutral). Kein Handlungsbedarf mehr.
+
+### 🟡 Befund 2: AHV-Abzug = 8 % vom NETTO statt 6.4 % vom Brutto — Summenwirkung fast null
+
+2022–2024 exakt 8.0 % des Nettolohns (4'880.00 / 61'000 · 4'680.00 / 58'500 · 4'760.00 / 59'500); der **AG-Anteil wurde jeweils 1:1 kopiert** statt eigenständig gerechnet. Korrekt wären 6.4 % (AHV/IV/EO 5.3 + ALV 1.1) vom Bruttolohn, je Seite.
+
+| Jahr | Brutto | AHV soll (6.4 %) | gebucht | Abweichung |
+|---|---|---|---|---|
+| 2019 | 60'857.26 | 3'894.86 | 3'666.00 | −228.86 |
+| 2020 | 102'635.49 | 6'568.67 | 6'372.00 | −196.67 |
+| 2021 | 90'152.40 | 5'769.75 | 5'570.47 | −199.28 |
+| 2022 | 73'029.69 | 4'673.90 | 4'880.00 | +206.10 |
+| 2023 | 70'585.68 | 4'517.48 | 4'680.00 | +162.52 |
+| 2024 | 71'679.99 | 4'587.52 | 4'760.00 | +172.48 |
+| **Summe** | | | | **−83.71** |
+
+Über sechs Jahre also **83.71 zu wenig** — materiell vernachlässigbar (2020/21 zusätzlich durch KAE verzerrt). **Empfehlung: nicht rückwirkend korrigieren**, nur dokumentieren; die App rechnet seit den Nachhol-Lohnläufen korrekt vom Brutto.
+- [ ] Entscheid Daniel: dokumentieren statt korrigieren — einverstanden?
+
+### 🟢 Befund 3 (KORRIGIERT): FAK war doch im Aufwand — reines Ausweisthema
+
+Ich hatte gemeldet, die FAK fehle als Aufwand (5710 ist 2019–2024 leer) und schätzte **~7'000 fehlenden Aufwand**. **Das ist falsch** — die Belege zeigen es:
+
+SVA-Schlussrechnung 2020 ohne Verzugszins = 9'336.75 + 1'947.00 + 1'460.25 + 466.85 = **13'210.85**
+Buchhaltung 2020 = AN-AHV 6'372.00 + AG-AHV 6'372.00 + Verwaltungskosten 466.90 = **13'210.90** → **Differenz 5 Rappen.**
+
+Der interne «8 %»-Split war also eine reine Aufteilungsfiktion, deren **Summe exakt die SVA-Rechnung trifft**. Die FAK steckt in den «AG»-Zeilen auf 5700, sie wurde nur nie separat auf 5710 ausgewiesen. Aufwand und Gewinn 2019–2024 stimmen. Belegte GR-Sätze: FAK 1.650 % (2020/2022), 1.600 % (2023/2024); Verwaltungskosten 5.0 %, 2023 4.5 %.
+
+### 🟡 Befund 3a: Akonto-Grundlage seit April 2021 auf 30'734 eingefroren — kostet bis heute Geld
+
+Die SVA setzte die Jahreslohnsumme am 25.01.2021 auf 88'500. **Auf Daniels Antrag** (Handnotiz «Mail 31.03.2021 wegen Anpassung Lohnsumme») wurde sie am 09.04.2021 auf **30'734.00** herabgesetzt — und läuft **bis heute unverändert**: alle Akonti von Q3/2021 bis Q1/2026 rechnen mit 7'683.50/Quartal, bei echten Auszahlungen von 59'500–77'100.
+
+Folge: jedes Jahr eine grosse Schlussrechnung samt Zuschlägen. **Praktisch jeder Beleg trägt einen Mahnvermerk** — Mahngebühren 24.35–87.05, Verzugszinsen 31.80–160.20, 2020 Ratenzahlung über zehn Monate, **2023 zusätzlich CHF 300.00 Bussen** wegen nicht eingereichter Unterlagen. Auch die Deklarationen gingen regelmässig erst nach der Frist (30.01.) ein: 2022 am 30.01.23, 2023 am 02.02.24, 2024 am 03.02.25, 2025 am 10.02.26.
+
+- [ ] **Beim ohnehin offenen Punkt «SVA-Lohnsumme 2026 melden» (4'043.20 aufgelaufen) gleich die Akonto-Grundlage anheben** — das beendet die jährlichen Nachzahlungen und die Zinsen. Und: Deklaration künftig **vor dem 30. Januar** einreichen, dann entfallen Verzugszinsen und Mahngebühren.
+
+### 🟡 Befund 4: KTG nie getrennt — AXA-Police komplett als NBU behandelt
+
+Konto **5740 (KTG) ist 2019–2024 leer**. Die AXA «Personenversicherung Professional» (15'162.05 in sechs Jahren) läuft vollständig über 5730/2273 als «NBU». Enthält die Police ein Krankentaggeld, ist die Aufteilung falsch — der Gesamtaufwand stimmt, nur die Zuordnung nicht.
+- [ ] Police prüfen: UVG/UVGZ/KTG-Anteile — dann entweder rückwirkend splitten oder ab 2026 sauber trennen.
+
+### Offene Sozialversicherungs-Verbindlichkeiten per 31.12.2024: CHF 8'292.27
+
+| Konto (Alt-Bedeutung) | gebucht (Beiträge) | bezahlt | **offen** |
+|---|---|---|---|
+| 2271 = AHV/SVA | 61'947.71 | 55'831.75 | **6'115.96** |
+| 2272 = BVG | 68'902.36 | 67'212.10 | **1'690.26** |
+| 2273 = NBU/AXA | 15'648.10 | 15'162.05 | **486.05** |
+| | | | **8'292.27** |
+
+Ein Rest ist normal (Q4 wird erst im Folgejahr abgerechnet), aber **6'115.96 auf der AHV sind mehr als ein Quartalsbeitrag**. Die Schlussrechnungsbeträge aus den Belegen (2020: 13'245.70 · 2022: 4'533.60 · 2024: 4'267.10, alle mit Bezahlt-Vermerk) sprechen dafür, dass die Rechnungen beglichen wurden — die Restschuld dürfte aus dem Timing stammen (Schlussrechnung eines Jahres wird erst im Februar/April des Folgejahres bezahlt).
+- [ ] **Restliche Schlussrechnungen sichten** (2019, 2021, 2023) und die drei Salden gegen die tatsächlich fakturierten Beträge stellen — dann ist geklärt, ob 8'292.27 sauberes Timing oder echte Restschuld ist.
+- [x] ~~Prüfpunkt B1: Lohnaufwand 5000 liegt über dem Lohnausweis-Brutto~~ — **bereits erklärt** in `docs/lohnabgleich-2019-2026.md` Abschnitt 3: 5000 enthält Auszahlung + AN-Beiträge inkl. NBU, der Lohnausweis nicht.
+
+## 🔴 OFFEN 08.08.: MWST-Saldierung fehlt seit Q1/2025 — darum 2200 = 27'728.42 und 2202 = −10'350.80
+
+**Frage Daniel:** «warum ist die geschuldete MWST in der Bilanz so hoch und warum das Abrechnungskonto −10'350?» — **Antwort: beides ist derselbe fehlende Abschlussschritt, kein Buchungsfehler.**
+
+Bis Ende 2024 wurde jedes Quartal sauber saldiert (`2200 an 2202` für die Umsatzsteuer, `2202 an 1170/1171` für die Vorsteuer — Journaltexte «X / 2024 – Saldierung Konto …», alle datiert 31.12.2024). **Seit Q1/2025 wurde keine einzige dieser Saldierungen mehr gebucht**; gebucht wurden nur noch die Zahlungen an die ESTV. Damit laufen die beiden Konten auseinander:
+
+| Konto 2200 «Geschuldete MWST» | |
+|---|---|
+| Stand 31.12.2024 (nach letzter Saldierung) | 2'847.94 |
+| + Umsatzsteuer 2025 (1'268 Buchungen) | 16'004.41 |
+| + Umsatzsteuer 2026 bisher (801 Buchungen) | 8'876.07 |
+| **= Saldo heute** | **27'728.42** |
+
+| Konto 2202 «MWST-Abrechnungskonto» | |
+|---|---|
+| Stand 31.12.2024 (Rest aus der Alt-Ära) | −6'360.47 |
+| + Zahlungen 2025 (netto, nach 3 Rückzahlungen) | 11'642.49 |
+| + Zahlungen 2026 (3'333.74 für Q3/25 + 1'735.04 für Q4/25) | 5'068.78 |
+| **= Saldo heute** | **+10'350.80 im Soll → Bilanz-Anzeige −10'350.80** |
+
+Ein Passivkonto mit Soll-Saldo heisst schlicht: **bezahlt, aber nie gegen die Schuld verrechnet.** Die Vorsteuerkonten 1170 (4'784.84) und 1171 (1'975.51) sind seit 2025 aus demselben Grund ebenfalls nie entlastet worden.
+
+**Wahrer offener MWST-Stand:** 27'728.42 − 4'784.84 − 1'975.51 − 10'350.80 = **CHF 10'617.27 netto** — das ist die Grössenordnung für Q1/2026 + Q2/2026 + Berichtigung 2025 (1'508.62) + laufendes Q3/2026.
+
+**Aufgaben:**
+- [ ] **Reihenfolge zwingend:** Q1+Q2/2026 einreichen → Berichtigung 2025 → **erst danach** alle offenen Quartale **Q1/2025 bis Q2/2026 saldieren** (2200 an 2202, 2202 an 1170/1171, je Quartal). Vorher zu saldieren hiesse, gegen Zahlen zu buchen, die gerade erst deklariert werden.
+- [ ] **Fremdkörper auf 2202: «Busse» CHF 1'110.00 vom 07.10.2025** (am 29.10. zurückbezahlt, netto null) — gehört auf 6280, nicht aufs MWST-Abrechnungskonto. Umbuchen oder dokumentiert stehen lassen.
+- [ ] **Kosmetik 2202:** Rückzahlungen 2/2024 (−441.77) und «0/2024» (−1'858.23) sind als *negative Sollbuchungen* erfasst statt als Habenbuchungen. Saldo stimmt, Darstellung nicht.
+- [ ] **Härtung (Schritt 7):** Quartals-Saldierung als App-Funktion oder Monatsabschluss-Checkliste — sonst wiederholt sich das Auseinanderlaufen ab Q3/2026 sofort wieder.
+
 ## 🔴🟢 ERLEDIGT 08.08. (v0.74.0): KRITISCH — Bilanz zeigte zufällig falsche Zahlen (instabile Pagination)
 
 **Entdeckt durch Daniels Frage zu den Konten 2000/2002.** Die Bilanz zeigte **Bank 15'057.97**, in der DB stehen aber **15'816.07** (−758.10); Kasse 11'042.13 statt 11'084.28 (−42.15). **Ursache:** `BuchungRepository.getAll()` lädt die 16'449 Buchungen seitenweise (17 Seiten à 1'000) und sortierte dabei nur nach `datum` — **1'874 Tage tragen mehrere Buchungen**, also ist die Reihenfolge zwischen zwei Seiten nicht definiert. Postgres darf gleichrangige Zeilen pro Request anders anordnen → Zeilen erscheinen doppelt oder fallen ganz durch. Die Salden waren damit **bei jedem Neuladen zufällig anders** (betraf Bilanz, Erfolgsrechnung, Kontensaldi, MWST-Detail, Debitoren-Kachel). **Fix:** `.order('id')` als eindeutiger letzter Sortierschlüssel in **9 paginierten Abfragen** (buchung_repository ×3, buchung_service, rechnung_repository ×3, reinigung_repository ×2, camt_datei_repository, buchhaltung_providers ×2). **Regressionsschutz:** `test/pagination_stabil_test.dart` scannt `lib/` und schlägt bei jeder `.range()`-Abfrage ohne `.order('id')` fehl — hat prompt 2 weitere Stellen in den Providern gefunden. 1015 Tests grün. ⚠️ Alle bisher aus der App abgelesenen Bilanz-/ER-Zahlen waren potenziell zu tief — die DB-Werte (und damit alle heutigen Abstimmungen) waren immer korrekt.
