@@ -67,6 +67,12 @@ Wirkung: Ergebnis 2025 −2'415.40, Ergebnis 2026 −3'564.80. **2272 danach = +
 
 **Amtliche Bestätigung der Soll-Formel:** Die SVA-«Anleitung zur Lohndeklaration» (ab 2023, Scan in `04_SVA/Unterlagen/`) schreibt die Aufrechnung wörtlich vor: «Werden Löhne ohne Abzug der Beiträge ausbezahlt, muss der Nettolohn mit 6,4 Prozent in einen Bruttolohn aufgerechnet werden: CHF 50'000 ÷ (100−6,4) × 100» — exakt die Divisions-Formel aus Abschnitt 2.
 
+## 4c. 2026er-Normalisierung KOMPLETT (08.08.2026, Punkt 5.4 erledigt)
+
+Die Excel-Stil-Lohnblöcke Jan+März 2026 (24 Zeilen, «Auszahlung als Brutto + Beiträge obendrauf») wurden gelöscht und durch **korrekte App-Lohnläufe** ersetzt (Bankzahlungen blieben unangetastet): **Jan Brutto 7'011.70/Netto 6'000 · März 9'148.45/8'000** (die 1'000 vom 23.03. steckt im April-Lauf). Damit sind alle 6 Lohnmonate 2026 im App-Modell, `lohn_abrechnungen` vollständig (Jan, Mär–Jul), **Lohnaufwand 5000/2026 = 51'151.45 = exakt die Summe der 6 Bruttos.** Die Umgliederungsbuchungen wurden auf die 31.12.2025-Basis nachjustiert (AHV 7'703.97 · BVG 9'372.07 · UVG 4'482.90) und die 5 Alt-Zahlungen Jan–Apr auf die richtigen Konten gedreht (BVG-Nachzahlung «Q2+Q3 2025» 6'239.40 → 2271 · SVA-Schlusszahlung 2025 5'962.20 → 2270 · AXA-Police 1'796 → 2272 · SUVA-Gutschrift 784.75 → 2272 · AXA-BVG Q 3'377.75 → 2271).
+
+**End-Salden (alle rappengenau hergeleitet):** 2002 = 0.00 · **2270 AHV/ALV/FAK = 6'777.62** · **2271 BVG = 6'510.32** · **2272 UVG = +844.15** · 2273 KTG = 0.00. Nebenbefund: Die SVA hat 2025 **definitiv abgerechnet** («SVA 2025 - Restbetrag» 5'962.20 am 11.03.2026).
+
 ## 5. Offene Punkte für den Vollabschluss
 
 - [ ] **5.1 SVA-Jahresabrechnungen 2019–2025 beiziehen** (Daniel: Ordner/Post SVA GR): bestätigt, welche Lohnsumme effektiv deklariert wurde (Erwartung: = Lohnausweis-Brutto). Erst damit ist die Behörden-Seite hart bewiesen. Auch: exakte FAK-/VK-Sätze GR pro Jahr daraus ablesen.
