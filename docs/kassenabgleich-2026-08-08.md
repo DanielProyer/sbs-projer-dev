@@ -48,6 +48,14 @@ Gleicher Fehlertyp wie der MwSt-Befund vom 06.08. (Journal↔Hauptbuch inkonsist
 - [ ] **28.05.2026, 2× «Benzin» 121.70** am selben Tag (beide aus dem Excel-Journal): Doppelerfassung oder wirklich zweimal getankt? Falls Doppler: 1 Zeile löschen → Kasse +121.70 (11'205.98), Aufwand 6200 −121.70.
 - Scanner-Regel künftig: Geld aus dem Kässeli → Zahlungsweg **«bar»**; nur echtes Privatgeld → «privat».
 
-## 5. Nebenschauplatz: camt-Dateien-Archiv aufgeräumt (gleicher Tag)
+## 5. Gratis-/Monteur-/Kulanz-Reinigungen: Kasse NICHT aufgebläht (Prüfung 08.08.)
+
+**Live-Ära (ab Dez 2025):** Code-Guards in `reinigung_buchung_service.dart` (Kulanz + Heineken-Monteur buchen nie; nur Zahlungsart Barzahlung → 1000). Empirisch: Alle 258 Kasse-Buchungen geprüft — **0 Kulanz, 0 Monteur, 0 Heineken-abgerechnet, 0 mit Preis 0, 0 Betragsabweichungen** zur Reinigung.
+
+**Excel-Ära (Reinigungs-Sheet, Rechnungsart «Bar» ↔ Journal-Kasse-Zugänge):** 2019/2022/2024/2025 exakt 0.00. Einzelfall-Diff über alle Jahre: nur **3 Kasse-Zugänge ohne Bar-Reinigung** (15.12.2020 67.85 · 02.05.2022 67.85 · 07.07.2023 74.30) — normale Tarife, davon mind. 2 erkennbare Datums-Shifts derselben Reinigung (Gegenstücke 01.06.2022 / 08.07.2023 in der Gegenliste). Die **2 einzigen Gratis-(Kulanz)-Zeilen mit Betrag** (06.11.2023 74.30 · 11.12.2024 94.05) sind **nicht** in der Kasse. Heineken-Reinigungen (215 St., via Monatsrechnung) tauchen in keiner Kasse-Buchung auf.
+
+**Gegenrichtung:** 11 Bar-Reinigungen ohne Kasse-Buchung (v. a. März 2023, ~700) — die Kasse wäre historisch also eher etwas zu TIEF als zu hoch. Nicht korrigiert (Alt-Ära, Verkehrszahlen).
+
+## 6. Nebenschauplatz: camt-Dateien-Archiv aufgeräumt (gleicher Tag)
 
 7 von 8 Einträgen gelöscht (2 überholte Teil-Exporte + 5 Duplikate — der Bestätigungs-Flow archivierte dieselbe Datei pro Runde erneut). Verbleibt: 1 Eintrag 12.03.–06.08.2026. **Code-Guard v0.73.4:** `CamtDateiRepository.speichern` ist jetzt idempotent pro Datei (Name + Zeitraum). 7 verwaiste XML-Objekte bleiben im Bucket `camt-dateien` (Storage-API-Schutz; harmlos, ~7 MB).
