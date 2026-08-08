@@ -43,7 +43,29 @@ class CamtDateiRepository {
   }
 
   /// Lädt das XML in den Bucket + erstellt den Metadaten-Record.
+  ///
+  /// Idempotent pro Datei: Wurde EXAKT dieselbe Datei (Name + Zeitraum) schon
+  /// archiviert, wird der bestehende Eintrag zurückgegeben statt eine weitere
+  /// Kopie anzulegen. Hintergrund: Der Bestätigungs-Flow verarbeitet dieselbe
+  /// Datei oft in mehreren Runden — beim Nachhol-Import 07.08.2026 entstanden
+  /// so 6 identische Archiv-Einträge.
   static Future<CamtDatei> speichern(CamtDatei meta, Uint8List xmlBytes) async {
+    final vorhandene = await SupabaseService.client
+        .from('camt_dateien')
+        .select()
+        .eq('user_id', _userId)
+        .eq('dateiname', meta.dateiname)
+        .limit(1);
+    if ((vorhandene as List).isNotEmpty) {
+      final alt = CamtDatei.fromJson(vorhandene.first);
+      // Datums-Vergleich auf Tagesebene: Der Parser liefert ggf. eine Uhrzeit
+      // mit, die DB speichert nur das Datum.
+      String? tag(DateTime? d) => d?.toIso8601String().split('T').first;
+      if (tag(alt.zeitraumVon) == tag(meta.zeitraumVon) &&
+          tag(alt.zeitraumBis) == tag(meta.zeitraumBis)) {
+        return alt;
+      }
+    }
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final pfad = '$_userId/${timestamp}_${meta.dateiname}';
     await SupabaseService.client.storage.from(_bucket).uploadBinary(
