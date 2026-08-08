@@ -1,6 +1,10 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 08.08.2026 · **Live:** v0.73.7
+**Stand:** 08.08.2026 · **Live:** v0.73.8
+
+## 🟢 ERLEDIGT 08.08. (v0.73.8): Lohnausweis im amtlichen Formular-11-Layout
+
+Wunsch Daniel: «im offiziellen Design, gleich wie 2019 bis 2024». Der App-Lohnausweis war eine vereinfachte Tabelle — jetzt **Nachbau des amtlichen Formulars** (Form. 11 dfi, 605.040.18N): Kopffelder A–H (Ankreuzfelder Lohnausweis/Rentenbescheinigung, AHV-Nr., Geburtsdatum, Jahr/Periode, Gratis-Beförderung, Kantinenverpflegung, Adressfeld), **dreisprachige Ziffern 1–15** mit lila hinterlegten Betragsfeldern und +/−/=-Zeichen, Bestätigungsblock I mit Arbeitgeber-Anschrift und Unterschriftslinie. Beträge in ganzen Franken (Vorgabe). **Formularlogik 8 − 9 − 10 = 11 per Test abgesichert**; Ziff. 9 = AHV/IV/EO + ALV + NBUV (KTG korrekt ausgenommen), Ziff. 15 dokumentiert die Netto-Aufrechnung. Das amtliche PDF selbst ist nicht befüllbar (`pdf`-Paket kann keine bestehenden Dokumente laden) → vektorieller Nachbau. `00_Rechnungen/12_Lohnausweis/Lohnausweis 2025.pdf` mit demselben Layout neu erzeugt. 1014 Tests grün.
 
 ## 🟢 ERLEDIGT 08.08. (v0.73.7): Sonderzeichen-Problem in PDFs ENDGÜLTIG behoben
 
