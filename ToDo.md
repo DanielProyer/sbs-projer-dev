@@ -1,6 +1,10 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 08.08.2026 (nachts) · **Live:** v0.73.1
+**Stand:** 08.08.2026 · **Live:** v0.73.5
+
+## 🟢 ERLEDIGT 08.08. (v0.73.5): Lohnlauf-Nachholung April–Juli — Fahrplan-Schritt 5b
+
+**4 Nachhol-Lohnläufe gebucht (Weg B, direkt in DB im App-Format):** Netto = tatsächliche Auszahlungen (Modellwechsel: Abzüge VOM Brutto statt Excel-Nettolohn-Modell «8 % obendrauf»). April 5'943.35 brutto/5'000 netto (inkl. der nie abgerechneten 1'000 vom 23.03.) · Mai 9'682.65/8'500 · Juni 8'080.10/7'000 · Juli 11'285.20/10'000. Sätze: AHV 5.3 · ALV 1.1 · **NBU 0 (Übernahme durch Firma, Entscheid Daniel)** · BVG fix 562.95 AN+AG (AXA-QUARTALSprämie 3'377.75 ÷ 3 ÷ 2). **Verifiziert: Konto 2002 = 0.00 exakt, Bank 1020 unverändert 15'816.07.** Begleitkorrekturen: AXA-BVG-Zahlung 09.04. + 2 SVA-Akonti von Aufwand auf Verbindlichkeit umgebucht (2271/2270) + beide Vorlagen umgestellt — sonst wäre der AG-Aufwand doppelt. Sozialversicherungs-Verbindlichkeiten seit April: 4'043.20 offen (SVA-Akonti basieren auf altem Lohnniveau — bei Gelegenheit SVA-Lohnsumme melden). **Code-Fix v0.73.5:** `lohn_repository._buche` übergab `monat` (generierte Spalte) — der Lohnlauf-Screen wäre beim ersten echten Buchen gecrasht; behoben, August läuft normal über die App. **Offen G6-Altlasten:** Konten 2270–2273 Alt-Ära umbenennen vs. umbuchen · AHV 8%-vom-Netto rückwirkend? · FAK-Alt-Ära.
 
 ---
 

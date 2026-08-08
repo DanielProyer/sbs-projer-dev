@@ -159,6 +159,10 @@ class LohnRepository {
   static Future<void> _buche(String datum, int soll, int haben,
       double betrag, String beschreibung, int jahr, int monat,
       String lohnAbrechnungId) async {
+    // KEIN 'monat'-Feld: ist in der DB eine generierte Spalte (aus datum) —
+    // ein Insert mit Wert wirft «cannot insert a non-DEFAULT value into
+    // column "monat"». Der Parameter bleibt für die Signatur-Kompatibilität.
+    // ignore: unused_local_variable
     await BuchungRepository.create({
       'datum': datum,
       'soll_konto': soll,
@@ -169,7 +173,6 @@ class LohnRepository {
       'betrag_brutto': betrag,
       'beschreibung': beschreibung,
       'geschaeftsjahr': jahr,
-      'monat': monat,
       'belegordner': 'lohn',
       'beleg_id': lohnAbrechnungId,
     });
