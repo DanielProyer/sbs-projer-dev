@@ -1,6 +1,23 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 08.08.2026 · **Live:** v0.74.0
+**Stand:** 10.08.2026 · **Live:** v0.75.0
+
+## 🟢 ERLEDIGT 10.08. (v0.75.0): Rechnungsadresse mit mehr Zeilen — Fall SV (Schweiz) AG / Spiga
+
+**Anlass:** Mail von `kreditoren@sv-group.ch` (07.08., Monika Yüksel): Rechnung 2026-07-1007 (94.05, versendet 14.07.) **nicht verarbeitbar**, weil «SV (Schweiz) AG» nicht als Rechnungsempfänger stand. Verlangt sind sechs Zeilen — Firma, Objekt, KST, Scanning Center, Postfach, PLZ/Ort.
+
+**Befund:** Die Spalte `nachname` trug in **allen 63** Rechnungsadressen den *Betriebsnamen*, nie einen Personennamen; das Formular schrieb sie stumm und **gesperrt** (`adresse.nachname = _betriebName`), `vorname` war überall NULL. Darum liess sich für SV kein abweichender Objektname erfassen — «Scanning Center Postfach» landete in der Strasse, die KST in den Notizen (und dort nur als `28616` statt `28616406`).
+
+**Migration 167:** `nachname` → `objekt`, `vorname` entfernt, neu `kostenstelle` / `zusatz` / `postfach`, `strasse` nicht mehr NOT NULL. Vorab geprüft: keine View, keine RLS-Policy, keine Rechnungs-Snapshots betroffen; Alt-Key `nachname` wird trotzdem weiter gelesen (Test).
+
+**Formular:** Das gesperrte Feld «Betrieb» ist jetzt das **editierbare Pflichtfeld «Objekt / Betrieb»**, vorbelegt mit dem Betriebsnamen — damit bleibt der Betrieb bei jedem Sammelzahler (Weisse Arena, Davos Klosters, Goodfast, SV) auf der Rechnung ersichtlich, so wie es bei Legna Bar schon war. Dazu Kostenstelle, Zusatz, Postfach; Strasse nur noch Pflicht ohne Postfach.
+
+**QR-Zahlteil bleibt normkonform:** Die Swiss-QR-Bill kennt für «Zahlbar durch» nur Name + eine Adresszeile + PLZ/Ort — Kostenstelle und Zusatz gehen deshalb bewusst **nicht** in den QR-Code, das Postfach wird dort zur Strassenzeile.
+
+**Nebenbei aufgeräumt:** Adressblock war in 3 PDF-Services dupliziert, Local→DTO an 7 Stellen — beides zusammengezogen (`core/util/rechnungsadresse_zeilen.dart` mit 9 Tests, `BetriebRechnungsadresseMapper.toDto`). 1025 Tests grün.
+
+- [ ] **Rechnung 2026-07-1007 neu erzeugen und an `kreditoren@sv-group.ch` senden** (Status heute `gesendet`, 94.05). Erst danach ist der SV-Fall wirklich erledigt.
+- [ ] Für die neue App (Projekt Heineken) das Adressmodell nochmals grundsätzlich anschauen (Entscheid Daniel 10.08.).
 
 ## 🔴 OFFEN 08.08.: Eröffnungsreinigungen erscheinen nicht — Auto-Vorschlag hat zwei zu enge Bedingungen
 
