@@ -17,9 +17,11 @@ class BetriebRechnungsadresseLocal {
   late String userId;
   late String betriebId;
   String? firma;
-  String? vorname;
-  late String nachname;
-  late String strasse;
+  late String objekt;
+  String? kostenstelle;
+  String? zusatz;
+  String? postfach;
+  String strasse = '';
   String? nr;
   late String plz;
   late String ort;

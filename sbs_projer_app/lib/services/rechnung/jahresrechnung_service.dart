@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -198,20 +199,8 @@ class JahresrechnungService {
     final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
         betrieb.serverId ?? betrieb.routeId);
     if (raLocal != null) {
-      ra = BetriebRechnungsadresse(
-        id: raLocal.serverId ?? '',
-        userId: raLocal.userId,
-        betriebId: betrieb.serverId ?? '',
-        firma: raLocal.firma,
-        vorname: raLocal.vorname,
-        nachname: raLocal.nachname,
-        strasse: raLocal.strasse,
-        nr: raLocal.nr,
-        plz: raLocal.plz,
-        ort: raLocal.ort,
-        email: raLocal.email,
-        notizen: raLocal.notizen,
-      );
+      ra = BetriebRechnungsadresseMapper.toDto(raLocal,
+        betriebId: betrieb.serverId ?? '');
     }
 
     // 1. Rechnungs-PDF generieren (nur Rechnung, ohne Protokolle)

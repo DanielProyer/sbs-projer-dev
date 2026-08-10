@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -50,20 +51,8 @@ class MahnwesenService {
     final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
         rechnung.betriebId ?? '');
     if (raLocal != null) {
-      ra = BetriebRechnungsadresse(
-        id: raLocal.serverId ?? '',
-        userId: raLocal.userId,
-        betriebId: rechnung.betriebId ?? '',
-        firma: raLocal.firma,
-        vorname: raLocal.vorname,
-        nachname: raLocal.nachname,
-        strasse: raLocal.strasse,
-        nr: raLocal.nr,
-        plz: raLocal.plz,
-        ort: raLocal.ort,
-        email: raLocal.email,
-        notizen: raLocal.notizen,
-      );
+      ra = BetriebRechnungsadresseMapper.toDto(raLocal,
+        betriebId: rechnung.betriebId ?? '');
     }
 
     // 1. PDF generieren

@@ -1283,7 +1283,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         );
         ra ??= BetriebRechnungsadresseLocal()
           ..betriebId = betriebId
-          ..nachname = betrieb?.name ?? ''
+          ..objekt = betrieb?.name ?? ''
           ..strasse = betrieb?.strasse ?? ''
           ..plz = betrieb?.plz ?? ''
           ..ort = betrieb?.ort ?? '';

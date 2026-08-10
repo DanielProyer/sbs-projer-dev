@@ -8,8 +8,10 @@ class BetriebRechnungsadresseMapper {
     local.userId = dto.userId;
     local.betriebId = dto.betriebId;
     local.firma = dto.firma;
-    local.vorname = dto.vorname;
-    local.nachname = dto.nachname;
+    local.objekt = dto.objekt;
+    local.kostenstelle = dto.kostenstelle;
+    local.zusatz = dto.zusatz;
+    local.postfach = dto.postfach;
     local.strasse = dto.strasse;
     local.nr = dto.nr;
     local.plz = dto.plz;
@@ -23,13 +25,37 @@ class BetriebRechnungsadresseMapper {
     return local;
   }
 
+  /// Local → DTO. [betriebId] überschreibt die lokale Betriebs-Id (die Aufrufer
+  /// führen teils die Server-Id des Betriebs mit).
+  static BetriebRechnungsadresse toDto(BetriebRechnungsadresseLocal local,
+      {String? betriebId}) {
+    return BetriebRechnungsadresse(
+      id: local.serverId ?? '',
+      userId: local.userId,
+      betriebId: betriebId ?? local.betriebId,
+      firma: local.firma,
+      objekt: local.objekt,
+      kostenstelle: local.kostenstelle,
+      zusatz: local.zusatz,
+      postfach: local.postfach,
+      strasse: local.strasse,
+      nr: local.nr,
+      plz: local.plz,
+      ort: local.ort,
+      email: local.email,
+      notizen: local.notizen,
+    );
+  }
+
   static Map<String, dynamic> toJson(BetriebRechnungsadresseLocal local) {
     final json = <String, dynamic>{
       'user_id': local.userId,
       'betrieb_id': local.betriebId,
       'firma': local.firma,
-      'vorname': local.vorname,
-      'nachname': local.nachname,
+      'objekt': local.objekt,
+      'kostenstelle': local.kostenstelle,
+      'zusatz': local.zusatz,
+      'postfach': local.postfach,
       'strasse': local.strasse,
       'nr': local.nr,
       'plz': local.plz,

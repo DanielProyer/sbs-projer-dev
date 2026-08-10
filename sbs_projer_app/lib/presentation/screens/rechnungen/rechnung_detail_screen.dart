@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
+import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
@@ -483,11 +485,10 @@ class _RechnungDetailContentState
 
   String _betriebRaText(BetriebRechnungsadresseLocal a) {
     final lines = <String>[
-      (a.firma ?? '').trim(),
-      a.nachname.trim(),
-      '${a.strasse}${a.nr != null && a.nr!.isNotEmpty ? ' ${a.nr}' : ''}'
-          .trim(),
-      '${a.plz} ${a.ort}'.trim(),
+      ...adressZeilen(
+        betriebName: a.objekt,
+        ra: BetriebRechnungsadresseMapper.toDto(a),
+      ),
       (a.email ?? '').trim(),
     ].where((s) => s.isNotEmpty).toList();
     return lines.isEmpty ? '—' : lines.join('\n');
@@ -567,19 +568,8 @@ class _RechnungDetailContentState
         _rechnung.betriebId!,
       );
       if (raLocal != null) {
-        betriebRa = BetriebRechnungsadresse(
-          id: raLocal.serverId ?? '',
-          userId: raLocal.userId,
-          betriebId: _rechnung.betriebId!,
-          firma: raLocal.firma,
-          vorname: raLocal.vorname,
-          nachname: raLocal.nachname,
-          strasse: raLocal.strasse,
-          nr: raLocal.nr,
-          plz: raLocal.plz,
-          ort: raLocal.ort,
-          email: raLocal.email,
-        );
+        betriebRa = BetriebRechnungsadresseMapper.toDto(raLocal,
+          betriebId: _rechnung.betriebId!);
       }
       final effRa = effektiveRechnungsadresse(
         _rechnung.rechnungsadresse,
@@ -767,19 +757,8 @@ class _RechnungDetailContentState
           _rechnung.betriebId!,
         );
         if (raLocal != null) {
-          ra = BetriebRechnungsadresse(
-            id: raLocal.serverId ?? '',
-            userId: raLocal.userId,
-            betriebId: _rechnung.betriebId!,
-            firma: raLocal.firma,
-            vorname: raLocal.vorname,
-            nachname: raLocal.nachname,
-            strasse: raLocal.strasse,
-            nr: raLocal.nr,
-            plz: raLocal.plz,
-            ort: raLocal.ort,
-            email: raLocal.email,
-          );
+          ra = BetriebRechnungsadresseMapper.toDto(raLocal,
+            betriebId: _rechnung.betriebId!);
         }
       }
 
@@ -850,19 +829,8 @@ class _RechnungDetailContentState
           _rechnung.betriebId!,
         );
         if (raLocal != null) {
-          ra = BetriebRechnungsadresse(
-            id: raLocal.serverId ?? '',
-            userId: raLocal.userId,
-            betriebId: _rechnung.betriebId!,
-            firma: raLocal.firma,
-            vorname: raLocal.vorname,
-            nachname: raLocal.nachname,
-            strasse: raLocal.strasse,
-            nr: raLocal.nr,
-            plz: raLocal.plz,
-            ort: raLocal.ort,
-            email: raLocal.email,
-          );
+          ra = BetriebRechnungsadresseMapper.toDto(raLocal,
+            betriebId: _rechnung.betriebId!);
         }
       }
 

@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/core/util/google_maps_route.dart';
+import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
@@ -434,19 +436,8 @@ class _BetriebDetailContent extends ConsumerWidget {
           await BetriebRechnungsadresseRepository.getByBetrieb(serverId);
       final ra = raLocal == null
           ? null
-          : BetriebRechnungsadresse(
-              id: raLocal.serverId ?? '',
-              userId: raLocal.userId,
-              betriebId: serverId,
-              firma: raLocal.firma,
-              vorname: raLocal.vorname,
-              nachname: raLocal.nachname,
-              strasse: raLocal.strasse,
-              nr: raLocal.nr,
-              plz: raLocal.plz,
-              ort: raLocal.ort,
-              email: raLocal.email,
-            );
+          : BetriebRechnungsadresseMapper.toDto(raLocal,
+              betriebId: serverId);
       final g = ref.read(geschaeftProvider).valueOrNull;
       final bytes = await KontoauszugPdfService.generate(
         betrieb: betrieb,
@@ -773,21 +764,19 @@ class _RechnungsadresseSection extends StatelessWidget {
                 ),
                 if (adresse != null) ...[
                   const SizedBox(height: 8),
-                  if (adresse.firma != null)
+                  // Firma fett, restliche Adresszeilen darunter — Aufbau wie
+                  // im PDF (core/util/rechnungsadresse_zeilen.dart).
+                  if (adresse.firma != null && adresse.firma!.isNotEmpty)
                     Text(
                       adresse.firma!,
                       style: const TextStyle(
                           fontWeight: FontWeight.w500, fontSize: 14),
                     ),
                   Text(
-                    [
-                      if (adresse.vorname != null)
-                        '${adresse.vorname} ${adresse.nachname}'
-                      else
-                        adresse.nachname,
-                      '${adresse.strasse}${adresse.nr != null ? " ${adresse.nr}" : ""}',
-                      '${adresse.plz} ${adresse.ort}',
-                    ].join('\n'),
+                    adressZeilen(
+                      betriebName: adresse.objekt,
+                      ra: BetriebRechnungsadresseMapper.toDto(adresse),
+                    ).where((z) => z != adresse.firma).join('\n'),
                     style: const TextStyle(fontSize: 13),
                   ),
                   if (adresse.email != null) ...[

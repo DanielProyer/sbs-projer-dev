@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -226,25 +227,14 @@ class KontoauszugPdfService {
     String von,
     String bis,
   ) {
-    final raName = ra == null
-        ? ''
-        : [ra.vorname, ra.nachname]
-            .where((s) => (s ?? '').isNotEmpty)
-            .join(' ');
-    final zeilen = <String>[
-      if (ra != null && (ra.firma ?? '').isNotEmpty) ra.firma!,
-      if (raName.isNotEmpty) raName,
-      if (ra == null || ((ra.firma ?? '').isEmpty && raName.isEmpty))
-        betrieb.name,
-      if (ra != null)
-        '${ra.strasse}${(ra.nr ?? '').isNotEmpty ? ' ${ra.nr}' : ''}'
-      else if ((betrieb.strasse ?? '').isNotEmpty)
-        '${betrieb.strasse}${(betrieb.nr ?? '').isNotEmpty ? ' ${betrieb.nr}' : ''}',
-      if (ra != null)
-        '${ra.plz} ${ra.ort}'
-      else if ((betrieb.plz ?? '').isNotEmpty || (betrieb.ort ?? '').isNotEmpty)
-        '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim(),
-    ];
+    final zeilen = adressZeilen(
+      betriebName: betrieb.name,
+      betriebStrasse: betrieb.strasse,
+      betriebNr: betrieb.nr,
+      betriebPlz: betrieb.plz,
+      betriebOrt: betrieb.ort,
+      ra: ra,
+    );
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.end,
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,

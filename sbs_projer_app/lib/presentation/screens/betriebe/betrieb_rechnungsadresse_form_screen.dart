@@ -29,6 +29,10 @@ class _BetriebRechnungsadresseFormScreenState
   String _betriebName = '';
 
   late final _firmaController = TextEditingController();
+  late final _objektController = TextEditingController();
+  late final _kostenstelleController = TextEditingController();
+  late final _zusatzController = TextEditingController();
+  late final _postfachController = TextEditingController();
   late final _strasseController = TextEditingController();
   late final _nrController = TextEditingController();
   late final _plzController = TextEditingController();
@@ -52,7 +56,14 @@ class _BetriebRechnungsadresseFormScreenState
   Future<void> _loadBetriebName() async {
     final betrieb = await BetriebRepository.getById(widget.betriebId);
     if (betrieb != null && mounted) {
-      setState(() => _betriebName = betrieb.name);
+      setState(() {
+        _betriebName = betrieb.name;
+        // Vorbelegung nur, solange nichts erfasst ist — eine abweichende
+        // Objektbezeichnung (z. B. «Spiga Steinbock Chur») bleibt erhalten.
+        if (_objektController.text.trim().isEmpty) {
+          _objektController.text = betrieb.name;
+        }
+      });
     }
   }
 
@@ -64,6 +75,10 @@ class _BetriebRechnungsadresseFormScreenState
       setState(() {
         _existing = existing;
         _firmaController.text = existing.firma ?? '';
+        _objektController.text = existing.objekt;
+        _kostenstelleController.text = existing.kostenstelle ?? '';
+        _zusatzController.text = existing.zusatz ?? '';
+        _postfachController.text = existing.postfach ?? '';
         _strasseController.text = existing.strasse;
         _nrController.text = existing.nr ?? '';
         _plzController.text = existing.plz;
@@ -82,6 +97,10 @@ class _BetriebRechnungsadresseFormScreenState
     setState(() {
       _existing = adresse;
       _firmaController.text = adresse.firma ?? '';
+      _objektController.text = adresse.objekt;
+      _kostenstelleController.text = adresse.kostenstelle ?? '';
+      _zusatzController.text = adresse.zusatz ?? '';
+      _postfachController.text = adresse.postfach ?? '';
       _strasseController.text = adresse.strasse;
       _nrController.text = adresse.nr ?? '';
       _plzController.text = adresse.plz;
@@ -100,8 +119,12 @@ class _BetriebRechnungsadresseFormScreenState
       final adresse = _existing ?? BetriebRechnungsadresseLocal();
       adresse.betriebId = widget.betriebId;
       adresse.firma = _emptyToNull(_firmaController.text);
-      adresse.vorname = null;
-      adresse.nachname = _betriebName;
+      adresse.objekt = _objektController.text.trim().isEmpty
+          ? _betriebName
+          : _objektController.text.trim();
+      adresse.kostenstelle = _emptyToNull(_kostenstelleController.text);
+      adresse.zusatz = _emptyToNull(_zusatzController.text);
+      adresse.postfach = _emptyToNull(_postfachController.text);
       adresse.strasse = _strasseController.text.trim();
       adresse.nr = _emptyToNull(_nrController.text);
       adresse.plz = _plzController.text.trim();
@@ -153,6 +176,10 @@ class _BetriebRechnungsadresseFormScreenState
   @override
   void dispose() {
     _firmaController.dispose();
+    _objektController.dispose();
+    _kostenstelleController.dispose();
+    _zusatzController.dispose();
+    _postfachController.dispose();
     _strasseController.dispose();
     _nrController.dispose();
     _plzController.dispose();
@@ -185,18 +212,49 @@ class _BetriebRechnungsadresseFormScreenState
                 prefixIcon: Icon(Icons.business),
               ),
               textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
 
-            // === Betriebname (automatisch, nicht editierbar) ===
+            // === Objekt / Betriebsbezeichnung ===
+            // Editierbar: Grosskunden verlangen eigene Bezeichnungen
+            // (SV: «Spiga Steinbock Chur»). Bei Sammelzahlern ist diese Zeile
+            // das Einzige, woran der Betrieb auf der Rechnung erkennbar ist.
             TextFormField(
-              initialValue: _betriebName,
-              decoration: const InputDecoration(
-                labelText: 'Betrieb',
-                prefixIcon: Icon(Icons.store),
+              controller: _objektController,
+              decoration: InputDecoration(
+                labelText: 'Objekt / Betrieb *',
+                helperText: _firmaController.text.trim().isEmpty
+                    ? 'Vorbelegt mit dem Betriebsnamen'
+                    : 'Erscheint unter der Firma — so bleibt der Betrieb erkennbar',
+                prefixIcon: const Icon(Icons.store),
               ),
-              readOnly: true,
-              enabled: false,
+              textInputAction: TextInputAction.next,
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? 'Objekt / Betrieb ist erforderlich'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+
+            // === Kostenstelle / Zusatz ===
+            TextFormField(
+              controller: _kostenstelleController,
+              decoration: const InputDecoration(
+                labelText: 'Kostenstelle / Referenz',
+                hintText: 'z. B. KST 28616406',
+                prefixIcon: Icon(Icons.tag),
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _zusatzController,
+              decoration: const InputDecoration(
+                labelText: 'Zusatz (Abteilung / Eingangskanal)',
+                hintText: 'z. B. Scanning Center',
+                prefixIcon: Icon(Icons.corporate_fare),
+              ),
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 16),
 
@@ -206,17 +264,35 @@ class _BetriebRechnungsadresseFormScreenState
                       fontWeight: FontWeight.w600,
                     )),
             const SizedBox(height: 8),
+            TextFormField(
+              controller: _postfachController,
+              decoration: const InputDecoration(
+                labelText: 'Postfach',
+                hintText: 'z. B. Postfach 440 — ersetzt die Strasse',
+                prefixIcon: Icon(Icons.markunread_mailbox_outlined),
+              ),
+              textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   flex: 3,
                   child: TextFormField(
                     controller: _strasseController,
-                    decoration: const InputDecoration(labelText: 'Strasse *'),
+                    decoration: InputDecoration(
+                      labelText: _postfachController.text.trim().isEmpty
+                          ? 'Strasse *'
+                          : 'Strasse',
+                    ),
                     textInputAction: TextInputAction.next,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Strasse ist erforderlich'
-                        : null,
+                    // Postfach ersetzt die Strasse — dann ist sie nicht nötig.
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) &&
+                                _postfachController.text.trim().isEmpty
+                            ? 'Strasse oder Postfach ist erforderlich'
+                            : null,
                   ),
                 ),
                 const SizedBox(width: 12),

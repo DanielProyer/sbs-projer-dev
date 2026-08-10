@@ -5,7 +5,7 @@ import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 void main() {
   final betriebAdr = BetriebRechnungsadresse(
     id: 'a1', userId: 'u', betriebId: 'b1',
-    nachname: 'Muster', strasse: 'Dorfstr', nr: '1', plz: '7000', ort: 'Chur',
+    objekt: 'Muster', strasse: 'Dorfstr', nr: '1', plz: '7000', ort: 'Chur',
   );
 
   test('kein Override → Betriebs-Adresse', () {
@@ -15,7 +15,7 @@ void main() {
 
   test('Override gesetzt → Override-Adresse', () {
     final eff = effektiveRechnungsadresse(
-      {'firma': 'Neue AG', 'nachname': 'Neu', 'strasse': 'Bahnhofstr',
+      {'firma': 'Neue AG', 'objekt': 'Neu', 'strasse': 'Bahnhofstr',
        'nr': '9', 'plz': '8000', 'ort': 'Zürich', 'email': 'x@y.ch'},
       betriebAdr,
       betriebId: 'b1',
@@ -29,8 +29,15 @@ void main() {
   test('Snapshot round-trip (toAdressSnapshot → fromAdressSnapshot)', () {
     final snap = betriebAdr.toAdressSnapshot();
     final back = BetriebRechnungsadresse.fromAdressSnapshot(snap);
-    expect(back.nachname, 'Muster');
+    expect(back.objekt, 'Muster');
     expect(back.plz, '7000');
     expect(snap.containsKey('id'), isFalse);
+  });
+
+  test('Alt-Snapshot mit Key «nachname» wird weiterhin gelesen (vor Mig. 167)',
+      () {
+    final back = BetriebRechnungsadresse.fromAdressSnapshot(
+        {'nachname': 'Alt-Betrieb', 'plz': '7000', 'ort': 'Chur'});
+    expect(back.objekt, 'Alt-Betrieb');
   });
 }

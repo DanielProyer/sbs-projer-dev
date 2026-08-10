@@ -4,6 +4,7 @@ import 'package:barcode/barcode.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -253,31 +254,14 @@ class MahnungPdfService {
 
   static pw.Widget _buildKundenAdresse(
       BetriebLocal betrieb, BetriebRechnungsadresse? ra) {
-    final lines = <String>[];
-    if (ra != null) {
-      if (ra.firma != null && ra.firma!.isNotEmpty) lines.add(ra.firma!);
-      final name = [ra.vorname, ra.nachname]
-          .where((s) => s != null && s.isNotEmpty)
-          .join(' ');
-      if (name.isNotEmpty) lines.add(name);
-      final strasse = [ra.strasse, ra.nr]
-          .where((s) => s != null && s.isNotEmpty)
-          .join(' ');
-      if (strasse.isNotEmpty) lines.add(strasse);
-      final plzOrt =
-          [ra.plz, ra.ort].where((s) => s.isNotEmpty).join(' ');
-      if (plzOrt.isNotEmpty) lines.add(plzOrt);
-    } else {
-      lines.add(betrieb.name);
-      final strasse = [betrieb.strasse, betrieb.nr]
-          .where((s) => s != null && s.isNotEmpty)
-          .join(' ');
-      if (strasse.isNotEmpty) lines.add(strasse);
-      final plzOrt = [betrieb.plz, betrieb.ort]
-          .where((s) => s != null && s.isNotEmpty)
-          .join(' ');
-      if (plzOrt.isNotEmpty) lines.add(plzOrt);
-    }
+    final lines = adressZeilen(
+      betriebName: betrieb.name,
+      betriebStrasse: betrieb.strasse,
+      betriebNr: betrieb.nr,
+      betriebPlz: betrieb.plz,
+      betriebOrt: betrieb.ort,
+      ra: ra,
+    );
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: lines
@@ -296,7 +280,7 @@ class MahnungPdfService {
   // ─── QR-ZAHLTEIL ───
 
   static pw.Widget _buildQrZahlteil(
-      double betrag, _KundeAdresse kunde, {String? mitteilung, String? referenz}) {
+      double betrag, QrEmpfaenger kunde, {String? mitteilung, String? referenz}) {
     const mm = PdfPageFormat.mm;
     final betragStr = betrag.toStringAsFixed(2);
 
@@ -335,7 +319,7 @@ class MahnungPdfService {
                 if (kunde.name.isNotEmpty) ...[
                   _qrTitle('Zahlbar durch'),
                   _qrText(kunde.name),
-                  if (kunde.strasse.isNotEmpty) _qrText(kunde.strasse),
+                  if (kunde.strasseZeile.isNotEmpty) _qrText(kunde.strasseZeile),
                   if (kunde.plzOrt.isNotEmpty) _qrText(kunde.plzOrt),
                   pw.SizedBox(height: 6),
                 ],
@@ -432,7 +416,7 @@ class MahnungPdfService {
                   if (kunde.name.isNotEmpty) ...[
                     _qrTitle('Zahlbar durch'),
                     _qrText(kunde.name),
-                    if (kunde.strasse.isNotEmpty) _qrText(kunde.strasse),
+                    if (kunde.strasseZeile.isNotEmpty) _qrText(kunde.strasseZeile),
                     if (kunde.plzOrt.isNotEmpty) _qrText(kunde.plzOrt),
                   ],
                   if (mitteilung != null && mitteilung.isNotEmpty) ...[
@@ -491,7 +475,7 @@ class MahnungPdfService {
     return sb.toString();
   }
 
-  static String _buildQrData(double betrag, _KundeAdresse kunde,
+  static String _buildQrData(double betrag, QrEmpfaenger kunde,
       {String? mitteilung, String? referenz}) {
     final info = mitteilung != null && mitteilung.isNotEmpty
         ? (mitteilung.length > 140 ? mitteilung.substring(0, 140) : mitteilung)
@@ -503,7 +487,7 @@ class MahnungPdfService {
       '', '', '', '', '', '', '',
       betrag.toStringAsFixed(2), 'CHF',
       kunde.name.isNotEmpty ? 'S' : '', kunde.name,
-      kunde.strasseOnly, kunde.nrOnly, kunde.plzOnly, kunde.ortOnly,
+      kunde.strasse, kunde.nr, kunde.plz, kunde.ort,
       kunde.name.isNotEmpty ? _firmaLand : '',
       (referenz != null && referenz.isNotEmpty) ? 'SCOR' : 'NON',
       referenz ?? '',
@@ -515,44 +499,15 @@ class MahnungPdfService {
   static double _roundTo5Rappen(double value) =>
       (value * 20).roundToDouble() / 20;
 
-  static _KundeAdresse _getKundenAdressDaten(
-      BetriebLocal betrieb, BetriebRechnungsadresse? ra) {
-    if (ra != null) {
-      final name = [ra.firma, ra.vorname, ra.nachname]
-          .where((s) => s != null && s.isNotEmpty)
-          .join(' ')
-          .trim();
-      return _KundeAdresse(
-        name: name.isNotEmpty ? name : ra.nachname,
-        strasseOnly: ra.strasse,
-        nrOnly: ra.nr ?? '',
-        plzOnly: ra.plz,
-        ortOnly: ra.ort,
+  // Adressaufbau: siehe core/util/rechnungsadresse_zeilen.dart.
+  static QrEmpfaenger _getKundenAdressDaten(
+          BetriebLocal betrieb, BetriebRechnungsadresse? ra) =>
+      qrEmpfaenger(
+        betriebName: betrieb.name,
+        betriebStrasse: betrieb.strasse,
+        betriebNr: betrieb.nr,
+        betriebPlz: betrieb.plz,
+        betriebOrt: betrieb.ort,
+        ra: ra,
       );
-    }
-    return _KundeAdresse(
-      name: betrieb.name,
-      strasseOnly: betrieb.strasse ?? '',
-      nrOnly: betrieb.nr ?? '',
-      plzOnly: betrieb.plz ?? '',
-      ortOnly: betrieb.ort ?? '',
-    );
-  }
-}
-
-class _KundeAdresse {
-  final String name, strasseOnly, nrOnly, plzOnly, ortOnly;
-
-  _KundeAdresse({
-    required this.name,
-    required this.strasseOnly,
-    required this.nrOnly,
-    required this.plzOnly,
-    required this.ortOnly,
-  });
-
-  String get strasse =>
-      [strasseOnly, nrOnly].where((s) => s.isNotEmpty).join(' ');
-  String get plzOrt =>
-      [plzOnly, ortOnly].where((s) => s.isNotEmpty).join(' ');
 }

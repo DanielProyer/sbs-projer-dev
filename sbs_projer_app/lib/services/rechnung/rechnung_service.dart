@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -122,20 +123,8 @@ class RechnungService {
       final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
           betrieb.serverId ?? betrieb.routeId);
       if (raLocal != null) {
-        ra = BetriebRechnungsadresse(
-          id: raLocal.serverId ?? '',
-          userId: raLocal.userId,
-          betriebId: betrieb.serverId ?? '',
-          firma: raLocal.firma,
-          vorname: raLocal.vorname,
-          nachname: raLocal.nachname,
-          strasse: raLocal.strasse,
-          nr: raLocal.nr,
-          plz: raLocal.plz,
-          ort: raLocal.ort,
-          email: raLocal.email,
-          notizen: raLocal.notizen,
-        );
+        ra = BetriebRechnungsadresseMapper.toDto(raLocal,
+          betriebId: betrieb.serverId ?? '');
       }
 
       // 6. PDF generieren und hochladen

@@ -12,8 +12,10 @@ class BetriebRechnungsadresseLocal {
   String userId = '';
   String betriebId = '';
   String? firma;
-  String? vorname;
-  String nachname = '';
+  String objekt = '';
+  String? kostenstelle;
+  String? zusatz;
+  String? postfach;
   String strasse = '';
   String? nr;
   String plz = '';
