@@ -2,6 +2,52 @@
 
 **Stand:** 10.08.2026 · **Live:** v0.75.0
 
+## ⏭️ MORGEN 11.08. ZUERST (Auftrag Daniel, 10.08.): Einsatz lässt sich nicht abschliessen — «Arbeit beenden» fehlt
+
+**Daniel testet den Screen selbst, direkt nach dem Deploy.** Interaktiver Screen — nicht ohne seinen Klicktest als erledigt melden.
+
+**Gemeldet:** «die geplante Montage Sartons Valbella erscheint immer noch im Tourenplan obwohl die Montage längst erledigt wurde.»
+
+**Datensatz bereits repariert (10.08., direkt in der DB):** Montage `c9dfa1da` (Sartons, Rebranding) von `in_bearbeitung` auf `abgeschlossen`. Abrechnungsdaten unangetastet: Datum 03.08., 11:30–12:00, 0.50 h à 80.— = 40.—, `abgerechnet=false`. **Der Code-Fehler ist damit NICHT behoben** — er trifft den nächsten Einsatz genauso.
+
+**Ursache — eine Schleife im Montage-Formular:**
+
+```dart
+// Laden, montage_form_screen.dart:223
+_geplant = m.status == 'geplant' || m.status == 'in_bearbeitung';
+// Speichern, montage_form_screen.dart:541
+m.status = _geplant ? (m.arbeitVon != null ? 'in_bearbeitung' : 'geplant') : 'abgeschlossen';
+```
+
+Der Knopf «Arbeit beginnen» setzt den Status sofort auf `in_bearbeitung` ([:369](sbs_projer_app/lib/presentation/screens/montagen/montage_form_screen.dart:369)). Beim nächsten Öffnen liest Zeile 223 daraus `_geplant = true`, und Zeile 541 schreibt beim Speichern wieder `in_bearbeitung` — **egal wie vollständig der Rapport ist**. Einzige Rettung heute: den Schalter «Erst geplant» von Hand ausschalten; dessen Beschriftung sagt aber nirgends, dass er «fertig» bedeutet. Einen **«Arbeit beenden»-Knopf gibt es nicht** — nach dem Start steht dort nur ein grünes Band ohne Aktion ([:1865](sbs_projer_app/lib/presentation/screens/montagen/montage_form_screen.dart:1865)).
+
+**Zweiter Fehler daneben:** `_elapsedText()` ([:303](sbs_projer_app/lib/presentation/screens/montagen/montage_form_screen.dart:303)) rechnet die Laufzeit immer bis *jetzt* und prüft `arbeitBis` nicht — bei Sartons hätte «seit 11:30 · 10'000 min» gestanden, obwohl um 12:00 Schluss war.
+
+**Warum nur dieser eine Fall:** Von 811 abgeschlossenen Montagen und 1116 Störungen ist Sartons die **einzige mit erfasster Arbeitszeit** — der erste Einsatz überhaupt durch den neuen Beginn-Knopf. Störungen haben dieselbe Konstruktion und dieselbe Falle, nur noch keinen Fall.
+
+**Umzusetzen (Reihenfolge):**
+- [ ] **«Arbeit beenden»-Knopf** im grünen Band: setzt `arbeitBis` auf jetzt **und** den Status auf `abgeschlossen` — ohne dass man den «Erst geplant»-Schalter kennen muss.
+- [ ] **Speichern-Logik:** sind `arbeitVon` UND `arbeitBis` gesetzt, gilt der Einsatz als erledigt — kein Zurückschreiben auf `in_bearbeitung`.
+- [ ] **Laufzeit-Anzeige** bis `arbeitBis` rechnen, sobald gesetzt (statt bis jetzt).
+- [ ] **Störungen gleich mitnehmen** (`stoerung_form_screen.dart`) — gleiche Falle, bevor der erste Fall auftritt.
+- [ ] Tests: Status-Übergänge als reine Funktion (Analogie `storno_logik.dart`), plus Regression «Rapport vollständig → abgeschlossen».
+- [ ] ⚠️ `dauerStunden` bleibt tabu — nie automatisch überschreiben (Abrechnungsfeld, enthält bewusst Anfahrtsanteile).
+- [ ] Deploy, dann **Klicktest durch Daniel** am Handy: neue Montage planen → «Arbeit beginnen» → Rapport ausfüllen → speichern → verschwindet sie aus dem Tourenplan?
+
+## 🟡 OFFEN 10.08.: Saisonbetriebe ohne Saison-Startdatum erscheinen nie wieder — 9 Betriebe
+
+**Gemeldet:** «warum sehe ich Steakhouse Ochsen Davos im Tourenplan nicht?»
+
+**Antwort: aktuell korrekt.** Wintersaisonbetrieb, Saison endete am 19.04.2026 → seit 20.04. «Zwischensaison», beide Anlagen (205 Tage über Fälligkeit) ruhen zu Recht. 24 Saisonbetriebe sind heute aus diesem Grund unsichtbar.
+
+**Aber zwei Lücken, die im Winter beissen:**
+
+1. **Winter-Startdatum fehlt** (`winter_start_datum` NULL, nur Ende gepflegt). [touren_saison.dart:25](sbs_projer_app/lib/core/util/touren_saison.dart:25) liest ein fehlendes Startdatum als «hat schon begonnen» — mit gesetztem Ende heisst das «alles danach ist zu». `oeffnungNach()` findet keine Wiedereröffnung → **kein Eröffnungsservice-Vorschlag im Dezember**, der Betrieb bliebe unsichtbar. Betroffen und heute schon unsichtbar: **Steakhouse Ochsen, Milez, Alp Lavoz, Nagens, Fuxägufer, Frosch Sportclub Davos, Piz Piz, Dischma, Clavadeleralp**.
+2. **NEU zum Eröffnungs-Bug unten:** Die Bedingung `letzteServiceArt == 'endreinigung'` ist **gross-/kleinschreibungsempfindlich**. Die Alt-Daten schreiben `Endreinigung` (478 Sätze bis 19.11.2025), `Eröffnung` und `Service` (7'104); nur 45 Sätze ab 30.03.2026 nutzen `endreinigung`. Die Bedingung greift also bei **keinem** Betrieb mit Alt-Historie — bei Ochsen steht auf der letzten Reinigung (17.11.2025) `Eröffnung`. Verschwindet mit dem geplanten Fix (Bedingung streichen) gleich mit.
+
+- [ ] **Rückfrage an Daniel offen:** Wann beginnt die Wintersaison im Ochsen (Davos typisch Ende November)? Dann Startdatum setzen → erscheint automatisch mit Eröffnungsservice.
+- [ ] Für die anderen acht ebenfalls Startdaten — entweder von Daniel oder per Website-Recherche als **Prüfliste** (nicht still übernehmen, siehe [[betriebsdaten-aktuell-halten]]).
+
 ## 🟢 ERLEDIGT 10.08. (v0.75.0): Rechnungsadresse mit mehr Zeilen — Fall SV (Schweiz) AG / Spiga
 
 **Anlass:** Mail von `kreditoren@sv-group.ch` (07.08., Monika Yüksel): Rechnung 2026-07-1007 (94.05, versendet 14.07.) **nicht verarbeitbar**, weil «SV (Schweiz) AG» nicht als Rechnungsempfänger stand. Verlangt sind sechs Zeilen — Firma, Objekt, KST, Scanning Center, Postfach, PLZ/Ort.
