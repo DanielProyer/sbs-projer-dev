@@ -2,7 +2,32 @@
 
 **Stand:** 10.08.2026 · **Live:** v0.75.0
 
-## ⏭️ MORGEN 11.08. ZUERST (Auftrag Daniel, 10.08.): Einsatz lässt sich nicht abschliessen — «Arbeit beenden» fehlt
+## ⏭️ 11.08. ZUERST — TEIL A: Feierabend am PC speichert nicht (GPS blockiert das Speichern)
+
+**Gemeldet Daniel 11.08.:** «warum wird der Feierabend (Zeit und km Stand) nicht mehr erfasst, habe es jetzt schon zweimal eingegeben» — später aufgeklärt: **«Problem war das ich den Feierabend über den PC gemacht habe, jetzt auf dem Smartphone funktioniert es (PC hat kein GPS).»**
+
+**Ursache:** In [`_feierabend()`](sbs_projer_app/lib/presentation/widgets/arbeitstag_karte.dart:299) steht die GPS-Abfrage **vor** dem Speichern:
+
+```dart
+if (eingabe == null) return;
+final pos = await _gps(messenger, 'Feierabend');   // ← bleibt am PC stehen
+try { await _speichern(...); messenger.showSnackBar('Arbeitstag gespeichert'); }
+catch (e) { messenger.showSnackBar('Fehler: $e'); }
+```
+
+Die einzelnen Messungen in [gps_service.dart](sbs_projer_app/lib/services/gps/gps_service.dart) haben je 6 s Zeitlimit — **`Geolocator.requestPermission()` davor hat keines**. Ohne Standortdienst (Desktop) kommt nie eine Antwort: Sheet zu, nichts gespeichert, **keine der drei möglichen Meldungen**. Auf dem Handy läuft es, deshalb wirkte es sporadisch.
+
+**Datenverlust bereits nachgetragen (11.08., direkt in der DB):** 11.08. Ende 15:58 / km 80'312 (Wert von Daniel, Zeit = Eingabezeitpunkt) · 07.08. Ende 12:00 / km 79'937 — **beides beim 07.08. geschätzt**: letzter Service Casa Giovanoli Tumegl/Tomils endet 11:38 (~10 km bis Domat/Ems), km-Stand aus dem Startwert des 10.08. abgeleitet, kann Wochenend-Privatkilometer enthalten (05.→06.08. waren es 9 km). Von Daniel prüfen lassen.
+
+**Umzusetzen (Vorgaben Daniel):**
+- [ ] **Erst speichern, dann GPS.** Die Arbeitszeit darf nie davon abhängen, ob eine Koordinate zustande kommt — Standort ist Beiwerk, nachträglich stempelbar (`unawaited`).
+- [ ] **«Fehlermeldung sollte trotzdem erscheinen»** — kein stiller Abbruch mehr, weder bei GPS-Ausfall noch sonst. Betrifft auch die stille `debugPrint`-Falle im zweiten Eingabeweg ([tourenplanung_screen.dart:2211](sbs_projer_app/lib/presentation/screens/touren/tourenplanung_screen.dart:2211)), die einen Fehler kommentarlos verschluckt.
+- [ ] **«Bei Feierabend auf dem PC ist der Standort sowieso definiert (Zuhause)»** — ohne GPS den hinterlegten Startort als Endposition setzen: `geschaeft_einstellungen.startort_lat/lng` = **46.8328452 / 9.4529918** (Via Rezia 8, 7013 Domat/Ems), Provider vorhanden ([tour_providers.dart:1306](sbs_projer_app/lib/presentation/providers/tour_providers.dart:1306)).
+- [ ] **Zeitlimit auf `requestPermission()`** in `gps_service.dart` — nichts darf dort unbegrenzt warten.
+- [ ] Gleiches für den «Arbeitsbeginn»-Knopf prüfen (identischer Aufbau, gleiche Falle).
+- [ ] Tests + Klicktest Daniel: Feierabend **am PC** eingeben → wird gespeichert, Standort = Zuhause, keine Hänger.
+
+## ⏭️ 11.08. TEIL B (Auftrag Daniel, 10.08.): Einsatz lässt sich nicht abschliessen — «Arbeit beenden» fehlt
 
 **Daniel testet den Screen selbst, direkt nach dem Deploy.** Interaktiver Screen — nicht ohne seinen Klicktest als erledigt melden.
 
