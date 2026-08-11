@@ -74,7 +74,11 @@ class ReinigungMapper {
   static Map<String, dynamic> toJson(ReinigungLocal local) {
     final json = <String, dynamic>{
       'user_id': local.userId,
-      'anlage_id': local.anlageId,
+      // Leerer String ist keine UUID: Betriebe ohne erfasste Anlage (Fall
+      // Cocktail Bar Chur, 11.08.2026) liessen den Heineken-Monteur-Eintrag
+      // mit `invalid input syntax for type uuid: ""` scheitern. Die Spalte
+      // ist nullable — also null statt "".
+      'anlage_id': local.anlageId.isEmpty ? null : local.anlageId,
       'betrieb_id': local.betriebId,
       'datum': local.datum.toIso8601String().split('T').first,
       'uhrzeit_start': local.uhrzeitStart,

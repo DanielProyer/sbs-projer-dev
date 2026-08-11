@@ -398,6 +398,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         r.anlageIdsJson = jsonEncode(_selectedAnlageIds.toList());
         r.anlageId = _selectedAnlageIds.first;
       } else if (!_isEdit) {
+        // Bleibt leer, wenn der Betrieb gar keine Anlage hat — der Mapper
+        // schreibt dann null statt "" (sonst uuid-Fehler, 11.08.2026).
         r.anlageId = widget.anlageId ?? '';
       }
 

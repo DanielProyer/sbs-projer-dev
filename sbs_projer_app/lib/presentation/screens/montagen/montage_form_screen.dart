@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
+import 'package:sbs_projer_app/core/util/einsatz_status.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
@@ -300,7 +302,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       (_existing!.status == 'geplant' || _existing!.status == 'in_bearbeitung');
 
   /// "seit HH:mm · NN min" fuer die laufende Arbeitszeit-Anzeige.
+  /// Null, sobald ein Ende erfasst ist — sonst zaehlte die Anzeige nach dem
+  /// Feierabend munter weiter («seit 11:30 · 10'000 min», Fall Sartons).
   String? _elapsedText() {
+    if (_emptyToNull(_arbeitBisController.text) != null) return null;
     final von = _parseZeit(_arbeitVonController.text);
     if (von == null) return null;
     final now = DateTime.now();
@@ -343,6 +348,52 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     final diffMin = bisMin - vonMin;
     if (diffMin <= 0) return null;
     return diffMin / 60.0;
+  }
+
+  /// «Arbeit beenden»-Knopf: setzt Arbeit-bis auf jetzt und schliesst den
+  /// Einsatz ab — sofort persistiert, unabhängig vom Haupt-Speichern.
+  ///
+  /// Ohne diesen Knopf war eine einmal gestartete Montage über den normalen
+  /// Weg nicht abschliessbar (Fall Sartons, 11.08.2026): Der Status blieb bei
+  /// jedem Speichern auf `in_bearbeitung`, die Montage stand endlos im
+  /// Tourenplan. `dauerStunden` bleibt bewusst unangetastet — das ist das
+  /// Abrechnungsfeld und enthält oft auch Anfahrtsanteile.
+  Future<void> _arbeitBeenden() async {
+    final zeitStr = _formatZeit(TimeOfDay.now());
+    setState(() {
+      _arbeitBisController.text = zeitStr;
+      _geplant = false;
+      _existing?.status = 'abgeschlossen';
+      _arbeitBeginnLaeuft = true;
+    });
+    _laufendZeitTimer?.cancel();
+    _laufendZeitTimer = null;
+
+    final id = widget.montageId;
+    try {
+      if (id != null) {
+        await MontageRepository.arbeitszeitSetzen(
+          id: id,
+          von: _emptyToNull(_arbeitVonController.text),
+          bis: zeitStr,
+        );
+        await MontageRepository.statusSetzen(id: id, status: 'abgeschlossen');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Arbeit beendet ($zeitStr) — Rapport ergänzen '
+              'und speichern nicht vergessen.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ende nicht gespeichert: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _arbeitBeginnLaeuft = false);
+    }
   }
 
   /// «Beginn»-Knopf: setzt Arbeit-von auf jetzt, stempelt einen Wegpunkt mit
@@ -536,11 +587,16 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       m.arbeitVon = _emptyToNull(_arbeitVonController.text);
       m.arbeitBis = _emptyToNull(_arbeitBisController.text);
 
-      // "in_bearbeitung" statt "geplant", wenn per Beginn-Knopf bereits
-      // gestartet wurde, aber noch nicht abgeschlossen ist.
-      m.status = _geplant
-          ? (m.arbeitVon != null ? 'in_bearbeitung' : 'geplant')
-          : 'abgeschlossen';
+      // Ist die Arbeit zu Ende erfasst, gilt der Einsatz als erledigt — auch
+      // wenn der «Erst geplant»-Schalter noch an steht (Fall Sartons,
+      // 11.08.2026). Regel + Begründung: core/util/einsatz_status.dart.
+      m.status = einsatzStatusNachSpeichern(
+        geplant: _geplant,
+        arbeitVon: m.arbeitVon,
+        arbeitBis: m.arbeitBis,
+        offenWert: 'geplant',
+        erledigtWert: 'abgeschlossen',
+      );
 
       if (_isHeigenie) {
         // HeiGenie: Hahn-basierte Preisberechnung (Bergkunde inkl.)
@@ -1862,6 +1918,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         ),
       );
     }
+    final bis = _emptyToNull(_arbeitBisController.text);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1872,14 +1929,22 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.timer, color: AppColors.success),
+          Icon(bis == null ? Icons.timer : Icons.check_circle,
+              color: AppColors.success),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              _elapsedText() ?? 'Arbeit läuft seit $von',
+              bis != null
+                  ? 'Arbeit erfasst: $von – $bis'
+                  : (_elapsedText() ?? 'Arbeit läuft seit $von'),
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
           ),
+          // «Arbeit beenden» — bis 11.08.2026 fehlte dieser Knopf ganz: Der
+          // einzige Weg zum Abschluss war der Schalter «Erst geplant», was
+          // niemand erraten konnte (Fall Sartons).
+          if (bis == null)
+            ArbeitBeendenKnopf(onTap: _arbeitBeenden, laeuft: _arbeitBeginnLaeuft),
         ],
       ),
     );

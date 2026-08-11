@@ -25,7 +25,6 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
-import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';

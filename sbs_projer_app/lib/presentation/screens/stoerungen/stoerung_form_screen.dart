@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
+import 'package:sbs_projer_app/core/util/einsatz_status.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
@@ -203,7 +205,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       (_existing!.status == 'offen' || _existing!.status == 'in_bearbeitung');
 
   /// "seit HH:mm · NN min" fuer die laufende Arbeitszeit-Anzeige.
+  /// Null, sobald ein Ende erfasst ist — sonst zaehlte die Anzeige nach dem
+  /// Abschluss munter weiter (Fall Sartons, 11.08.2026).
   String? _elapsedText() {
+    if (_emptyToNull(_arbeitBisController.text) != null) return null;
     final von = _parseZeit(_arbeitVonController.text);
     if (von == null) return null;
     final now = DateTime.now();
@@ -228,6 +233,52 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
   /// GPS und setzt den Status auf "in_bearbeitung" — gezielt und sofort
   /// persistiert, unabhaengig vom Haupt-Speichern (das Formular kann noch
   /// unvollstaendig sein). Fehler duerfen die App nicht blockieren.
+  /// «Arbeit beenden»-Knopf: setzt Arbeit-bis auf jetzt und behebt die
+  /// Störung — sofort persistiert, unabhängig vom Haupt-Speichern.
+  ///
+  /// Ohne diesen Knopf war ein einmal gestarteter Einsatz über den normalen
+  /// Weg nicht abschliessbar (Fall Sartons, 11.08.2026). `dauerStunden` und
+  /// Preisfelder bleiben unangetastet — die gehören in den Rapport.
+  Future<void> _arbeitBeenden() async {
+    final zeitStr = _formatTime(TimeOfDay.now());
+    setState(() {
+      _arbeitBisController.text = zeitStr;
+      _geplant = false;
+      _existing?.status = 'behoben';
+      _arbeitBeginnLaeuft = true;
+    });
+    _laufendZeitTimer?.cancel();
+    _laufendZeitTimer = null;
+
+    final id = widget.stoerungId;
+    try {
+      if (id != null) {
+        await StoerungRepository.arbeitszeitSetzen(
+          id: id,
+          von: _emptyToNull(_arbeitVonController.text),
+          bis: zeitStr,
+        );
+        await StoerungRepository.statusSetzen(id: id, status: 'behoben');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Arbeit beendet ($zeitStr) — Rapport ergänzen '
+                'und speichern nicht vergessen.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ende nicht gespeichert: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _arbeitBeginnLaeuft = false);
+    }
+  }
+
   Future<void> _arbeitBeginnen() async {
     final zeitStr = _formatTime(TimeOfDay.now());
     setState(() {
@@ -446,11 +497,16 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         s.preisBrutto = preis['total'];
       }
 
-      // "in_bearbeitung" statt "offen", wenn per Beginn-Knopf bereits
-      // gestartet wurde, aber noch nicht abgeschlossen ist.
-      s.status = _geplant
-          ? (s.arbeitVon != null ? 'in_bearbeitung' : 'offen')
-          : 'behoben';
+      // Ist die Arbeit zu Ende erfasst, gilt der Einsatz als erledigt — auch
+      // wenn der «Erst geplant»-Schalter noch an steht (Fall Sartons,
+      // 11.08.2026). Regel + Begründung: core/util/einsatz_status.dart.
+      s.status = einsatzStatusNachSpeichern(
+        geplant: _geplant,
+        arbeitVon: s.arbeitVon,
+        arbeitBis: s.arbeitBis,
+        offenWert: 'offen',
+        erledigtWert: 'behoben',
+      );
 
       await StoerungRepository.save(s);
       // Ein erledigter Einsatz gehört in die Ist-Ansicht, nicht mehr in den
@@ -1322,6 +1378,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         ),
       );
     }
+    final bis = _emptyToNull(_arbeitBisController.text);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1332,14 +1389,20 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.timer, color: AppColors.success),
+          Icon(bis == null ? Icons.timer : Icons.check_circle,
+              color: AppColors.success),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              _elapsedText() ?? 'Arbeit läuft seit $von',
+              bis != null
+                  ? 'Arbeit erfasst: $von – $bis'
+                  : (_elapsedText() ?? 'Arbeit läuft seit $von'),
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
           ),
+          // «Arbeit beenden» — fehlte bis 11.08.2026 ganz (Fall Sartons).
+          if (bis == null)
+            ArbeitBeendenKnopf(onTap: _arbeitBeenden, laeuft: _arbeitBeginnLaeuft),
         ],
       ),
     );

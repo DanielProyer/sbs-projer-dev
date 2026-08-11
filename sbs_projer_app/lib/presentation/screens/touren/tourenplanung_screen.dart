@@ -2193,11 +2193,25 @@ class _ArbeitstagZeile extends ConsumerWidget {
         ?.arbeitsbeginn;
 
     Future<void> speichern(Arbeitstag neu, {required String? beginnDb}) async {
+      // Jeder Ausgang meldet sich (Daniel 11.08.2026): Fehler landeten hier
+      // nur im debugPrint, und der Datum-Guard brach wortlos ab — es sah
+      // beides nach «gespeichert» aus, obwohl nichts geschrieben wurde.
+      final messenger = ScaffoldMessenger.of(context);
       ref.read(arbeitstagProvider(datum).notifier).state = neu;
       // Datum-Guard: gehört der In-Memory-Plan inzwischen einem anderen Tag
       // (Tagwechsel während des Dialogs), würde der Fallback-Pfad die Einträge
       // des Vortags auf diesen Tag schreiben. Dann lieber gar nicht speichern.
-      if (ref.read(tagesplanProvider.notifier).datum != datum) return;
+      if (ref.read(tagesplanProvider.notifier).datum != datum) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nicht gespeichert — der Tagesplan gehört inzwischen zu einem '
+              'anderen Tag. Bitte erneut versuchen.',
+            ),
+          ),
+        );
+        return;
+      }
       try {
         await arbeitstagFelderSpeichern(
           datum,
@@ -2208,8 +2222,13 @@ class _ArbeitstagZeile extends ConsumerWidget {
           kmStart: neu.kmStart,
         );
         ref.invalidate(gespeicherterTagesplanProvider(datum));
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Arbeitstag gespeichert')),
+        );
       } catch (e) {
-        debugPrint('[Arbeitstag] Speichern fehlgeschlagen: $e');
+        messenger.showSnackBar(
+          SnackBar(content: Text('Fehler beim Speichern: $e')),
+        );
       }
     }
 

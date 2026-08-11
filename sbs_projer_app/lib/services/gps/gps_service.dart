@@ -18,14 +18,28 @@ class GpsService {
   /// Schluss. Mehr als die Browser-Geolocation (fused Location des Handys)
   /// gibt es in einer Web-App nicht — Roh-GNSS bliebe einer nativen App
   /// vorbehalten.
+  /// Zeitlimit für die Vorabfragen (Dienst aktiv? Berechtigung?).
+  ///
+  /// Die Messungen selbst hatten schon eines — diese beiden Aufrufe nicht, und
+  /// genau daran blieb die App am 11.08.2026 auf einem PC ohne Standortdienst
+  /// unbegrenzt stehen. Da der Standort inzwischen erst NACH dem Speichern
+  /// geholt wird, blockiert ein Ablauf hier nichts mehr; er darf nur nicht
+  /// ewig dauern.
+  static const Duration _vorabfrageLimit = Duration(seconds: 10);
+
   static Future<Position> aktuellePosition() async {
-    final aktiv = await Geolocator.isLocationServiceEnabled();
+    final aktiv = await Geolocator.isLocationServiceEnabled()
+        .timeout(_vorabfrageLimit, onTimeout: () => false);
     if (!aktiv) {
       throw 'Standortdienst ist deaktiviert.';
     }
-    var perm = await Geolocator.checkPermission();
+    var perm = await Geolocator.checkPermission()
+        .timeout(_vorabfrageLimit, onTimeout: () => LocationPermission.denied);
     if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
+      perm = await Geolocator.requestPermission().timeout(
+        _vorabfrageLimit,
+        onTimeout: () => LocationPermission.denied,
+      );
     }
     if (perm == LocationPermission.denied ||
         perm == LocationPermission.deniedForever) {

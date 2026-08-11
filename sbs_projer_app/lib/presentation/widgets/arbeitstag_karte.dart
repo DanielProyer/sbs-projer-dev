@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/tagesrand_position.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
@@ -184,19 +185,100 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
   }
 
   /// GPS holen; Fehler → null plus Hinweis (Zeit/km werden trotzdem erfasst).
+  /// Standort holen. Schlägt NIE fehl nach aussen — der Aufrufer entscheidet,
+  /// was ohne Koordinate passiert. [melden] aus, wenn der Aufrufer selbst eine
+  /// passendere Meldung zeigt (z. B. den Rückfall auf den Startort).
   Future<({double lat, double lng})?> _gps(
     ScaffoldMessengerState messenger,
-    String wofuer,
-  ) async {
+    String wofuer, {
+    bool melden = true,
+  }) async {
     try {
       final p = await GpsService.aktuellePosition();
       return (lat: p.latitude, lng: p.longitude);
     } catch (e) {
+      if (melden) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('$wofuer ohne Standort erfasst ($e).')),
+        );
+      }
+      return null;
+    }
+  }
+
+  /// Standort NACH dem Speichern nachtragen (Reihenfolge-Fix 11.08.2026).
+  ///
+  /// [startortErlaubt] nur beim Feierabend: fehlt GPS, gilt der hinterlegte
+  /// Startort (zuhause). Siehe `core/util/tagesrand_position.dart`.
+  /// Gibt die tatsächlich verwendete Position zurück (für Folgeschritte wie
+  /// die Pausen-Prüfung — spart eine zweite GPS-Abfrage).
+  Future<({double lat, double lng})?> _positionNachtragen(
+    DateTime tag,
+    ScaffoldMessengerState messenger,
+    String wofuer, {
+    required bool istEnde,
+    required String? beginnDb,
+  }) async {
+    final startort = ref.read(startortProvider);
+    final gps = await _gps(messenger, wofuer, melden: false);
+    final wahl = tagesrandPosition(
+      gps: gps,
+      startort: startort,
+      startortErlaubt: istEnde,
+    );
+
+    if (wahl.position == null) {
       messenger.showSnackBar(
-        SnackBar(content: Text('$wofuer ohne Standort erfasst ($e).')),
+        SnackBar(
+          content: Text(
+            '$wofuer gespeichert, aber ohne Standort — '
+            '${istEnde ? 'kein GPS und kein hinterlegter Startort' : 'kein GPS'}.',
+          ),
+        ),
       );
       return null;
     }
+    if (wahl.quelle == PositionsQuelle.startort) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Kein GPS — Standort auf den Startort gesetzt.'),
+        ),
+      );
+    }
+
+    try {
+      final at = ref.read(arbeitstagProvider(tag));
+      await _speichern(
+        tag,
+        (
+          beginn: at.beginn,
+          ende: at.ende,
+          km: at.km,
+          kmStart: at.kmStart,
+          lat: istEnde ? at.lat : wahl.position!.lat,
+          lng: istEnde ? at.lng : wahl.position!.lng,
+          endLat: istEnde ? wahl.position!.lat : at.endLat,
+          endLng: istEnde ? wahl.position!.lng : at.endLng,
+          pauseMinuten: at.pauseMinuten,
+          pauseStart: at.pauseStart,
+        ),
+        beginnDb: beginnDb,
+        startPosition: istEnde ? null : wahl.position,
+        endPosition: istEnde ? wahl.position : null,
+      );
+      unawaited(
+        WegpunktRepository.stempeln(
+          quelle: istEnde ? 'feierabend' : 'arbeitsbeginn',
+          position: wahl.position,
+        ),
+      );
+    } catch (e) {
+      // Die Arbeitszeit steht bereits — nur der Standort fehlt.
+      messenger.showSnackBar(
+        SnackBar(content: Text('Standort nicht gespeichert: $e')),
+      );
+    }
+    return wahl.position;
   }
 
   Future<void> _startJetzt() async {
@@ -259,8 +341,10 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
 
     final jetzt = DateTime.now();
     final beginn = hhmmAusMinuten(jetzt.hour * 60 + jetzt.minute);
-    final pos = await _gps(messenger, 'Arbeitsbeginn');
 
+    // ZUERST speichern, Standort danach (11.08.2026): Die GPS-Abfrage stand
+    // vorher davor und blieb auf Geräten ohne Standortdienst wortlos stehen —
+    // Zeit und km gingen verloren, ohne dass eine Meldung erschien.
     try {
       await _speichern(
         heute,
@@ -269,31 +353,30 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
           ende: bisher.ende,
           km: bisher.km,
           kmStart: km ?? bisher.kmStart,
-          lat: pos?.lat ?? bisher.lat,
-          lng: pos?.lng ?? bisher.lng,
+          lat: bisher.lat,
+          lng: bisher.lng,
           endLat: bisher.endLat,
           endLng: bisher.endLng,
           pauseMinuten: bisher.pauseMinuten,
           pauseStart: bisher.pauseStart,
         ),
         beginnDb: beginn,
-        startPosition: pos,
-      );
-      // Wegpunkt in den Routen-Datenstrom (Position ist schon geholt).
-      unawaited(
-        WegpunktRepository.stempeln(quelle: 'arbeitsbeginn', position: pos),
       );
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Arbeitsbeginn $beginn erfasst'
-            '${pos != null ? ' (mit Standort)' : ''}',
-          ),
-        ),
+        SnackBar(content: Text('Arbeitsbeginn $beginn erfasst')),
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      return;
     }
+
+    await _positionNachtragen(
+      heute,
+      messenger,
+      'Arbeitsbeginn',
+      istEnde: false,
+      beginnDb: beginn,
+    );
   }
 
   Future<void> _feierabend() async {
@@ -313,8 +396,11 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
       ),
     );
     if (eingabe == null) return;
-    // End-Position beim Feierabend stempeln — vervollständigt den Datensatz.
-    final pos = await _gps(messenger, 'Feierabend');
+
+    // ZUERST speichern (Fall Daniel 11.08.2026): Am PC ohne Standortdienst
+    // blieb die GPS-Abfrage hier stehen — Arbeitsende und km-Stand wurden
+    // wortlos verworfen, zweimal. Die Arbeitszeit darf nie davon abhängen,
+    // ob eine Koordinate zustande kommt.
     try {
       await _speichern(
         heute,
@@ -325,23 +411,29 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
           kmStart: eingabe.kmStart,
           lat: at.lat,
           lng: at.lng,
-          endLat: pos?.lat ?? at.endLat,
-          endLng: pos?.lng ?? at.endLng,
+          endLat: at.endLat,
+          endLng: at.endLng,
           pauseMinuten: at.pauseMinuten,
           pauseStart: at.pauseStart,
         ),
         beginnDb: eingabe.beginn,
-        endPosition: pos,
-      );
-      unawaited(
-        WegpunktRepository.stempeln(quelle: 'feierabend', position: pos),
       );
       messenger.showSnackBar(
         const SnackBar(content: Text('Arbeitstag gespeichert')),
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      return;
     }
+
+    // Standort danach — ohne GPS gilt der hinterlegte Startort (zuhause).
+    final pos = await _positionNachtragen(
+      heute,
+      messenger,
+      'Feierabend',
+      istEnde: true,
+      beginnDb: eingabe.beginn,
+    );
 
     // Vergessene Pause abfangen (Daniel 31.07.2026): Lief die Pause noch,
     // wuerde sie sonst bis in alle Ewigkeit weiterlaufen — Feierabend ist
