@@ -20,7 +20,7 @@
 - [ ] **Störung**: gleicher Ablauf.
 - [ ] **Heineken-Monteur** bei Cocktail Bar Chur erfassen → kein uuid-Fehler mehr.
 - [ ] Werte vom **07.08.** prüfen (Ende 12:00 und km 79'937 sind von mir geschätzt).
-- [ ] Offen aus der Diskussion: Sollte Cocktail Bar Chur eine Anlage bekommen? Ohne Anlage hängt die Reinigung an keinem Gerät.
+- [ ] **Cocktail Bar Chur: Anlage wird am 12.08. beim ersten Service erfasst** (Entscheid Daniel). Danach den Heineken-Monteur-Eintrag vom 02.06.2026 nachträglich der Anlage zuordnen — er läuft seit v0.76.0 auch ohne, hängt dann aber an keinem Gerät.
 
 ## ⏭️ ~~11.08. ZUERST — TEIL A~~ (erledigt, siehe oben): Feierabend am PC speichert nicht (GPS blockiert das Speichern)
 
