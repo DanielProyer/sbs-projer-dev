@@ -1,8 +1,28 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 10.08.2026 · **Live:** v0.75.0
+**Stand:** 11.08.2026 · **Live:** v0.76.0
 
-## ⏭️ 11.08. ZUERST — TEIL A: Feierabend am PC speichert nicht (GPS blockiert das Speichern)
+## 🟢 ERLEDIGT 11.08. (v0.76.0): Drei Feld-Fehler — alle mit demselben Muster «still fehlgeschlagen»
+
+**Umgesetzt und live.** ⚠️ **Klicktest durch Daniel steht noch aus** — interaktive Screens, siehe Prüfliste unten.
+
+**1. Feierabend am PC** — Reihenfolge umgedreht: **erst speichern, dann Standort**. Fehlt GPS, gilt beim Feierabend der hinterlegte Startort (Domat/Ems); beim Arbeitsbeginn bewusst **nicht**, dort startet Daniel oft anderswo (Chur). Regel als reine Funktion [tagesrand_position.dart](sbs_projer_app/lib/core/util/tagesrand_position.dart) (5 Tests). Dazu Zeitlimit auf alle drei Geolocator-Vorabfragen — `requestPermission()` hatte als einziges keines und blieb am PC ewig stehen. Der zweite Eingabeweg (Tourenplan-Tippfeld) meldete Fehler nur per `debugPrint` und brach beim Datum-Guard wortlos ab: **beide Ausgänge melden sich jetzt.**
+
+**2. Einsatz-Abschluss (Fall Sartons)** — neue Regel **«Arbeitsende erfasst = erledigt»** als reine Funktion [einsatz_status.dart](sbs_projer_app/lib/core/util/einsatz_status.dart) (9 Tests), für Montage **und** Störung. Neuer **«Beenden»-Knopf** im laufenden Zeit-Band ([arbeit_beenden_knopf.dart](sbs_projer_app/lib/presentation/widgets/arbeit_beenden_knopf.dart)) — vorher gab es dort überhaupt keine Aktion. Laufzeit-Anzeige stoppt am erfassten Ende. `dauerStunden` bleibt unangetastet.
+
+**3. Heineken-Monteur bei Betrieb ohne Anlage** — `invalid input syntax for type uuid: ""`: Der Mapper schreibt jetzt `null` statt `""` in `anlage_id`. Betraf Cocktail Bar Chur (0 Anlagen erfasst).
+
+1039 Tests grün.
+
+**Prüfliste für Daniel:**
+- [ ] **Feierabend am PC** eingeben → wird gespeichert, Meldung «Kein GPS — Standort auf den Startort gesetzt», Werte stehen in der Auswertung.
+- [ ] **Montage**: «Arbeit beginnen» → «Beenden» → verschwindet sie aus dem Tourenplan?
+- [ ] **Störung**: gleicher Ablauf.
+- [ ] **Heineken-Monteur** bei Cocktail Bar Chur erfassen → kein uuid-Fehler mehr.
+- [ ] Werte vom **07.08.** prüfen (Ende 12:00 und km 79'937 sind von mir geschätzt).
+- [ ] Offen aus der Diskussion: Sollte Cocktail Bar Chur eine Anlage bekommen? Ohne Anlage hängt die Reinigung an keinem Gerät.
+
+## ⏭️ ~~11.08. ZUERST — TEIL A~~ (erledigt, siehe oben): Feierabend am PC speichert nicht (GPS blockiert das Speichern)
 
 **Gemeldet Daniel 11.08.:** «warum wird der Feierabend (Zeit und km Stand) nicht mehr erfasst, habe es jetzt schon zweimal eingegeben» — später aufgeklärt: **«Problem war das ich den Feierabend über den PC gemacht habe, jetzt auf dem Smartphone funktioniert es (PC hat kein GPS).»**
 
@@ -27,7 +47,7 @@ Die einzelnen Messungen in [gps_service.dart](sbs_projer_app/lib/services/gps/gp
 - [ ] Gleiches für den «Arbeitsbeginn»-Knopf prüfen (identischer Aufbau, gleiche Falle).
 - [ ] Tests + Klicktest Daniel: Feierabend **am PC** eingeben → wird gespeichert, Standort = Zuhause, keine Hänger.
 
-## ⏭️ 11.08. TEIL B (Auftrag Daniel, 10.08.): Einsatz lässt sich nicht abschliessen — «Arbeit beenden» fehlt
+## ⏭️ ~~11.08. TEIL B~~ (erledigt in v0.76.0): Einsatz lässt sich nicht abschliessen — «Arbeit beenden» fehlt
 
 **Daniel testet den Screen selbst, direkt nach dem Deploy.** Interaktiver Screen — nicht ohne seinen Klicktest als erledigt melden.
 
