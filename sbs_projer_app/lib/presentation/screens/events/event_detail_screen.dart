@@ -1234,29 +1234,31 @@ class _StandCard extends ConsumerWidget {
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         leading: _NrBadge(standnummer: stand.standnummer),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                stand.name,
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            _StandortKennung(stand: stand),
-          ],
+        // Titelzeile gehört ganz dem Namen — in v0.82 kämpfte die
+        // Standort-Kennung dort mit ihm um die Breite und quetschte ihn auf
+        // schmalen Fenstern zusammen (Daniel 13.08.: «zeigen nur die Nummer»).
+        title: Text(
+          stand.name,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 1),
           child: Row(
             children: [
+              _StandortKennung(stand: stand, groesse: 13),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  kontaktText == null
-                      ? untertitel
-                      : '$untertitel · $kontaktText',
+                  // Ohne verknüpften Kontakt zeigt die Notiz den
+                  // Ansprechpartner — beim Churerfest stehen die Namen dort.
+                  [
+                    untertitel,
+                    kontaktText ??
+                        ((stand.notizen ?? '').trim().isNotEmpty
+                            ? stand.notizen!.trim()
+                            : null),
+                  ].whereType<String>().join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
