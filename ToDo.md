@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 13.08.2026 · **Live:** v0.83.0
+**Stand:** 13.08.2026 · **Live:** v0.83.2 *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
 
