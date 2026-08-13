@@ -1,6 +1,15 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.08.2026 · **Live:** v0.78.0
+**Stand:** 11.08.2026 · **Live:** v0.80.0
+
+## 🟢 ERLEDIGT 11.08. (v0.79.0/v0.80.0): Freie Auswahl bei Materialbestellung + Standort-Kennung
+
+- **Materialbestellung:** Neue Sektion «Weitere Artikel» unter den niedrigen Beständen — ein Dropdown über **alle** Materialien, startet mit einer Zeile, wächst per «+ Position». Läuft durch dieselbe Dedup-Logik; von Hand gesetzte Mengen haben Vorrang vor der automatischen Fehlmenge.
+- **Stand-Übersicht:** Chip in der Untertitelzeile zeigt ohne Aufklappen, **ob und wie genau** der Standort gesetzt ist. Symbol = Herkunft (Pinnadel geplant / Fadenkreuz gemessen / durchgestrichen keiner), Farbe = Genauigkeit (grün genau, orange mittel, rot ungefähr oder keiner). Bewusst im Untertitel: Im Titel stehen schon Name, Standnummer und Fortschritt.
+
+1061 Tests grün.
+
+- [ ] ⚠️ **Koordinaten fürs Churerfest weiterhin offen.** Daniel hat die Datei am 11.08. zeitgleich bearbeitet; die gespeicherte `00_Event/Churerfest 2026.xlsx` enthält aber **unverändert keine Koordinaten** (erneut vollständig geprüft, auch nach dem Schliessen). **Ursache prüfen:** Ich habe die Datei zweimal unter dem geöffneten Excel gelöscht (git-Branch-Wechsel beim Deploy, jeweils sofort aus dem Commit wiederhergestellt) — möglich, dass Excel deshalb nicht speichern konnte. Vor jedem Deploy klären, ob Office-Dateien im Repo offen sind.
 
 ## 🟢 ERLEDIGT 11.08. (v0.77.0/v0.78.0): Event-Stände positionieren — Karte, Koordinaten, Genauigkeit
 
