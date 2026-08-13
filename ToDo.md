@@ -13,7 +13,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-**Stand:** 13.08.2026 · **Live:** v0.85.0 — v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
+**Stand:** 14.08.2026 · **Live:** v0.85.0 — v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
 
