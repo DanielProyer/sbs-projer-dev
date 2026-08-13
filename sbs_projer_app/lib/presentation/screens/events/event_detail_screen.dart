@@ -80,8 +80,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   /// Übernimmt Kontakte aus dem Vorjahres-Event (PopupMenu-Aktion).
   Future<void> _ausVorjahrUebernehmen(EventLocal event) async {
     try {
-      final vorjahr =
-          await EventRepository.getVorjahr(event.betriebId, event.jahr);
+      final vorjahr = await EventRepository.getVorjahr(
+        event.betriebId,
+        event.jahr,
+      );
       if (vorjahr == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -91,12 +93,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         return;
       }
       final n = await EventKontaktRepository.uebernehmeVon(
-          vorjahr.serverId!, event.serverId!);
+        vorjahr.serverId!,
+        event.serverId!,
+      );
       // Stände inkl. Position mitnehmen (Daniel 11.08.2026) — die Methode gab
       // es schon, sie wurde hier nur nie aufgerufen. Positionen gelten im
       // neuen Jahr als geplant, der Inbetriebnahme-Status startet bei null.
       final nStaende = await EventStandRepository.uebernehmeVon(
-          vorjahr.serverId!, event.serverId!);
+        vorjahr.serverId!,
+        event.serverId!,
+      );
       ref.invalidate(eventKontakteProvider(event.serverId!));
       ref.invalidate(eventStaendeProvider(event.serverId!));
       if (mounted) {
@@ -106,17 +112,19 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         ];
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(teile.isEmpty
-                ? 'Nichts zu übernehmen — alles schon vorhanden'
-                : '${teile.join(' und ')} übernommen'),
+            content: Text(
+              teile.isEmpty
+                  ? 'Nichts zu übernehmen — alles schon vorhanden'
+                  : '${teile.join(' und ')} übernommen',
+            ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -142,21 +150,28 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           if (k.serverId != null) k.serverId!: k,
       };
 
-      final standDaten = <({String name, String anlagenText, String inbetriebLabel})>[];
+      final standDaten =
+          <({String name, String anlagenText, String inbetriebLabel})>[];
       final standNamen = <String, String>{};
       var anlagenTotal = 0;
       var anlagenInBetrieb = 0;
       for (final s in staende) {
         if (s.serverId != null) standNamen[s.serverId!] = s.name;
-        final anlagen = await EventStandAnlageRepository.getByStand(s.serverId!);
+        final anlagen = await EventStandAnlageRepository.getByStand(
+          s.serverId!,
+        );
         final f = inbetriebnahmeFortschritt(
-            anlagen.map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb)).toList());
+          anlagen
+              .map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb))
+              .toList(),
+        );
         anlagenTotal += f.total;
         anlagenInBetrieb += f.inBetrieb;
         standDaten.add((
           name: s.name,
           anlagenText: EventStand.anlagenText(
-              anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList()),
+            anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList(),
+          ),
           inbetriebLabel: f.label,
         ));
       }
@@ -169,7 +184,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         anlagenInBetrieb: anlagenInBetrieb,
         aufwaende: [
           for (final a in aufwaende)
-            (datum: a.datum, kategorie: a.kategorie, notiz: a.notiz, stunden: a.stunden),
+            (
+              datum: a.datum,
+              kategorie: a.kategorie,
+              notiz: a.notiz,
+              stunden: a.stunden,
+            ),
         ],
         einsaetze: [
           for (final e in einsaetze)
@@ -187,12 +207,18 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       String? mailVon(String kontaktId) => kontakteMap[kontaktId]?.email;
       String nameVon(String kontaktId) {
         final k = kontakteMap[kontaktId];
-        return k == null ? 'Unbekannt' : '${k.vorname} ${k.nachname ?? ''}'.trim();
+        return k == null
+            ? 'Unbekannt'
+            : '${k.vorname} ${k.nachname ?? ''}'.trim();
       }
 
       final vorschlaege = abschlussEmpfaenger([
         for (final z in zuordnungen)
-          (name: nameVon(z.kontaktId), rolle: z.rolle, email: mailVon(z.kontaktId)),
+          (
+            name: nameVon(z.kontaktId),
+            rolle: z.rolle,
+            email: mailVon(z.kontaktId),
+          ),
       ]);
       final vorschlagRollen = {'event_heineken', 'rsl'};
       final weitere = <({String name, String email})>[
@@ -219,9 +245,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Ladehinweis schliessen
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -229,18 +255,22 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   /// Aggregiert die erfassten Zeiten je Tag und öffnet das Montage-Formular
   /// (Typ Anlass) vorbefüllt. Vom 3-Punkte-Menü aus.
   Future<void> _montageGenerieren(EventLocal event) async {
-    final zeilen = await ref.read(eventAufwaendeProvider(event.serverId!).future);
+    final zeilen = await ref.read(
+      eventAufwaendeProvider(event.serverId!).future,
+    );
     if (zeilen.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Keine Zeiten erfasst — nichts zu generieren.')),
+          const SnackBar(
+            content: Text('Keine Zeiten erfasst — nichts zu generieren.'),
+          ),
         );
       }
       return;
     }
-    final slots = montageSlotsAusAufwand(
-      [for (final a in zeilen) (datum: a.datum, stunden: a.stunden)],
-    );
+    final slots = montageSlotsAusAufwand([
+      for (final a in zeilen) (datum: a.datum, stunden: a.stunden),
+    ]);
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -302,16 +332,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       await EventRepository.delete(event.routeId);
       ref.invalidate(eventsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$name gelöscht')));
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -330,9 +360,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     final eventAsync = ref.watch(eventByIdProvider(widget.eventId));
 
     return eventAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('Event')),
         body: Center(child: Text('Fehler: $e')),
@@ -412,11 +441,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                     value: 'loeschen',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline,
-                            size: 20, color: AppColors.error),
+                        Icon(
+                          Icons.delete_outline,
+                          size: 20,
+                          color: AppColors.error,
+                        ),
                         SizedBox(width: 8),
-                        Text('Event löschen',
-                            style: TextStyle(color: AppColors.error)),
+                        Text(
+                          'Event löschen',
+                          style: TextStyle(color: AppColors.error),
+                        ),
                       ],
                     ),
                   ),
@@ -441,8 +475,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                 // (auf dem Handy zentriert, kein Scrollen). Kompaktere Abstände
                 // und Schrift, damit «Dokumente» auf schmalen Displays passt.
                 labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                labelStyle:
-                    const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                labelStyle: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
                 unselectedLabelStyle: const TextStyle(fontSize: 12.5),
                 tabs: const [
                   Tab(text: 'Kontakte'),
@@ -564,9 +600,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     }
     if (bytes.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Datei ist leer')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Datei ist leer')));
       }
       return;
     }
@@ -593,15 +629,15 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       );
       ref.invalidate(eventDokumenteProvider(eventServerId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('«$bezeichnung» hochgeladen')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('«$bezeichnung» hochgeladen')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Hochladen: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler beim Hochladen: $e')));
       }
     }
   }
@@ -646,8 +682,12 @@ class _KontakteTab extends ConsumerWidget {
   const _KontakteTab({required this.eventServerId});
 
   /// Entfernt eine Kontakt-Zuordnung nach Bestätigung (nicht den Kontakt).
-  Future<bool> _zuordnungEntfernen(BuildContext context, WidgetRef ref,
-      EventKontaktLocal z, String name) async {
+  Future<bool> _zuordnungEntfernen(
+    BuildContext context,
+    WidgetRef ref,
+    EventKontaktLocal z,
+    String name,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -676,9 +716,9 @@ class _KontakteTab extends ConsumerWidget {
       ref.invalidate(eventKontakteProvider(eventServerId));
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
     // false: Liste wird über den Provider neu geladen, nicht per Dismiss-Animation
@@ -689,8 +729,8 @@ class _KontakteTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final zuordnungenAsync = ref.watch(eventKontakteProvider(eventServerId));
     final kontakteMap = <String, KontaktLocal>{
-      for (final k in ref.watch(kontakteProvider).valueOrNull ??
-          <KontaktLocal>[])
+      for (final k
+          in ref.watch(kontakteProvider).valueOrNull ?? <KontaktLocal>[])
         if (k.serverId != null) k.serverId!: k,
     };
 
@@ -706,9 +746,11 @@ class _KontakteTab extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 32),
                 child: Column(
                   children: [
-                    Icon(Icons.contacts,
-                        size: 64,
-                        color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                    Icon(
+                      Icons.contacts,
+                      size: 64,
+                      color: AppColors.textSecondary.withValues(alpha: 0.4),
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Noch keine Kontakte zugeordnet.',
@@ -741,96 +783,107 @@ class _KontakteTab extends ConsumerWidget {
     final widgets = <Widget>[];
     for (final rolle in EventKontakt.rollenReihenfolge) {
       final inGruppe = zuordnungen.where((z) => z.rolle == rolle).toList()
-        ..sort((a, b) => anzeigeName(a)
-            .toLowerCase()
-            .compareTo(anzeigeName(b).toLowerCase()));
+        ..sort(
+          (a, b) => anzeigeName(
+            a,
+          ).toLowerCase().compareTo(anzeigeName(b).toLowerCase()),
+        );
       if (inGruppe.isEmpty) continue;
 
-      widgets.add(Padding(
-        padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
-        child: Row(
-          children: [
-            Text(
-              EventKontakt.rolleLabel(rolle),
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-              decoration: BoxDecoration(
-                color: AppColors.textSecondary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${inGruppe.length}',
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
+          child: Row(
+            children: [
+              Text(
+                EventKontakt.rolleLabel(rolle),
                 style: const TextStyle(
-                  fontSize: 11,
                   fontWeight: FontWeight.w600,
+                  fontSize: 13,
                   color: AppColors.textSecondary,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${inGruppe.length}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ));
+      );
 
       for (final z in inGruppe) {
         final k = kontakteMap[z.kontaktId];
         final name = anzeigeName(z);
-        widgets.add(Dismissible(
-          key: ValueKey(z.serverId ?? 'isar-${z.id}'),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            alignment: Alignment.centerRight,
-            color: AppColors.error,
-            padding: const EdgeInsets.only(right: 20),
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          confirmDismiss: (_) =>
-              _zuordnungEntfernen(context, ref, z, name),
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 4),
-            child: ListTile(
-              dense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-              title: Text(
-                name,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis,
+        widgets.add(
+          Dismissible(
+            key: ValueKey(z.serverId ?? 'isar-${z.id}'),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              color: AppColors.error,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            confirmDismiss: (_) => _zuordnungEntfernen(context, ref, z, name),
+            child: Card(
+              margin: const EdgeInsets.only(bottom: 4),
+              child: ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                title: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: (z.bemerkung != null && z.bemerkung!.isNotEmpty)
+                    ? Text(z.bemerkung!)
+                    : (k?.telefon != null ? Text(k!.telefon!) : null),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (whatsappNummer(k?.telefon) != null)
+                      IconButton(
+                        tooltip: 'WhatsApp',
+                        icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
+                        onPressed: () => launchUrl(
+                          whatsappUri(k!.telefon!),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                      ),
+                    if (k?.telefon != null)
+                      IconButton(
+                        tooltip: 'Anrufen',
+                        icon: const Icon(Icons.phone),
+                        onPressed: () => launchUrl(
+                          Uri.parse('tel:${k!.telefon!.replaceAll(' ', '')}'),
+                        ),
+                      ),
+                  ],
+                ),
+                onLongPress: () => _zuordnungEntfernen(context, ref, z, name),
               ),
-              subtitle: (z.bemerkung != null && z.bemerkung!.isNotEmpty)
-                  ? Text(z.bemerkung!)
-                  : (k?.telefon != null ? Text(k!.telefon!) : null),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (whatsappNummer(k?.telefon) != null)
-                    IconButton(
-                      tooltip: 'WhatsApp',
-                      icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
-                      onPressed: () => launchUrl(whatsappUri(k!.telefon!),
-                          mode: LaunchMode.externalApplication),
-                    ),
-                  if (k?.telefon != null)
-                    IconButton(
-                      tooltip: 'Anrufen',
-                      icon: const Icon(Icons.phone),
-                      onPressed: () => launchUrl(
-                          Uri.parse('tel:${k!.telefon!.replaceAll(' ', '')}')),
-                    ),
-                ],
-              ),
-              onLongPress: () =>
-                  _zuordnungEntfernen(context, ref, z, name),
             ),
           ),
-        ));
+        );
       }
     }
     return widgets;
@@ -879,11 +932,13 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
     _lageplanUrlPfad = pfad;
     _lageplanUrl = null;
     if (pfad == null) return;
-    EventDokumentStorage.getSignedUrl(pfad).then((url) {
-      if (mounted && _lageplanUrlPfad == pfad) {
-        setState(() => _lageplanUrl = url);
-      }
-    }).catchError((_) {});
+    EventDokumentStorage.getSignedUrl(pfad)
+        .then((url) {
+          if (mounted && _lageplanUrlPfad == pfad) {
+            setState(() => _lageplanUrl = url);
+          }
+        })
+        .catchError((_) {});
   }
 
   /// Overlay-Daten aus den gespeicherten Passpunkten — null, solange kein
@@ -915,8 +970,10 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
   /// Übernimmt die Stände (inkl. Anlagen) aus dem Vorjahres-Event.
   Future<void> _ausVorjahrUebernehmen() async {
     try {
-      final vorjahr =
-          await EventRepository.getVorjahr(event.betriebId, event.jahr);
+      final vorjahr = await EventRepository.getVorjahr(
+        event.betriebId,
+        event.jahr,
+      );
       if (vorjahr == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -926,20 +983,24 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
         return;
       }
       final n = await EventStandRepository.uebernehmeVon(
-          vorjahr.serverId!, event.serverId!);
+        vorjahr.serverId!,
+        event.serverId!,
+      );
       ref.invalidate(eventStaendeProvider(event.serverId!));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(n == 1 ? '1 Stand übernommen' : '$n Stände übernommen')),
+            content: Text(
+              n == 1 ? '1 Stand übernommen' : '$n Stände übernommen',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -949,8 +1010,10 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Stand löschen'),
-        content: Text('«${stand.name}» wirklich löschen?\n\n'
-            'Alle zugeordneten Schankanlagen werden mit entfernt.'),
+        content: Text(
+          '«${stand.name}» wirklich löschen?\n\n'
+          'Alle zugeordneten Schankanlagen werden mit entfernt.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -970,15 +1033,15 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
       await EventStandRepository.delete(stand.routeId);
       ref.invalidate(eventStaendeProvider(event.serverId!));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${stand.name} gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('${stand.name} gelöscht')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -1024,9 +1087,7 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                 showSelectedIcon: false,
                 style: const ButtonStyle(
                   visualDensity: VisualDensity.compact,
-                  textStyle: WidgetStatePropertyAll(
-                    TextStyle(fontSize: 13),
-                  ),
+                  textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13)),
                 ),
               ),
               const Spacer(),
@@ -1084,10 +1145,11 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                   padding: const EdgeInsets.only(top: 32),
                   child: Column(
                     children: [
-                      Icon(Icons.storefront,
-                          size: 64,
-                          color:
-                              AppColors.textSecondary.withValues(alpha: 0.4)),
+                      Icon(
+                        Icons.storefront,
+                        size: 64,
+                        color: AppColors.textSecondary.withValues(alpha: 0.4),
+                      ),
                       const SizedBox(height: 16),
                       const Text(
                         'Noch keine Stände.',
@@ -1116,7 +1178,7 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
 
 /// Aufklappbare Karte für einen Stand: Titel + Standnummer-Chip,
 /// Untertitel = Anlagen-Zusammenfassung, aufgeklappt Anlagen + Notizen.
-class _StandCard extends ConsumerWidget {
+class _StandCard extends ConsumerStatefulWidget {
   final EventStandLocal stand;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -1127,6 +1189,15 @@ class _StandCard extends ConsumerWidget {
     required this.onDelete,
   });
 
+  @override
+  ConsumerState<_StandCard> createState() => _StandCardState();
+}
+
+class _StandCardState extends ConsumerState<_StandCard> {
+  EventStandLocal get stand => widget.stand;
+
+  bool _offen = false;
+
   /// Erfasst die aktuelle GPS-Position und speichert sie am Stand.
   ///
   /// Existiert bereits eine Position (am PC geplant oder früher gemessen),
@@ -1134,7 +1205,10 @@ class _StandCard extends ConsumerWidget {
   /// wird nie stillschweigend (Daniel 11.08.2026). Nach der Übernahme gilt der
   /// gemessene Standort als Realität und wandert auch ins Folgejahr.
   Future<void> _standortErfassen(
-      BuildContext context, WidgetRef ref, EventStandLocal stand) async {
+    BuildContext context,
+    WidgetRef ref,
+    EventStandLocal stand,
+  ) async {
     try {
       final pos = await GpsService.aktuellePosition();
       final abgleich = positionsAbgleich(
@@ -1173,33 +1247,38 @@ class _StandCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('📍 Standort gemessen '
-                '(±${pos.accuracy.round()} m)'),
+            content: Text(
+              '📍 Standort gemessen '
+              '(±${pos.accuracy.round()} m)',
+            ),
           ),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Standort nicht möglich: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Standort nicht möglich: $e')));
       }
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final anlagenAsync = ref.watch(eventStandAnlagenProvider(stand.serverId!));
     final anlagen = anlagenAsync.valueOrNull ?? [];
     final untertitel = EventStand.anlagenText(
-        anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList());
+      anlagen.map((a) => (typ: a.typ, anzahl: a.anzahl)).toList(),
+    );
     final fortschritt = inbetriebnahmeFortschritt(
-        anlagen.map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb)).toList());
+      anlagen.map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb)).toList(),
+    );
     final zuordnungen =
         ref.watch(eventKontakteProvider(stand.eventId)).valueOrNull ??
-            <EventKontaktLocal>[];
+        <EventKontaktLocal>[];
     final kontakteMap = <String, KontaktLocal>{
-      for (final k in ref.watch(kontakteProvider).valueOrNull ?? <KontaktLocal>[])
+      for (final k
+          in ref.watch(kontakteProvider).valueOrNull ?? <KontaktLocal>[])
         if (k.serverId != null) k.serverId!: k,
     };
     final standKontakte = [
@@ -1212,9 +1291,14 @@ class _StandCard extends ConsumerWidget {
     final kontaktText = standKontakte.isEmpty
         ? null
         : standKontakte
-            .map((k) => ('${k.vorname} ${k.nachname ?? ''}').trim() +
-                ((k.telefon != null && k.telefon!.isNotEmpty) ? ' · ${k.telefon}' : ''))
-            .join(', ');
+              .map(
+                (k) =>
+                    ('${k.vorname} ${k.nachname ?? ''}').trim() +
+                    ((k.telefon != null && k.telefon!.isNotEmpty)
+                        ? ' · ${k.telefon}'
+                        : ''),
+              )
+              .join(', ');
 
     // Kompakt-Umbau (Daniel 11.08.2026) + Nachbesserung (13.08.2026): Name,
     // Standnummer und GENAUIGKEIT müssen zwingend in der Zeile stehen — die
@@ -1226,225 +1310,314 @@ class _StandCard extends ConsumerWidget {
         .where((k) => k.telefon != null && k.telefon!.trim().isNotEmpty)
         .firstOrNull;
 
+    // KEIN ExpansionTile/ListTile mehr: Auf Daniels CanvasKit rendert das
+    // ExpansionTile (dense + visualDensity compact, seit v0.81) title und
+    // subtitle schlicht NICHT — sichtbar blieb nur das gestreckte
+    // Nummern-Badge (Screenshot 13.08.2026: «ich sehe immer noch nur die
+    // Nummer»). Der aufgeklappte Bereich (reine Rows/Columns) rendert
+    // einwandfrei — also besteht jetzt auch der Kopf nur aus Rows/Columns
+    // mit eigenem Auf/Zu-Zustand. Gleiche Familie wie die CanvasKit-toten
+    // Material-Buttons (20.06./13.08.2026).
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
-      child: ExpansionTile(
-        dense: true,
-        visualDensity: VisualDensity.compact,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        leading: _NrBadge(standnummer: stand.standnummer),
-        // Titelzeile gehört ganz dem Namen — in v0.82 kämpfte die
-        // Standort-Kennung dort mit ihm um die Breite und quetschte ihn auf
-        // schmalen Fenstern zusammen (Daniel 13.08.: «zeigen nur die Nummer»).
-        title: Text(
-          stand.name,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 1),
-          child: Row(
-            children: [
-              _StandortKennung(stand: stand, groesse: 13),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  // Ohne verknüpften Kontakt zeigt die Notiz den
-                  // Ansprechpartner — beim Churerfest stehen die Namen dort.
-                  [
-                    untertitel,
-                    kontaktText ??
-                        ((stand.notizen ?? '').trim().isNotEmpty
-                            ? stand.notizen!.trim()
-                            : null),
-                  ].whereType<String>().join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 11.5, color: AppColors.textSecondary),
-                ),
-              ),
-              if (fortschritt.total > 0) ...[
-                const SizedBox(width: 8),
-                Text(
-                  '${fortschritt.inBetrieb}/${fortschritt.total}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    color: fortschritt.komplett
-                        ? AppColors.success
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        // Direktwahl (Ein-Tipp): WhatsApp + Anruf, gleiche Optik wie im
-        // Kontakte-Tab. Ersetzt den Chevron — Tippen auf die Zeile klappt
-        // weiterhin auf, das Muster ist in der App etabliert.
-        trailing: telKontakt == null
-            ? null
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (whatsappNummer(telKontakt.telefon) != null)
-                    IconButton(
-                      tooltip: 'WhatsApp ${telKontakt.vorname}',
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                          minWidth: 36, minHeight: 36),
-                      padding: EdgeInsets.zero,
-                      iconSize: 20,
-                      icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
-                      onPressed: () => launchUrl(
-                          whatsappUri(telKontakt.telefon!),
-                          mode: LaunchMode.externalApplication),
-                    ),
-                  IconButton(
-                    tooltip: 'Anrufen: ${telKontakt.telefon}',
-                    visualDensity: VisualDensity.compact,
-                    constraints:
-                        const BoxConstraints(minWidth: 36, minHeight: 36),
-                    padding: EdgeInsets.zero,
-                    iconSize: 20,
-                    icon: const Icon(Icons.phone, color: AppColors.primary),
-                    onPressed: () => launchUrl(Uri.parse(
-                        'tel:${telKontakt.telefon!.replaceAll(' ', '')}')),
-                  ),
-                ],
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Standort im Klartext + Erfassen — die Zeile beantwortet die
-          // Feld-Frage «kann ich mich auf die Position verlassen?».
-          Row(
-            children: [
-              _StandortKennung(stand: stand, mitText: false, groesse: 15),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  stand.latitude == null
-                      ? 'Noch kein Standort erfasst'
-                      : '${stand.positionQuelle == quelleGps ? 'Gemessen' : 'Geplant'}'
-                          ' · ${genauigkeitText(stand.positionGenauigkeit)}',
-                  style: const TextStyle(
-                      fontSize: 12.5, color: AppColors.textSecondary),
-                ),
-              ),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact),
-                icon: const Icon(Icons.my_location, size: 16),
-                label: Text(
-                    stand.latitude == null ? 'Erfassen' : 'Neu erfassen'),
-                onPressed: () => _standortErfassen(context, ref, stand),
-              ),
-            ],
-          ),
-          if (kontaktText != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+          InkWell(
+            onTap: () => setState(() => _offen = !_offen),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.person,
-                      size: 15, color: AppColors.textSecondary),
-                  const SizedBox(width: 6),
+                  _NrBadge(standnummer: stand.standnummer),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(kontaktText,
-                        style: const TextStyle(fontSize: 12.5),
-                        overflow: TextOverflow.ellipsis),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stand.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            _StandortKennung(stand: stand, groesse: 13),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                // Ohne verknüpften Kontakt zeigt die Notiz
+                                // den Ansprechpartner — beim Churerfest
+                                // stehen die Namen dort.
+                                [
+                                  untertitel,
+                                  kontaktText ??
+                                      ((stand.notizen ?? '').trim().isNotEmpty
+                                          ? stand.notizen!.trim()
+                                          : null),
+                                ].whereType<String>().join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            if (fortschritt.total > 0) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '${fortschritt.inBetrieb}/${fortschritt.total}',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                  color: fortschritt.komplett
+                                      ? AppColors.success
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Direktwahl (Ein-Tipp), sobald ein Kontakt mit Nummer
+                  // am Stand hängt — am Fest wichtiger als jede Verwaltung.
+                  if (telKontakt != null) ...[
+                    if (whatsappNummer(telKontakt.telefon) != null)
+                      _DirektwahlKnopf(
+                        tooltip: 'WhatsApp ${telKontakt.vorname}',
+                        icon: Icons.chat,
+                        farbe: const Color(0xFF25D366),
+                        onTap: () => launchUrl(
+                          whatsappUri(telKontakt.telefon!),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                      ),
+                    _DirektwahlKnopf(
+                      tooltip: 'Anrufen: ${telKontakt.telefon}',
+                      icon: Icons.phone,
+                      farbe: AppColors.primary,
+                      onTap: () => launchUrl(
+                        Uri.parse(
+                          'tel:${telKontakt.telefon!.replaceAll(' ', '')}',
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 4),
+                  Icon(
+                    _offen ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: AppColors.textSecondary,
                   ),
                 ],
               ),
             ),
-          if (anlagen.isEmpty)
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Keine Anlagen erfasst.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-            )
-          else
-            ...anlagen.map((a) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
+          ),
+          if (_offen)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Standort im Klartext + Erfassen — die Zeile beantwortet die
+                  // Feld-Frage «kann ich mich auf die Position verlassen?».
+                  Row(
                     children: [
-                      Checkbox(
-                        value: a.inBetrieb,
-                        visualDensity: VisualDensity.compact,
-                        onChanged: (v) async {
-                          a
-                            ..inBetrieb = v ?? false
-                            ..inBetriebAm =
-                                (v ?? false) ? DateTime.now().toUtc() : null;
-                          await EventStandAnlageRepository.save(a);
-                          ref.invalidate(
-                              eventStandAnlagenProvider(stand.serverId!));
-                        },
+                      _StandortKennung(
+                        stand: stand,
+                        mitText: false,
+                        groesse: 15,
                       ),
-                      const Icon(Icons.sports_bar,
-                          size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          EventStandAnlage.typLabel(a.typ),
-                          style: const TextStyle(fontSize: 13),
+                          stand.latitude == null
+                              ? 'Noch kein Standort erfasst'
+                              : '${stand.positionQuelle == quelleGps ? 'Gemessen' : 'Geplant'}'
+                                    ' · ${genauigkeitText(stand.positionGenauigkeit)}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
-                      Text(
-                        '×${a.anzahl}',
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.my_location, size: 16),
+                        label: Text(
+                          stand.latitude == null ? 'Erfassen' : 'Neu erfassen',
+                        ),
+                        onPressed: () => _standortErfassen(context, ref, stand),
                       ),
                     ],
                   ),
-                )),
-          if (stand.notizen != null && stand.notizen!.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Divider(height: 1),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                stand.notizen!,
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary),
+                  if (kontaktText != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.person,
+                            size: 15,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              kontaktText,
+                              style: const TextStyle(fontSize: 12.5),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (anlagen.isEmpty)
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Keine Anlagen erfasst.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    )
+                  else
+                    ...anlagen.map(
+                      (a) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: a.inBetrieb,
+                              visualDensity: VisualDensity.compact,
+                              onChanged: (v) async {
+                                a
+                                  ..inBetrieb = v ?? false
+                                  ..inBetriebAm = (v ?? false)
+                                      ? DateTime.now().toUtc()
+                                      : null;
+                                await EventStandAnlageRepository.save(a);
+                                ref.invalidate(
+                                  eventStandAnlagenProvider(stand.serverId!),
+                                );
+                              },
+                            ),
+                            const Icon(
+                              Icons.sports_bar,
+                              size: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                EventStandAnlage.typLabel(a.typ),
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                            Text(
+                              '×${a.anzahl}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (stand.notizen != null && stand.notizen!.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Divider(height: 1),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        stand.notizen!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                  // Aktionen zum Stand — bewusst nicht in der Listenzeile:
+                  // Löschen gehört nicht als Ein-Tipp-Aktion in jede Zeile.
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Bearbeiten'),
+                        onPressed: widget.onEdit,
+                      ),
+                      const SizedBox(width: 4),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          foregroundColor: AppColors.error,
+                        ),
+                        icon: const Icon(Icons.delete_outline, size: 16),
+                        label: const Text('Löschen'),
+                        onPressed: widget.onDelete,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-          // Aktionen zum Stand — aus der Listenzeile hierher verschoben:
-          // Löschen gehört ohnehin nicht als Ein-Tipp-Aktion in jede Zeile.
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact),
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Bearbeiten'),
-                onPressed: onEdit,
-              ),
-              const SizedBox(width: 4),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  foregroundColor: AppColors.error,
-                ),
-                icon: const Icon(Icons.delete_outline, size: 16),
-                label: const Text('Löschen'),
-                onPressed: onDelete,
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
+}
 
+/// Direktwahl-Knopf (Tel/WhatsApp) — GestureDetector statt IconButton, weil
+/// Material-Widgets auf manchen CanvasKit-Screens nicht rendern.
+class _DirektwahlKnopf extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final Color farbe;
+  final VoidCallback onTap;
+
+  const _DirektwahlKnopf({
+    required this.tooltip,
+    required this.icon,
+    required this.farbe,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, size: 20, color: farbe),
+        ),
+      ),
+    );
+  }
 }
 
 /// Standnummer als feste Spalte am Zeilenanfang — die Nummer ist am Fest der
@@ -1468,8 +1641,11 @@ class _NrBadge extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: nr.isEmpty
-          ? const Icon(Icons.storefront,
-              size: 14, color: AppColors.textSecondary)
+          ? const Icon(
+              Icons.storefront,
+              size: 14,
+              color: AppColors.textSecondary,
+            )
           : Text(
               nr,
               style: const TextStyle(
@@ -1492,7 +1668,10 @@ class _EinsaetzeTab extends ConsumerWidget {
   const _EinsaetzeTab({required this.event});
 
   Future<void> _einsatzBearbeiten(
-      BuildContext context, WidgetRef ref, EventEinsatzLocal einsatz) async {
+    BuildContext context,
+    WidgetRef ref,
+    EventEinsatzLocal einsatz,
+  ) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => EventEinsatzFormScreen(
@@ -1505,7 +1684,10 @@ class _EinsaetzeTab extends ConsumerWidget {
   }
 
   Future<void> _einsatzLoeschen(
-      BuildContext context, WidgetRef ref, EventEinsatzLocal einsatz) async {
+    BuildContext context,
+    WidgetRef ref,
+    EventEinsatzLocal einsatz,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1530,15 +1712,15 @@ class _EinsaetzeTab extends ConsumerWidget {
       await EventEinsatzRepository.delete(einsatz.routeId);
       ref.invalidate(eventEinsaetzeProvider(event.serverId!));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Einsatz gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Einsatz gelöscht')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -1548,9 +1730,9 @@ class _EinsaetzeTab extends ConsumerWidget {
     final einsaetzeAsync = ref.watch(eventEinsaetzeProvider(event.serverId!));
     // Stand-Namen für den optionalen Chip nachschlagen.
     final standNamen = <String, String>{
-      for (final s in ref.watch(eventStaendeProvider(event.serverId!))
-              .valueOrNull ??
-          <EventStandLocal>[])
+      for (final s
+          in ref.watch(eventStaendeProvider(event.serverId!)).valueOrNull ??
+              <EventStandLocal>[])
         if (s.serverId != null) s.serverId!: s.name,
     };
 
@@ -1563,9 +1745,11 @@ class _EinsaetzeTab extends ConsumerWidget {
             padding: const EdgeInsets.only(top: 32),
             child: Column(
               children: [
-                Icon(Icons.bolt,
-                    size: 64,
-                    color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                Icon(
+                  Icons.bolt,
+                  size: 64,
+                  color: AppColors.textSecondary.withValues(alpha: 0.4),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Noch keine Einsätze.',
@@ -1580,17 +1764,20 @@ class _EinsaetzeTab extends ConsumerWidget {
           itemCount: einsaetze.length,
           itemBuilder: (ctx, i) {
             final e = einsaetze[i];
-            final standName =
-                e.standId != null ? standNamen[e.standId] : null;
+            final standName = e.standId != null ? standNamen[e.standId] : null;
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 title: Text(
                   e.beschreibung,
                   style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1598,13 +1785,18 @@ class _EinsaetzeTab extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        const Icon(Icons.schedule,
-                            size: 13, color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.schedule,
+                          size: 13,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _ddMMHHmm(e.zeitpunkt.toLocal()),
                           style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -1612,15 +1804,19 @@ class _EinsaetzeTab extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          const Icon(Icons.build,
-                              size: 13, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.build,
+                            size: 13,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               e.material!,
                               style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary),
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ),
                         ],
@@ -1630,10 +1826,11 @@ class _EinsaetzeTab extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color:
-                              AppColors.textSecondary.withValues(alpha: 0.1),
+                          color: AppColors.textSecondary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -1649,8 +1846,11 @@ class _EinsaetzeTab extends ConsumerWidget {
                   ],
                 ),
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      size: 20, color: AppColors.error),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: AppColors.error,
+                  ),
                   tooltip: 'Löschen',
                   onPressed: () => _einsatzLoeschen(context, ref, e),
                 ),
@@ -1672,7 +1872,10 @@ class _ZeitTab extends ConsumerWidget {
   const _ZeitTab({required this.event});
 
   Future<void> _bearbeiten(
-      BuildContext context, WidgetRef ref, EventAufwandLocal a) async {
+    BuildContext context,
+    WidgetRef ref,
+    EventAufwandLocal a,
+  ) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => EventAufwandFormScreen(
@@ -1685,7 +1888,10 @@ class _ZeitTab extends ConsumerWidget {
   }
 
   Future<void> _loeschen(
-      BuildContext context, WidgetRef ref, EventAufwandLocal a) async {
+    BuildContext context,
+    WidgetRef ref,
+    EventAufwandLocal a,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1693,8 +1899,9 @@ class _ZeitTab extends ConsumerWidget {
         content: const Text('Diese Zeile wirklich löschen?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
@@ -1708,15 +1915,15 @@ class _ZeitTab extends ConsumerWidget {
       await EventAufwandRepository.delete(a.routeId);
       ref.invalidate(eventAufwaendeProvider(event.serverId!));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Zeit gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Zeit gelöscht')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -1747,8 +1954,10 @@ class _ZeitTab extends ConsumerWidget {
                 child: Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
-                    child: Text('Noch keine Zeiten erfasst.',
-                        style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text(
+                      'Noch keine Zeiten erfasst.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   ),
                 ),
               )
@@ -1766,23 +1975,32 @@ class _ZeitTab extends ConsumerWidget {
                         title: Text(
                           kAufwandKategorien[a.kategorie] ?? a.kategorie,
                           style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         subtitle: Text(
                           '${_ddMMyyyy(a.datum)}'
                           '${(a.notiz != null && a.notiz!.isNotEmpty) ? ' · ${a.notiz}' : ''}',
                           style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('${a.stunden.toStringAsFixed(2)} h',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
+                            Text(
+                              '${a.stunden.toStringAsFixed(2)} h',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: AppColors.error),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: AppColors.error,
+                              ),
                               onPressed: () => _loeschen(context, ref, a),
                             ),
                           ],
@@ -1808,7 +2026,9 @@ class _DokumenteTab extends ConsumerWidget {
 
   /// Öffnet das PDF über eine signierte URL im externen Viewer.
   Future<void> _dokumentOeffnen(
-      BuildContext context, EventDokumentLocal dok) async {
+    BuildContext context,
+    EventDokumentLocal dok,
+  ) async {
     try {
       final url = await EventDokumentStorage.getSignedUrl(dok.dateiPfad);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -1824,7 +2044,10 @@ class _DokumenteTab extends ConsumerWidget {
   /// Löscht ein Dokument nach Bestätigung — zuerst die Storage-Datei,
   /// dann den Datensatz.
   Future<void> _dokumentLoeschen(
-      BuildContext context, WidgetRef ref, EventDokumentLocal dok) async {
+    BuildContext context,
+    WidgetRef ref,
+    EventDokumentLocal dok,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1850,15 +2073,15 @@ class _DokumenteTab extends ConsumerWidget {
       await EventDokumentRepository.delete(dok.routeId);
       ref.invalidate(eventDokumenteProvider(eventServerId));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${dok.bezeichnung} gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('${dok.bezeichnung} gelöscht')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -1876,9 +2099,11 @@ class _DokumenteTab extends ConsumerWidget {
             padding: const EdgeInsets.only(top: 32),
             child: Column(
               children: [
-                Icon(Icons.picture_as_pdf,
-                    size: 64,
-                    color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                Icon(
+                  Icons.picture_as_pdf,
+                  size: 64,
+                  color: AppColors.textSecondary.withValues(alpha: 0.4),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Noch keine Dokumente.',
@@ -1896,20 +2121,27 @@ class _DokumenteTab extends ConsumerWidget {
             return Card(
               margin: const EdgeInsets.only(bottom: 4),
               child: ListTile(
-                leading: const Icon(Icons.picture_as_pdf,
-                    color: AppColors.error),
+                leading: const Icon(
+                  Icons.picture_as_pdf,
+                  color: AppColors.error,
+                ),
                 title: Text(
                   dok.bezeichnung,
                   style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 subtitle: dok.createdAt != null
                     ? Text('Hochgeladen ${_ddMMyyyy(dok.createdAt!.toLocal())}')
                     : null,
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      size: 20, color: AppColors.error),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: AppColors.error,
+                  ),
                   tooltip: 'Löschen',
                   onPressed: () => _dokumentLoeschen(context, ref, dok),
                 ),
@@ -1947,18 +2179,26 @@ class _KopfCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.calendar_month,
-                    size: 14, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.calendar_month,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   _terminText(event),
                   style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 if (ort != null && ort!.isNotEmpty) ...[
                   const SizedBox(width: 10),
-                  const Icon(Icons.place,
-                      size: 14, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.place,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 3),
                   Flexible(
                     child: Text(
@@ -1980,7 +2220,9 @@ class _KopfCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
           ],
@@ -2009,9 +2251,11 @@ class _StatusBadge extends StatelessWidget {
         color = AppColors.success;
       case EventStatus.kommend:
         final start = event.terminVon ?? event.terminBis!;
-        final tage = DateTime(start.year, start.month, start.day)
-            .difference(DateTime(heute.year, heute.month, heute.day))
-            .inDays;
+        final tage = DateTime(
+          start.year,
+          start.month,
+          start.day,
+        ).difference(DateTime(heute.year, heute.month, heute.day)).inDays;
         label = 'in $tage Tag${tage == 1 ? '' : 'en'}';
         color = AppColors.info;
       case EventStatus.offen:
@@ -2067,16 +2311,15 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
   }
 
   String _kategorieLabel(String kategorie) => switch (kategorie) {
-        'betrieb' => 'Betrieb',
-        'heineken' => 'Heineken',
-        'event' => 'Event',
-        _ => kategorie,
-      };
+    'betrieb' => 'Betrieb',
+    'heineken' => 'Heineken',
+    'event' => 'Event',
+    _ => kategorie,
+  };
 
   List<KontaktLocal> _gefiltert(List<KontaktLocal> alle) {
     // Bereits zugeordnete Kontakte bleiben sichtbar — Mehrfachrollen erlaubt.
-    var result =
-        alle.where((k) => k.serverId != null).toList();
+    var result = alle.where((k) => k.serverId != null).toList();
     if (_suchText.isNotEmpty) {
       final q = _suchText.toLowerCase();
       result = result.where((k) {
@@ -2086,8 +2329,9 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
         return name.contains(q) || tel.contains(q) || kat.contains(q);
       }).toList();
     }
-    result.sort((a, b) => a.vorname.toLowerCase().compareTo(
-        b.vorname.toLowerCase()));
+    result.sort(
+      (a, b) => a.vorname.toLowerCase().compareTo(b.vorname.toLowerCase()),
+    );
     return result;
   }
 
@@ -2097,15 +2341,17 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
     setState(() => _speichert = true);
     try {
       // Duplikat (kontaktId, rolle) abfangen statt DB-Constraint-Fehler
-      final vorhandene =
-          await EventKontaktRepository.getByEvent(widget.eventServerId);
+      final vorhandene = await EventKontaktRepository.getByEvent(
+        widget.eventServerId,
+      );
       final duplikat = vorhandene.any(
-          (z) => z.kontaktId == kontakt.serverId && z.rolle == _rolle);
+        (z) => z.kontaktId == kontakt.serverId && z.rolle == _rolle,
+      );
       if (duplikat) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bereits zugeordnet')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Bereits zugeordnet')));
         }
         return;
       }
@@ -2123,9 +2369,9 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _speichert = false);
@@ -2135,8 +2381,9 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: DraggableScrollableSheet(
         initialChildSize: 0.75,
         minChildSize: 0.4,
@@ -2224,7 +2471,9 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
                     trailing: Text(
                       _kategorieLabel(k.kategorie),
                       style: const TextStyle(
-                          fontSize: 11, color: AppColors.textSecondary),
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     onTap: () => setState(() => _ausgewaehlt = k),
                   );
@@ -2257,7 +2506,9 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
                 child: Text(
                   name,
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -2277,40 +2528,48 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
                   prefixIcon: Icon(Icons.badge),
                 ),
                 items: EventKontakt.rollenReihenfolge
-                    .map((r) => DropdownMenuItem(
-                          value: r,
-                          child: Text(EventKontakt.rolleLabel(r)),
-                        ))
+                    .map(
+                      (r) => DropdownMenuItem(
+                        value: r,
+                        child: Text(EventKontakt.rolleLabel(r)),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) {
-                  if (v != null) setState(() { _rolle = v; if (v != 'stand') _standId = null; });
+                  if (v != null)
+                    setState(() {
+                      _rolle = v;
+                      if (v != 'stand') _standId = null;
+                    });
                 },
               ),
               if (_rolle == 'stand') ...[
                 const SizedBox(height: 12),
-                ref.watch(eventStaendeProvider(widget.eventServerId)).when(
-                  loading: () => const LinearProgressIndicator(),
-                  error: (e, _) => const SizedBox.shrink(),
-                  data: (staende) => DropdownButtonFormField<String?>(
-                    initialValue: _standId,
-                    decoration: const InputDecoration(
-                      labelText: 'Stand',
-                      prefixIcon: Icon(Icons.storefront),
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('— (kein bestimmter Stand)'),
-                      ),
-                      for (final s in staende)
-                        DropdownMenuItem<String?>(
-                          value: s.serverId,
-                          child: Text(s.name),
+                ref
+                    .watch(eventStaendeProvider(widget.eventServerId))
+                    .when(
+                      loading: () => const LinearProgressIndicator(),
+                      error: (e, _) => const SizedBox.shrink(),
+                      data: (staende) => DropdownButtonFormField<String?>(
+                        initialValue: _standId,
+                        decoration: const InputDecoration(
+                          labelText: 'Stand',
+                          prefixIcon: Icon(Icons.storefront),
                         ),
-                    ],
-                    onChanged: (v) => setState(() => _standId = v),
-                  ),
-                ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('— (kein bestimmter Stand)'),
+                          ),
+                          for (final s in staende)
+                            DropdownMenuItem<String?>(
+                              value: s.serverId,
+                              child: Text(s.name),
+                            ),
+                        ],
+                        onChanged: (v) => setState(() => _standId = v),
+                      ),
+                    ),
               ],
               const SizedBox(height: 12),
               TextField(
@@ -2347,7 +2606,8 @@ String _terminText(EventLocal e) {
   if (von == null && bis == null) return 'Termin offen';
   final start = von ?? bis!;
   final ende = bis ?? von!;
-  final eintaegig = start.year == ende.year &&
+  final eintaegig =
+      start.year == ende.year &&
       start.month == ende.month &&
       start.day == ende.day;
   if (eintaegig) return _ddMMyyyy(start);
@@ -2389,8 +2649,11 @@ class _StandortKennung extends StatelessWidget {
   final bool mitText;
   final double groesse;
 
-  const _StandortKennung(
-      {required this.stand, this.mitText = true, this.groesse = 14});
+  const _StandortKennung({
+    required this.stand,
+    this.mitText = true,
+    this.groesse = 14,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2417,7 +2680,7 @@ class _StandortKennung extends StatelessWidget {
       message: ohnePosition
           ? 'Noch kein Standort erfasst'
           : '${gemessen ? 'Im Feld gemessen' : 'Auf der Karte geplant'} · '
-              'Genauigkeit: ${genauigkeitText(stand.positionGenauigkeit)}',
+                'Genauigkeit: ${genauigkeitText(stand.positionGenauigkeit)}',
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
