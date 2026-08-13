@@ -1,5 +1,18 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
+## 🗺️ FAHRPLAN Grossvorhaben 6/7/8 (Kartierung 13.08.2026, 3 Agenten)
+
+**6 — Google-Kalender × Tourenplan** *(das eine echte Bau-Projekt, 1–2 Sessions)*
+Iststand: Einweg-Push läuft für pikett/event/termin/einsatz/betrieb_reinigung/betrieb_manuell, täglicher Auto-Reconcile, OAuth serverseitig (G1+G2 fertig; G3/G4 durch K1/K2 ersetzt). **Lücke:** Reinigungs-Einsätze und Tagesplan gehen NIE nach Google. Konkrete Baustellen: (a) CHECK-Constraint `google_calendar_events.entity_type` erweitern (Migration nötig, sonst Duplikate — Fehlermuster aus 164), (b) Push aus Tagesplan/Reinigungen, (c) `reconcile()` in der Edge Function erweitern, (d) Zeitkette mit Anfahrtszeiten statt unsortierter Einzel-Events, (e) `location` setzen (fehlt heute überall). **Designfrage an Daniel offen:** ein Tages-Sammel-Event («Tour Montag, 07:40–17:35») oder Einzel-Events je Besuch mit Uhrzeiten — oder beides? Nebenbefund: `termine.erinnerung_*`-Spalten sind toter Datenpfad (Edge Function nutzt Hardcode-Reminders) → bei der Gelegenheit ausbauen.
+
+**7 — Historik 2019–2025: KERN IST FERTIG** *(Restposten, gehören zum Buchhaltungs-Fahrplan)*
+14'552 Journal-Zeilen, 7'786 Reinigungen, 4'438 Forderungen, 2'035 Werkstatt-Aufträge — alle Treue-Gates PASS, Naht Excel↔camt am 11.03.2026 sauber. **Offene Reste:** (a) Phase 2c Heineken-Monatsrechnungen 2019–2025 generieren + gegen reale PDFs abgleichen (einziges Paket mit NEUEN Buchungen), (b) MwSt-Altsalden-Aufsetzkorrektur per 31.12.2025 (2200=17'223.38 / 1171=1'148.11 / 1170=3'654.08 — Entscheid Daniel), (c) **EK/Gewinnvortrag 35'319.11 fehlt** → Bilanzgleichung geht nie auf, (d) BK-Pauschale nacherfassen, (e) Excel einfrieren (90 Zeilen ohne «Gebucht=X» = Doppelimport-Risiko), (f) ⚠️ **Kreditoren-Modul live aber ungenutzt — Aufwand seit 08.06.2026 NIRGENDS erfasst** (aktuelles Loch, keine Historik!), (g) Debitoren-Hygiene (140 Rechnungen/12'865 verjährt nach Art. 128 OR). → Nach der MWST-Frist abarbeiten.
+
+**8 — Projekt Heineken: LÄUFT BEREITS ALS EIGENES PROJEKT** in `D:\Projekte\Heineken`
+ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.), Regionenkonzept (08.08., PLZ-basiert), Alt-App-Audit komplett. **Von SBS Projer DEV aus nichts doppeln — Architektur-Arbeit dort führen.** Die Kartierung fand 2 Widersprüche für den dortigen Decision-Log: Regionen PLZ-Modell vs. alte N:M-Notiz hier; Adressmodell (Sammelzahler/KST vom 10.08.) vs. Spec-Kontaktmodell. Grösste offene Entscheide dort: Cutover-/Datenübernahme-Konzept aus sbs-projer-prod (fehlt), Offline/Isar × tenant_id, tabellenscharfe Klasse-1/1a/2-Liste.
+
+**Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
+
 **Stand:** 13.08.2026 · **Live:** v0.85.0 — v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
