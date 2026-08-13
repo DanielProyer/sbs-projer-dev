@@ -1140,14 +1140,16 @@ class _StandCard extends ConsumerWidget {
                 ((k.telefon != null && k.telefon!.isNotEmpty) ? ' · ${k.telefon}' : ''))
             .join(', ');
 
-    // Kompakt-Umbau (Daniel 11.08.2026, «mehr Übersicht, professionell»):
-    // Die zwei 48-px-IconButtons (Bearbeiten/Löschen) waren der grösste
-    // Höhen- und Unruhefaktor jeder Zeile — sie wandern als beschriftete
-    // Buttons in den aufgeklappten Bereich, der Standard-Chevron kommt
-    // zurück. Die Standnummer wird zur festen Spalte links (am Fest sucht
-    // man nach Nummern), Standort und Fortschritt sind rechtsbündige
-    // Kennungen ohne Pill-Hintergrund: Icon-Farbe = Genauigkeit,
-    // Icon-Form = Herkunft, «2/3» = Inbetriebnahme.
+    // Kompakt-Umbau (Daniel 11.08.2026) + Nachbesserung (13.08.2026): Name,
+    // Standnummer und GENAUIGKEIT müssen zwingend in der Zeile stehen — die
+    // Icon-Farbe allein (v0.81.0) war zu subtil. Und am Fest zählt der
+    // direkte Draht zum Standbetreiber: Telefon/WhatsApp als Ein-Tipp-Aktion
+    // rechts in der Zeile (Bearbeiten/Löschen bleiben im aufgeklappten
+    // Bereich — die braucht man am Fest nicht).
+    final telKontakt = standKontakte
+        .where((k) => k.telefon != null && k.telefon!.trim().isNotEmpty)
+        .firstOrNull;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       child: ExpansionTile(
@@ -1167,39 +1169,81 @@ class _StandCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            _StandortIcon(stand: stand),
-            if (fortschritt.total > 0) ...[
-              const SizedBox(width: 8),
-              Text(
-                '${fortschritt.inBetrieb}/${fortschritt.total}',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                  color: fortschritt.komplett
-                      ? AppColors.success
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ],
+            _StandortKennung(stand: stand),
           ],
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 1),
-          child: Text(
-            kontaktText == null ? untertitel : '$untertitel · $kontaktText',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                fontSize: 11.5, color: AppColors.textSecondary),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  kontaktText == null
+                      ? untertitel
+                      : '$untertitel · $kontaktText',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 11.5, color: AppColors.textSecondary),
+                ),
+              ),
+              if (fortschritt.total > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '${fortschritt.inBetrieb}/${fortschritt.total}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: fortschritt.komplett
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
+        // Direktwahl (Ein-Tipp): WhatsApp + Anruf, gleiche Optik wie im
+        // Kontakte-Tab. Ersetzt den Chevron — Tippen auf die Zeile klappt
+        // weiterhin auf, das Muster ist in der App etabliert.
+        trailing: telKontakt == null
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (whatsappNummer(telKontakt.telefon) != null)
+                    IconButton(
+                      tooltip: 'WhatsApp ${telKontakt.vorname}',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                          minWidth: 36, minHeight: 36),
+                      padding: EdgeInsets.zero,
+                      iconSize: 20,
+                      icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
+                      onPressed: () => launchUrl(
+                          whatsappUri(telKontakt.telefon!),
+                          mode: LaunchMode.externalApplication),
+                    ),
+                  IconButton(
+                    tooltip: 'Anrufen: ${telKontakt.telefon}',
+                    visualDensity: VisualDensity.compact,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    icon: const Icon(Icons.phone, color: AppColors.primary),
+                    onPressed: () => launchUrl(Uri.parse(
+                        'tel:${telKontakt.telefon!.replaceAll(' ', '')}')),
+                  ),
+                ],
+              ),
         children: [
           // Standort im Klartext + Erfassen — die Zeile beantwortet die
           // Feld-Frage «kann ich mich auf die Position verlassen?».
           Row(
             children: [
-              _StandortIcon(stand: stand, groesse: 15),
+              _StandortKennung(stand: stand, mitText: false, groesse: 15),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -2251,20 +2295,24 @@ String? _einsatzMaterialText(EventEinsatzLocal e) {
 String _ddMMHHmm(DateTime d) =>
     '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';
 
-/// Standort-Kennung eines Stands (Daniel 11.08.2026): «gleich ersichtlich,
-/// ob und wie genau der Standort gesetzt ist» — als einzelnes Icon, damit
-/// die Zeile flach bleibt (Kompakt-Umbau statt Pill-Chip):
+/// Standort-Kennung eines Stands (Daniel 11.08./13.08.2026): «Genauigkeit
+/// muss zwingend in der Übersicht sein» — Icon plus Klartext, flach (ohne
+/// Pill-Hintergrund):
 ///
 ///   Form  = Herkunft    (Pinnadel geplant · Fadenkreuz gemessen ·
 ///                        durchgestrichen keiner)
 ///   Farbe = Genauigkeit (grün genau · orange mittel · rot ungefähr/keiner)
+///   Text  = Genauigkeit ausgeschrieben («genau» / «mittel» / «ungefähr» /
+///           «kein Standort»)
 ///
-/// Der Klartext steht im Tooltip und im aufgeklappten Bereich der Karte.
-class _StandortIcon extends StatelessWidget {
+/// [mitText] aus, wo daneben schon Klartext steht (aufgeklappter Bereich).
+class _StandortKennung extends StatelessWidget {
   final EventStandLocal stand;
+  final bool mitText;
   final double groesse;
 
-  const _StandortIcon({required this.stand, this.groesse = 17});
+  const _StandortKennung(
+      {required this.stand, this.mitText = true, this.groesse = 14});
 
   @override
   Widget build(BuildContext context) {
@@ -2278,18 +2326,42 @@ class _StandortIcon extends StatelessWidget {
       genauUngefaehr => AppColors.error,
       _ => AppColors.textSecondary,
     };
+    final text = ohnePosition
+        ? 'kein Standort'
+        : switch (stand.positionGenauigkeit) {
+            genauGenau => 'genau',
+            genauMittel => 'mittel',
+            genauUngefaehr => 'ungefähr',
+            _ => '—',
+          };
 
     return Tooltip(
       message: ohnePosition
           ? 'Noch kein Standort erfasst'
           : '${gemessen ? 'Im Feld gemessen' : 'Auf der Karte geplant'} · '
               'Genauigkeit: ${genauigkeitText(stand.positionGenauigkeit)}',
-      child: Icon(
-        ohnePosition
-            ? Icons.location_off
-            : (gemessen ? Icons.gps_fixed : Icons.push_pin),
-        size: groesse,
-        color: farbe,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            ohnePosition
+                ? Icons.location_off
+                : (gemessen ? Icons.gps_fixed : Icons.push_pin),
+            size: groesse,
+            color: farbe,
+          ),
+          if (mitText) ...[
+            const SizedBox(width: 3),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: farbe,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
