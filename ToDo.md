@@ -8,7 +8,7 @@
 
 **v0.83.0 (Fall Gampel):** Lageplan-Bild (JPG/PNG) mit **2–5 Passpunkten auf die Karte referenzieren**. Stände-Tab → Karte → «Lageplan»: Bild hochladen, dann je Punkt erst auf dem Plan, dann auf dem Luftbild antippen (nummerierte, farblich gepaarte Marker). Ab 2 Punkten liegt der Plan live als Overlay (Ebenen-Knopf blendet aus), pro Punkt steht die **Abweichung in Metern** — der grösste Wert entlarvt einen falsch gesetzten Punkt. 2 Punkte = Ähnlichkeit, ab 3 affine Ausgleichung (verkraftet verzerrte Pläne). Danach Stände per «Positionieren» direkt vom Plan abgreifen. Migration 170 (`events.lageplan_pfad/lageplan_punkte`), Mathe in `core/util/georeferenz.dart` (8 Tests). `00_Event/Gampel 2026/Lageplan 2026.jpeg` liegt im Repo. 1069 Tests grün.
 
-- [ ] Klicktest Daniel: v0.82-Zeile (Genauigkeit + Direktwahl) und v0.83-Referenzierung mit dem Gampel-Plan durchspielen (am PC).
+- [x] ~~Klicktest v0.83~~ **BESTANDEN 13.08. (Daniel):** Upload, Referenzierung (3 Punkte), Overlay, Positionieren — Gampel-Stände sind gesetzt.
 
 ## 🟢 ERLEDIGT 13.08. (v0.81.0): Kompakte Stand-Übersicht + flacher Event-Kopf
 
