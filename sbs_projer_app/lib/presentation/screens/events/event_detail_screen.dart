@@ -269,7 +269,13 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       return;
     }
     final slots = montageSlotsAusAufwand([
-      for (final a in zeilen) (datum: a.datum, stunden: a.stunden),
+      for (final a in zeilen)
+        (
+          datum: a.datum,
+          stunden: a.stunden,
+          kategorie: a.kategorie,
+          notiz: a.notiz,
+        ),
     ]);
     if (!mounted) return;
     await Navigator.of(context).push(

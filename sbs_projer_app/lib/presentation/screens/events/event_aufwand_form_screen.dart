@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/util/event_aufwand_slots.dart';
 import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_aufwand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 
-const kAufwandKategorien = <String, String>{
-  'anfahrt': 'Anfahrt',
-  'inbetriebnahme': 'Inbetriebnahme',
-  'pikett': 'Pikettdienst',
-  'spesen': 'Spesen',
-};
+// kAufwandKategorien liegt in core/util/event_aufwand_slots.dart — eine
+// Wahrheit für Formular-Dropdown und die generierten Montage-Slot-Texte.
 
 /// Formular zum Anlegen/Bearbeiten einer Zeit-/Spesen-Zeile (E4).
 class EventAufwandFormScreen extends ConsumerStatefulWidget {

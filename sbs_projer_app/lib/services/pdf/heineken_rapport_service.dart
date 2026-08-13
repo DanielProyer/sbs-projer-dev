@@ -1011,83 +1011,53 @@ class HeinekenRapportService {
   }
 
   /// Anlass: Tages-/Spesen-Tabelle (Freitext + Stunden statt Material + Anzahl)
+  /// Tages-/Spesen-Tabelle einer Anlass-Montage.
+  ///
+  /// Als `pw.Table` statt fixer Zeilenhöhe: Seit die Slot-Texte die Details
+  /// tragen («Mi 22.7. — Anfahrt 1h · Inbetriebnahme 2h (Augenschein)»,
+  /// Daniel 13.08.2026) brechen lange Zeilen um — bei der alten festen Höhe
+  /// von 16 pt wurde die zweite Zeile abgeschnitten. Im Table wachsen beide
+  /// Zellen einer Reihe gemeinsam.
   static pw.Widget _buildAnlassTabelle(
       List<(String name, double menge)> eintraege, int maxRows) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
+    final zeilen = eintraege.length < maxRows ? maxRows : eintraege.length;
+
+    pw.Widget zelle(String text,
+        {bool fett = false, pw.TextAlign align = pw.TextAlign.left,
+        bool gelb = false}) {
+      return pw.Container(
+        constraints: const pw.BoxConstraints(minHeight: 16),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        color: gelb ? _yellowCell : null,
+        child: pw.Text(text,
+            style: pw.TextStyle(
+                fontSize: fett ? 8 : 9,
+                fontWeight: fett ? pw.FontWeight.bold : null),
+            textAlign: align),
+      );
+    }
+
+    return pw.Table(
+      border: pw.TableBorder.all(width: 0.5),
+      columnWidths: const {
+        0: pw.FlexColumnWidth(),
+        1: pw.FixedColumnWidth(60),
+      },
       children: [
-        // Header
-        pw.Row(
-          children: [
-            pw.Expanded(
-              child: pw.Container(
-                height: 18,
-                padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 4, vertical: 2),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(width: 0.5),
-                ),
-                child: pw.Text('Tag / Spesen',
-                    style: pw.TextStyle(
-                        fontSize: 8,
-                        fontWeight: pw.FontWeight.bold)),
-              ),
-            ),
-            pw.Container(
-              width: 60,
-              height: 18,
-              padding: const pw.EdgeInsets.symmetric(
-                  horizontal: 4, vertical: 2),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 0.5),
-              ),
-              child: pw.Text('Stunden',
-                  style: pw.TextStyle(
-                      fontSize: 8, fontWeight: pw.FontWeight.bold),
-                  textAlign: pw.TextAlign.right),
-            ),
-          ],
-        ),
-        // Datenzeilen
-        ...List.generate(
-          eintraege.length < maxRows ? maxRows : eintraege.length,
-          (i) {
-            final e = i < eintraege.length ? eintraege[i] : null;
-            return pw.Row(
-              children: [
-                pw.Expanded(
-                  child: pw.Container(
-                    height: 16,
-                    padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 1),
-                    decoration: pw.BoxDecoration(
-                      color: _yellowCell,
-                      border: pw.Border.all(width: 0.5),
-                    ),
-                    child: pw.Text(e?.$1 ?? '-',
-                        style: const pw.TextStyle(fontSize: 9)),
-                  ),
-                ),
-                pw.Container(
-                  width: 60,
-                  height: 16,
-                  padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 1),
-                  decoration: pw.BoxDecoration(
-                    color: _yellowCell,
-                    border: pw.Border.all(width: 0.5),
-                  ),
-                  child: pw.Text(
-                      e != null
-                          ? e.$2.toStringAsFixed(2)
-                          : '-',
-                      style: const pw.TextStyle(fontSize: 9),
-                      textAlign: pw.TextAlign.right),
-                ),
-              ],
-            );
-          },
-        ),
+        pw.TableRow(children: [
+          zelle('Tag / Spesen', fett: true),
+          zelle('Stunden', fett: true, align: pw.TextAlign.right),
+        ]),
+        for (var i = 0; i < zeilen; i++)
+          pw.TableRow(children: [
+            zelle(i < eintraege.length ? eintraege[i].$1 : '-', gelb: true),
+            zelle(
+                i < eintraege.length
+                    ? eintraege[i].$2.toStringAsFixed(2)
+                    : '-',
+                align: pw.TextAlign.right,
+                gelb: true),
+          ]),
       ],
     );
   }
