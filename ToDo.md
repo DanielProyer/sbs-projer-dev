@@ -57,7 +57,7 @@
 - [ ] **Montage**: «Arbeit beginnen» → «Beenden» → verschwindet sie aus dem Tourenplan?
 - [ ] **Störung**: gleicher Ablauf.
 - [ ] **Heineken-Monteur** bei Cocktail Bar Chur erfassen → kein uuid-Fehler mehr.
-- [ ] Werte vom **07.08.** prüfen (Ende 12:00 und km 79'937 sind von mir geschätzt).
+- [x] ~~Werte vom 07.08. prüfen~~ **BESTÄTIGT Daniel 13.08.:** Ende 12:00 und km 79'937 stimmen so.
 - [ ] **Cocktail Bar Chur: Anlage wird am 12.08. beim ersten Service erfasst** (Entscheid Daniel). Danach den Heineken-Monteur-Eintrag vom 02.06.2026 nachträglich der Anlage zuordnen — er läuft seit v0.76.0 auch ohne, hängt dann aber an keinem Gerät.
 
 ## ⏭️ ~~11.08. ZUERST — TEIL A~~ (erledigt, siehe oben): Feierabend am PC speichert nicht (GPS blockiert das Speichern)
@@ -75,7 +75,7 @@ catch (e) { messenger.showSnackBar('Fehler: $e'); }
 
 Die einzelnen Messungen in [gps_service.dart](sbs_projer_app/lib/services/gps/gps_service.dart) haben je 6 s Zeitlimit — **`Geolocator.requestPermission()` davor hat keines**. Ohne Standortdienst (Desktop) kommt nie eine Antwort: Sheet zu, nichts gespeichert, **keine der drei möglichen Meldungen**. Auf dem Handy läuft es, deshalb wirkte es sporadisch.
 
-**Datenverlust bereits nachgetragen (11.08., direkt in der DB):** 11.08. Ende 15:58 / km 80'312 (Wert von Daniel, Zeit = Eingabezeitpunkt) · 07.08. Ende 12:00 / km 79'937 — **beides beim 07.08. geschätzt**: letzter Service Casa Giovanoli Tumegl/Tomils endet 11:38 (~10 km bis Domat/Ems), km-Stand aus dem Startwert des 10.08. abgeleitet, kann Wochenend-Privatkilometer enthalten (05.→06.08. waren es 9 km). Von Daniel prüfen lassen.
+**Datenverlust bereits nachgetragen (11.08., direkt in der DB):** 11.08. Ende 15:58 / km 80'312 (Wert von Daniel, Zeit = Eingabezeitpunkt) · 07.08. Ende 12:00 / km 79'937 — **beides beim 07.08. geschätzt**: letzter Service Casa Giovanoli Tumegl/Tomils endet 11:38 (~10 km bis Domat/Ems), km-Stand aus dem Startwert des 10.08. abgeleitet, kann Wochenend-Privatkilometer enthalten (05.→06.08. waren es 9 km). **Von Daniel bestätigt (13.08.): stimmen so.**
 
 **Umzusetzen (Vorgaben Daniel):**
 - [ ] **Erst speichern, dann GPS.** Die Arbeitszeit darf nie davon abhängen, ob eine Koordinate zustande kommt — Standort ist Beiwerk, nachträglich stempelbar (`unawaited`).
