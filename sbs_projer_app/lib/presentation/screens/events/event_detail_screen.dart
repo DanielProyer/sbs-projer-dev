@@ -1201,10 +1201,22 @@ class _StandCard extends ConsumerWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              untertitel,
-              style: const TextStyle(
-                  fontSize: 12, color: AppColors.textSecondary),
+            // Anlagen-Text und Standort-Kennung in einer Zeile: Der Titel
+            // trägt schon Name, Standnummer und Inbetriebnahme-Fortschritt —
+            // ein vierter Chip dort würde den Namen auf dem Handy zerdrücken.
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    untertitel,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                _StandortChip(stand: stand),
+              ],
             ),
             if (kontaktText != null)
               Padding(
@@ -2234,3 +2246,72 @@ String? _einsatzMaterialText(EventEinsatzLocal e) {
 
 String _ddMMHHmm(DateTime d) =>
     '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';
+
+/// Kompakte Standort-Kennung in der Stand-Übersicht (Daniel 11.08.2026):
+/// «gleich ersichtlich, ob und wie genau der Standort gesetzt ist» — ohne den
+/// Eintrag aufklappen zu müssen.
+///
+/// Zwei Angaben in einem Chip:
+///   Symbol = Herkunft   (Pinnadel = geplant, Fadenkreuz = im Feld gemessen)
+///   Farbe  = Genauigkeit (grün genau, orange mittel, rot ungefähr/keine)
+///
+/// Bewusst kein Text ausser der Stufe: Die Zeile trägt schon Standnummer und
+/// Inbetriebnahme-Fortschritt, und auf dem Handy ist der Platz knapp.
+class _StandortChip extends StatelessWidget {
+  final EventStandLocal stand;
+
+  const _StandortChip({required this.stand});
+
+  @override
+  Widget build(BuildContext context) {
+    final ohnePosition = stand.latitude == null || stand.longitude == null;
+    final gemessen = stand.positionQuelle == quelleGps;
+
+    final farbe = switch (stand.positionGenauigkeit) {
+      _ when ohnePosition => AppColors.error,
+      genauGenau => AppColors.success,
+      genauMittel => Colors.orange,
+      genauUngefaehr => AppColors.error,
+      _ => AppColors.textSecondary,
+    };
+
+    final text = ohnePosition
+        ? 'kein Standort'
+        : genauigkeitText(stand.positionGenauigkeit);
+
+    return Tooltip(
+      message: ohnePosition
+          ? 'Noch kein Standort erfasst'
+          : '${gemessen ? 'Im Feld gemessen' : 'Auf der Karte geplant'} · '
+              'Genauigkeit: ${genauigkeitText(stand.positionGenauigkeit)}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: farbe.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              ohnePosition
+                  ? Icons.location_off
+                  : (gemessen ? Icons.gps_fixed : Icons.push_pin),
+              size: 12,
+              color: farbe,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: farbe,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
