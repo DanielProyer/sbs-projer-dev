@@ -1140,159 +1140,103 @@ class _StandCard extends ConsumerWidget {
                 ((k.telefon != null && k.telefon!.isNotEmpty) ? ' · ${k.telefon}' : ''))
             .join(', ');
 
+    // Kompakt-Umbau (Daniel 11.08.2026, «mehr Übersicht, professionell»):
+    // Die zwei 48-px-IconButtons (Bearbeiten/Löschen) waren der grösste
+    // Höhen- und Unruhefaktor jeder Zeile — sie wandern als beschriftete
+    // Buttons in den aufgeklappten Bereich, der Standard-Chevron kommt
+    // zurück. Die Standnummer wird zur festen Spalte links (am Fest sucht
+    // man nach Nummern), Standort und Fortschritt sind rechtsbündige
+    // Kennungen ohne Pill-Hintergrund: Icon-Farbe = Genauigkeit,
+    // Icon-Form = Herkunft, «2/3» = Inbetriebnahme.
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        dense: true,
+        visualDensity: VisualDensity.compact,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        leading: _NrBadge(standnummer: stand.standnummer),
         title: Row(
           children: [
             Expanded(
               child: Text(
                 stand.name,
                 style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600),
+                    fontSize: 14, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (stand.standnummer != null && stand.standnummer!.isNotEmpty)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.textSecondary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'Nr. ${stand.standnummer!}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
+            const SizedBox(width: 8),
+            _StandortIcon(stand: stand),
             if (fortschritt.total > 0) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: (fortschritt.komplett
-                          ? AppColors.success
-                          : AppColors.textSecondary)
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  fortschritt.label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: fortschritt.komplett
-                        ? AppColors.success
-                        : AppColors.textSecondary,
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                '${fortschritt.inBetrieb}/${fortschritt.total}',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: fortschritt.komplett
+                      ? AppColors.success
+                      : AppColors.textSecondary,
                 ),
               ),
             ],
           ],
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Anlagen-Text und Standort-Kennung in einer Zeile: Der Titel
-            // trägt schon Name, Standnummer und Inbetriebnahme-Fortschritt —
-            // ein vierter Chip dort würde den Namen auf dem Handy zerdrücken.
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    untertitel,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                _StandortChip(stand: stand),
-              ],
-            ),
-            if (kontaktText != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Row(
-                  children: [
-                    const Icon(Icons.person,
-                        size: 13, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(kontaktText,
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, size: 20),
-              tooltip: 'Bearbeiten',
-              onPressed: onEdit,
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  size: 20, color: AppColors.error),
-              tooltip: 'Löschen',
-              onPressed: onDelete,
-            ),
-          ],
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Text(
+            kontaktText == null ? untertitel : '$untertitel · $kontaktText',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontSize: 11.5, color: AppColors.textSecondary),
+          ),
         ),
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: stand.latitude != null
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        stand.positionQuelle == quelleGps
-                            ? Icons.gps_fixed
-                            : Icons.push_pin,
-                        size: 16,
-                        color: stand.positionQuelle == quelleGps
-                            ? AppColors.success
-                            : AppColors.info,
-                      ),
-                      const SizedBox(width: 6),
-                      // Herkunft und Verlässlichkeit auf einen Blick — im
-                      // Feld die Frage «kann ich mich darauf verlassen?».
-                      Text(
-                        '${stand.positionQuelle == quelleGps ? 'Gemessen' : 'Geplant'}'
-                        ' · ${genauigkeitText(stand.positionGenauigkeit)}',
-                        style: const TextStyle(
-                            fontSize: 13, color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        icon: const Icon(Icons.my_location, size: 16),
-                        label: const Text('Neu erfassen'),
-                        onPressed: () =>
-                            _standortErfassen(context, ref, stand),
-                      ),
-                    ],
-                  )
-                : TextButton.icon(
-                    icon: const Icon(Icons.my_location, size: 16),
-                    label: const Text('📍 Standort erfassen'),
-                    onPressed: () => _standortErfassen(context, ref, stand),
-                  ),
+          // Standort im Klartext + Erfassen — die Zeile beantwortet die
+          // Feld-Frage «kann ich mich auf die Position verlassen?».
+          Row(
+            children: [
+              _StandortIcon(stand: stand, groesse: 15),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  stand.latitude == null
+                      ? 'Noch kein Standort erfasst'
+                      : '${stand.positionQuelle == quelleGps ? 'Gemessen' : 'Geplant'}'
+                          ' · ${genauigkeitText(stand.positionGenauigkeit)}',
+                  style: const TextStyle(
+                      fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact),
+                icon: const Icon(Icons.my_location, size: 16),
+                label: Text(
+                    stand.latitude == null ? 'Erfassen' : 'Neu erfassen'),
+                onPressed: () => _standortErfassen(context, ref, stand),
+              ),
+            ],
           ),
+          if (kontaktText != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.person,
+                      size: 15, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(kontaktText,
+                        style: const TextStyle(fontSize: 12.5),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
           if (anlagen.isEmpty)
             const Align(
               alignment: Alignment.centerLeft,
@@ -1350,11 +1294,71 @@ class _StandCard extends ConsumerWidget {
               ),
             ),
           ],
+          // Aktionen zum Stand — aus der Listenzeile hierher verschoben:
+          // Löschen gehört ohnehin nicht als Ein-Tipp-Aktion in jede Zeile.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact),
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Bearbeiten'),
+                onPressed: onEdit,
+              ),
+              const SizedBox(width: 4),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: AppColors.error,
+                ),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: const Text('Löschen'),
+                onPressed: onDelete,
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
+}
+
+/// Standnummer als feste Spalte am Zeilenanfang — die Nummer ist am Fest der
+/// primäre Suchschlüssel («wo ist Stand 69?»), links ausgerichtet entsteht
+/// eine scanbare Spalte. Ohne Nummer ein neutrales Platzhalter-Symbol, damit
+/// die Namen bündig bleiben.
+class _NrBadge extends StatelessWidget {
+  final String? standnummer;
+
+  const _NrBadge({required this.standnummer});
+
+  @override
+  Widget build(BuildContext context) {
+    final nr = standnummer?.trim() ?? '';
+    return Container(
+      constraints: const BoxConstraints(minWidth: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      alignment: Alignment.center,
+      child: nr.isEmpty
+          ? const Icon(Icons.storefront,
+              size: 14, color: AppColors.textSecondary)
+          : Text(
+              nr,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+    );
+  }
 }
 
 /// Einsätze-Tab: Liste der Pikett-Einsätze (neueste zuerst) mit Zeitpunkt,
@@ -1808,55 +1812,55 @@ class _KopfCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final notizen = event.notizen;
+    // Kompakt-Umbau (Daniel 11.08.2026, «halbe Höhe»): Der Event-Name stand
+    // doppelt — in der AppBar UND hier. Er fällt aus der Karte raus; übrig
+    // bleibt eine Zeile Termin · Ort · Status, Notizen ellipsiert darunter.
+    // So gewinnt die Liste Platz, ohne dass eine Information verschwindet.
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
+                const Icon(Icons.calendar_month,
+                    size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  _terminText(event),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500),
                 ),
+                if (ort != null && ort!.isNotEmpty) ...[
+                  const SizedBox(width: 10),
+                  const Icon(Icons.place,
+                      size: 14, color: AppColors.textSecondary),
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text(
+                      ort!,
+                      style: const TextStyle(fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+                const Spacer(),
                 _StatusBadge(event: event),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.calendar_month,
-                    size: 16, color: AppColors.textSecondary),
-                const SizedBox(width: 6),
-                Text(_terminText(event), style: const TextStyle(fontSize: 13)),
-              ],
-            ),
-            if (ort != null && ort!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.place,
-                      size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 6),
-                  Text(ort!, style: const TextStyle(fontSize: 13)),
-                ],
+            if (notizen != null && notizen.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  notizen,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
               ),
-            ],
-            if (notizen != null && notizen.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Divider(height: 1),
-              ),
-              Text(
-                notizen,
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary),
-              ),
-            ],
           ],
         ),
       ),
@@ -2247,20 +2251,20 @@ String? _einsatzMaterialText(EventEinsatzLocal e) {
 String _ddMMHHmm(DateTime d) =>
     '${_zwei(d.day)}.${_zwei(d.month)}. ${_zwei(d.hour)}:${_zwei(d.minute)}';
 
-/// Kompakte Standort-Kennung in der Stand-Übersicht (Daniel 11.08.2026):
-/// «gleich ersichtlich, ob und wie genau der Standort gesetzt ist» — ohne den
-/// Eintrag aufklappen zu müssen.
+/// Standort-Kennung eines Stands (Daniel 11.08.2026): «gleich ersichtlich,
+/// ob und wie genau der Standort gesetzt ist» — als einzelnes Icon, damit
+/// die Zeile flach bleibt (Kompakt-Umbau statt Pill-Chip):
 ///
-/// Zwei Angaben in einem Chip:
-///   Symbol = Herkunft   (Pinnadel = geplant, Fadenkreuz = im Feld gemessen)
-///   Farbe  = Genauigkeit (grün genau, orange mittel, rot ungefähr/keine)
+///   Form  = Herkunft    (Pinnadel geplant · Fadenkreuz gemessen ·
+///                        durchgestrichen keiner)
+///   Farbe = Genauigkeit (grün genau · orange mittel · rot ungefähr/keiner)
 ///
-/// Bewusst kein Text ausser der Stufe: Die Zeile trägt schon Standnummer und
-/// Inbetriebnahme-Fortschritt, und auf dem Handy ist der Platz knapp.
-class _StandortChip extends StatelessWidget {
+/// Der Klartext steht im Tooltip und im aufgeklappten Bereich der Karte.
+class _StandortIcon extends StatelessWidget {
   final EventStandLocal stand;
+  final double groesse;
 
-  const _StandortChip({required this.stand});
+  const _StandortIcon({required this.stand, this.groesse = 17});
 
   @override
   Widget build(BuildContext context) {
@@ -2275,42 +2279,17 @@ class _StandortChip extends StatelessWidget {
       _ => AppColors.textSecondary,
     };
 
-    final text = ohnePosition
-        ? 'kein Standort'
-        : genauigkeitText(stand.positionGenauigkeit);
-
     return Tooltip(
       message: ohnePosition
           ? 'Noch kein Standort erfasst'
           : '${gemessen ? 'Im Feld gemessen' : 'Auf der Karte geplant'} · '
               'Genauigkeit: ${genauigkeitText(stand.positionGenauigkeit)}',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: farbe.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              ohnePosition
-                  ? Icons.location_off
-                  : (gemessen ? Icons.gps_fixed : Icons.push_pin),
-              size: 12,
-              color: farbe,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: farbe,
-              ),
-            ),
-          ],
-        ),
+      child: Icon(
+        ohnePosition
+            ? Icons.location_off
+            : (gemessen ? Icons.gps_fixed : Icons.push_pin),
+        size: groesse,
+        color: farbe,
       ),
     );
   }
