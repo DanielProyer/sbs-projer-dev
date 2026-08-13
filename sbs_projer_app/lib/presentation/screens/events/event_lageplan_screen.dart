@@ -255,9 +255,14 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
           if (_bildUrl != null)
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: FilledButton(
-                onPressed: _speichert || _punkte.length < 2 ? null : _speichern,
-                child: Text(_speichert ? 'Speichert …' : 'Speichern'),
+              // GestureDetector statt FilledButton: Material-Buttons rendern
+              // auf manchen CanvasKit-Screens nicht zuverlässig (Vorfall
+              // 20.06.2026; erneut 13.08.2026 — genau dieser Speichern-Knopf
+              // reagierte am PC nicht).
+              child: _SpeichernKnopf(
+                aktiv: !_speichert && _punkte.length >= 2,
+                laeuft: _speichert,
+                onTap: _speichern,
               ),
             ),
         ],
@@ -353,10 +358,19 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
                   onTap: () => setState(() => _offenerBildPunkt = null),
                   child: const Icon(Icons.close, size: 16),
                 ),
-              if (g != null)
+              if (g != null) ...[
                 Text('Ø ${g.rmsMeter.toStringAsFixed(1)} m',
                     style: const TextStyle(
                         fontSize: 12.5, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 8),
+                // Zweiter Speichern-Zugang direkt bei der Erfolgsmeldung —
+                // unabhängig vom AppBar-Knopf.
+                _SpeichernKnopf(
+                  aktiv: !_speichert,
+                  laeuft: _speichert,
+                  onTap: _speichern,
+                ),
+              ],
             ],
           ),
           if (_punkte.isNotEmpty)
@@ -555,6 +569,57 @@ class _PunktChip extends StatelessWidget {
             child: const Icon(Icons.close, size: 13),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Speichern-Knopf als GestureDetector+Container — Material-Buttons sind auf
+/// manchen CanvasKit-Screens tot (Vorfall 20.06.2026, erneut 13.08.2026).
+class _SpeichernKnopf extends StatelessWidget {
+  final bool aktiv;
+  final bool laeuft;
+  final VoidCallback onTap;
+
+  const _SpeichernKnopf(
+      {required this.aktiv, required this.laeuft, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: aktiv ? onTap : null,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: aktiv || laeuft
+              ? AppColors.primary
+              : AppColors.textSecondary.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (laeuft)
+              const Padding(
+                padding: EdgeInsets.only(right: 6),
+                child: SizedBox(
+                  width: 13,
+                  height: 13,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                ),
+              ),
+            Text(
+              laeuft ? 'Speichert …' : 'Speichern',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
