@@ -50,9 +50,16 @@ class _MaterialBestellungScreenState
 
   List<Lager> _verbrauchLager = [];
   List<Lager> _reinigungLager = [];
+  List<Lager> _alleLager = [];
 
   List<_BestellPosition> _reinigungPositionen = [];
   List<_BestellPosition> _verbrauchPositionen = [];
+
+  /// Freie Auswahl unter den niedrigen Bestaenden (Daniel 11.08.2026): ein
+  /// Slot ueber ALLE Materialien, per «+ Position» erweiterbar. Die anderen
+  /// Sektionen sind auf ihre Kategorie beschraenkt oder rein automatisch —
+  /// hier laesst sich alles nachbestellen, was sonst durchs Raster faellt.
+  List<_BestellPosition> _freiePositionen = [];
   List<_BestellItem> _vorgemerktItems = [];
   List<_BestellItem> _niedrigItems = [];
 
@@ -66,7 +73,11 @@ class _MaterialBestellungScreenState
 
   @override
   void dispose() {
-    for (final p in [..._reinigungPositionen, ..._verbrauchPositionen]) {
+    for (final p in [
+      ..._reinigungPositionen,
+      ..._verbrauchPositionen,
+      ..._freiePositionen,
+    ]) {
       p.mengeController.dispose();
     }
     super.dispose();
@@ -123,6 +134,9 @@ class _MaterialBestellungScreenState
           _kategorieNames = kategorieNames;
           _reinigungPositionen = [_BestellPosition(), _BestellPosition()];
           _verbrauchPositionen = [_BestellPosition(), _BestellPosition()];
+          _freiePositionen = [_BestellPosition()];
+          _alleLager = alleLager.toList()
+            ..sort((a, b) => a.name.compareTo(b.name));
           _vorgemerktItems = vorgemerkt;
           _niedrigItems = niedrig;
           _empfaengerName = kontakt != null
@@ -153,6 +167,12 @@ class _MaterialBestellungScreenState
       }
     }
     for (final p in _verbrauchPositionen) {
+      if (p.lager != null) {
+        usedIds.add(p.lager!.id);
+        entries.add(_SelectedEntry(lager: p.lager!, menge: p.menge));
+      }
+    }
+    for (final p in _freiePositionen) {
       if (p.lager != null) {
         usedIds.add(p.lager!.id);
         entries.add(_SelectedEntry(lager: p.lager!, menge: p.menge));
@@ -400,6 +420,20 @@ class _MaterialBestellungScreenState
             ],
           ],
 
+          // 5. Freie Auswahl (Daniel 11.08.2026): ein Slot über ALLE
+          // Materialien, per «+ Position» erweiterbar. Die Sektionen darüber
+          // sind entweder auf eine Kategorie beschränkt oder rein automatisch
+          // — was dort durchs Raster fällt, lässt sich hier nachtragen.
+          const SizedBox(height: 16),
+          _buildDropdownSektion(
+            'Weitere Artikel',
+            _alleLager,
+            _freiePositionen,
+            onAdd: () =>
+                setState(() => _freiePositionen.add(_BestellPosition())),
+            minPositionen: 1,
+          ),
+
           const SizedBox(height: 24),
 
           if (selectedCount > 0)
@@ -458,11 +492,15 @@ class _MaterialBestellungScreenState
 
   // --- Dropdown-Sektion (Reinigung / Verbrauch) ---
 
+  /// [minPositionen]: So viele Zeilen bleiben immer stehen — erst darüber
+  /// erscheint das Entfernen-Kreuz. Die Kategorie-Sektionen starten mit zwei
+  /// Zeilen, die freie Auswahl mit einer.
   Widget _buildDropdownSektion(
     String title,
     List<Lager> verfuegbar,
     List<_BestellPosition> positionen, {
     required VoidCallback onAdd,
+    int minPositionen = 2,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,7 +537,7 @@ class _MaterialBestellungScreenState
           return _buildPositionRow(
             positionen[index],
             verfuegbar.where((l) => !already.contains(l.id)).toList(),
-            onRemove: positionen.length > 2
+            onRemove: positionen.length > minPositionen
                 ? () {
                     positionen[index].mengeController.dispose();
                     setState(() => positionen.removeAt(index));
