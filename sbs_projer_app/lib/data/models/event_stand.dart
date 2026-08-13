@@ -11,6 +11,11 @@ class EventStand {
   final String? notizen;
   final double? latitude;
   final double? longitude;
+
+  /// 'karte' = am PC geplant, 'gps' = im Feld gemessen (siehe
+  /// core/util/stand_position.dart). null = keine Position erfasst.
+  final String? positionQuelle;
+  final DateTime? positionErfasstAm;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -24,6 +29,8 @@ class EventStand {
     this.notizen,
     this.latitude,
     this.longitude,
+    this.positionQuelle,
+    this.positionErfasstAm,
     this.createdAt,
     this.updatedAt,
   });
@@ -39,6 +46,10 @@ class EventStand {
       notizen: json['notizen'],
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      positionQuelle: json['position_quelle'],
+      positionErfasstAm: json['position_erfasst_am'] != null
+          ? DateTime.parse(json['position_erfasst_am'])
+          : null,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -55,6 +66,8 @@ class EventStand {
       'notizen': notizen,
       'latitude': latitude,
       'longitude': longitude,
+      'position_quelle': positionQuelle,
+      'position_erfasst_am': positionErfasstAm?.toIso8601String(),
     };
   }
 

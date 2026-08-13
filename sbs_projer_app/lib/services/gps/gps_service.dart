@@ -51,7 +51,13 @@ class GpsService {
       try {
         final p = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.best,
+            // Höchste Stufe, die geolocator kennt (Daniel 11.08.2026).
+            // Auf Android schaltet sie den GNSS-Empfänger dauerhaft scharf
+            // statt nur kurz anzufragen; im Browser mappt sie — wie `best` —
+            // auf `enableHighAccuracy: true`, dort ändert sich also nichts.
+            // Der Gewinn liegt beim Handy im Feld, und genau darauf kommt es
+            // beim Stand-Abgleich an.
+            accuracy: LocationAccuracy.bestForNavigation,
             timeLimit: Duration(seconds: 6),
           ),
         );

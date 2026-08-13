@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:uuid/uuid.dart';
+import 'package:sbs_projer_app/core/util/stand_position.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_stand.dart';
@@ -71,11 +72,22 @@ class EventStandRepository {
 
   /// Übernimmt Stände (inkl. Anlagen) aus dem Vorjahres-Event [vonEventId]
   /// in [zuEventId]. Rückgabe: Anzahl übernommener Stände.
+  ///
+  /// Die **Position wandert mit** (Entscheid Daniel 11.08.2026: der gemessene
+  /// Standort gilt und ist im Folgejahr die Vorlage), zählt dort aber wieder
+  /// als *geplant* — gemessen ist sie im neuen Jahr ja nicht. So kommt beim
+  /// «Standort erfassen» vor Ort die Rückfrage mit dem Abstand, und eine
+  /// Standverschiebung fällt sofort auf.
+  ///
+  /// **Nicht** übernommen wird der Inbetriebnahme-Status: `inBetrieb` ist
+  /// jahresspezifisch — vorher kopierte ihn diese Methode mit, wodurch ein
+  /// frisch angelegtes Event-Jahr sofort als vollständig in Betrieb galt.
   static Future<int> uebernehmeVon(String vonEventId, String zuEventId) async {
     final quelle = await getByEvent(vonEventId);
     final ziel = await getByEvent(zuEventId);
     final neu = fehlendeStaende(quelle, ziel);
     for (final q in neu) {
+      final hatPosition = q.latitude != null && q.longitude != null;
       final s = EventStandLocal()
         ..eventId = zuEventId
         ..name = q.name
@@ -83,9 +95,11 @@ class EventStandRepository {
         ..sortierung = q.sortierung
         ..notizen = q.notizen
         ..latitude = q.latitude
-        ..longitude = q.longitude;
+        ..longitude = q.longitude
+        ..positionQuelle = hatPosition ? quelleKarte : null
+        ..positionErfasstAm = hatPosition ? DateTime.now() : null;
       await save(s);
-      // Anlagen des Quell-Stands kopieren.
+      // Anlagen des Quell-Stands kopieren — ohne Inbetriebnahme-Status.
       final quellAnlagen =
           await EventStandAnlageRepository.getByStand(q.serverId!);
       for (final qa in quellAnlagen) {
@@ -94,8 +108,8 @@ class EventStandRepository {
           ..typ = qa.typ
           ..anzahl = qa.anzahl
           ..sortierung = qa.sortierung
-          ..inBetrieb = qa.inBetrieb
-          ..inBetriebAm = qa.inBetriebAm;
+          ..inBetrieb = false
+          ..inBetriebAm = null;
         await EventStandAnlageRepository.save(a);
       }
     }

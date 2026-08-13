@@ -18,6 +18,8 @@ class EventStandLocal {
   String? notizen;
   double? latitude;
   double? longitude;
+  String? positionQuelle;
+  DateTime? positionErfasstAm;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

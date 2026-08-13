@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/stand_position.dart';
+import 'package:sbs_projer_app/presentation/screens/events/stand_position_dialog.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_aufwand_slots.dart';
 import 'package:sbs_projer_app/core/util/event_mail_empfaenger.dart';
@@ -87,12 +89,24 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       }
       final n = await EventKontaktRepository.uebernehmeVon(
           vorjahr.serverId!, event.serverId!);
+      // Stände inkl. Position mitnehmen (Daniel 11.08.2026) — die Methode gab
+      // es schon, sie wurde hier nur nie aufgerufen. Positionen gelten im
+      // neuen Jahr als geplant, der Inbetriebnahme-Status startet bei null.
+      final nStaende = await EventStandRepository.uebernehmeVon(
+          vorjahr.serverId!, event.serverId!);
       ref.invalidate(eventKontakteProvider(event.serverId!));
+      ref.invalidate(eventStaendeProvider(event.serverId!));
       if (mounted) {
+        final teile = <String>[
+          if (n > 0) n == 1 ? '1 Kontakt' : '$n Kontakte',
+          if (nStaende > 0) nStaende == 1 ? '1 Stand' : '$nStaende Stände',
+        ];
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  n == 1 ? '1 Kontakt übernommen' : '$n Kontakte übernommen')),
+            content: Text(teile.isEmpty
+                ? 'Nichts zu übernehmen — alles schon vorhanden'
+                : '${teile.join(' und ')} übernommen'),
+          ),
         );
       }
     } catch (e) {
@@ -973,6 +987,16 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                 return EventStaendeMap(
                   staende: staende,
                   onStandTap: (s) => _standBearbeiten(s),
+                  // Planung am PC: Position per Tap auf die Karte setzen.
+                  onPositionSetzen: (stand, punkt) async {
+                    stand
+                      ..latitude = punkt.latitude
+                      ..longitude = punkt.longitude
+                      ..positionQuelle = quelleKarte
+                      ..positionErfasstAm = DateTime.now();
+                    await EventStandRepository.save(stand);
+                    ref.invalidate(eventStaendeProvider(stand.eventId));
+                  },
                 );
               }
               if (staende.isEmpty) {
@@ -1024,18 +1048,51 @@ class _StandCard extends ConsumerWidget {
   });
 
   /// Erfasst die aktuelle GPS-Position und speichert sie am Stand.
+  ///
+  /// Existiert bereits eine Position (am PC geplant oder früher gemessen),
+  /// kommt zuerst die Rückfrage mit Kartenanzeige und Abstand — überschrieben
+  /// wird nie stillschweigend (Daniel 11.08.2026). Nach der Übernahme gilt der
+  /// gemessene Standort als Realität und wandert auch ins Folgejahr.
   Future<void> _standortErfassen(
       BuildContext context, WidgetRef ref, EventStandLocal stand) async {
     try {
       final pos = await GpsService.aktuellePosition();
+      final abgleich = positionsAbgleich(
+        bisherLat: stand.latitude,
+        bisherLng: stand.longitude,
+        bisherQuelle: stand.positionQuelle,
+        neuLat: pos.latitude,
+        neuLng: pos.longitude,
+      );
+
+      if (abgleich.brauchtRueckfrage) {
+        if (!context.mounted) return;
+        final uebernehmen = await zeigeStandPositionDialog(
+          context,
+          standName: stand.name,
+          bisherLat: stand.latitude!,
+          bisherLng: stand.longitude!,
+          neuLat: pos.latitude,
+          neuLng: pos.longitude,
+          distanzMeter: abgleich.distanzMeter!,
+          bisherWarGeplant: abgleich.bisherWarGeplant,
+        );
+        if (!uebernehmen) return;
+      }
+
       stand
         ..latitude = pos.latitude
-        ..longitude = pos.longitude;
+        ..longitude = pos.longitude
+        ..positionQuelle = quelleGps
+        ..positionErfasstAm = DateTime.now();
       await EventStandRepository.save(stand);
       ref.invalidate(eventStaendeProvider(stand.eventId));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('📍 Standort erfasst')),
+          SnackBar(
+            content: Text('📍 Standort gemessen '
+                '(±${pos.accuracy.round()} m)'),
+          ),
         );
       }
     } catch (e) {
