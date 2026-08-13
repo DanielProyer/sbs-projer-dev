@@ -1,6 +1,11 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.08.2026 · **Live:** v0.80.0
+**Stand:** 13.08.2026 · **Live:** v0.81.0
+
+## 🟢 ERLEDIGT 13.08. (v0.81.0): Kompakte Stand-Übersicht + flacher Event-Kopf
+
+**Design-Auftrag Daniel** (auf Fable): Stände professioneller/flacher, Event-Kopf halbe Höhe. Umsetzung: Event-Name raus aus der Kopfkarte (stand doppelt — AppBar direkt darüber), eine Zeile Termin·Ort·Status; Stand-Zeilen mit Nummern-Badge als scanbare Spalte links, Standort als Icon (Form=Herkunft, Farbe=Genauigkeit), Fortschritt als «2/3», Untertitel einzeilig; Bearbeiten/Löschen aus der Zeile in den aufgeklappten Bereich (die zwei 48-px-IconButtons waren der grösste Höhenfresser). ~⅓ weniger Höhe pro Zeile, ~4 Stände mehr sichtbar. 1061 Tests grün.
+- [ ] ⚠️ **Screen-Umbau ungetestet** — Klicktest Daniel am Handy vor dem Churerfest (14.08.): Stände-Tab, Aufklappen, Bearbeiten/Löschen im aufgeklappten Bereich, Tooltip/Farben der Standort-Icons.
 
 ## 🟢 ERLEDIGT 11.08. (v0.79.0/v0.80.0): Freie Auswahl bei Materialbestellung + Standort-Kennung
 
