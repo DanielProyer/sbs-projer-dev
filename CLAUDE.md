@@ -123,6 +123,26 @@ ein nacktes `pw.Document()` steht. Tests, die PDF-Services aufrufen, brauchen
 `TestWidgetsFlutterBinding.ensureInitialized()` (die Schrift kommt aus dem
 rootBundle).
 
+## CanvasKit-Render-Falle: kritische UI nie aus Material-Komfort-Widgets
+
+Auf dem produktiv genutzten CanvasKit-Web rendern manche Material-Widgets
+nicht oder reagieren nicht — drei bestätigte Vorfälle:
+`FilledButton`/`OutlinedButton` unsichtbar (20.06.2026, camt-Bestätigen),
+`FilledButton` in der AppBar ohne Klick-Reaktion (13.08.2026,
+Lageplan-Speichern) und `ExpansionTile` mit `dense: true`, das title/subtitle
+gar nicht zeichnete (13.08.2026, Stand-Übersicht — drei Deploy-Runden lang
+unbemerkt, weil jede Nachbesserung im unsichtbaren Bereich landete).
+
+**Regeln:**
+- Kritische Aktionen und Listenzeilen aus `GestureDetector`/`InkWell` +
+  `Container` + `Row`/`Column` bauen (Vorbilder: `ArbeitBeendenKnopf`,
+  `_StandCard`). `flutter analyze` und Tests fangen das NICHT.
+- `ExpansionTile` mit `dense: true` ist verboten —
+  `test/canvaskit_sichere_widgets_test.dart` bricht ab.
+- Meldet der Nutzer «sehe X nicht», obwohl der Code X rendert: **zuerst
+  Screenshot anfordern**, nicht am Code raten — ein Screenshot ersetzte am
+  13.08. drei Blind-Iterationen.
+
 ## Kritisches Architektur-Pattern: Conditional Exports (Isar ↔ Web)
 
 Jede gesynkte Entity hat 3 Dateien:
