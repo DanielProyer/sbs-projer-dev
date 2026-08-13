@@ -45,3 +45,6 @@ MX53D_*.xml
 
 # Lokale Secrets fuer Import-Skripte (NIE committen)
 Datenbank/import/.env
+
+# Office-Sperrdateien (entstehen, solange eine Datei offen ist)
+~$*

@@ -29,6 +29,7 @@ class EventStandLocal {
   double? longitude;
   String? positionQuelle;
   DateTime? positionErfasstAm;
+  String? positionGenauigkeit;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

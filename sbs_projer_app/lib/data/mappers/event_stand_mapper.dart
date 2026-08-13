@@ -15,6 +15,7 @@ class EventStandMapper {
     local.longitude = dto.longitude;
     local.positionQuelle = dto.positionQuelle;
     local.positionErfasstAm = dto.positionErfasstAm;
+    local.positionGenauigkeit = dto.positionGenauigkeit;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -34,6 +35,7 @@ class EventStandMapper {
       'longitude': local.longitude,
       'position_quelle': local.positionQuelle,
       'position_erfasst_am': local.positionErfasstAm?.toIso8601String(),
+      'position_genauigkeit': local.positionGenauigkeit,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

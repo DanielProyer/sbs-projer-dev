@@ -993,7 +993,11 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                       ..latitude = punkt.latitude
                       ..longitude = punkt.longitude
                       ..positionQuelle = quelleKarte
-                      ..positionErfasstAm = DateTime.now();
+                      ..positionErfasstAm = DateTime.now()
+                      // Auf der Karte gesetzt heisst: Standbereich stimmt,
+                      // die genaue Ecke nicht zwingend. Im Formular
+                      // änderbar.
+                      ..positionGenauigkeit ??= genauMittel;
                     await EventStandRepository.save(stand);
                     ref.invalidate(eventStaendeProvider(stand.eventId));
                   },
@@ -1084,7 +1088,10 @@ class _StandCard extends ConsumerWidget {
         ..latitude = pos.latitude
         ..longitude = pos.longitude
         ..positionQuelle = quelleGps
-        ..positionErfasstAm = DateTime.now();
+        ..positionErfasstAm = DateTime.now()
+        // Stufe aus der gemeldeten Messgenauigkeit — bei GPS muss sie
+        // niemand von Hand einschätzen.
+        ..positionGenauigkeit = genauigkeitAusMessung(pos.accuracy);
       await EventStandRepository.save(stand);
       ref.invalidate(eventStaendeProvider(stand.eventId));
       if (context.mounted) {
@@ -1241,12 +1248,22 @@ class _StandCard extends ConsumerWidget {
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.place,
-                          size: 16, color: AppColors.success),
+                      Icon(
+                        stand.positionQuelle == quelleGps
+                            ? Icons.gps_fixed
+                            : Icons.push_pin,
+                        size: 16,
+                        color: stand.positionQuelle == quelleGps
+                            ? AppColors.success
+                            : AppColors.info,
+                      ),
                       const SizedBox(width: 6),
-                      const Text(
-                        'Standort erfasst',
-                        style: TextStyle(
+                      // Herkunft und Verlässlichkeit auf einen Blick — im
+                      // Feld die Frage «kann ich mich darauf verlassen?».
+                      Text(
+                        '${stand.positionQuelle == quelleGps ? 'Gemessen' : 'Geplant'}'
+                        ' · ${genauigkeitText(stand.positionGenauigkeit)}',
+                        style: const TextStyle(
                             fontSize: 13, color: AppColors.textSecondary),
                       ),
                       const SizedBox(width: 8),

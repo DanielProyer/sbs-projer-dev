@@ -16,6 +16,9 @@ class EventStand {
   /// core/util/stand_position.dart). null = keine Position erfasst.
   final String? positionQuelle;
   final DateTime? positionErfasstAm;
+
+  /// 'genau' | 'mittel' | 'ungefaehr' (siehe core/util/stand_position.dart).
+  final String? positionGenauigkeit;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -31,6 +34,7 @@ class EventStand {
     this.longitude,
     this.positionQuelle,
     this.positionErfasstAm,
+    this.positionGenauigkeit,
     this.createdAt,
     this.updatedAt,
   });
@@ -50,6 +54,7 @@ class EventStand {
       positionErfasstAm: json['position_erfasst_am'] != null
           ? DateTime.parse(json['position_erfasst_am'])
           : null,
+      positionGenauigkeit: json['position_genauigkeit'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -68,6 +73,7 @@ class EventStand {
       'longitude': longitude,
       'position_quelle': positionQuelle,
       'position_erfasst_am': positionErfasstAm?.toIso8601String(),
+      'position_genauigkeit': positionGenauigkeit,
     };
   }
 

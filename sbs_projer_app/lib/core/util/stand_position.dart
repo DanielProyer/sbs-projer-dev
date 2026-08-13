@@ -14,6 +14,36 @@ import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 const String quelleKarte = 'karte';
 const String quelleGps = 'gps';
 
+/// Verlässlichkeit der Position (Migration 169).
+const String genauGenau = 'genau';
+const String genauMittel = 'mittel';
+const String genauUngefaehr = 'ungefaehr';
+
+const List<String> alleGenauigkeiten = [
+  genauGenau,
+  genauMittel,
+  genauUngefaehr,
+];
+
+/// Beschriftung für Auswahl und Anzeige.
+String genauigkeitText(String? wert) => switch (wert) {
+      genauGenau => 'genau',
+      genauMittel => 'mittel',
+      genauUngefaehr => 'ungefähr',
+      _ => 'nicht angegeben',
+    };
+
+/// Genauigkeitsstufe aus der vom GPS gemeldeten Messgenauigkeit in Metern.
+///
+/// Die Schwellen sind bewusst grob: Ein Stand ist mehrere Meter breit, und
+/// die Browser-Geolocation liefert selbst bei gutem Empfang selten unter 5 m.
+String genauigkeitAusMessung(double? meter) {
+  if (meter == null || meter <= 0) return genauMittel;
+  if (meter <= 10) return genauGenau;
+  if (meter <= 50) return genauMittel;
+  return genauUngefaehr;
+}
+
 typedef PositionsAbgleich = ({
   /// Rückfrage nötig? Nur wenn schon eine vollständige Position existiert.
   bool brauchtRueckfrage,

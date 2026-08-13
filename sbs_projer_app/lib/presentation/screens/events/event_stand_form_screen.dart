@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/util/koordinaten_parser.dart';
+import 'package:sbs_projer_app/core/util/stand_position.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
@@ -34,6 +36,11 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
   final _nameController = TextEditingController();
   final _standnummerController = TextEditingController();
   final _notizenController = TextEditingController();
+
+  /// Koordinaten als Text — direkt aus Google Maps einfügbar
+  /// («46.849994916702336, 9.532274794958706») oder von Hand getippt.
+  final _koordinatenController = TextEditingController();
+  String? _genauigkeit;
 
   // Dynamische Anlagen-Zeilen (Parallel-Arrays). [_zeilenKeys] hält den
   // Widget-State (z. B. Anzahl-Feld) beim Entfernen einer Zeile stabil.
@@ -72,6 +79,11 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
         _nameController.text = stand.name;
         _standnummerController.text = stand.standnummer ?? '';
         _notizenController.text = stand.notizen ?? '';
+        if (stand.latitude != null && stand.longitude != null) {
+          _koordinatenController.text =
+              koordinatenText(stand.latitude!, stand.longitude!);
+        }
+        _genauigkeit = stand.positionGenauigkeit;
         for (final a in anlagen) {
           _typen.add(a.typ);
           _anzahl.add(a.anzahl);
@@ -117,6 +129,36 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
       stand.standnummer = standnummer.isEmpty ? null : standnummer;
       final notizen = _notizenController.text.trim();
       stand.notizen = notizen.isEmpty ? null : notizen;
+
+      // Koordinaten aus dem Textfeld (Google-Maps-Format oder getippt).
+      // Leeres Feld löscht die Position; die Gültigkeit prüft der Validator,
+      // hier kann also nur noch «leer» oder «gültig» ankommen.
+      final roh = _koordinatenController.text.trim();
+      if (roh.isEmpty) {
+        stand
+          ..latitude = null
+          ..longitude = null
+          ..positionQuelle = null
+          ..positionErfasstAm = null
+          ..positionGenauigkeit = null;
+      } else {
+        final k = koordinatenAus(roh);
+        if (k != null) {
+          final geaendert =
+              stand.latitude != k.lat || stand.longitude != k.lng;
+          stand
+            ..latitude = k.lat
+            ..longitude = k.lng
+            ..positionGenauigkeit = _genauigkeit;
+          if (geaendert) {
+            // Von Hand gesetzt zählt wie auf der Karte gesetzt: geplant,
+            // nicht gemessen — vor Ort kommt dann die Rückfrage.
+            stand
+              ..positionQuelle = quelleKarte
+              ..positionErfasstAm = DateTime.now();
+          }
+        }
+      }
       await EventStandRepository.save(stand);
 
       // Anlagen id-basiert abgleichen (Reihenfolge = Zeilen-Reihenfolge,
@@ -152,6 +194,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
     _nameController.dispose();
     _standnummerController.dispose();
     _notizenController.dispose();
+    _koordinatenController.dispose();
     super.dispose();
   }
 
@@ -193,6 +236,47 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
                 prefixIcon: Icon(Icons.tag),
               ),
               textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 24),
+
+            // === Position ===
+            // Direkte Koordinaten-Eingabe (Daniel 11.08.2026): In Google Maps
+            // Rechtsklick auf den Punkt → die Koordinaten stehen zuoberst im
+            // Menü und lassen sich mit einem Klick kopieren. Eine ganze
+            // Standliste ist so schneller erfasst als über die Karte.
+            _sectionTitle(context, 'Position'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _koordinatenController,
+              decoration: const InputDecoration(
+                labelText: 'Koordinaten',
+                hintText: '46.849994916702336, 9.532274794958706',
+                helperText: 'Aus Google Maps einfügen · leer = keine Position',
+                helperMaxLines: 2,
+                prefixIcon: Icon(Icons.my_location),
+              ),
+              textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
+              validator: (v) {
+                final t = (v ?? '').trim();
+                if (t.isEmpty) return null;
+                final k = koordinatenAus(t);
+                if (k == null) {
+                  return 'Nicht lesbar — erwartet: 46.8500, 9.5323';
+                }
+                if (!istInDerSchweiz(k.lat, k.lng)) {
+                  // Warnung, keine Sperre: Anlässe ausserhalb der Schweiz sind
+                  // denkbar, vertauschte Werte aber viel wahrscheinlicher.
+                  return 'Ausserhalb der Schweiz — Breite und Länge vertauscht?';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            _GenauigkeitAuswahl(
+              wert: _genauigkeit,
+              aktiv: _koordinatenController.text.trim().isNotEmpty,
+              onChanged: (v) => setState(() => _genauigkeit = v),
             ),
             const SizedBox(height: 24),
 
@@ -315,6 +399,56 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w600,
           ),
+    );
+  }
+}
+
+/// Auswahl der Positions-Genauigkeit (genau / mittel / ungefähr).
+///
+/// Wozu (Daniel 11.08.2026): Am Schreibtisch gesetzte Koordinaten sind nicht
+/// gleich verlässlich — mal ist der Standplatz metergenau bekannt, mal nur
+/// die Ecke des Platzes. Die Stufe sagt dem Monteur im Feld, worauf er sich
+/// verlassen kann. Bei einer GPS-Messung setzt die App sie selbst aus der
+/// gemeldeten Messgenauigkeit.
+class _GenauigkeitAuswahl extends StatelessWidget {
+  final String? wert;
+  final bool aktiv;
+  final ValueChanged<String?> onChanged;
+
+  const _GenauigkeitAuswahl({
+    required this.wert,
+    required this.aktiv,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: aktiv ? 1 : 0.45,
+      child: IgnorePointer(
+        ignoring: !aktiv,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Genauigkeit',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final g in alleGenauigkeiten)
+                  ChoiceChip(
+                    label: Text(genauigkeitText(g)),
+                    selected: wert == g,
+                    onSelected: (s) => onChanged(s ? g : null),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
