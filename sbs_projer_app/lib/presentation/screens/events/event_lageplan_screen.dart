@@ -200,6 +200,57 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
     });
   }
 
+  /// Lageplan samt Referenzierung vom Event lösen und die Datei aus dem
+  /// Storage räumen (Wunsch Daniel 13.08.2026 — vorher gab es keinen Weg,
+  /// einen falschen Plan wieder loszuwerden).
+  Future<void> _lageplanEntfernen() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Lageplan entfernen?'),
+        content: const Text(
+            'Bild und alle Passpunkte werden gelöscht. Die Stand-Positionen '
+            'bleiben unverändert.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Entfernen')),
+        ],
+      ),
+    );
+    if (ok != true || _event == null) return;
+    try {
+      final pfad = _event!.lageplanPfad;
+      _event!
+        ..lageplanPfad = null
+        ..lageplanPunkteJson = null;
+      await EventRepository.save(_event!);
+      // Storage erst nach dem Datensatz — ein Fehler dort lässt höchstens
+      // eine Waisen-Datei zurück, nie einen kaputten Verweis.
+      if (pfad != null) await EventDokumentStorage.delete(pfad);
+      ref.invalidate(eventByIdProvider(widget.eventId));
+      if (mounted) {
+        setState(() {
+          _bildUrl = null;
+          _bildBreite = null;
+          _bildHoehe = null;
+          _punkte.clear();
+          _offenerBildPunkt = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Lageplan entfernt')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      }
+    }
+  }
+
   Future<void> _speichern() async {
     if (_event == null || _bildBreite == null) return;
     setState(() => _speichert = true);
@@ -251,6 +302,12 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
               tooltip: 'Anderes Bild hochladen',
               icon: const Icon(Icons.upload_file),
               onPressed: _bildHochladen,
+            ),
+          if (_bildUrl != null)
+            IconButton(
+              tooltip: 'Lageplan entfernen',
+              icon: const Icon(Icons.delete_outline, color: AppColors.error),
+              onPressed: _lageplanEntfernen,
             ),
           if (_bildUrl != null)
             Padding(
@@ -358,19 +415,10 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
                   onTap: () => setState(() => _offenerBildPunkt = null),
                   child: const Icon(Icons.close, size: 16),
                 ),
-              if (g != null) ...[
+              if (g != null)
                 Text('Ø ${g.rmsMeter.toStringAsFixed(1)} m',
                     style: const TextStyle(
                         fontSize: 12.5, fontWeight: FontWeight.w700)),
-                const SizedBox(width: 8),
-                // Zweiter Speichern-Zugang direkt bei der Erfolgsmeldung —
-                // unabhängig vom AppBar-Knopf.
-                _SpeichernKnopf(
-                  aktiv: !_speichert,
-                  laeuft: _speichert,
-                  onTap: _speichern,
-                ),
-              ],
             ],
           ),
           if (_punkte.isNotEmpty)
