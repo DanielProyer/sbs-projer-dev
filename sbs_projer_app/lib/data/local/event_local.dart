@@ -24,6 +24,9 @@ class EventLocal {
   DateTime? terminVon;
   DateTime? terminBis;
   String? notizen;
+  String? lageplanPfad;
+  // JSON-String (Isar kann keine Maps) -- Web-Stub identisch.
+  String? lageplanPunkteJson;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

@@ -16,6 +16,8 @@ class EventLocal {
   DateTime? terminVon;
   DateTime? terminBis;
   String? notizen;
+  String? lageplanPfad;
+  String? lageplanPunkteJson;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

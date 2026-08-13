@@ -63,6 +63,7 @@ import 'package:sbs_projer_app/presentation/screens/kontakte/kontakt_form_screen
 import 'package:sbs_projer_app/presentation/screens/events/events_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_detail_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_lageplan_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/einstellungen_screen.dart';
@@ -615,6 +616,11 @@ final router = GoRouter(
       path: '/events/:id/bearbeiten',
       builder: (context, state) =>
           EventFormScreen(eventId: state.pathParameters['id']),
+    ),
+    GoRoute(
+      path: '/events/:id/lageplan',
+      builder: (context, state) =>
+          EventLageplanScreen(eventId: state.pathParameters['id']!),
     ),
 
     // Bergkundenpauschalen

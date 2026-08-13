@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/models/event.dart';
 
@@ -11,6 +13,9 @@ class EventMapper {
     local.terminVon = dto.terminVon;
     local.terminBis = dto.terminBis;
     local.notizen = dto.notizen;
+    local.lageplanPfad = dto.lageplanPfad;
+    local.lageplanPunkteJson =
+        dto.lageplanPunkte == null ? null : jsonEncode(dto.lageplanPunkte);
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -26,6 +31,10 @@ class EventMapper {
       'termin_von': local.terminVon?.toIso8601String().split('T').first,
       'termin_bis': local.terminBis?.toIso8601String().split('T').first,
       'notizen': local.notizen,
+      'lageplan_pfad': local.lageplanPfad,
+      'lageplan_punkte': local.lageplanPunkteJson == null
+          ? null
+          : jsonDecode(local.lageplanPunkteJson!),
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

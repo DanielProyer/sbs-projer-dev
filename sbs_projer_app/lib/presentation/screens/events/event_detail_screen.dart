@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/georeferenz.dart';
 import 'package:sbs_projer_app/core/util/stand_position.dart';
 import 'package:sbs_projer_app/presentation/screens/events/stand_position_dialog.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -852,6 +855,63 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
 
   EventLocal get event => widget.event;
 
+  // Signierte URL des Lageplan-Bilds — gecacht pro Pfad, sonst würde jeder
+  // setState (z. B. beim Positionieren) eine neue URL ziehen und das Overlay
+  // flackerte durch Neuladen.
+  String? _lageplanUrl;
+  String? _lageplanUrlPfad;
+
+  @override
+  void initState() {
+    super.initState();
+    _lageplanUrlLaden();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StaendeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _lageplanUrlLaden();
+  }
+
+  void _lageplanUrlLaden() {
+    final pfad = event.lageplanPfad;
+    if (pfad == _lageplanUrlPfad) return;
+    _lageplanUrlPfad = pfad;
+    _lageplanUrl = null;
+    if (pfad == null) return;
+    EventDokumentStorage.getSignedUrl(pfad).then((url) {
+      if (mounted && _lageplanUrlPfad == pfad) {
+        setState(() => _lageplanUrl = url);
+      }
+    }).catchError((_) {});
+  }
+
+  /// Overlay-Daten aus den gespeicherten Passpunkten — null, solange kein
+  /// Bild, keine URL oder weniger als zwei Punkte vorliegen.
+  LageplanOverlay? get _lageplanOverlay {
+    final url = _lageplanUrl;
+    final json = event.lageplanPunkteJson;
+    if (url == null || json == null) return null;
+    try {
+      final m = jsonDecode(json) as Map<String, dynamic>;
+      final b = (m['bildBreite'] as num?)?.toDouble();
+      final h = (m['bildHoehe'] as num?)?.toDouble();
+      final punkte = passpunkteAusJson(m['punkte'] as List? ?? []);
+      if (b == null || h == null || punkte.length < 2) return null;
+      final g = Georeferenz.berechne(punkte);
+      if (g == null) return null;
+      final e = g.ecken(b, h);
+      return (
+        url: url,
+        topLeft: LatLng(e.topLeft.lat, e.topLeft.lng),
+        bottomLeft: LatLng(e.bottomLeft.lat, e.bottomLeft.lng),
+        bottomRight: LatLng(e.bottomRight.lat, e.bottomRight.lng),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Übernimmt die Stände (inkl. Anlagen) aus dem Vorjahres-Event.
   Future<void> _ausVorjahrUebernehmen() async {
     try {
@@ -970,11 +1030,26 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                 ),
               ),
               const Spacer(),
-              TextButton.icon(
-                icon: const Icon(Icons.history, size: 18),
-                label: const Text('Aus Vorjahr übernehmen'),
-                onPressed: _ausVorjahrUebernehmen,
-              ),
+              // Im Karten-Modus zählt der Lageplan, in der Liste die
+              // Vorjahres-Übernahme — beide zusammen sprengen die Zeile
+              // auf dem Handy.
+              if (_karte)
+                TextButton.icon(
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: const Text('Lageplan'),
+                  onPressed: () async {
+                    await context.push('/events/${event.routeId}/lageplan');
+                    // Screen invalidiert eventByIdProvider; URL-Cache neu
+                    // prüfen, sobald das frische Event durchgereicht ist.
+                    if (mounted) _lageplanUrlLaden();
+                  },
+                )
+              else
+                TextButton.icon(
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('Aus Vorjahr übernehmen'),
+                  onPressed: _ausVorjahrUebernehmen,
+                ),
             ],
           ),
         ),
@@ -987,6 +1062,7 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                 return EventStaendeMap(
                   staende: staende,
                   onStandTap: (s) => _standBearbeiten(s),
+                  lageplan: _lageplanOverlay,
                   // Planung am PC: Position per Tap auf die Karte setzen.
                   onPositionSetzen: (stand, punkt) async {
                     stand

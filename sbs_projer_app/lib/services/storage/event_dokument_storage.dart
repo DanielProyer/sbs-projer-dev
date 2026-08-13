@@ -21,6 +21,26 @@ class EventDokumentStorage {
     return pfad;
   }
 
+  /// Lädt ein Lageplan-Bild (JPG/PNG/WebP) hoch — gleicher Bucket wie die
+  /// PDFs, aber mit Bild-ContentType, sonst zeigt der Browser die signierte
+  /// URL als Download statt als Bild an.
+  static Future<String> uploadBild(
+      String eventId, Uint8List bytes, String endung) async {
+    final ext = endung.toLowerCase() == 'jpeg' ? 'jpg' : endung.toLowerCase();
+    final contentType = switch (ext) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => 'image/jpeg',
+    };
+    final pfad = '$_userId/$eventId/${const Uuid().v4()}.$ext';
+    await SupabaseService.client.storage.from(_bucket).uploadBinary(
+          pfad,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
+    return pfad;
+  }
+
   /// Signierte URL (1h gültig) zum Öffnen im PDF-Viewer.
   static Future<String> getSignedUrl(String pfad) =>
       SupabaseService.client.storage.from(_bucket).createSignedUrl(pfad, 3600);

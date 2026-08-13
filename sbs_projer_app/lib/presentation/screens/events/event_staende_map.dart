@@ -18,6 +18,15 @@ import 'package:sbs_projer_app/services/gps/gps_service.dart';
 /// die Planung vor dem Anlass, ohne GPS und ohne vor Ort zu sein. Im Feld
 /// wird die Position dann per «Standort erfassen» gemessen und nach Rückfrage
 /// übernommen; Regeln siehe `core/util/stand_position.dart`.
+/// Georeferenzierter Lageplan fürs Karten-Overlay (Ecken aus
+/// `core/util/georeferenz.dart`).
+typedef LageplanOverlay = ({
+  String url,
+  LatLng topLeft,
+  LatLng bottomLeft,
+  LatLng bottomRight,
+});
+
 class EventStaendeMap extends StatefulWidget {
   final List<EventStandLocal> staende;
   final void Function(EventStandLocal) onStandTap;
@@ -27,11 +36,16 @@ class EventStaendeMap extends StatefulWidget {
   final Future<void> Function(EventStandLocal stand, LatLng punkt)?
       onPositionSetzen;
 
+  /// Referenzierter Lageplan — liegt halbtransparent über dem Luftbild und
+  /// ist per Ebenen-Knopf ausblendbar.
+  final LageplanOverlay? lageplan;
+
   const EventStaendeMap({
     super.key,
     required this.staende,
     required this.onStandTap,
     this.onPositionSetzen,
+    this.lageplan,
   });
 
   @override
@@ -49,6 +63,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
   /// Stand, der gerade platziert wird (null = normaler Anzeigemodus).
   EventStandLocal? _platziert;
   bool _speichert = false;
+
+  /// Lageplan-Overlay ein-/ausblenden (Ebenen-Knopf).
+  bool _lageplanSichtbar = true;
 
   /// Tap auf die Karte im Positionier-Modus.
   Future<void> _kartenTap(LatLng punkt) async {
@@ -218,6 +235,18 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
               userAgentPackageName: 'ch.sbsprojer.app',
               maxZoom: 19,
             ),
+            // Lageplan unter den Markern, über den Kacheln — so bleiben die
+            // Stand-Pins sichtbar und der Plan dient als Zeichenunterlage.
+            if (widget.lageplan != null && _lageplanSichtbar)
+              OverlayImageLayer(overlayImages: [
+                RotatedOverlayImage(
+                  imageProvider: NetworkImage(widget.lageplan!.url),
+                  topLeftCorner: widget.lageplan!.topLeft,
+                  bottomLeftCorner: widget.lageplan!.bottomLeft,
+                  bottomRightCorner: widget.lageplan!.bottomRight,
+                  opacity: 0.65,
+                ),
+              ]),
             MarkerLayer(
               markers: [
                 for (final s in mitGps)
@@ -275,6 +304,24 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                   widget.staende.where((s) => s.latitude == null).length,
               onWaehlen: _standWaehlen,
               onAbbrechen: () => setState(() => _platziert = null),
+            ),
+          ),
+        // Ebenen-Knopf: Lageplan ein-/ausblenden.
+        if (widget.lageplan != null)
+          Positioned(
+            right: 8,
+            bottom: 84,
+            child: FloatingActionButton.small(
+              heroTag: 'event_lageplan_toggle',
+              backgroundColor: Colors.white,
+              foregroundColor:
+                  _lageplanSichtbar ? AppColors.primary : AppColors.textSecondary,
+              tooltip: _lageplanSichtbar
+                  ? 'Lageplan ausblenden'
+                  : 'Lageplan einblenden',
+              onPressed: () =>
+                  setState(() => _lageplanSichtbar = !_lageplanSichtbar),
+              child: Icon(_lageplanSichtbar ? Icons.layers : Icons.layers_clear),
             ),
           ),
         Positioned(
