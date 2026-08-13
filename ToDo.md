@@ -1,6 +1,22 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** 11.08.2026 · **Live:** v0.76.0
+**Stand:** 11.08.2026 · **Live:** v0.78.0
+
+## 🟢 ERLEDIGT 11.08. (v0.77.0/v0.78.0): Event-Stände positionieren — Karte, Koordinaten, Genauigkeit
+
+**Auftrag Daniel:** Stände am PC auf der Karte setzen, Abgleich bei der Inbetriebnahme im Feld, Koordinaten direkt eingeben, Genauigkeitsangabe, höchste GPS-Stufe.
+
+- **Positionieren am PC:** Knopf «Positionieren» in der Stand-Karte → Stand wählen → auf die Karte tippen; springt danach automatisch zum nächsten Stand ohne Position. Marker: blau = geplant, rot = gemessen, orange = wird gesetzt.
+- **Koordinaten-Eingabe** im Stand-Formular: nimmt das Google-Maps-Format (`46.849994916702336, 9.532274794958706`), Semikolon, ohne Leerzeichen und ganze Maps-URLs. Warnt bei vertauschter Breite/Länge (Position ausserhalb der Schweiz).
+- **Genauigkeit** (genau/mittel/ungefähr, Migration 169): bei GPS automatisch aus der Messgenauigkeit, sonst wählbar. Anzeige neu «Gemessen · genau» statt nur «Standort erfasst».
+- **Abgleich im Feld:** «Standort erfassen» überschreibt nie mehr stillschweigend — Dialog mit Luftbild, beiden Punkten, Linie und Abstand.
+- **Folgejahr:** «Aus Vorjahr übernehmen» nimmt jetzt auch die Stände mit (war implementiert, wurde nie aufgerufen), inkl. Position. **Nebenbefund behoben:** Der Inbetriebnahme-Status wurde mitkopiert — ein neues Event-Jahr galt sofort als vollständig in Betrieb.
+- **GPS:** `LocationAccuracy.bestForNavigation` (höchste Stufe). Wirkt auf dem Handy; im Browser mappen `best` und `bestForNavigation` auf dasselbe.
+
+1061 Tests grün.
+
+- [ ] ⚠️ **Koordinaten fürs Churerfest fehlen weiterhin.** `00_Event/Churerfest 2026.xlsx` enthält **keine** — vollständig geprüft (1057 Zeilen, alle 7 Spalten Debitor/Name 1/Name 2/Bezeichnung/Auftragsmenge/Standnummer/ORT, dazu Hyperlinks, Zellkommentare und alle XML-Teile): kein Treffer. Es ist eine Getränke-/Materialbestellliste, «ORT» sind Stückzahlen. Auch `Churerfest 2026.pdf` enthält keine. Die **17 Stände sind erfasst** (mit Standnummern und Kontakten), **0 mit Position** — sobald die Koordinaten vorliegen, sind sie schnell eingetragen.
+- [ ] Klicktest Daniel: Positionieren am PC, Koordinaten einfügen, GPS-Abgleich vor Ort (Churerfest 14.–16.08.).
 
 ## 🟢 ERLEDIGT 11.08. (v0.76.0): Drei Feld-Fehler — alle mit demselben Muster «still fehlgeschlagen»
 
