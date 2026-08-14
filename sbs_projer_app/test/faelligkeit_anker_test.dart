@@ -192,4 +192,56 @@ void main() {
           FaelligkeitsStatus.eroeffnungFaellig);
     });
   });
+
+  // Regel Daniel 08.08.2026 (Fall Flora Landquart): Eine Eröffnungsreinigung
+  // ist nötig, WEIL die Anlage lange stillstand — nicht, weil vorher jemand
+  // eine Endreinigung als solche erfasst hat. In der Praxis passiert das fast
+  // nie; die Alt-Daten schreiben zudem «Eröffnung»/«Endreinigung» gross.
+  group('Eröffnungs-Hinweis unabhängig von der letzten Service-Art', () {
+    // Ferien 20.07.–10.08. (22 Tage) -> offen ab 11.08.
+    BetriebLocal flora() => BetriebLocal()
+      ..name = 'Flora'
+      ..status = 'aktiv'
+      ..istSaisonbetrieb = false
+      ..ferienStart = DateTime(2026, 7, 20)
+      ..ferienEnde = DateTime(2026, 8, 10)
+      ..ruhetage = [];
+
+    AnlageLocal anlage() => AnlageLocal()
+      ..status = 'aktiv'
+      ..typAnlage = 'Warmanstich'
+      ..reinigungRhythmus = '4-Wochen'
+      ..letzteReinigung = DateTime(2026, 7, 15)
+      ..naechsteReinigung = DateTime(2026, 8, 12);
+
+    test('letzte Reinigung als «Service» erfasst -> Hinweis kommt trotzdem',
+        () {
+      expect(
+          getFaelligkeit(anlage(), DateTime(2026, 8, 5),
+              betrieb: flora(), letzteServiceArt: 'Service'),
+          FaelligkeitsStatus.eroeffnungFaellig);
+    });
+    test('Alt-Daten «Eröffnung» (gross) -> Hinweis kommt trotzdem', () {
+      expect(
+          getFaelligkeit(anlage(), DateTime(2026, 8, 5),
+              betrieb: flora(), letzteServiceArt: 'Eröffnung'),
+          FaelligkeitsStatus.eroeffnungFaellig);
+    });
+    test('kurze Ferien (<21 Tage) lösen keinen Eröffnungs-Hinweis aus', () {
+      final b = flora()..ferienEnde = DateTime(2026, 7, 29);
+      expect(
+          getFaelligkeit(anlage(), DateTime(2026, 7, 25),
+              betrieb: b, letzteServiceArt: 'Service'),
+          isNot(FaelligkeitsStatus.eroeffnungFaellig));
+    });
+    test('Alt-Daten «Endreinigung» (gross) unterdrücken den Endreinigungs-'
+        'Hinweis wie die kleingeschriebene Variante', () {
+      // 15.07.: die Schliessung beginnt in 5 Tagen -> Vorlauf greift.
+      final a = anlage()..letzteReinigung = DateTime(2026, 7, 14);
+      expect(
+          getFaelligkeit(a, DateTime(2026, 7, 15),
+              betrieb: flora(), letzteServiceArt: 'Endreinigung'),
+          isNot(FaelligkeitsStatus.endreinigungFaellig));
+    });
+  });
 }

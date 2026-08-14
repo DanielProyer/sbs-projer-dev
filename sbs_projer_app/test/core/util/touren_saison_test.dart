@@ -129,7 +129,53 @@ void main() {
         darfTrotzSchliessungGeplantWerden(
           art: 'eroeffnungsreinigung',
           betrieb: ferienBetrieb(),
-          tag: DateTime(2026, 8, 5),
+          tag: DateTime(2026, 7, 25),
+        ),
+        isFalse,
+      );
+    });
+
+    // Eröffnungsfenster statt Einzeltag (Regel Daniel 08.08.2026, Fall
+    // Pizzeria Paradies): Daniel plant den Service dann, wenn er in die Tour
+    // passt — der letzte Schliessungstag ist oft ein Ruhetag oder liegt quer.
+    test('Eröffnung 7 Tage vor der Wiedereröffnung → true', () {
+      // Ferien bis 06.08. → offen ab 07.08.; 31.07. ist der 7. Tag davor.
+      expect(
+        darfTrotzSchliessungGeplantWerden(
+          art: 'eroeffnungsreinigung',
+          betrieb: ferienBetrieb(),
+          tag: DateTime(2026, 7, 31),
+        ),
+        isTrue,
+      );
+    });
+    test('Eröffnung 8 Tage vor der Wiedereröffnung → false', () {
+      expect(
+        darfTrotzSchliessungGeplantWerden(
+          art: 'eroeffnungsreinigung',
+          betrieb: ferienBetrieb(),
+          tag: DateTime(2026, 7, 30),
+        ),
+        isFalse,
+      );
+    });
+    test('Endreinigung am 7. Schliessungstag → true', () {
+      // Erster geschlossener Tag 18.07. → 24.07. ist der 7.
+      expect(
+        darfTrotzSchliessungGeplantWerden(
+          art: 'endreinigung',
+          betrieb: ferienBetrieb(),
+          tag: DateTime(2026, 7, 24),
+        ),
+        isTrue,
+      );
+    });
+    test('Endreinigung am 8. Schliessungstag → false', () {
+      expect(
+        darfTrotzSchliessungGeplantWerden(
+          art: 'endreinigung',
+          betrieb: ferienBetrieb(),
+          tag: DateTime(2026, 7, 25),
         ),
         isFalse,
       );
@@ -314,9 +360,27 @@ void main() {
         saisonPlanungsHinweis(
           art: 'eroeffnungsreinigung',
           betrieb: ferienBetrieb(),
-          tag: DateTime(2026, 8, 5),
+          tag: DateTime(2026, 7, 25),
         ),
         isNull,
+      );
+    });
+    test('im Fenster, aber nicht am letzten Tag → nennt die Restdauer', () {
+      expect(
+        saisonPlanungsHinweis(
+          art: 'eroeffnungsreinigung',
+          betrieb: ferienBetrieb(),
+          tag: DateTime(2026, 8, 3),
+        ),
+        'Öffnet in 4 Tagen — Eröffnung',
+      );
+      expect(
+        saisonPlanungsHinweis(
+          art: 'endreinigung',
+          betrieb: ferienBetrieb(),
+          tag: DateTime(2026, 7, 21),
+        ),
+        '4. Ferientag — Endreinigung',
       );
     });
   });
@@ -339,6 +403,181 @@ void main() {
         ..ferienStart = DateTime(2026, 2, 1)
         ..ferienEnde = DateTime(2026, 2, 10);
       expect(oeffnungNach(b, DateTime(2026, 1, 1)), DateTime(2026, 2, 11));
+    });
+  });
+
+  group('qualifizierteOeffnungNach', () {
+    test('kurze Ferien (<21 Tage) zählen nicht als Wiedereröffnung', () {
+      final b = _betrieb()
+        ..ferienStart = DateTime(2026, 2, 1)
+        ..ferienEnde = DateTime(2026, 2, 10);
+      expect(qualifizierteOeffnungNach(b, DateTime(2026, 1, 1)), isNull);
+    });
+    test('lange Ferien (≥21 Tage) → Ende+1', () {
+      final b = _betrieb()
+        ..ferienStart = DateTime(2026, 2, 1)
+        ..ferienEnde = DateTime(2026, 2, 21);
+      expect(
+        qualifizierteOeffnungNach(b, DateTime(2026, 1, 1)),
+        DateTime(2026, 2, 22),
+      );
+    });
+    test('Saisonstart zählt immer, kurze Ferien davor werden übersprungen', () {
+      final b = _betrieb()
+        ..istSaisonbetrieb = true
+        ..sommerSaisonAktiv = true
+        ..sommerStartDatum = DateTime(2026, 5, 1)
+        ..sommerEndeDatum = DateTime(2026, 9, 30)
+        ..ferienStart = DateTime(2026, 2, 1)
+        ..ferienEnde = DateTime(2026, 2, 10);
+      expect(
+        qualifizierteOeffnungNach(b, DateTime(2026, 1, 1)),
+        DateTime(2026, 5, 1),
+      );
+    });
+  });
+
+  // Auto-Vorschläge im Tourenplan (Regel Daniel 08.08.2026). Auslöser ist
+  // allein die qualifizierte Schliessung — NICHT, ob die letzte Reinigung als
+  // 'endreinigung' erfasst wurde. Fall Flora Landquart: Ferien 20.07.–10.08.,
+  // letzte Reinigung als «Service» erfasst, trotzdem Eröffnung nötig.
+  group('eroeffnungsVorschlagsTag', () {
+    // Ferien 20.07.–10.08. (22 Tage, qualifiziert) → offen ab 11.08.
+    BetriebLocal flora() => _betrieb()
+      ..ferienStart = DateTime(2026, 7, 20)
+      ..ferienEnde = DateTime(2026, 8, 10);
+
+    test('letzter Ferientag → Vorschlag an diesem Tag', () {
+      expect(
+        eroeffnungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 8, 10),
+          letzteReinigung: DateTime(2026, 7, 15),
+        ),
+        DateTime(2026, 8, 10),
+      );
+    });
+    test('7 Tage vor der Wiedereröffnung → Vorschlag an diesem Tag', () {
+      expect(
+        eroeffnungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 8, 4),
+          letzteReinigung: DateTime(2026, 7, 15),
+        ),
+        DateTime(2026, 8, 4),
+      );
+    });
+    test('8 Tage vor der Wiedereröffnung → kein Vorschlag', () {
+      expect(
+        eroeffnungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 8, 3),
+          letzteReinigung: DateTime(2026, 7, 15),
+        ),
+        isNull,
+      );
+    });
+    test('erster offener Tag ab Wiedereröffnung → Vorschlag', () {
+      expect(
+        eroeffnungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 8, 11),
+          letzteReinigung: DateTime(2026, 7, 15),
+        ),
+        DateTime(2026, 8, 11),
+      );
+    });
+    test('Muloin-Regel: Reinigung lag in der Schliessung → kein Vorschlag', () {
+      expect(
+        eroeffnungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 8, 10),
+          letzteReinigung: DateTime(2026, 7, 25),
+        ),
+        isNull,
+      );
+    });
+    test('kurze Ferien (<21 Tage) lösen keinen Vorschlag aus', () {
+      final b = _betrieb()
+        ..ferienStart = DateTime(2026, 7, 20)
+        ..ferienEnde = DateTime(2026, 7, 29);
+      expect(
+        eroeffnungsVorschlagsTag(
+          betrieb: b,
+          tag: DateTime(2026, 7, 29),
+          letzteReinigung: DateTime(2026, 7, 15),
+        ),
+        isNull,
+      );
+    });
+    test('inaktiver Betrieb → kein Vorschlag', () {
+      final b = flora()..status = 'geschlossen';
+      expect(
+        eroeffnungsVorschlagsTag(
+          betrieb: b,
+          tag: DateTime(2026, 8, 10),
+          letzteReinigung: DateTime(2026, 7, 15),
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('endreinigungsVorschlagsTag', () {
+    // Ferien 20.07.–10.08.; letzter offener Tag davor = 19.07.
+    BetriebLocal flora() => _betrieb()
+      ..ferienStart = DateTime(2026, 7, 20)
+      ..ferienEnde = DateTime(2026, 8, 10);
+
+    test('letzter offener Tag vor der Schliessung → Vorschlag', () {
+      expect(
+        endreinigungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 7, 19),
+          letzteServiceArt: 'Service',
+        ),
+        DateTime(2026, 7, 19),
+      );
+    });
+    test('7. Schliessungstag → Vorschlag an diesem Tag', () {
+      expect(
+        endreinigungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 7, 26),
+          letzteServiceArt: 'Service',
+        ),
+        DateTime(2026, 7, 26),
+      );
+    });
+    test('8. Schliessungstag → kein Vorschlag', () {
+      expect(
+        endreinigungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 7, 27),
+          letzteServiceArt: 'Service',
+        ),
+        isNull,
+      );
+    });
+    test('Endreinigung bereits erledigt → kein Vorschlag', () {
+      expect(
+        endreinigungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 7, 19),
+          letzteServiceArt: 'endreinigung',
+        ),
+        isNull,
+      );
+    });
+    test('Alt-Daten schreiben «Endreinigung» gross — zählt genauso', () {
+      expect(
+        endreinigungsVorschlagsTag(
+          betrieb: flora(),
+          tag: DateTime(2026, 7, 19),
+          letzteServiceArt: 'Endreinigung',
+        ),
+        isNull,
+      );
     });
   });
 }

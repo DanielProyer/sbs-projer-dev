@@ -94,7 +94,7 @@ FaelligkeitsStatus? _getSaisonFaelligkeit(
   String? letzteServiceArt,
 ) {
   // --- Endreinigung: qualifizierte Schliessung im Vorlauf, noch nicht erledigt ---
-  if (letzteServiceArt != 'endreinigung') {
+  if (!istEndreinigungsArt(letzteServiceArt)) {
     final s = qualifizierteSchliessung(betrieb, datum);
     if (s != null) {
       final tage = s.datum.difference(datum).inDays;
@@ -105,22 +105,25 @@ FaelligkeitsStatus? _getSaisonFaelligkeit(
   }
 
   // --- Eröffnungsservice: Wiedereröffnung steht bevor (Fenster 7 Tage).
+  // Auslöser ist allein die qualifizierte Schliessung — NICHT, ob die letzte
+  // Reinigung als 'endreinigung' erfasst wurde (Regel Daniel 08.08.2026,
+  // Fall Flora Landquart): Die Eröffnungsreinigung ist nötig, WEIL die Anlage
+  // lange stillstand. In der Praxis wird eine Endreinigung fast nie als
+  // solche erfasst, und die Alt-Daten schreiben sie zudem gross.
   // Nur solange in der Pause NICHT gereinigt wurde — auch die Endreinigung
   // selbst zählt als Pausen-Reinigung, wenn sie in der Schliessung lag
   // (Muloin 21.07.2026: Endreinigung 30.06. IN den Ferien 26.06.–27.07.).
   // NACH dem Start übernimmt die reguläre Uhr mit Anker = Wiedereröffnung
   // (faelligkeitsAnker) — das frühere ewige eroeffnungFaellig liess 17
   // offene Betriebe unsichtbar.
-  if (letzteServiceArt == 'endreinigung' || letzteServiceArt == null) {
-    final letzte = anlage.letzteReinigung;
-    if (letzte != null && istInSchliessung(betrieb, letzte)) return null;
-    final ab = letzte ?? datum.subtract(const Duration(days: 365));
-    final oeffnung = oeffnungNach(betrieb, ab);
-    if (oeffnung != null) {
-      final tage = oeffnung.difference(datum).inDays;
-      if (tage >= 0 && tage <= _saisonVorlaufTage) {
-        return FaelligkeitsStatus.eroeffnungFaellig;
-      }
+  final letzte = anlage.letzteReinigung;
+  if (letzte != null && istInSchliessung(betrieb, letzte)) return null;
+  final ab = letzte ?? datum.subtract(const Duration(days: 365));
+  final oeffnung = qualifizierteOeffnungNach(betrieb, ab);
+  if (oeffnung != null) {
+    final tage = oeffnung.difference(datum).inDays;
+    if (tage >= 0 && tage <= _saisonVorlaufTage) {
+      return FaelligkeitsStatus.eroeffnungFaellig;
     }
   }
 
@@ -769,87 +772,61 @@ final autoTermineProvider = Provider.family<List<TourEintrag>, DateTime>((
         : null;
 
     // Endreinigung: letzter offener Tag vor der nächsten Schliessung — ODER
-    // der erste Schliessungstag selbst (Fall Löwen Grossdietwil, 04.08.2026:
-    // Saison-Reinigungen finden naturgemäss statt, wenn der Betrieb zu ist).
-    if (letzteServiceArt != 'endreinigung') {
-      final s = qualifizierteSchliessung(betrieb, tag);
-      if (s != null) {
-        final ziel = naechsterOffenerTag(betrieb, s.datum, rueckwaerts: true);
-        final amSchliessungstag =
-            DateTime(s.datum.year, s.datum.month, s.datum.day) == tag &&
-            darfTrotzSchliessungGeplantWerden(
-              art: 'endreinigung',
-              betrieb: betrieb,
-              tag: tag,
-            );
-        if ((ziel != null && ziel == tag) || amSchliessungstag) {
-          result.add(
-            TourEintrag(
-              typ: TourEintragTyp.reinigung,
-              id: id,
-              betriebId: a.betriebId,
-              anlageId: a.routeId,
-              betriebName: betrieb.name,
-              betriebOrt: betrieb.ort,
-              regionId: betrieb.regionId,
-              beschreibung: 'Endreinigung · ${a.typAnlage}',
-              faelligkeit: FaelligkeitsStatus.endreinigungFaellig,
-              ruhetage: betrieb.ruhetage,
-              servicezeit: _servicezeitAus(betrieb),
-              istAutoTermin: true,
-              zielDatum: amSchliessungstag ? tag : ziel,
-            ),
-          );
-          continue;
-        }
-      }
+    // die ersten Tage der Schliessung selbst (Fall Löwen Grossdietwil,
+    // 04.08.2026: Saison-Reinigungen finden naturgemäss statt, wenn der
+    // Betrieb zu ist). Regeln in `endreinigungsVorschlagsTag`.
+    final endZiel = endreinigungsVorschlagsTag(
+      betrieb: betrieb,
+      tag: tag,
+      letzteServiceArt: letzteServiceArt,
+    );
+    if (endZiel != null) {
+      result.add(
+        TourEintrag(
+          typ: TourEintragTyp.reinigung,
+          id: id,
+          betriebId: a.betriebId,
+          anlageId: a.routeId,
+          betriebName: betrieb.name,
+          betriebOrt: betrieb.ort,
+          regionId: betrieb.regionId,
+          beschreibung: 'Endreinigung · ${a.typAnlage}',
+          faelligkeit: FaelligkeitsStatus.endreinigungFaellig,
+          ruhetage: betrieb.ruhetage,
+          servicezeit: _servicezeitAus(betrieb),
+          istAutoTermin: true,
+          zielDatum: endZiel,
+        ),
+      );
+      continue;
     }
 
-    // Eröffnung: erster offener Tag ab Wiedereröffnung (Anlage ist geschlossen).
-    // Lag die Endreinigung selbst schon in der Schliessung, ist die Anlage
-    // versorgt -> kein Auto-Termin (gleiche Regel wie _getSaisonFaelligkeit).
-    if (letzteServiceArt == 'endreinigung' &&
-        !(a.letzteReinigung != null &&
-            istInSchliessung(betrieb, a.letzteReinigung!))) {
-      final ab = a.letzteReinigung ?? tag.subtract(const Duration(days: 365));
-      final oeffnung = oeffnungNach(betrieb, ab);
-      if (oeffnung != null) {
-        final ziel = naechsterOffenerTag(betrieb, oeffnung, rueckwaerts: false);
-        // Auch der letzte Schliessungstag vor der Wiedereröffnung ist
-        // wählbar — die Eröffnungsreinigung passiert, solange noch zu ist
-        // (Wirt da, Lokal leer; Fall Löwen Grossdietwil, 04.08.2026).
-        final amVortag =
-            DateTime(
-                  oeffnung.year,
-                  oeffnung.month,
-                  oeffnung.day,
-                ).subtract(const Duration(days: 1)) ==
-                tag &&
-            darfTrotzSchliessungGeplantWerden(
-              art: 'eroeffnungsreinigung',
-              betrieb: betrieb,
-              tag: tag,
-            );
-        if ((ziel != null && ziel == tag) || amVortag) {
-          result.add(
-            TourEintrag(
-              typ: TourEintragTyp.reinigung,
-              id: id,
-              betriebId: a.betriebId,
-              anlageId: a.routeId,
-              betriebName: betrieb.name,
-              betriebOrt: betrieb.ort,
-              regionId: betrieb.regionId,
-              beschreibung: 'Eröffnungsservice · ${a.typAnlage}',
-              faelligkeit: FaelligkeitsStatus.eroeffnungFaellig,
-              ruhetage: betrieb.ruhetage,
-              servicezeit: _servicezeitAus(betrieb),
-              istAutoTermin: true,
-              zielDatum: amVortag ? tag : ziel,
-            ),
-          );
-        }
-      }
+    // Eröffnung: erster offener Tag ab Wiedereröffnung ODER die letzten Tage
+    // der Schliessung davor — die Eröffnungsreinigung passiert, solange noch
+    // zu ist (Wirt da, Lokal leer). Regeln in `eroeffnungsVorschlagsTag`.
+    final oeffnungZiel = eroeffnungsVorschlagsTag(
+      betrieb: betrieb,
+      tag: tag,
+      letzteReinigung: a.letzteReinigung,
+    );
+    if (oeffnungZiel != null) {
+      result.add(
+        TourEintrag(
+          typ: TourEintragTyp.reinigung,
+          id: id,
+          betriebId: a.betriebId,
+          anlageId: a.routeId,
+          betriebName: betrieb.name,
+          betriebOrt: betrieb.ort,
+          regionId: betrieb.regionId,
+          beschreibung: 'Eröffnungsservice · ${a.typAnlage}',
+          faelligkeit: FaelligkeitsStatus.eroeffnungFaellig,
+          ruhetage: betrieb.ruhetage,
+          servicezeit: _servicezeitAus(betrieb),
+          istAutoTermin: true,
+          zielDatum: oeffnungZiel,
+        ),
+      );
     }
   }
 

@@ -8,6 +8,26 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 /// Schliessung" und löst Endreinigung/Eröffnung aus.
 const int langeSchliessungTage = 21;
 
+/// Fenster (Tage), in dem eine Saison-Reinigung rund um die Schliessung
+/// geplant werden darf: die letzten [saisonReinigungFensterTage] Tage vor der
+/// Wiedereröffnung (Eröffnungsreinigung) bzw. die ersten Tage der Schliessung
+/// (Endreinigung).
+///
+/// Regel Daniel 08.08.2026 (Fall Pizzeria Paradies): Früher zählte nur der
+/// letzte Schliessungstag. Daniel plant den Service aber dann, wenn er in die
+/// Tour passt — und der letzte Schliessungstag ist oft gerade Ruhetag. Damit
+/// fiel jeder Betrieb durch, dessen letzter Schliessungstag nicht passte.
+const int saisonReinigungFensterTage = 7;
+
+/// Zählt diese Service-Art als Endreinigung?
+///
+/// Gross-/kleinschreibungsunempfindlich: Die Alt-Daten schreiben
+/// «Endreinigung» (478 Sätze bis 19.11.2025), erst ab 30.03.2026 steht
+/// `endreinigung` klein. Ein exakter Vergleich griff bei keinem Betrieb mit
+/// Alt-Historie.
+bool istEndreinigungsArt(String? serviceArt) =>
+    serviceArt?.toLowerCase() == 'endreinigung';
+
 // Ruhetag-Erkennung liegt in touren_anzeige.dart und versteht Kürzel wie
 // volle Namen. Hier stand früher eine eigene Prüfung nur auf volle Namen —
 // da die Betriebe Kürzel speichern, wurde nie ein Ruhetag erkannt.
@@ -98,10 +118,13 @@ String? schliessungsGrund(BetriebLocal b, DateTime tag) {
 /// Darf eine Saison-Reinigung an einem Schliessungstag geplant werden?
 ///
 /// Regel (Fall Löwen Grossdietwil, 04.08.2026): Eine **Eröffnungsreinigung**
-/// findet naturgemäss statt, solange der Betrieb noch zu ist — am letzten
-/// Schliessungstag, kurz vor der Wiedereröffnung. Spiegelbildlich die
-/// **Endreinigung** am ersten Schliessungstag. Mitten in der Schliessung
-/// bleibt beides ausgeblendet; normale Reinigungen sowieso.
+/// findet naturgemäss statt, solange der Betrieb noch zu ist — kurz vor der
+/// Wiedereröffnung. Spiegelbildlich die **Endreinigung** zu Beginn der
+/// Schliessung. Tief in der Schliessung bleibt beides ausgeblendet; normale
+/// Reinigungen sowieso.
+///
+/// Massgebend ist nicht mehr der einzelne Rand-Tag, sondern das Fenster von
+/// [saisonReinigungFensterTage] Tagen (Regel Daniel 08.08.2026, siehe dort).
 ///
 /// [art] wie `TerminDto.typ`: 'eroeffnungsreinigung' | 'endreinigung'.
 /// Schliessung = Saisonpause oder Ferien ([istInSchliessung]) — Ruhetage
@@ -110,20 +133,29 @@ bool darfTrotzSchliessungGeplantWerden({
   required String art,
   required BetriebLocal betrieb,
   required DateTime tag,
+}) =>
+    _fensterTag(art: art, betrieb: betrieb, tag: tag) != null;
+
+/// Der wievielte Tag des Fensters ist [tag]? 1 = unmittelbar am Rand
+/// (letzter Schliessungstag bzw. erster Tag der Schliessung), maximal
+/// [saisonReinigungFensterTage]. `null` = ausserhalb des Fensters.
+int? _fensterTag({
+  required String art,
+  required BetriebLocal betrieb,
+  required DateTime tag,
 }) {
-  if (betrieb.status != 'aktiv') return false;
+  if (betrieb.status != 'aktiv') return null;
   final t = DateTime(tag.year, tag.month, tag.day);
-  if (!istInSchliessung(betrieb, t)) return false;
-  switch (art) {
-    case 'eroeffnungsreinigung':
-      // Letzter Schliessungstag: morgen ist wieder offen.
-      return !istInSchliessung(betrieb, t.add(const Duration(days: 1)));
-    case 'endreinigung':
-      // Erster Schliessungstag: gestern war noch offen.
-      return !istInSchliessung(betrieb, t.subtract(const Duration(days: 1)));
-    default:
-      return false;
+  if (!istInSchliessung(betrieb, t)) return null;
+  final rueckwaerts = art == 'endreinigung';
+  if (art != 'eroeffnungsreinigung' && !rueckwaerts) return null;
+  for (var i = 1; i <= saisonReinigungFensterTage; i++) {
+    final nachbar = rueckwaerts
+        ? t.subtract(Duration(days: i))
+        : t.add(Duration(days: i));
+    if (!istInSchliessung(betrieb, nachbar)) return i;
   }
+  return null;
 }
 
 /// Hinweis-Text, warum eine Saison-Reinigung trotz Schliessung im Plan
@@ -134,14 +166,19 @@ String? saisonPlanungsHinweis({
   required BetriebLocal betrieb,
   required DateTime tag,
 }) {
-  if (!darfTrotzSchliessungGeplantWerden(art: art, betrieb: betrieb, tag: tag)) {
-    return null;
-  }
+  final n = _fensterTag(art: art, betrieb: betrieb, tag: tag);
+  if (n == null) return null;
   final inFerien = istInFerien(betrieb, tag);
   if (art == 'eroeffnungsreinigung') {
+    if (n > 1) return 'Öffnet in $n Tagen — Eröffnung';
     return inFerien
         ? 'Letzter Ferientag — Eröffnung'
         : 'Letzter Schliessungstag — Eröffnung';
+  }
+  if (n > 1) {
+    return inFerien
+        ? '$n. Ferientag — Endreinigung'
+        : '$n. Schliessungstag — Endreinigung';
   }
   return inFerien
       ? 'Erster Ferientag — Endreinigung'
@@ -197,6 +234,125 @@ DateTime? naechsterOffenerTag(
   if (kandidaten.isEmpty) return null;
   kandidaten.sort((x, y) => x.datum.compareTo(y.datum));
   return kandidaten.first;
+}
+
+/// Liegt [tag] in einer QUALIFIZIERTEN Schliessung — Saisonpause oder Ferien
+/// ab [langeSchliessungTage]? Gegenstück zu [qualifizierteSchliessung], nur
+/// auf einen einzelnen Tag bezogen.
+bool istInQualifizierterSchliessung(BetriebLocal b, DateTime tag) {
+  final t = DateTime(tag.year, tag.month, tag.day);
+  if (!istInAktiverSaison(b, t)) return true;
+  for (final s in ferienSlots(b)) {
+    if (s.start == null || s.ende == null) continue;
+    final dauer = s.ende!.difference(s.start!).inDays + 1;
+    if (dauer < langeSchliessungTage) continue;
+    if (!t.isBefore(s.start!) && !t.isAfter(s.ende!)) return true;
+  }
+  return false;
+}
+
+/// Nächste Wiedereröffnung nach einer QUALIFIZIERTEN Schliessung, strikt nach
+/// [ab]: Saisonstart oder Ende+1 einer Ferienperiode ab [langeSchliessungTage].
+///
+/// Massgebend für die Auto-Vorschläge: Eine Eröffnungsreinigung ist nötig,
+/// weil die Anlage lange stillstand — eine Woche Betriebsferien löst keine
+/// aus (Regel Daniel 08.08.2026). [oeffnungNach] bleibt unverändert, es
+/// verankert die Fälligkeits-Uhr und muss JEDE Wiedereröffnung kennen.
+DateTime? qualifizierteOeffnungNach(BetriebLocal b, DateTime ab) {
+  DateTime? naechste;
+  if (b.istSaisonbetrieb) {
+    for (final start in [
+      if (b.sommerSaisonAktiv) b.sommerStartDatum,
+      if (b.winterSaisonAktiv) b.winterStartDatum,
+    ]) {
+      if (start != null && start.isAfter(ab)) {
+        if (naechste == null || start.isBefore(naechste)) naechste = start;
+      }
+    }
+  }
+  for (final s in ferienSlots(b)) {
+    if (s.start == null || s.ende == null) continue;
+    final dauer = s.ende!.difference(s.start!).inDays + 1;
+    if (dauer < langeSchliessungTage) continue;
+    final reopen = s.ende!.add(const Duration(days: 1));
+    if (reopen.isAfter(ab)) {
+      if (naechste == null || reopen.isBefore(naechste)) naechste = reopen;
+    }
+  }
+  return naechste;
+}
+
+/// Ziel-Tag für den automatischen **Eröffnungs**-Vorschlag im Tourenplan —
+/// `null`, wenn an [tag] keiner stehen soll.
+///
+/// Auslöser ist allein die qualifizierte Schliessung, NICHT die Service-Art
+/// der letzten Reinigung (Regel Daniel 08.08.2026, Fall Flora Landquart:
+/// «dass die letzte Reinigung als Endreinigung erfasst wurde macht keinen
+/// Sinn» — die Eröffnungsreinigung ist nötig, weil die Anlage lange
+/// stillstand). Zulässig sind der erste offene Tag ab der Wiedereröffnung
+/// UND die letzten [saisonReinigungFensterTage] Schliessungstage davor.
+///
+/// Muloin-Regel (21.07.2026) bleibt: Wurde während der Schliessung bereits
+/// gereinigt, ist die Anlage versorgt — kein Vorschlag.
+DateTime? eroeffnungsVorschlagsTag({
+  required BetriebLocal betrieb,
+  required DateTime tag,
+  required DateTime? letzteReinigung,
+}) {
+  if (betrieb.status != 'aktiv') return null;
+  final t = DateTime(tag.year, tag.month, tag.day);
+  if (letzteReinigung != null && istInSchliessung(betrieb, letzteReinigung)) {
+    return null;
+  }
+  final ab = letzteReinigung ?? t.subtract(const Duration(days: 365));
+  final oeffnung = qualifizierteOeffnungNach(betrieb, ab);
+  if (oeffnung == null) return null;
+  final o = DateTime(oeffnung.year, oeffnung.month, oeffnung.day);
+
+  final tageBis = o.difference(t).inDays;
+  if (tageBis >= 1 &&
+      tageBis <= saisonReinigungFensterTage &&
+      darfTrotzSchliessungGeplantWerden(
+        art: 'eroeffnungsreinigung',
+        betrieb: betrieb,
+        tag: t,
+      )) {
+    return t;
+  }
+
+  final ziel = naechsterOffenerTag(betrieb, o);
+  return ziel == t ? t : null;
+}
+
+/// Ziel-Tag für den automatischen **Endreinigungs**-Vorschlag im Tourenplan —
+/// `null`, wenn an [tag] keiner stehen soll.
+///
+/// Zulässig sind der letzte offene Tag vor der Schliessung UND die ersten
+/// [saisonReinigungFensterTage] Schliessungstage (spiegelbildlich zur
+/// Eröffnung). Ist die Endreinigung schon erfasst, entfällt der Vorschlag —
+/// [istEndreinigungsArt] prüft das gross-/kleinschreibungsunempfindlich.
+DateTime? endreinigungsVorschlagsTag({
+  required BetriebLocal betrieb,
+  required DateTime tag,
+  required String? letzteServiceArt,
+}) {
+  if (betrieb.status != 'aktiv') return null;
+  if (istEndreinigungsArt(letzteServiceArt)) return null;
+  final t = DateTime(tag.year, tag.month, tag.day);
+
+  if (istInQualifizierterSchliessung(betrieb, t) &&
+      darfTrotzSchliessungGeplantWerden(
+        art: 'endreinigung',
+        betrieb: betrieb,
+        tag: t,
+      )) {
+    return t;
+  }
+
+  final s = qualifizierteSchliessung(betrieb, t);
+  if (s == null) return null;
+  final ziel = naechsterOffenerTag(betrieb, s.datum, rueckwaerts: true);
+  return ziel == t ? t : null;
 }
 
 /// Nächste Wiedereröffnung strikt nach [ab] (Saisonstart oder Ferienende+1).
