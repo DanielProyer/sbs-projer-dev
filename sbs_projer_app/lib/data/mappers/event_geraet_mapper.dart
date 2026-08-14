@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
 import 'package:sbs_projer_app/data/models/event_geraet.dart';
 
@@ -19,6 +21,15 @@ class EventGeraetMapper {
     local.inBetriebAm = dto.inBetriebAm;
     local.sortierung = dto.sortierung;
     local.notizen = dto.notizen;
+    local.kuehlerTyp = dto.kuehlerTyp;
+    local.pumpeTyp = dto.pumpeTyp;
+    local.typenschildKuehlerPfad = dto.typenschildKuehlerPfad;
+    local.typenschildPumpePfad = dto.typenschildPumpePfad;
+    local.typenschildErkennungJson = dto.typenschildErkennung == null
+        ? null
+        : jsonEncode(dto.typenschildErkennung);
+    local.sollMinCelsius = dto.sollMinCelsius;
+    local.sollMaxCelsius = dto.sollMaxCelsius;
     local.createdAt = dto.createdAt;
     local.updatedAt = dto.updatedAt;
     local.isSynced = true;
@@ -43,6 +54,15 @@ class EventGeraetMapper {
       'in_betrieb_am': local.inBetriebAm?.toUtc().toIso8601String(),
       'sortierung': local.sortierung,
       'notizen': local.notizen,
+      'kuehler_typ': local.kuehlerTyp,
+      'pumpe_typ': local.pumpeTyp,
+      'typenschild_kuehler_pfad': local.typenschildKuehlerPfad,
+      'typenschild_pumpe_pfad': local.typenschildPumpePfad,
+      'typenschild_erkennung': local.typenschildErkennungJson == null
+          ? null
+          : jsonDecode(local.typenschildErkennungJson!),
+      'soll_min_celsius': local.sollMinCelsius,
+      'soll_max_celsius': local.sollMaxCelsius,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;

@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_leitung_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_kuehler_messung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
@@ -17,6 +18,7 @@ import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_geraet_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_leitung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_kuehler_messung_repository.dart';
 
 /// Alle Event-Jahre des Users.
 final eventsProvider = FutureProvider<List<EventLocal>>((ref) async {
@@ -79,4 +81,10 @@ final eventGeraeteProvider =
 final eventLeitungenProvider =
     FutureProvider.family<List<EventLeitungLocal>, String>((ref, eventId) async {
   return EventLeitungRepository.getByEvent(eventId);
+});
+
+/// Temperatur-Messungen eines Kühler-Geräts (routeId des EventGeraet).
+final eventKuehlerMessungenProvider =
+    FutureProvider.family<List<EventKuehlerMessungLocal>, String>((ref, geraetId) async {
+  return EventKuehlerMessungRepository.getByGeraet(geraetId);
 });

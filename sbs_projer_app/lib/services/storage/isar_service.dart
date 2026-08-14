@@ -25,6 +25,7 @@ import 'package:sbs_projer_app/data/local/event_stand_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local.dart';
 import 'package:sbs_projer_app/data/local/event_geraet_local.dart';
 import 'package:sbs_projer_app/data/local/event_leitung_local.dart';
+import 'package:sbs_projer_app/data/local/event_kuehler_messung_local.dart';
 import 'package:sbs_projer_app/data/local/sync_meta_local.dart';
 
 class IsarService {
@@ -69,6 +70,7 @@ class IsarService {
       EventStandAnlageLocalSchema,
       EventGeraetLocalSchema,
       EventLeitungLocalSchema,
+      EventKuehlerMessungLocalSchema,
       SyncMetaLocalSchema,
     ], directory: dir.path);
   }
@@ -509,6 +511,27 @@ class IsarService {
       instance.writeTxn(() => instance.eventLeitungLocals.put(l));
   static Future<void> eventLeitungDelete(int id) =>
       instance.writeTxn(() => instance.eventLeitungLocals.delete(id));
+
+  // ─── EventKuehlerMessung ───
+  static Future<List<EventKuehlerMessungLocal>> eventKuehlerMessungFindByGeraet(
+    String geraetId,
+  ) => instance.eventKuehlerMessungLocals
+      .filter()
+      .geraetIdEqualTo(geraetId)
+      .sortByGemessenAm()
+      .findAll();
+  static Future<EventKuehlerMessungLocal?> eventKuehlerMessungGet(int id) =>
+      instance.eventKuehlerMessungLocals.get(id);
+  static Future<EventKuehlerMessungLocal?> eventKuehlerMessungFindByServerId(
+    String serverId,
+  ) => instance.eventKuehlerMessungLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
+  static Future<void> eventKuehlerMessungPut(EventKuehlerMessungLocal m) =>
+      instance.writeTxn(() => instance.eventKuehlerMessungLocals.put(m));
+  static Future<void> eventKuehlerMessungDelete(int id) =>
+      instance.writeTxn(() => instance.eventKuehlerMessungLocals.delete(id));
 
   // ─── BetriebRechnungsadresse ───
   static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByBetrieb(

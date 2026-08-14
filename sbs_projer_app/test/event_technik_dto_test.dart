@@ -20,6 +20,16 @@ void main() {
       'in_betrieb_am': '2026-08-17T10:00:00Z',
       'sortierung': 2,
       'notizen': 'CO2 separat',
+      'kuehler_typ': 'Lindr KONTAKT 40/K',
+      'pumpe_typ': 'Flojet 2130',
+      'typenschild_kuehler_pfad': 'events/e1/typenschild_kuehler.jpg',
+      'typenschild_pumpe_pfad': 'events/e1/typenschild_pumpe.jpg',
+      'typenschild_erkennung': {
+        'hersteller': 'Lindr',
+        'sicherheit': 'hoch',
+      },
+      'soll_min_celsius': 2.5,
+      'soll_max_celsius': 4.0,
       'created_at': '2026-08-14T08:00:00Z',
       'updated_at': '2026-08-14T09:00:00Z',
     };
@@ -27,6 +37,13 @@ void main() {
     expect(g.typ, 'mehrfachanstich');
     expect(g.anzahlTanks, 4);
     expect(g.inBetrieb, isTrue);
+    expect(g.kuehlerTyp, 'Lindr KONTAKT 40/K');
+    expect(g.pumpeTyp, 'Flojet 2130');
+    expect(g.typenschildKuehlerPfad, 'events/e1/typenschild_kuehler.jpg');
+    expect(g.typenschildPumpePfad, 'events/e1/typenschild_pumpe.jpg');
+    expect(g.typenschildErkennung, {'hersteller': 'Lindr', 'sicherheit': 'hoch'});
+    expect(g.sollMinCelsius, 2.5);
+    expect(g.sollMaxCelsius, 4.0);
     expect(g.createdAt, DateTime.utc(2026, 8, 14, 8, 0, 0));
     expect(g.updatedAt, DateTime.utc(2026, 8, 14, 9, 0, 0));
 
@@ -47,6 +64,13 @@ void main() {
       'in_betrieb_am': '2026-08-17T10:00:00.000Z',
       'sortierung': 2,
       'notizen': 'CO2 separat',
+      'kuehler_typ': 'Lindr KONTAKT 40/K',
+      'pumpe_typ': 'Flojet 2130',
+      'typenschild_kuehler_pfad': 'events/e1/typenschild_kuehler.jpg',
+      'typenschild_pumpe_pfad': 'events/e1/typenschild_pumpe.jpg',
+      'typenschild_erkennung': {'hersteller': 'Lindr', 'sicherheit': 'hoch'},
+      'soll_min_celsius': 2.5,
+      'soll_max_celsius': 4.0,
     });
   });
 
@@ -58,6 +82,11 @@ void main() {
     expect(g.anzahlTanks, isNull);
     expect(g.inBetrieb, isFalse);
     expect(g.sortierung, 0);
+    expect(g.kuehlerTyp, isNull);
+    expect(g.pumpeTyp, isNull);
+    expect(g.typenschildErkennung, isNull);
+    expect(g.sollMinCelsius, isNull);
+    expect(g.sollMaxCelsius, isNull);
   });
 
   test('EventGeraet: typLabel und istAnstich', () {

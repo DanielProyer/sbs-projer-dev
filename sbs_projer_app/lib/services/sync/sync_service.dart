@@ -33,6 +33,7 @@ import 'package:sbs_projer_app/data/local/event_einsatz_local.dart';
 import 'package:sbs_projer_app/data/local/event_aufwand_local.dart';
 import 'package:sbs_projer_app/data/local/event_geraet_local.dart';
 import 'package:sbs_projer_app/data/local/event_leitung_local.dart';
+import 'package:sbs_projer_app/data/local/event_kuehler_messung_local.dart';
 
 // DTOs
 import 'package:sbs_projer_app/data/models/region.dart';
@@ -59,6 +60,7 @@ import 'package:sbs_projer_app/data/models/event_einsatz.dart';
 import 'package:sbs_projer_app/data/models/event_aufwand.dart';
 import 'package:sbs_projer_app/data/models/event_geraet.dart';
 import 'package:sbs_projer_app/data/models/event_leitung.dart';
+import 'package:sbs_projer_app/data/models/event_kuehler_messung.dart';
 
 // Mappers
 import 'package:sbs_projer_app/data/mappers/region_mapper.dart';
@@ -85,6 +87,7 @@ import 'package:sbs_projer_app/data/mappers/event_einsatz_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_aufwand_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_geraet_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_leitung_mapper.dart';
+import 'package:sbs_projer_app/data/mappers/event_kuehler_messung_mapper.dart';
 
 enum SyncState { idle, syncing, error }
 
@@ -188,6 +191,7 @@ class SyncService {
         // Tier 4 vollständig)
         [
           () => _syncEventLeitungen(userId),
+          () => _syncEventKuehlerMessungen(userId),
         ],
       ];
 
@@ -982,6 +986,53 @@ class SyncService {
       await _isar.writeTxn(() => _isar.eventLeitungLocals.putAll(toSave));
     }
     await _updateMeta('event_leitungen');
+    return (pushed: pushed.length, pulled: toSave.length);
+  }
+
+  static Future<({int pushed, int pulled})> _syncEventKuehlerMessungen(
+    String uid,
+  ) async {
+    final unsynced = await _isar.eventKuehlerMessungLocals
+        .filter()
+        .isSyncedEqualTo(false)
+        .findAll();
+    final pushed = await _pushToSupabase<EventKuehlerMessungLocal>(
+      'event_kuehler_messungen',
+      unsynced,
+      EventKuehlerMessungMapper.toJson,
+      (l, id) {
+        l.serverId ??= id;
+        l.isSynced = true;
+      },
+    );
+    if (pushed.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventKuehlerMessungLocals.putAll(pushed));
+    }
+
+    final rows = await _pullRows(
+      'event_kuehler_messungen',
+      'event_kuehler_messungen',
+      uid,
+    );
+    final toSave = <EventKuehlerMessungLocal>[];
+    for (final row in rows) {
+      final dto = EventKuehlerMessung.fromJson(row);
+      final ex = await _isar.eventKuehlerMessungLocals
+          .filter()
+          .serverIdEqualTo(dto.id)
+          .findFirst();
+      if (ex != null &&
+          !ex.isSynced &&
+          (ex.lastModifiedAt?.isAfter(dto.updatedAt ?? DateTime(2000)) ??
+              false)) {
+        continue;
+      }
+      toSave.add(EventKuehlerMessungMapper.fromDto(dto, existing: ex));
+    }
+    if (toSave.isNotEmpty) {
+      await _isar.writeTxn(() => _isar.eventKuehlerMessungLocals.putAll(toSave));
+    }
+    await _updateMeta('event_kuehler_messungen');
     return (pushed: pushed.length, pulled: toSave.length);
   }
 

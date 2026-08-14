@@ -17,6 +17,14 @@ class EventGeraet {
   final DateTime? inBetriebAm;
   final int sortierung;
   final String? notizen;
+  // Kühler-Typenschilder + Sollbereich (Migration 173).
+  final String? kuehlerTyp;
+  final String? pumpeTyp;
+  final String? typenschildKuehlerPfad;
+  final String? typenschildPumpePfad;
+  final Map<String, dynamic>? typenschildErkennung;
+  final double? sollMinCelsius;
+  final double? sollMaxCelsius;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -36,6 +44,13 @@ class EventGeraet {
     this.inBetriebAm,
     this.sortierung = 0,
     this.notizen,
+    this.kuehlerTyp,
+    this.pumpeTyp,
+    this.typenschildKuehlerPfad,
+    this.typenschildPumpePfad,
+    this.typenschildErkennung,
+    this.sollMinCelsius,
+    this.sollMaxCelsius,
     this.createdAt,
     this.updatedAt,
   });
@@ -59,6 +74,14 @@ class EventGeraet {
           : null,
       sortierung: json['sortierung'] ?? 0,
       notizen: json['notizen'],
+      kuehlerTyp: json['kuehler_typ'],
+      pumpeTyp: json['pumpe_typ'],
+      typenschildKuehlerPfad: json['typenschild_kuehler_pfad'],
+      typenschildPumpePfad: json['typenschild_pumpe_pfad'],
+      typenschildErkennung:
+          json['typenschild_erkennung'] as Map<String, dynamic>?,
+      sollMinCelsius: (json['soll_min_celsius'] as num?)?.toDouble(),
+      sollMaxCelsius: (json['soll_max_celsius'] as num?)?.toDouble(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,
@@ -85,6 +108,13 @@ class EventGeraet {
       'in_betrieb_am': inBetriebAm?.toIso8601String(),
       'sortierung': sortierung,
       'notizen': notizen,
+      'kuehler_typ': kuehlerTyp,
+      'pumpe_typ': pumpeTyp,
+      'typenschild_kuehler_pfad': typenschildKuehlerPfad,
+      'typenschild_pumpe_pfad': typenschildPumpePfad,
+      'typenschild_erkennung': typenschildErkennung,
+      'soll_min_celsius': sollMinCelsius,
+      'soll_max_celsius': sollMaxCelsius,
     };
   }
 

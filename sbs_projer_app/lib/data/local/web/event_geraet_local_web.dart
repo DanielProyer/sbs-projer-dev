@@ -24,6 +24,14 @@ class EventGeraetLocal {
   DateTime? inBetriebAm;
   int sortierung = 0;
   String? notizen;
+  // Kühler-Typenschilder + Sollbereich (Migration 173).
+  String? kuehlerTyp;
+  String? pumpeTyp;
+  String? typenschildKuehlerPfad;
+  String? typenschildPumpePfad;
+  String? typenschildErkennungJson;
+  double? sollMinCelsius;
+  double? sollMaxCelsius;
   DateTime? createdAt;
   DateTime? updatedAt;
 }

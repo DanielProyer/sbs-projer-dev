@@ -215,6 +215,13 @@ class IsarService {
   static dynamic eventLeitungPut(dynamic l) => throw UnsupportedError('Isar not available on web');
   static dynamic eventLeitungDelete(int id) => throw UnsupportedError('Isar not available on web');
 
+  // ─── EventKuehlerMessung ───
+  static dynamic eventKuehlerMessungFindByGeraet(String geraetId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventKuehlerMessungGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventKuehlerMessungFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventKuehlerMessungPut(dynamic m) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventKuehlerMessungDelete(int id) => throw UnsupportedError('Isar not available on web');
+
   // ─── Preis ───
   static dynamic preisFindAll() => throw UnsupportedError('Isar not available on web');
   static dynamic preisGet(int id) => throw UnsupportedError('Isar not available on web');

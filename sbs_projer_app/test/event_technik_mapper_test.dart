@@ -68,6 +68,13 @@ void main() {
       'in_betrieb_am': '2026-08-17T11:00:00Z',
       'sortierung': 5,
       'notizen': 'Zweiter Anstich rechts',
+      'kuehler_typ': 'Lindr KONTAKT 40/K',
+      'pumpe_typ': 'Flojet 2130',
+      'typenschild_kuehler_pfad': 'events/e2/typenschild_kuehler.jpg',
+      'typenschild_pumpe_pfad': 'events/e2/typenschild_pumpe.jpg',
+      'typenschild_erkennung': {'hersteller': 'Lindr', 'sicherheit': 'hoch'},
+      'soll_min_celsius': 2.5,
+      'soll_max_celsius': 4.0,
       'created_at': '2026-08-01T08:00:00Z',
       'updated_at': '2026-08-14T09:30:00Z',
     });
@@ -89,6 +96,13 @@ void main() {
     expect(local.inBetriebAm, DateTime.parse('2026-08-17T11:00:00Z'));
     expect(local.sortierung, 5);
     expect(local.notizen, 'Zweiter Anstich rechts');
+    expect(local.kuehlerTyp, 'Lindr KONTAKT 40/K');
+    expect(local.pumpeTyp, 'Flojet 2130');
+    expect(local.typenschildKuehlerPfad, 'events/e2/typenschild_kuehler.jpg');
+    expect(local.typenschildPumpePfad, 'events/e2/typenschild_pumpe.jpg');
+    expect(local.typenschildErkennungJson, isNotNull);
+    expect(local.sollMinCelsius, 2.5);
+    expect(local.sollMaxCelsius, 4.0);
     expect(local.createdAt, DateTime.parse('2026-08-01T08:00:00Z'));
     expect(local.updatedAt, DateTime.parse('2026-08-14T09:30:00Z'));
     expect(local.isSynced, isTrue);
@@ -110,6 +124,13 @@ void main() {
       'in_betrieb_am': '2026-08-17T11:00:00.000Z',
       'sortierung': 5,
       'notizen': 'Zweiter Anstich rechts',
+      'kuehler_typ': 'Lindr KONTAKT 40/K',
+      'pumpe_typ': 'Flojet 2130',
+      'typenschild_kuehler_pfad': 'events/e2/typenschild_kuehler.jpg',
+      'typenschild_pumpe_pfad': 'events/e2/typenschild_pumpe.jpg',
+      'typenschild_erkennung': {'hersteller': 'Lindr', 'sicherheit': 'hoch'},
+      'soll_min_celsius': 2.5,
+      'soll_max_celsius': 4.0,
     });
   });
 
@@ -183,6 +204,13 @@ void main() {
       'in_betrieb_am': '2026-08-20T08:00:00Z',
       'sortierung': 9,
       'notizen': 'Neue Notiz',
+      'kuehler_typ': 'Lindr KONTAKT 40/K neu',
+      'pumpe_typ': 'Flojet 2130 neu',
+      'typenschild_kuehler_pfad': 'events/e4/typenschild_kuehler_neu.jpg',
+      'typenschild_pumpe_pfad': 'events/e4/typenschild_pumpe_neu.jpg',
+      'typenschild_erkennung': {'hersteller': 'Lindr neu'},
+      'soll_min_celsius': 3.0,
+      'soll_max_celsius': 5.0,
       'created_at': '2026-08-02T08:00:00Z',
       'updated_at': '2026-08-15T09:00:00Z',
     });
@@ -204,6 +232,13 @@ void main() {
       ..inBetriebAm = DateTime.parse('2020-01-01T00:00:00Z')
       ..sortierung = 1
       ..notizen = 'Alt'
+      ..kuehlerTyp = 'Alter Kuehlertyp'
+      ..pumpeTyp = 'Alter Pumpentyp'
+      ..typenschildKuehlerPfad = 'alt/kuehler.jpg'
+      ..typenschildPumpePfad = 'alt/pumpe.jpg'
+      ..typenschildErkennungJson = '{"hersteller":"Alt"}'
+      ..sollMinCelsius = 1.0
+      ..sollMaxCelsius = 2.0
       ..createdAt = DateTime.parse('2019-01-01T00:00:00Z')
       ..updatedAt = DateTime.parse('2019-01-02T00:00:00Z')
       ..isSynced = false;
@@ -227,6 +262,13 @@ void main() {
     expect(result.inBetriebAm, DateTime.parse('2026-08-20T08:00:00Z'));
     expect(result.sortierung, 9);
     expect(result.notizen, 'Neue Notiz');
+    expect(result.kuehlerTyp, 'Lindr KONTAKT 40/K neu');
+    expect(result.pumpeTyp, 'Flojet 2130 neu');
+    expect(result.typenschildKuehlerPfad, 'events/e4/typenschild_kuehler_neu.jpg');
+    expect(result.typenschildPumpePfad, 'events/e4/typenschild_pumpe_neu.jpg');
+    expect(result.typenschildErkennungJson, '{"hersteller":"Lindr neu"}');
+    expect(result.sollMinCelsius, 3.0);
+    expect(result.sollMaxCelsius, 5.0);
     expect(result.createdAt, DateTime.parse('2026-08-02T08:00:00Z'));
     expect(result.updatedAt, DateTime.parse('2026-08-15T09:00:00Z'));
     expect(result.isSynced, isTrue);
