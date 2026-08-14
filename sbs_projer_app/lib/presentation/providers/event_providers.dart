@@ -6,6 +6,8 @@ import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_leitung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_dokument_repository.dart';
@@ -13,6 +15,8 @@ import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_aufwand_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_geraet_repository.dart';
+import 'package:sbs_projer_app/data/repositories/event_leitung_repository.dart';
 
 /// Alle Event-Jahre des Users.
 final eventsProvider = FutureProvider<List<EventLocal>>((ref) async {
@@ -63,4 +67,16 @@ final eventAufwaendeProvider =
   final list = await EventAufwandRepository.getByEvent(eventId);
   list.sort((a, b) => a.datum.compareTo(b.datum));
   return list;
+});
+
+/// Technik-Geräte eines Event-Jahres (Anstiche + Durchlaufkühler).
+final eventGeraeteProvider =
+    FutureProvider.family<List<EventGeraetLocal>, String>((ref, eventId) async {
+  return EventGeraetRepository.getByEvent(eventId);
+});
+
+/// Leitungen eines Event-Jahres.
+final eventLeitungenProvider =
+    FutureProvider.family<List<EventLeitungLocal>, String>((ref, eventId) async {
+  return EventLeitungRepository.getByEvent(eventId);
 });
