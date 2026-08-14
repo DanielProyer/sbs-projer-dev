@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_leitung_local_export.dart';
 import 'package:sbs_projer_app/data/mappers/event_geraet_mapper.dart';
 import 'package:sbs_projer_app/data/mappers/event_leitung_mapper.dart';
 import 'package:sbs_projer_app/data/models/event_geraet.dart';
@@ -61,7 +63,7 @@ void main() {
       'latitude': 47.1234,
       'longitude': 8.5678,
       'position_quelle': 'gps',
-      'position_genauigkeit': 'hoch',
+      'position_genauigkeit': 'mittel',
       'in_betrieb': true,
       'in_betrieb_am': '2026-08-17T11:00:00Z',
       'sortierung': 5,
@@ -82,7 +84,7 @@ void main() {
     expect(local.latitude, 47.1234);
     expect(local.longitude, 8.5678);
     expect(local.positionQuelle, 'gps');
-    expect(local.positionGenauigkeit, 'hoch');
+    expect(local.positionGenauigkeit, 'mittel');
     expect(local.inBetrieb, isTrue);
     expect(local.inBetriebAm, DateTime.parse('2026-08-17T11:00:00Z'));
     expect(local.sortierung, 5);
@@ -103,7 +105,7 @@ void main() {
       'latitude': 47.1234,
       'longitude': 8.5678,
       'position_quelle': 'gps',
-      'position_genauigkeit': 'hoch',
+      'position_genauigkeit': 'mittel',
       'in_betrieb': true,
       'in_betrieb_am': '2026-08-17T11:00:00.000Z',
       'sortierung': 5,
@@ -162,5 +164,128 @@ void main() {
       'sortierung': 2,
       'notiz': 'Leitung führt zum Zapfhahn links',
     });
+  });
+
+  test('EventGeraetMapper: existing wird aktualisiert, Isar-Id bleibt', () {
+    final dto = EventGeraet.fromJson({
+      'id': 'g3',
+      'user_id': 'u4',
+      'event_id': 'e4',
+      'typ': 'orion_500',
+      'bezeichnung': 'Tank C',
+      'anzahl_tanks': 2,
+      'standort_notiz': 'Beim Eingang',
+      'latitude': 46.9999,
+      'longitude': 7.1111,
+      'position_quelle': 'karte',
+      'position_genauigkeit': 'genau',
+      'in_betrieb': false,
+      'in_betrieb_am': '2026-08-20T08:00:00Z',
+      'sortierung': 9,
+      'notizen': 'Neue Notiz',
+      'created_at': '2026-08-02T08:00:00Z',
+      'updated_at': '2026-08-15T09:00:00Z',
+    });
+
+    final vorbelegt = EventGeraetLocal()
+      ..id = 42
+      ..serverId = 'alt-g'
+      ..userId = 'alt-u'
+      ..eventId = 'alt-e'
+      ..typ = 'durchlaufkuehler'
+      ..bezeichnung = 'Alter Name'
+      ..anzahlTanks = 1
+      ..standortNotiz = 'Alte Notiz'
+      ..latitude = 1.0
+      ..longitude = 2.0
+      ..positionQuelle = 'gps'
+      ..positionGenauigkeit = 'ungefaehr'
+      ..inBetrieb = true
+      ..inBetriebAm = DateTime.parse('2020-01-01T00:00:00Z')
+      ..sortierung = 1
+      ..notizen = 'Alt'
+      ..createdAt = DateTime.parse('2019-01-01T00:00:00Z')
+      ..updatedAt = DateTime.parse('2019-01-02T00:00:00Z')
+      ..isSynced = false;
+
+    final result = EventGeraetMapper.fromDto(dto, existing: vorbelegt);
+
+    expect(identical(result, vorbelegt), isTrue);
+    expect(result.id, 42);
+    expect(result.serverId, 'g3');
+    expect(result.userId, 'u4');
+    expect(result.eventId, 'e4');
+    expect(result.typ, 'orion_500');
+    expect(result.bezeichnung, 'Tank C');
+    expect(result.anzahlTanks, 2);
+    expect(result.standortNotiz, 'Beim Eingang');
+    expect(result.latitude, 46.9999);
+    expect(result.longitude, 7.1111);
+    expect(result.positionQuelle, 'karte');
+    expect(result.positionGenauigkeit, 'genau');
+    expect(result.inBetrieb, isFalse);
+    expect(result.inBetriebAm, DateTime.parse('2026-08-20T08:00:00Z'));
+    expect(result.sortierung, 9);
+    expect(result.notizen, 'Neue Notiz');
+    expect(result.createdAt, DateTime.parse('2026-08-02T08:00:00Z'));
+    expect(result.updatedAt, DateTime.parse('2026-08-15T09:00:00Z'));
+    expect(result.isSynced, isTrue);
+  });
+
+  test('EventLeitungMapper: existing wird aktualisiert, Isar-Id bleibt', () {
+    final dto = EventLeitung.fromJson({
+      'id': 'l3',
+      'user_id': 'u5',
+      'event_id': 'e5',
+      'nummer': '99',
+      'quelle_id': 'g4',
+      'kuehler_id': 'k4',
+      'stand_id': 's4',
+      'stand_anlage_id': 'sa4',
+      'in_betrieb': false,
+      'in_betrieb_am': '2026-08-21T08:00:00Z',
+      'sortierung': 7,
+      'notiz': 'Neue Leitungsnotiz',
+      'created_at': '2026-08-02T08:00:00Z',
+      'updated_at': '2026-08-15T09:15:00Z',
+    });
+
+    final vorbelegt = EventLeitungLocal()
+      ..id = 42
+      ..serverId = 'alt-l'
+      ..userId = 'alt-u'
+      ..eventId = 'alt-e'
+      ..nummer = '1'
+      ..quelleId = 'alt-g'
+      ..kuehlerId = 'alt-k'
+      ..standId = 'alt-s'
+      ..standAnlageId = 'alt-sa'
+      ..inBetrieb = true
+      ..inBetriebAm = DateTime.parse('2020-01-01T00:00:00Z')
+      ..sortierung = 1
+      ..notiz = 'Alt'
+      ..createdAt = DateTime.parse('2019-01-01T00:00:00Z')
+      ..updatedAt = DateTime.parse('2019-01-02T00:00:00Z')
+      ..isSynced = false;
+
+    final result = EventLeitungMapper.fromDto(dto, existing: vorbelegt);
+
+    expect(identical(result, vorbelegt), isTrue);
+    expect(result.id, 42);
+    expect(result.serverId, 'l3');
+    expect(result.userId, 'u5');
+    expect(result.eventId, 'e5');
+    expect(result.nummer, '99');
+    expect(result.quelleId, 'g4');
+    expect(result.kuehlerId, 'k4');
+    expect(result.standId, 's4');
+    expect(result.standAnlageId, 'sa4');
+    expect(result.inBetrieb, isFalse);
+    expect(result.inBetriebAm, DateTime.parse('2026-08-21T08:00:00Z'));
+    expect(result.sortierung, 7);
+    expect(result.notiz, 'Neue Leitungsnotiz');
+    expect(result.createdAt, DateTime.parse('2026-08-02T08:00:00Z'));
+    expect(result.updatedAt, DateTime.parse('2026-08-15T09:15:00Z'));
+    expect(result.isSynced, isTrue);
   });
 }

@@ -33,7 +33,8 @@ class EventLeitungMapper {
       'stand_id': local.standId,
       'stand_anlage_id': local.standAnlageId,
       'in_betrieb': local.inBetrieb,
-      'in_betrieb_am': local.inBetriebAm?.toIso8601String(),
+      // Isar liest DateTime in Lokalzeit zurück — ohne toUtc() ginge der Zeitstempel beim Re-Push ohne «Z» raus und Postgres läse ihn als UTC (2 h Versatz).
+      'in_betrieb_am': local.inBetriebAm?.toUtc().toIso8601String(),
       'sortierung': local.sortierung,
       'notiz': local.notiz,
     };
