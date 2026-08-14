@@ -54,6 +54,35 @@ void main() {
       final ergebnis = TypenschildErgebnis.fromJson({'baujahr': '2019'});
       expect(ergebnis.baujahr, 2019);
     });
+
+    test('numerische Seriennummer crasht nicht (Normalfall auf Typenschildern)', () {
+      final ergebnis = TypenschildErgebnis.fromJson({
+        'seriennummer': 12345,
+        'baujahr': 2019,
+      });
+      expect(ergebnis.seriennummer, '12345');
+      expect(ergebnis.baujahr, 2019);
+    });
+
+    test('echte Function-Response mit verbrauch + unbekanntem Feld wird toleriert', () {
+      final ergebnis = TypenschildErgebnis.fromJson({
+        'hersteller': 'Lindr',
+        'typ_bezeichnung': 'KONTAKT 40/K',
+        'seriennummer': 987654,
+        'baujahr': 2022,
+        'unsicher_bei': <String>[],
+        'sicherheit': 'hoch',
+        'verbrauch': {'input_tokens': 1423, 'output_tokens': 87},
+        'irgendein_neues_feld': 'unbekannt',
+      });
+
+      expect(ergebnis.hersteller, 'Lindr');
+      expect(ergebnis.typBezeichnung, 'KONTAKT 40/K');
+      expect(ergebnis.seriennummer, '987654');
+      expect(ergebnis.baujahr, 2022);
+      expect(ergebnis.unsicherBei, isEmpty);
+      expect(ergebnis.sicherheit, 'hoch');
+    });
   });
 
   group('vorschlagTyp', () {

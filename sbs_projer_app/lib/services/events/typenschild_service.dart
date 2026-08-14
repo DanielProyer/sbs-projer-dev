@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FunctionException;
 
 /// Ruft die Supabase Edge Function "typenschild-lesen" auf, die Claude
 /// Sonnet 5 zum Auslesen eines Geraete-Typenschilds (Kuehler, Pumpe, ...)
@@ -16,21 +17,25 @@ class TypenschildService {
   }) async {
     final base64 = base64Encode(bytes);
 
-    final response = await SupabaseService.client.functions.invoke(
-      'typenschild-lesen',
-      body: {
-        'image_base64': base64,
-        'media_type': mediaType,
-      },
-    );
-
-    if (response.status != 200) {
-      final error = response.data is Map ? response.data['error'] : 'Unbekannter Fehler';
-      throw Exception('Typenschild-Analyse fehlgeschlagen: $error');
+    try {
+      final response = await SupabaseService.client.functions.invoke(
+        'typenschild-lesen',
+        body: {
+          'image_base64': base64,
+          'media_type': mediaType,
+        },
+      );
+      return TypenschildErgebnis.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on FunctionException catch (e) {
+      // functions_client wirft bei jedem Nicht-2xx eine FunctionException —
+      // ein Status-Check auf response.status waere hier toter Code.
+      final msg = e.details is Map ? (e.details as Map)['error'] : null;
+      throw Exception(
+        'Typenschild-Analyse fehlgeschlagen: ${msg ?? e.reasonPhrase ?? e.status}',
+      );
     }
-
-    final data = response.data as Map<String, dynamic>;
-    return TypenschildErgebnis.fromJson(data);
   }
 }
 
@@ -63,11 +68,13 @@ class TypenschildErgebnis {
 
   factory TypenschildErgebnis.fromJson(Map<String, dynamic> json) {
     return TypenschildErgebnis(
-      hersteller: json['hersteller'] as String?,
-      typBezeichnung: json['typ_bezeichnung'] as String?,
-      seriennummer: json['seriennummer'] as String?,
+      hersteller: _text(json['hersteller']),
+      typBezeichnung: _text(json['typ_bezeichnung']),
+      seriennummer: _text(json['seriennummer']),
       baujahr: _baujahr(json['baujahr']),
-      unsicherBei: (json['unsicher_bei'] as List?)?.whereType<String>().toList() ?? const [],
+      unsicherBei: List.unmodifiable(
+        (json['unsicher_bei'] as List?)?.whereType<String>() ?? const <String>[],
+      ),
       sicherheit: json['sicherheit'] as String? ?? 'tief',
     );
   }
@@ -93,4 +100,9 @@ class TypenschildErgebnis {
     if (value is int) return value;
     return int.tryParse(value.toString());
   }
+
+  /// Das Tool-Schema ist nicht strikt typisiert — eine Seriennummer aus
+  /// Ziffern (der Normalfall auf Typenschildern) kommt als JSON-Zahl an.
+  /// `as String?` wuerde dabei crashen, deshalb ueber toString() lesen.
+  static String? _text(dynamic value) => value?.toString();
 }
