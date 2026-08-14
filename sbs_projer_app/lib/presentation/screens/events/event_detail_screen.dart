@@ -1119,7 +1119,17 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                   ),
                 ],
                 selected: {_karte},
-                onSelectionChanged: (s) => setState(() => _karte = s.first),
+                onSelectionChanged: (s) => setState(() {
+                  _karte = s.first;
+                  // Zurück zur Liste: Fokus-Ring nicht auf dem Stand
+                  // stehen lassen — sonst zeigt der nächste Kartenaufruf
+                  // (Segment-Tipp, ohne den «Karte»-Knopf in der Liste)
+                  // fälschlich wieder den alten Ring.
+                  if (!_karte) {
+                    _kartenFokus = null;
+                    _kartenFokusStandId = null;
+                  }
+                }),
                 showSelectedIcon: false,
                 style: const ButtonStyle(
                   visualDensity: VisualDensity.compact,

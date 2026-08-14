@@ -20,14 +20,6 @@ import 'package:sbs_projer_app/services/gps/gps_service.dart';
 /// die Planung vor dem Anlass, ohne GPS und ohne vor Ort zu sein. Im Feld
 /// wird die Position dann per «Standort erfassen» gemessen und nach Rückfrage
 /// übernommen; Regeln siehe `core/util/stand_position.dart`.
-///
-/// **Marker-Farben** (Feldfeedback Churerfest 14.08.2026 — ersetzt die alte
-/// gemessen/geplant-Rot/Blau-Unterscheidung, die stand für Datenqualität, nicht
-/// für den Baufortschritt): Orange = gerade zum Platzieren ausgewählt, Grün =
-/// [standStatus].komplett (voll in Betrieb), Rot = noch nicht komplett UND hat
-/// mindestens ein Hollandbuffet-Gerät (Vorlauf 2–4 h zum Runterkühlen — hat
-/// beim Aufbau Priorität), Blau = noch nicht komplett, kein Hollandbuffet.
-/// Ohne Eintrag in [standStatus] (Default `{}`) bleibt ein Stand Blau.
 /// Georeferenzierter Lageplan fürs Karten-Overlay (Ecken aus
 /// `core/util/georeferenz.dart`).
 typedef LageplanOverlay = ({
@@ -37,6 +29,13 @@ typedef LageplanOverlay = ({
   LatLng bottomRight,
 });
 
+/// **Marker-Farben** (Feldfeedback Churerfest 14.08.2026 — ersetzt die alte
+/// gemessen/geplant-Rot/Blau-Unterscheidung, die stand für Datenqualität, nicht
+/// für den Baufortschritt): Orange = gerade zum Platzieren ausgewählt, Grün =
+/// [standStatus].komplett (voll in Betrieb), Rot = noch nicht komplett UND hat
+/// mindestens ein Hollandbuffet-Gerät (Vorlauf 2–4 h zum Runterkühlen — hat
+/// beim Aufbau Priorität), Blau = noch nicht komplett, kein Hollandbuffet.
+/// Ohne Eintrag in [standStatus] (Default `{}`) bleibt ein Stand Blau.
 class EventStaendeMap extends StatefulWidget {
   final List<EventStandLocal> staende;
   final void Function(EventStandLocal) onStandTap;
@@ -264,15 +263,23 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
         FlutterMap(
           mapController: _controller,
           options: MapOptions(
-            initialCameraFit: punkte.isEmpty
+            // widget.fokus (Sprung «Auf Karte zeigen» aus der Liste) muss
+            // schon HIER greifen, nicht erst über didUpdateWidget: Der
+            // Liste-/Karte-Umschalter in _StaendeTabState baut bei jedem
+            // Wechsel einen komplett neuen EventStaendeMap-Zweig auf, das
+            // ist ein Remount (neues State-Objekt) statt eines Rebuilds —
+            // didUpdateWidget läuft dabei nie. initialCameraFit würde sonst
+            // die Gesamt-Übersicht erzwingen und den Fokus überschreiben.
+            initialCameraFit: widget.fokus != null || punkte.isEmpty
                 ? null
                 : CameraFit.coordinates(
                     coordinates: punkte,
                     padding: const EdgeInsets.all(48),
                     maxZoom: 18,
                   ),
-            initialCenter: punkte.isEmpty ? schweiz : punkte.first,
-            initialZoom: punkte.isEmpty ? 7.5 : 13,
+            initialCenter:
+                widget.fokus ?? (punkte.isEmpty ? schweiz : punkte.first),
+            initialZoom: widget.fokus != null ? 18 : (punkte.isEmpty ? 7.5 : 13),
             onTap: _platziert == null ? null : (_, punkt) => _kartenTap(punkt),
             onMapReady: () {
               // CanvasKit zeichnet die Kacheln sonst erst nach der ersten
