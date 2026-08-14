@@ -41,6 +41,7 @@ import 'package:sbs_projer_app/presentation/screens/events/event_aufwand_form_sc
 import 'package:sbs_projer_app/presentation/screens/events/event_einsatz_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_staende_map.dart';
 import 'package:sbs_projer_app/presentation/screens/events/event_stand_form_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_technik_tab.dart';
 import 'package:sbs_projer_app/presentation/screens/montagen/montage_form_screen.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/pdf/event_abschluss_pdf_service.dart';
@@ -64,7 +65,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     // FAB je Tab neu aufbauen.
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -489,6 +490,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                 tabs: const [
                   Tab(text: 'Kontakte'),
                   Tab(text: 'Stände'),
+                  Tab(text: 'Technik'),
                   Tab(text: 'Einsätze'),
                   Tab(text: 'Zeit'),
                   Tab(text: 'Dokumente'),
@@ -500,6 +502,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   children: [
                     _KontakteTab(eventServerId: eventServerId),
                     _StaendeTab(event: event),
+                    EventTechnikTab(event: event),
                     _EinsaetzeTab(event: event),
                     _ZeitTab(event: event),
                     _DokumenteTab(eventServerId: eventServerId),
