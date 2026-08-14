@@ -1091,7 +1091,10 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
     final typen = widget.anstich
         ? EventGeraet.typen.where(EventGeraet.istAnstich).toList()
         : ['durchlaufkuehler'];
-    return Padding(
+    return SingleChildScrollView(
+      // Ohne Scroll klippt bei Kühlern (Typenschild-Felder + Soll-Bereich
+      // kommen oben drauf) der Speichern-Knopf bei offener Tastatur bzw.
+      // grösserer Textskalierung unerreichbar aus dem Bild (Review-Fund).
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
@@ -1401,7 +1404,10 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
       kuehlerItems.add(_unbekanntItem(_kuehlerId!));
     }
 
-    return Padding(
+    return SingleChildScrollView(
+      // Konsistent zum Geräte-Sheet: mit optionalem Gerät-am-Stand-Dropdown
+      // + offener Tastatur reicht die Höhe knapp nicht, der Speichern-Knopf
+      // würde sonst abgeschnitten.
       padding: EdgeInsets.only(
         left: 16,
         right: 16,

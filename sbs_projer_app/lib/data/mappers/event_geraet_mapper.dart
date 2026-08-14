@@ -58,13 +58,23 @@ class EventGeraetMapper {
       'pumpe_typ': local.pumpeTyp,
       'typenschild_kuehler_pfad': local.typenschildKuehlerPfad,
       'typenschild_pumpe_pfad': local.typenschildPumpePfad,
-      'typenschild_erkennung': local.typenschildErkennungJson == null
-          ? null
-          : jsonDecode(local.typenschildErkennungJson!),
+      'typenschild_erkennung': _erkennungDecode(local.typenschildErkennungJson),
       'soll_min_celsius': local.sollMinCelsius,
       'soll_max_celsius': local.sollMaxCelsius,
     };
     if (local.serverId != null) json['id'] = local.serverId;
     return json;
+  }
+
+  /// Defekter Alt-Inhalt darf das Speichern nie verhindern — ein
+  /// unlesbares JSON würde sonst jeden Push des Geräts mit einer
+  /// FormatException abbrechen.
+  static dynamic _erkennungDecode(String? json) {
+    if (json == null) return null;
+    try {
+      return jsonDecode(json);
+    } catch (_) {
+      return null;
+    }
   }
 }

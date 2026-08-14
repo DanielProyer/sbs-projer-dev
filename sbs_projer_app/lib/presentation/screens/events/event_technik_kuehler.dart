@@ -108,11 +108,19 @@ class KuehlerFelderState extends State<KuehlerFelder> {
     );
     _typenschildKuehlerPfad = widget.initialTypenschildKuehlerPfad;
     _typenschildPumpePfad = widget.initialTypenschildPumpePfad;
-    _erkennung = widget.initialErkennungJson == null
-        ? <String, dynamic>{}
-        : Map<String, dynamic>.from(
-            jsonDecode(widget.initialErkennungJson!) as Map,
-          );
+    _erkennung = _erkennungAusJson(widget.initialErkennungJson);
+  }
+
+  /// Defekter/nicht lesbarer Alt-Inhalt darf das Öffnen des Formulars nie
+  /// verhindern — sonst wird ein Gerät mit kaputtem JSON für immer
+  /// unbearbeitbar. Fallback: leere Erkennung, Felder bleiben bearbeitbar.
+  static Map<String, dynamic> _erkennungAusJson(String? json) {
+    if (json == null) return <String, dynamic>{};
+    try {
+      return Map<String, dynamic>.from(jsonDecode(json) as Map);
+    } catch (_) {
+      return <String, dynamic>{};
+    }
   }
 
   @override
@@ -203,29 +211,61 @@ class KuehlerFelderState extends State<KuehlerFelder> {
         BelegBildService.autoAusrichten(rohBytes, dateityp: dateityp),
       );
 
-      final ergebnis = await TypenschildService.lesen(bytes, mediaType: mediaType);
+      // Upload ZUERST, dann KI — schlägt der Upload fehl, ist das Foto weg
+      // und die KI-Analyse wäre verschwendet. Schlägt umgekehrt nur die KI
+      // fehl, bleibt das schon hochgeladene Foto als Dokumentation stehen
+      // (Review-Fund: vorher ging bei einem KI-Fehler auch das Foto verloren).
       final pfad = await EventDokumentStorage.uploadTechnikFoto(
         widget.geraetServerId,
         bytes,
         istKuehler ? 'kuehler' : 'pumpe',
       );
-
       if (!mounted) return;
       setState(() {
-        final vorschlag = ergebnis.vorschlagTyp();
-        if (vorschlag != null) {
-          (istKuehler ? _kuehlerTyp : _pumpeTyp).text = vorschlag;
-        }
-        _erkennung[istKuehler ? 'kuehler' : 'pumpe'] = ergebnis.toJson();
         if (istKuehler) {
           _typenschildKuehlerPfad = pfad;
-          _liestKuehler = false;
         } else {
           _typenschildPumpePfad = pfad;
-          _liestPumpe = false;
         }
       });
+
+      try {
+        final ergebnis =
+            await TypenschildService.lesen(bytes, mediaType: mediaType);
+        if (!mounted) return;
+        setState(() {
+          final vorschlag = ergebnis.vorschlagTyp();
+          if (vorschlag != null) {
+            (istKuehler ? _kuehlerTyp : _pumpeTyp).text = vorschlag;
+          }
+          _erkennung[istKuehler ? 'kuehler' : 'pumpe'] = ergebnis.toJson();
+          if (istKuehler) {
+            _liestKuehler = false;
+          } else {
+            _liestPumpe = false;
+          }
+        });
+      } catch (e) {
+        // Nur die KI-Auswertung ist gescheitert — der Pfad oben bleibt
+        // gesetzt, das Foto ist nicht verloren.
+        if (mounted) {
+          setState(() {
+            if (istKuehler) {
+              _liestKuehler = false;
+            } else {
+              _liestPumpe = false;
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Foto gespeichert, KI-Auswertung fehlgeschlagen: $e'),
+            ),
+          );
+        }
+      }
     } catch (e) {
+      // Kamera/Ausrichtung/Upload fehlgeschlagen — hier gibt es noch nichts
+      // zu erhalten, kompletter Abbruch mit Fehlermeldung.
       if (mounted) {
         setState(() {
           if (istKuehler) {
