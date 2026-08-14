@@ -1137,9 +1137,15 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
             error: (e, _) => Center(child: Text('Fehler: $e')),
             data: (staende) {
               if (_karte) {
+                // Nur Nebeninfo auf der Karte — ein Ladefehler/leerer
+                // Zwischenstand blockiert die Standanzeige nicht.
+                final geraete =
+                    ref.watch(eventGeraeteProvider(event.serverId!)).valueOrNull ??
+                        <EventGeraetLocal>[];
                 return EventStaendeMap(
                   staende: staende,
                   onStandTap: (s) => _standBearbeiten(s),
+                  geraete: geraete,
                   lageplan: _lageplanOverlay,
                   // Planung am PC: Position per Tap auf die Karte setzen.
                   onPositionSetzen: (stand, punkt) async {

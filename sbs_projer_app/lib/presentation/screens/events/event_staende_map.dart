@@ -4,7 +4,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/stand_position.dart';
 import 'package:sbs_projer_app/core/util/swisstopo.dart';
+import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
+import 'package:sbs_projer_app/data/models/event_geraet.dart';
 import 'package:sbs_projer_app/presentation/widgets/basemap_umschalter.dart';
 import 'package:sbs_projer_app/presentation/widgets/mein_standort_marker.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
@@ -31,6 +33,11 @@ class EventStaendeMap extends StatefulWidget {
   final List<EventStandLocal> staende;
   final void Function(EventStandLocal) onStandTap;
 
+  /// Technik-Geräte (Anstiche/Kühler) mit Standort — rein informativ, ohne
+  /// Bearbeitung von der Karte aus (die lebt im Technik-Tab). Optional, damit
+  /// die Karte auch ohne Geräte-Daten aufrufbar bleibt.
+  final List<EventGeraetLocal> geraete;
+
   /// Position eines Stands auf der Karte setzen (Planung). Fehlt der Callback,
   /// ist die Karte reine Anzeige.
   final Future<void> Function(EventStandLocal stand, LatLng punkt)?
@@ -44,6 +51,7 @@ class EventStaendeMap extends StatefulWidget {
     super.key,
     required this.staende,
     required this.onStandTap,
+    this.geraete = const [],
     this.onPositionSetzen,
     this.lageplan,
   });
@@ -247,6 +255,46 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                   opacity: 0.65,
                 ),
               ]),
+            // Geräte-Marker UNTER den Stand-Markern (nächste Layer) — die
+            // Stände bleiben die prominente Ebene, Technik ist Zusatzinfo.
+            MarkerLayer(
+              markers: [
+                for (final g in widget.geraete)
+                  if (g.latitude != null && g.longitude != null)
+                    Marker(
+                      point: LatLng(g.latitude!, g.longitude!),
+                      width: 30,
+                      height: 30,
+                      child: GestureDetector(
+                        onTap: () => ScaffoldMessenger.of(context)
+                            .showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '${g.bezeichnung} · ${EventGeraet.typLabel(g.typ)}',
+                            ),
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 3),
+                            ],
+                          ),
+                          child: Icon(
+                            EventGeraet.istAnstich(g.typ)
+                                ? Icons.propane_tank
+                                : Icons.ac_unit,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+              ],
+            ),
             MarkerLayer(
               markers: [
                 for (final s in mitGps)

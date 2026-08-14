@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_technik.dart';
+import 'package:sbs_projer_app/core/util/stand_position.dart';
 import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_leitung_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
@@ -11,6 +12,8 @@ import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_geraet_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_leitung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/events/stand_position_dialog.dart';
+import 'package:sbs_projer_app/services/gps/gps_service.dart';
 
 /// Technik-Tab im Event-Detail: Anstiche (Orion, Mehrfachanstich) mit ihren
 /// Leitungen, darunter die Durchlaufkühler. Erfassungswerkzeug fürs Openair
@@ -327,6 +330,63 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
     }
   }
 
+  /// Erfasst die aktuelle GPS-Position und speichert sie am Gerät.
+  ///
+  /// Gleiches Muster wie bei den Ständen (`_standortErfassen` in
+  /// event_detail_screen.dart): Existiert bereits eine Position, kommt
+  /// zuerst die Rückfrage mit Kartenanzeige und Abstand — überschrieben
+  /// wird nie stillschweigend.
+  Future<void> _standortErfassen() async {
+    try {
+      final pos = await GpsService.aktuellePosition();
+      final abgleich = positionsAbgleich(
+        bisherLat: g.latitude,
+        bisherLng: g.longitude,
+        bisherQuelle: g.positionQuelle,
+        neuLat: pos.latitude,
+        neuLng: pos.longitude,
+      );
+
+      if (abgleich.brauchtRueckfrage) {
+        if (!mounted) return;
+        final uebernehmen = await zeigeStandPositionDialog(
+          context,
+          standName: g.bezeichnung,
+          bisherLat: g.latitude!,
+          bisherLng: g.longitude!,
+          neuLat: pos.latitude,
+          neuLng: pos.longitude,
+          distanzMeter: abgleich.distanzMeter!,
+          bisherWarGeplant: abgleich.bisherWarGeplant,
+        );
+        if (!uebernehmen) return;
+      }
+
+      g
+        ..latitude = pos.latitude
+        ..longitude = pos.longitude
+        ..positionQuelle = quelleGps
+        // Stufe aus der gemeldeten Messgenauigkeit — bei GPS muss sie
+        // niemand von Hand einschätzen.
+        ..positionGenauigkeit = genauigkeitAusMessung(pos.accuracy);
+      await EventGeraetRepository.save(g);
+      widget.onChanged();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📍 Standort gemessen (±${pos.accuracy.round()} m)'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Standort nicht möglich: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final leitungen = List.of(widget.leitungen)
@@ -413,6 +473,49 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Standort im Klartext + Erfassen — gleiche Zeile wie bei
+                  // den Ständen (_StandCard), damit GPS-Erfassung am Fest
+                  // überall gleich funktioniert.
+                  Row(
+                    children: [
+                      Icon(
+                        g.latitude == null
+                            ? Icons.location_off
+                            : Icons.location_on,
+                        size: 15,
+                        color: g.latitude == null
+                            ? AppColors.error
+                            : switch (g.positionGenauigkeit) {
+                                genauGenau => AppColors.success,
+                                genauMittel => Colors.orange,
+                                _ => AppColors.error,
+                              },
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          g.latitude == null
+                              ? 'Noch kein Standort erfasst'
+                              : '${g.positionQuelle == quelleGps ? 'Gemessen' : 'Geplant'}'
+                                    ' · ${genauigkeitText(g.positionGenauigkeit)}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.my_location, size: 16),
+                        label: Text(
+                          g.latitude == null ? 'Erfassen' : 'Neu erfassen',
+                        ),
+                        onPressed: _standortErfassen,
+                      ),
+                    ],
+                  ),
                   // Inbetriebnahme + Verwaltung
                   Row(
                     children: [
