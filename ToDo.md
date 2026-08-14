@@ -13,7 +13,17 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-## 🟡 NEU 14.08. (v0.87.0, live): Event-Technik — Anstiche & Leitungen fürs Openair Gampel
+## 🟡 NEU 14.08. abends (v0.88.0, live): Event-Technik v2 — GPS/Karte, Typenschild-KI, Temperatur-Monitoring, Testdaten-Reset
+
+**Auftrag Daniel (14.08. nachmittags, nach erstem Antesten):** Anstiche mit GPS + Karte; Durchlaufkühler mit Typ Kühler/Pumpe (Typenschild per **Foto-KI**, portiert aus Projekt Heineken `foto-erkennen`), Bemerkungen, **Temperatur-Monitoring** (manuell mehrmals täglich + Sollbereich mit Warnung + Verlaufsgrafik); **alle Eingaben bis So-Abend sind Testdaten**.
+
+**Gebaut (7 Tasks, gleicher Review-Prozess):** Migration 173 (Kühler-Felder + `event_kuehler_messungen`) · Migration 174 (**automatischer Testdaten-Reset Mo 17.08. 06:00 CH** — löscht Technik, Leitungen, Messungen UND Stände des Gampel-Events; vorher JSONB-Snapshot `snapshot_gampel_testdaten`; per Rollback-Transaktion getestet; Job entfernt sich selbst) · Edge Function `typenschild-lesen` (deployed, JWT-geschützt; liest Hersteller/Typ/Seriennr./Baujahr, meldet Unsicherheiten) · volle Daten-Vertikale Messungen · **Standort erfassen** an der Geräte-Karte + **Geräte-Marker** (violett, Tank/Schneeflocke) auf der Stände-Karte · Kühler-Formular mit 2 Foto-Knöpfen (Foto bleibt auch bei KI-Fehler), Sollbereich · **Temperatur erfassen** + rote Warnung ausserhalb Sollbereich + fl_chart-Verlauf (Soll-Linien gestrichelt, Ausreisser rot). 1152 Tests grün.
+
+- [ ] ⚠️ **Klicktest Daniel am Handy (Testdaten — alles darf kaputt gehen, Mo früh ist es weg):** Kühler anlegen → Typenschild fotografieren (KI-Vorschlag? Unsicherheits-Hinweis?) → Sollbereich 2–6 setzen → 2–3 Temperaturen erfassen (eine ausserhalb → rot? Grafik da?) → Anstich: «Standort erfassen» → Karte: violette Marker sichtbar? **fl_chart ist Premiere im Projekt — CanvasKit-Risiko, Pixel konnte ich wieder nicht prüfen.**
+- [ ] **Reset läuft automatisch Mo 06:00** — falls du ihn NICHT willst oder früher/später: melden, ich kann ihn jederzeit per `SELECT cron.unschedule('gampel-testdaten-reset')` stoppen. Wiederherstellung wäre über `snapshot_gampel_testdaten` möglich.
+- [ ] Vertagt: PNG wird beim Foto-Upload als .jpg abgelegt (kosmetisch), verwaiste Fotos bei abgebrochenem Sheet, Chart-Polster bei konstanter Temperatur, Foto-Vorschau im Formular (auf Zuruf).
+
+## 🟢 ERLEDIGT 14.08. (v0.87.0): Event-Technik — Anstiche & Leitungen fürs Openair Gampel
 
 **Auftrag Daniel (14.08.):** Zuordnung Anlagen → Bierquelle fürs Gampel (17.–23.08.): Orion-Tanks 500/1000 l, Mehrfachanstiche (bis 4 Tanks), bis 12 Leitungen je Tank, Durchlaufkühler für die Begleitkühlung. Leitungen sind physisch nummeriert (am Anstich UND am Hahn), Nummern laufen **pro Anstich**. Erfassung läuft hier in SBS Projer DEV; das saubere Modell entsteht nach Daniels Detail-Doku im **Projekt Heineken**. Spec + Plan: `docs/superpowers/specs/2026-08-14-event-anstiche-leitungen-design.md` / `docs/superpowers/plans/…`.
 
