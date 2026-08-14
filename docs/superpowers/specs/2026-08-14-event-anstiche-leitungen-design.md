@@ -173,6 +173,64 @@ zur bestehenden Event-Vertikale.
 - Wächter: `pagination_stabil_test.dart` greift automatisch, sobald eine
   `.range()`-Abfrage dazukommt — `.order('id')` nicht vergessen.
 
+## Erweiterung v2 (Daniel, 14.08. nachmittags — nach erstem Antesten)
+
+Drei Pakete, Entscheide per Rückfrage geklärt:
+
+### A. Anstiche mit GPS und auf der Karte
+
+Die Spalten aus Migration 172 bekommen ihre UI: **«Standort erfassen»** an der
+Geräte-Karte (GPS-Fluss identisch zu den Ständen: `GpsService.aktuellePosition`,
+`positionsAbgleich` mit Rückfrage-Dialog, `genauigkeitAusMessung`) und
+**Geräte-Marker auf der Stände-Karte** (`EventStaendeMap` bekommt einen
+optionalen `geraete`-Parameter und ein zweites MarkerLayer; eigenes Symbol,
+farblich von den Ständen unterschieden; Tap zeigt die Bezeichnung).
+Positionieren per Karten-Tap am PC bleibt den Ständen vorbehalten — für die
+Anstiche ist GPS vor Ort der Gampel-Fall.
+
+### B. Durchlaufkühler: Typenschilder, Bemerkungen, Temperatur-Monitoring
+
+**Entscheid Daniel: Foto machen, KI liest aus** — wie beim Spesen-Scanner.
+Vorbild ist die bestehende Lösung im Projekt Heineken
+(`D:\Projekte\Heineken\supabase\functions\foto-erkennen\index.ts`, erkundet
+14.08.): Typenschild-Schema `{hersteller, typ_bezeichnung, seriennummer,
+baujahr}` plus `unsicher_bei`/`sicherheit`, Claude via Anthropic-API,
+forced tool-use. Für SBS Projer als **abgespeckte eigene Edge Function
+`typenschild-lesen`** nach dem `parse-beleg`-Muster dieses Repos
+(Request `{image_base64, media_type}`, JWT-Pflicht, base64 statt
+Storage-Umweg — konsistent mit dem bestehenden Scanner).
+
+- Migration 173, `event_geraete`: `kuehler_typ text`, `pumpe_typ text`,
+  `typenschild_kuehler_pfad text`, `typenschild_pumpe_pfad text`,
+  `typenschild_erkennung jsonb` (Roh-Ablage), `soll_min_celsius numeric`,
+  `soll_max_celsius numeric`. Bemerkungen = bestehendes `notizen`.
+- **Zwei Typenschilder** (Kühler UND Pumpe): je Knopf «Typenschild
+  fotografieren» im Kühler-Formular → Kamera (`image_picker`, Muster
+  Spesen-Scanner inkl. `BelegBildService.autoAusrichten`) → Edge Function →
+  Vorschlag in die Textfelder (korrigierbar, `unsicher_bei`-Felder markiert) →
+  Foto in den Bucket `event-dokumente` (`{userId}/technik/...jpg`; erlaubt
+  Bilder seit Migration 171).
+- **Monitoring (Entscheid: manuell + Sollbereich mit Warnung):** neue Tabelle
+  `event_kuehler_messungen` (geraet_id FK CASCADE, `gemessen_am`,
+  `temperatur numeric`, notiz; RLS wie üblich). Erfassen: Knopf «Temperatur»
+  an der Kühler-Karte → Zahleneingabe, Zeitstempel automatisch. Anzeige:
+  letzte Messung in der Karten-Zeile, **rot ausserhalb des Sollbereichs**;
+  aufgeklappt eine **Liniengrafik** des Verlaufs (fl_chart, ist bereits
+  Dependency; Sollbereich als Band). ⚠️ fl_chart ist im Projekt noch nie
+  gerendert worden — CanvasKit-Klicktest zwingend.
+
+### C. Testdaten-Reset Montagmorgen 17.08.
+
+**Alles bis Sonntagabend Erfasste ist Test.** Entscheid Daniel: auch die
+Stände löschen. Einmaliger pg_cron-Job (Muster Migration 162, UTC!):
+**Mo 17.08. 04:00 UTC = 06:00 CH** löscht für das Gampel-Event 2026:
+`event_kuehler_messungen`, `event_leitungen`, `event_geraete`,
+`event_stand_anlagen`, `event_staende`. Kontakte, Dokumente und
+Zeit-/Spesen-Zeilen bleiben. Vorher JSONB-Snapshot in
+`snapshot_gampel_testdaten` (Muster `snapshot_camt_abgleich`) — destruktiv
+und zeitversetzt heisst: mit Rückweg. Der Job entfernt sich nach dem Lauf
+selbst (`cron.unschedule`).
+
 ## Risiken
 
 - **Zeit:** Gampel beginnt am 17.08. Fällt der Technik-Tab nicht rechtzeitig
