@@ -111,7 +111,15 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
   Future<void> _kartenTap(LatLng punkt) async {
     final stand = _platziert;
     if (stand == null || widget.onPositionSetzen == null || _speichert) return;
-    setState(() => _speichert = true);
+    // Positionier-Modus braucht die Ebene — VOR dem Setzen, nicht danach:
+    // sonst liesse sich die Stände-Ebene mitten im Platzieren ausblenden und
+    // man tippt beim letzten Stand blind (Review 14.08.2026). Die
+    // Stände-Zeile im Panel ist zusätzlich gesperrt, solange platziert wird
+    // — das hier ist nur das zweite Netz.
+    setState(() {
+      _speichert = true;
+      _zeigeStaende = true;
+    });
     try {
       await widget.onPositionSetzen!(stand, punkt);
       if (!mounted) return;
@@ -120,12 +128,7 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
       final offen = widget.staende
           .where((s) => s.serverId != stand.serverId && s.latitude == null)
           .toList();
-      setState(() {
-        _platziert = offen.isEmpty ? null : offen.first;
-        // Positionier-Modus braucht zwingend die Stände-Ebene — sonst sieht
-        // man nicht, wohin man gerade tippt.
-        if (_platziert != null) _zeigeStaende = true;
-      });
+      setState(() => _platziert = offen.isEmpty ? null : offen.first);
       if (offen.isEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Alle Stände sind positioniert.')),
@@ -319,6 +322,20 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
         .map((s) => LatLng(s.latitude!, s.longitude!))
         .toList();
     final schweiz = LatLng(46.8, 8.23);
+    // Panel/Legende sollen nur Ebenen anbieten bzw. erklären, für die
+    // überhaupt Daten mit Position vorliegen (Review 14.08.2026) — eine
+    // «Anstiche»-Zeile ohne einen einzigen positionierten Anstich wäre ein
+    // toter Schalter.
+    final hatAnstiche = widget.geraete.any(
+      (g) =>
+          g.latitude != null && g.longitude != null && EventGeraet.istAnstich(g.typ),
+    );
+    final hatKuehler = widget.geraete.any(
+      (g) =>
+          g.latitude != null &&
+          g.longitude != null &&
+          !EventGeraet.istAnstich(g.typ),
+    );
 
     return Stack(
       children: [
@@ -480,8 +497,11 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
           child: _StandFarbenLegende(
             // Legende beschreibt nur, was auch sichtbar ist — sonst würde
             // sie nach dem Ausblenden einer Ebene falsche Erwartungen wecken.
+            // Und nur, was es überhaupt gibt (hatAnstiche/hatKuehler) —
+            // sonst erklärt sie eine Farbe für Marker, die nie existierten.
             zeigeStaende: _zeigeStaende,
-            zeigeTechnik: _zeigeAnstiche || _zeigeKuehler,
+            zeigeTechnik:
+                (_zeigeAnstiche && hatAnstiche) || (_zeigeKuehler && hatKuehler),
           ),
         ),
         Positioned(
@@ -524,10 +544,17 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
             bottom: 130,
             child: _EbenenPanel(
               hatLageplan: widget.lageplan != null,
+              hatAnstiche: hatAnstiche,
+              hatKuehler: hatKuehler,
               zeigeLageplan: _zeigeLageplan,
               zeigeStaende: _zeigeStaende,
               zeigeAnstiche: _zeigeAnstiche,
               zeigeKuehler: _zeigeKuehler,
+              // Positionier-Modus braucht die Stände-Ebene zwingend — die
+              // Zeile dafür ist gesperrt, damit sich der Zustand «platziert,
+              // aber blind» gar nicht erst herstellen lässt (Review
+              // 14.08.2026).
+              staendeGesperrt: _platziert != null,
               onToggleLageplan: () =>
                   setState(() => _zeigeLageplan = !_zeigeLageplan),
               onToggleStaende: () =>
@@ -740,10 +767,18 @@ class _StandFarbenLegende extends StatelessWidget {
 /// nicht immer zuverlässig).
 class _EbenenPanel extends StatelessWidget {
   final bool hatLageplan;
+  final bool hatAnstiche;
+  final bool hatKuehler;
   final bool zeigeLageplan;
   final bool zeigeStaende;
   final bool zeigeAnstiche;
   final bool zeigeKuehler;
+
+  /// Positionier-Modus läuft — die Stände-Zeile ist dann gesperrt (Review
+  /// 14.08.2026): ohne die Ebene tippt man beim Platzieren blind, also darf
+  /// dieser Zustand über die UI gar nicht erst entstehen.
+  final bool staendeGesperrt;
+
   final VoidCallback onToggleLageplan;
   final VoidCallback onToggleStaende;
   final VoidCallback onToggleAnstiche;
@@ -751,10 +786,13 @@ class _EbenenPanel extends StatelessWidget {
 
   const _EbenenPanel({
     required this.hatLageplan,
+    required this.hatAnstiche,
+    required this.hatKuehler,
     required this.zeigeLageplan,
     required this.zeigeStaende,
     required this.zeigeAnstiche,
     required this.zeigeKuehler,
+    required this.staendeGesperrt,
     required this.onToggleLageplan,
     required this.onToggleStaende,
     required this.onToggleAnstiche,
@@ -763,21 +801,23 @@ class _EbenenPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Material-Wrapper nur fürs InkWell-Ripple — die Zeilen selbst bleiben
-    // reine Row/Icon/Text-Kombinationen.
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: 172,
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
-        ),
+    // Container nur für Breite/Schatten — das Material darunter zeichnet
+    // Weiss + abgerundete Ecken selbst, sonst malt das InkWell-Ripple
+    // unsichtbar unter das weisse Rechteck statt sichtbar darüber (Review
+    // 14.08.2026, Minor 3).
+    return Container(
+      width: 190,
+      decoration: const BoxDecoration(
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+      ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 4),
             if (hatLageplan)
               _EbenenZeile(
                 label: 'Lageplan',
@@ -787,18 +827,22 @@ class _EbenenPanel extends StatelessWidget {
             _EbenenZeile(
               label: 'Stände',
               aktiv: zeigeStaende,
-              onTap: onToggleStaende,
+              onTap: staendeGesperrt ? null : onToggleStaende,
+              hinweis: staendeGesperrt ? '(Positionieren aktiv)' : null,
             ),
-            _EbenenZeile(
-              label: 'Anstiche',
-              aktiv: zeigeAnstiche,
-              onTap: onToggleAnstiche,
-            ),
-            _EbenenZeile(
-              label: 'Kühler',
-              aktiv: zeigeKuehler,
-              onTap: onToggleKuehler,
-            ),
+            if (hatAnstiche)
+              _EbenenZeile(
+                label: 'Anstiche',
+                aktiv: zeigeAnstiche,
+                onTap: onToggleAnstiche,
+              ),
+            if (hatKuehler)
+              _EbenenZeile(
+                label: 'Kühler',
+                aktiv: zeigeKuehler,
+                onTap: onToggleKuehler,
+              ),
+            const SizedBox(height: 4),
           ],
         ),
       ),
@@ -806,20 +850,24 @@ class _EbenenPanel extends StatelessWidget {
   }
 }
 
-/// Eine Zeile im Ebenen-Panel: Häkchen-Icon + Label, ganze Zeile tappbar.
+/// Eine Zeile im Ebenen-Panel: Häkchen-Icon + Label, ganze Zeile tappbar —
+/// ausser [onTap] ist null, dann grau/gesperrt mit optionalem [hinweis].
 class _EbenenZeile extends StatelessWidget {
   final String label;
   final bool aktiv;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final String? hinweis;
 
   const _EbenenZeile({
     required this.label,
     required this.aktiv,
     required this.onTap,
+    this.hinweis,
   });
 
   @override
   Widget build(BuildContext context) {
+    final gesperrt = onTap == null;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -829,10 +877,31 @@ class _EbenenZeile extends StatelessWidget {
             Icon(
               aktiv ? Icons.check_circle : Icons.radio_button_unchecked,
               size: 18,
-              color: aktiv ? AppColors.primary : AppColors.textSecondary,
+              color: gesperrt
+                  ? AppColors.textSecondary.withValues(alpha: 0.4)
+                  : (aktiv ? AppColors.primary : AppColors.textSecondary),
             ),
             const SizedBox(width: 10),
-            Text(label, style: const TextStyle(fontSize: 13)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: gesperrt ? AppColors.textSecondary : null,
+              ),
+            ),
+            if (hinweis != null) ...[
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  hinweis!,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ],
         ),
       ),
