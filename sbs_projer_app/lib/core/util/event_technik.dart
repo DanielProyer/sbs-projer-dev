@@ -25,13 +25,24 @@ int vergleicheLeitungsNummern(String a, String b) {
 (int, String)? _fuehrendeZahl(String s) {
   final m = RegExp(r'^(\d+)(.*)$').firstMatch(s.trim());
   if (m == null) return null;
-  return (int.parse(m.group(1)!), m.group(2)!);
+  // int.parse würde bei >19-stelligen Zahlen (int-Überlauf) eine
+  // FormatException werfen, die aus List.sort() propagiert — das läuft
+  // später im UI-Renderpfad und darf nie werfen. Bei tryParse == null wird
+  // der Wert als reiner Text behandelt (Sortierung fällt zurück auf
+  // compareTo), statt abzustürzen.
+  final zahl = int.tryParse(m.group(1)!);
+  if (zahl == null) return null;
+  return (zahl, m.group(2)!);
 }
 
 /// Nummernliste für die Massenanlage «Leitungen erzeugen»: [von]–[bis]
 /// einschliesslich, vertauschte Grenzen werden getauscht, bereits
 /// [bestehend]e Nummern übersprungen (macht die Aktion wiederholbar, ohne
 /// den Unique-Index (quelle_id, nummer) zu verletzen).
+///
+/// Wirft [ArgumentError], wenn der (normalisierte) Bereich mehr als 500
+/// Nummern umfasst — Schutz gegen ein vertipptes «1–99999999» im
+/// Erzeugen-Dialog, das sonst den Speicher sprengen würde.
 List<String> leitungsNummernBereich(
   int von,
   int bis, {
@@ -39,6 +50,9 @@ List<String> leitungsNummernBereich(
 }) {
   final lo = von <= bis ? von : bis;
   final hi = von <= bis ? bis : von;
+  if (hi - lo + 1 > 500) {
+    throw ArgumentError('Bereich zu gross (max. 500 Leitungen)');
+  }
   return [
     for (var n = lo; n <= hi; n++)
       if (!bestehend.contains('$n')) '$n',

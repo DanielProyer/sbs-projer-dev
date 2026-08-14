@@ -13,6 +13,16 @@ void main() {
       l.sort(vergleicheLeitungsNummern);
       expect(l, ['7', '7a', '7b', 'B3']);
     });
+    test('reiner Text: lexikographischer Vergleich', () {
+      final l = ['B3', 'A2'];
+      l.sort(vergleicheLeitungsNummern);
+      expect(l, ['A2', 'B3']);
+    });
+    test('>19-stellige Zahl wirft nicht, wird als Text behandelt', () {
+      final l = ['99999999999999999999', '2'];
+      l.sort(vergleicheLeitungsNummern);
+      expect(l, ['2', '99999999999999999999']);
+    });
   });
 
   group('leitungsNummernBereich', () {
@@ -31,14 +41,19 @@ void main() {
     test('alle vorhanden → leer', () {
       expect(leitungsNummernBereich(1, 2, bestehend: {'1', '2'}), isEmpty);
     });
+    test('Bereich über 500 wirft ArgumentError', () {
+      expect(() => leitungsNummernBereich(1, 1000), throwsArgumentError);
+    });
   });
 
   group('leitungsHinweiseFuerStand', () {
     // «Leitungen 7, 8, 9 ← Anstich A» — Gegenrichtung in der Stand-Karte.
+    // g2 steht bewusst zuerst, damit die Erstauftritt-Reihenfolge geprüft
+    // wird und nicht zufällig mit der alphabetischen übereinstimmt.
     final leitungen = [
+      (nummer: '3', quelleId: 'g2', standId: 's1'),
       (nummer: '9', quelleId: 'g1', standId: 's1'),
       (nummer: '7', quelleId: 'g1', standId: 's1'),
-      (nummer: '3', quelleId: 'g2', standId: 's1'),
       (nummer: '8', quelleId: 'g1', standId: 's2'),
       (nummer: '1', quelleId: 'g1', standId: null),
     ];
@@ -49,7 +64,7 @@ void main() {
         leitungsHinweiseFuerStand(
           standId: 's1', leitungen: leitungen, quelleNamen: namen,
         ),
-        ['7, 9 ← Anstich A', '3 ← Kühlzelt Nord'],
+        ['3 ← Kühlzelt Nord', '7, 9 ← Anstich A'],
       );
     });
     test('Stand ohne Leitungen → leer', () {
