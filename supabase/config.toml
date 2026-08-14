@@ -402,3 +402,6 @@ verify_jwt = true
 
 [functions.parse-beleg]
 verify_jwt = true
+
+[functions.typenschild-lesen]
+verify_jwt = true
