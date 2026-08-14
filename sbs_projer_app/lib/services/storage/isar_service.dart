@@ -23,6 +23,8 @@ import 'package:sbs_projer_app/data/local/event_einsatz_local.dart';
 import 'package:sbs_projer_app/data/local/event_aufwand_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local.dart';
+import 'package:sbs_projer_app/data/local/event_geraet_local.dart';
+import 'package:sbs_projer_app/data/local/event_leitung_local.dart';
 import 'package:sbs_projer_app/data/local/sync_meta_local.dart';
 
 class IsarService {
@@ -65,6 +67,8 @@ class IsarService {
       EventAufwandLocalSchema,
       EventStandLocalSchema,
       EventStandAnlageLocalSchema,
+      EventGeraetLocalSchema,
+      EventLeitungLocalSchema,
       SyncMetaLocalSchema,
     ], directory: dir.path);
   }
@@ -448,6 +452,55 @@ class IsarService {
       instance.writeTxn(() => instance.eventStandAnlageLocals.put(a));
   static Future<void> eventStandAnlageDelete(int id) =>
       instance.writeTxn(() => instance.eventStandAnlageLocals.delete(id));
+
+  // ─── EventGeraet ───
+  static Future<List<EventGeraetLocal>> eventGeraetFindByEvent(
+    String eventId,
+  ) => instance.eventGeraetLocals
+      .filter()
+      .eventIdEqualTo(eventId)
+      .sortBySortierung()
+      .findAll();
+  static Future<EventGeraetLocal?> eventGeraetGet(int id) =>
+      instance.eventGeraetLocals.get(id);
+  static Future<EventGeraetLocal?> eventGeraetFindByServerId(
+    String serverId,
+  ) => instance.eventGeraetLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
+  static Future<void> eventGeraetPut(EventGeraetLocal g) =>
+      instance.writeTxn(() => instance.eventGeraetLocals.put(g));
+  static Future<void> eventGeraetDelete(int id) =>
+      instance.writeTxn(() => instance.eventGeraetLocals.delete(id));
+
+  // ─── EventLeitung ───
+  static Future<List<EventLeitungLocal>> eventLeitungFindByEvent(
+    String eventId,
+  ) => instance.eventLeitungLocals
+      .filter()
+      .eventIdEqualTo(eventId)
+      .sortBySortierung()
+      .findAll();
+  static Future<List<EventLeitungLocal>> eventLeitungFindByQuelle(
+    String quelleId,
+  ) => instance.eventLeitungLocals
+      .filter()
+      .quelleIdEqualTo(quelleId)
+      .sortBySortierung()
+      .findAll();
+  static Future<EventLeitungLocal?> eventLeitungGet(int id) =>
+      instance.eventLeitungLocals.get(id);
+  static Future<EventLeitungLocal?> eventLeitungFindByServerId(
+    String serverId,
+  ) => instance.eventLeitungLocals
+      .filter()
+      .serverIdEqualTo(serverId)
+      .findFirst();
+  static Future<void> eventLeitungPut(EventLeitungLocal l) =>
+      instance.writeTxn(() => instance.eventLeitungLocals.put(l));
+  static Future<void> eventLeitungDelete(int id) =>
+      instance.writeTxn(() => instance.eventLeitungLocals.delete(id));
 
   // ─── BetriebRechnungsadresse ───
   static Future<BetriebRechnungsadresseLocal?> rechnungsadresseFindByBetrieb(

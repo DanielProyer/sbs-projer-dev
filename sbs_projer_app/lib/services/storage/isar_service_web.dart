@@ -198,6 +198,21 @@ class IsarService {
   static dynamic eventStandAnlagePut(dynamic a) => throw UnsupportedError('Isar not available on web');
   static dynamic eventStandAnlageDelete(int id) => throw UnsupportedError('Isar not available on web');
 
+  // ─── EventGeraet ───
+  static dynamic eventGeraetFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventGeraetGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventGeraetFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventGeraetPut(dynamic g) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventGeraetDelete(int id) => throw UnsupportedError('Isar not available on web');
+
+  // ─── EventLeitung ───
+  static dynamic eventLeitungFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventLeitungFindByQuelle(String quelleId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventLeitungGet(int id) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventLeitungFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventLeitungPut(dynamic l) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventLeitungDelete(int id) => throw UnsupportedError('Isar not available on web');
+
   // ─── Preis ───
   static dynamic preisFindAll() => throw UnsupportedError('Isar not available on web');
   static dynamic preisGet(int id) => throw UnsupportedError('Isar not available on web');
