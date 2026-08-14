@@ -25,6 +25,7 @@ class EventLeitungLocal {
   @Index()
   late String quelleId;
   String? kuehlerId;
+  @Index()
   String? standId;
   String? standAnlageId;
   bool inBetrieb = false;

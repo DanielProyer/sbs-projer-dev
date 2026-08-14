@@ -208,6 +208,8 @@ class IsarService {
   // ─── EventLeitung ───
   static dynamic eventLeitungFindByEvent(String eventId) => throw UnsupportedError('Isar not available on web');
   static dynamic eventLeitungFindByQuelle(String quelleId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventLeitungFindByStand(String standId) => throw UnsupportedError('Isar not available on web');
+  static dynamic eventLeitungFindByKuehler(String kuehlerId) => throw UnsupportedError('Isar not available on web');
   static dynamic eventLeitungGet(int id) => throw UnsupportedError('Isar not available on web');
   static dynamic eventLeitungFindByServerId(String serverId) => throw UnsupportedError('Isar not available on web');
   static dynamic eventLeitungPut(dynamic l) => throw UnsupportedError('Isar not available on web');

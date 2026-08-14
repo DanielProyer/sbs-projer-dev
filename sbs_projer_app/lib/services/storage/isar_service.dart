@@ -460,15 +460,12 @@ class IsarService {
       .filter()
       .eventIdEqualTo(eventId)
       .sortBySortierung()
+      .thenByBezeichnung()
       .findAll();
   static Future<EventGeraetLocal?> eventGeraetGet(int id) =>
       instance.eventGeraetLocals.get(id);
-  static Future<EventGeraetLocal?> eventGeraetFindByServerId(
-    String serverId,
-  ) => instance.eventGeraetLocals
-      .filter()
-      .serverIdEqualTo(serverId)
-      .findFirst();
+  static Future<EventGeraetLocal?> eventGeraetFindByServerId(String serverId) =>
+      instance.eventGeraetLocals.filter().serverIdEqualTo(serverId).findFirst();
   static Future<void> eventGeraetPut(EventGeraetLocal g) =>
       instance.writeTxn(() => instance.eventGeraetLocals.put(g));
   static Future<void> eventGeraetDelete(int id) =>
@@ -481,6 +478,7 @@ class IsarService {
       .filter()
       .eventIdEqualTo(eventId)
       .sortBySortierung()
+      .thenByNummer()
       .findAll();
   static Future<List<EventLeitungLocal>> eventLeitungFindByQuelle(
     String quelleId,
@@ -488,6 +486,16 @@ class IsarService {
       .filter()
       .quelleIdEqualTo(quelleId)
       .sortBySortierung()
+      .thenByNummer()
+      .findAll();
+  static Future<List<EventLeitungLocal>> eventLeitungFindByStand(
+    String standId,
+  ) => instance.eventLeitungLocals.filter().standIdEqualTo(standId).findAll();
+  static Future<List<EventLeitungLocal>> eventLeitungFindByKuehler(
+    String kuehlerId,
+  ) => instance.eventLeitungLocals
+      .filter()
+      .kuehlerIdEqualTo(kuehlerId)
       .findAll();
   static Future<EventLeitungLocal?> eventLeitungGet(int id) =>
       instance.eventLeitungLocals.get(id);
