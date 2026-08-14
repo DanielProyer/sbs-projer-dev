@@ -171,6 +171,10 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
 
       ref.invalidate(eventStaendeProvider(widget.eventId));
       ref.invalidate(eventStandAnlagenProvider(stand.serverId!));
+      // Entfernte Anlagen-Zeilen reissen ihre stand_anlage_id mit (DB SET
+      // NULL) — der Leitungs-Cache (nicht-autoDispose) muss mitgezogen
+      // werden, sonst schreibt das Sheet die tote Id zurück (FK 23503).
+      ref.invalidate(eventLeitungenProvider(widget.eventId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

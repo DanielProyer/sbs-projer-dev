@@ -691,9 +691,29 @@ class _LeitungZeileState extends ConsumerState<_LeitungZeile> {
         break;
       }
     }
+
+    // Gerätezeile am Stand («OT», «UT» …) zusätzlich zum Standnamen — der
+    // Pikett-Anruf «7 → Stand 12 · OT» nennt so direkt das richtige Gerät
+    // (Spec Anstiche & Leitungen). Ohne Treffer/noch ungeladen: nichts
+    // anzeigen, kein «(unbekannt)» — das ist hier nur Zusatzinfo.
+    String? geraetezeile;
+    if (leitung.standAnlageId != null && leitung.standId != null) {
+      final anlagen = ref
+              .watch(eventStandAnlagenProvider(leitung.standId!))
+              .valueOrNull ??
+          const <EventStandAnlageLocal>[];
+      for (final a in anlagen) {
+        if (a.serverId == leitung.standAnlageId) {
+          geraetezeile = EventStandAnlage.typKurz(a.typ);
+          break;
+        }
+      }
+    }
+
     final teile = <String>[
       if (widget.mitQuelle) '${_geraetName(leitung.quelleId)}',
       standName ?? 'kein Ziel',
+      if (geraetezeile != null) geraetezeile,
       if (leitung.kuehlerId != null) 'über ${_geraetName(leitung.kuehlerId)}',
       if ((leitung.notiz ?? '').trim().isNotEmpty) leitung.notiz!.trim(),
     ];
@@ -1063,8 +1083,8 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final staende =
-        ref.watch(eventStaendeProvider(widget.eventId)).valueOrNull ?? [];
+    final staendeAsync = ref.watch(eventStaendeProvider(widget.eventId));
+    final staende = staendeAsync.valueOrNull ?? [];
     final kuehler = widget.geraete
         .where((g) => !EventGeraet.istAnstich(g.typ))
         .toList();
@@ -1074,11 +1094,36 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
         : ref.watch(eventStandAnlagenProvider(_standId!));
     final anlagen = anlagenAsync?.valueOrNull ?? <EventStandAnlageLocal>[];
 
-    // Tote Anlagen-Zuordnung: Die Liste des Stands ist geladen, enthält
-    // die referenzierte Anlage aber nicht mehr (z. B. am Stand gelöscht).
-    // Ein toter Verweis darf nie stillschweigend mitgespeichert werden
-    // (I5) — Reset erst nach dem Frame, setState während build ist
-    // verboten, und so bleibt eine laufende Nutzereingabe unangetastet.
+    // Tote Referenzen nie stillschweigend mitspeichern (I5) — Reset erst
+    // nach dem Frame, setState während build ist verboten, und so bleibt
+    // eine laufende Nutzereingabe unangetastet.
+    //
+    // Ziel-Stand: Die Event-Stände-Liste ist geladen, enthält den
+    // referenzierten Stand aber nicht mehr (z. B. gelöscht — Task F2).
+    if (staendeAsync.hasValue &&
+        _standId != null &&
+        !staende.any((s) => s.serverId == _standId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _standId != null) {
+          setState(() {
+            _standId = null;
+            // Hängt am Stand — kann ohne ihn nicht mehr gültig sein.
+            _standAnlageId = null;
+          });
+        }
+      });
+    }
+    // Begleitkühlung: Der referenzierte Durchlaufkühler existiert in der
+    // aktuellen Geräteliste des Events nicht mehr.
+    if (_kuehlerId != null && !kuehler.any((k) => k.serverId == _kuehlerId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _kuehlerId != null) {
+          setState(() => _kuehlerId = null);
+        }
+      });
+    }
+    // Anlagen-Zuordnung: Die Liste des Stands ist geladen, enthält die
+    // referenzierte Anlage aber nicht mehr (z. B. am Stand gelöscht).
     if ((anlagenAsync?.hasValue ?? false) &&
         _standAnlageId != null &&
         !anlagen.any((a) => a.serverId == _standAnlageId)) {

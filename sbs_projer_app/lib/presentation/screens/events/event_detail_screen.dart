@@ -1045,6 +1045,10 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
     try {
       await EventStandRepository.delete(stand.routeId);
       ref.invalidate(eventStaendeProvider(event.serverId!));
+      // DB nullt stand_id per SET NULL — der Leitungs-Cache (nicht-
+      // autoDispose) muss mitgezogen werden, sonst schreibt das Sheet die
+      // tote Id zurück (FK 23503).
+      ref.invalidate(eventLeitungenProvider(event.serverId!));
       if (mounted) {
         ScaffoldMessenger.of(
           context,
