@@ -57,11 +57,16 @@ class EventGeraetRepository {
       for (final l in alsQuelle) {
         await IsarService.eventLeitungDelete(l.id);
       }
+      // Reihenfolge tragend: erst Quelle-Leitungen löschen, DANN Kühler-
+      // Referenzen nullen — umgekehrt würde put() eine soeben gelöschte
+      // Leitung wieder anlegen.
       final alsKuehler = await IsarService.eventLeitungFindByKuehler(
         local.serverId!,
       );
       for (final l in alsKuehler) {
         l.kuehlerId = null;
+        // bewusst ohne save(): der Server hat per ON DELETE SET NULL schon
+        // genullt, isSynced bleibt true (kein Re-Push-Rauschen).
         await IsarService.eventLeitungPut(l);
       }
     }

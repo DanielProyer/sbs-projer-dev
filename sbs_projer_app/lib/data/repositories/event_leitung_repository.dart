@@ -55,6 +55,8 @@ class EventLeitungRepository {
   /// Massenanlage «Leitungen erzeugen»: legt für die Quelle die Nummern
   /// [von]–[bis] an, überspringt bereits vorhandene (Unique-Index
   /// (quelle_id, nummer) bleibt sauber, die Aktion ist wiederholbar).
+  /// [quelleId] ist die serverId (UUID) des Anstichs.
+  /// Auf Web ist das Anlegen ein einziger atomarer Bulk-Upsert.
   /// Liefert die Anzahl neu angelegter Leitungen. Wirft [ArgumentError]
   /// bei Bereichen über 500 (Guard in [leitungsNummernBereich]).
   static Future<int> erzeugeLeitungen({
@@ -69,15 +71,39 @@ class EventLeitungRepository {
         if (l.quelleId == quelleId) l.nummer,
     };
     final neue = leitungsNummernBereich(von, bis, bestehend: bestehend);
-    var sortierung = alle.where((l) => l.quelleId == quelleId).length;
+    if (neue.isEmpty) return 0;
+    // sortierung: max+1 statt Anzahl — nach einem Löschen kollidierte die
+    // Zählung sonst mit bestehenden Werten (Review-Befund 14.08.2026).
+    var sortierung = alle
+            .where((l) => l.quelleId == quelleId)
+            .fold(-1, (m, l) => l.sortierung > m ? l.sortierung : m) +
+        1;
+    final locals = <EventLeitungLocal>[];
     for (final nummer in neue) {
-      final l = EventLeitungLocal()
-        ..eventId = eventId
-        ..quelleId = quelleId
-        ..nummer = nummer
-        ..sortierung = sortierung++;
-      await save(l);
+      locals.add(
+        EventLeitungLocal()
+          ..userId = _userId
+          ..serverId = const Uuid().v4()
+          ..eventId = eventId
+          ..quelleId = quelleId
+          ..nummer = nummer
+          ..sortierung = sortierung++,
+      );
     }
-    return neue.length;
+    if (kIsWeb) {
+      // EIN Bulk-Upsert statt n Round-Trips: atomar — entweder stehen alle
+      // Leitungen in der DB oder keine (Review-Befund: Halb-Zustand bei
+      // Abbruch mitten in der Schleife).
+      await SupabaseService.client
+          .from('event_leitungen')
+          .upsert([for (final l in locals) EventLeitungMapper.toJson(l)]);
+    } else {
+      for (final l in locals) {
+        l.isSynced = false;
+        l.lastModifiedAt = DateTime.now().toUtc();
+        await IsarService.eventLeitungPut(l);
+      }
+    }
+    return locals.length;
   }
 }
