@@ -160,7 +160,7 @@ Der Knopf «Arbeit beginnen» setzt den Status sofort auf `in_bearbeitung` ([:36
 - [ ] **Rechnung 2026-07-1007 neu erzeugen und an `kreditoren@sv-group.ch` senden** (Status heute `gesendet`, 94.05). Erst danach ist der SV-Fall wirklich erledigt.
 - [ ] Für die neue App (Projekt Heineken) das Adressmodell nochmals grundsätzlich anschauen (Entscheid Daniel 10.08.).
 
-## 🔴 OFFEN 08.08.: Eröffnungsreinigungen erscheinen nicht — Auto-Vorschlag hat zwei zu enge Bedingungen
+## 🟢 ERLEDIGT 14.08. (v0.86.0): Eröffnungsreinigungen erscheinen nicht — Auto-Vorschlag hatte zwei zu enge Bedingungen
 
 **Gemeldet Daniel:** «warum sehe ich Flora Landquart nicht am Montag 10.08.?» — und zum Befund «dass die letzte Reinigung als Endreinigung erfasst wurde macht keinen Sinn».
 
@@ -184,10 +184,13 @@ Der Knopf «Arbeit beginnen» setzt den Status sofort auf `in_bearbeitung` ([:36
 
 **Sofort erledigt (ohne Deploy):** Für **Flora Landquart**, **Pizzeria Paradies Bad Ragaz** und **Traube Mels** (Entscheid Daniel) je ein Termin `eroeffnungsreinigung` am **10.08.2026** angelegt (Status `geplant`, ohne Uhrzeit → kein Zeitanker, frei planbar). Bestätigte Termine zeigt der Tourenplan bewusst auch an Schliessungs- und Ruhetagen ([tour_providers.dart:866](sbs_projer_app/lib/presentation/providers/tour_providers.dart:866)) — alle drei stehen am Montag unter «Saison-Termine». Tour-Linie ab Domat/Ems: **Landquart → Bad Ragaz → Mels**, je 1 Hahn (Flora/Paradies Warmanstich, Traube Kaltanstich). ⚠️ Direkt in der DB angelegt → **kein Google-Kalender-Push** (Daniel hat manuelle Einträge).
 
-**Code-Fix (offen, für die nächste Session):**
-- [ ] **Bedingung `letzteServiceArt == 'endreinigung'` streichen.** Auslöser soll allein sein: qualifizierte Schliessung (≥21 Tage) + Anlage wurde während der Schliessung nicht gereinigt. Die bestehende Regel «lag die Endreinigung selbst in der Schliessung → kein Vorschlag» (Muloin-Fall) bleibt.
-- [ ] **Eröffnungsfenster statt Einzeltag:** `darfTrotzSchliessungGeplantWerden` für `eroeffnungsreinigung` auf die **letzten ~7 Tage vor Wiedereröffnung** öffnen statt nur den letzten Schliessungstag. Endreinigung spiegelbildlich (erste Tage der Schliessung). Sonst fällt jeder Betrieb durch, dessen letzter Schliessungstag nicht in die Tour passt.
-- [ ] Danach prüfen: erscheinen die restlichen fünf Betriebe automatisch? Regressionstests in `test/termin_tourenplan_test.dart` + `touren_saison`-Tests ergänzen.
+**Code-Fix — ERLEDIGT 14.08. (v0.86.0, live):**
+- [x] ~~Bedingung `letzteServiceArt == 'endreinigung'` streichen~~ — Auslöser ist jetzt allein die qualifizierte Schliessung (≥21 Tage) + während der Schliessung wurde nicht gereinigt. Muloin-Regel unverändert. **Nebenbefund gleich mitbehoben:** die Gross-/Kleinschreibung. Neu `istEndreinigungsArt()` — die Alt-Daten schreiben «Endreinigung» gross, der exakte Vergleich griff bei keinem Betrieb mit Alt-Historie (das unterdrückte den *Endreinigungs*-Vorschlag nie, obwohl er erledigt war).
+- [x] ~~Eröffnungsfenster statt Einzeltag~~ — `saisonReinigungFensterTage = 7`: die letzten 7 Schliessungstage vor der Wiedereröffnung, spiegelbildlich die ersten 7 Tage der Schliessung für die Endreinigung.
+- [x] **Damit die Lockerung nicht zu weit greift:** neu `qualifizierteOeffnungNach()` — eine Woche Betriebsferien löst keinen Eröffnungsservice aus. `oeffnungNach()` blieb unverändert, es verankert die Fälligkeits-Uhr und muss JEDE Wiedereröffnung kennen.
+- [x] **Provider-Blöcke auf reine Funktionen umgestellt** (`eroeffnungsVorschlagsTag` / `endreinigungsVorschlagsTag` in `touren_saison.dart`) — vorher war die Logik nur über Riverpod erreichbar und damit untestbar. 12 neue Tests, 1097 grün.
+- [x] **Gegenprobe an den Echtdaten (14.08.):** **Café Restaurant Mühle Nottwil** (Ferien 27.07.–18.08., 23 T) und **Mastro Alfonso Cham** (23.07.–18.08., 27 T) stehen ab heute im Fenster (Wiedereröffnung 19.08., 5 Tage) — beide letzte Reinigung als `standardservice` erfasst, vor dem Fix wäre also **an keinem Tag** ein Vorschlag gekommen. Die übrigen fünf sind inzwischen wieder offen und laufen über die reguläre Fälligkeit (Flora/Paradies/Traube wurden am 10.08. von Hand terminiert).
+- [ ] **Klicktest Daniel:** Tourenplan auf den 17./18.08. → stehen Café Mühle und Mastro Alfonso unter «Saison-Termine» als Eröffnungsservice?
 
 ## 🔴 OFFEN 08.08.: Lohnbuchhaltung 2019–2024 geprüft + SVA-Originalbelege gesichtet
 
