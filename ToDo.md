@@ -190,7 +190,7 @@ Der Knopf «Arbeit beginnen» setzt den Status sofort auf `in_bearbeitung` ([:36
 - [x] **Damit die Lockerung nicht zu weit greift:** neu `qualifizierteOeffnungNach()` — eine Woche Betriebsferien löst keinen Eröffnungsservice aus. `oeffnungNach()` blieb unverändert, es verankert die Fälligkeits-Uhr und muss JEDE Wiedereröffnung kennen.
 - [x] **Provider-Blöcke auf reine Funktionen umgestellt** (`eroeffnungsVorschlagsTag` / `endreinigungsVorschlagsTag` in `touren_saison.dart`) — vorher war die Logik nur über Riverpod erreichbar und damit untestbar. 12 neue Tests, 1097 grün.
 - [x] **Gegenprobe an den Echtdaten (14.08.):** **Café Restaurant Mühle Nottwil** (Ferien 27.07.–18.08., 23 T) und **Mastro Alfonso Cham** (23.07.–18.08., 27 T) stehen ab heute im Fenster (Wiedereröffnung 19.08., 5 Tage) — beide letzte Reinigung als `standardservice` erfasst, vor dem Fix wäre also **an keinem Tag** ein Vorschlag gekommen. Die übrigen fünf sind inzwischen wieder offen und laufen über die reguläre Fälligkeit (Flora/Paradies/Traube wurden am 10.08. von Hand terminiert).
-- [ ] **Klicktest Daniel:** Tourenplan auf den 17./18.08. → stehen Café Mühle und Mastro Alfonso unter «Saison-Termine» als Eröffnungsservice?
+- [x] ~~Klicktest Daniel~~ **BESTANDEN 14.08. (Daniel): «ja stehen beide drin»** — Café Mühle Nottwil und Mastro Alfonso Cham erscheinen im Tourenplan. Damit ist der Fall abgeschlossen.
 
 ## 🔴 OFFEN 08.08.: Lohnbuchhaltung 2019–2024 geprüft + SVA-Originalbelege gesichtet
 
