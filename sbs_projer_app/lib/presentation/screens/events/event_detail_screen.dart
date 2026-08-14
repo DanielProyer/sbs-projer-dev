@@ -517,7 +517,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   /// FAB je aktivem Tab: 0 Kontakt zuordnen, 1 Stand hinzufügen,
-  /// 2 Einsatz erfassen, 3 Zeit erfassen, 4 Dokument hochladen.
+  /// 2 Technik (kein FAB — der Tab hat eigene «+ Anstich»/«+ Kühler»-Knöpfe),
+  /// 3 Einsatz erfassen, 4 Zeit erfassen, 5 Dokument hochladen.
   Widget? _buildFab(String eventServerId) {
     switch (_tabController.index) {
       case 0:
@@ -532,19 +533,19 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           icon: const Icon(Icons.add_business),
           label: const Text('Stand hinzufügen'),
         );
-      case 2:
+      case 3:
         return FloatingActionButton.extended(
           onPressed: () => _einsatzHinzufuegen(eventServerId),
           icon: const Icon(Icons.bolt),
           label: const Text('Einsatz erfassen'),
         );
-      case 3:
+      case 4:
         return FloatingActionButton.extended(
           onPressed: () => _zeitErfassen(eventServerId),
           icon: const Icon(Icons.schedule),
           label: const Text('Zeit erfassen'),
         );
-      case 4:
+      case 5:
         return FloatingActionButton.extended(
           onPressed: () => _dokumentHochladen(eventServerId),
           icon: const Icon(Icons.upload_file),

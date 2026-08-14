@@ -46,12 +46,30 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
 
   @override
   Widget build(BuildContext context) {
-    final geraete =
-        ref.watch(eventGeraeteProvider(eventId)).valueOrNull ??
-            <EventGeraetLocal>[];
-    final leitungen =
-        ref.watch(eventLeitungenProvider(eventId)).valueOrNull ??
-            <EventLeitungLocal>[];
+    // Stände vorwärmen: Das Leitungs-Formular greift beim Öffnen sofort auf
+    // eventStaendeProvider zu — ohne diesen Watch hier wäre der Family-
+    // Provider beim ersten Sheet-Aufruf noch ungeladen und die Ziel-Stand-
+    // Auswahl bliebe leer (I4).
+    ref.watch(eventStaendeProvider(eventId));
+
+    return ref.watch(eventGeraeteProvider(eventId)).when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => _FehlerLaden(fehler: e, onRetry: _neuLaden),
+          data: (geraete) => ref.watch(eventLeitungenProvider(eventId)).when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => _FehlerLaden(fehler: e, onRetry: _neuLaden),
+                data: (leitungen) => _buildInhalt(geraete, leitungen),
+              ),
+        );
+  }
+
+  /// Baut die eigentliche Liste, erst wenn beide Provider Daten haben —
+  /// vorher (offline/Fehler) wäre «Noch keine Anstiche erfasst» eine
+  /// irreführende Falsch-Leer-Anzeige (I3).
+  Widget _buildInhalt(
+    List<EventGeraetLocal> geraete,
+    List<EventLeitungLocal> leitungen,
+  ) {
     final anstiche =
         geraete.where((g) => EventGeraet.istAnstich(g.typ)).toList();
     final kuehler =
@@ -132,6 +150,7 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
           ),
         for (final g in anstiche)
           _GeraetCard(
+            key: ValueKey(g.serverId),
             geraet: g,
             geraete: geraete,
             leitungen: leitungen.where((l) => l.quelleId == g.serverId).toList(),
@@ -167,6 +186,7 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
           ),
         for (final g in kuehler)
           _GeraetCard(
+            key: ValueKey(g.serverId),
             geraet: g,
             geraete: geraete,
             leitungen:
@@ -185,6 +205,16 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
     EventGeraetLocal? geraet,
     required bool anstich,
   }) async {
+    // Neue Geräte ans Ende der Sortierung anhängen (über ALLE Geräte des
+    // Events, nicht nur Anstiche oder Kühler) — sonst landen sie alle bei
+    // sortierung=0 und die Reihenfolge wird zufällig (M9).
+    final alleGeraete =
+        ref.read(eventGeraeteProvider(eventId)).valueOrNull ?? <EventGeraetLocal>[];
+    final naechsteSortierung = alleGeraete.fold<int>(
+          -1,
+          (m, g) => g.sortierung > m ? g.sortierung : m,
+        ) +
+        1;
     final gespeichert = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -192,9 +222,43 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
         eventId: eventId,
         geraet: geraet,
         anstich: anstich,
+        naechsteSortierung: naechsteSortierung,
       ),
     );
     if (gespeichert == true) _neuLaden();
+  }
+}
+
+/// Zentrierte Fehleranzeige mit Retry-Knopf für beide Technik-Provider —
+/// ein Ladefehler darf nie als «keine Daten vorhanden» erscheinen (I3).
+class _FehlerLaden extends StatelessWidget {
+  final Object? fehler;
+  final VoidCallback onRetry;
+
+  const _FehlerLaden({required this.fehler, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'Fehler: $fehler',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Nochmals laden'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -209,6 +273,7 @@ class _GeraetCard extends ConsumerStatefulWidget {
   final VoidCallback onChanged;
 
   const _GeraetCard({
+    super.key,
     required this.geraet,
     required this.geraete,
     required this.leitungen,
@@ -319,11 +384,31 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                       Expanded(
                         child: InkWell(
                           onTap: () async {
-                            g.inBetrieb = !g.inBetrieb;
-                            g.inBetriebAm =
-                                g.inBetrieb ? DateTime.now() : null;
-                            await EventGeraetRepository.save(g);
-                            widget.onChanged();
+                            final vorherInBetrieb = g.inBetrieb;
+                            final vorherInBetriebAm = g.inBetriebAm;
+                            setState(() {
+                              g.inBetrieb = !g.inBetrieb;
+                              g.inBetriebAm =
+                                  g.inBetrieb ? DateTime.now() : null;
+                            });
+                            try {
+                              await EventGeraetRepository.save(g);
+                              widget.onChanged();
+                            } catch (e) {
+                              // Stille Fehlschläge sind die dokumentierte
+                              // Projektfalle («still fehlgeschlagen»-Klasse)
+                              // — Zustand zurückrollen und laut melden statt
+                              // eine ungespeicherte Änderung stehen zu lassen.
+                              if (context.mounted) {
+                                setState(() {
+                                  g.inBetrieb = vorherInBetrieb;
+                                  g.inBetriebAm = vorherInBetriebAm;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Fehler: $e')),
+                                );
+                              }
+                            }
                           },
                           child: Row(
                             children: [
@@ -440,9 +525,11 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
         ],
       ),
     );
-    if (ok != true) return;
     final von = int.tryParse(vonC.text.trim());
     final bis = int.tryParse(bisC.text.trim());
+    vonC.dispose();
+    bisC.dispose();
+    if (ok != true) return;
     if (von == null || bis == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -516,7 +603,7 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
 
 // ─── Leitungs-Zeile ───
 
-class _LeitungZeile extends ConsumerWidget {
+class _LeitungZeile extends ConsumerStatefulWidget {
   final EventLeitungLocal leitung;
   final List<EventGeraetLocal> geraete;
   final String eventId;
@@ -531,18 +618,59 @@ class _LeitungZeile extends ConsumerWidget {
     required this.onChanged,
   });
 
+  @override
+  ConsumerState<_LeitungZeile> createState() => _LeitungZeileState();
+}
+
+class _LeitungZeileState extends ConsumerState<_LeitungZeile> {
+  // Doppeltipp-Riegel fürs Umschalten «In Betrieb» — ohne ihn kann ein
+  // zweiter Tap während des laufenden Speicherns den Rollback des ersten
+  // Versuchs überschreiben.
+  bool _schaltet = false;
+
+  EventLeitungLocal get leitung => widget.leitung;
+
   String? _geraetName(String? id) {
     if (id == null) return null;
-    for (final g in geraete) {
+    for (final g in widget.geraete) {
       if (g.serverId == id) return g.bezeichnung;
     }
     return '?';
   }
 
+  Future<void> _inBetriebUmschalten() async {
+    if (_schaltet) return;
+    final vorherInBetrieb = leitung.inBetrieb;
+    final vorherInBetriebAm = leitung.inBetriebAm;
+    setState(() {
+      _schaltet = true;
+      leitung.inBetrieb = !leitung.inBetrieb;
+      leitung.inBetriebAm = leitung.inBetrieb ? DateTime.now() : null;
+    });
+    try {
+      await EventLeitungRepository.save(leitung);
+      widget.onChanged();
+      if (mounted) setState(() => _schaltet = false);
+    } catch (e) {
+      // Stille Fehlschläge sind die dokumentierte Projektfalle («still
+      // fehlgeschlagen»-Klasse) — Zustand zurückrollen und laut melden
+      // statt eine ungespeicherte Änderung stehen zu lassen.
+      if (mounted) {
+        setState(() {
+          leitung.inBetrieb = vorherInBetrieb;
+          leitung.inBetriebAm = vorherInBetriebAm;
+          _schaltet = false;
+        });
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final staende =
-        ref.watch(eventStaendeProvider(eventId)).valueOrNull ?? [];
+        ref.watch(eventStaendeProvider(widget.eventId)).valueOrNull ?? [];
     String? standName;
     for (final s in staende) {
       if (s.serverId == leitung.standId) {
@@ -553,7 +681,7 @@ class _LeitungZeile extends ConsumerWidget {
       }
     }
     final teile = <String>[
-      if (mitQuelle) '${_geraetName(leitung.quelleId)}',
+      if (widget.mitQuelle) '${_geraetName(leitung.quelleId)}',
       standName ?? 'kein Ziel',
       if (leitung.kuehlerId != null) 'über ${_geraetName(leitung.kuehlerId)}',
       if ((leitung.notiz ?? '').trim().isNotEmpty) leitung.notiz!.trim(),
@@ -566,11 +694,11 @@ class _LeitungZeile extends ConsumerWidget {
           isScrollControlled: true,
           builder: (ctx) => _LeitungFormSheet(
             leitung: leitung,
-            geraete: geraete,
-            eventId: eventId,
+            geraete: widget.geraete,
+            eventId: widget.eventId,
           ),
         );
-        if (gespeichert == true) onChanged();
+        if (gespeichert == true) widget.onChanged();
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),
@@ -607,24 +735,23 @@ class _LeitungZeile extends ConsumerWidget {
                 ),
               ),
             ),
+            // 48×48-Tap-Ziel (I6) — sonst reisst ein knapper Tap daneben
+            // versehentlich das Bearbeiten-Sheet der ganzen Zeile auf.
             InkWell(
-              onTap: () async {
-                leitung.inBetrieb = !leitung.inBetrieb;
-                leitung.inBetriebAm =
-                    leitung.inBetrieb ? DateTime.now() : null;
-                await EventLeitungRepository.save(leitung);
-                onChanged();
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  leitung.inBetrieb
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  size: 20,
-                  color: leitung.inBetrieb
-                      ? AppColors.success
-                      : AppColors.textSecondary,
+              onTap: _inBetriebUmschalten,
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: Icon(
+                    leitung.inBetrieb
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    size: 20,
+                    color: leitung.inBetrieb
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                  ),
                 ),
               ),
             ),
@@ -641,11 +768,13 @@ class _GeraetFormSheet extends StatefulWidget {
   final String eventId;
   final EventGeraetLocal? geraet;
   final bool anstich;
+  final int naechsteSortierung;
 
   const _GeraetFormSheet({
     required this.eventId,
     this.geraet,
     required this.anstich,
+    required this.naechsteSortierung,
   });
 
   @override
@@ -690,6 +819,7 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
     }
     setState(() => _speichert = true);
     try {
+      final istNeu = widget.geraet == null;
       final g = widget.geraet ?? EventGeraetLocal();
       g
         ..eventId = widget.eventId
@@ -699,6 +829,9 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
         ..standortNotiz =
             _standort.text.trim().isEmpty ? null : _standort.text.trim()
         ..notizen = _notizen.text.trim().isEmpty ? null : _notizen.text.trim();
+      // Sortierung nur für neue Geräte setzen — bestehende behalten ihre
+      // Position, sonst würde jede Bearbeitung sie ans Ende schieben (M9).
+      if (istNeu) g.sortierung = widget.naechsteSortierung;
       await EventGeraetRepository.save(g);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -869,6 +1002,24 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
     }
   }
 
+  /// Fallback-Eintrag für einen Dropdown-Wert, der in der aktuell geladenen
+  /// Liste nicht (mehr) vorkommt — ohne ihn wirft DropdownButtonFormField
+  /// eine Assertion, sobald initialValue keinem items-value entspricht
+  /// (I4). Der Eintrag ist deaktiviert: sichtbar, aber nicht neu wählbar.
+  DropdownMenuItem<String?> _unbekanntItem(String value) {
+    return DropdownMenuItem<String?>(
+      value: value,
+      enabled: false,
+      child: const Text(
+        '(unbekannt)',
+        style: TextStyle(
+          color: AppColors.textSecondary,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+    );
+  }
+
   Future<void> _loeschen() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -907,10 +1058,53 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
         .where((g) => !EventGeraet.istAnstich(g.typ))
         .toList();
     // Gerätezeilen des gewählten Stands (abhängiges Dropdown).
-    final anlagen = _standId == null
-        ? <EventStandAnlageLocal>[]
-        : (ref.watch(eventStandAnlagenProvider(_standId!)).valueOrNull ??
-            <EventStandAnlageLocal>[]);
+    final anlagenAsync = _standId == null
+        ? null
+        : ref.watch(eventStandAnlagenProvider(_standId!));
+    final anlagen = anlagenAsync?.valueOrNull ?? <EventStandAnlageLocal>[];
+
+    // Tote Anlagen-Zuordnung: Die Liste des Stands ist geladen, enthält
+    // die referenzierte Anlage aber nicht mehr (z. B. am Stand gelöscht).
+    // Ein toter Verweis darf nie stillschweigend mitgespeichert werden
+    // (I5) — Reset erst nach dem Frame, setState während build ist
+    // verboten, und so bleibt eine laufende Nutzereingabe unangetastet.
+    if ((anlagenAsync?.hasValue ?? false) &&
+        _standAnlageId != null &&
+        !anlagen.any((a) => a.serverId == _standAnlageId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _standAnlageId != null) {
+          setState(() => _standAnlageId = null);
+        }
+      });
+    }
+
+    final standItems = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem(value: null, child: Text('— kein Ziel —')),
+      for (final s in staende)
+        if (s.serverId != null)
+          DropdownMenuItem(
+            value: s.serverId,
+            child: Text(
+              s.standnummer != null && s.standnummer!.isNotEmpty
+                  ? '${s.standnummer} ${s.name}'
+                  : s.name,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+    ];
+    if (_standId != null && !staende.any((s) => s.serverId == _standId)) {
+      standItems.add(_unbekanntItem(_standId!));
+    }
+
+    final kuehlerItems = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem(value: null, child: Text('— ohne —')),
+      for (final k in kuehler)
+        if (k.serverId != null)
+          DropdownMenuItem(value: k.serverId, child: Text(k.bezeichnung)),
+    ];
+    if (_kuehlerId != null && !kuehler.any((k) => k.serverId == _kuehlerId)) {
+      kuehlerItems.add(_unbekanntItem(_kuehlerId!));
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -944,20 +1138,7 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
           DropdownButtonFormField<String?>(
             initialValue: _standId,
             decoration: const InputDecoration(labelText: 'Ziel-Stand'),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('— kein Ziel —')),
-              for (final s in staende)
-                if (s.serverId != null)
-                  DropdownMenuItem(
-                    value: s.serverId,
-                    child: Text(
-                      s.standnummer != null && s.standnummer!.isNotEmpty
-                          ? '${s.standnummer} ${s.name}'
-                          : s.name,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-            ],
+            items: standItems,
             onChanged: (v) => setState(() {
               _standId = v;
               _standAnlageId = null; // Gerätezeile hängt am Stand
@@ -982,6 +1163,9 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
                         '${a.anzahl > 1 ? ' (${a.anzahl}×)' : ''}',
                       ),
                     ),
+                if (_standAnlageId != null &&
+                    !anlagen.any((a) => a.serverId == _standAnlageId))
+                  _unbekanntItem(_standAnlageId!),
               ],
               onChanged: (v) => setState(() => _standAnlageId = v),
             ),
@@ -992,15 +1176,7 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
             decoration: const InputDecoration(
               labelText: 'Begleitkühlung (Durchlaufkühler)',
             ),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('— ohne —')),
-              for (final k in kuehler)
-                if (k.serverId != null)
-                  DropdownMenuItem(
-                    value: k.serverId,
-                    child: Text(k.bezeichnung),
-                  ),
-            ],
+            items: kuehlerItems,
             onChanged: (v) => setState(() => _kuehlerId = v),
           ),
           const SizedBox(height: 8),
