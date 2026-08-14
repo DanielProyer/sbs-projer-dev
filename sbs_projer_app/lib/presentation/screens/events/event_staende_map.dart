@@ -266,14 +266,20 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                       width: 30,
                       height: 30,
                       child: GestureDetector(
-                        onTap: () => ScaffoldMessenger.of(context)
-                            .showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${g.bezeichnung} · ${EventGeraet.typLabel(g.typ)}',
-                            ),
-                          ),
-                        ),
+                        // Im Positionier-Modus muss der Kartentap durch den
+                        // Marker hindurch beim MapOptions.onTap ankommen —
+                        // ein gesetzter onTap-Handler würde die Geste sonst
+                        // gewinnen und eine tote Zone fürs Platzieren
+                        // erzeugen. null registriert keinen Recognizer.
+                        onTap: _platziert != null
+                            ? null
+                            : () => ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${g.bezeichnung} · ${EventGeraet.typLabel(g.typ)}',
+                                    ),
+                                  ),
+                                ),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.deepPurple,

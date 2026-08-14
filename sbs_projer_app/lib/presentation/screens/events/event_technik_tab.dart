@@ -298,6 +298,11 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
   // Versuchs überschreiben (gleiches Muster wie bei _LeitungZeileState).
   bool _schaltet = false;
 
+  // Riegel fürs GPS-Erfassen — die Messung dauert Sekunden; ein zweiter Tap
+  // während des laufenden Speicherns dürfte nicht parallel starten (gleiches
+  // Muster wie _schaltet oben).
+  bool _ortet = false;
+
   EventGeraetLocal get g => widget.geraet;
   bool get istAnstich => EventGeraet.istAnstich(g.typ);
 
@@ -337,6 +342,16 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
   /// zuerst die Rückfrage mit Kartenanzeige und Abstand — überschrieben
   /// wird nie stillschweigend.
   Future<void> _standortErfassen() async {
+    if (_ortet) return; // Riegel vor dem ersten await
+    setState(() => _ortet = true);
+    // Bisherige Werte sichern — bei fehlgeschlagenem Speichern muss die
+    // Karte/das Feld exakt auf den Vorzustand zurück, sonst bleiben ein
+    // phantomhaftes «Gemessen · genau» und ein Phantom-Marker im (nicht-
+    // autoDispose) Provider-Cache stehen (gleiche Falle wie inBetrieb).
+    final vorherLat = g.latitude;
+    final vorherLng = g.longitude;
+    final vorherQuelle = g.positionQuelle;
+    final vorherGenauigkeit = g.positionGenauigkeit;
     try {
       final pos = await GpsService.aktuellePosition();
       final abgleich = positionsAbgleich(
@@ -359,7 +374,10 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
           distanzMeter: abgleich.distanzMeter!,
           bisherWarGeplant: abgleich.bisherWarGeplant,
         );
-        if (!uebernehmen) return;
+        if (!uebernehmen) {
+          if (mounted) setState(() => _ortet = false);
+          return;
+        }
       }
 
       g
@@ -372,6 +390,7 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
       await EventGeraetRepository.save(g);
       widget.onChanged();
       if (mounted) {
+        setState(() => _ortet = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('📍 Standort gemessen (±${pos.accuracy.round()} m)'),
@@ -379,7 +398,15 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
         );
       }
     } catch (e) {
+      // Feld immer zurückrollen — unabhängig vom mounted-Status, sonst
+      // bleibt beim Verlassen des Tabs während eines fehlschlagenden
+      // Speicherns ein nie gespeicherter Standort im Objekt stehen.
+      g.latitude = vorherLat;
+      g.longitude = vorherLng;
+      g.positionQuelle = vorherQuelle;
+      g.positionGenauigkeit = vorherGenauigkeit;
       if (mounted) {
+        setState(() => _ortet = false);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Standort nicht möglich: $e')));
@@ -510,9 +537,13 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                         ),
                         icon: const Icon(Icons.my_location, size: 16),
                         label: Text(
-                          g.latitude == null ? 'Erfassen' : 'Neu erfassen',
+                          _ortet
+                              ? 'Misst …'
+                              : (g.latitude == null
+                                    ? 'Erfassen'
+                                    : 'Neu erfassen'),
                         ),
-                        onPressed: _standortErfassen,
+                        onPressed: _ortet ? null : _standortErfassen,
                       ),
                     ],
                   ),
