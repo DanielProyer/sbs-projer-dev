@@ -69,6 +69,14 @@ class EventGeraetRepository {
         // genullt, isSynced bleibt true (kein Re-Push-Rauschen).
         await IsarService.eventLeitungPut(l);
       }
+      // Messungen hängen per ON DELETE CASCADE am Gerät — lokale Kopien
+      // ebenfalls nachziehen (der Pull upsertet nur, Leichen blieben sonst).
+      final messungen = await IsarService.eventKuehlerMessungFindByGeraet(
+        local.serverId!,
+      );
+      for (final m in messungen) {
+        await IsarService.eventKuehlerMessungDelete(m.id);
+      }
     }
     await IsarService.eventGeraetDelete(isarId);
   }

@@ -83,7 +83,9 @@ final eventLeitungenProvider =
   return EventLeitungRepository.getByEvent(eventId);
 });
 
-/// Temperatur-Messungen eines Kühler-Geräts (routeId des EventGeraet).
+/// Temperatur-Messungen eines Kühler-Geräts — Schlüssel ist die serverId
+/// (UUID) des EventGeraet, nicht die routeId (nativ wäre das die Isar-Id und
+/// der Filter liefe ins Leere).
 final eventKuehlerMessungenProvider =
     FutureProvider.family<List<EventKuehlerMessungLocal>, String>((ref, geraetId) async {
   return EventKuehlerMessungRepository.getByGeraet(geraetId);
