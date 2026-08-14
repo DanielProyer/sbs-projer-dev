@@ -14,12 +14,15 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_aufwand_slots.dart';
 import 'package:sbs_projer_app/core/util/event_mail_empfaenger.dart';
 import 'package:sbs_projer_app/core/util/event_status.dart';
+import 'package:sbs_projer_app/core/util/event_technik.dart';
 import 'package:sbs_projer_app/core/util/inbetriebnahme.dart';
 import 'package:sbs_projer_app/core/util/whatsapp_link.dart';
 import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_dokument_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_einsatz_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_kontakt_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_leitung_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
@@ -1320,6 +1323,28 @@ class _StandCardState extends ConsumerState<_StandCard> {
         .where((k) => k.telefon != null && k.telefon!.trim().isNotEmpty)
         .firstOrNull;
 
+    // Gegenrichtung der Event-Technik: «7, 9 ← Anstich A» — der Pikett-Anruf
+    // nennt den Stand, nicht die Leitung (Spec Anstiche & Leitungen 14.08.).
+    final geraete =
+        ref.watch(eventGeraeteProvider(stand.eventId)).valueOrNull ??
+            <EventGeraetLocal>[];
+    final alleLeitungen =
+        ref.watch(eventLeitungenProvider(stand.eventId)).valueOrNull ??
+            <EventLeitungLocal>[];
+    final leitungsHinweise = stand.serverId == null
+        ? const <String>[]
+        : leitungsHinweiseFuerStand(
+            standId: stand.serverId!,
+            leitungen: [
+              for (final l in alleLeitungen)
+                (nummer: l.nummer, quelleId: l.quelleId, standId: l.standId),
+            ],
+            quelleNamen: {
+              for (final g in geraete)
+                if (g.serverId != null) g.serverId!: g.bezeichnung,
+            },
+          );
+
     // KEIN ExpansionTile/ListTile mehr: Auf Daniels CanvasKit rendert das
     // ExpansionTile (dense + visualDensity compact, seit v0.81) title und
     // subtitle schlicht NICHT — sichtbar blieb nur das gestreckte
@@ -1489,6 +1514,27 @@ class _StandCardState extends ConsumerState<_StandCard> {
                               kontaktText,
                               style: const TextStyle(fontSize: 12.5),
                               overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (leitungsHinweise.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.water_drop_outlined,
+                            size: 15,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              leitungsHinweise.join('\n'),
+                              style: const TextStyle(fontSize: 12.5),
                             ),
                           ),
                         ],
