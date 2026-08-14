@@ -114,6 +114,7 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
           else
             for (final l in treffer)
               _LeitungZeile(
+                key: ValueKey(l.serverId),
                 leitung: l,
                 geraete: geraete,
                 eventId: eventId,
@@ -289,8 +290,42 @@ class _GeraetCard extends ConsumerStatefulWidget {
 class _GeraetCardState extends ConsumerState<_GeraetCard> {
   bool _offen = false;
 
+  // Doppeltipp-Riegel fürs Umschalten «In Betrieb» — ohne ihn kann ein
+  // zweiter Tap während des laufenden Speicherns den Rollback des ersten
+  // Versuchs überschreiben (gleiches Muster wie bei _LeitungZeileState).
+  bool _schaltet = false;
+
   EventGeraetLocal get g => widget.geraet;
   bool get istAnstich => EventGeraet.istAnstich(g.typ);
+
+  Future<void> _inBetriebUmschalten() async {
+    if (_schaltet) return;
+    final vorherInBetrieb = g.inBetrieb;
+    final vorherInBetriebAm = g.inBetriebAm;
+    setState(() {
+      _schaltet = true;
+      g.inBetrieb = !g.inBetrieb;
+      g.inBetriebAm = g.inBetrieb ? DateTime.now() : null;
+    });
+    try {
+      await EventGeraetRepository.save(g);
+      widget.onChanged();
+      if (mounted) setState(() => _schaltet = false);
+    } catch (e) {
+      // Feld immer zurückrollen — sonst bleibt beim Verlassen des Tabs
+      // während eines fehlschlagenden Speicherns ein nie gespeicherter
+      // Haken im (nicht-autoDispose) Provider-Cache stehen. Stille
+      // Fehlschläge sind die dokumentierte Projektfalle («still
+      // fehlgeschlagen»-Klasse).
+      g.inBetrieb = vorherInBetrieb;
+      g.inBetriebAm = vorherInBetriebAm;
+      if (mounted) {
+        setState(() => _schaltet = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -383,33 +418,7 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                     children: [
                       Expanded(
                         child: InkWell(
-                          onTap: () async {
-                            final vorherInBetrieb = g.inBetrieb;
-                            final vorherInBetriebAm = g.inBetriebAm;
-                            setState(() {
-                              g.inBetrieb = !g.inBetrieb;
-                              g.inBetriebAm =
-                                  g.inBetrieb ? DateTime.now() : null;
-                            });
-                            try {
-                              await EventGeraetRepository.save(g);
-                              widget.onChanged();
-                            } catch (e) {
-                              // Stille Fehlschläge sind die dokumentierte
-                              // Projektfalle («still fehlgeschlagen»-Klasse)
-                              // — Zustand zurückrollen und laut melden statt
-                              // eine ungespeicherte Änderung stehen zu lassen.
-                              if (context.mounted) {
-                                setState(() {
-                                  g.inBetrieb = vorherInBetrieb;
-                                  g.inBetriebAm = vorherInBetriebAm;
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Fehler: $e')),
-                                );
-                              }
-                            }
-                          },
+                          onTap: _inBetriebUmschalten,
                           child: Row(
                             children: [
                               Icon(
@@ -473,6 +482,7 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                     ),
                   for (final l in leitungen)
                     _LeitungZeile(
+                      key: ValueKey(l.serverId),
                       leitung: l,
                       geraete: widget.geraete,
                       eventId: widget.eventId,
@@ -611,6 +621,7 @@ class _LeitungZeile extends ConsumerStatefulWidget {
   final VoidCallback onChanged;
 
   const _LeitungZeile({
+    super.key,
     required this.leitung,
     required this.geraete,
     required this.eventId,
@@ -652,15 +663,15 @@ class _LeitungZeileState extends ConsumerState<_LeitungZeile> {
       widget.onChanged();
       if (mounted) setState(() => _schaltet = false);
     } catch (e) {
-      // Stille Fehlschläge sind die dokumentierte Projektfalle («still
-      // fehlgeschlagen»-Klasse) — Zustand zurückrollen und laut melden
-      // statt eine ungespeicherte Änderung stehen zu lassen.
+      // Feld immer zurückrollen — sonst bleibt beim Verlassen der Ansicht
+      // während eines fehlschlagenden Speicherns ein nie gespeicherter
+      // Haken im (nicht-autoDispose) Provider-Cache stehen. Stille
+      // Fehlschläge sind die dokumentierte Projektfalle («still
+      // fehlgeschlagen»-Klasse).
+      leitung.inBetrieb = vorherInBetrieb;
+      leitung.inBetriebAm = vorherInBetriebAm;
       if (mounted) {
-        setState(() {
-          leitung.inBetrieb = vorherInBetrieb;
-          leitung.inBetriebAm = vorherInBetriebAm;
-          _schaltet = false;
-        });
+        setState(() => _schaltet = false);
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
