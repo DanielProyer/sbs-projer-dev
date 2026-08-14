@@ -3,7 +3,7 @@ import 'package:sbs_projer_app/data/models/event_geraet.dart';
 import 'package:sbs_projer_app/data/models/event_leitung.dart';
 
 void main() {
-  test('EventGeraet: fromJson liest alle Felder, toJson spiegelt sie', () {
+  test('EventGeraet: voller Roundtrip — jedes Feld, exakte Keys', () {
     final json = {
       'id': 'g1',
       'user_id': 'u1',
@@ -27,10 +27,27 @@ void main() {
     expect(g.typ, 'mehrfachanstich');
     expect(g.anzahlTanks, 4);
     expect(g.inBetrieb, isTrue);
+    expect(g.createdAt, DateTime.utc(2026, 8, 14, 8, 0, 0));
+    expect(g.updatedAt, DateTime.utc(2026, 8, 14, 9, 0, 0));
+
     final back = g.toJson();
-    expect(back['event_id'], 'e1');
-    expect(back['anzahl_tanks'], 4);
-    expect(back['in_betrieb_am'], isNotNull);
+    expect(back, {
+      'id': 'g1',
+      'user_id': 'u1',
+      'event_id': 'e1',
+      'typ': 'mehrfachanstich',
+      'bezeichnung': 'Kühlzelt Nord',
+      'anzahl_tanks': 4,
+      'standort_notiz': 'hinter Bühne',
+      'latitude': 46.3,
+      'longitude': 7.7,
+      'position_quelle': 'karte',
+      'position_genauigkeit': 'mittel',
+      'in_betrieb': true,
+      'in_betrieb_am': '2026-08-17T10:00:00.000Z',
+      'sortierung': 2,
+      'notizen': 'CO2 separat',
+    });
   });
 
   test('EventGeraet: Defaults bei fehlenden Feldern', () {
@@ -48,6 +65,56 @@ void main() {
     expect(EventGeraet.typLabel('durchlaufkuehler'), 'Durchlaufkühler');
     expect(EventGeraet.istAnstich('orion_500'), isTrue);
     expect(EventGeraet.istAnstich('durchlaufkuehler'), isFalse);
+  });
+
+  test('EventLeitung: voller Roundtrip — jedes Feld, exakte Keys', () {
+    final json = {
+      'id': 'l1',
+      'user_id': 'u1',
+      'event_id': 'e1',
+      'nummer': '7a',
+      'quelle_id': 'q1',
+      'kuehler_id': 'k1',
+      'stand_id': 's1',
+      'stand_anlage_id': 'sa1',
+      'in_betrieb': true,
+      'in_betrieb_am': '2026-08-18T11:00:00Z',
+      'sortierung': 3,
+      'notiz': 'links am Zelt',
+      'created_at': '2026-08-14T10:00:00Z',
+      'updated_at': '2026-08-14T11:00:00Z',
+    };
+    final l = EventLeitung.fromJson(json);
+    expect(l.id, 'l1');
+    expect(l.userId, 'u1');
+    expect(l.eventId, 'e1');
+    expect(l.nummer, '7a');
+    expect(l.quelleId, 'q1');
+    expect(l.kuehlerId, 'k1');
+    expect(l.standId, 's1');
+    expect(l.standAnlageId, 'sa1');
+    expect(l.inBetrieb, isTrue);
+    expect(l.inBetriebAm, DateTime.utc(2026, 8, 18, 11, 0, 0));
+    expect(l.sortierung, 3);
+    expect(l.notiz, 'links am Zelt');
+    expect(l.createdAt, DateTime.utc(2026, 8, 14, 10, 0, 0));
+    expect(l.updatedAt, DateTime.utc(2026, 8, 14, 11, 0, 0));
+
+    final back = l.toJson();
+    expect(back, {
+      'id': 'l1',
+      'user_id': 'u1',
+      'event_id': 'e1',
+      'nummer': '7a',
+      'quelle_id': 'q1',
+      'kuehler_id': 'k1',
+      'stand_id': 's1',
+      'stand_anlage_id': 'sa1',
+      'in_betrieb': true,
+      'in_betrieb_am': '2026-08-18T11:00:00.000Z',
+      'sortierung': 3,
+      'notiz': 'links am Zelt',
+    });
   });
 
   test('EventLeitung: Roundtrip inkl. Null-Zielen', () {
