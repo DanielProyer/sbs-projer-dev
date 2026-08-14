@@ -13,7 +13,13 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-## 🟡 NEU 14.08. spät (v0.89.0, live): Karte↔Stand-Navigation + Status-Farben — Churerfest-Feedback
+## 🟡 NEU 14.08. spät (v0.90.0, live): Karten-Layer einzeln schaltbar
+
+**Auftrag Daniel:** Lageplan, Stände, Anstiche, Kühler als separate, schaltbare Layer. **Gebaut:** Ebenen-Knopf öffnet ein Panel mit bis zu 4 Zeilen (nur was Daten hat, erscheint; Lageplan nur wenn referenziert), Häkchen-Toggles, Tap daneben schliesst. Geräte-Layer in Anstiche/Kühler geteilt. Legende folgt den sichtbaren Layern. Review fing: Stände-Layer liess sich mitten im Positionieren ausblenden → blinde Platzierung; jetzt erzwungen UND die Zeile während des Positionierens gesperrt. Alles Session-Zustand (Neuaufbau der Karte = alles sichtbar). 1152 Tests grün.
+
+- [ ] Klicktest Daniel: Ebenen-Knopf → 4 Zeilen? Lageplan aus/ein? Nur Kühler anzeigen? Während «Positionieren» ist «Stände» gesperrt?
+
+## 🟢 ERLEDIGT 14.08. spät (v0.89.0): Karte↔Stand-Navigation + Status-Farben — Churerfest-Feedback
 
 **Feld-Feedback Daniel nach dem Churerfest-Tag:** Weg vom Stand zur Karte und zurück, in Betrieb genommene Stände grün, Hollandbuffets farblich hervorheben (brauchen 2–4 h Strom vor Inbetriebnahme → Aufbau-Priorität).
 
