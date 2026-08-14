@@ -919,6 +919,13 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
   /// false = Liste, true = Karte.
   bool _karte = false;
 
+  // Sprung «Auf Karte zeigen» aus der Liste (Feldfeedback Churerfest
+  // 14.08.2026) — Token statt reinem Wertevergleich, siehe
+  // EventStaendeMap.fokusToken.
+  LatLng? _kartenFokus;
+  String? _kartenFokusStandId;
+  int _kartenFokusToken = 0;
+
   EventLocal get event => widget.event;
 
   // Signierte URL des Lageplan-Bilds — gecacht pro Pfad, sonst würde jeder
@@ -1076,6 +1083,18 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
     ref.invalidate(eventStandAnlagenProvider(stand.serverId!));
   }
 
+  /// «Karte» in der Standkarte: springt in die Kartenansicht, zentriert auf
+  /// den Stand (Feldfeedback Churerfest 14.08.2026).
+  void _standAufKarteZeigen(EventStandLocal stand) {
+    if (stand.latitude == null || stand.longitude == null) return;
+    setState(() {
+      _karte = true;
+      _kartenFokus = LatLng(stand.latitude!, stand.longitude!);
+      _kartenFokusStandId = stand.serverId;
+      _kartenFokusToken++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final staendeAsync = ref.watch(eventStaendeProvider(event.serverId!));
@@ -1142,11 +1161,35 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                 final geraete =
                     ref.watch(eventGeraeteProvider(event.serverId!)).valueOrNull ??
                         <EventGeraetLocal>[];
+                // Inbetriebnahme-Status je Stand für die Marker-Farbe
+                // (Feldfeedback Churerfest 14.08.2026) — dieselben
+                // eventStandAnlagenProvider-Instanzen wie in der Liste,
+                // Riverpod cached sie familienweise.
+                final standStatus = <String, ({bool komplett, bool hatHollandbuffet})>{};
+                for (final s in staende) {
+                  final sid = s.serverId;
+                  if (sid == null) continue;
+                  final anlagen =
+                      ref.watch(eventStandAnlagenProvider(sid)).valueOrNull ?? [];
+                  final fortschritt = inbetriebnahmeFortschritt(
+                    anlagen
+                        .map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb))
+                        .toList(),
+                  );
+                  standStatus[sid] = (
+                    komplett: fortschritt.komplett,
+                    hatHollandbuffet: anlagen.any((a) => a.typ == 'hollandbuffet'),
+                  );
+                }
                 return EventStaendeMap(
                   staende: staende,
                   onStandTap: (s) => _standBearbeiten(s),
                   geraete: geraete,
                   lageplan: _lageplanOverlay,
+                  standStatus: standStatus,
+                  fokus: _kartenFokus,
+                  fokusStandId: _kartenFokusStandId,
+                  fokusToken: _kartenFokusToken,
                   // Planung am PC: Position per Tap auf die Karte setzen.
                   onPositionSetzen: (stand, punkt) async {
                     stand
@@ -1189,6 +1232,7 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                   stand: staende[i],
                   onEdit: () => _standBearbeiten(staende[i]),
                   onDelete: () => _standLoeschen(staende[i]),
+                  onKarteZeigen: () => _standAufKarteZeigen(staende[i]),
                 ),
               );
             },
@@ -1205,11 +1249,13 @@ class _StandCard extends ConsumerStatefulWidget {
   final EventStandLocal stand;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onKarteZeigen;
 
   const _StandCard({
     required this.stand,
     required this.onEdit,
     required this.onDelete,
+    required this.onKarteZeigen,
   });
 
   @override
@@ -1496,6 +1542,18 @@ class _StandCardState extends ConsumerState<_StandCard> {
                           ),
                         ),
                       ),
+                      // Sprung in die Kartenansicht, zentriert auf den Stand
+                      // (Feldfeedback Churerfest 14.08.2026) — nur sinnvoll,
+                      // wenn überhaupt schon eine Position vorliegt.
+                      if (stand.latitude != null)
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.map_outlined, size: 16),
+                          label: const Text('Karte'),
+                          onPressed: widget.onKarteZeigen,
+                        ),
                       TextButton.icon(
                         style: TextButton.styleFrom(
                           visualDensity: VisualDensity.compact,

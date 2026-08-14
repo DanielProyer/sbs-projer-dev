@@ -20,6 +20,14 @@ import 'package:sbs_projer_app/services/gps/gps_service.dart';
 /// die Planung vor dem Anlass, ohne GPS und ohne vor Ort zu sein. Im Feld
 /// wird die Position dann per «Standort erfassen» gemessen und nach Rückfrage
 /// übernommen; Regeln siehe `core/util/stand_position.dart`.
+///
+/// **Marker-Farben** (Feldfeedback Churerfest 14.08.2026 — ersetzt die alte
+/// gemessen/geplant-Rot/Blau-Unterscheidung, die stand für Datenqualität, nicht
+/// für den Baufortschritt): Orange = gerade zum Platzieren ausgewählt, Grün =
+/// [standStatus].komplett (voll in Betrieb), Rot = noch nicht komplett UND hat
+/// mindestens ein Hollandbuffet-Gerät (Vorlauf 2–4 h zum Runterkühlen — hat
+/// beim Aufbau Priorität), Blau = noch nicht komplett, kein Hollandbuffet.
+/// Ohne Eintrag in [standStatus] (Default `{}`) bleibt ein Stand Blau.
 /// Georeferenzierter Lageplan fürs Karten-Overlay (Ecken aus
 /// `core/util/georeferenz.dart`).
 typedef LageplanOverlay = ({
@@ -47,6 +55,19 @@ class EventStaendeMap extends StatefulWidget {
   /// ist per Ebenen-Knopf ausblendbar.
   final LageplanOverlay? lageplan;
 
+  /// Inbetriebnahme-Status je Stand (Schlüssel = `serverId`) für die
+  /// Marker-Farbe. Fehlt ein Eintrag, gilt der Stand als offen/blau.
+  final Map<String, ({bool komplett, bool hatHollandbuffet})> standStatus;
+
+  /// Punkt, auf den die Karte zentriert werden soll (Sprung «Auf Karte
+  /// zeigen» aus der Liste). [fokusToken] muss bei jedem Sprung erhöht
+  /// werden — auch beim erneuten Anspringen desselben Stands soll die Karte
+  /// wieder zentrieren, ein reiner Wertevergleich von [fokus] würde das bei
+  /// unveränderten Koordinaten unterschlagen.
+  final LatLng? fokus;
+  final String? fokusStandId;
+  final int fokusToken;
+
   const EventStaendeMap({
     super.key,
     required this.staende,
@@ -54,6 +75,10 @@ class EventStaendeMap extends StatefulWidget {
     this.geraete = const [],
     this.onPositionSetzen,
     this.lageplan,
+    this.standStatus = const {},
+    this.fokus,
+    this.fokusStandId,
+    this.fokusToken = 0,
   });
 
   @override
@@ -161,6 +186,15 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
     }
   }
 
+  /// Marker-Farbe je Stand — siehe Klassendoku für die Semantik.
+  Color _standFarbe(EventStandLocal s) {
+    if (s.serverId == _platziert?.serverId) return Colors.orange;
+    final status = s.serverId == null ? null : widget.standStatus[s.serverId!];
+    if (status?.komplett == true) return AppColors.success;
+    if (status?.hatHollandbuffet == true) return AppColors.error;
+    return AppColors.info;
+  }
+
   /// Stände ohne Position zuerst, dann nach Name.
   List<EventStandLocal> _nachPositionSortiert() {
     final liste = List.of(widget.staende);
@@ -177,6 +211,21 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
   void initState() {
     super.initState();
     _ladeStandort();
+  }
+
+  @override
+  void didUpdateWidget(covariant EventStaendeMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // «Auf Karte zeigen» aus der Liste: Sprung nur bei neuem Token ausführen
+    // (siehe Doku bei EventStaendeMap.fokusToken), sonst würde jeder
+    // Neuaufbau der Karte (z. B. Basemap-Wechsel) versehentlich erneut
+    // zentrieren.
+    if (widget.fokus != null && widget.fokusToken != oldWidget.fokusToken) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _controller.move(widget.fokus!, 18);
+      });
+    }
   }
 
   /// Holt die aktuelle Handy-Position und zeigt sie als Marker.
@@ -306,25 +355,40 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                 for (final s in mitGps)
                   Marker(
                     point: LatLng(s.latitude!, s.longitude!),
-                    width: 40,
-                    height: 40,
+                    width: s.serverId == widget.fokusStandId ? 52 : 40,
+                    height: s.serverId == widget.fokusStandId ? 52 : 40,
                     child: GestureDetector(
                       // Im Positionier-Modus wählt ein Marker-Tap den Stand
                       // zum Verschieben aus, statt ihn zu bearbeiten.
                       onTap: () => _platziert == null
                           ? widget.onStandTap(s)
                           : setState(() => _platziert = s),
-                      child: Icon(
-                        Icons.location_on,
-                        // Geplant (Karte) blau, im Feld gemessen rot — auf
-                        // einen Blick sichtbar, was noch zu prüfen ist.
-                        color: s.serverId == _platziert?.serverId
-                            ? Colors.orange
-                            : (s.positionQuelle == quelleGps
-                                ? Colors.red
-                                : AppColors.info),
-                        size: 40,
-                      ),
+                      child: s.serverId == widget.fokusStandId
+                          // «Auf Karte zeigen» aus der Liste: Ring statt
+                          // simpler Grössenänderung, damit der angesprungene
+                          // Stand eindeutig erkennbar bleibt, auch wenn
+                          // mehrere Marker nahe beieinander liegen.
+                          ? Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.amberAccent,
+                                  width: 3,
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.location_on,
+                                  color: _standFarbe(s),
+                                  size: 40,
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              Icons.location_on,
+                              color: _standFarbe(s),
+                              size: 40,
+                            ),
                     ),
                   ),
               ],
@@ -378,6 +442,11 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
               child: Icon(_lageplanSichtbar ? Icons.layers : Icons.layers_clear),
             ),
           ),
+        const Positioned(
+          left: 8,
+          bottom: 8,
+          child: _StandFarbenLegende(),
+        ),
         Positioned(
           right: 8,
           bottom: 34,
@@ -503,6 +572,62 @@ class _PositionierLeiste extends StatelessWidget {
               child: Icon(Icons.close, size: 18),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Legende zu den Marker-Farben, halbtransparent unten links über der
+/// Kachel-Attribution. Reines Container/Row/Text — CanvasKit-sicher.
+class _StandFarbenLegende extends StatelessWidget {
+  const _StandFarbenLegende();
+
+  static const _eintraege = [
+    (farbe: AppColors.success, label: 'In Betrieb'),
+    (farbe: AppColors.error, label: 'Hollandbuffet zuerst'),
+    (farbe: AppColors.info, label: 'Offen'),
+    (farbe: Colors.deepPurple, label: 'Technik'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final e in _eintraege)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: e.farbe,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    e.label,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
