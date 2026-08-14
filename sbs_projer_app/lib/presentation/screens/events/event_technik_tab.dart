@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_technik.dart';
+import 'package:sbs_projer_app/core/util/kuehler_monitoring.dart';
 import 'package:sbs_projer_app/core/util/stand_position.dart';
 import 'package:sbs_projer_app/data/local/event_geraet_local_export.dart';
+import 'package:sbs_projer_app/data/local/event_kuehler_messung_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_leitung_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
@@ -12,8 +14,10 @@ import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_geraet_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_leitung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/events/event_technik_kuehler.dart';
 import 'package:sbs_projer_app/presentation/screens/events/stand_position_dialog.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
+import 'package:uuid/uuid.dart';
 
 /// Technik-Tab im Event-Detail: Anstiche (Orion, Mehrfachanstich) mit ihren
 /// Leitungen, darunter die Durchlaufkühler. Erfassungswerkzeug fürs Openair
@@ -420,6 +424,23 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
       ..sort((a, b) => vergleicheLeitungsNummern(a.nummer, b.nummer));
     final angeschlossen = leitungen.where((l) => l.standId != null).length;
 
+    // Letzte Temperatur-Messung fürs Kürzel in der Kopfzeile — nur beim
+    // Kühler und nur wenn das Gerät schon eine serverId hat (bei neuen,
+    // noch nicht gespeicherten Geräten kommt diese Karte gar nicht vor,
+    // die Liste stammt ja aus dem geladenen Provider).
+    final messungen = !istAnstich && g.serverId != null
+        ? ref.watch(eventKuehlerMessungenProvider(g.serverId!)).valueOrNull ??
+            const <EventKuehlerMessungLocal>[]
+        : const <EventKuehlerMessungLocal>[];
+    final letzteMessung = messungen.isEmpty ? null : messungen.last;
+    final letzteAusserhalb = letzteMessung == null
+        ? false
+        : istAusserhalbSollbereich(
+            temperatur: letzteMessung.temperatur,
+            sollMin: g.sollMinCelsius,
+            sollMax: g.sollMaxCelsius,
+          );
+
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       child: Column(
@@ -450,21 +471,41 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          [
-                            EventGeraet.typLabel(g.typ),
-                            if (g.typ == 'mehrfachanstich' &&
-                                g.anzahlTanks != null)
-                              '${g.anzahlTanks} Tanks',
-                            if ((g.standortNotiz ?? '').trim().isNotEmpty)
-                              g.standortNotiz!.trim(),
-                          ].join(' · '),
+                        Text.rich(
+                          TextSpan(
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.textSecondary,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: [
+                                  EventGeraet.typLabel(g.typ),
+                                  if (g.typ == 'mehrfachanstich' &&
+                                      g.anzahlTanks != null)
+                                    '${g.anzahlTanks} Tanks',
+                                  if ((g.standortNotiz ?? '').trim().isNotEmpty)
+                                    g.standortNotiz!.trim(),
+                                ].join(' · '),
+                              ),
+                              if (letzteMessung != null)
+                                TextSpan(
+                                  text: ' · ${messungText(
+                                    letzteMessung.gemessenAm,
+                                    letzteMessung.temperatur,
+                                    jetzt: DateTime.now(),
+                                  )}',
+                                  style: letzteAusserhalb
+                                      ? const TextStyle(
+                                          color: AppColors.error,
+                                          fontWeight: FontWeight.w700,
+                                        )
+                                      : null,
+                                ),
+                            ],
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: AppColors.textSecondary,
-                          ),
                         ),
                       ],
                     ),
@@ -604,6 +645,13 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                           color: AppColors.textSecondary,
                         ),
                       ),
+                    ),
+                  // Temperatur-Monitoring nur beim Kühler (V2-6).
+                  if (!istAnstich && g.serverId != null)
+                    KuehlerTemperaturBereich(
+                      geraetServerId: g.serverId!,
+                      sollMin: g.sollMinCelsius,
+                      sollMax: g.sollMaxCelsius,
                     ),
                   // Leitungen des Anstichs (beim Kühler: durchlaufende)
                   if (leitungen.isEmpty && istAnstich)
@@ -954,6 +1002,12 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
   int _anzahlTanks = 1;
   bool _speichert = false;
 
+  // serverId schon hier festlegen (nicht erst beim Speichern) — sonst hat
+  // ein VOR dem ersten Speichern aufgenommenes Typenschild-Foto keinen dem
+  // Gerät zuordenbaren Pfad. Bei bestehenden Geräten einfach die echte Id.
+  late final String _entwurfServerId;
+  final _kuehlerFelderKey = GlobalKey<KuehlerFelderState>();
+
   @override
   void initState() {
     super.initState();
@@ -963,6 +1017,7 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
     _standort = TextEditingController(text: g?.standortNotiz ?? '');
     _notizen = TextEditingController(text: g?.notizen ?? '');
     _anzahlTanks = g?.anzahlTanks ?? 1;
+    _entwurfServerId = g?.serverId ?? const Uuid().v4();
   }
 
   @override
@@ -982,10 +1037,22 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
       );
       return;
     }
+    if (_typ == 'durchlaufkuehler') {
+      final fehler = _kuehlerFelderKey.currentState?.validate();
+      if (fehler != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(fehler)));
+        return;
+      }
+    }
     setState(() => _speichert = true);
     try {
       final istNeu = widget.geraet == null;
       final g = widget.geraet ?? EventGeraetLocal();
+      // Vor dem Speichern setzen, nicht dem Repository überlassen — die
+      // serverId muss mit der übereinstimmen, unter der Typenschild-Fotos
+      // ggf. schon hochgeladen wurden.
+      g.serverId ??= _entwurfServerId;
       g
         ..eventId = widget.eventId
         ..typ = _typ
@@ -994,6 +1061,17 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
         ..standortNotiz =
             _standort.text.trim().isEmpty ? null : _standort.text.trim()
         ..notizen = _notizen.text.trim().isEmpty ? null : _notizen.text.trim();
+      if (_typ == 'durchlaufkuehler') {
+        final werte = _kuehlerFelderKey.currentState!.werte();
+        g
+          ..kuehlerTyp = werte.kuehlerTyp
+          ..pumpeTyp = werte.pumpeTyp
+          ..typenschildKuehlerPfad = werte.typenschildKuehlerPfad
+          ..typenschildPumpePfad = werte.typenschildPumpePfad
+          ..typenschildErkennungJson = werte.typenschildErkennungJson
+          ..sollMinCelsius = werte.sollMinCelsius
+          ..sollMaxCelsius = werte.sollMaxCelsius;
+      }
       // Sortierung nur für neue Geräte setzen — bestehende behalten ihre
       // Position, sonst würde jede Bearbeitung sie ans Ende schieben (M9).
       if (istNeu) g.sortierung = widget.naechsteSortierung;
@@ -1078,6 +1156,33 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
             controller: _notizen,
             decoration: const InputDecoration(labelText: 'Notizen'),
           ),
+          if (_typ == 'durchlaufkuehler') ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            const Text(
+              'Kühler-Details',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            KuehlerFelder(
+              key: _kuehlerFelderKey,
+              geraetServerId: _entwurfServerId,
+              initialKuehlerTyp: widget.geraet?.kuehlerTyp,
+              initialPumpeTyp: widget.geraet?.pumpeTyp,
+              initialTypenschildKuehlerPfad:
+                  widget.geraet?.typenschildKuehlerPfad,
+              initialTypenschildPumpePfad:
+                  widget.geraet?.typenschildPumpePfad,
+              initialErkennungJson: widget.geraet?.typenschildErkennungJson,
+              initialSollMin: widget.geraet?.sollMinCelsius,
+              initialSollMax: widget.geraet?.sollMaxCelsius,
+            ),
+          ],
           const SizedBox(height: 16),
           // CanvasKit-sicherer Speichern-Knopf (kein FilledButton — der war
           // am 13.08. im Lageplan-Screen klick-tot).

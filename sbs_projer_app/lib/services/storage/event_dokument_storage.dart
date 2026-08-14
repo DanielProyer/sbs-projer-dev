@@ -41,6 +41,24 @@ class EventDokumentStorage {
     return pfad;
   }
 
+  /// Lädt ein Typenschild-Foto (Kühler/Pumpe, V2-6) hoch. Deterministischer
+  /// Pfad je Gerät+Teil (statt UUID wie bei den anderen Uploads hier) —
+  /// ein erneutes Foto überschreibt bewusst das alte (upsert), sonst
+  /// sammeln sich bei jeder Nachkorrektur verwaiste Bilder im Bucket.
+  static Future<String> uploadTechnikFoto(
+    String geraetServerId,
+    Uint8List bytes,
+    String teil, // 'kuehler' oder 'pumpe'
+  ) async {
+    final pfad = '$_userId/technik/${geraetServerId}_$teil.jpg';
+    await SupabaseService.client.storage.from(_bucket).uploadBinary(
+          pfad,
+          bytes,
+          fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+        );
+    return pfad;
+  }
+
   /// Signierte URL (1h gültig) zum Öffnen im PDF-Viewer.
   static Future<String> getSignedUrl(String pfad) =>
       SupabaseService.client.storage.from(_bucket).createSignedUrl(pfad, 3600);
