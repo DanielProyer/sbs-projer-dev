@@ -13,7 +13,16 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-## 🟡 NEU 14.08. abends (v0.88.0, live): Event-Technik v2 — GPS/Karte, Typenschild-KI, Temperatur-Monitoring, Testdaten-Reset
+## 🟡 NEU 14.08. spät (v0.89.0, live): Karte↔Stand-Navigation + Status-Farben — Churerfest-Feedback
+
+**Feld-Feedback Daniel nach dem Churerfest-Tag:** Weg vom Stand zur Karte und zurück, in Betrieb genommene Stände grün, Hollandbuffets farblich hervorheben (brauchen 2–4 h Strom vor Inbetriebnahme → Aufbau-Priorität).
+
+**Gebaut:** «Karte»-Knopf in der Stand-Zeile (nur mit Position) → Karte öffnet **zentriert auf dem Stand** (Zoom 18, Ring-Markierung; Review fing: der Fokus feuerte wegen Karten-Remount nie — gefixt über initialCenter). Marker-Tap → Stand-Formular (war schon verdrahtet). **Neue Farb-Semantik** (ersetzt gemessen/geplant): **grün** = vollständig in Betrieb · **rot** = Hollandbuffet noch nicht in Betrieb (zuerst anfahren!) · **blau** = offen ohne Hollandbuffet · orange = Positionier-Kandidat · violett = Technik. Kleine Legende unten links. 1152 Tests grün.
+
+- [ ] Klicktest Daniel: «Karte» am Stand → landet die Karte gezoomt auf dem Stand? Farben plausibel (Churerfest hat echte Inbetriebnahmen)? Legende lesbar?
+- [ ] Vertagt: Sammel-Query statt N Einzel-Abfragen beim Kartenaufbau (bei ~17 Ständen unkritisch), Lade-Flacker blau→grün.
+
+## 🟢 ERLEDIGT 14.08. abends (v0.88.0): Event-Technik v2 — GPS/Karte, Typenschild-KI, Temperatur-Monitoring, Testdaten-Reset
 
 **Auftrag Daniel (14.08. nachmittags, nach erstem Antesten):** Anstiche mit GPS + Karte; Durchlaufkühler mit Typ Kühler/Pumpe (Typenschild per **Foto-KI**, portiert aus Projekt Heineken `foto-erkennen`), Bemerkungen, **Temperatur-Monitoring** (manuell mehrmals täglich + Sollbereich mit Warnung + Verlaufsgrafik); **alle Eingaben bis So-Abend sind Testdaten**.
 
