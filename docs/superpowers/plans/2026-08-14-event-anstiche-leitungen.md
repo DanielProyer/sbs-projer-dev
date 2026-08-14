@@ -1084,6 +1084,13 @@ git commit -m "feat: Mapper EventGeraet/EventLeitung mit Roundtrip-Tests"
 
 ### Task 6: Repositories
 
+> **Korrektur 14.08. (Quality-Review):** Der ursprüngliche `erzeugeLeitungen`-Code
+> unten hat zwei Fehler, die in der Umsetzung behoben wurden — massgebend ist der
+> committete Stand, nicht dieser Block: (1) Web legt die Leitungen als EIN
+> Bulk-Upsert an (atomar), nicht als n sequenzielle `save()`-Requests;
+> (2) `sortierung` startet bei max+1 der bestehenden Quelle-Leitungen, nicht bei
+> deren Anzahl (Kollision nach Löschungen).
+
 **Files:**
 - Create: `sbs_projer_app/lib/data/repositories/event_geraet_repository.dart`
 - Create: `sbs_projer_app/lib/data/repositories/event_leitung_repository.dart`
