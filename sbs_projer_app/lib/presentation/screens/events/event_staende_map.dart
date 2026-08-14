@@ -96,8 +96,16 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
   EventStandLocal? _platziert;
   bool _speichert = false;
 
-  /// Lageplan-Overlay ein-/ausblenden (Ebenen-Knopf).
-  bool _lageplanSichtbar = true;
+  /// Kartenebenen einzeln ein-/ausblendbar (Feldfeedback Churerfest
+  /// 14.08.2026, absorbiert den alten reinen Lageplan-Knopf von v0.83).
+  /// Bewusst reiner Session-Zustand pro Karten-Mount, nicht persistiert:
+  /// bei jedem Neuaufbau der Karte (z. B. Liste<->Karte-Umschalter) starten
+  /// alle vier wieder auf «sichtbar».
+  bool _zeigeLageplan = true;
+  bool _zeigeStaende = true;
+  bool _zeigeAnstiche = true;
+  bool _zeigeKuehler = true;
+  bool _ebenenPanelOffen = false;
 
   /// Tap auf die Karte im Positionier-Modus.
   Future<void> _kartenTap(LatLng punkt) async {
@@ -112,7 +120,12 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
       final offen = widget.staende
           .where((s) => s.serverId != stand.serverId && s.latitude == null)
           .toList();
-      setState(() => _platziert = offen.isEmpty ? null : offen.first);
+      setState(() {
+        _platziert = offen.isEmpty ? null : offen.first;
+        // Positionier-Modus braucht zwingend die Stände-Ebene — sonst sieht
+        // man nicht, wohin man gerade tippt.
+        if (_platziert != null) _zeigeStaende = true;
+      });
       if (offen.isEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Alle Stände sind positioniert.')),
@@ -181,8 +194,54 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
       ),
     );
     if (gewaehlt != null && mounted) {
-      setState(() => _platziert = gewaehlt);
+      setState(() {
+        _platziert = gewaehlt;
+        // Siehe _kartenTap: Positionier-Modus ohne sichtbare Stände wäre
+        // blind.
+        _zeigeStaende = true;
+      });
     }
+  }
+
+  /// Marker für ein Technik-Gerät (Anstich oder Kühler) — gemeinsamer
+  /// Aufbau für beide Ebenen (Feldfeedback Churerfest 14.08.2026), nur die
+  /// Sichtbarkeit (Anstiche-/Kühler-Ebene) unterscheidet sich.
+  Marker _geraetMarker(EventGeraetLocal g) {
+    return Marker(
+      point: LatLng(g.latitude!, g.longitude!),
+      width: 30,
+      height: 30,
+      child: GestureDetector(
+        // Im Positionier-Modus muss der Kartentap durch den Marker hindurch
+        // beim MapOptions.onTap ankommen — ein gesetzter onTap-Handler würde
+        // die Geste sonst gewinnen und eine tote Zone fürs Platzieren
+        // erzeugen. null registriert keinen Recognizer.
+        onTap: _platziert != null
+            ? null
+            : () => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${g.bezeichnung} · ${EventGeraet.typLabel(g.typ)}',
+                    ),
+                  ),
+                ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.deepPurple,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 3),
+            ],
+          ),
+          child: Icon(
+            EventGeraet.istAnstich(g.typ) ? Icons.propane_tank : Icons.ac_unit,
+            color: Colors.white,
+            size: 16,
+          ),
+        ),
+      ),
+    );
   }
 
   /// Marker-Farbe je Stand — siehe Klassendoku für die Semantik.
@@ -220,6 +279,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
     // Neuaufbau der Karte (z. B. Basemap-Wechsel) versehentlich erneut
     // zentrieren.
     if (widget.fokus != null && widget.fokusToken != oldWidget.fokusToken) {
+      // Ein Fokus-Sprung ohne sichtbare Stände-Ebene wäre ein Ring um
+      // nichts — Ebene notfalls wieder einschalten.
+      _zeigeStaende = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _controller.move(widget.fokus!, 18);
@@ -301,7 +363,7 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
             ),
             // Lageplan unter den Markern, über den Kacheln — so bleiben die
             // Stand-Pins sichtbar und der Plan dient als Zeichenunterlage.
-            if (widget.lageplan != null && _lageplanSichtbar)
+            if (widget.lageplan != null && _zeigeLageplan)
               OverlayImageLayer(overlayImages: [
                 RotatedOverlayImage(
                   imageProvider: NetworkImage(widget.lageplan!.url),
@@ -313,93 +375,74 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
               ]),
             // Geräte-Marker UNTER den Stand-Markern (nächste Layer) — die
             // Stände bleiben die prominente Ebene, Technik ist Zusatzinfo.
-            MarkerLayer(
-              markers: [
-                for (final g in widget.geraete)
-                  if (g.latitude != null && g.longitude != null)
+            // Anstiche und Kühler sind zwei getrennte Ebenen (Feldfeedback
+            // Churerfest 14.08.2026: beim Aufbau will man mal nur die
+            // Anstiche sehen, mal nur die Kühler).
+            if (_zeigeAnstiche)
+              MarkerLayer(
+                markers: [
+                  for (final g in widget.geraete)
+                    if (g.latitude != null &&
+                        g.longitude != null &&
+                        EventGeraet.istAnstich(g.typ))
+                      _geraetMarker(g),
+                ],
+              ),
+            if (_zeigeKuehler)
+              MarkerLayer(
+                markers: [
+                  for (final g in widget.geraete)
+                    if (g.latitude != null &&
+                        g.longitude != null &&
+                        !EventGeraet.istAnstich(g.typ))
+                      _geraetMarker(g),
+                ],
+              ),
+            if (_zeigeStaende)
+              MarkerLayer(
+                markers: [
+                  for (final s in mitGps)
                     Marker(
-                      point: LatLng(g.latitude!, g.longitude!),
-                      width: 30,
-                      height: 30,
+                      point: LatLng(s.latitude!, s.longitude!),
+                      width: s.serverId == widget.fokusStandId ? 52 : 40,
+                      height: s.serverId == widget.fokusStandId ? 52 : 40,
                       child: GestureDetector(
-                        // Im Positionier-Modus muss der Kartentap durch den
-                        // Marker hindurch beim MapOptions.onTap ankommen —
-                        // ein gesetzter onTap-Handler würde die Geste sonst
-                        // gewinnen und eine tote Zone fürs Platzieren
-                        // erzeugen. null registriert keinen Recognizer.
-                        onTap: _platziert != null
-                            ? null
-                            : () => ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${g.bezeichnung} · ${EventGeraet.typLabel(g.typ)}',
-                                    ),
+                        // Im Positionier-Modus wählt ein Marker-Tap den
+                        // Stand zum Verschieben aus, statt ihn zu bearbeiten.
+                        onTap: () => _platziert == null
+                            ? widget.onStandTap(s)
+                            : setState(() => _platziert = s),
+                        child: s.serverId == widget.fokusStandId
+                            // «Auf Karte zeigen» aus der Liste: Ring statt
+                            // simpler Grössenänderung, damit der
+                            // angesprungene Stand eindeutig erkennbar
+                            // bleibt, auch wenn mehrere Marker nahe
+                            // beieinander liegen.
+                            ? Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.amberAccent,
+                                    width: 3,
                                   ),
                                 ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.deepPurple,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black26, blurRadius: 3),
-                            ],
-                          ),
-                          child: Icon(
-                            EventGeraet.istAnstich(g.typ)
-                                ? Icons.propane_tank
-                                : Icons.ac_unit,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.location_on,
+                                    color: _standFarbe(s),
+                                    size: 40,
+                                  ),
+                                ),
+                              )
+                            : Icon(
+                                Icons.location_on,
+                                color: _standFarbe(s),
+                                size: 40,
+                              ),
                       ),
                     ),
-              ],
-            ),
-            MarkerLayer(
-              markers: [
-                for (final s in mitGps)
-                  Marker(
-                    point: LatLng(s.latitude!, s.longitude!),
-                    width: s.serverId == widget.fokusStandId ? 52 : 40,
-                    height: s.serverId == widget.fokusStandId ? 52 : 40,
-                    child: GestureDetector(
-                      // Im Positionier-Modus wählt ein Marker-Tap den Stand
-                      // zum Verschieben aus, statt ihn zu bearbeiten.
-                      onTap: () => _platziert == null
-                          ? widget.onStandTap(s)
-                          : setState(() => _platziert = s),
-                      child: s.serverId == widget.fokusStandId
-                          // «Auf Karte zeigen» aus der Liste: Ring statt
-                          // simpler Grössenänderung, damit der angesprungene
-                          // Stand eindeutig erkennbar bleibt, auch wenn
-                          // mehrere Marker nahe beieinander liegen.
-                          ? Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.amberAccent,
-                                  width: 3,
-                                ),
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  Icons.location_on,
-                                  color: _standFarbe(s),
-                                  size: 40,
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              Icons.location_on,
-                              color: _standFarbe(s),
-                              size: 40,
-                            ),
-                    ),
-                  ),
-              ],
-            ),
+                ],
+              ),
             if (_meinStandort != null)
               MarkerLayer(markers: [meinStandortMarker(_meinStandort!)]),
             RichAttributionWidget(
@@ -431,28 +474,15 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
               onAbbrechen: () => setState(() => _platziert = null),
             ),
           ),
-        // Ebenen-Knopf: Lageplan ein-/ausblenden.
-        if (widget.lageplan != null)
-          Positioned(
-            right: 8,
-            bottom: 84,
-            child: FloatingActionButton.small(
-              heroTag: 'event_lageplan_toggle',
-              backgroundColor: Colors.white,
-              foregroundColor:
-                  _lageplanSichtbar ? AppColors.primary : AppColors.textSecondary,
-              tooltip: _lageplanSichtbar
-                  ? 'Lageplan ausblenden'
-                  : 'Lageplan einblenden',
-              onPressed: () =>
-                  setState(() => _lageplanSichtbar = !_lageplanSichtbar),
-              child: Icon(_lageplanSichtbar ? Icons.layers : Icons.layers_clear),
-            ),
-          ),
-        const Positioned(
+        Positioned(
           left: 8,
           bottom: 8,
-          child: _StandFarbenLegende(),
+          child: _StandFarbenLegende(
+            // Legende beschreibt nur, was auch sichtbar ist — sonst würde
+            // sie nach dem Ausblenden einer Ebene falsche Erwartungen wecken.
+            zeigeStaende: _zeigeStaende,
+            zeigeTechnik: _zeigeAnstiche || _zeigeKuehler,
+          ),
         ),
         Positioned(
           right: 8,
@@ -472,6 +502,53 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.my_location),
+          ),
+        ),
+        // Ebenen-Panel: Lageplan/Stände/Anstiche/Kühler einzeln schaltbar
+        // (Feldfeedback Churerfest 14.08.2026, absorbiert den alten reinen
+        // Lageplan-Ein/Aus-Knopf von v0.83). Barriere zuerst im Stack, damit
+        // sie über allen bisherigen Kindern liegt und ein Tap ausserhalb
+        // das Panel schliesst — der Ebenen-Knopf selbst kommt als
+        // allerletztes Kind, damit er dabei anklickbar bleibt.
+        if (_ebenenPanelOffen)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _ebenenPanelOffen = false),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+        if (_ebenenPanelOffen)
+          Positioned(
+            right: 8,
+            bottom: 130,
+            child: _EbenenPanel(
+              hatLageplan: widget.lageplan != null,
+              zeigeLageplan: _zeigeLageplan,
+              zeigeStaende: _zeigeStaende,
+              zeigeAnstiche: _zeigeAnstiche,
+              zeigeKuehler: _zeigeKuehler,
+              onToggleLageplan: () =>
+                  setState(() => _zeigeLageplan = !_zeigeLageplan),
+              onToggleStaende: () =>
+                  setState(() => _zeigeStaende = !_zeigeStaende),
+              onToggleAnstiche: () =>
+                  setState(() => _zeigeAnstiche = !_zeigeAnstiche),
+              onToggleKuehler: () =>
+                  setState(() => _zeigeKuehler = !_zeigeKuehler),
+            ),
+          ),
+        Positioned(
+          right: 8,
+          bottom: 84,
+          child: FloatingActionButton.small(
+            heroTag: 'event_ebenen_toggle',
+            backgroundColor: Colors.white,
+            foregroundColor: AppColors.primary,
+            tooltip: 'Kartenebenen',
+            onPressed: () =>
+                setState(() => _ebenenPanelOffen = !_ebenenPanelOffen),
+            child: const Icon(Icons.layers),
           ),
         ),
       ],
@@ -587,18 +664,33 @@ class _PositionierLeiste extends StatelessWidget {
 
 /// Legende zu den Marker-Farben, halbtransparent unten links über der
 /// Kachel-Attribution. Reines Container/Row/Text — CanvasKit-sicher.
+///
+/// Zeigt nur Einträge zu tatsächlich sichtbaren Ebenen (Feldfeedback
+/// Churerfest 14.08.2026, Ebenen-Panel): eine Legende, die Farben für
+/// ausgeblendete Marker erklärt, würde in die Irre führen.
 class _StandFarbenLegende extends StatelessWidget {
-  const _StandFarbenLegende();
+  final bool zeigeStaende;
+  final bool zeigeTechnik;
 
-  static const _eintraege = [
+  const _StandFarbenLegende({
+    required this.zeigeStaende,
+    required this.zeigeTechnik,
+  });
+
+  static const _standEintraege = [
     (farbe: AppColors.success, label: 'In Betrieb'),
     (farbe: AppColors.error, label: 'Hollandbuffet zuerst'),
     (farbe: AppColors.info, label: 'Offen'),
-    (farbe: Colors.deepPurple, label: 'Technik'),
   ];
+  static const _technikEintrag = (farbe: Colors.deepPurple, label: 'Technik');
 
   @override
   Widget build(BuildContext context) {
+    final eintraege = [
+      if (zeigeStaende) ..._standEintraege,
+      if (zeigeTechnik) _technikEintrag,
+    ];
+    if (eintraege.isEmpty) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -610,7 +702,7 @@ class _StandFarbenLegende extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final e in _eintraege)
+          for (final e in eintraege)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 1),
               child: Row(
@@ -636,6 +728,113 @@ class _StandFarbenLegende extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Panel zum Ein-/Ausblenden einzelner Kartenebenen (Feldfeedback
+/// Churerfest 14.08.2026) — reine InkWell-Zeilen mit Häkchen-Icon statt
+/// ExpansionTile/Checkbox: dieselbe CanvasKit-Vorsicht wie überall sonst
+/// in dieser Datei (Material-Komfort-Widgets rendern auf Daniels Geräten
+/// nicht immer zuverlässig).
+class _EbenenPanel extends StatelessWidget {
+  final bool hatLageplan;
+  final bool zeigeLageplan;
+  final bool zeigeStaende;
+  final bool zeigeAnstiche;
+  final bool zeigeKuehler;
+  final VoidCallback onToggleLageplan;
+  final VoidCallback onToggleStaende;
+  final VoidCallback onToggleAnstiche;
+  final VoidCallback onToggleKuehler;
+
+  const _EbenenPanel({
+    required this.hatLageplan,
+    required this.zeigeLageplan,
+    required this.zeigeStaende,
+    required this.zeigeAnstiche,
+    required this.zeigeKuehler,
+    required this.onToggleLageplan,
+    required this.onToggleStaende,
+    required this.onToggleAnstiche,
+    required this.onToggleKuehler,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Material-Wrapper nur fürs InkWell-Ripple — die Zeilen selbst bleiben
+    // reine Row/Icon/Text-Kombinationen.
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: 172,
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (hatLageplan)
+              _EbenenZeile(
+                label: 'Lageplan',
+                aktiv: zeigeLageplan,
+                onTap: onToggleLageplan,
+              ),
+            _EbenenZeile(
+              label: 'Stände',
+              aktiv: zeigeStaende,
+              onTap: onToggleStaende,
+            ),
+            _EbenenZeile(
+              label: 'Anstiche',
+              aktiv: zeigeAnstiche,
+              onTap: onToggleAnstiche,
+            ),
+            _EbenenZeile(
+              label: 'Kühler',
+              aktiv: zeigeKuehler,
+              onTap: onToggleKuehler,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Eine Zeile im Ebenen-Panel: Häkchen-Icon + Label, ganze Zeile tappbar.
+class _EbenenZeile extends StatelessWidget {
+  final String label;
+  final bool aktiv;
+  final VoidCallback onTap;
+
+  const _EbenenZeile({
+    required this.label,
+    required this.aktiv,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              aktiv ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 18,
+              color: aktiv ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 10),
+            Text(label, style: const TextStyle(fontSize: 13)),
+          ],
+        ),
       ),
     );
   }
