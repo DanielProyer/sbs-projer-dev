@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/util/uuid_check.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
@@ -435,7 +436,10 @@ class HeinekenRechnungService {
     for (final row in allRows) {
       for (int i = 1; i <= 5; i++) {
         final id = row['material_${i}_id'] as String?;
-        if (id != null) ids.add(id);
+        // Anlass-Montagen tragen seit Migration 175 FREITEXT in diesen
+        // Feldern — der landet sonst im uuid-Filter des lager-Lookups
+        // (22P02) und ALLE Material-Namen fielen still aus.
+        if (id != null && istUuid(id)) ids.add(id);
       }
     }
     if (ids.isEmpty) return {};
