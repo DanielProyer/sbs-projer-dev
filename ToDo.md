@@ -13,7 +13,15 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-## 🟡 NEU 14.08. spät (v0.90.0, live): Karten-Layer einzeln schaltbar
+## 🟢 ERLEDIGT 15.08. (Migration 175 + v0.90.1, live): Anlass-Montagen waren NIE speicherbar — 22P02
+
+**Feldfund Daniel (Churerfest-Abrechnung):** «Montage generieren» → Speichern warf `invalid input syntax for type uuid` — der Anlass-Fluss schreibt seit jeher Freitext-Tageszeilen in `material_1_id..5`, die Spalten waren aber **uuid**. DB-Befund: **0** Anlass-Montagen mit befüllten Material-Feldern — alle bisherigen Event-Abrechnungen liefen ohne die Detailzeilen, der v0.85-Klicktest hat das Speichern offenbar nie erreicht.
+
+**Fix:** Migration 175 (Spalten auf text, 7 lager-FKs weg, Bestands-Trigger text-tauglich: Anlass bucht keinen Verbrauch, echte UUIDs wie bisher — in Rollback-Transaktion verifiziert, beide Pfade). Dazu App-Härtung v0.90.1: `istUuid`-Filter im Material-Namen-Lookup der Monatsrechnung (sonst hätte der Monatslauf ab der ersten Anlass-Montage still alle Material-Namen verloren). **Wirkte sofort ohne App-Update** — Daniel konnte direkt weiterspeichern. 1155 Tests grün.
+
+- [ ] Gegenprobe Ende August: Heineken-Monatsrechnung August — erscheinen die Churerfest-Tageszeilen im Anlass-Rapport-PDF korrekt?
+
+## 🟡 NEU 14.08. spät (v0.90.0): Karten-Layer einzeln schaltbar
 
 **Auftrag Daniel:** Lageplan, Stände, Anstiche, Kühler als separate, schaltbare Layer. **Gebaut:** Ebenen-Knopf öffnet ein Panel mit bis zu 4 Zeilen (nur was Daten hat, erscheint; Lageplan nur wenn referenziert), Häkchen-Toggles, Tap daneben schliesst. Geräte-Layer in Anstiche/Kühler geteilt. Legende folgt den sichtbaren Layern. Review fing: Stände-Layer liess sich mitten im Positionieren ausblenden → blinde Platzierung; jetzt erzwungen UND die Zeile während des Positionierens gesperrt. Alles Session-Zustand (Neuaufbau der Karte = alles sichtbar). 1152 Tests grün.
 
