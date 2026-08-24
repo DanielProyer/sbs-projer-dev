@@ -375,9 +375,27 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           '(unverändert gelassen). Speichern nicht vergessen.';
     }
 
-    setState(() => _stundenController.text = vorschlagText);
+    _stundenVorschlagFallsLeer();
     return 'Arbeitszeit $vorschlagText h vorgeschlagen — Anfahrtsanteil ggf. '
         'dazurechnen, dann speichern.';
+  }
+
+  /// Trägt den Vorschlag ein, **wenn das Abrechnungsfeld leer ist** — sonst
+  /// passiert nichts. Rückgabe: ob eingetragen wurde.
+  ///
+  /// Wird an zwei Stellen gerufen: beim «Beenden»-Knopf und nach jeder
+  /// Änderung der Zeitfelder von Hand (Wunsch Daniel 24.08.2026 — der
+  /// «Beenden»-Knopf erscheint nur, solange die Arbeit läuft, also bei
+  /// nachträglich eingetragenen Zeiten nie).
+  ///
+  /// Ein bereits eingetragener Wert wird auch hier NIE angetastet: Das Feld
+  /// ist die Abrechnungsgrundlage und enthält bewusst auch Anfahrtsanteile.
+  bool _stundenVorschlagFallsLeer() {
+    final vorschlag = aufViertelstunde(_gemesseneStunden);
+    if (vorschlag == null) return false;
+    if (_emptyToNull(_stundenController.text) != null) return false;
+    setState(() => _stundenController.text = vorschlag.toStringAsFixed(2));
+    return true;
   }
 
   /// «Arbeit beenden»-Knopf: setzt Arbeit-bis auf jetzt und schliesst den
@@ -1995,6 +2013,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             final picked = await zeigeZeitauswahl(context, initial: initial);
             if (picked != null) {
               setState(() => controller.text = _formatZeit(picked));
+              // Sobald beide Zeiten stehen, den Vorschlag gleich eintragen —
+              // der «Beenden»-Knopf erscheint nur bei laufender Arbeit und
+              // greift bei nachträglich erfassten Zeiten deshalb nie.
+              _stundenVorschlagFallsLeer();
             }
           },
           child: InputDecorator(
