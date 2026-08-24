@@ -29,6 +29,18 @@ typedef LageplanOverlay = ({
   LatLng bottomRight,
 });
 
+/// Freizuhaltender Streifen am unteren Kartenrand rechts: Dort liegt der
+/// **Scaffold-FAB** des Event-Screens («Stand hinzufügen»), der nicht zu
+/// dieser Karte gehört und deshalb in ihrem Stack nicht sichtbar ist.
+/// Ein `FloatingActionButton.extended` ist unter Material 3 56 px hoch und
+/// sitzt mit 16 px Abstand über dem unteren Rand — macht 72 px, plus 8 px
+/// Luft. Vor v0.90.2 stand der Standort-Knopf auf `bottom: 34` und lag damit
+/// zur Hälfte hinter dem FAB (Feldfund Daniel 24.08.2026, Churerfest-Karte).
+const double _fabFreiraum = 80;
+
+/// Kantenlänge eines `FloatingActionButton.small` — Basis fürs Stapeln.
+const double _kleinerFab = 40;
+
 /// **Marker-Farben** (Feldfeedback Churerfest 14.08.2026 — ersetzt die alte
 /// gemessen/geplant-Rot/Blau-Unterscheidung, die stand für Datenqualität, nicht
 /// für den Baufortschritt): Orange = gerade zum Platzieren ausgewählt, Grün =
@@ -506,7 +518,7 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
         ),
         Positioned(
           right: 8,
-          bottom: 34,
+          bottom: _fabFreiraum,
           child: FloatingActionButton.small(
             heroTag: 'event_standort',
             backgroundColor: Colors.white,
@@ -541,7 +553,8 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
         if (_ebenenPanelOffen)
           Positioned(
             right: 8,
-            bottom: 130,
+            // Über dem Ebenen-Knopf, der es öffnet.
+            bottom: _fabFreiraum + 2 * _kleinerFab + 26,
             child: _EbenenPanel(
               hatLageplan: widget.lageplan != null,
               hatAnstiche: hatAnstiche,
@@ -567,7 +580,8 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
           ),
         Positioned(
           right: 8,
-          bottom: 84,
+          // Direkt über dem Standort-Knopf, 10 px Luft dazwischen.
+          bottom: _fabFreiraum + _kleinerFab + 10,
           child: FloatingActionButton.small(
             heroTag: 'event_ebenen_toggle',
             backgroundColor: Colors.white,
