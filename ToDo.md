@@ -29,18 +29,21 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 
 ⚠️ **Beide Fixes wirken ausschliesslich im NATIVEN Pfad** — auf Web gibt es weder Sync noch lokale Kopien. Auf der Web-App, die im Alltag über den Browser läuft, ändert sich **nichts Sichtbares**. Wer die Wirkung prüfen will, braucht die Android-App.
 
-- [x] ~~Klicktest in der nativen App~~ **NICHT PRÜFBAR — und auch nicht nötig:** Daniel nutzt **ausschliesslich die Web-App im Browser** (bestätigt 24.08.2026). Beide Fixes greifen bei ihm damit nie. Sie bleiben als korrekter, getesteter Code stehen, haben aber **keinen praktischen Nutzen**.
+- [x] ~~Klicktest in der nativen App~~ **NICHT PRÜFBAR (nur Web-App im Einsatz) — Verifikation über die 17 Tests.** Der Wert liegt nicht im Alltag hier, sondern in der **Vorlage für die neue Android-App**: Genau diese zwei Fehler wären sonst mitgewandert, dorthin wo lokale Kopien und Offline-Sync real sind. Siehe Entscheid-Abschnitt unten.
 
-## 🟡 NEU 24.08.: Grundsatzfrage — der ganze Offline-/Isar-Stack läuft im Alltag nie
+## ✅ ENTSCHIEDEN 24.08. (Daniel): Web-App hier, Offline/Isar bleibt — als Vorlage für die neue App
 
-**Befund (24.08., auf Nachfrage bestätigt):** Daniel arbeitet **nur** mit der Web-App im Browser, auch auf dem Handy. Auf Web ist `SyncService` ein Stub, es gibt **keine** lokalen Isar-Kopien, jedes Repository greift im `kIsWeb`-Zweig direkt auf Supabase zu.
+**Befund:** Daniel arbeitet in SBS Projer DEV **nur** mit der Web-App im Browser, auch auf dem Handy. Auf Web ist `SyncService` ein Stub, es gibt **keine** lokalen Isar-Kopien, jedes Repository greift im `kIsWeb`-Zweig direkt auf Supabase zu.
 
-**Was das kostet:** Jede gesyncte Entity trägt bis heute **drei** Dateien (`*_local.dart` mit Isar-Annotationen, `*_local_export.dart`, `web/*_local_web.dart`) plus Mapper, IsarService-Methoden, Web-Stubs und einen Sync-Tier-Eintrag. Die Checkliste «Neue Entity hinzufügen» in `CLAUDE.md` hat 13 Schritte, von denen etwa die Hälfte **nur** den nie laufenden nativen Pfad bedient. Dazu kommt die Fehlerklasse, die daraus entsteht (Extensions auf `dynamic`, veraltete Kopien) — sie hat schon mehrfach Zeit gekostet, zuletzt am 24.08. für zwei Fixes ohne Wirkung.
+**Entscheid Daniel:** Variante 1 — **alles bleibt wie es ist.** «In SBS Projer DEV wird aktuell nur die Webapp benutzt, für die neue App bleibt die Offline/Isar-Schiene wichtig, weil dort dann nur noch die Android-App genutzt wird.»
 
-**Zu entscheiden (Daniel):**
-- [ ] Bleibt der native Pfad als Option bestehen (Kosten: laufender Pflegeaufwand bei jeder Entity), oder wird er zurückgebaut (einmalig grosser, riskanter Eingriff quer durch die Datenschicht)?
-- [ ] **Relevanz fürs Projekt Heineken:** Dort ist der Entscheid «Offline/Isar × tenant_id» noch offen. Die Erfahrung hier — offline-first gebaut, nie offline genutzt — gehört in den dortigen Decision-Log, **bevor** die neue Architektur festgezurrt wird.
-- [ ] Zwischenweg, falls unentschieden: keine neuen Entities mehr mit nativer Vertikale bauen (nur noch Web-Pfad), Bestand unangetastet lassen. Das stoppt das Wachstum, ohne etwas zu riskieren.
+**Damit ist der native Pfad kein toter Code, sondern die Vorlage.** Kein Rückbau, kein Wachstums-Stopp; die 13-Schritte-Checkliste «Neue Entity hinzufügen» in `CLAUDE.md` bleibt vollständig gültig.
+
+**Arbeitsregel daraus:**
+- **Bugs im nativen Pfad weiterhin fixen** — sie wandern sonst 1:1 in die Android-App, wo sie erst wirklich beissen (echte lokale Kopien, echtes Offline). Die beiden Fixes aus v0.91.0 sind genau dieser Fall und damit **nicht** umsonst gewesen.
+- Beim Melden sauber trennen: «wirkt im Alltag hier nicht — Wert liegt in der Vorlage für die neue App».
+- **Klicktests für native-only-Änderungen sind hier nicht möglich.** Verifikation läuft über Tests, nicht über Daniels Handy — das bei der Planung berücksichtigen, statt einen Klicktest einzuplanen, den niemand ausführen kann.
+- Fürs **Projekt Heineken**: «Offline/Isar × tenant_id» ist insofern vorentschieden, als **Offline gesetzt** ist. Offen bleibt nur, wie `tenant_id` in die lokale Schicht und den Sync eingeht.
 
 ## 🟢 ERLEDIGT 24.08. (v0.90.2, live): Klicktest-Runde Churerfest — vier offene Tests bestanden, ein Feldfund gefixt
 
