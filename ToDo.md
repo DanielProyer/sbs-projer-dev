@@ -100,7 +100,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 - [x] ~~Stände fürs Gampel erfassen~~ **HINFÄLLIG** — Erfassung lief in der separaten App. Gampel steht hier auf 0 Ständen / 0 Geräten / 0 Leitungen; erhalten geblieben ist nur der georeferenzierte Lageplan samt Passpunkten.
 - [x] ~~Vertagt auf nach dem Festival: Sync-Push-Helfer, Stand-Löschung~~ **ERLEDIGT 24.08. (v0.91.0, live)** — siehe eigener Abschnitt oben. Offen bleiben nur die Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
 
-**Stand:** 24.08.2026 · **Live:** v0.91.0 (Sync-Teilfehler + Leitungs-Aufräumung, nur nativ wirksam) · zuvor v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden), v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
+**Stand:** 24.08.2026 · **Live:** v0.92.0 (Arbeitszeit schlägt Abrechnungsstunden vor, Viertelstunden) · zuvor v0.91.0 (Sync-Teilfehler + Leitungs-Aufräumung, nur nativ wirksam), v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden), v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
 
@@ -1198,9 +1198,36 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 **Vier Entscheide von Daniel offen** (Abschnitt 8 der Spec): Reaktionszeit messen? · die 219 alten Termin-Vorschläge löschen? · Kalendereintrag für jeden geplanten Einsatz oder nur mit Uhrzeit? · Arbeitszeit per «Beginn»-Knopf oder hinterher eintippen?
 
-## 🔴 OFFEN (Wunsch Daniel 31.07.): Arbeitstag sauber erfassen — Zeiterfassung
+## 🟢 ERLEDIGT 24.08. (v0.92.0, live): Zeiterfassung → Abrechnung — Variante B umgesetzt
 
-- **Zeiterfassung für Störungen und Montagen**, damit der ganze Arbeitstag lückenlos erfasst ist. Bekannte Hürde (Befund 30.07.): `dauer_minuten` ist bei beiden Tabellen eine GENERATED-Spalte aus `uhrzeit_ende − uhrzeit_start`, aber `uhrzeit_start` bei Störungen ist der **Störungseingang** (Anruf, 107 Altwerte) — trägt man dort ein Ende ein, misst man die Reaktionszeit statt der Arbeitszeit. Zwei Wege: eigene Felder «Arbeit von/bis» (Migration) ODER Umdeutung des Eingangsfelds mit separatem Meldezeitpunkt. **Entscheid Daniel steht aus.**
+**Die Frage vom 31.07. war überholt.** Bei der Analyse am 24.08. zeigte sich: Variante «eigene Felder» wurde am 11.08. mit v0.76.0 längst gebaut — `arbeit_von`/`arbeit_bis` existieren in **beiden** Tabellen, das Montage-Formular hat «Arbeit beginnen»/«Beenden», und der Störungseingang wurde **nicht** umgedeutet (eigenes Feld, im UI sauber «Störungseingang», dazu `gemeldet_am`).
+
+**Der befürchtete Konflikt existierte gar nicht:** `dauer_minuten` (GENERATED aus `uhrzeit_ende − uhrzeit_start`) hat in **1934 Datensätzen null Werte**, weil `uhrzeit_ende` nirgends gesetzt wird. Die Spalte ist tot.
+
+**Der entscheidende Unterschied, der die Frage neu stellte:**
+
+| | Störungen (1119) | Montagen (815) |
+|---|---|---|
+| Abrechnung | **pauschal** (`preis_basis` + Anfahrt + Wochenende + Komplexität aus der Preisliste) | **nach Zeit** (`dauer_stunden` × Satz → `kosten_arbeit`) |
+| Zeit abrechnungsrelevant? | nein — Zeiterfassung dient nur der Tagesauswertung | **ja** |
+
+**Entscheid Daniel 24.08.: Variante B — vorschlagen, nicht setzen.** Rundung auf **Viertelstunden aufwärts**.
+
+**Gebaut:** `aufViertelstunde()` ([arbeitszeit_vorschlag.dart](sbs_projer_app/lib/core/util/arbeitszeit_vorschlag.dart)) · «übernehmen» schreibt den **gerundeten** Wert (1h20 → 1.50 statt bisher 1.33), der Hinweis zeigt beides · **«Arbeit beenden» schlägt den Wert direkt vor**, wenn das Abrechnungsfeld leer ist, und meldet ihn per Snackbar; ein bereits eingetragener Wert bleibt unangetastet und wird nur danebengestellt. Die Regel «`dauerStunden` nie automatisch überschreiben» bleibt gewahrt — befüllt wird nur ein leeres Feld, sichtbar vor dem Speichern. Der Anfahrtsanteil steckt bewusst nicht im Vorschlag, der Text weist darauf hin.
+
+**Vom Test gefunden:** `0.7500000000000001 / 0.25` ergibt `3.0000000000000004`, `ceil()` machte daraus 1.00 h statt 0.75 h. Die Funktion rechnet deshalb über ganze Minuten. 10 neue Tests, 1182 grün.
+
+- [ ] Klicktest Daniel: Montage → «Arbeit beginnen» → «Beenden» → steht der Vorschlag im Stundenfeld? Bei einer Montage mit bereits eingetragenen Stunden: bleibt der alte Wert stehen?
+- [ ] ⚠️ **Setzt voraus, dass die Knöpfe genutzt werden.** Daniel erfasst die Zeiten aktuell **parallel in der neuen App** (bis zum Umstieg). Trägt er `arbeit_von/bis` hier von Hand ein, greift der «übernehmen»-Knopf trotzdem.
+
+## 🟡 OFFEN (Merkposten, ohne Eile): Tote Zeitfelder aufräumen
+
+Entscheid Daniel 24.08.: **später, jetzt nicht.** Wenn ohnehin an den Tabellen gearbeitet wird:
+- `uhrzeit_ende` und `dauer_minuten` entfernen — 0 Werte in 1934 Sätzen, die GENERATED-Spalte ist wirkungslos.
+- Der **Störungseingang steht doppelt**: `uhrzeit_start` (120 Werte, im UI «Störungseingang») **und** `gemeldet_am` (109 Werte). Auf ein Feld zusammenführen.
+- Bei Montagen sind `uhrzeit_start`/`uhrzeit_ende` komplett leer (0 von 815) — Rest eines alten Entwurfs.
+
+## 🔴 OFFEN (Wunsch Daniel 31.07.): Arbeitstag sauber erfassen — Rest
 - **Planung von Störungen/Montagen gefällt noch nicht** (O-Ton 31.07.) → **GEPLANT, Spec + Plan liegen vor**, siehe eigener Abschnitt unten.
 
 **Langfrist-Entscheid Daniel:** Eine **Version 2 der App wird eine reine Android-App** (kein Web mehr). Erst dort sind Dinge möglich, die der Browser prinzipiell verbietet — allen voran echte Fahrterkennung im Hintergrund (Android Activity Recognition, «IN_VEHICLE») und zuverlässiges GPS bei ausgeschaltetem Bildschirm. Bis dahin gilt: alles, was Hintergrund-Tracking bräuchte, wird ereignisbasiert nachgerechnet statt live gemessen.
