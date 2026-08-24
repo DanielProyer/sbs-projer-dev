@@ -100,7 +100,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 - [x] ~~Stände fürs Gampel erfassen~~ **HINFÄLLIG** — Erfassung lief in der separaten App. Gampel steht hier auf 0 Ständen / 0 Geräten / 0 Leitungen; erhalten geblieben ist nur der georeferenzierte Lageplan samt Passpunkten.
 - [x] ~~Vertagt auf nach dem Festival: Sync-Push-Helfer, Stand-Löschung~~ **ERLEDIGT 24.08. (v0.91.0, live)** — siehe eigener Abschnitt oben. Offen bleiben nur die Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
 
-**Stand:** 24.08.2026 · **Live:** v0.92.0 (Arbeitszeit schlägt Abrechnungsstunden vor, Viertelstunden) · zuvor v0.91.0 (Sync-Teilfehler + Leitungs-Aufräumung, nur nativ wirksam), v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden), v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
+**Stand:** 24.08.2026 · **Live:** v0.92.1 (Arbeitszeit schlägt Abrechnungsstunden vor, Viertelstunden — Klicktest bestanden) · zuvor v0.91.0 (Sync-Teilfehler + Leitungs-Aufräumung, nur nativ wirksam), v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden), v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
 
@@ -1217,8 +1217,11 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 **Vom Test gefunden:** `0.7500000000000001 / 0.25` ergibt `3.0000000000000004`, `ceil()` machte daraus 1.00 h statt 0.75 h. Die Funktion rechnet deshalb über ganze Minuten. 10 neue Tests, 1182 grün.
 
-- [ ] Klicktest Daniel: Montage → «Arbeit beginnen» → «Beenden» → steht der Vorschlag im Stundenfeld? Bei einer Montage mit bereits eingetragenen Stunden: bleibt der alte Wert stehen?
-- [ ] ⚠️ **Setzt voraus, dass die Knöpfe genutzt werden.** Daniel erfasst die Zeiten aktuell **parallel in der neuen App** (bis zum Umstieg). Trägt er `arbeit_von/bis` hier von Hand ein, greift der «übernehmen»-Knopf trotzdem.
+- [x] ~~Klicktest Daniel~~ **BESTANDEN 24.08. (Daniel):** «0.75 kommt automatisch, Gegenprobe passt auch» — der Vorschlag erscheint beim Setzen der zweiten Zeit von selbst, und ein bereits eingetragener Wert (2.00) bleibt beim Ändern der Zeiten unangetastet.
+
+**Nachbesserung aus dem Klicktest — v0.92.1 (live):** Der erste Testlauf zeigte, dass der «Beenden»-Knopf nur erscheint, solange die Arbeit **läuft** (`if (bis == null)`, [montage_form_screen.dart:1980](sbs_projer_app/lib/presentation/screens/montagen/montage_form_screen.dart:1980)). Bei nachträglich erfassten Zeiten — dem Normalfall, weil Daniel die Knöpfe im Feld kaum drückt — kam der Vorschlag deshalb nie; man hätte «übernehmen» antippen müssen. Neu löst **jede Änderung an den Zeitfeldern** den Vorschlag mit aus (`_stundenVorschlagFallsLeer`). Der Zeitwähler liefert immer eine gültige Zeit, es gibt also keine halbfertigen Zwischenstände.
+
+**Nebenbefund (kein Fehler):** Die Zeitfelder sind normale Formularfelder und schreiben erst beim Speichern in die Datenbank — nur «Arbeit beginnen»/«Beenden» persistieren sofort. Beim Klicktest gingen die von Hand gesetzten Zeiten beim Neuladen deshalb verloren.
 
 ## 🟡 OFFEN (Merkposten, ohne Eile): Tote Zeitfelder aufräumen
 
