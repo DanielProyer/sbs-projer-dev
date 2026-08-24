@@ -13,6 +13,24 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
+## 🟢 ERLEDIGT 24.08. (v0.91.0, live): Zwei vertagte Review-Funde — beide hatten dieselbe Handschrift «still fehlgeschlagen»
+
+**1. Der Sync verschluckte Teilfehler — und die Meldekette dahinter war komplett tot.**
+`_pushToSupabase` fing Fehler **pro Satz** ab und schrieb sie nur in `debugPrint`. Der Aufrufer bekam ausschliesslich die Erfolge zurück, `SyncResult.errors` blieb leer, der Status ging auf `idle` — die App meldete Erfolg, während einzelne Sätze auf dem Server fehlten. Nur ein Fehler, der die *ganze* Entity-Funktion warf, wurde je sichtbar.
+
+**Beim Fixen zeigte sich, dass die Meldung ohnehin nirgends angekommen wäre:** **kein einziger** der vier Aufrufer (`main.dart`, `login_screen`, Connectivity-Listener, «Sync erzwingen») wertete `SyncResult` aus, und `SyncState.error` wurde von **keinem** Widget gelesen — der Indikator zeigte auch nach einem gescheiterten Lauf grünes «cloud_done». Das Sammeln allein hätte also nichts geändert.
+
+Neu: `pushEinzeln()` sammelt Teilfehler ([push_einzeln.dart](sbs_projer_app/lib/core/util/push_einzeln.dart)), `syncAll` übernimmt sie in `errors`; **«Sync erzwingen» wartet das Ergebnis ab und meldet es** ([sync_meldung.dart](sbs_projer_app/lib/core/util/sync_meldung.dart), rote Snackbar mit 8 s Standzeit und Klartext-Fehler); der Indikator zeigt bei Fehlern nicht mehr Grün (`syncHatFehlerProvider`).
+
+**2. Native Stand-Löschung liess tote Leitungs-Kopien zurück.**
+Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON DELETE SET NULL` (ebenso `stand_anlage_id`). Die **lokale Isar-Kopie** erfuhr davon nichts und zeigte weiter auf den verschwundenen Stand: Nummernsuche und die Gegenrichtung «7, 9 ← Anstich A» auf der Stand-Karte hätten dem Pikett ein Ziel genannt, das es nicht mehr gibt. Neu zieht `leitungenNachStandLoeschung()` die Kopien nach ([leitung_aufraeumen.dart](sbs_projer_app/lib/core/util/leitung_aufraeumen.dart)); `isSynced` bleibt bewusst unangetastet, weil der Server die Änderung schon vollzogen hat.
+
+**Testgetrieben gebaut** (Test zuerst, RED verifiziert, dann Implementierung): 17 neue Tests, **1172 grün**, `flutter analyze` unverändert.
+
+⚠️ **Beide Fixes wirken ausschliesslich im NATIVEN Pfad** — auf Web gibt es weder Sync noch lokale Kopien. Auf der Web-App, die im Alltag über den Browser läuft, ändert sich **nichts Sichtbares**. Wer die Wirkung prüfen will, braucht die Android-App.
+
+- [ ] Klicktest **in der nativen App** (nicht im Browser): «Sync erzwingen» → kommt jetzt eine Ergebnis-Meldung statt nur «gestartet»? Stand mit Leitungen löschen → verschwindet das Ziel aus der Leitung?
+
 ## 🟢 ERLEDIGT 24.08. (v0.90.2, live): Klicktest-Runde Churerfest — vier offene Tests bestanden, ein Feldfund gefixt
 
 **Klicktest am Handy (Daniel, 24.08.): positiv.** Damit sind die seit dem 14./15.08. offenen Prüfpunkte zu **v0.81/0.82** (kompakte Stand-Zeile, Genauigkeits-Klartext, Tel/WhatsApp), **v0.89.0** (Karte↔Stand-Navigation, Statusfarben, Legende) und **v0.90.0** (Ebenen-Panel, Sperre im Positionier-Modus) erledigt.
@@ -66,9 +84,9 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 - [ ] ⏸️ **HINFÄLLIG für Gampel (Stand 24.08.) — der Technik-Tab bleibt damit ungetestet:** Das Festival lief 17.–23.08. **ohne** Technik-Erfassung in dieser App (Anstiche/Leitungen liefen in `D:\Projekte\gampel-2026`; hier nur die Zeiten). **Die visuelle CanvasKit-Prüfung des Tabs steht weiterhin aus** — nach drei CanvasKit-Vorfällen gilt er unverändert als nicht einsatzbereit, bis ihn jemand an echten Daten durchklickt.
 - [x] ~~Stände fürs Gampel erfassen~~ **HINFÄLLIG** — Erfassung lief in der separaten App. Gampel steht hier auf 0 Ständen / 0 Geräten / 0 Leitungen; erhalten geblieben ist nur der georeferenzierte Lageplan samt Passpunkten.
-- [ ] Vertagt auf nach dem Festival — **jetzt fällig:** Sync-Push-Helfer meldet Teilfehler nicht (separater Task-Chip angelegt), native Stand-Löschung zieht lokale Leitungs-Kopien nicht nach (F4, Web nicht betroffen), Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
+- [x] ~~Vertagt auf nach dem Festival: Sync-Push-Helfer, Stand-Löschung~~ **ERLEDIGT 24.08. (v0.91.0, live)** — siehe eigener Abschnitt oben. Offen bleiben nur die Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
 
-**Stand:** 24.08.2026 · **Live:** v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden) · zuvor v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
+**Stand:** 24.08.2026 · **Live:** v0.91.0 (Sync-Teilfehler + Leitungs-Aufräumung, nur nativ wirksam) · zuvor v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden), v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
 
