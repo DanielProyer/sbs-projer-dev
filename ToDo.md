@@ -13,6 +13,18 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
+## 🟢 ERLEDIGT 24.08. (v0.90.2, live): Klicktest-Runde Churerfest — vier offene Tests bestanden, ein Feldfund gefixt
+
+**Klicktest am Handy (Daniel, 24.08.): positiv.** Damit sind die seit dem 14./15.08. offenen Prüfpunkte zu **v0.81/0.82** (kompakte Stand-Zeile, Genauigkeits-Klartext, Tel/WhatsApp), **v0.89.0** (Karte↔Stand-Navigation, Statusfarben, Legende) und **v0.90.0** (Ebenen-Panel, Sperre im Positionier-Modus) erledigt.
+
+**Testgrundlage war das Churerfest**, nicht Gampel — mit 17 Ständen, allen drei Genauigkeitsstufen und genau den drei Farbfällen: Athletic Box Club Rätia (69) rot = Hollandbuffet noch nicht in Betrieb · Masans Sport (97) blau = offen ohne Hollandbuffet · OK Kornplatz (63-65) grün = Hollandbuffet vollständig in Betrieb.
+
+**Feldfund währenddessen — v0.90.2:** Der Scaffold-FAB «Stand hinzufügen» verdeckte den Karten-Knopf «Mein Standort» zur Hälfte. Der Knopf stand auf `bottom: 34`, ein `FloatingActionButton.extended` belegt unter M3 aber 16..72. Die drei rechten Bedienelemente stapeln jetzt über einem benannten Freiraum (`_fabFreiraum = 80`) in [event_staende_map.dart](sbs_projer_app/lib/presentation/screens/events/event_staende_map.dart). 1155 Tests grün, vom Handy bestätigt.
+
+**Gampel-Zeiten für die August-Monatsrechnung stehen bereit:** 10 Zeilen in `event_aufwand` vom 17.–23.08., zusammen **99.5 Stunden** (17.08. 11 · 18.08. 11 · 19.08. 19.5 · 20.08. 15 · 21.08. 18 · 22.08. 15 · 23.08. 10). Das ist alles, was Gampel in dieser App hinterlässt — Technik/Stände liefen in der separaten App.
+
+**Merkposten Deploy-Falle:** `00_Event/` liegt auf `main`, nicht auf `gh-pages` — jeder Deploy lässt die Dateien kurz aus dem Arbeitsverzeichnis verschwinden. Am 24.08. harmlos (Excel war zu, verwaistes Lockfile vom 13.08. entfernt), am 11.08. kostete genau das die Churerfest-Koordinaten. **Dauerhafte Entschärfung offen:** Deploy über ein separates Arbeitsverzeichnis statt Branch-Wechsel im selben Ordner.
+
 ## 🟢 ERLEDIGT 15.08. (Migration 175 + v0.90.1, live): Anlass-Montagen waren NIE speicherbar — 22P02
 
 **Feldfund Daniel (Churerfest-Abrechnung):** «Montage generieren» → Speichern warf `invalid input syntax for type uuid` — der Anlass-Fluss schreibt seit jeher Freitext-Tageszeilen in `material_1_id..5`, die Spalten waren aber **uuid**. DB-Befund: **0** Anlass-Montagen mit befüllten Material-Feldern — alle bisherigen Event-Abrechnungen liefen ohne die Detailzeilen, der v0.85-Klicktest hat das Speichern offenbar nie erreicht.
@@ -25,7 +37,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Auftrag Daniel:** Lageplan, Stände, Anstiche, Kühler als separate, schaltbare Layer. **Gebaut:** Ebenen-Knopf öffnet ein Panel mit bis zu 4 Zeilen (nur was Daten hat, erscheint; Lageplan nur wenn referenziert), Häkchen-Toggles, Tap daneben schliesst. Geräte-Layer in Anstiche/Kühler geteilt. Legende folgt den sichtbaren Layern. Review fing: Stände-Layer liess sich mitten im Positionieren ausblenden → blinde Platzierung; jetzt erzwungen UND die Zeile während des Positionierens gesperrt. Alles Session-Zustand (Neuaufbau der Karte = alles sichtbar). 1152 Tests grün.
 
-- [ ] Klicktest Daniel: Ebenen-Knopf → 4 Zeilen? Lageplan aus/ein? Nur Kühler anzeigen? Während «Positionieren» ist «Stände» gesperrt?
+- [x] ~~Klicktest Daniel: Ebenen-Knopf~~ **BESTANDEN 24.08. (Daniel, Handy)** — am Churerfest geprüft, dort erscheint erwartungsgemäss nur die Zeile «Stände» (kein Lageplan, keine Technik: das Panel zeigt nur, was Daten hat). Die 4-Zeilen-Variante und «nur Kühler» sind damit **nicht** geprüft — dafür fehlt in dieser App ein Event mit vollem Bestand.
 
 ## 🟢 ERLEDIGT 14.08. spät (v0.89.0): Karte↔Stand-Navigation + Status-Farben — Churerfest-Feedback
 
@@ -33,7 +45,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Gebaut:** «Karte»-Knopf in der Stand-Zeile (nur mit Position) → Karte öffnet **zentriert auf dem Stand** (Zoom 18, Ring-Markierung; Review fing: der Fokus feuerte wegen Karten-Remount nie — gefixt über initialCenter). Marker-Tap → Stand-Formular (war schon verdrahtet). **Neue Farb-Semantik** (ersetzt gemessen/geplant): **grün** = vollständig in Betrieb · **rot** = Hollandbuffet noch nicht in Betrieb (zuerst anfahren!) · **blau** = offen ohne Hollandbuffet · orange = Positionier-Kandidat · violett = Technik. Kleine Legende unten links. 1152 Tests grün.
 
-- [ ] Klicktest Daniel: «Karte» am Stand → landet die Karte gezoomt auf dem Stand? Farben plausibel (Churerfest hat echte Inbetriebnahmen)? Legende lesbar?
+- [x] ~~Klicktest Daniel: «Karte» am Stand~~ **BESTANDEN 24.08. (Daniel, Handy)** — Karte zoomt auf den Stand (Ring sitzt), Farben stimmen gegen die Echtdaten (69 rot, 97 blau, Rest grün), Legende lesbar.
 - [ ] Vertagt: Sammel-Query statt N Einzel-Abfragen beim Kartenaufbau (bei ~17 Ständen unkritisch), Lade-Flacker blau→grün.
 
 ## 🟢 ERLEDIGT 14.08. abends (v0.88.0): Event-Technik v2 — GPS/Karte, Typenschild-KI, Temperatur-Monitoring, Testdaten-Reset
@@ -42,8 +54,8 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Gebaut (7 Tasks, gleicher Review-Prozess):** Migration 173 (Kühler-Felder + `event_kuehler_messungen`) · Migration 174 (**automatischer Testdaten-Reset Mo 17.08. 06:00 CH** — löscht Technik, Leitungen, Messungen UND Stände des Gampel-Events; vorher JSONB-Snapshot `snapshot_gampel_testdaten`; per Rollback-Transaktion getestet; Job entfernt sich selbst) · Edge Function `typenschild-lesen` (deployed, JWT-geschützt; liest Hersteller/Typ/Seriennr./Baujahr, meldet Unsicherheiten) · volle Daten-Vertikale Messungen · **Standort erfassen** an der Geräte-Karte + **Geräte-Marker** (violett, Tank/Schneeflocke) auf der Stände-Karte · Kühler-Formular mit 2 Foto-Knöpfen (Foto bleibt auch bei KI-Fehler), Sollbereich · **Temperatur erfassen** + rote Warnung ausserhalb Sollbereich + fl_chart-Verlauf (Soll-Linien gestrichelt, Ausreisser rot). 1152 Tests grün.
 
-- [ ] ⚠️ **Klicktest Daniel am Handy (Testdaten — alles darf kaputt gehen, Mo früh ist es weg):** Kühler anlegen → Typenschild fotografieren (KI-Vorschlag? Unsicherheits-Hinweis?) → Sollbereich 2–6 setzen → 2–3 Temperaturen erfassen (eine ausserhalb → rot? Grafik da?) → Anstich: «Standort erfassen» → Karte: violette Marker sichtbar? **fl_chart ist Premiere im Projekt — CanvasKit-Risiko, Pixel konnte ich wieder nicht prüfen.**
-- [ ] **Reset läuft automatisch Mo 06:00** — falls du ihn NICHT willst oder früher/später: melden, ich kann ihn jederzeit per `SELECT cron.unschedule('gampel-testdaten-reset')` stoppen. Wiederherstellung wäre über `snapshot_gampel_testdaten` möglich.
+- [ ] ⏸️ **HINFÄLLIG für Gampel (Stand 24.08.), Feature bleibt ungetestet:** Die Gampel-Erfassung lief in der separaten Test-App (`D:\Projekte\gampel-2026`) — in dieser App wurden **nur die Zeiten** erfasst. Kühler, Typenschild-KI, Temperatur-Monitoring und die violetten Geräte-Marker sind damit **nie an Echtdaten geprüft worden**; **fl_chart ist weiterhin Premiere im Projekt und CanvasKit-ungeprüft**. Bei nächster Gelegenheit an einem Event mit echter Technik nachholen — oder bewusst fallen lassen, falls die Technik-Erfassung dauerhaft in der anderen App bleibt.
+- [x] ~~Reset läuft automatisch Mo 06:00~~ **LIEF KORREKT:** Mo 17.08. 06:00 CH, `cron.job_run_details` Status `succeeded`, Job hat sich danach selbst entfernt. Gelöscht wurden 1 Stand, 1 Anstich, 8 Leitungen, 1 Stand-Anlage — alles im Snapshot `snapshot_gampel_testdaten` (Stand 24.08. noch vorhanden). Kein Datenverlust, weil die Echterfassung ohnehin in der anderen App lief.
 - [ ] Vertagt: PNG wird beim Foto-Upload als .jpg abgelegt (kosmetisch), verwaiste Fotos bei abgebrochenem Sheet, Chart-Polster bei konstanter Temperatur, Foto-Vorschau im Formular (auf Zuruf).
 
 ## 🟢 ERLEDIGT 14.08. (v0.87.0): Event-Technik — Anstiche & Leitungen fürs Openair Gampel
@@ -52,11 +64,11 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Gebaut (11 Tasks, subagent-getrieben mit Zweifach-Review + Final-Review):** Migration 172 (`event_geraete` + `event_leitungen`, Unique je Anstich, RLS); volle Sync-Vertikale (DTO/Isar/Web-Stub/Mapper/Repository/Sync Tier 3+5/Provider); **Technik-Tab** im Event (Anstich-Karten mit Zähler «angeschlossen/total», Kühler-Liste, **«Leitungen erzeugen» 1–12 auf einen Schlag** — auf Web als EIN atomarer Bulk-Upsert —, Leitungs-Sheet mit Ziel-Stand/Gerätezeile/Kühler, Inbetriebnahme-Haken mit 48-px-Tap-Ziel, Nummernsuche mit Mehrdeutigkeits-Anzeige); **Stand-Karte zeigt die Gegenrichtung** «7, 9 ← Anstich A» (Pikett nennt den Stand, nicht die Leitung). Reviews fingen u. a.: verrutschte FAB-Indizes (Dokument-Upload war tot), stille Toggle-Fehlschläge (jetzt Rollback+Meldung), Dropdown-Absturz bei gelöschtem Stand, toten Leitungs-Cache nach Stand-Löschung. 1122 Tests grün.
 
-- [ ] ⚠️ **Klicktest Daniel am Handy VOR dem Aufbau (Mo 17.08.), nicht erst vor Ort:** Events → Openair Gampel → Tab «Technik»: Anstich anlegen → «Leitungen» 1–12 erzeugen → Leitung antippen, Ziel setzen → Haken toggeln → Nummernsuche «7». **Die visuelle CanvasKit-Prüfung steht noch aus** — Konsole/Bundle/Version sind verifiziert (v0.87.0 lädt fehlerfrei), aber Pixel konnte ich in dieser Session nicht prüfen (Browser-Pane ohne Anzeige rendert kein Canvas). Nach drei CanvasKit-Vorfällen: erst nach diesem Test gilt der Tab als einsatzbereit.
-- [ ] **Stände fürs Gampel erfassen (0 vorhanden, kein Vorjahr in der App)** — ohne Stände kein Leitungsziel; Leitungen lassen sich aber schon ohne Ziel erzeugen und später zuordnen.
-- [ ] Vertagt auf nach dem Festival: Sync-Push-Helfer meldet Teilfehler nicht (separater Task-Chip angelegt), native Stand-Löschung zieht lokale Leitungs-Kopien nicht nach (F4, Web nicht betroffen), Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
+- [ ] ⏸️ **HINFÄLLIG für Gampel (Stand 24.08.) — der Technik-Tab bleibt damit ungetestet:** Das Festival lief 17.–23.08. **ohne** Technik-Erfassung in dieser App (Anstiche/Leitungen liefen in `D:\Projekte\gampel-2026`; hier nur die Zeiten). **Die visuelle CanvasKit-Prüfung des Tabs steht weiterhin aus** — nach drei CanvasKit-Vorfällen gilt er unverändert als nicht einsatzbereit, bis ihn jemand an echten Daten durchklickt.
+- [x] ~~Stände fürs Gampel erfassen~~ **HINFÄLLIG** — Erfassung lief in der separaten App. Gampel steht hier auf 0 Ständen / 0 Geräten / 0 Leitungen; erhalten geblieben ist nur der georeferenzierte Lageplan samt Passpunkten.
+- [ ] Vertagt auf nach dem Festival — **jetzt fällig:** Sync-Push-Helfer meldet Teilfehler nicht (separater Task-Chip angelegt), native Stand-Löschung zieht lokale Leitungs-Kopien nicht nach (F4, Web nicht betroffen), Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
 
-**Stand:** 14.08.2026 · **Live:** v0.87.0 (Event-Technik) · zuvor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
+**Stand:** 24.08.2026 · **Live:** v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden) · zuvor v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
 
@@ -69,7 +81,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 ## 🟢 ERLEDIGT 13.08. (v0.81.0): Kompakte Stand-Übersicht + flacher Event-Kopf
 
 **Design-Auftrag Daniel** (auf Fable): Stände professioneller/flacher, Event-Kopf halbe Höhe. Umsetzung: Event-Name raus aus der Kopfkarte (stand doppelt — AppBar direkt darüber), eine Zeile Termin·Ort·Status; Stand-Zeilen mit Nummern-Badge als scanbare Spalte links, Standort als Icon (Form=Herkunft, Farbe=Genauigkeit), Fortschritt als «2/3», Untertitel einzeilig; Bearbeiten/Löschen aus der Zeile in den aufgeklappten Bereich (die zwei 48-px-IconButtons waren der grösste Höhenfresser). ~⅓ weniger Höhe pro Zeile, ~4 Stände mehr sichtbar. 1061 Tests grün.
-- [ ] ⚠️ **Screen-Umbau ungetestet** — Klicktest Daniel am Handy vor dem Churerfest (14.08.): Stände-Tab, Aufklappen, Bearbeiten/Löschen im aufgeklappten Bereich, Tooltip/Farben der Standort-Icons.
+- [x] ~~Screen-Umbau ungetestet~~ **BESTANDEN 24.08. (Daniel, Handy)** — Stände-Tab, Aufklappen, Bearbeiten/Löschen im aufgeklappten Bereich, Standort-Icons samt Genauigkeits-Klartext am Churerfest geprüft.
 
 ## 🟢 ERLEDIGT 11.08. (v0.79.0/v0.80.0): Freie Auswahl bei Materialbestellung + Standort-Kennung
 
@@ -94,7 +106,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 1061 Tests grün.
 
 - [ ] ⚠️ **Koordinaten fürs Churerfest fehlen weiterhin.** `00_Event/Churerfest 2026.xlsx` enthält **keine** — vollständig geprüft (1057 Zeilen, alle 7 Spalten Debitor/Name 1/Name 2/Bezeichnung/Auftragsmenge/Standnummer/ORT, dazu Hyperlinks, Zellkommentare und alle XML-Teile): kein Treffer. Es ist eine Getränke-/Materialbestellliste, «ORT» sind Stückzahlen. Auch `Churerfest 2026.pdf` enthält keine. Die **17 Stände sind erfasst** (mit Standnummern und Kontakten), **0 mit Position** — sobald die Koordinaten vorliegen, sind sie schnell eingetragen.
-- [ ] Klicktest Daniel: Positionieren am PC, Koordinaten einfügen, GPS-Abgleich vor Ort (Churerfest 14.–16.08.).
+- [x] ~~Klicktest Daniel: Positionieren am PC, GPS-Abgleich vor Ort~~ **DURCH ECHTDATEN BELEGT (Stand 24.08.):** Alle 17 Churerfest-Stände haben eine Position, und **beide** Wege wurden real genutzt — 9× `position_quelle = karte` (am PC gesetzt), 8× `gps` (vor Ort gemessen), Genauigkeiten gemischt genau/mittel/ungefähr.
 
 ## 🟢 ERLEDIGT 11.08. (v0.76.0): Drei Feld-Fehler — alle mit demselben Muster «still fehlgeschlagen»
 
