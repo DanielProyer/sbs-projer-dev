@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:uuid/uuid.dart';
+import 'package:sbs_projer_app/core/util/leitung_aufraeumen.dart';
 import 'package:sbs_projer_app/core/util/stand_position.dart';
 import 'package:sbs_projer_app/data/local/event_stand_local_export.dart';
 import 'package:sbs_projer_app/data/local/event_stand_anlage_local_export.dart';
@@ -58,6 +59,15 @@ class EventStandRepository {
       }
       await SupabaseService.client
           .from('event_staende').delete().eq('id', local.serverId!);
+
+      // Leitungen, die auf diesen Stand zielten: serverseitig setzt der FK
+      // sie per ON DELETE SET NULL zurück, die lokalen Kopien wissen davon
+      // nichts und zeigten sonst weiter auf den verschwundenen Stand.
+      final leitungen =
+          await IsarService.eventLeitungFindByStand(local.serverId!);
+      for (final l in leitungenNachStandLoeschung(leitungen, local.serverId!)) {
+        await IsarService.eventLeitungPut(l);
+      }
     }
     await IsarService.eventStandDelete(isarId);
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/sync_meldung.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
@@ -275,10 +276,25 @@ class _WeitereSection extends ConsumerWidget {
           _MenuListTile(
             icon: Icons.sync,
             label: 'Sync erzwingen',
-            onTap: () {
-              SyncService.syncAll();
-              ScaffoldMessenger.of(context).showSnackBar(
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              messenger.showSnackBar(
                 const SnackBar(content: Text('Synchronisierung gestartet...')),
+              );
+              // Ergebnis abwarten und melden: Vorher blieb es bei
+              // «gestartet», auch wenn einzelne Sätze nicht durchkamen.
+              final r = await SyncService.syncAll();
+              final m = syncMeldung(
+                pushed: r.pushed,
+                pulled: r.pulled,
+                fehler: r.errors,
+              );
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(m.text),
+                  backgroundColor: m.istFehler ? AppColors.offline : null,
+                  duration: Duration(seconds: m.istFehler ? 8 : 3),
+                ),
               );
             },
           ),
@@ -294,12 +310,25 @@ class _SyncIndicator extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(isOnlineProvider);
     final isSyncing = ref.watch(isSyncingProvider);
+    final hatFehler = ref.watch(syncHatFehlerProvider);
 
     if (isSyncing) {
       return const SizedBox(
         width: 20,
         height: 20,
         child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    // Ein fehlgeschlagener Sync darf nicht als grünes «cloud_done»
+    // erscheinen — genau das liess fehlende Daten wie übertragene aussehen.
+    if (hatFehler) {
+      return Tooltip(
+        message: 'Letzter Sync unvollständig — «Sync erzwingen» für Details',
+        child: Icon(
+          Icons.cloud_off,
+          color: AppColors.offline,
+          size: 20,
+        ),
       );
     }
     return Icon(

@@ -26,3 +26,14 @@ final isSyncingProvider = Provider<bool>((ref) {
   final state = ref.watch(syncStateProvider).valueOrNull ?? SyncService.state;
   return state == SyncState.syncing;
 });
+
+/// Der letzte Sync-Lauf hatte Fehler — auch bloss satzweise Teilfehler.
+///
+/// `SyncState.error` wurde bis 24.08.2026 von keinem Widget ausgewertet: Der
+/// Indikator zeigte weiter grünes «cloud_done», obwohl Daten auf dem Server
+/// fehlten.
+final syncHatFehlerProvider = Provider<bool>((ref) {
+  if (kIsWeb) return false;
+  final state = ref.watch(syncStateProvider).valueOrNull ?? SyncService.state;
+  return state == SyncState.error;
+});

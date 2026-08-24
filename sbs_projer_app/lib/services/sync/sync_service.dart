@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:sbs_projer_app/core/util/push_einzeln.dart';
 import 'package:sbs_projer_app/services/storage/isar_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/connectivity/connectivity_service.dart';
@@ -143,6 +144,7 @@ class SyncService {
     int totalPushed = 0;
     int totalPulled = 0;
     final errors = <String>[];
+    _pushFehler.clear();
 
     try {
       final userId = SupabaseService.currentUser?.id;
@@ -213,6 +215,10 @@ class SyncService {
         }
       }
 
+      // Satzweise Teilfehler mit aufnehmen — sonst meldete der Sync
+      // «erfolgreich», während einzelne Sätze auf dem Server fehlen.
+      errors.addAll(_pushFehler);
+
       _setState(errors.isEmpty ? SyncState.idle : SyncState.error);
     } catch (e) {
       errors.add(e.toString());
@@ -243,28 +249,44 @@ class SyncService {
   }
 
   // === Generic Push Helper ===
+
+  /// Teilfehler des laufenden [syncAll] — je Tabelle eine Zeile.
+  ///
+  /// Sammelpunkt statt Rückgabewert, weil [_pushToSupabase] 26 Aufrufer hat,
+  /// die alle nur die Erfolge weiterverarbeiten. Gefahrlos, weil `_isSyncing`
+  /// parallele Läufe verhindert und die `_syncX`-Funktionen privat sind, also
+  /// ausschliesslich aus [syncAll] heraus laufen. [syncAll] leert die Liste
+  /// vor jedem Durchgang und übernimmt sie danach in `SyncResult.errors`.
+  static final List<String> _pushFehler = [];
+
   static Future<List<T>> _pushToSupabase<T>(
     String table,
     List<T> unsynced,
     Map<String, dynamic> Function(T) toJson,
     void Function(T, String) onSuccess,
   ) async {
-    final pushed = <T>[];
-    for (final local in unsynced) {
-      try {
-        final json = toJson(local);
+    final ergebnis = await pushEinzeln<T>(
+      items: unsynced,
+      push: (local) async {
         final res = await _client
             .from(table)
-            .upsert(json)
+            .upsert(toJson(local))
             .select('id')
             .single();
-        onSuccess(local, res['id'] as String);
-        pushed.add(local);
-      } catch (e) {
-        debugPrint('Push $table error: $e');
-      }
+        return res['id'] as String;
+      },
+      beiErfolg: onSuccess,
+      // Wird nur im Fehlerfall gerufen — die Server-ID ist der einzige
+      // Bezeichner, den dieser generische Helfer kennt.
+      bezeichnung: (local) => toJson(local)['id']?.toString() ?? '(neuer Satz)',
+    );
+
+    final meldung = pushFehlerMeldung(table, ergebnis.fehler);
+    if (meldung != null) {
+      _pushFehler.add(meldung);
+      debugPrint('Push $table: $meldung');
     }
-    return pushed;
+    return ergebnis.erfolgreich;
   }
 
   // === Generic Pull Helper ===
