@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
+import 'package:sbs_projer_app/core/util/arbeitszeit_vorschlag.dart';
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -350,6 +351,35 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     return diffMin / 60.0;
   }
 
+  /// Schlägt beim Beenden einen Wert fürs Abrechnungsfeld vor und liefert den
+  /// Text für die Rückmeldung (Variante B, Entscheid Daniel 24.08.2026).
+  ///
+  /// **Die Regel bleibt gewahrt:** Ein bereits eingetragener Wert wird NIE
+  /// angetastet — dann nennt der Hinweis nur beide Zahlen nebeneinander und
+  /// überlässt die Entscheidung dem Nutzer. Befüllt wird ausschliesslich ein
+  /// **leeres** Feld; das ist kein Überschreiben, und der Wert steht sichtbar
+  /// im Formular, bevor irgendetwas gespeichert wird.
+  ///
+  /// Der Anfahrtsanteil steckt bewusst NICHT im Vorschlag — er ist in der
+  /// gemessenen Arbeitszeit gar nicht enthalten. Darauf weist der Text hin.
+  String _stundenVorschlagen() {
+    final vorschlag = aufViertelstunde(_gemesseneStunden);
+    if (vorschlag == null) {
+      return 'Rapport ergänzen und speichern nicht vergessen.';
+    }
+    final vorschlagText = vorschlag.toStringAsFixed(2);
+
+    final bisher = _emptyToNull(_stundenController.text);
+    if (bisher != null) {
+      return 'Gemessen $vorschlagText h — im Rapport stehen $bisher h '
+          '(unverändert gelassen). Speichern nicht vergessen.';
+    }
+
+    setState(() => _stundenController.text = vorschlagText);
+    return 'Arbeitszeit $vorschlagText h vorgeschlagen — Anfahrtsanteil ggf. '
+        'dazurechnen, dann speichern.';
+  }
+
   /// «Arbeit beenden»-Knopf: setzt Arbeit-bis auf jetzt und schliesst den
   /// Einsatz ab — sofort persistiert, unabhängig vom Haupt-Speichern.
   ///
@@ -369,6 +399,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     _laufendZeitTimer?.cancel();
     _laufendZeitTimer = null;
 
+    final hinweis = _stundenVorschlagen();
+
     final id = widget.montageId;
     try {
       if (id != null) {
@@ -381,8 +413,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Arbeit beendet ($zeitStr) — Rapport ergänzen '
-              'und speichern nicht vergessen.')),
+          SnackBar(
+            content: Text('Arbeit beendet ($zeitStr). $hinweis'),
+            duration: const Duration(seconds: 7),
+          ),
         );
       }
     } catch (e) {
@@ -1984,12 +2018,18 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     );
   }
 
-  /// Hinweis «gemessen: 1h20» mit «übernehmen»-Knopf. Reine Anzeige — siehe
-  /// Kommentar bei [_gemesseneStunden]: `dauerStunden` wird NIE automatisch
-  /// überschrieben, nur auf ausdrücklichen Tap des Nutzers.
+  /// Hinweis «gemessen: 1h20 → 1.50 h» mit «übernehmen»-Knopf. Reine Anzeige —
+  /// siehe Kommentar bei [_gemesseneStunden]: `dauerStunden` wird NIE
+  /// automatisch überschrieben, nur auf ausdrücklichen Tap des Nutzers.
+  ///
+  /// Der Knopf übernimmt seit v0.92.0 den **auf Viertelstunden aufgerundeten**
+  /// Wert (Entscheid Daniel 24.08.2026) — vorher landete die exakte Dauer im
+  /// Feld (1h20 → 1.33), die man auf einer Rechnung ohnehin wieder glättete.
   Widget _buildGemesseneZeitHinweis() {
     final gemessen = _gemesseneStunden;
     if (gemessen == null) return const SizedBox.shrink();
+    final vorschlag = aufViertelstunde(gemessen);
+    if (vorschlag == null) return const SizedBox.shrink();
     final h = gemessen.floor();
     final min = ((gemessen - h) * 60).round();
     return Padding(
@@ -2000,7 +2040,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'gemessen: ${h}h ${min.toString().padLeft(2, '0')}',
+              'gemessen: ${h}h ${min.toString().padLeft(2, '0')} '
+              '→ ${vorschlag.toStringAsFixed(2)} h',
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -2010,7 +2051,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           GestureDetector(
             onTap: () {
               setState(() {
-                _stundenController.text = gemessen.toStringAsFixed(2);
+                _stundenController.text = vorschlag.toStringAsFixed(2);
               });
             },
             child: Text(
