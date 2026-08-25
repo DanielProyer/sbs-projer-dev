@@ -23,6 +23,8 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 > **Regel für künftige Migrationen:** Jede neue Tabelle in `public` braucht `ENABLE ROW LEVEL SECURITY` — **auch temporäre Hilfs- und Snapshot-Tabellen**. PostgREST macht ausnahmslos jede Tabelle im `public`-Schema erreichbar. Nach DDL-Änderungen `get_advisors` laufen lassen.
 
+**✅ Prävention steht (24.08., Daniel):** Der Supabase-Event-Trigger **`ensure_rls`** (Funktion `rls_auto_enable`, `ddl_command_end`) ist eingeschaltet — jede neue Tabelle im `public`-Schema bekommt RLS jetzt **automatisch**. Praktisch nachgewiesen: Wegwerf-Tabelle ohne jede RLS-Anweisung angelegt → `relrowsecurity = true`, danach wieder gelöscht. Damit kann sich dieser Vorfall nicht wiederholen. **Nebenwirkung zum Merken:** Eine frisch angelegte Tabelle wirkt ohne Policy «leer», obwohl Daten drin sind — das ist dann die fehlende Policy, kein Bug.
+
 **Danach kein ERROR mehr.** Was der Advisor noch zeigt (alles ohne akutes Loch):
 - [x] ~~`gampel_testdaten_reset()`~~ **GELÖSCHT 24.08.** — vorher geprüft: 0 Cron-Jobs, 0 Trigger. Endstand: 0 Snapshot-Tabellen, 0 Reset-Funktion, 1 Cron-Job (`betriebsdaten-abgleich`, täglich 03:20 UTC, unberührt).
 - [ ] **Leaked-Password-Schutz ist aus** — ein Klick im Supabase-Dashboard (Auth → Policies), kann ich von hier nicht setzen.
