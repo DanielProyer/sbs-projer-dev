@@ -27,7 +27,8 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Danach kein ERROR mehr.** Was der Advisor noch zeigt (alles ohne akutes Loch):
 - [x] ~~`gampel_testdaten_reset()`~~ **GELÖSCHT 24.08.** — vorher geprüft: 0 Cron-Jobs, 0 Trigger. Endstand: 0 Snapshot-Tabellen, 0 Reset-Funktion, 1 Cron-Job (`betriebsdaten-abgleich`, täglich 03:20 UTC, unberührt).
-- [ ] **Leaked-Password-Schutz ist aus** — ein Klick im Supabase-Dashboard (Auth → Policies), kann ich von hier nicht setzen.
+- [x] ~~Leaked-Password-Schutz ist aus~~ **AKTIVIERT 24.08. (Daniel)** — Befund aus der Advisor-Liste verschwunden.
+- [x] ~~Neuer Befund durch den RLS-Trigger selbst~~ **BEHOBEN 24.08. (Migration 177):** Supabase legte beim Einschalten `rls_auto_enable()` als SECURITY DEFINER an und gab sie für **anon** und authenticated frei. Praktisch ungefährlich (`RETURNS event_trigger` lässt sich nicht direkt aufrufen, PostgREST kann den Typ nicht als RPC anbieten, `search_path` ist auf `pg_catalog` gesetzt) — der Grant war aber unnötig und ist entzogen. **Nachgewiesen:** Trigger arbeitet danach unverändert weiter (Wegwerf-Tabelle → `relrowsecurity = true`).
 - [ ] `verwaiste_belege()` ist als `SECURITY DEFINER` für angemeldete Nutzer über `/rest/v1/rpc/` aufrufbar — prüfen, ob gewollt.
 - [ ] 23× `function_search_path_mutable` und 3× `extension_in_public` (pg_trgm, pg_net, fuzzystrmatch) — Härtungsthema, gehört zu Fahrplan-Schritt 7.
 - [ ] `google_calendar_tokens`/`_events`: RLS an, keine Policy — also dicht, aber als Altlast für v2 vermerkt (Klartext-Token).
