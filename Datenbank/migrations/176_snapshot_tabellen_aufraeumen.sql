@@ -32,8 +32,13 @@ DROP TABLE IF EXISTS public.snapshot_golden_dragon_2026_08_05;
 DROP TABLE IF EXISTS public.snapshot_landi_2026_08_06;
 DROP TABLE IF EXISTS public.snapshot_winterfenster_2026_08_04;
 
--- OFFEN (bewusst nicht mitgeloescht, braucht Daniels Wort):
--- Die Funktion public.gampel_testdaten_reset() existiert noch, obwohl ihre
--- Snapshot-Tabelle weg ist. Sie ist damit funktionsunfaehig; der zugehoerige
--- pg_cron-Job hat sich am 17.08. planmaessig selbst entfernt.
---   DROP FUNCTION IF EXISTS public.gampel_testdaten_reset();
+-- Schritt 3 (Entscheid Daniel 24.08.2026, eigene Migration
+-- drop_gampel_testdaten_reset_funktion): Die letzte Altlast des Resets.
+-- Die Funktion schrieb in snapshot_gampel_testdaten und loeschte danach die
+-- Testdaten; beides gibt es nicht mehr. Der pg_cron-Job hatte sich am
+-- 17.08.2026 nach dem einmaligen Lauf planmaessig selbst entfernt.
+-- Vor dem Loeschen geprueft: 0 Cron-Jobs, 0 Trigger referenzieren sie.
+DROP FUNCTION IF EXISTS public.gampel_testdaten_reset();
+
+-- Endstand nach 176: 0 snapshot-Tabellen, 0 Reset-Funktion, 1 Cron-Job
+-- (betriebsdaten-abgleich, taeglich 03:20 UTC -- unberuehrt).

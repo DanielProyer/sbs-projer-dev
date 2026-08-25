@@ -24,7 +24,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 > **Regel für künftige Migrationen:** Jede neue Tabelle in `public` braucht `ENABLE ROW LEVEL SECURITY` — **auch temporäre Hilfs- und Snapshot-Tabellen**. PostgREST macht ausnahmslos jede Tabelle im `public`-Schema erreichbar. Nach DDL-Änderungen `get_advisors` laufen lassen.
 
 **Danach kein ERROR mehr.** Was der Advisor noch zeigt (alles ohne akutes Loch):
-- [ ] `gampel_testdaten_reset()` existiert noch, obwohl ihre Tabelle weg ist — funktionsunfähige Altlast, `DROP FUNCTION` steht auskommentiert in Migration 176.
+- [x] ~~`gampel_testdaten_reset()`~~ **GELÖSCHT 24.08.** — vorher geprüft: 0 Cron-Jobs, 0 Trigger. Endstand: 0 Snapshot-Tabellen, 0 Reset-Funktion, 1 Cron-Job (`betriebsdaten-abgleich`, täglich 03:20 UTC, unberührt).
 - [ ] **Leaked-Password-Schutz ist aus** — ein Klick im Supabase-Dashboard (Auth → Policies), kann ich von hier nicht setzen.
 - [ ] `verwaiste_belege()` ist als `SECURITY DEFINER` für angemeldete Nutzer über `/rest/v1/rpc/` aufrufbar — prüfen, ob gewollt.
 - [ ] 23× `function_search_path_mutable` und 3× `extension_in_public` (pg_trgm, pg_net, fuzzystrmatch) — Härtungsthema, gehört zu Fahrplan-Schritt 7.
