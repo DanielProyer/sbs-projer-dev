@@ -13,6 +13,23 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
+## 🔴🟢 ERLEDIGT 24.08.: Kritischer Sicherheitsbefund — Snapshot-Tabelle war öffentlich beschreibbar
+
+**Supabase meldete am 23.08. einen ERROR-Befund** (`rls_disabled_in_public`): `snapshot_gampel_testdaten` lief **ohne RLS**. Migration 174 hatte sie am 17.08. als Sicherung für den Gampel-Reset angelegt und das `ENABLE ROW LEVEL SECURITY` vergessen. Damit war die Tabelle sieben Tage lang über PostgREST mit dem **anon-Key les- und schreibbar** — und dieser Key steckt im ausgelieferten Web-Bundle, ist also öffentlich.
+
+**Log-Prüfung über den gesamten offenen Zeitraum: keine Ausnutzung.** 17.–24.08., rund **4900 API-Zugriffe**, davon **null** auf einen `snapshot`-Pfad (Tageswerte: 467 · 507 · 73 · 1129 · 149 · 470 · 453 · 1721). Der Inhalt entschärft die Lage zusätzlich: vier JSONB-Zeilen mit gelöschten Gampel-Testdaten, keine Kunden-, Finanz- oder Zugangsdaten.
+
+**Erledigt:** RLS sofort aktiviert (nicht-destruktiv), danach auf Entscheid alle **vier** Snapshot-Tabellen gelöscht (`gampel_testdaten`, `golden_dragon_2026_08_05`, `landi_2026_08_06`, `winterfenster_2026_08_04`). Die anderen drei hatten RLS von Anfang an und waren nie offen. Inhalte gesichert in [snapshot-archiv-2026-08-24.md](Datenbank/snapshot-archiv-2026-08-24.md) — vor allem die **20 alten Winterfenster-Jahreszahlen** als Rückweg der Reparatur vom 04.08. Migration [176](Datenbank/migrations/176_snapshot_tabellen_aufraeumen.sql).
+
+> **Regel für künftige Migrationen:** Jede neue Tabelle in `public` braucht `ENABLE ROW LEVEL SECURITY` — **auch temporäre Hilfs- und Snapshot-Tabellen**. PostgREST macht ausnahmslos jede Tabelle im `public`-Schema erreichbar. Nach DDL-Änderungen `get_advisors` laufen lassen.
+
+**Danach kein ERROR mehr.** Was der Advisor noch zeigt (alles ohne akutes Loch):
+- [ ] `gampel_testdaten_reset()` existiert noch, obwohl ihre Tabelle weg ist — funktionsunfähige Altlast, `DROP FUNCTION` steht auskommentiert in Migration 176.
+- [ ] **Leaked-Password-Schutz ist aus** — ein Klick im Supabase-Dashboard (Auth → Policies), kann ich von hier nicht setzen.
+- [ ] `verwaiste_belege()` ist als `SECURITY DEFINER` für angemeldete Nutzer über `/rest/v1/rpc/` aufrufbar — prüfen, ob gewollt.
+- [ ] 23× `function_search_path_mutable` und 3× `extension_in_public` (pg_trgm, pg_net, fuzzystrmatch) — Härtungsthema, gehört zu Fahrplan-Schritt 7.
+- [ ] `google_calendar_tokens`/`_events`: RLS an, keine Policy — also dicht, aber als Altlast für v2 vermerkt (Klartext-Token).
+
 ## 🟢 ERLEDIGT 24.08. (v0.91.0, live): Zwei vertagte Review-Funde — beide hatten dieselbe Handschrift «still fehlgeschlagen»
 
 **1. Der Sync verschluckte Teilfehler — und die Meldekette dahinter war komplett tot.**
