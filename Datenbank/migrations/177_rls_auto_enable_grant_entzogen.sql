@@ -28,6 +28,15 @@ REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC;
 -- angelegt -> relrowsecurity = true. Der Trigger arbeitet unveraendert weiter.
 -- Testtabellen anschliessend wieder geloescht.
 --
--- OFFEN (App-Funktion, braucht Pruefung ob die App sie ruft -- NICHT blind
--- anfassen): public.verwaiste_belege() ist ebenfalls SECURITY DEFINER und
--- fuer authenticated ueber /rest/v1/rpc/verwaiste_belege aufrufbar.
+-- GEPRUEFT 24.08.2026: public.verwaiste_belege() ist ebenfalls SECURITY
+-- DEFINER und fuer authenticated aufrufbar -- das bleibt BEWUSST so.
+--   - Die App nutzt sie: einstellungen_screen.dart:75 ("Speicher aufraeumen")
+--     -> buchungs_beleg_repository.dart:79 -> rpc('verwaiste_belege').
+--   - SECURITY DEFINER ist noetig, weil sie storage.objects liest; darauf hat
+--     die authenticated-Rolle keine direkten Rechte.
+--   - Sie ist abgesichert: Pfad-Filter
+--     (string_to_array(o.name,'/'))[1] = auth.uid()::text zeigt jedem NUR die
+--     eigenen Dateien, dazu SET search_path TO 'public','storage'.
+--   - Migration 151 hatte bereits REVOKE ALL FROM public, anon und nur
+--     GRANT EXECUTE TO authenticated gesetzt.
+-- Ein Entzug wuerde "Speicher aufraeumen" kaputtmachen. NICHT anfassen.
