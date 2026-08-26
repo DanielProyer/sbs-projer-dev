@@ -1,7 +1,7 @@
 -- 177: EXECUTE-Grant auf rls_auto_enable() entzogen
--- Angewendet am 24.08.2026 (via MCP: revoke_execute_rls_auto_enable).
+-- Angewendet am 26.08.2026 (via MCP: revoke_execute_rls_auto_enable).
 --
--- ANLASS: Daniel hat am 24.08.2026 im Supabase-Dashboard den Event-Trigger
+-- ANLASS: Daniel hat am 26.08.2026 im Supabase-Dashboard den Event-Trigger
 -- `ensure_rls` eingeschaltet ("Automatically enable Row Level Security on new
 -- tables") -- die Praevention fuer den Vorfall aus Migration 176. Supabase legt
 -- dabei die Funktion public.rls_auto_enable() an und gibt sie fuer anon UND
@@ -28,7 +28,7 @@ REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC;
 -- angelegt -> relrowsecurity = true. Der Trigger arbeitet unveraendert weiter.
 -- Testtabellen anschliessend wieder geloescht.
 --
--- GEPRUEFT 24.08.2026: public.verwaiste_belege() ist ebenfalls SECURITY
+-- GEPRUEFT 26.08.2026: public.verwaiste_belege() ist ebenfalls SECURITY
 -- DEFINER und fuer authenticated aufrufbar -- das bleibt BEWUSST so.
 --   - Die App nutzt sie: einstellungen_screen.dart:75 ("Speicher aufraeumen")
 --     -> buchungs_beleg_repository.dart:79 -> rpc('verwaiste_belege').

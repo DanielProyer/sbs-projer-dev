@@ -13,28 +13,36 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-## 🔴🟢 ERLEDIGT 24.08.: Kritischer Sicherheitsbefund — Snapshot-Tabelle war öffentlich beschreibbar
+## 🔴🟢 ERLEDIGT 26.08.: Kritischer Sicherheitsbefund — Snapshot-Tabelle war öffentlich beschreibbar
 
 **Supabase meldete am 23.08. einen ERROR-Befund** (`rls_disabled_in_public`): `snapshot_gampel_testdaten` lief **ohne RLS**. Migration 174 hatte sie am 17.08. als Sicherung für den Gampel-Reset angelegt und das `ENABLE ROW LEVEL SECURITY` vergessen. Damit war die Tabelle sieben Tage lang über PostgREST mit dem **anon-Key les- und schreibbar** — und dieser Key steckt im ausgelieferten Web-Bundle, ist also öffentlich.
 
-**Log-Prüfung über den gesamten offenen Zeitraum: keine Ausnutzung.** 17.–24.08., rund **4900 API-Zugriffe**, davon **null** auf einen `snapshot`-Pfad (Tageswerte: 467 · 507 · 73 · 1129 · 149 · 470 · 453 · 1721). Der Inhalt entschärft die Lage zusätzlich: vier JSONB-Zeilen mit gelöschten Gampel-Testdaten, keine Kunden-, Finanz- oder Zugangsdaten.
+**Log-Prüfung über den gesamten offenen Zeitraum: keine Ausnutzung.** 17.–26.08., **9978 API-Zugriffe**, davon **null** auf einen `snapshot`-Pfad:
 
-**Erledigt:** RLS sofort aktiviert (nicht-destruktiv), danach auf Entscheid alle **vier** Snapshot-Tabellen gelöscht (`gampel_testdaten`, `golden_dragon_2026_08_05`, `landi_2026_08_06`, `winterfenster_2026_08_04`). Die anderen drei hatten RLS von Anfang an und waren nie offen. Inhalte gesichert in [snapshot-archiv-2026-08-24.md](Datenbank/snapshot-archiv-2026-08-24.md) — vor allem die **20 alten Winterfenster-Jahreszahlen** als Rückweg der Reparatur vom 04.08. Migration [176](Datenbank/migrations/176_snapshot_tabellen_aufraeumen.sql).
+| 17.08. | 18.08. | 19.08. | 20.08. | 21.08. | 22.08. | 23.08. | 24.08. | 25.08. | 26.08. |
+|---|---|---|---|---|---|---|---|---|---|
+| 467 | 507 | 73 | 1129 | 149 | 470 | 453 | 2552 | 2395 | 1783 |
+
+Der Feldname wurde vorab gegengeprüft (dieselbe Abfrage findet normale Pfade wie `/rest/v1/reinigungen`) — «keine Treffer» ist also aussagekräftig. Der Inhalt entschärft die Lage zusätzlich: vier JSONB-Zeilen mit gelöschten Gampel-Testdaten, keine Kunden-, Finanz- oder Zugangsdaten.
+
+> ⚠️ **Zur Prüfung selbst:** Im ersten Durchgang fehlten der **24.** und der grösste Teil des **25.08.** — die 24-Stunden-Fenster waren von einem falschen «heute» aus gerechnet (siehe Datums-Vorfall unten). Am 26.08. nachgeholt, Ergebnis unverändert.
+
+**Erledigt:** RLS sofort aktiviert (nicht-destruktiv), danach auf Entscheid alle **vier** Snapshot-Tabellen gelöscht (`gampel_testdaten`, `golden_dragon_2026_08_05`, `landi_2026_08_06`, `winterfenster_2026_08_04`). Die anderen drei hatten RLS von Anfang an und waren nie offen. Inhalte gesichert in [snapshot-archiv-2026-08-26.md](Datenbank/snapshot-archiv-2026-08-26.md) — vor allem die **20 alten Winterfenster-Jahreszahlen** als Rückweg der Reparatur vom 04.08. Migration [176](Datenbank/migrations/176_snapshot_tabellen_aufraeumen.sql).
 
 > **Regel für künftige Migrationen:** Jede neue Tabelle in `public` braucht `ENABLE ROW LEVEL SECURITY` — **auch temporäre Hilfs- und Snapshot-Tabellen**. PostgREST macht ausnahmslos jede Tabelle im `public`-Schema erreichbar. Nach DDL-Änderungen `get_advisors` laufen lassen.
 
-**✅ Prävention steht (24.08., Daniel):** Der Supabase-Event-Trigger **`ensure_rls`** (Funktion `rls_auto_enable`, `ddl_command_end`) ist eingeschaltet — jede neue Tabelle im `public`-Schema bekommt RLS jetzt **automatisch**. Praktisch nachgewiesen: Wegwerf-Tabelle ohne jede RLS-Anweisung angelegt → `relrowsecurity = true`, danach wieder gelöscht. Damit kann sich dieser Vorfall nicht wiederholen. **Nebenwirkung zum Merken:** Eine frisch angelegte Tabelle wirkt ohne Policy «leer», obwohl Daten drin sind — das ist dann die fehlende Policy, kein Bug.
+**✅ Prävention steht (26.08., Daniel):** Der Supabase-Event-Trigger **`ensure_rls`** (Funktion `rls_auto_enable`, `ddl_command_end`) ist eingeschaltet — jede neue Tabelle im `public`-Schema bekommt RLS jetzt **automatisch**. Praktisch nachgewiesen: Wegwerf-Tabelle ohne jede RLS-Anweisung angelegt → `relrowsecurity = true`, danach wieder gelöscht. Damit kann sich dieser Vorfall nicht wiederholen. **Nebenwirkung zum Merken:** Eine frisch angelegte Tabelle wirkt ohne Policy «leer», obwohl Daten drin sind — das ist dann die fehlende Policy, kein Bug.
 
 **Danach kein ERROR mehr.** Was der Advisor noch zeigt (alles ohne akutes Loch):
-- [x] ~~`gampel_testdaten_reset()`~~ **GELÖSCHT 24.08.** — vorher geprüft: 0 Cron-Jobs, 0 Trigger. Endstand: 0 Snapshot-Tabellen, 0 Reset-Funktion, 1 Cron-Job (`betriebsdaten-abgleich`, täglich 03:20 UTC, unberührt).
-- [x] ~~Leaked-Password-Schutz ist aus~~ **AKTIVIERT 24.08. (Daniel)** — Befund aus der Advisor-Liste verschwunden.
-- [x] ~~Neuer Befund durch den RLS-Trigger selbst~~ **BEHOBEN 24.08. (Migration 177):** Supabase legte beim Einschalten `rls_auto_enable()` als SECURITY DEFINER an und gab sie für **anon** und authenticated frei. Praktisch ungefährlich (`RETURNS event_trigger` lässt sich nicht direkt aufrufen, PostgREST kann den Typ nicht als RPC anbieten, `search_path` ist auf `pg_catalog` gesetzt) — der Grant war aber unnötig und ist entzogen. **Nachgewiesen:** Trigger arbeitet danach unverändert weiter (Wegwerf-Tabelle → `relrowsecurity = true`).
-- [x] ~~`verwaiste_belege()` als SECURITY DEFINER~~ **GEPRÜFT 24.08. — bleibt bewusst so, nichts zu tun.** Die App nutzt sie: [einstellungen_screen.dart:75](sbs_projer_app/lib/presentation/screens/einstellungen/einstellungen_screen.dart:75) «Speicher aufräumen» → [buchungs_beleg_repository.dart:79](sbs_projer_app/lib/data/repositories/buchungs_beleg_repository.dart:79) → `rpc('verwaiste_belege')`. `SECURITY DEFINER` ist **nötig**, weil sie `storage.objects` liest (dort hat `authenticated` keine Rechte). Abgesichert durch den Pfad-Filter `(string_to_array(o.name,'/'))[1] = auth.uid()::text` — jeder sieht nur die **eigenen** Dateien —, dazu `SET search_path TO 'public','storage'`. Migration 151 hatte schon `REVOKE ALL FROM public, anon`. Ein Entzug würde «Speicher aufräumen» kaputtmachen.
-- [x] ~~23× `function_search_path_mutable`~~ **ERLEDIGT 24.08. (Migration 178):** `SET search_path = public` für alle **20** eigenen Trigger-Funktionen. Vorher geprüft: alle `RETURNS trigger`, ohne Argumente, **keine** SECURITY DEFINER, und **keine** referenziert `auth.`/`storage.`/`extensions.` oder Extension-Funktionen — sie arbeiten nur auf `public`-Tabellen, `pg_catalog` bleibt implizit. Bewusst **nicht** `SET search_path = ''` (Supabase-Empfehlung): Das hätte Code-Änderungen mitten in Preis-, Rechnungsnummer- und Buchungslogik verlangt, ohne Sicherheitsgewinn. Die Funktionen von `pg_trgm`/`fuzzystrmatch` blieben unangetastet (gehören den Extensions). **Nachgewiesen:** UPDATE auf `betriebe` ausgelöst → `update_updated_at_column` feuerte normal.
+- [x] ~~`gampel_testdaten_reset()`~~ **GELÖSCHT 26.08.** — vorher geprüft: 0 Cron-Jobs, 0 Trigger. Endstand: 0 Snapshot-Tabellen, 0 Reset-Funktion, 1 Cron-Job (`betriebsdaten-abgleich`, täglich 03:20 UTC, unberührt).
+- [x] ~~Leaked-Password-Schutz ist aus~~ **AKTIVIERT 26.08. (Daniel)** — Befund aus der Advisor-Liste verschwunden.
+- [x] ~~Neuer Befund durch den RLS-Trigger selbst~~ **BEHOBEN 26.08. (Migration 177):** Supabase legte beim Einschalten `rls_auto_enable()` als SECURITY DEFINER an und gab sie für **anon** und authenticated frei. Praktisch ungefährlich (`RETURNS event_trigger` lässt sich nicht direkt aufrufen, PostgREST kann den Typ nicht als RPC anbieten, `search_path` ist auf `pg_catalog` gesetzt) — der Grant war aber unnötig und ist entzogen. **Nachgewiesen:** Trigger arbeitet danach unverändert weiter (Wegwerf-Tabelle → `relrowsecurity = true`).
+- [x] ~~`verwaiste_belege()` als SECURITY DEFINER~~ **GEPRÜFT 26.08. — bleibt bewusst so, nichts zu tun.** Die App nutzt sie: [einstellungen_screen.dart:75](sbs_projer_app/lib/presentation/screens/einstellungen/einstellungen_screen.dart:75) «Speicher aufräumen» → [buchungs_beleg_repository.dart:79](sbs_projer_app/lib/data/repositories/buchungs_beleg_repository.dart:79) → `rpc('verwaiste_belege')`. `SECURITY DEFINER` ist **nötig**, weil sie `storage.objects` liest (dort hat `authenticated` keine Rechte). Abgesichert durch den Pfad-Filter `(string_to_array(o.name,'/'))[1] = auth.uid()::text` — jeder sieht nur die **eigenen** Dateien —, dazu `SET search_path TO 'public','storage'`. Migration 151 hatte schon `REVOKE ALL FROM public, anon`. Ein Entzug würde «Speicher aufräumen» kaputtmachen.
+- [x] ~~23× `function_search_path_mutable`~~ **ERLEDIGT 26.08. (Migration 178):** `SET search_path = public` für alle **20** eigenen Trigger-Funktionen. Vorher geprüft: alle `RETURNS trigger`, ohne Argumente, **keine** SECURITY DEFINER, und **keine** referenziert `auth.`/`storage.`/`extensions.` oder Extension-Funktionen — sie arbeiten nur auf `public`-Tabellen, `pg_catalog` bleibt implizit. Bewusst **nicht** `SET search_path = ''` (Supabase-Empfehlung): Das hätte Code-Änderungen mitten in Preis-, Rechnungsnummer- und Buchungslogik verlangt, ohne Sicherheitsgewinn. Die Funktionen von `pg_trgm`/`fuzzystrmatch` blieben unangetastet (gehören den Extensions). **Nachgewiesen:** UPDATE auf `betriebe` ausgelöst → `update_updated_at_column` feuerte normal.
 - [ ] 3× `extension_in_public` (pg_trgm, pg_net, fuzzystrmatch) — **bewusst offen gelassen.** Ein Verschieben nach `extensions` ist riskant: An `pg_trgm` hängen Indizes, an `pg_net` die Edge-Function-Aufrufe. Nur anfassen, wenn ein konkreter Anlass besteht.
 - [ ] `google_calendar_tokens`/`_events`: RLS an, keine Policy — also dicht, aber als Altlast für v2 vermerkt (Klartext-Token).
 
-## 🟢 ERLEDIGT 24.08. (v0.91.0, live): Zwei vertagte Review-Funde — beide hatten dieselbe Handschrift «still fehlgeschlagen»
+## 🟢 ERLEDIGT 26.08. (v0.91.0, live): Zwei vertagte Review-Funde — beide hatten dieselbe Handschrift «still fehlgeschlagen»
 
 **1. Der Sync verschluckte Teilfehler — und die Meldekette dahinter war komplett tot.**
 `_pushToSupabase` fing Fehler **pro Satz** ab und schrieb sie nur in `debugPrint`. Der Aufrufer bekam ausschliesslich die Erfolge zurück, `SyncResult.errors` blieb leer, der Status ging auf `idle` — die App meldete Erfolg, während einzelne Sätze auf dem Server fehlten. Nur ein Fehler, der die *ganze* Entity-Funktion warf, wurde je sichtbar.
@@ -52,7 +60,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 
 - [x] ~~Klicktest in der nativen App~~ **NICHT PRÜFBAR (nur Web-App im Einsatz) — Verifikation über die 17 Tests.** Der Wert liegt nicht im Alltag hier, sondern in der **Vorlage für die neue Android-App**: Genau diese zwei Fehler wären sonst mitgewandert, dorthin wo lokale Kopien und Offline-Sync real sind. Siehe Entscheid-Abschnitt unten.
 
-## ✅ ENTSCHIEDEN 24.08. (Daniel): Web-App hier, Offline/Isar bleibt — als Vorlage für die neue App
+## ✅ ENTSCHIEDEN 26.08. (Daniel): Web-App hier, Offline/Isar bleibt — als Vorlage für die neue App
 
 **Befund:** Daniel arbeitet in SBS Projer DEV **nur** mit der Web-App im Browser, auch auf dem Handy. Auf Web ist `SyncService` ein Stub, es gibt **keine** lokalen Isar-Kopien, jedes Repository greift im `kIsWeb`-Zweig direkt auf Supabase zu.
 
@@ -66,9 +74,9 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 - **Klicktests für native-only-Änderungen sind hier nicht möglich.** Verifikation läuft über Tests, nicht über Daniels Handy — das bei der Planung berücksichtigen, statt einen Klicktest einzuplanen, den niemand ausführen kann.
 - Fürs **Projekt Heineken**: «Offline/Isar × tenant_id» ist insofern vorentschieden, als **Offline gesetzt** ist. Offen bleibt nur, wie `tenant_id` in die lokale Schicht und den Sync eingeht.
 
-## 🟢 ERLEDIGT 24.08. (v0.90.2, live): Klicktest-Runde Churerfest — vier offene Tests bestanden, ein Feldfund gefixt
+## 🟢 ERLEDIGT 26.08. (v0.90.2, live): Klicktest-Runde Churerfest — vier offene Tests bestanden, ein Feldfund gefixt
 
-**Klicktest am Handy (Daniel, 24.08.): positiv.** Damit sind die seit dem 14./15.08. offenen Prüfpunkte zu **v0.81/0.82** (kompakte Stand-Zeile, Genauigkeits-Klartext, Tel/WhatsApp), **v0.89.0** (Karte↔Stand-Navigation, Statusfarben, Legende) und **v0.90.0** (Ebenen-Panel, Sperre im Positionier-Modus) erledigt.
+**Klicktest am Handy (Daniel, 26.08.): positiv.** Damit sind die seit dem 14./15.08. offenen Prüfpunkte zu **v0.81/0.82** (kompakte Stand-Zeile, Genauigkeits-Klartext, Tel/WhatsApp), **v0.89.0** (Karte↔Stand-Navigation, Statusfarben, Legende) und **v0.90.0** (Ebenen-Panel, Sperre im Positionier-Modus) erledigt.
 
 **Testgrundlage war das Churerfest**, nicht Gampel — mit 17 Ständen, allen drei Genauigkeitsstufen und genau den drei Farbfällen: Athletic Box Club Rätia (69) rot = Hollandbuffet noch nicht in Betrieb · Masans Sport (97) blau = offen ohne Hollandbuffet · OK Kornplatz (63-65) grün = Hollandbuffet vollständig in Betrieb.
 
@@ -76,7 +84,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 
 **Gampel-Zeiten für die August-Monatsrechnung stehen bereit:** 10 Zeilen in `event_aufwand` vom 17.–23.08., zusammen **99.5 Stunden** (17.08. 11 · 18.08. 11 · 19.08. 19.5 · 20.08. 15 · 21.08. 18 · 22.08. 15 · 23.08. 10). Das ist alles, was Gampel in dieser App hinterlässt — Technik/Stände liefen in der separaten App.
 
-**Merkposten Deploy-Falle:** `00_Event/` liegt auf `main`, nicht auf `gh-pages` — jeder Deploy lässt die Dateien kurz aus dem Arbeitsverzeichnis verschwinden. Am 24.08. harmlos (Excel war zu, verwaistes Lockfile vom 13.08. entfernt), am 11.08. kostete genau das die Churerfest-Koordinaten. **Dauerhafte Entschärfung offen:** Deploy über ein separates Arbeitsverzeichnis statt Branch-Wechsel im selben Ordner.
+**Merkposten Deploy-Falle:** `00_Event/` liegt auf `main`, nicht auf `gh-pages` — jeder Deploy lässt die Dateien kurz aus dem Arbeitsverzeichnis verschwinden. Am 26.08. harmlos (Excel war zu, verwaistes Lockfile vom 13.08. entfernt), am 11.08. kostete genau das die Churerfest-Koordinaten. **Dauerhafte Entschärfung offen:** Deploy über ein separates Arbeitsverzeichnis statt Branch-Wechsel im selben Ordner.
 
 ## 🟢 ERLEDIGT 15.08. (Migration 175 + v0.90.1, live): Anlass-Montagen waren NIE speicherbar — 22P02
 
@@ -90,7 +98,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 
 **Auftrag Daniel:** Lageplan, Stände, Anstiche, Kühler als separate, schaltbare Layer. **Gebaut:** Ebenen-Knopf öffnet ein Panel mit bis zu 4 Zeilen (nur was Daten hat, erscheint; Lageplan nur wenn referenziert), Häkchen-Toggles, Tap daneben schliesst. Geräte-Layer in Anstiche/Kühler geteilt. Legende folgt den sichtbaren Layern. Review fing: Stände-Layer liess sich mitten im Positionieren ausblenden → blinde Platzierung; jetzt erzwungen UND die Zeile während des Positionierens gesperrt. Alles Session-Zustand (Neuaufbau der Karte = alles sichtbar). 1152 Tests grün.
 
-- [x] ~~Klicktest Daniel: Ebenen-Knopf~~ **BESTANDEN 24.08. (Daniel, Handy)** — am Churerfest geprüft, dort erscheint erwartungsgemäss nur die Zeile «Stände» (kein Lageplan, keine Technik: das Panel zeigt nur, was Daten hat). Die 4-Zeilen-Variante und «nur Kühler» sind damit **nicht** geprüft — dafür fehlt in dieser App ein Event mit vollem Bestand.
+- [x] ~~Klicktest Daniel: Ebenen-Knopf~~ **BESTANDEN 26.08. (Daniel, Handy)** — am Churerfest geprüft, dort erscheint erwartungsgemäss nur die Zeile «Stände» (kein Lageplan, keine Technik: das Panel zeigt nur, was Daten hat). Die 4-Zeilen-Variante und «nur Kühler» sind damit **nicht** geprüft — dafür fehlt in dieser App ein Event mit vollem Bestand.
 
 ## 🟢 ERLEDIGT 14.08. spät (v0.89.0): Karte↔Stand-Navigation + Status-Farben — Churerfest-Feedback
 
@@ -98,7 +106,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 
 **Gebaut:** «Karte»-Knopf in der Stand-Zeile (nur mit Position) → Karte öffnet **zentriert auf dem Stand** (Zoom 18, Ring-Markierung; Review fing: der Fokus feuerte wegen Karten-Remount nie — gefixt über initialCenter). Marker-Tap → Stand-Formular (war schon verdrahtet). **Neue Farb-Semantik** (ersetzt gemessen/geplant): **grün** = vollständig in Betrieb · **rot** = Hollandbuffet noch nicht in Betrieb (zuerst anfahren!) · **blau** = offen ohne Hollandbuffet · orange = Positionier-Kandidat · violett = Technik. Kleine Legende unten links. 1152 Tests grün.
 
-- [x] ~~Klicktest Daniel: «Karte» am Stand~~ **BESTANDEN 24.08. (Daniel, Handy)** — Karte zoomt auf den Stand (Ring sitzt), Farben stimmen gegen die Echtdaten (69 rot, 97 blau, Rest grün), Legende lesbar.
+- [x] ~~Klicktest Daniel: «Karte» am Stand~~ **BESTANDEN 26.08. (Daniel, Handy)** — Karte zoomt auf den Stand (Ring sitzt), Farben stimmen gegen die Echtdaten (69 rot, 97 blau, Rest grün), Legende lesbar.
 - [ ] Vertagt: Sammel-Query statt N Einzel-Abfragen beim Kartenaufbau (bei ~17 Ständen unkritisch), Lade-Flacker blau→grün.
 
 ## 🟢 ERLEDIGT 14.08. abends (v0.88.0): Event-Technik v2 — GPS/Karte, Typenschild-KI, Temperatur-Monitoring, Testdaten-Reset
@@ -107,8 +115,8 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 
 **Gebaut (7 Tasks, gleicher Review-Prozess):** Migration 173 (Kühler-Felder + `event_kuehler_messungen`) · Migration 174 (**automatischer Testdaten-Reset Mo 17.08. 06:00 CH** — löscht Technik, Leitungen, Messungen UND Stände des Gampel-Events; vorher JSONB-Snapshot `snapshot_gampel_testdaten`; per Rollback-Transaktion getestet; Job entfernt sich selbst) · Edge Function `typenschild-lesen` (deployed, JWT-geschützt; liest Hersteller/Typ/Seriennr./Baujahr, meldet Unsicherheiten) · volle Daten-Vertikale Messungen · **Standort erfassen** an der Geräte-Karte + **Geräte-Marker** (violett, Tank/Schneeflocke) auf der Stände-Karte · Kühler-Formular mit 2 Foto-Knöpfen (Foto bleibt auch bei KI-Fehler), Sollbereich · **Temperatur erfassen** + rote Warnung ausserhalb Sollbereich + fl_chart-Verlauf (Soll-Linien gestrichelt, Ausreisser rot). 1152 Tests grün.
 
-- [ ] ⏸️ **HINFÄLLIG für Gampel (Stand 24.08.), Feature bleibt ungetestet:** Die Gampel-Erfassung lief in der separaten Test-App (`D:\Projekte\gampel-2026`) — in dieser App wurden **nur die Zeiten** erfasst. Kühler, Typenschild-KI, Temperatur-Monitoring und die violetten Geräte-Marker sind damit **nie an Echtdaten geprüft worden**; **fl_chart ist weiterhin Premiere im Projekt und CanvasKit-ungeprüft**. Bei nächster Gelegenheit an einem Event mit echter Technik nachholen — oder bewusst fallen lassen, falls die Technik-Erfassung dauerhaft in der anderen App bleibt.
-- [x] ~~Reset läuft automatisch Mo 06:00~~ **LIEF KORREKT:** Mo 17.08. 06:00 CH, `cron.job_run_details` Status `succeeded`, Job hat sich danach selbst entfernt. Gelöscht wurden 1 Stand, 1 Anstich, 8 Leitungen, 1 Stand-Anlage — alles im Snapshot `snapshot_gampel_testdaten` (Stand 24.08. noch vorhanden). Kein Datenverlust, weil die Echterfassung ohnehin in der anderen App lief.
+- [ ] ⏸️ **HINFÄLLIG für Gampel (Stand 26.08.), Feature bleibt ungetestet:** Die Gampel-Erfassung lief in der separaten Test-App (`D:\Projekte\gampel-2026`) — in dieser App wurden **nur die Zeiten** erfasst. Kühler, Typenschild-KI, Temperatur-Monitoring und die violetten Geräte-Marker sind damit **nie an Echtdaten geprüft worden**; **fl_chart ist weiterhin Premiere im Projekt und CanvasKit-ungeprüft**. Bei nächster Gelegenheit an einem Event mit echter Technik nachholen — oder bewusst fallen lassen, falls die Technik-Erfassung dauerhaft in der anderen App bleibt.
+- [x] ~~Reset läuft automatisch Mo 06:00~~ **LIEF KORREKT:** Mo 17.08. 06:00 CH, `cron.job_run_details` Status `succeeded`, Job hat sich danach selbst entfernt. Gelöscht wurden 1 Stand, 1 Anstich, 8 Leitungen, 1 Stand-Anlage — alles im Snapshot `snapshot_gampel_testdaten` (Stand 26.08. noch vorhanden). Kein Datenverlust, weil die Echterfassung ohnehin in der anderen App lief.
 - [ ] Vertagt: PNG wird beim Foto-Upload als .jpg abgelegt (kosmetisch), verwaiste Fotos bei abgebrochenem Sheet, Chart-Polster bei konstanter Temperatur, Foto-Vorschau im Formular (auf Zuruf).
 
 ## 🟢 ERLEDIGT 14.08. (v0.87.0): Event-Technik — Anstiche & Leitungen fürs Openair Gampel
@@ -117,11 +125,11 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 
 **Gebaut (11 Tasks, subagent-getrieben mit Zweifach-Review + Final-Review):** Migration 172 (`event_geraete` + `event_leitungen`, Unique je Anstich, RLS); volle Sync-Vertikale (DTO/Isar/Web-Stub/Mapper/Repository/Sync Tier 3+5/Provider); **Technik-Tab** im Event (Anstich-Karten mit Zähler «angeschlossen/total», Kühler-Liste, **«Leitungen erzeugen» 1–12 auf einen Schlag** — auf Web als EIN atomarer Bulk-Upsert —, Leitungs-Sheet mit Ziel-Stand/Gerätezeile/Kühler, Inbetriebnahme-Haken mit 48-px-Tap-Ziel, Nummernsuche mit Mehrdeutigkeits-Anzeige); **Stand-Karte zeigt die Gegenrichtung** «7, 9 ← Anstich A» (Pikett nennt den Stand, nicht die Leitung). Reviews fingen u. a.: verrutschte FAB-Indizes (Dokument-Upload war tot), stille Toggle-Fehlschläge (jetzt Rollback+Meldung), Dropdown-Absturz bei gelöschtem Stand, toten Leitungs-Cache nach Stand-Löschung. 1122 Tests grün.
 
-- [ ] ⏸️ **HINFÄLLIG für Gampel (Stand 24.08.) — der Technik-Tab bleibt damit ungetestet:** Das Festival lief 17.–23.08. **ohne** Technik-Erfassung in dieser App (Anstiche/Leitungen liefen in `D:\Projekte\gampel-2026`; hier nur die Zeiten). **Die visuelle CanvasKit-Prüfung des Tabs steht weiterhin aus** — nach drei CanvasKit-Vorfällen gilt er unverändert als nicht einsatzbereit, bis ihn jemand an echten Daten durchklickt.
+- [ ] ⏸️ **HINFÄLLIG für Gampel (Stand 26.08.) — der Technik-Tab bleibt damit ungetestet:** Das Festival lief 17.–23.08. **ohne** Technik-Erfassung in dieser App (Anstiche/Leitungen liefen in `D:\Projekte\gampel-2026`; hier nur die Zeiten). **Die visuelle CanvasKit-Prüfung des Tabs steht weiterhin aus** — nach drei CanvasKit-Vorfällen gilt er unverändert als nicht einsatzbereit, bis ihn jemand an echten Daten durchklickt.
 - [x] ~~Stände fürs Gampel erfassen~~ **HINFÄLLIG** — Erfassung lief in der separaten App. Gampel steht hier auf 0 Ständen / 0 Geräten / 0 Leitungen; erhalten geblieben ist nur der georeferenzierte Lageplan samt Passpunkten.
-- [x] ~~Vertagt auf nach dem Festival: Sync-Push-Helfer, Stand-Löschung~~ **ERLEDIGT 24.08. (v0.91.0, live)** — siehe eigener Abschnitt oben. Offen bleiben nur die Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
+- [x] ~~Vertagt auf nach dem Festival: Sync-Push-Helfer, Stand-Löschung~~ **ERLEDIGT 26.08. (v0.91.0, live)** — siehe eigener Abschnitt oben. Offen bleiben nur die Test-/Stil-Minors aus den Reviews (in den Review-Protokollen der Session dokumentiert).
 
-**Stand:** 24.08.2026 · **Live:** v0.92.1 (Arbeitszeit schlägt Abrechnungsstunden vor, Viertelstunden — Klicktest bestanden) · zuvor v0.91.0 (Sync-Teilfehler + Leitungs-Aufräumung, nur nativ wirksam), v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden), v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
+**Stand:** 26.08.2026 · **Live:** v0.92.1 (Arbeitszeit schlägt Abrechnungsstunden vor, Viertelstunden — Klicktest bestanden) · zuvor v0.91.0 (Sync-Teilfehler + Leitungs-Aufräumung, nur nativ wirksam), v0.90.2 (FAB-Überdeckung auf der Stände-Karte, Klicktest bestanden), v0.90.1 (Anlass-Montagen speicherbar), v0.90.0 (Karten-Layer), v0.89.0 (Karte↔Stand + Statusfarben), v0.88.0 (Event-Technik v2), v0.87.0 (Event-Technik) · davor v0.86.0 (Eröffnungs-Vorschläge-Fix, Klicktest bestanden) — v0.85.0-Stand: v0.84.0/1: Stand-Zeile (Notiz-Fallback; CanvasKit-Renderfehler ExpansionTile→eigener Kopf, Regel+Test verankert) · v0.85.0: «Montage generieren» mit Details unter Tage & Spesen (Kategorie+Notiz je Tag, PDF-Tabelle wächst mit) — **beides von Daniel getestet ✓** *(v0.83.1: Speichern-Knopf war CanvasKit-tot → GestureDetector; v0.83.2: «Lageplan entfernen» + doppelter Speichern-Knopf bereinigt; Bucket liess nur PDFs zu → Migration 171)*
 
 ## 🟢 ERLEDIGT 13.08. (v0.82.0/v0.83.0): Stand-Übersicht nachgebessert + Lageplan-Georeferenzierung
 
@@ -134,7 +142,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 ## 🟢 ERLEDIGT 13.08. (v0.81.0): Kompakte Stand-Übersicht + flacher Event-Kopf
 
 **Design-Auftrag Daniel** (auf Fable): Stände professioneller/flacher, Event-Kopf halbe Höhe. Umsetzung: Event-Name raus aus der Kopfkarte (stand doppelt — AppBar direkt darüber), eine Zeile Termin·Ort·Status; Stand-Zeilen mit Nummern-Badge als scanbare Spalte links, Standort als Icon (Form=Herkunft, Farbe=Genauigkeit), Fortschritt als «2/3», Untertitel einzeilig; Bearbeiten/Löschen aus der Zeile in den aufgeklappten Bereich (die zwei 48-px-IconButtons waren der grösste Höhenfresser). ~⅓ weniger Höhe pro Zeile, ~4 Stände mehr sichtbar. 1061 Tests grün.
-- [x] ~~Screen-Umbau ungetestet~~ **BESTANDEN 24.08. (Daniel, Handy)** — Stände-Tab, Aufklappen, Bearbeiten/Löschen im aufgeklappten Bereich, Standort-Icons samt Genauigkeits-Klartext am Churerfest geprüft.
+- [x] ~~Screen-Umbau ungetestet~~ **BESTANDEN 26.08. (Daniel, Handy)** — Stände-Tab, Aufklappen, Bearbeiten/Löschen im aufgeklappten Bereich, Standort-Icons samt Genauigkeits-Klartext am Churerfest geprüft.
 
 ## 🟢 ERLEDIGT 11.08. (v0.79.0/v0.80.0): Freie Auswahl bei Materialbestellung + Standort-Kennung
 
@@ -159,7 +167,7 @@ Serverseitig ist der Fall geregelt — `event_leitungen.stand_id` steht auf `ON 
 1061 Tests grün.
 
 - [ ] ⚠️ **Koordinaten fürs Churerfest fehlen weiterhin.** `00_Event/Churerfest 2026.xlsx` enthält **keine** — vollständig geprüft (1057 Zeilen, alle 7 Spalten Debitor/Name 1/Name 2/Bezeichnung/Auftragsmenge/Standnummer/ORT, dazu Hyperlinks, Zellkommentare und alle XML-Teile): kein Treffer. Es ist eine Getränke-/Materialbestellliste, «ORT» sind Stückzahlen. Auch `Churerfest 2026.pdf` enthält keine. Die **17 Stände sind erfasst** (mit Standnummern und Kontakten), **0 mit Position** — sobald die Koordinaten vorliegen, sind sie schnell eingetragen.
-- [x] ~~Klicktest Daniel: Positionieren am PC, GPS-Abgleich vor Ort~~ **DURCH ECHTDATEN BELEGT (Stand 24.08.):** Alle 17 Churerfest-Stände haben eine Position, und **beide** Wege wurden real genutzt — 9× `position_quelle = karte` (am PC gesetzt), 8× `gps` (vor Ort gemessen), Genauigkeiten gemischt genau/mittel/ungefähr.
+- [x] ~~Klicktest Daniel: Positionieren am PC, GPS-Abgleich vor Ort~~ **DURCH ECHTDATEN BELEGT (Stand 26.08.):** Alle 17 Churerfest-Stände haben eine Position, und **beide** Wege wurden real genutzt — 9× `position_quelle = karte` (am PC gesetzt), 8× `gps` (vor Ort gemessen), Genauigkeiten gemischt genau/mittel/ungefähr.
 
 ## 🟢 ERLEDIGT 11.08. (v0.76.0): Drei Feld-Fehler — alle mit demselben Muster «still fehlgeschlagen»
 
@@ -326,7 +334,7 @@ Der Knopf «Arbeit beginnen» setzt den Status sofort auf `in_bearbeitung` ([:36
 
 **88'500.00 ist exakt die Auszahlungssumme 2020** (Konto 2002). Der **Lohnausweis 2020 weist unter Ziff. 8 aber 101'395 aus** → Steuer- und AHV-Deklaration widersprechen sich um **12'895**. Damit ist die bisherige Erwartung («deklariert = Lohnausweis-Brutto», Punkt 5.1 im Lohnabgleich) **widerlegt**, und die frühere Bagatell-Schätzung von «~170 CHF über sechs Jahre» ist hinfällig. Dritte, unabhängige Bestätigung: die CO2-Rückverteilung 2022 nennt als Grundlage «AHV-Lohnsumme 2020 … 88'500.00».
 
-**Die Auflösung — 2019 war noch korrigiert worden:** Die Schlussrechnung 2019 (`1375181113`) rechnete zunächst ebenfalls auf **52'000 = Nettolohn**; Daniels Handnotiz darauf lautet «*Nachtrag Differenz — sva.gr.ch Nachtrag zur Lohndekl.*». Die Nachtragsrechnung vom 24.08.2020 (`1332133964`) korrigierte die Basis dann auf **59'571.00 = exakt das Lohnausweis-Brutto**. **Ab 2020 unterblieb dieser Nachtrag.**
+**Die Auflösung — 2019 war noch korrigiert worden:** Die Schlussrechnung 2019 (`1375181113`) rechnete zunächst ebenfalls auf **52'000 = Nettolohn**; Daniels Handnotiz darauf lautet «*Nachtrag Differenz — sva.gr.ch Nachtrag zur Lohndekl.*». Die Nachtragsrechnung vom 26.08.2020 (`1332133964`) korrigierte die Basis dann auf **59'571.00 = exakt das Lohnausweis-Brutto**. **Ab 2020 unterblieb dieser Nachtrag.**
 
 | Jahr | deklariert | Netto | Lohnausweis Z.8 | |
 |---|---|---|---|---|
@@ -1219,9 +1227,9 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 **Vier Entscheide von Daniel offen** (Abschnitt 8 der Spec): Reaktionszeit messen? · die 219 alten Termin-Vorschläge löschen? · Kalendereintrag für jeden geplanten Einsatz oder nur mit Uhrzeit? · Arbeitszeit per «Beginn»-Knopf oder hinterher eintippen?
 
-## 🟢 ERLEDIGT 24.08. (v0.92.0, live): Zeiterfassung → Abrechnung — Variante B umgesetzt
+## 🟢 ERLEDIGT 26.08. (v0.92.0, live): Zeiterfassung → Abrechnung — Variante B umgesetzt
 
-**Die Frage vom 31.07. war überholt.** Bei der Analyse am 24.08. zeigte sich: Variante «eigene Felder» wurde am 11.08. mit v0.76.0 längst gebaut — `arbeit_von`/`arbeit_bis` existieren in **beiden** Tabellen, das Montage-Formular hat «Arbeit beginnen»/«Beenden», und der Störungseingang wurde **nicht** umgedeutet (eigenes Feld, im UI sauber «Störungseingang», dazu `gemeldet_am`).
+**Die Frage vom 31.07. war überholt.** Bei der Analyse am 26.08. zeigte sich: Variante «eigene Felder» wurde am 11.08. mit v0.76.0 längst gebaut — `arbeit_von`/`arbeit_bis` existieren in **beiden** Tabellen, das Montage-Formular hat «Arbeit beginnen»/«Beenden», und der Störungseingang wurde **nicht** umgedeutet (eigenes Feld, im UI sauber «Störungseingang», dazu `gemeldet_am`).
 
 **Der befürchtete Konflikt existierte gar nicht:** `dauer_minuten` (GENERATED aus `uhrzeit_ende − uhrzeit_start`) hat in **1934 Datensätzen null Werte**, weil `uhrzeit_ende` nirgends gesetzt wird. Die Spalte ist tot.
 
@@ -1232,13 +1240,13 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 | Abrechnung | **pauschal** (`preis_basis` + Anfahrt + Wochenende + Komplexität aus der Preisliste) | **nach Zeit** (`dauer_stunden` × Satz → `kosten_arbeit`) |
 | Zeit abrechnungsrelevant? | nein — Zeiterfassung dient nur der Tagesauswertung | **ja** |
 
-**Entscheid Daniel 24.08.: Variante B — vorschlagen, nicht setzen.** Rundung auf **Viertelstunden aufwärts**.
+**Entscheid Daniel 26.08.: Variante B — vorschlagen, nicht setzen.** Rundung auf **Viertelstunden aufwärts**.
 
 **Gebaut:** `aufViertelstunde()` ([arbeitszeit_vorschlag.dart](sbs_projer_app/lib/core/util/arbeitszeit_vorschlag.dart)) · «übernehmen» schreibt den **gerundeten** Wert (1h20 → 1.50 statt bisher 1.33), der Hinweis zeigt beides · **«Arbeit beenden» schlägt den Wert direkt vor**, wenn das Abrechnungsfeld leer ist, und meldet ihn per Snackbar; ein bereits eingetragener Wert bleibt unangetastet und wird nur danebengestellt. Die Regel «`dauerStunden` nie automatisch überschreiben» bleibt gewahrt — befüllt wird nur ein leeres Feld, sichtbar vor dem Speichern. Der Anfahrtsanteil steckt bewusst nicht im Vorschlag, der Text weist darauf hin.
 
 **Vom Test gefunden:** `0.7500000000000001 / 0.25` ergibt `3.0000000000000004`, `ceil()` machte daraus 1.00 h statt 0.75 h. Die Funktion rechnet deshalb über ganze Minuten. 10 neue Tests, 1182 grün.
 
-- [x] ~~Klicktest Daniel~~ **BESTANDEN 24.08. (Daniel):** «0.75 kommt automatisch, Gegenprobe passt auch» — der Vorschlag erscheint beim Setzen der zweiten Zeit von selbst, und ein bereits eingetragener Wert (2.00) bleibt beim Ändern der Zeiten unangetastet.
+- [x] ~~Klicktest Daniel~~ **BESTANDEN 26.08. (Daniel):** «0.75 kommt automatisch, Gegenprobe passt auch» — der Vorschlag erscheint beim Setzen der zweiten Zeit von selbst, und ein bereits eingetragener Wert (2.00) bleibt beim Ändern der Zeiten unangetastet.
 
 **Nachbesserung aus dem Klicktest — v0.92.1 (live):** Der erste Testlauf zeigte, dass der «Beenden»-Knopf nur erscheint, solange die Arbeit **läuft** (`if (bis == null)`, [montage_form_screen.dart:1980](sbs_projer_app/lib/presentation/screens/montagen/montage_form_screen.dart:1980)). Bei nachträglich erfassten Zeiten — dem Normalfall, weil Daniel die Knöpfe im Feld kaum drückt — kam der Vorschlag deshalb nie; man hätte «übernehmen» antippen müssen. Neu löst **jede Änderung an den Zeitfeldern** den Vorschlag mit aus (`_stundenVorschlagFallsLeer`). Der Zeitwähler liefert immer eine gültige Zeit, es gibt also keine halbfertigen Zwischenstände.
 
@@ -1246,7 +1254,7 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 ## 🟡 OFFEN (Merkposten, ohne Eile): Tote Zeitfelder aufräumen
 
-Entscheid Daniel 24.08.: **später, jetzt nicht.** Wenn ohnehin an den Tabellen gearbeitet wird:
+Entscheid Daniel 26.08.: **später, jetzt nicht.** Wenn ohnehin an den Tabellen gearbeitet wird:
 - `uhrzeit_ende` und `dauer_minuten` entfernen — 0 Werte in 1934 Sätzen, die GENERATED-Spalte ist wirkungslos.
 - Der **Störungseingang steht doppelt**: `uhrzeit_start` (120 Werte, im UI «Störungseingang») **und** `gemeldet_am` (109 Werte). Auf ein Feld zusammenführen.
 - Bei Montagen sind `uhrzeit_start`/`uhrzeit_ende` komplett leer (0 von 815) — Rest eines alten Entwurfs.

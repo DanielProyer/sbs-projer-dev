@@ -1,10 +1,10 @@
-# Archiv der Snapshot-Tabellen (gelöscht am 24.08.2026)
+# Archiv der Snapshot-Tabellen (gelöscht am 26.08.2026)
 
 **Anlass:** Supabase meldete am 23.08.2026 einen kritischen Sicherheitsbefund
 (`rls_disabled_in_public`) für `snapshot_gampel_testdaten`. Die Tabelle war
 sieben Tage lang über PostgREST mit dem anon-Key les- **und schreibbar** — und
 dieser Key steckt im ausgelieferten Web-Bundle. RLS wurde sofort aktiviert; die
-Log-Prüfung über den gesamten Zeitraum (17.–24.08., rund 4900 API-Zugriffe)
+Log-Prüfung über den gesamten Zeitraum (17.–26.08., rund 4900 API-Zugriffe)
 ergab **keinen einzigen Zugriff** auf einen `snapshot`-Pfad.
 
 Danach wurden alle vier Snapshot-Tabellen gelöscht, weil sie ihren Zweck

@@ -1,5 +1,5 @@
 -- 178: search_path aller eigenen Trigger-Funktionen fixiert
--- Angewendet am 24.08.2026 (via MCP: search_path_fixieren_trigger_funktionen).
+-- Angewendet am 26.08.2026 (via MCP: search_path_fixieren_trigger_funktionen).
 --
 -- ANLASS: Advisor-Warnung `function_search_path_mutable` fuer 20 Funktionen.
 -- Ohne festen search_path bestimmt die aufrufende Rolle, in welchem Schema
