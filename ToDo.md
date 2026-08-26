@@ -13,6 +13,19 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
+## 🟢 ERLEDIGT 26.08.: Stammdaten Obere Strasse 39 — Hotelbar Strela ans Giodavin
+
+Marion Majercak führt jetzt auch die Hotelbar Strela (neben Giodavin, Steakhouse Ochsen, Pot au Feu). **Beide Betriebe liegen an derselben Adresse** — Obere Strasse 39, Davos.
+
+- **Anlage «Hotelbar» → Giodavin umgehängt**, dort umbenannt auf **«Bar Strela»**; die bisher namenlose Giodavin-Anlage heisst jetzt **«Restaurant»**.
+- **Strela (0083) auf inaktiv** seit 26.08. — keine eigene Anlage mehr. ⚠️ **5 offene Rechnungen über CHF 339.25** bleiben dort und weiterhin im Mahnwesen sichtbar (geprüft: [rechnung_repository.dart:79](sbs_projer_app/lib/data/repositories/rechnung_repository.dart:79) filtert nur nach `zahlungsstatus`, nicht nach Betriebsstatus).
+- **Historie bewusst NICHT mitgewandert:** 19 Reinigungen und 15 Rechnungen bleiben beim Strela, wo sie beauftragt wurden.
+- **Kontakt Marion Majercak** ergänzt bei Giodavin und Pot au Feu (fehlte dort ganz).
+- **Reinigung vom 26.08.:** Restaurant und Bar zusammen gereinigt — die Bar war als «Hahn anderer Standort» (30.—) bereits im Giodavin-Beleg über 107.— enthalten. Statt einer zweiten Zeile wurde die Bar-Anlage in `anlage_ids` ergänzt: **keine Doppelverrechnung**, beide Anlagen haben die Reinigung in der Historie. Der Preis-Trigger hängt nicht an `anlage_ids`, der Betrag blieb unverändert.
+- **Beide Anlagen auf «auf Abruf»** — die Bar hat im Sommer kein Offenbier und ruht bis zur Wintersaison (Endreinigung, in der Notiz der Reinigung vermerkt).
+
+Jede Änderung ist in den Notizen der jeweiligen Datensätze begründet, inklusive Altzustand als Rückweg.
+
 ## 🔴🟢 ERLEDIGT 26.08.: Kritischer Sicherheitsbefund — Snapshot-Tabelle war öffentlich beschreibbar
 
 **Supabase meldete am 23.08. einen ERROR-Befund** (`rls_disabled_in_public`): `snapshot_gampel_testdaten` lief **ohne RLS**. Migration 174 hatte sie am 17.08. als Sicherung für den Gampel-Reset angelegt und das `ENABLE ROW LEVEL SECURITY` vergessen. Damit war die Tabelle sieben Tage lang über PostgREST mit dem **anon-Key les- und schreibbar** — und dieser Key steckt im ausgelieferten Web-Bundle, ist also öffentlich.
