@@ -13,7 +13,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-## 🔴 OFFEN 27.08.: Mail-Versand — Status hängt an der Antwort der Edge Function
+## 🟢 ERLEDIGT 27.08. (v0.92.2 + Function v15, live): Mail-Versand — Status hängt nicht mehr an der Antwort
 
 **Vorfall Hugos Davos, 27.08.2026:** Rechnung 2026-08-1382 (CHF 138.35). Die Mail ging um **09:17:36 erfolgreich** an `info@hugos-davos.ch` (Gmail `messageId 1a04214d1b441975`, HTTP 200, beide PDFs). Die App zeigte trotzdem einen Fehler, `versendet_am` blieb leer, Status blieb `offen`. Am 27.08. auf die belegte Tatsache korrigiert (`gesendet` / 27.08., Begründung in den Rechnungs-Notizen).
 
@@ -28,8 +28,18 @@ Wirft `invoke` — auch nur beim **Empfangen** der Antwort (Timeout, Verbindungs
 
 ⚠️ **Die praktische Gefahr ist der Doppelversand:** Die Rechnung sieht in der App unversendet aus, ein zweiter Klick schickt sie dem Kunden erneut.
 
-- [ ] **Fix: Die Edge Function soll `versendet_am`/`zahlungsstatus` selbst setzen**, direkt nach dem erfolgreichen Gmail-Aufruf. Sie kennt die `rechnungId` bereits (wird im Body mitgegeben) und läuft mit `service_role`. Dann ist der Status gesetzt, egal ob die Antwort beim Client ankommt. Die App-seitige Aktualisierung kann als Rückfall bleiben (idempotent).
-- [ ] Gilt für **alle fünf** Aufrufstellen von `send-rechnung-mail`: Reinigung, Montage, Heineken-Detail, Material-Bestellung, Rechnung-Detail.
+- [x] ~~Fix: Die Edge Function soll den Vermerk selbst setzen~~ **GEBAUT 27.08. (Function v15 + App v0.92.2, live):** Neuer Body-Parameter `markiereVersandt`. Die App **entscheidet** weiterhin (sie kennt den Scharf/Test-Modus — im Testmodus geht die Mail an den Testempfänger und darf nichts markieren), die Function **führt aus** — direkt nach dem erfolgreichen Gmail-Aufruf.
+
+  **Regeln serverseitig** ([index.ts](supabase/functions/send-rechnung-mail/index.ts)):
+  - `versendet_am` immer auf heute (ein Neuversand aktualisiert es bewusst)
+  - `zahlungsstatus` **nur** von `offen` → `gesendet`, über den PostgREST-Filter `zahlungsstatus=eq.offen`; Mahnstufen und `bezahlt` bleiben unangetastet
+  - **Mahnungen ganz ausgenommen** (`pdfPath` beginnt mit `mahnung_`) — dort ist `versendet_am` das Datum der Erstversendung
+  - `user_id` immer im Filter
+  - `markiereRechnungVersandt()` **wirft nie**: Zum Zeitpunkt des Aufrufs ist die Mail beim Kunden — ein fehlgeschlagenes UPDATE darf den Erfolg nicht umkehren, das wäre genau der behobene Fehler. Ergebnis steht als `versandVermerkt` in der Antwort.
+
+  **Filter-Logik gegen den Echtbestand geprüft:** bereits gesendete, gemahnte und bezahlte Rechnungen werden nicht getroffen, offene schon.
+- [x] ~~Gilt für alle fünf Aufrufstellen~~ **Geprüft:** Nur **drei** setzen überhaupt einen Rechnungsstatus und wurden angepasst — [reinigung_rechnung_versand.dart](sbs_projer_app/lib/services/rechnung/reinigung_rechnung_versand.dart) (Standardweg, der Hugos-Fall), [heineken_rechnung_detail_screen.dart](sbs_projer_app/lib/presentation/screens/heineken/heineken_rechnung_detail_screen.dart), [rechnung_detail_screen.dart](sbs_projer_app/lib/presentation/screens/rechnungen/rechnung_detail_screen.dart) (Neuversand). Material-Bestellung schreibt in eine andere Tabelle, Montage- und Reinigungs-Rapport verschicken Mails ohne Rechnungsbezug.
+- [ ] **Beim nächsten echten Mailversand prüfen:** Steht `versendet_am` danach? Im Function-Log erscheint neu die Zeile `Versand vermerkt: rechnungId=…`. Ein echter End-zu-Ende-Test war ohne Mailversand an einen Kunden nicht möglich.
 - [x] ~~Weitere Fälle?~~ **Geprüft 27.08.:** Nur zwei weitere Rechnungen mit `versandart = rechnung_mail` ohne `versendet_am` aus 2026 (Weiss Kreuz 2026-04-0294, Stall Valär 2026-04-0252) — beide im **April nacherfasst** für Januar-Daten, also Artefakte der Historik-Migration, nicht dieses Fehlers. Die vielen Altfälle 2019–2025 stammen ebenfalls aus dem Import.
 
 ## 🟢 ERLEDIGT 26.08.: Stammdaten Obere Strasse 39 — Hotelbar Strela ans Giodavin
