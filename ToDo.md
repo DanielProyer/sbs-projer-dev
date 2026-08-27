@@ -40,6 +40,17 @@ Wirft `invoke` — auch nur beim **Empfangen** der Antwort (Timeout, Verbindungs
   **Filter-Logik gegen den Echtbestand geprüft:** bereits gesendete, gemahnte und bezahlte Rechnungen werden nicht getroffen, offene schon.
 - [x] ~~Gilt für alle fünf Aufrufstellen~~ **Geprüft:** Nur **drei** setzen überhaupt einen Rechnungsstatus und wurden angepasst — [reinigung_rechnung_versand.dart](sbs_projer_app/lib/services/rechnung/reinigung_rechnung_versand.dart) (Standardweg, der Hugos-Fall), [heineken_rechnung_detail_screen.dart](sbs_projer_app/lib/presentation/screens/heineken/heineken_rechnung_detail_screen.dart), [rechnung_detail_screen.dart](sbs_projer_app/lib/presentation/screens/rechnungen/rechnung_detail_screen.dart) (Neuversand). Material-Bestellung schreibt in eine andere Tabelle, Montage- und Reinigungs-Rapport verschicken Mails ohne Rechnungsbezug.
 - [ ] **Beim nächsten echten Mailversand prüfen:** Steht `versendet_am` danach? Im Function-Log erscheint neu die Zeile `Versand vermerkt: rechnungId=…`. Ein echter End-zu-Ende-Test war ohne Mailversand an einen Kunden nicht möglich.
+
+### ⚠️ Gmail-Zugangsdaten: kein Backup vorhanden (geprüft 27.08.2026)
+
+`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` und `GMAIL_REFRESH_TOKEN` existieren **ausschliesslich** in den Supabase Edge Function Secrets. Geprüft und **sauber**: keine Werte in getrackten Dateien (nur `Deno.env.get(...)`-Referenzen), nichts in der Git-Historie, kein GMAIL-Eintrag in `sbs_projer_app/.env` (dort nur `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DANIEL_USER_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_REDIRECT_URI`), beide `.env` korrekt gitignored.
+
+**Das Risiko ist der fehlende Rückweg:** Gehen die Secrets in Supabase verloren, steht der Rechnungsversand.
+- `CLIENT_ID` / `CLIENT_SECRET` sind in der Google Cloud Console (*APIs & Dienste → Anmeldedaten*) wieder einsehbar.
+- **`REFRESH_TOKEN` nicht** — der wird nur einmal beim OAuth-Zustimmungsflow ausgegeben. Ist er weg, muss der Flow komplett neu laufen.
+
+- [ ] **Daniel:** Die drei Werte in den Passwortmanager legen («SBS Projer — Gmail-Versand (Supabase Secrets)»). Muss er selbst tun — Zugangsdaten werden weder im Repo noch in einer Notiz abgelegt.
+- [ ] **Daniel:** In der Google Cloud Console prüfen, ob die OAuth-App auf **«In Produktion»** steht und nicht auf «Testing». Im Testing-Status laufen Refresh-Tokens nach **7 Tagen** ab — das würde den Rechnungsversand ohne Vorwarnung stoppen. Der seit Monaten stabile Versand spricht für «In Produktion», bestätigt ist es aber nicht.
 - [x] ~~Weitere Fälle?~~ **Geprüft 27.08.:** Nur zwei weitere Rechnungen mit `versandart = rechnung_mail` ohne `versendet_am` aus 2026 (Weiss Kreuz 2026-04-0294, Stall Valär 2026-04-0252) — beide im **April nacherfasst** für Januar-Daten, also Artefakte der Historik-Migration, nicht dieses Fehlers. Die vielen Altfälle 2019–2025 stammen ebenfalls aus dem Import.
 
 ## 🟢 ERLEDIGT 26.08.: Stammdaten Obere Strasse 39 — Hotelbar Strela ans Giodavin

@@ -193,7 +193,8 @@ static Future<List<BetriebLocal>> getAll() async {
 
 ## Datenbank
 
-- Connection-String in `.env` (Root), Supabase API-Keys in `sbs_projer_app/.env`
+- **Die einzige `.env` ist `sbs_projer_app/.env`** (gitignored) mit `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DANIEL_USER_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_REDIRECT_URI`. Eine `.env` im Root gibt es **nicht** (Stand 27.08.2026 geprüft). Der dort früher erwartete psycopg2-Connection-String fehlt damit — `db_query.py` liegt zwar noch in `Datenbank/`, ist aber ohnehin unbrauchbar (DNS-Fehler seit 31.03.2026, siehe unten).
+- **Zugangsdaten der Edge Functions** (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, …) liegen **ausschliesslich** in den Supabase Edge Function Secrets — nicht im Repo, nicht in einer `.env`. Im Code stehen nur `Deno.env.get(...)`-Referenzen. Geändert wird das im Supabase-Dashboard, nicht hier.
 - **Zugriff (bevorzugt)**: Supabase MCP-Server — `mcp__supabase__execute_sql` für Queries, `mcp__supabase__apply_migration` für DDL. Project-ID: `pltbaqqwpnmdajwgnhpd` (sbs-projer-prod).
 - **Fallback**: `npx supabase db query --linked "SQL"` funktioniert nur, wenn lokal gelinkt (`supabase link --project-ref pltbaqqwpnmdajwgnhpd`).
 - psycopg2-Direktzugriff via `db_query.py` schlägt seit 31.03.2026 mit DNS-Fehler fehl.
