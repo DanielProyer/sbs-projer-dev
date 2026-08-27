@@ -156,8 +156,13 @@ class _HeinekenRechnungDetailScreenState
                 'Gruass Dani',
             'rechnungId': _rechnung!.id,
             'userId': SupabaseService.dataUserId,
+            // Versandvermerk serverseitig (ab Function v15) — greift auch,
+            // wenn die Antwort dieses Aufrufs verloren geht. Siehe
+            // reinigung_rechnung_versand.dart, Vorfall Hugos 27.08.2026.
+            'markiereVersandt': true,
           });
 
+      // Bleibt als Rückfall neben dem serverseitigen Vermerk; beide idempotent.
       await RechnungRepository.update(widget.rechnungId, {
         'zahlungsstatus': 'gesendet',
         'versendet_am': DateTime.now().toIso8601String().split('T').first,

@@ -117,6 +117,12 @@ class ReinigungRechnungVersand {
               'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
           'rechnungId': rechnung.id,
           'userId': SupabaseService.dataUserId,
+          // Der Versandvermerk wird seit v15 SERVERSEITIG gesetzt, direkt nach
+          // dem Gmail-Aufruf. Vorher hing er allein am `update` unten — ging
+          // die Antwort dieses `invoke` verloren (Timeout, Verbindungsabbruch),
+          // war die Mail beim Kunden, der Vermerk fehlte, und ein zweiter
+          // Klick hätte sie erneut verschickt. Vorfall Hugos Davos 27.08.2026.
+          'markiereVersandt': MailConfig.istScharf('reinigung'),
           if (r.protokollFotoPfad != null)
             'protokollFotoPfad': r.protokollFotoPfad,
         },
@@ -124,6 +130,11 @@ class ReinigungRechnungVersand {
 
       // Status/versendet_am NUR bei scharfem Versand setzen (im Testmodus ging
       // die Mail an den Testempfänger, nicht an den Kunden).
+      //
+      // Bleibt als Rückfall neben dem serverseitigen Vermerk: Beide Wege sind
+      // idempotent (der Server hebt `offen` → `gesendet`, hier passiert bei
+      // gleichem Ergebnis nichts Neues). Kommt die Antwort an, ist der Status
+      // ohnehin schon gesetzt; kommt sie nicht an, hat der Server ihn.
       if (MailConfig.istScharf('reinigung')) {
         await RechnungRepository.update(rechnung.id, {
           'zahlungsstatus': 'gesendet',

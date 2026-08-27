@@ -92,6 +92,80 @@ async function downloadFromStorage(bucket: string, path: string): Promise<Uint8A
 }
 
 /**
+ * Vermerkt den erfolgten Mailversand DIREKT AUF DEM SERVER.
+ *
+ * WARUM: Bis v14 setzte nur die App `versendet_am`/`zahlungsstatus` — und zwar
+ * erst, NACHDEM sie die Antwort dieser Function empfangen hatte. Ging die
+ * Antwort unterwegs verloren (Timeout, Verbindungsabbruch), war die Mail beim
+ * Kunden, der Vermerk fehlte aber. Die Rechnung sah in der App unversendet aus,
+ * ein zweiter Klick hätte sie erneut verschickt. Vorfall Hugos Davos,
+ * 27.08.2026, Rechnung 2026-08-1382 (Mail war raus, Status blieb "offen").
+ *
+ * REGELN:
+ * - `versendet_am` wird immer auf heute gesetzt (ein Neuversand aktualisiert
+ *   es bewusst).
+ * - `zahlungsstatus` wechselt NUR von "offen" auf "gesendet". Der Filter
+ *   `zahlungsstatus=eq.offen` sorgt dafür, dass Mahnstufen (erinnert,
+ *   mahnung_1, …) und "bezahlt" unangetastet bleiben.
+ * - `user_id` ist immer Teil des Filters.
+ *
+ * WICHTIG: Diese Funktion wirft NIE. Zum Zeitpunkt des Aufrufs ist die Mail
+ * bereits versandt — ein fehlgeschlagenes UPDATE darf den Versand nicht
+ * nachträglich als Fehler erscheinen lassen. Genau das wäre der Fehler, den
+ * diese Änderung behebt. Rückgabe sagt nur, ob es geklappt hat.
+ */
+async function markiereRechnungVersandt(
+  rechnungId: string,
+  userId: string,
+): Promise<boolean> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceKey) {
+    console.error("markiereRechnungVersandt: SUPABASE_URL/SERVICE_ROLE_KEY fehlen");
+    return false;
+  }
+
+  const heute = new Date().toISOString().split("T")[0];
+  const headers = {
+    "apikey": serviceKey,
+    "Authorization": `Bearer ${serviceKey}`,
+    "Content-Type": "application/json",
+    "Prefer": "return=minimal",
+  };
+  const basis = `${supabaseUrl}/rest/v1/rechnungen?id=eq.${rechnungId}&user_id=eq.${userId}`;
+
+  try {
+    // 1. Versanddatum — unabhängig vom Status.
+    const datumRes = await fetch(basis, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ versendet_am: heute }),
+    });
+    if (!datumRes.ok) {
+      console.error(`markiereRechnungVersandt: versendet_am fehlgeschlagen (${datumRes.status}): ${await datumRes.text()}`);
+      return false;
+    }
+
+    // 2. Status nur von "offen" auf "gesendet" heben.
+    const statusRes = await fetch(`${basis}&zahlungsstatus=eq.offen`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ zahlungsstatus: "gesendet" }),
+    });
+    if (!statusRes.ok) {
+      console.error(`markiereRechnungVersandt: zahlungsstatus fehlgeschlagen (${statusRes.status}): ${await statusRes.text()}`);
+      return false;
+    }
+
+    console.log(`Versand vermerkt: rechnungId=${rechnungId}, versendet_am=${heute}`);
+    return true;
+  } catch (e) {
+    console.error(`markiereRechnungVersandt: Ausnahme — ${(e as Error).message}`);
+    return false;
+  }
+}
+
+/**
  * Wandelt den Domain-Teil einer E-Mail-Adresse in Punycode/ASCII (IDNA) um,
  * falls er Nicht-ASCII-Zeichen (z.B. Umlaute) enthält. Beispiel:
  * "info@teehütte-klosters.ch" -> "info@xn--teehtte-klosters-mzb.ch".
@@ -166,7 +240,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode, pdfPath } = await req.json();
+    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode, pdfPath, markiereVersandt } = await req.json();
 
     if (!to || !subject) {
       return new Response(
@@ -301,8 +375,18 @@ Deno.serve(async (req: Request) => {
     const result = await gmailResponse.json();
     console.log(`Email sent successfully, messageId: ${result.id}`);
 
+    // 5. Versand SERVERSEITIG vermerken (ab v15). Ab hier ist die Mail beim
+    //    Kunden — alles Folgende darf den Erfolg nicht mehr umkehren.
+    //    Mahnungen sind ausgenommen: dort ist `versendet_am` das Datum der
+    //    Erstversendung und der Status darf nicht auf "gesendet" zurückfallen.
+    let versandVermerkt = false;
+    const istMahnung = typeof pdfPath === "string" && pdfPath.startsWith("mahnung_");
+    if (markiereVersandt === true && rechnungId && !istMahnung) {
+      versandVermerkt = await markiereRechnungVersandt(rechnungId, userId);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, messageId: result.id }),
+      JSON.stringify({ success: true, messageId: result.id, versandVermerkt }),
       { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   } catch (error) {
