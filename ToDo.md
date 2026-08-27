@@ -13,6 +13,25 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
+## 🔴 OFFEN 27.08.: Mail-Versand — Status hängt an der Antwort der Edge Function
+
+**Vorfall Hugos Davos, 27.08.2026:** Rechnung 2026-08-1382 (CHF 138.35). Die Mail ging um **09:17:36 erfolgreich** an `info@hugos-davos.ch` (Gmail `messageId 1a04214d1b441975`, HTTP 200, beide PDFs). Die App zeigte trotzdem einen Fehler, `versendet_am` blieb leer, Status blieb `offen`. Am 27.08. auf die belegte Tatsache korrigiert (`gesendet` / 27.08., Begründung in den Rechnungs-Notizen).
+
+**Ursache** — [reinigung_rechnung_versand.dart:103–132](sbs_projer_app/lib/services/rechnung/reinigung_rechnung_versand.dart:103):
+```dart
+await ...functions.invoke('send-rechnung-mail', ...);   // Mail geht raus
+if (MailConfig.istScharf('reinigung')) {
+  await RechnungRepository.update(...)                   // wird bei Fehler übersprungen
+}
+```
+Wirft `invoke` — auch nur beim **Empfangen** der Antwort (Timeout, Verbindungsabbruch) —, wird der Status nie gesetzt. Die Mail ist da aber längst raus. Zeitlicher Beleg: Die Rechnung wurde zuletzt um 07:17:33.417 UTC angefasst, der Versand war erst 07:17:36.008 fertig. Bei Jodys (gleicher Vormittag) kam das Update 74 ms nach dem Versand — dort lief es normal.
+
+⚠️ **Die praktische Gefahr ist der Doppelversand:** Die Rechnung sieht in der App unversendet aus, ein zweiter Klick schickt sie dem Kunden erneut.
+
+- [ ] **Fix: Die Edge Function soll `versendet_am`/`zahlungsstatus` selbst setzen**, direkt nach dem erfolgreichen Gmail-Aufruf. Sie kennt die `rechnungId` bereits (wird im Body mitgegeben) und läuft mit `service_role`. Dann ist der Status gesetzt, egal ob die Antwort beim Client ankommt. Die App-seitige Aktualisierung kann als Rückfall bleiben (idempotent).
+- [ ] Gilt für **alle fünf** Aufrufstellen von `send-rechnung-mail`: Reinigung, Montage, Heineken-Detail, Material-Bestellung, Rechnung-Detail.
+- [x] ~~Weitere Fälle?~~ **Geprüft 27.08.:** Nur zwei weitere Rechnungen mit `versandart = rechnung_mail` ohne `versendet_am` aus 2026 (Weiss Kreuz 2026-04-0294, Stall Valär 2026-04-0252) — beide im **April nacherfasst** für Januar-Daten, also Artefakte der Historik-Migration, nicht dieses Fehlers. Die vielen Altfälle 2019–2025 stammen ebenfalls aus dem Import.
+
 ## 🟢 ERLEDIGT 26.08.: Stammdaten Obere Strasse 39 — Hotelbar Strela ans Giodavin
 
 Marion Majercak führt jetzt auch die Hotelbar Strela (neben Giodavin, Steakhouse Ochsen, Pot au Feu). **Beide Betriebe liegen an derselben Adresse** — Obere Strasse 39, Davos.
