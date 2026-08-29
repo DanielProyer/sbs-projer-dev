@@ -67,7 +67,7 @@ In dani.proyer@ existiert die Google-Kontakte-Gruppe **«Geschäftlich»** (`con
 
 ⚠️ **Drei Vorbehalte:**
 1. **440 sind Mitgliedschaften, nicht Personen.** Ein Kontakt kann in mehreren Gruppen stehen; die Zahl der tatsächlich umzuziehenden Personen ist kleiner und muss vor dem Umzug ermittelt werden.
-2. **Mindestens ~237 Kontakte stehen in gar keiner Gruppe.** 768 Kontakte im Konto, aber nur 531 Mitgliedschaften insgesamt (und die enthalten Mehrfachnennungen, der echte Rest ist also grösser). Für diese Kontakte gibt es **keine** Zuordnung geschäftlich/privat — sie sind der eigentlich offene Posten.
+2. **Vermutlich ~237 Kontakte stehen in gar keiner Gruppe.** 768 Kontakte im Konto, 531 Mitgliedschaften (11+4+14+45+88+19+25+1+307+1+15+1), Differenz 237. Für diese Kontakte gäbe es **keine** Zuordnung geschäftlich/privat — sie wären der eigentlich offene Posten. **Zwei Unsicherheiten in beide Richtungen:** Mehrfachnennungen blähen die 531 auf, der Rest kann also grösser sein. Umgekehrt meldeten drei Gruppen («Importiert am 15.12.24», «SBS Event», «SIM») **gar keine** Mitgliederzahl — die Google-API lässt `memberCount` bei 0 weg, sie wären also leer. Das ist eine **Annahme über das API-Verhalten, keine Messung.** Hängt an den 237 eine Entscheidung, vorher messen statt ableiten.
 3. **Welche Gruppen mitkommen, entscheidet Daniel.** Es sind Daten aus seinem privaten Konto; «SBS App» klingt nach App-Bestand, «SIM» und «SBS Event» sind ohne Prüfung nicht einzuordnen.
 
 **Vor dem Umzug zu klären:**
