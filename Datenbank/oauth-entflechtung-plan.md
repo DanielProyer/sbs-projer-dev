@@ -85,6 +85,7 @@ Geschäftliche Kontakte von dani.proyer@ nach sbs.projer@ übertragen. Rein auf 
 - **Fehler-Merkregeln:** `invalid_client` + «was not found» ⇒ Wert in der ID-Zeile · `invalid_client` + «secret is invalid» ⇒ falscher Wert · `invalid_grant` (400) ⇒ Token widerrufen.
 - **Konsole-Fallen:** Der Projektwähler findet die Projektnummer nicht (nur Name und Projekt-ID) → URL `console.cloud.google.com/apis/credentials?project=<nr>&authuser=<konto>`. Und aufs richtige Konto achten.
 - **Koordination:** Die Heineken-Session verifiziert ihre Wege selbst; SBS bleibt Sammelstelle. Secret-Werte gehen **nicht** durch den Nachrichtenkanal.
+- **«Geprüft» heisst: am ausgerollten Stand, nicht am Repo.** Am 29.08. stand der `Content-Type`-Header in Heinekens Repo-Datei seit je korrekt — draussen lief trotzdem eine ältere Fassung, sichtbar an rohen `<h2>`-Tags und «fÃ¼r». Ein Blick in den Quelltext hätte «alles in Ordnung» ergeben. Bei projektübergreifenden Prüfungen also **die laufende Function befragen**, nicht die Datei lesen — dieselbe Logik wie die Regel «Version muss in der Oberfläche sichtbar sein».
 
 ## Was dieser Plan bewusst nicht umfasst
 
