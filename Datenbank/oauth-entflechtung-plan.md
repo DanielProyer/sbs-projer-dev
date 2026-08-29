@@ -38,7 +38,7 @@ Dazu kommt eine zweite Anforderung (Daniel, 29.08.): **klare Trennung geschäftl
 
 Entscheidungen dazu:
 - **Ein** Heineken-Projekt mit **zwei** Clients, nicht zwei Projekte. Der Zustimmungsbildschirm hängt am Projekt, beide Heineken-Grants wären also gleich benannt — aber sie sind am Scope unterscheidbar (`gmail.send` vs. `contacts`). Das Problem vom 29.08. (zwei ununterscheidbare «SBS Projer»-Einträge, beide `gmail.send`) entsteht so nicht neu.
-- **Die Finanzapp gilt als privat** und bleibt bewusst unter dani.proyer@, inklusive Zugriff auf private Kontakte. Das ist dann Absicht, kein Versehen.
+- **Die Finanzapp gilt als privat** und bleibt bewusst unter dani.proyer@, inklusive Zugriff auf private Kontakte. Das ist dann Absicht, kein Versehen. **Von der Finanzapp-Session am 29.08. bestätigt — und dort im Code erzwungen, nicht bloss Konvention:** `kontakte-google` akzeptiert ausschliesslich Freigaben von dani.proyer@ und weist das Geschäftskonto aktiv ab; der camt-Import lehnt Firmenkonten der SBS Projer GmbH ab (die App führt bewusst keine Firmenbuchhaltung); Berührungspunkte wie Spesen oder Büromiete behandeln die GmbH nur als Gegenpartei.
 - **Eigentümerschaft wird per IAM umgehängt, nicht neu gebaut.** sbs.projer@ als Inhaber hinzufügen, dani.proyer@ entfernen — Clients, Secrets und Tokens bleiben unberührt. Das spart den kompletten Neubau von Client ①.
 
 ## Zerlegung — drei Vorhaben, Reihenfolge A
@@ -56,7 +56,8 @@ Geschäftliche Kontakte von dani.proyer@ nach sbs.projer@ übertragen. Rein auf 
 3. Heineken-Session stellt `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET` und `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` um. **Achtung: diesmal ändern sich auch die Client-IDs**, nicht nur die Secrets — beim Reset am 29.08. blieben die IDs gleich.
 4. Neues Gmail-Refresh-Token via OAuth Playground (Konto sbs.projer@), Kontakte-Flows neu autorisieren.
 5. Nach Grün-Meldung: Heinekens Verwendungen aus Client ① und ② entfernen (alte Freigaben unter myaccount widerrufen).
-6. Projekt 1040401919292 per IAM auf sbs.projer@ umhängen.
+6. **Der Finanzapp-Session Bescheid geben, sobald Heinekens Kopie von Secret E stillgelegt ist** (Bitte von dort, 29.08.). Sie streichen Heineken dann aus ihrer Konsumenten-Liste — in der Doku und im Passwortmanager-Eintrag von E. Ohne diesen Zuruf bliebe eine Konsumenten-Liste stehen, die einen Verbraucher nennt, den es nicht mehr gibt — genau die Sorte veraltete Landkarte, die den Ausfall vom 27.08. mitverursacht hat.
+7. Projekt 1040401919292 per IAM auf sbs.projer@ umhängen.
 
 ### ③ Kalender-Umzug
 
