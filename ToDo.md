@@ -13,6 +13,14 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
+## 🟢 ERLEDIGT 29.08. (v0.93.0, live): Tourenplan zeigte Gereinigtes als überfällig — Pull-to-Refresh eingebaut
+
+**Meldung Daniel 29.08.:** Bernina Bar Thusis und Viktoria Weggis standen im Tourenplan als überfällig, obwohl diese Woche gereinigt (27./28.08., DB korrekt inkl. `naechste_reinigung`). **Ursache:** Auf Web laden alle Repositories ihre Daten EINMAL beim App-Start (`Stream.fromFuture`) — ein tagelang offener Browser-Tab zeigt den Stand vom Start. Nach Neuladen war die Anzeige korrekt (von Daniel bestätigt).
+
+**Gebaut (TDD, Test zuerst):** [tourenplan_refresh.dart](sbs_projer_app/lib/core/util/tourenplan_refresh.dart) invalidiert alle 6 Tourenplan-Quellen (Betriebe, Ferien, Anlagen, Reinigungen, Störungen, Montagen) und wartet aufs Neuladen. Fällig-Tab mit **Pull-to-Refresh** (auch im Leerzustand ziehbar), **Aktualisieren-Knopf in der AppBar** für den PC (keine Zieh-Geste), Fehler per Snackbar statt still. 1183 Tests grün, analyze unverändert. RefreshIndicator und AppBar-IconButton sind produktiv bewährte Muster (2 bzw. 12 Screens) — CanvasKit-Risiko klein; visuelle Browser-Prüfung war nicht möglich (Preview-Pane blieb verdeckt, Login sowieso nur durch Daniel).
+
+- [ ] **Klicktest Daniel (Handy):** Fällig-Tab nach unten ziehen → Spinner, Daten frisch; Aktualisieren-Knopf oben rechts dreht sich beim Laden.
+
 ## 🟢 ERLEDIGT 27.08. (v0.92.2 + Function v15, live): Mail-Versand — Status hängt nicht mehr an der Antwort
 
 **Vorfall Hugos Davos, 27.08.2026:** Rechnung 2026-08-1382 (CHF 138.35). Die Mail ging um **09:17:36 erfolgreich** an `info@hugos-davos.ch` (Gmail `messageId 1a04214d1b441975`, HTTP 200, beide PDFs). Die App zeigte trotzdem einen Fehler, `versendet_am` blieb leer, Status blieb `offen`. Am 27.08. auf die belegte Tatsache korrigiert (`gesendet` / 27.08., Begründung in den Rechnungs-Notizen).
