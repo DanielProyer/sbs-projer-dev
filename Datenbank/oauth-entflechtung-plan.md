@@ -47,15 +47,24 @@ Entscheidungen dazu:
 
 Geschäftliche Kontakte von dani.proyer@ nach sbs.projer@ übertragen. Rein auf Google-Seite, keine Code- oder OAuth-Arbeit.
 
-**Die Unterscheidung ist bereits gelöst** (Befund der Heineken-Session, 29.08.): In dani.proyer@ existiert die Google-Kontakte-Gruppe **«Geschäftlich» mit 731 Kontakten**. Sie ist die Lesequelle von Heinekens `kontakte-google` — der Weg `konto=dani` ist dort ausdrücklich **nur lesend** angelegt, `konto=sbs` liest und schreibt. Es braucht also keine Heuristik und keinen Abgleich gegen `betriebe`: Die Gruppe ist die Definition.
+In dani.proyer@ existiert die Google-Kontakte-Gruppe **«Geschäftlich»** (`contactGroups/262e77bb0a96051d`). Sie ist die Lesequelle von Heinekens `kontakte-google` — der Weg `konto=dani` ist dort ausdrücklich **nur lesend** angelegt, `konto=sbs` liest und schreibt.
 
-⚠️ **Diese 731 Kontakte sind bei Heineken noch nie angekommen** — gemessen am 29.08.: Staging-Tabelle `kontakt_uebernahme` = 0, `kontakt_person` mit `google_resource_name` = 0, `kontakt_person` gesamt 117 (aus altapp_import, altapp_nachzug, feld_diktat). Die Übernahme stand seit der Einrichtung als nächster Schritt aus und wurde durch den Ausfall vom 27.08. zusätzlich blockiert.
+🔴 **Die Gruppe hat 88 Mitglieder, nicht 731** (Staging-Lauf 29.08., fehlerfrei: 88 gelesen, 88 gespeichert). Die Zahl 731 stand im Kopf von Heinekens Function und in deren Einrichtungsanleitung — **sie war nie die Gruppengrösse.** Vermutlich ist es die Gesamtzahl der Kontakte im Konto, belegt ist das nicht. Weitere Gruppen im Konto: Familie 11 · Juma 4 · Bekannte 14 · Privat 45 · **Geschäftlich 88** · «SBS Event» und «Importiert am 15.12.24» (beide ohne Mitgliederzahl).
+
+**Damit ist die Definitionsfrage wieder offen — und dringlicher als zuvor.** Sie lautet nicht mehr «ist die Gruppe vollständig», sondern: **Was ist mit den übrigen Kontakten?** Bei 88 von möglicherweise 731 wäre «die geschäftlichen Kontakte umziehen» eine ganz andere Aussage, je nachdem ob die restlichen ~640 privat sind oder bloss nie einsortiert wurden.
+
+**Vor dem Umzug zu klären, in dieser Reihenfolge:**
+1. **Gesamtzahl der Kontakte im Konto** feststellen — bestätigt oder widerlegt die 731-Vermutung.
+2. **Stichprobe ausserhalb der Gruppe:** Kontakte mit Firmen-Mailadresse oder Firmennamen, die nicht in «Geschäftlich» stehen. Das entscheidet, ob die Gruppe als Definition taugt.
+3. Erst danach festlegen, was umzieht.
+
+⚠️ **Bei Heineken angekommen war vorher nichts** — gemessen am 29.08. vor dem Lauf: `kontakt_uebernahme` = 0, `kontakt_person` mit `google_resource_name` = 0, `kontakt_person` gesamt 117 (aus altapp_import, altapp_nachzug, feld_diktat). Seit dem Staging-Lauf liegen dort 88.
 
 **Daraus folgt die eigentliche Abhängigkeit, schärfer als zunächst formuliert:** `konto=dani` abzuklemmen heisst, Heineken die Lesequelle der Geschäftskontakte zu nehmen. Das ist nur zulässig, **nachdem** die 731 im Geschäftskonto liegen. Vorhaben ① ist damit nicht nur Vorbedingung für ③, sondern für den Umbau insgesamt.
 
 ⚠️ **Vorbehalt zur Definition (Heineken-Session, 29.08.):** Die Gruppe «Geschäftlich» ist die beste verfügbare Definition, aber sie wird **von Hand gepflegt**. Ein geschäftlicher Kontakt, der nie in die Gruppe einsortiert wurde, bleibt beim Umzug liegen und fehlt danach **still** — niemand bemerkt einen Kontakt, der nicht da ist. **Deshalb vor dem Umzug eine Stichprobe:** Kontakte mit einer Firmen-Mailadresse oder einem Firmennamen **ausserhalb** der Gruppe suchen. Findet sich nichts, ist die Gruppe belastbar; findet sich etwas, wird nachsortiert, bevor irgendetwas umzieht.
 
-**Vorher-Zahl festhalten:** Vor dem Umzug die Zahl der Kontakte in der Gruppe «Geschäftlich» notieren (erwartet 731). Heineken vergleicht sie gegen ihre Staging-Zahl. Weichen sie ab, ist die Ursache **vor** dem Umzug zu klären, nicht danach.
+**Vorher-Zahl steht: 88.** Aus Heinekens Staging-Lauf vom 29.08. (88 Mitglieder gelesen, 88 gespeichert, keine Fehler). Nach dem Umzug müssen im Geschäftskonto 88 Kontakte aus dieser Gruppe ankommen — jede Abweichung ist vor dem Weitermachen zu klären.
 
 **Vorschlag der Heineken-Session, Entscheid liegt bei Daniel (offen, Stand 29.08.):** Die 731 vor dem Umzug einmal per `uebernahme_lesen` ins Staging lesen — rein lesend, ändert bei Google nichts. Begründung: (a) der Umzug wird prüfbar (731 vorher, 731 nachher, statt der Annahme, dass unterwegs nichts verlorengeht), (b) es gibt sonst keine zweite Kopie — die Alt-App kennt diese Kontakte nicht. **Nicht freigegeben, weil es 731 Kontakte aus Daniels privatem Konto in die Heineken-Datenbank schreibt** — diese Entscheidung gehört ihm, nicht der SBS-Session. Kein Zeitdruck: Der `konto=dani`-Zugang bleibt bis Vorhaben ② bestehen.
 
@@ -85,10 +94,14 @@ Geschäftliche Kontakte von dani.proyer@ nach sbs.projer@ übertragen. Rein auf 
 - **Fehler-Merkregeln:** `invalid_client` + «was not found» ⇒ Wert in der ID-Zeile · `invalid_client` + «secret is invalid» ⇒ falscher Wert · `invalid_grant` (400) ⇒ Token widerrufen.
 - **Konsole-Fallen:** Der Projektwähler findet die Projektnummer nicht (nur Name und Projekt-ID) → URL `console.cloud.google.com/apis/credentials?project=<nr>&authuser=<konto>`. Und aufs richtige Konto achten.
 - **Koordination:** Die Heineken-Session verifiziert ihre Wege selbst; SBS bleibt Sammelstelle. Secret-Werte gehen **nicht** durch den Nachrichtenkanal.
-- **«Geprüft» heisst: am ausgerollten Stand, nicht am Repo.** Am 29.08. stand der `Content-Type`-Header in Heinekens Repo-Datei seit je korrekt — draussen lief trotzdem eine ältere Fassung, sichtbar an rohen `<h2>`-Tags und «fÃ¼r». Ein Blick in den Quelltext hätte «alles in Ordnung» ergeben. Bei projektübergreifenden Prüfungen also **die laufende Function befragen**, nicht die Datei lesen — dieselbe Logik wie die Regel «Version muss in der Oberfläche sichtbar sein».
+- **«Geprüft» heisst: am ausgerollten Stand, nicht am Repo — und die Abfrage des Ausrollstands muss selbst frisch sein.** Bei projektübergreifenden Prüfungen die laufende Function befragen statt die Datei zu lesen; dieselbe Logik wie die Regel «Version muss in der Oberfläche sichtbar sein». Der zweite Halbsatz stammt aus einem Fehlschlag: Die Heineken-Session erklärte die rohen `<h2>`-Tags zunächst mit einem veralteten Deploy — belegt aus einer drei Stunden alten Function-Liste, die v12 auswies, während die Function längst bei v15 stand. **Erklärung zurückgezogen; die vorherige Fassung hatte den Header bereits.**
 
 ## Was dieser Plan bewusst nicht umfasst
 
 - Kein Umzug der Finanzapp (privat, bleibt wie sie ist).
 - Keine Änderung am SBS-Rechnungsversand (Client ③ ist bereits sauber).
-- Keine Anpassung von Heinekens `kontakte-google`-Code ausser der Konten-Reduktion — der offene `Content-Type`-Fehler ihrer Erfolgsseite gehört in ihr eigenes Repo.
+- Keine Anpassung von Heinekens `kontakte-google`-Code ausser der Konten-Reduktion.
+
+## Offen und ungeklärt
+
+**Warum zeigte die Erfolgsseite von `kontakte-google` rohe `<h2>`-Tags und «fÃ¼r»?** Beobachtet am 29.08. beim Aufruf von `?s=…&konto=dani`. Die erste Erklärung (veralteter Ausrollstand) ist widerlegt — die laufende Fassung enthielt den korrekten `Content-Type`-Header bereits. **Die Ursache ist damit unbekannt.** Zu prüfen wäre, ob die Antwort, die diese Seite erzeugt, überhaupt aus demselben Zweig stammt wie der Header in Zeile 179 — eine zweite Rückgabestelle ohne Header würde beide Beobachtungen erklären. Gehört Heineken, steht hier nur als offener Punkt, damit die widerlegte Erklärung nicht als geklärt weiterlebt.
