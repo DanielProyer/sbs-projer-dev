@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
+import 'package:sbs_projer_app/core/util/tourenplan_refresh.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
 import 'package:sbs_projer_app/core/util/touren_saison.dart';
 import 'package:sbs_projer_app/core/util/war_geschlossen.dart';
@@ -48,6 +49,25 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   late DateTime _selectedDate;
   late TabController _tabController;
   DateTime? _loadedForDate;
+  bool _laedtNeu = false;
+
+  /// Alle Tourenplan-Quellen frisch vom Server holen — Pull-to-Refresh im
+  /// Fällig-Tab und Aktualisieren-Knopf in der AppBar. Ein Fehler wird
+  /// gemeldet, nie verschluckt (Regel «still fehlgeschlagen», 11.08.2026).
+  Future<void> _datenNeuLaden() async {
+    if (_laedtNeu) return;
+    setState(() => _laedtNeu = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await tourenplanNeuLaden(ProviderScope.containerOf(context));
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Aktualisieren fehlgeschlagen: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _laedtNeu = false);
+    }
+  }
 
   bool get _istVergangenerTag {
     final j = DateTime.now();
@@ -220,6 +240,18 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       appBar: AppBar(
         title: const Text('Tourenplanung'),
         actions: [
+          // Aktualisieren — für den PC, wo es keine Zieh-Geste gibt.
+          IconButton(
+            tooltip: 'Daten neu laden',
+            onPressed: _laedtNeu ? null : _datenNeuLaden,
+            icon: _laedtNeu
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+          ),
           // Region-Filter oben rechts (kompakter Mehrfach-Dropdown)
           if (regionen.isNotEmpty)
             Padding(
@@ -345,26 +377,45 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                   children: [
                     _warnungSaisonAnker(),
                     Expanded(
-                      child: angezeigtFaellig.isEmpty
-                          ? _buildEmpty(
-                              'Keine fälligen Einträge',
-                              'Zum ${_formatDate(_selectedDate)} sind keine\nReinigungen, Störungen oder Montagen fällig.',
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              itemCount: angezeigtFaellig.length,
-                              itemBuilder: (_, i) {
-                                final e = angezeigtFaellig[i];
-                                final imPlan = bereitsImPlan.contains(e.id);
-                                return _FaelligEintragKarte(
-                                  datum: _selectedDate,
-                                  eintrag: e,
-                                  imPlan: imPlan,
-                                  onAdd: () => _faelligEintragUebernehmen(e),
-                                  onTap: () => _navigateToDetail(e),
-                                );
-                              },
-                            ),
+                      // Pull-to-Refresh: auch der Leerzustand ist ziehbar —
+                      // gerade eine (veraltet) leere Liste braucht den Weg
+                      // zu frischen Daten.
+                      child: RefreshIndicator(
+                        onRefresh: _datenNeuLaden,
+                        child: angezeigtFaellig.isEmpty
+                            ? LayoutBuilder(
+                                builder: (context, constraints) => ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  children: [
+                                    SizedBox(
+                                      height: constraints.maxHeight,
+                                      child: _buildEmpty(
+                                        'Keine fälligen Einträge',
+                                        'Zum ${_formatDate(_selectedDate)} sind keine\nReinigungen, Störungen oder Montagen fällig.',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                itemCount: angezeigtFaellig.length,
+                                itemBuilder: (_, i) {
+                                  final e = angezeigtFaellig[i];
+                                  final imPlan = bereitsImPlan.contains(e.id);
+                                  return _FaelligEintragKarte(
+                                    datum: _selectedDate,
+                                    eintrag: e,
+                                    imPlan: imPlan,
+                                    onAdd: () => _faelligEintragUebernehmen(e),
+                                    onTap: () => _navigateToDetail(e),
+                                  );
+                                },
+                              ),
+                      ),
                     ),
                   ],
                 ),
