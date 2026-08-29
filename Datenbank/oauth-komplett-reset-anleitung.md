@@ -19,7 +19,9 @@ Abgestimmt am 29.08.2026 mit den Sessions Heineken + Finanzapp (beide einverstan
 3. Menü links: **APIs & Dienste → Anmeldedaten**.
 4. Nebenbei unter **OAuth-Zustimmungsbildschirm** den **App-Namen notieren** (für Phase 2/3) und Status prüfen: muss **«In Produktion»** sein. Zurück zu «Anmeldedaten».
 5. Client öffnen, dessen ID mit **`1040401919292-cev05`** beginnt.
-6. Bereich **Clientschlüssel** → **«+ Schlüssel hinzufügen»** (den vorhandenen Schlüssel vom 27.08. = C NICHT anrühren — daran hängt Heinekens Rechnungsversand!).
+6. Bereich **Clientschlüssel**. ⚠️ **Korrektur 29.08. (Befund am Gerät):** Es liegen **ZWEI** Schlüssel drin (15.08. und 27.08.), kein Platz frei — die ursprüngliche Annahme «ein Platz frei» stimmte nicht. Also: **den älteren (15.08.) löschen**, dann «+ Schlüssel hinzufügen».
+   - *Warum der 15.08.:* Einer der beiden ist Heinekens aktives `GMAIL_CLIENT_SECRET` (Vorher-Beleg 29.08. 12:15 UTC: `gmail_versand` ok/200), der andere ist ein Waisenkind. **Welcher, ist nicht belegbar** — der geglückte Heineken-Versand vom 27.08. 19:54 beweist es NICHT, weil der Fehlversuch um 19:52 ein `403 Gmail API not enabled` war und kein `invalid_client`. SBS' Wert ist keiner von beiden (sonst kein «client secret is invalid»). Der Wertvergleich (Supabase-Secret gegen Konsole/PM) war am Gerät nicht möglich. **Entscheid Daniel:** Restrisiko bewusst tragen — Wochenende ohne Mail/Kalender-Bedarf, Zielmarke Montag. Der ältere ist die schadensminimale Wahl: Waisenkind ⇒ nichts passiert; Heinekens ⇒ Störung nur bis Schritt 11.
+   - **AUFGELÖST (Messung, 29.08.):** Heineken-Beleg vorher 12:15:09 UTC `gmail_versand ok/200`, nachher (nach dem Löschen, vor ihrer Umstellung auf F) 12:27:03 UTC **ebenfalls ok/200**. ⇒ Der gelöschte 15.08.-Schlüssel war ein **Waisenkind**; Heinekens `GMAIL_CLIENT_SECRET` ist der **27.08. (= C)**. Kein Ausfall. Damit gilt: **C wird bis Schritt 11 noch gebraucht** und darf erst in Phase 4 weg. Client ① hat nach dem Anlegen von F wieder beide Plätze belegt (C + F) — Rotationsreserve entsteht erst mit dem Löschen von C in Schritt 56.
 7. Neuen Wert kopieren = **Secret F** (wird nur einmal angezeigt).
 8. https://passwords.google.com → «Passwort hinzufügen»:
    - Website: `console.cloud.google.com`
@@ -47,7 +49,9 @@ Abgestimmt am 29.08.2026 mit den Sessions Heineken + Finanzapp (beide einverstan
 
 ### Teil C · Secret G (Client ③ — SBS-Rechnungsversand)
 
-20. Console: Projektwähler → `143053064319`.
+20. Console: Projekt `143053064319` öffnen. ⚠️ **Befund 29.08.:** Dieses Projekt gehört **sbs.projer@gmail.com**, nicht dani.proyer@ — als dani.proyer@ kommt «Sie benötigen zusätzliche Zugriffsrechte» (`resourcemanager.projects.get` fehlt). Also **erst Konto wechseln**. Ausserdem findet der Projektwähler nur Namen und Projekt-ID, **nicht die Projektnummer** — direkt über die URL gehen:
+    `https://console.cloud.google.com/apis/credentials?project=143053064319&authuser=sbs.projer@gmail.com`
+    Gilt genauso für Schritt 35 (Phase 2 Teil E) und Schritt 59 (Phase 4). Clients ① und ② liegen dagegen unter dani.proyer@.
 21. OAuth-Zustimmungsbildschirm: App-Namen notieren; steht «Testing» → «App veröffentlichen» klicken.
 22. Anmeldedaten → Client `143053064319-3ftn…` öffnen.
 23. Clientschlüssel: Platz frei → «+ hinzufügen». Beide voll → das ÄLTERE löschen (Papierkorb), dann «+ hinzufügen». Wert = **Secret G**.
@@ -67,6 +71,7 @@ Abgestimmt am 29.08.2026 mit den Sessions Heineken + Finanzapp (beide einverstan
 
 27. Console: Projekt `1040401919292` → Client `…cev05…` → «Autorisierte Weiterleitungs-URIs» → «+ URI hinzufügen» → `https://developers.google.com/oauthplayground` → Speichern.
 28. https://myaccount.google.com/connections — als **sbs.projer@gmail.com** → App mit dem Namen aus Schritt 4 → **«Zugriff entfernen»**.
+    ⚠️ **Befund 29.08.:** Client ① **und** Client ③ haben denselben Zustimmungsbildschirm-Namen **«SBS Projer»** — unter sbs.projer@ stehen also **zwei** gleichnamige Einträge, am Namen nicht unterscheidbar. Beide tragen `gmail.send`, also auch am Scope nicht. **Lösung:** beide entfernen (Client ③ ist in Schritt 36 ohnehin dran), danach beide Playground-Durchläufe (Teil D mit F, Teil E mit G). **Nicht** anfassen: «Finanzapp Kontakte» (Client ②, erst Schritt 49).
 29. https://developers.google.com/oauthplayground → Zahnrad → Haken «Use your own OAuth credentials» → Client ID `1040401919292-cev05kfl51rq152du8frk0b50562hcgr.apps.googleusercontent.com` + Secret F → schliessen.
 30. Step 1, Feld «Input your own scopes»: `https://www.googleapis.com/auth/gmail.send` → «Authorize APIs».
 31. Konto **sbs.projer@** wählen → bei App-Warnung: «Erweitert» → fortfahren → Zulassen.
