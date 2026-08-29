@@ -1,5 +1,16 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
+## 🔴 OFFEN 29.08.: Google-OAuth-Secret ungültig — Kalender-Sync steht, Mailversand möglicherweise auch
+
+**Befund (Screenshot Daniel 29.08.):** «Jetzt abgleichen» wirft `502 — The provided client secret is invalid`. Das ist die wörtliche Google-Antwort beim Token-Refresh in [google-calendar-sync](supabase/functions/) (`GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET` aus den Supabase-Secrets): **Das Secret in Supabase passt nicht mehr zum Google-Client.** Letzter erfolgreicher Abgleich 27.08. 00:58 — der Bruch liegt also zwischen 27.08. früh und 28.08. Verdächtige Nähe: Am 27.08. stand die Prüfung der OAuth-App in der Google Cloud Console auf der Liste (Testing vs. Produktion) — ein dort erzeugtes neues Secret (altes wird dabei ungültig) erzeugt exakt dieses Bild.
+
+**Betroffen (gleiches Secret-Paar):** Kalender-Sync, Kontakte-Sync, OAuth-Reconnect (`google-oauth-exchange` — auch Trennen/Neu-verbinden scheitert, bis das Secret stimmt). **Gute Nachricht:** «secret is invalid» heisst, der Client selbst existiert noch — der Refresh-Token bleibt gültig, nach dem Secret-Fix ist KEIN Neu-Verbinden nötig.
+
+- [ ] **Daniel — Google Cloud Console** (*APIs & Dienste → Anmeldedaten → OAuth-Client*): Wurde am 27./28.08. ein neues Client-Secret erzeugt oder das alte deaktiviert? Den **aktuell gültigen** Secret-Wert besorgen (wird nur bei Erstellung angezeigt — falls nicht mehr greifbar: neues Secret erstellen).
+- [ ] **Daniel — Supabase-Dashboard** (*Edge Functions → Secrets*): `GOOGLE_OAUTH_CLIENT_SECRET` auf den gültigen Wert setzen. Danach in der App «Jetzt abgleichen» → muss durchlaufen.
+- [ ] **Daniel — gleicher Client auch für Gmail?** Falls der Rechnungsversand-Client derselbe ist (oder dort ebenfalls ein Secret zurückgesetzt wurde), bricht auch `send-rechnung-mail` → dann `GMAIL_CLIENT_SECRET` ebenfalls aktualisieren. Letzter belegter Mail-Erfolg: 27.08. 09:17 (Hugos) — **vor** dem Bruchfenster, sagt also nichts. **Vor dem nächsten echten Rechnungsversand testen** (Testmodus-Mail an dich selbst genügt).
+- [ ] Alle aktualisierten Werte **in den Passwortmanager** (Merkposten vom 27.08. — der fehlende Rückweg ist genau jetzt das Problem).
+
 ## 🗺️ FAHRPLAN Grossvorhaben 6/7/8 (Kartierung 13.08.2026, 3 Agenten)
 
 **6 — Google-Kalender × Tourenplan: ✅ ENTSCHIEDEN 14.08. (Daniel) — KEINE Tagestouren im Kalender.**
