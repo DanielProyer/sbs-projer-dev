@@ -47,7 +47,13 @@ Entscheidungen dazu:
 
 Geschäftliche Kontakte von dani.proyer@ nach sbs.projer@ übertragen. Rein auf Google-Seite, keine Code- oder OAuth-Arbeit.
 
-**Offen und vor Beginn zu klären:** Wie werden geschäftliche Kontakte von privaten unterschieden? Kandidaten: Label/Gruppe in Google Kontakte, Abgleich gegen die `betriebe`-Tabelle (Name/Telefon/Adresse), oder manuelle Durchsicht. Vor dem Umzug erst **zählen**, wie viele Kontakte in beiden Konten liegen und wie stark sie sich überschneiden — Entscheid auf Zahlen, nicht auf Gefühl.
+**Die Unterscheidung ist bereits gelöst** (Befund der Heineken-Session, 29.08.): In dani.proyer@ existiert die Google-Kontakte-Gruppe **«Geschäftlich» mit 731 Kontakten**. Sie ist die Lesequelle von Heinekens `kontakte-google` — der Weg `konto=dani` ist dort ausdrücklich **nur lesend** angelegt, `konto=sbs` liest und schreibt. Es braucht also keine Heuristik und keinen Abgleich gegen `betriebe`: Die Gruppe ist die Definition.
+
+⚠️ **Diese 731 Kontakte sind bei Heineken noch nie angekommen** — gemessen am 29.08.: Staging-Tabelle `kontakt_uebernahme` = 0, `kontakt_person` mit `google_resource_name` = 0, `kontakt_person` gesamt 117 (aus altapp_import, altapp_nachzug, feld_diktat). Die Übernahme stand seit der Einrichtung als nächster Schritt aus und wurde durch den Ausfall vom 27.08. zusätzlich blockiert.
+
+**Daraus folgt die eigentliche Abhängigkeit, schärfer als zunächst formuliert:** `konto=dani` abzuklemmen heisst, Heineken die Lesequelle der Geschäftskontakte zu nehmen. Das ist nur zulässig, **nachdem** die 731 im Geschäftskonto liegen. Vorhaben ① ist damit nicht nur Vorbedingung für ③, sondern für den Umbau insgesamt.
+
+**Vorschlag der Heineken-Session, Entscheid liegt bei Daniel (offen, Stand 29.08.):** Die 731 vor dem Umzug einmal per `uebernahme_lesen` ins Staging lesen — rein lesend, ändert bei Google nichts. Begründung: (a) der Umzug wird prüfbar (731 vorher, 731 nachher, statt der Annahme, dass unterwegs nichts verlorengeht), (b) es gibt sonst keine zweite Kopie — die Alt-App kennt diese Kontakte nicht. **Nicht freigegeben, weil es 731 Kontakte aus Daniels privatem Konto in die Heineken-Datenbank schreibt** — diese Entscheidung gehört ihm, nicht der SBS-Session. Kein Zeitdruck: Der `konto=dani`-Zugang bleibt bis Vorhaben ② bestehen.
 
 ### ② OAuth-Entflechtung
 
