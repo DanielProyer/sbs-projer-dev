@@ -49,14 +49,32 @@ Geschäftliche Kontakte von dani.proyer@ nach sbs.projer@ übertragen. Rein auf 
 
 In dani.proyer@ existiert die Google-Kontakte-Gruppe **«Geschäftlich»** (`contactGroups/262e77bb0a96051d`). Sie ist die Lesequelle von Heinekens `kontakte-google` — der Weg `konto=dani` ist dort ausdrücklich **nur lesend** angelegt, `konto=sbs` liest und schreibt.
 
-🔴 **Die Gruppe hat 88 Mitglieder, nicht 731** (Staging-Lauf 29.08., fehlerfrei: 88 gelesen, 88 gespeichert). Die Zahl 731 stand im Kopf von Heinekens Function und in deren Einrichtungsanleitung — **sie war nie die Gruppengrösse.** Vermutlich ist es die Gesamtzahl der Kontakte im Konto, belegt ist das nicht. Weitere Gruppen im Konto: Familie 11 · Juma 4 · Bekannte 14 · Privat 45 · **Geschäftlich 88** · «SBS Event» und «Importiert am 15.12.24» (beide ohne Mitgliederzahl).
+🔴 **Die Gruppe «Geschäftlich» ist nur EINE von fünf geschäftlichen Gruppen — und die zweitgrösste, nicht die grösste.** Vollständige Messung der Heineken-Session am 29.08. abends (rein lesend über `kontakte-google`, Aktion «gruppen», Geheimnis blieb im Vault):
 
-**Damit ist die Definitionsfrage wieder offen — und dringlicher als zuvor.** Sie lautet nicht mehr «ist die Gruppe vollständig», sondern: **Was ist mit den übrigen Kontakten?** Bei 88 von möglicherweise 731 wäre «die geschäftlichen Kontakte umziehen» eine ganz andere Aussage, je nachdem ob die restlichen ~640 privat sind oder bloss nie einsortiert wurden.
+| Geschäftlich | | Privat | |
+|---|---|---|---|
+| **SBS App** | 307 | Privat | 45 |
+| **Geschäftlich** | 88 | Freunde | 15 |
+| **SBS Kunden** | 25 | Bekannte | 14 |
+| **SBS Heineken** | 19 | Familie | 11 |
+| **Gampel 2026** | 1 | Juma | 4 |
+| SBS Event, SIM | ohne Zahl | Mexiko, Studium | je 1 |
+| **Summe** | **~440** | **Summe** | **91** |
 
-**Vor dem Umzug zu klären, in dieser Reihenfolge:**
-1. **Gesamtzahl der Kontakte im Konto** feststellen — bestätigt oder widerlegt die 731-Vermutung.
-2. **Stichprobe ausserhalb der Gruppe:** Kontakte mit Firmen-Mailadresse oder Firmennamen, die nicht in «Geschäftlich» stehen. Das entscheidet, ob die Gruppe als Definition taugt.
-3. Erst danach festlegen, was umzieht.
+**Die 731 ist geklärt:** Sie war nie die Gruppengrösse, sondern die **Gesamtzahl der Kontakte im Konto** — aktuell 768. Der scheinbare Widerspruch «88 statt 731» löst sich damit auf: Die Messung war richtig, die Frage war falsch gestellt.
+
+**Was das für den Umzug heisst:** «Die geschäftlichen Kontakte umziehen» betrifft rund **440 Mitgliedschaften, nicht 88**. Wer nur die Gruppe «Geschäftlich» umzieht, lässt die **307 aus «SBS App»** liegen — und der Umzug würde trotzdem «erfolgreich» melden. Genau die Sorte Fehler, die erst auffällt, wenn jemand einen Kontakt sucht, den es nicht mehr gibt.
+
+⚠️ **Drei Vorbehalte:**
+1. **440 sind Mitgliedschaften, nicht Personen.** Ein Kontakt kann in mehreren Gruppen stehen; die Zahl der tatsächlich umzuziehenden Personen ist kleiner und muss vor dem Umzug ermittelt werden.
+2. **Mindestens ~237 Kontakte stehen in gar keiner Gruppe.** 768 Kontakte im Konto, aber nur 531 Mitgliedschaften insgesamt (und die enthalten Mehrfachnennungen, der echte Rest ist also grösser). Für diese Kontakte gibt es **keine** Zuordnung geschäftlich/privat — sie sind der eigentlich offene Posten.
+3. **Welche Gruppen mitkommen, entscheidet Daniel.** Es sind Daten aus seinem privaten Konto; «SBS App» klingt nach App-Bestand, «SIM» und «SBS Event» sind ohne Prüfung nicht einzuordnen.
+
+**Vor dem Umzug zu klären:**
+1. **Welche Gruppen ziehen um?** Entscheid Daniel, Gruppe für Gruppe.
+2. **Wie viele Personen sind das?** Mitgliedschaften entdoppeln.
+3. **Was geschieht mit den ~237 Kontakten ohne Gruppe?** Stichprobe auf Firmen-Mailadressen und Firmennamen — das ist der Rest, für den es keine Definition gibt.
+4. Erst danach festlegen, was umzieht.
 
 ⚠️ **Bei Heineken angekommen war vorher nichts** — gemessen am 29.08. vor dem Lauf: `kontakt_uebernahme` = 0, `kontakt_person` mit `google_resource_name` = 0, `kontakt_person` gesamt 117 (aus altapp_import, altapp_nachzug, feld_diktat). Seit dem Staging-Lauf liegen dort 88.
 
@@ -64,7 +82,7 @@ In dani.proyer@ existiert die Google-Kontakte-Gruppe **«Geschäftlich»** (`con
 
 ⚠️ **Vorbehalt zur Definition (Heineken-Session, 29.08.):** Die Gruppe «Geschäftlich» ist die beste verfügbare Definition, aber sie wird **von Hand gepflegt**. Ein geschäftlicher Kontakt, der nie in die Gruppe einsortiert wurde, bleibt beim Umzug liegen und fehlt danach **still** — niemand bemerkt einen Kontakt, der nicht da ist. **Deshalb vor dem Umzug eine Stichprobe:** Kontakte mit einer Firmen-Mailadresse oder einem Firmennamen **ausserhalb** der Gruppe suchen. Findet sich nichts, ist die Gruppe belastbar; findet sich etwas, wird nachsortiert, bevor irgendetwas umzieht.
 
-**Vorher-Zahl steht: 88.** Aus Heinekens Staging-Lauf vom 29.08. (88 Mitglieder gelesen, 88 gespeichert, keine Fehler). Nach dem Umzug müssen im Geschäftskonto 88 Kontakte aus dieser Gruppe ankommen — jede Abweichung ist vor dem Weitermachen zu klären.
+**Vorher-Zahlen stehen** (Messungen 29.08., nicht geschätzt): Gruppe «Geschäftlich» 88 — davon liegen 88 in Heinekens Staging (gelesen = gespeichert, fehlerfrei). Gesamtbestand des Kontos 768. Gruppengrössen wie in der Tabelle oben. Nach dem Umzug wird gegen die Zahlen der tatsächlich gewählten Gruppen geprüft, nicht gegen eine Gesamtsumme — jede Abweichung ist vor dem Weitermachen zu klären.
 
 **Vorschlag der Heineken-Session, Entscheid liegt bei Daniel (offen, Stand 29.08.):** Die 731 vor dem Umzug einmal per `uebernahme_lesen` ins Staging lesen — rein lesend, ändert bei Google nichts. Begründung: (a) der Umzug wird prüfbar (731 vorher, 731 nachher, statt der Annahme, dass unterwegs nichts verlorengeht), (b) es gibt sonst keine zweite Kopie — die Alt-App kennt diese Kontakte nicht. **Nicht freigegeben, weil es 731 Kontakte aus Daniels privatem Konto in die Heineken-Datenbank schreibt** — diese Entscheidung gehört ihm, nicht der SBS-Session. Kein Zeitdruck: Der `konto=dani`-Zugang bleibt bis Vorhaben ② bestehen.
 
