@@ -53,6 +53,10 @@ Geschäftliche Kontakte von dani.proyer@ nach sbs.projer@ übertragen. Rein auf 
 
 **Daraus folgt die eigentliche Abhängigkeit, schärfer als zunächst formuliert:** `konto=dani` abzuklemmen heisst, Heineken die Lesequelle der Geschäftskontakte zu nehmen. Das ist nur zulässig, **nachdem** die 731 im Geschäftskonto liegen. Vorhaben ① ist damit nicht nur Vorbedingung für ③, sondern für den Umbau insgesamt.
 
+⚠️ **Vorbehalt zur Definition (Heineken-Session, 29.08.):** Die Gruppe «Geschäftlich» ist die beste verfügbare Definition, aber sie wird **von Hand gepflegt**. Ein geschäftlicher Kontakt, der nie in die Gruppe einsortiert wurde, bleibt beim Umzug liegen und fehlt danach **still** — niemand bemerkt einen Kontakt, der nicht da ist. **Deshalb vor dem Umzug eine Stichprobe:** Kontakte mit einer Firmen-Mailadresse oder einem Firmennamen **ausserhalb** der Gruppe suchen. Findet sich nichts, ist die Gruppe belastbar; findet sich etwas, wird nachsortiert, bevor irgendetwas umzieht.
+
+**Vorher-Zahl festhalten:** Vor dem Umzug die Zahl der Kontakte in der Gruppe «Geschäftlich» notieren (erwartet 731). Heineken vergleicht sie gegen ihre Staging-Zahl. Weichen sie ab, ist die Ursache **vor** dem Umzug zu klären, nicht danach.
+
 **Vorschlag der Heineken-Session, Entscheid liegt bei Daniel (offen, Stand 29.08.):** Die 731 vor dem Umzug einmal per `uebernahme_lesen` ins Staging lesen — rein lesend, ändert bei Google nichts. Begründung: (a) der Umzug wird prüfbar (731 vorher, 731 nachher, statt der Annahme, dass unterwegs nichts verlorengeht), (b) es gibt sonst keine zweite Kopie — die Alt-App kennt diese Kontakte nicht. **Nicht freigegeben, weil es 731 Kontakte aus Daniels privatem Konto in die Heineken-Datenbank schreibt** — diese Entscheidung gehört ihm, nicht der SBS-Session. Kein Zeitdruck: Der `konto=dani`-Zugang bleibt bis Vorhaben ② bestehen.
 
 ### ② OAuth-Entflechtung
