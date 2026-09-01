@@ -4,7 +4,8 @@
 
 **Alle 6 Abrechnungen eingereicht 01.09. 13:20–13:34** (PDFs in `00_Rechnungen/02_MWST Abrechnung/`, alle gegen das Journal verifiziert, durchgehend BRUTTO — der 2025er-Fehler ist damit vollständig bereinigt). **Saldierung Q1/25–Q2/26 gebucht** (18 Zeilen nach 2024er-Muster, Belegnr 251/252/253, Quartalsende-Datum): alle 4 Salden treffen die Prognose exakt — **2202 = +7'234.63** (offene MWST-Schuld, erstmals seit 2025 wieder aussagekräftig), 2200 = 4'362.24, 1170 = 544.49, 1171 = 251.24 (je laufendes Q3/26 + bekannte Altlast).
 
-- [ ] **Daniel: 2026er ZAHLEN** — Q1 **3'885.01** (Ref RF81K8QT0012026553602) + Q2 **2'293.00** (Ref RF64K8QT0022026885405) = 6'178.01; QR-Zahlteile in den PDFs. Verzugszins läuft (Valuta 30.05. bzw. 30.08.).
+- [x] ~~2026er zahlen~~ **AUSGELÖST 01.09. im E-Banking** (Q1 3'885.01 + Q2 2'293.00 = 6'178.01).
+- [ ] **Nächster camt-Import — Erwartungsliste:** 2× ESTV (3'885.01 Ref K8QT0012026 · 2'293.00 Ref K8QT0022026, Belastung ~02.09.) → `2202 an 1020` · 3× Franchise 3'772.70 (Juni ~Anfang Aug · Juli+Aug Belastung ~02.09.) → Belege in `08_Franchise/` verknüpfen.
 - [ ] **2025er-Korrekturen NICHT zahlen** — kein Zahlteil; die ESTV prüft und schickt die Zahlungsinfos per Post (~1'507 Differenz). Wenn die Rechnung kommt: zahlen, camt bucht `2202 an 1020`.
 - [ ] **Altlast-Differenz −450.61** auf 2202 (real offen 7'685.24 vs. Saldo 7'234.63): stammt aus der Zeit vor 2025 (2024er-Einschätzungen etc.) → gehört zur beschlossenen **Altsalden-Aufsetzkorrektur per 31.12.2025** (Historik-Restpaket b), dort miterledigen.
 
