@@ -18,7 +18,7 @@
 - **Beim Import** (Bestätigen-Schritt, VOR jeder Buchung): «✓ Anschluss lückenlos: Anfangssaldo X = Journal» oder rote Warnung mit Differenz; dazu Lücken-Warnung, wenn zwischen zwei Exporten ganze Tage fehlen (Überlappung ist ok — Import ist über tx_keys idempotent). **Damit ist der Exportzeitpunkt egal:** stimmt der Anfangssaldo, fehlt nichts.
 - **Dauerhaft** (Karte im Buchhaltungs-Dashboard): Journal 1020 vs. letzter Bank-Schlusssaldo + Soll-Überhänge auf 2000/2002/2202/227x. Grün = alles im Lot; rot mit konkretem Text. Aktualisiert sich mit jeder Buchung.
 - Migration 180 (`camt_dateien.anfangssaldo/schlusssaldo`, Nachtrag für den 01.09.-Export), `BuchungService.bankSaldoPer()`, `BankWaechter` pure mit 12 Tests. Der Wächter **informiert nur, blockiert nie**. 1212 Tests grün.
-- ⚠️ Visuell ungeprüft (Login nur bei Daniel) — beim nächsten camt-Import anschauen: Karte im Dashboard (dürfte aktuell **rot** sein wegen 2002 −3'500) + grüner Kasten im Import-Schritt.
+- ✓ **Visuell bestätigt (Daniel, 01.09.):** Dashboard-Karte rendert rot mit «2002 im Soll», exakt wie vorhergesagt. Offen bleibt nur der Import-Kasten (zeigt sich beim nächsten camt-Upload).
 - [ ] **Papierstapel seit Juni erfassen:** alle herumliegenden Lieferantenrechnungen (offen wie bezahlt) über Eingangsrechnungen-Upload — Betriebsregel ab jetzt: jede eintreffende Rechnung sofort in die App
 
 ## 🟢 ERLEDIGT 01.09.: MWST komplett — Q1+Q2/2026 + 4 Korrekturen 2025 eingereicht, Saldierung Q1/25–Q2/26 gebucht
