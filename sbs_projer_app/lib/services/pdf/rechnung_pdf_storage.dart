@@ -21,6 +21,23 @@ class RechnungPdfStorage {
         );
   }
 
+  /// Liegt das Rechnungs-PDF wirklich im Storage?
+  ///
+  /// Bewusst am Storage geprüft und nicht an `pdf_url` in der Datenbank: Am
+  /// 01.09.2026 brach ein Upload ab, während die Rechnung selbst angelegt war.
+  /// Nur die Ablage weiss, ob die Datei existiert — die DB kennt bestenfalls
+  /// eine alte Signatur.
+  static Future<bool> existiert(String rechnungId) async {
+    try {
+      final eintraege = await SupabaseService.client.storage
+          .from(_bucket)
+          .list(path: '$_userId/$rechnungId');
+      return eintraege.any((f) => f.name == 'rechnung.pdf');
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Signed URL für das PDF (1 Stunde gültig)
   static Future<String> getSignedUrl(String rechnungId) async {
     final path = '$_userId/$rechnungId/rechnung.pdf';

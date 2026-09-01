@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
@@ -118,20 +119,53 @@ class RechnungService {
       final createdPositionen =
           await RechnungsPositionRepository.createAll(positionen);
 
-      // 5. Rechnungsadresse laden
+      // 5.–7. PDF erzeugen und ablegen. Schlägt das fehl, bleibt die Rechnung
+      // trotzdem bestehen — sie ist der Geschäftsvorfall, das PDF nur seine
+      // Darstellung. Der Aufrufer erfährt es über `pdfErzeugenUndAblegen`
+      // bzw. beim nächsten Nachholen (siehe RechnungNachholPlan).
+      await pdfErzeugenUndAblegen(
+        rechnung,
+        betrieb,
+        positionen: createdPositionen,
+      );
+
+      debugPrint('Rechnung $rechnungsnummer erstellt');
+      return rechnung;
+    } catch (e) {
+      debugPrint('RechnungService.createFromReinigung fehlgeschlagen: $e');
+      rethrow;
+    }
+  }
+
+  /// Erzeugt das Rechnungs-PDF, legt es im Storage ab und setzt `pdf_url`.
+  ///
+  /// **Wirft bewusst nicht.** Ein abgebrochener Upload darf weder die Rechnung
+  /// noch die Buchung noch den Übergabevermerk am Tresen verhindern — genau
+  /// das passierte am 01.09.2026: Die Rechnung stand, die Buchung stand, aber
+  /// weil der Upload eine Exception warf, blieb `uebergeben_am` leer.
+  ///
+  /// Gibt zurück, ob das PDF danach vorliegt.
+  static Future<bool> pdfErzeugenUndAblegen(
+    Rechnung rechnung,
+    BetriebLocal betrieb, {
+    List<RechnungsPosition>? positionen,
+  }) async {
+    try {
+      final pos = positionen ??
+          await RechnungsPositionRepository.getByRechnung(rechnung.id);
+
       BetriebRechnungsadresse? ra;
       final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
           betrieb.serverId ?? betrieb.routeId);
       if (raLocal != null) {
         ra = BetriebRechnungsadresseMapper.toDto(raLocal,
-          betriebId: betrieb.serverId ?? '');
+            betriebId: betrieb.serverId ?? '');
       }
 
-      // 6. PDF generieren und hochladen
       final geschaeft = await GeschaeftRepository.get();
       final pdfBytes = await RechnungPdfService.generate(
         rechnung: rechnung,
-        positionen: createdPositionen,
+        positionen: pos,
         betrieb: betrieb,
         rechnungsadresse: ra,
         firmaName: geschaeft.firma,
@@ -141,15 +175,12 @@ class RechnungService {
       );
       await RechnungPdfStorage.uploadPdf(rechnung.id, pdfBytes);
 
-      // 7. pdf_url setzen
       final signedUrl = await RechnungPdfStorage.getSignedUrl(rechnung.id);
       await RechnungRepository.update(rechnung.id, {'pdf_url': signedUrl});
-
-      debugPrint('Rechnung $rechnungsnummer erstellt');
-      return rechnung;
+      return true;
     } catch (e) {
-      debugPrint('RechnungService.createFromReinigung fehlgeschlagen: $e');
-      rethrow;
+      debugPrint('[Rechnung-PDF] Ablage fehlgeschlagen (${rechnung.id}): $e');
+      return false;
     }
   }
 

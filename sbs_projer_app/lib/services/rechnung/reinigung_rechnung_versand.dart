@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
+import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -31,6 +33,10 @@ class ReinigungVersandErgebnis {
   /// Menschenlesbare Erfolgsmeldung.
   final String meldung;
 
+  /// Das Rechnungs-PDF liegt NICHT im Storage. Der Geschäftsvorfall ist
+  /// trotzdem erfasst — aber der Beleg fehlt und muss nachgezogen werden.
+  final bool pdfFehlt;
+
   const ReinigungVersandErgebnis({
     required this.rechnungErstellt,
     required this.warVorhanden,
@@ -38,7 +44,20 @@ class ReinigungVersandErgebnis {
     required this.empfaenger,
     required this.keineKundenadresse,
     required this.meldung,
+    this.pdfFehlt = false,
   });
+
+  /// Dasselbe Ergebnis, aber mit dem Hinweis auf das fehlende PDF in der
+  /// Meldung. Eine Erfolgsmeldung darf nicht verschweigen, was fehlt.
+  ReinigungVersandErgebnis mitPdfHinweis() => ReinigungVersandErgebnis(
+        rechnungErstellt: rechnungErstellt,
+        warVorhanden: warVorhanden,
+        mailGesendet: mailGesendet,
+        empfaenger: empfaenger,
+        keineKundenadresse: keineKundenadresse,
+        meldung: RechnungNachholPlan.pdfFehltMeldung(meldung),
+        pdfFehlt: true,
+      );
 }
 
 /// Erstellt (falls nötig) die Kundenrechnung zu einer abgeschlossenen Reinigung
@@ -50,6 +69,13 @@ class ReinigungVersandErgebnis {
 /// Exception abfangen und dem Nutzer sichtbar melden. Es wird bewusst NICHT
 /// still verschluckt.
 class ReinigungRechnungVersand {
+  /// Hängt den Hinweis auf ein fehlendes PDF an, sonst unverändert.
+  static ReinigungVersandErgebnis _mitPdfStand(
+    ReinigungVersandErgebnis e,
+    bool pdfFehlt,
+  ) =>
+      pdfFehlt ? e.mitPdfHinweis() : e;
+
   /// Erstellt die Rechnung falls noch keine existiert und versendet sie.
   static Future<ReinigungVersandErgebnis> erstelleUndSende(
     ReinigungLocal r,
@@ -67,8 +93,20 @@ class ReinigungRechnungVersand {
     }
     final warVorhanden = rechnung != null;
 
-    // 2. Neu erstellen wenn nötig (erzeugt auch das PDF im Storage)
-    rechnung ??= await RechnungService.createFromReinigung(r, betrieb);
+    // 2. Fehlendes ergänzen. «Vorhanden» heisst NICHT «vollständig»: Am
+    //    01.09.2026 stand die Rechnung, aber das PDF fehlte, weil der Upload
+    //    abgebrochen war — und weil dieser Weg die Erstellung übersprang,
+    //    wurde das PDF nie nachgezogen. Gemeldet wurde trotzdem Erfolg.
+    //    Deshalb wird die Ablage gefragt, nicht die Datenbank.
+    final plan = RechnungNachholPlan.fuer(
+      rechnungVorhanden: warVorhanden,
+      pdfVorhanden:
+          warVorhanden && await RechnungPdfStorage.existiert(rechnung.id),
+    );
+
+    if (plan.rechnungErstellen) {
+      rechnung = await RechnungService.createFromReinigung(r, betrieb);
+    }
     if (rechnung == null) {
       return const ReinigungVersandErgebnis(
         rechnungErstellt: false,
@@ -80,6 +118,17 @@ class ReinigungRechnungVersand {
             'Für diese Reinigung wird keine Rechnung erstellt (Kulanz/Heineken '
             'oder keine Rechnungs-Verrechnungsart).',
       );
+    }
+
+    // 2b. PDF sicherstellen. Auch beim Erstellen kann die Ablage scheitern —
+    //     `pdfErzeugenUndAblegen` wirft bewusst nicht, damit ein abgebrochener
+    //     Upload weder Buchung noch Übergabevermerk verhindert.
+    var pdfFehlt = false;
+    if (plan.rechnungErstellen) {
+      pdfFehlt = !await RechnungPdfStorage.existiert(rechnung.id);
+    } else if (plan.pdfNachziehen) {
+      pdfFehlt =
+          !await RechnungService.pdfErzeugenUndAblegen(rechnung, betrieb);
     }
 
     // 3. Versand je nach Rechnungsstellung
@@ -142,16 +191,19 @@ class ReinigungRechnungVersand {
         });
       }
 
-      return ReinigungVersandErgebnis(
-        rechnungErstellt: !warVorhanden,
-        warVorhanden: warVorhanden,
-        mailGesendet: true,
-        empfaenger: empfaenger,
-        keineKundenadresse: keineKundenadresse,
-        meldung: keineKundenadresse
-            ? 'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
-                  'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.'
-            : 'Rechnung per Mail versendet an $empfaenger',
+      return _mitPdfStand(
+        ReinigungVersandErgebnis(
+          rechnungErstellt: !warVorhanden,
+          warVorhanden: warVorhanden,
+          mailGesendet: true,
+          empfaenger: empfaenger,
+          keineKundenadresse: keineKundenadresse,
+          meldung: keineKundenadresse
+              ? 'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
+                    'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.'
+              : 'Rechnung per Mail versendet an $empfaenger',
+        ),
+        pdfFehlt,
       );
     }
 
@@ -179,14 +231,17 @@ class ReinigungRechnungVersand {
         'versendet_am': DateTime.now().toIso8601String().split('T').first,
       });
 
-      return ReinigungVersandErgebnis(
-        rechnungErstellt: !warVorhanden,
-        warVorhanden: warVorhanden,
-        mailGesendet: true,
-        empfaenger: MailConfig.testEmpfaenger,
-        keineKundenadresse: false,
-        meldung:
-            'Rechnung zum Postversand an ${MailConfig.testEmpfaenger} gemailt',
+      return _mitPdfStand(
+        ReinigungVersandErgebnis(
+          rechnungErstellt: !warVorhanden,
+          warVorhanden: warVorhanden,
+          mailGesendet: true,
+          empfaenger: MailConfig.testEmpfaenger,
+          keineKundenadresse: false,
+          meldung:
+              'Rechnung zum Postversand an ${MailConfig.testEmpfaenger} gemailt',
+        ),
+        pdfFehlt,
       );
     }
 
@@ -198,25 +253,31 @@ class ReinigungRechnungVersand {
       await RechnungRepository.update(rechnung.id, {
         'uebergeben_am': DateTime.now().toIso8601String().split('T').first,
       });
-      return ReinigungVersandErgebnis(
-        rechnungErstellt: !warVorhanden,
-        warVorhanden: warVorhanden,
-        mailGesendet: false,
-        empfaenger: null,
-        keineKundenadresse: false,
-        meldung: 'Rechnung erstellt — Übergabe am Tresen.',
+      return _mitPdfStand(
+        ReinigungVersandErgebnis(
+          rechnungErstellt: !warVorhanden,
+          warVorhanden: warVorhanden,
+          mailGesendet: false,
+          empfaenger: null,
+          keineKundenadresse: false,
+          meldung: 'Rechnung erstellt — Übergabe am Tresen.',
+        ),
+        pdfFehlt,
       );
     }
 
     // Andere Verrechnungsarten: Rechnung erstellt, aber kein automatischer
     // Mailversand.
-    return ReinigungVersandErgebnis(
-      rechnungErstellt: !warVorhanden,
-      warVorhanden: warVorhanden,
-      mailGesendet: false,
-      empfaenger: null,
-      keineKundenadresse: false,
-      meldung: 'Rechnung erstellt (Verrechnungsart „$rs" — kein Mailversand).',
+    return _mitPdfStand(
+      ReinigungVersandErgebnis(
+        rechnungErstellt: !warVorhanden,
+        warVorhanden: warVorhanden,
+        mailGesendet: false,
+        empfaenger: null,
+        keineKundenadresse: false,
+        meldung: 'Rechnung erstellt (Verrechnungsart „$rs" — kein Mailversand).',
+      ),
+      pdfFehlt,
     );
   }
 

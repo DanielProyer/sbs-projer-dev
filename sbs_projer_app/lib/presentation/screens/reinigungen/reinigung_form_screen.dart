@@ -18,7 +18,9 @@ import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
+import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
 import 'package:sbs_projer_app/core/util/service_schalter.dart';
+import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -770,6 +772,28 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               r,
               betrieb,
             );
+
+            // Die PDF-Ablage wirft bewusst nicht (Vorfall 01.09.2026: ein
+            // abgebrochener Upload liess Übergabevermerk und Mailversand
+            // ausfallen, obwohl Rechnung und Buchung standen). Sie darf aber
+            // auch nicht stillschweigend fehlen — deshalb hier gemeldet.
+            if (rechnung != null &&
+                !await RechnungPdfStorage.existiert(rechnung.id)) {
+              debugPrint('[Rechnung-PDF] fehlt nach dem Erstellen: ${rechnung.id}');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.warning,
+                    content: Text(
+                      RechnungNachholPlan.pdfFehltMeldung(
+                          'Rechnung ${rechnung.rechnungsnummer} erstellt.'),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    duration: const Duration(seconds: 10),
+                  ),
+                );
+              }
+            }
 
             // Mail versenden wenn rechnung_mail
             if (rechnung != null && zahlungsart == 'rechnung_mail') {
