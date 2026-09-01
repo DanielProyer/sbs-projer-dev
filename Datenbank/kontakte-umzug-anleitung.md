@@ -15,7 +15,7 @@ Alle Entscheide gefällt. Der Umzug selbst ist Daniels Handarbeit in Google Kont
 | 🔴 Privat-Labels | **weiterhin ALLE SIEBEN** | Privat 45 · Freunde 15 · Bekannte 14 · Familie 11 · Juma 4 · Mexiko 1 · Studium 1 — die beabsichtigte Konsolidierung auf «Privat» ist bei Google NICHT angekommen; Lösch-Schritt deckt alle sieben ab |
 | Überlappung Umzügler ∩ Privat-Labels | **2** | Tino Hassler (Privat, Freunde + SBS Heineken) · «Steven (Privat) - Engadin» (Bekannte + Geschäftlich) |
 | Zielkonto sbs.projer@ vorher | **3** | Heineken Urs · Naella. · Your — kein Treffer in den 723, keine Duplikate |
-| **Nachher-Soll Zielkonto** | **726** | = 3 + 723; keine Zusammenführungen nötig |
+| **Nachher-Soll Zielkonto** | **725** | = 3 + 723 − 1: Daniel hat beim Import versehentlich «Beat Jörg» + «Heineken - Beat Jörg - RSL» zusammengeführt — **geprüft und korrekt** (gleiche Nummer +41 79 458 71 49, gleiche Mail, Gegenprobe über alle 723: kein Dritter teilt die Nummer). Bei der Verifikation matchen also ZWEI Staging-Zeilen auf EINEN Kontakt — erklärt und ok |
 
 Leere Gruppen (gemessen): «SBS Event», «SIM», «Importiert am 15.12.24» — enthalten keinen einzigen Kontakt, spielen keine Rolle.
 
@@ -37,14 +37,14 @@ Danach kurz prüfen: Gesamtzahl = 3 + 767 = **770**. Falls Google «Zusammenfüh
 3. Zum Schluss die sieben Privat-Labels selbst löschen (leer, gehören nicht ins Geschäftskonto).
 
 **Schritt 4 — Verifikation (Heineken-Session, rein lesend):**
-Zielkonto lesen: Soll = **exakt 726**. Abgleich gegen die 723 Staging-Zeilen (Name/Nummer/Mail). Jede Abweichung wird geklärt, **bevor** irgendetwas gelöscht wird.
+Zielkonto lesen: Soll = **exakt 725**. Abgleich gegen die 723 Staging-Zeilen (Name/Nummer/Mail) — die beiden Beat-Jörg-Zeilen matchen auf EINEN Kontakt (geprüft, ok). Jede andere Abweichung wird geklärt, **bevor** irgendetwas gelöscht wird.
 
 **Schritt 5 — erst nach Grün: Quellkonto aufräumen (dani.proyer@):**
 Die 723 Umzügler löschen; die 44 Privaten (inkl. Reto Baumann) bleiben. Kein Zeitdruck — bis dahin funktioniert Heinekens `konto=dani`-Lesequelle unverändert weiter. (Das Abklemmen von `konto=dani` selbst ist Vorhaben ③, Schritt 5.)
 
 ## Danach (separat, blockiert nichts)
 
-- **Daniels Komplett-Durchsicht** direkt in Google Kontakte unter sbs.projer@ (Web oder Pixel-App): behalten/löschen, umbenennen, Label zuweisen. Kniff: Label «Geprüft» anlegen und anhängen — Fortschritt bleibt messbar (Ziel: Anzahl «Geprüft» = Bestand). Merkposten aus den Messungen: «Steven (Privat) - Engadin» einordnen (heisst «Privat», steht in «Geschäftlich») · 4 Kontakte mit U+2010-Bindestrich vereinheitlichen («Chur ‐ Italy», «Davos ‐ Montana Stube», «Grüsch ‐ Fasan», «Laax ‐ Indy») · Combox und der namenlose Kontakt: löschen oder klären · «Maria Roth Haus Maladerd (Sie)», «Forstamt Arosa Claudio Färber», «Sonnenbräu Monteur» einordnen · **«Naella.»** = Eventmanagerin Heineken und **«Your»** = Daniels eigene Nummer (geklärt 01.09.) — bei der Durchsicht sauber benennen/labeln; «Heineken Urs» = Heineken-Vertreter, bleibt · **«Steven Engadin» + «Steven (Privat) - Engadin»** — mutmasslich dieselbe Person in zwei Zeilen (Befund 02.09.), zusammenführen.
+- **Daniels Komplett-Durchsicht** direkt in Google Kontakte unter sbs.projer@ (Web oder Pixel-App): behalten/löschen, umbenennen, Label zuweisen. Kniff: Label «Geprüft» anlegen und anhängen — Fortschritt bleibt messbar (Ziel: Anzahl «Geprüft» = Bestand). Merkposten aus den Messungen: «Steven (Privat) - Engadin» einordnen (heisst «Privat», steht in «Geschäftlich») · 4 Kontakte mit U+2010-Bindestrich vereinheitlichen («Chur ‐ Italy», «Davos ‐ Montana Stube», «Grüsch ‐ Fasan», «Laax ‐ Indy») · Combox und der namenlose Kontakt: löschen oder klären · «Maria Roth Haus Maladerd (Sie)», «Forstamt Arosa Claudio Färber», «Sonnenbräu Monteur» einordnen · **«Naella.»** = Eventmanagerin Heineken und **«Your»** = Daniels eigene Nummer (geklärt 01.09.) — bei der Durchsicht sauber benennen/labeln; «Heineken Urs» = Heineken-Vertreter, bleibt · **«Steven Engadin» + «Steven (Privat) - Engadin»** — mutmasslich dieselbe Person in zwei Zeilen (Befund 02.09.), zusammenführen · **zusammengeführter Beat Jörg:** Anzeigename «Beat Jörg» behalten, RSL-Rolle in die Notiz — die «Heineken - …»-Präfixe sind die alte Handy-Konvention und auf der Plattform unnötig.
 - Volliste für die Durchsicht liegt strukturiert im Heineken-Staging; bei Bedarf erzeugt die Heineken-Session ein lokales Blatt (bewusst keine Personendaten-Datei im Repo).
 
 ## Regeln (aus dem 29.08.)
