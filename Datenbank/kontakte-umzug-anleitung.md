@@ -1,6 +1,14 @@
 # Kontakte-Umzug dani.proyer@ → sbs.projer@ — Schritt-für-Schritt
 
-**Stand 01.09.2026 spätabends. Vorhaben ① des Entflechtungsplans ([oauth-entflechtung-plan.md](oauth-entflechtung-plan.md)).**
+## ✅ ABGESCHLOSSEN 02.09.2026 — Abschlussmessung GRÜN
+
+**Endstand (Heineken-Nachmessung):** dani.proyer@ = **exakt 46**, alle mit Label «Privat» (Tino Hassler und «Steven (Privat) - Engadin» dabei) · sbs.projer@ = **723**, vollständig verifiziert. Vorhaben ① des Entflechtungsplans ist damit fertig; offen bleibt nur Daniels Komplett-Durchsicht (siehe unten, blockiert nichts).
+
+**Stolperstein für künftige Google-Massenschritte:** Der erste Lösch-Durchgang in Schritt 5c erwischte nur 405 von 766 — **«Alle auswählen» markiert nur die geladene Seite**; erst der zusätzliche blaue Link «Alle N auswählen» erfasst wirklich alles. Aufgefallen nur durch die Nachmessung (UI zeigte in der gefilterten Ansicht scheinbar korrekte 46). Zweiter Durchgang mit «Alle 361 auswählen» + Neuimport der Privat-CSV → sauber.
+
+---
+
+**Ursprünglicher Plan (Stand 01.09.2026 spätabends). Vorhaben ① des Entflechtungsplans ([oauth-entflechtung-plan.md](oauth-entflechtung-plan.md)).**
 Alle Entscheide gefällt. Der Umzug selbst ist Daniels Handarbeit in Google Kontakte — die App-Seiten dürfen keine Anmeldedaten anfassen.
 
 ⚠️ **Daniel hat am 01.09. spätabends — NACH den Messungen — beide Konten aufgeräumt** (Zielkonto von 8 auf 3 reduziert, Reto Baumann ins Privatkonto verschoben, Privat-Labels laut Daniel auf «Privat» konsolidiert). Die Nachmittags-Zahlen sind damit teils veraltet. **Deshalb Schritt 0: unmittelbar vor dem Umzug einmal frisch messen** — erst dann sind die Soll-Zahlen verbindlich.
