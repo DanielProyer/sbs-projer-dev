@@ -35,7 +35,9 @@ Danach kurz prüfen: Gesamtzahl = 3 + 766 = **769**. Falls Google «Zusammenfüh
 **Schritt 3 — Die Privat-KOPIEN im Zielkonto löschen (46 Kontakte: 44 Nur-Private + Tino + Steven-Privat). Nur in sbs.projer@ — das Privatkonto wird nicht angerührt:**
 1. **Vorher:** Im Kontakt «Steven Engadin» (geschäftlich) prüfen, ob die geschäftliche Nummer drinsteht — laut Daniel erledigt (beide Steven-Kontakte haben die richtigen Nummern).
 2. Dann **alle sieben** Privat-Labels nacheinander (Privat, Freunde, Bekannte, Familie, Juma, Mexiko, Studium): Label öffnen → alle Mitglieder auswählen → löschen. Tino Hassler und «Steven (Privat) - Engadin» fliegen dabei **bewusst** mit raus (Entscheid Daniel: beide bleiben privat; ihre Originale bestehen im Privatkonto weiter).
-3. Zum Schluss die sieben Privat-Labels selbst löschen (leer, gehören nicht ins Geschäftskonto).
+3. Zum Schluss die sieben Privat-Labels selbst löschen (leer, gehören nicht ins Geschäftskonto). *Befund 02.09.: «Familie» und «Freunde» lassen sich nicht löschen — alte Google-Systemgruppen (wie «Kollegen»), das ist normal; leer stehen lassen.*
+
+**✅ AUSGEFÜHRT 02.09. (Daniel):** Export 766 → Import → Löschung über die 7 Labels → Zielkonto meldet **exakt 723**. Verifikation bei Heineken angestossen.
 
 **Schritt 4 — Verifikation (Heineken-Session, rein lesend):**
 Zielkonto lesen: Soll = **exakt 723**. Abgleich gegen die 723 Staging-Zeilen (Name/Nummer/Mail) — erwartete, erklärte Abweichungen: zwei Beat-Jörg-Zeilen matchen auf EINEN Kontakt; Tino Hassler und «Steven (Privat) - Engadin» fehlen absichtlich. Jede andere Abweichung wird geklärt, **bevor** irgendetwas gelöscht wird.
