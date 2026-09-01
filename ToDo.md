@@ -8,7 +8,9 @@
 
 **Portal-Werte:** Q1: Ziff. 200 = 59'076.10 · 400 = 258.91 · 405 = 282.69 · Zahllast ≈ 3'886.90 ‖ Q2: 200 = 46'080.07 · 400 = 311.74 · 405 = 848.07 · Zahllast ≈ 2'294.26 ‖ Berichtigung 2025: 200 = **213'571.17 BRUTTO** · Steuer 16'004.41 · VSt 4'600.14 (400: 1'207.86 / 405: 3'392.28) · **Nachzahlung 1'508.62** (Details [mwst-q4-2025-nachreichung.md](docs/mwst-q4-2025-nachreichung.md); Prüfpunkt 307.83-VSt-Belege → dann 1'200.79). **Total ≈ 7'690.**
 
-- [ ] **Daniel: einreichen** (3 Formulare in einem Portalbesuch), danach melden → MWST-Verbindlichkeiten buchen + **Saldierung Q1/25–Q2/26** (2200 sammelt seit Ende 2024; Reihenfolge zwingend: erst einreichen, dann saldieren)
+- [x] ~~Q1+Q2/2026 einreichen~~ **EINGEREICHT 01.09.** (Zahllasten 3'886.90 / 2'294.26).
+- [ ] **Daniel: Berichtigung 2025 — als VIER korrigierte Quartalsabrechnungen** (Portal kennt keine Jahresabstimmung; korrigierte Abrechnung ERSETZT die ursprüngliche → volle Werte eintragen, Ziff. 200 BRUTTO). Werte (200 / 400 / 405 → Nachzahlung): **Q1** 55'149.73 / 398.54 / 848.07 → 244.49 · **Q2** 46'909.47 / 221.31 / 848.07 → 260.43 · **Q3** 64'530.98 / 301.16 / 848.07 → 352.61 · **Q4** 46'980.99 / 286.85 / 848.07 → 651.09. Kontrollsumme = **1'508.62** ✓ (rappengenau). Falls Belege für die 307.83 Mehr-VSt auftauchen: nur Q4 anpassen.
+- [ ] **Danach melden** → MWST-Verbindlichkeiten buchen (2×2026 + 4×2025) + **Saldierung Q1/25–Q2/26** (2200 sammelt seit Ende 2024; Reihenfolge zwingend: erst einreichen, dann saldieren)
 - [ ] **Kreditor 2000 Rest +96.95** klären (nicht Franchise, nicht MWST-relevant)
 - [ ] **Nächster camt-Import:** Juni-Zahlung (lt. Daniel bezahlt) + Juli/Aug (Zahlung 02.09. ausgelöst) kommen als Direktaufwand mit VSt; Belege liegen in `08_Franchise/` bereit → verknüpfen
 
