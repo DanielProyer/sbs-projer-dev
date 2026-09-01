@@ -50,7 +50,17 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
-## 🔴 OFFEN 01.09.: Rechnungs-PDF-Upload abgebrochen — Nachholweg repariert das PDF nicht
+## 🟢 ERLEDIGT 01.09. (v0.94.1, live): Rechnungs-PDF-Upload abgebrochen — Nachholweg repariert das PDF nicht
+
+**Beide Fixes gebaut und deployed** (TDD, 4 Tests zuerst, 1198 grün, analyze unverändert):
+- **Fix 1:** `RechnungNachholPlan` entscheidet aus (rechnungVorhanden, pdfVorhanden). Fehlt das PDF, wird es nachgezogen — **geprüft am Storage, nicht an `pdf_url`** (die DB kennt bestenfalls eine alte Signatur).
+- **Fix 2:** `RechnungService.pdfErzeugenUndAblegen` **wirft nicht mehr**, sondern meldet Erfolg/Misserfolg. Übergabevermerk, Mailversand und Buchung laufen damit auch bei gescheitertem Upload; das fehlende PDF wird benannt (ACHTUNG-Zusatz in der Meldung, Warn-Snackbar im Formular) statt verschwiegen.
+
+- [ ] **Reparatur der Rechnung 2026-09-1400 (Daniel, 1 Klick):** Reinigung Central vom 01.09. öffnen → «Rechnung erstellen» → der Dialog meldet «existiert bereits», erzeugt jetzt aber das fehlende PDF **und** setzt `uebergeben_am`. Danach prüfen: PDF im Rechnungs-Detail sichtbar.
+
+### Vorgeschichte und Befund
+
+## ~~🔴 OFFEN 01.09.: Rechnungs-PDF-Upload abgebrochen — Nachholweg repariert das PDF nicht~~
 
 **Vorfall (Reinigung Central, 01.09. 11:08):** «RECHNUNG/MAIL FEHLGESCHLAGEN: ClientException: Failed to fetch» beim Upload des Rechnungs-PDF. **Ursache soweit belegbar:** Die Anfrage kam am Server an und wurde nach **54 ms abgebrochen** (Storage-Log: `POST | ABORTED REQ`, 23 KB Nutzlast) — kein 403/413/CORS, kein Timeout im Code, kein selbst geschlossener HTTP-Client, **einziger Abbruch in 24 h**. Nachbaranfragen mit 256 KB liefen davor und danach sauber. Bleibt ein einmaliger Verbindungsabbruch auf dem Handy; mehr gibt die Beweislage nicht her.
 
