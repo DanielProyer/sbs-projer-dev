@@ -56,7 +56,7 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 - **Fix 1:** `RechnungNachholPlan` entscheidet aus (rechnungVorhanden, pdfVorhanden). Fehlt das PDF, wird es nachgezogen — **geprüft am Storage, nicht an `pdf_url`** (die DB kennt bestenfalls eine alte Signatur).
 - **Fix 2:** `RechnungService.pdfErzeugenUndAblegen` **wirft nicht mehr**, sondern meldet Erfolg/Misserfolg. Übergabevermerk, Mailversand und Buchung laufen damit auch bei gescheitertem Upload; das fehlende PDF wird benannt (ACHTUNG-Zusatz in der Meldung, Warn-Snackbar im Formular) statt verschwiegen.
 
-- [ ] **Reparatur der Rechnung 2026-09-1400 (Daniel, 1 Klick):** Reinigung Central vom 01.09. öffnen → «Rechnung erstellen» → der Dialog meldet «existiert bereits», erzeugt jetzt aber das fehlende PDF **und** setzt `uebergeben_am`. Danach prüfen: PDF im Rechnungs-Detail sichtbar.
+- [x] ~~**Reparatur der Rechnung 2026-09-1400**~~ **ERLEDIGT 01.09. 12:33** — ein Klick auf «Rechnung erstellen» in der Reinigung Central. Nachgemessen: PDF im Storage (22'786 Bytes, 12:33), `pdf_url` gesetzt, **`uebergeben_am` = 01.09.2026**. Damit sind beide Fixes am echten Datensatz belegt, nicht nur im Test. `zahlungsstatus` bleibt korrekt `offen` (Tresen: wechselt erst mit der Zahlung).
 
 ### Vorgeschichte und Befund
 
