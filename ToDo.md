@@ -1,5 +1,17 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
+## 🟡 IN ARBEIT 01.09.: MWST Q1+Q2/2026 + Berichtigung 2025 — Zahlen stehen, Einreichung offen
+
+**⚠️ Beide Fristen abgelaufen** (Q2: 30.08. · Q1: 31.08. verlängert) — **sofort einreichen**. Verzugszins Q1 läuft ohnehin seit 30.05. Portal-Regel: **Ziffer 200 immer BRUTTO** (der 2025er-Fehler).
+
+**Franchise-Befund beim Zusammenstellen (01.09., gebucht + verifiziert):** Die Heineken-Franchise (mtl. 3'772.70, VSt 282.69: Starterkit 990 + Fee 2'500 + Rundung) wurde bis 31.12.2025 monatlich abgegrenzt; die Zahlung 09.03.2026 tilgte den Kreditor 2000 **ohne Aufbau** → Januar-Aufwand fehlte ganz, VSt 282.69 nirgends geltend gemacht, 2000 stand bei −3'675.75. **Nachbuchung 28.01.2026** (Rg 96 716 146, Soll 6301/Haben 2000, VSt 1170 282.69, Belegnr `190_2026_01_28_FrGe_00377270`) → Q1-Ziff. 405 = 282.69, **2000 = +96.95**. Feb–Mai laufen als Direktaufwand am Zahldatum (VSt in Q2/Q3 — zulässig); alle 4 Buchungen jetzt mit Beleg verknüpft, Zahldaten per Handvermerk auf den Rechnungen **gemessen** (Feb→09.04. · Mär→05.05. · Apr→08.06. · Mai→01.07.). Scans: `00_Rechnungen/08_Franchise/` (Jan–Aug).
+
+**Portal-Werte:** Q1: Ziff. 200 = 59'076.10 · 400 = 258.91 · 405 = 282.69 · Zahllast ≈ 3'886.90 ‖ Q2: 200 = 46'080.07 · 400 = 311.74 · 405 = 848.07 · Zahllast ≈ 2'294.26 ‖ Berichtigung 2025: 200 = **213'571.17 BRUTTO** · Steuer 16'004.41 · VSt 4'600.14 (400: 1'207.86 / 405: 3'392.28) · **Nachzahlung 1'508.62** (Details [mwst-q4-2025-nachreichung.md](docs/mwst-q4-2025-nachreichung.md); Prüfpunkt 307.83-VSt-Belege → dann 1'200.79). **Total ≈ 7'690.**
+
+- [ ] **Daniel: einreichen** (3 Formulare in einem Portalbesuch), danach melden → MWST-Verbindlichkeiten buchen + **Saldierung Q1/25–Q2/26** (2200 sammelt seit Ende 2024; Reihenfolge zwingend: erst einreichen, dann saldieren)
+- [ ] **Kreditor 2000 Rest +96.95** klären (nicht Franchise, nicht MWST-relevant)
+- [ ] **Nächster camt-Import:** Juni-Zahlung (lt. Daniel bezahlt) + Juli/Aug (Zahlung 02.09. ausgelöst) kommen als Direktaufwand mit VSt; Belege liegen in `08_Franchise/` bereit → verknüpfen
+
 ## 🟢 ERLEDIGT 29.08.: Google-OAuth-Komplett-Reset — alle Secrets und Tokens neu, alle Wege gemessen
 
 **Endstand 29.08. ~15:55:** Drei Clients, je genau ein Secret (F/E/G), alle Tokens neu ausgestellt, jeder der fünf Wege einzeln verifiziert — SBS-Kalender, SBS-Gmail, Heineken-Gmail, Heineken-Kontakte ×2, Finanzapp-Kontakte. Neun Passwortmanager-Einträge (3 Secrets, 2 Gmail-Tokens, 2 STATE-Werte, dazu die bestehenden). Koordiniert über drei parallele Claude-Sessions (SBS als Sammelstelle, Heineken und Finanzapp verifizierten ihre Wege selbst). Details unten je Phase; Ablauf-Doku mit allen Korrekturen: [oauth-komplett-reset-anleitung.md](Datenbank/oauth-komplett-reset-anleitung.md).
