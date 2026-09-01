@@ -13,9 +13,9 @@ Alle Entscheide gefällt. Der Umzug selbst ist Daniels Handarbeit in Google Kont
 | Umzugsmenge | **723** | Staging refresht, exakt |
 | Nur-Private (bleiben in dani.proyer@) | **44** | inkl. Reto Baumann (Privat+Familie, sauber angekommen) |
 | 🔴 Privat-Labels | **weiterhin ALLE SIEBEN** | Privat 45 · Freunde 15 · Bekannte 14 · Familie 11 · Juma 4 · Mexiko 1 · Studium 1 — die beabsichtigte Konsolidierung auf «Privat» ist bei Google NICHT angekommen; Lösch-Schritt deckt alle sieben ab |
-| Überlappung Umzügler ∩ Privat-Labels | **2** | Tino Hassler (Privat, Freunde + SBS Heineken) · «Steven (Privat) - Engadin» (Bekannte + Geschäftlich) |
+| Überlappung Umzügler ∩ Privat-Labels | **2 — Entscheid Daniel 02.09.: beide bleiben PRIVAT** | **Tino Hassler** (arbeitet nicht mehr bei Heineken) und **«Steven (Privat) - Engadin»** ziehen NICHT um — sie werden im Zielkonto beim Label-Löschen bewusst mit entfernt und bleiben in dani.proyer@. Stevens geschäftliche Seite deckt der separate Kontakt «Steven Engadin» ab (geschäftliche Nummer dort ergänzen, falls sie fehlt) |
 | Zielkonto sbs.projer@ vorher | **3** | Heineken Urs · Naella. · Your — kein Treffer in den 723, keine Duplikate |
-| **Nachher-Soll Zielkonto** | **725** | = 3 + 723 − 1: Daniel hat beim Import versehentlich «Beat Jörg» + «Heineken - Beat Jörg - RSL» zusammengeführt — **geprüft und korrekt** (gleiche Nummer +41 79 458 71 49, gleiche Mail, Gegenprobe über alle 723: kein Dritter teilt die Nummer). Bei der Verifikation matchen also ZWEI Staging-Zeilen auf EINEN Kontakt — erklärt und ok |
+| **Nachher-Soll Zielkonto** | **723** | = 3 + 723 − 1 (Beat-Jörg-Merge, geprüft korrekt: «Beat Jörg» + «Heineken - Beat Jörg - RSL», gleiche Nummer/Mail, kein Dritter teilt die Nummer) − 2 (Tino, Steven-Privat bleiben privat). Beim Staging-Abgleich fehlen zwei Zeilen absichtlich, zwei Beat-Jörg-Zeilen matchen auf einen Kontakt |
 
 Leere Gruppen (gemessen): «SBS Event», «SIM», «Importiert am 15.12.24» — enthalten keinen einzigen Kontakt, spielen keine Rolle.
 
@@ -31,16 +31,16 @@ Warum alle 767: Die Gruppenlosen lassen sich in der Oberfläche nicht auswählen
 contacts.google.com → «Importieren» → die CSV aus Schritt 1. Labels/Gruppen kommen mit.
 Danach kurz prüfen: Gesamtzahl = 3 + 767 = **770**. Falls Google «Zusammenführen & korrigieren» vorschlägt: **ignorieren** — es gibt keine erwarteten Duplikate, jede Zusammenführung würde die Abgleich-Zahlen verfälschen.
 
-**Schritt 3 — Die 44 Nur-Privaten im Zielkonto löschen:**
-1. **Zuerst die zwei Ausnahmen entschärfen** (NICHT löschen, nur Labels wegnehmen): «Tino Hassler» → Labels Privat + Freunde entfernen (SBS Heineken bleibt). «Steven (Privat) - Engadin» → Label Bekannte entfernen (Geschäftlich bleibt).
-2. Dann **alle sieben** Privat-Labels nacheinander (Privat, Freunde, Bekannte, Familie, Juma, Mexiko, Studium): Label öffnen → alle Mitglieder auswählen → löschen. Durch Schritt 3.1 trifft das garantiert nur die 44 Nur-Privaten.
+**Schritt 3 — Die Privaten im Zielkonto löschen (46 Kontakte: 44 Nur-Private + Tino + Steven-Privat):**
+1. **Vorher:** Im Kontakt «Steven Engadin» (geschäftlich) prüfen, ob die geschäftliche Nummer drinsteht — falls sie nur in «Steven (Privat) - Engadin» steht, jetzt dorthin kopieren.
+2. Dann **alle sieben** Privat-Labels nacheinander (Privat, Freunde, Bekannte, Familie, Juma, Mexiko, Studium): Label öffnen → alle Mitglieder auswählen → löschen. Tino Hassler und «Steven (Privat) - Engadin» fliegen dabei **bewusst** mit raus (Entscheid Daniel: beide bleiben privat).
 3. Zum Schluss die sieben Privat-Labels selbst löschen (leer, gehören nicht ins Geschäftskonto).
 
 **Schritt 4 — Verifikation (Heineken-Session, rein lesend):**
-Zielkonto lesen: Soll = **exakt 725**. Abgleich gegen die 723 Staging-Zeilen (Name/Nummer/Mail) — die beiden Beat-Jörg-Zeilen matchen auf EINEN Kontakt (geprüft, ok). Jede andere Abweichung wird geklärt, **bevor** irgendetwas gelöscht wird.
+Zielkonto lesen: Soll = **exakt 723**. Abgleich gegen die 723 Staging-Zeilen (Name/Nummer/Mail) — erwartete, erklärte Abweichungen: zwei Beat-Jörg-Zeilen matchen auf EINEN Kontakt; Tino Hassler und «Steven (Privat) - Engadin» fehlen absichtlich. Jede andere Abweichung wird geklärt, **bevor** irgendetwas gelöscht wird.
 
 **Schritt 5 — erst nach Grün: Quellkonto aufräumen (dani.proyer@):**
-Die 723 Umzügler löschen; die 44 Privaten (inkl. Reto Baumann) bleiben. Kein Zeitdruck — bis dahin funktioniert Heinekens `konto=dani`-Lesequelle unverändert weiter. (Das Abklemmen von `konto=dani` selbst ist Vorhaben ③, Schritt 5.)
+**Zuerst** Tino Hassler das Label «SBS Heineken» und «Steven (Privat) - Engadin» das Label «Geschäftlich» wegnehmen — beide sind damit reine Privatkontakte und **ausdrücklich vom Löschen ausgenommen**. Dann die übrigen 721 Umzügler löschen; die Privaten (inkl. Reto Baumann, Tino, Steven-Privat) bleiben. Kein Zeitdruck — bis dahin funktioniert Heinekens `konto=dani`-Lesequelle unverändert weiter. (Das Abklemmen von `konto=dani` selbst ist Vorhaben ③, Schritt 5.)
 
 ## Danach (separat, blockiert nichts)
 
