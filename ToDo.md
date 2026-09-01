@@ -50,6 +50,28 @@ ADR-0002 Mandantenmodell beschlossen (31.07.), RLS-Bauplan freigegeben (07.08.),
 
 **Empfohlene Reihenfolge:** 1. MWST Q1+Q2 (Frist Ende Aug!) + 7er-Reste · 2. Punkt 6 bauen (nach Designfrage) · 3. Punkt 8 in eigener Session im Heineken-Repo.
 
+## 🔴 OFFEN 01.09.: Rechnungs-PDF-Upload abgebrochen — Nachholweg repariert das PDF nicht
+
+**Vorfall (Reinigung Central, 01.09. 11:08):** «RECHNUNG/MAIL FEHLGESCHLAGEN: ClientException: Failed to fetch» beim Upload des Rechnungs-PDF. **Ursache soweit belegbar:** Die Anfrage kam am Server an und wurde nach **54 ms abgebrochen** (Storage-Log: `POST | ABORTED REQ`, 23 KB Nutzlast) — kein 403/413/CORS, kein Timeout im Code, kein selbst geschlossener HTTP-Client, **einziger Abbruch in 24 h**. Nachbaranfragen mit 256 KB liefen davor und danach sauber. Bleibt ein einmaliger Verbindungsabbruch auf dem Handy; mehr gibt die Beweislage nicht her.
+
+**Datenstand:** Rechnung 2026-09-1400 (94.05, `rechnung_tresen`) existiert mit 2 Positionen ✓ · Buchung 1100/3400 mit Beleg ✓ (läuft bewusst unabhängig) · **kein PDF im Storage, `pdf_url` leer** ✗ · **`uebergeben_am` leer** ✗ (der Tresen-Zweig kam nicht mehr dran).
+
+- [ ] **Fix 1 — Nachholweg repariert wirklich:** `ReinigungRechnungVersand.erstelleUndSende` überspringt `createFromReinigung` bei vorhandener Rechnung (`rechnung ??=`) und erzeugt damit **kein** PDF nach — meldet aber «Rechnung erstellt». Also: bei vorhandener Rechnung prüfen, ob das PDF im Storage liegt, und es sonst neu erzeugen. **Erfolgsmeldung ohne Vollständigkeitsaussage** — dasselbe Muster wie am 29.08. bei den Kontakten.
+- [ ] **Fix 2 — Übergabe entkoppeln:** `uebergeben_am` vor dem PDF-Schritt setzen. Eine tatsächlich erfolgte Übergabe darf nicht an einem Upload hängen.
+- [ ] **Reparatur der Rechnung 2026-09-1400:** PDF nachziehen, `uebergeben_am` auf 01.09. setzen.
+
+## 🟢 ERLEDIGT 01.09. (v0.94.0, live): Eissäule erfassbar + Ein-/Ausschalt-Hinweise im Reinigungsablauf
+
+**Befund vor Ort (Padelta, Chur):** Eine **Eissäule** liess sich nirgends erfassen — sie ist **kein Kühler**, sondern eine Dekorsäule mit Eismantel, und weder `vorkuehler`, `durchlaufkuehler`, `typ_anlage` noch `typ_saeule` kennen einen passenden Wert (alle vier per CHECK-Constraint geschlossen).
+
+**Die eigentliche Lücke lag daneben:** Service-relevant ist die Eissäule wie der Booster — beide müssen vor der Reinigung aus, sonst friert Wasser oder Lauge in der Leitung. Der Booster stand zwar am Anlagenblatt, tauchte im **Reinigungsablauf aber nirgends** auf. Es gab keinen Punkt in der App, der ans Ausschalten erinnert; das sass nur in Daniels Kopf und wäre bei einem zweiten Monteur verloren gewesen.
+
+**Gebaut (TDD, 11 Tests zuerst):** Migration 179 (`anlagen.eissaeule`) · `ServiceSchalter` in `core/util` (Komponenten je Anlage und über alle Anlagen einer Reinigung, Hinweistexte für Beginn/Abschluss) · Feld in DTO, Isar-Model, Web-Stub, Mapper, Anlagen-Formular, Detail und Anlagenblatt-PDF — überall parallel zum Booster · **Hinweisbox über der Zeiterfassung** (ausschalten) und **im Abschlussdialog** (wieder einschalten). Boxen aus Container/Row statt Material-Komfort-Widgets (CanvasKit-Regel). 1194 Tests grün, analyze ohne neue Befunde.
+
+⚠️ **Visuell nicht geprüft** — die App verlangt Login, den nur Daniel hat. Muster sind bewährt (SwitchListTile wie beim Booster auf demselben Screen, Hinweisbox wie der Service-Hinweis im selben Dialog), das Risiko ist klein, aber ungeprüft. Beim nächsten Service anschauen.
+
+**Nebenbefunde, die keine Änderung wurden:** «Wasser abgelassen» ≠ «Wasser gewechselt» (abgelassen wird bei zu viel Kondenswasser im Kühler) — `letzter_wasserwechsel` bleibt bei Padelta leer. Seriennummer bleibt leer (nicht zwingend). Padelta hat **eine** Säule mit **einem** Hahn; der Datensatz stimmt.
+
 ## 🟢 ERLEDIGT 29.08. (v0.93.0, live): Tourenplan zeigte Gereinigtes als überfällig — Pull-to-Refresh eingebaut
 
 **Meldung Daniel 29.08.:** Bernina Bar Thusis und Viktoria Weggis standen im Tourenplan als überfällig, obwohl diese Woche gereinigt (27./28.08., DB korrekt inkl. `naechste_reinigung`). **Ursache:** Auf Web laden alle Repositories ihre Daten EINMAL beim App-Start (`Stream.fromFuture`) — ein tagelang offener Browser-Tab zeigt den Stand vom Start. Nach Neuladen war die Anzeige korrekt (von Daniel bestätigt).
