@@ -8,7 +8,8 @@
 
 **v0.94.2:** Fortschrittsdialog «12 von 32 …» bei «Alle verbuchen» + Einzel-Verbuchen (vorher ~10 s ohne Lebenszeichen). TDD, 1200 Tests grün.
 
-- [ ] **Noch zuzuordnen aus dem August-Export (Daniel, in der App):** Heineken **10'102.16** (31.08., `/INV/2026-08-1370` = Zahlung der Juli-Monatsrechnung → Schritt 5a!) · Allegra Vinum ×3 (Vermerk 7013/1006/1008) · Schaltereinzahlung 138.35 (28.08. — wer?) · **Belastung 3'500.00 vom 10.08. ohne Empfängername — was ist das?** · Swisscom 2× 203.40 · Franchise Juni 3'772.70 (Direktaufwand, Beleg hängt Claude danach an) · Büromiete 250.00 (21.08., an Daniel privat) · ~17 weitere Gutschriften
+- [x] ~~Zuordnungen August-Export~~ **KOMPLETT 01.09. ~16:30** — alle 58 TX verbucht, **Bank 1020 per 31.08. = 23'351.23 = camt-CLBD rappengenau** (TX-genau fortgeführt). Die 3'500 vom 10.08. war eine **Lohnzahlung** (2002 an 1020) · Heineken 10'102.16 → Juli-Monatsrechnung 2026-08-1370 **bezahlt** (**Fahrplan-Schritt 5a erledigt**) · Franchise Juni als Direktaufwand mit VSt, Beleg verknüpft · Swisscom 6510, Büromiete 6000.
+- [ ] **🔵 Daniel: Lohnlauf ausführen** — die Lohnzahlung 3'500 (10.08.) hat kein Gegenstück, **2002 steht auf −3'500** (Lohnläufe bis Juli endeten auf 0.00). Klären: Lohn für Juli oder August? → entsprechenden Lohnlauf in der App ausführen (produktiv seit v0.73.5), dann 2002 wieder ausgeglichen. Gleiches Muster wie Franchise-Januar: Tilgung ohne Aufbau.
 - [ ] **Papierstapel seit Juni erfassen:** alle herumliegenden Lieferantenrechnungen (offen wie bezahlt) über Eingangsrechnungen-Upload — Betriebsregel ab jetzt: jede eintreffende Rechnung sofort in die App
 
 ## 🟢 ERLEDIGT 01.09.: MWST komplett — Q1+Q2/2026 + 4 Korrekturen 2025 eingereicht, Saldierung Q1/25–Q2/26 gebucht
