@@ -1,5 +1,16 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
+## 🟢 ERLEDIGT 01.09. (v0.94.2, live): Kreditoren-Modul in Betrieb + camt-Abgleich August
+
+**Modul-Historie geklärt:** Das Eingangsrechnungs-Modul war seit Ende Juni **fertig validiert** (End-zu-End mit synthetischem camt, pain001 von der GKB akzeptiert, Kategorien von Daniel bestätigt) — die 23 «verworfenen» Einträge waren aufgeräumte Testdaten, kein Fehlschlag. Es fehlte nur der Echtbetrieb. **Heute gestartet:** Franchise **Juli+August** als Eingangsrechnungen erfasst + Stufe 1 gebucht (Daniel); Zahlung 02.09. → Stufe-2-Match im nächsten Export.
+
+**camt-Abgleich 08.–31.08. (58 TX):** 32 Kundenzahlungen verbucht (3'161.05). Zwischenfall lehrreich: Daniel wollte die Mehrfachzahler prüfen und liess mich die 32 zurückrollen (Snapshot `snapshot_camt_abgleich.rueckgaengig_2026_09_01_*`, Rechnungen zurückgesetzt, neu verbucht — alle korrekt). **Befund dabei: Die GKB spielt QRR/SCOR-Referenzen im camt zurück** (Gutschriften UND Belastungen; frühere grep-Zählung war falsch — einzeilige XML!). Weisse Arena ×4, Davos Klosters ×5, Lenzerhorn ×2 u. a. matchten **deterministisch per QR-Referenz** — Mehrfachzahler brauchen keine manuelle Prüfung mehr. «(Sammelzahlung)» im Buchungstext ist Kosmetik (verbuchenSammel bucht alle Kundenzahlungen).
+
+**v0.94.2:** Fortschrittsdialog «12 von 32 …» bei «Alle verbuchen» + Einzel-Verbuchen (vorher ~10 s ohne Lebenszeichen). TDD, 1200 Tests grün.
+
+- [ ] **Noch zuzuordnen aus dem August-Export (Daniel, in der App):** Heineken **10'102.16** (31.08., `/INV/2026-08-1370` = Zahlung der Juli-Monatsrechnung → Schritt 5a!) · Allegra Vinum ×3 (Vermerk 7013/1006/1008) · Schaltereinzahlung 138.35 (28.08. — wer?) · **Belastung 3'500.00 vom 10.08. ohne Empfängername — was ist das?** · Swisscom 2× 203.40 · Franchise Juni 3'772.70 (Direktaufwand, Beleg hängt Claude danach an) · Büromiete 250.00 (21.08., an Daniel privat) · ~17 weitere Gutschriften
+- [ ] **Papierstapel seit Juni erfassen:** alle herumliegenden Lieferantenrechnungen (offen wie bezahlt) über Eingangsrechnungen-Upload — Betriebsregel ab jetzt: jede eintreffende Rechnung sofort in die App
+
 ## 🟢 ERLEDIGT 01.09.: MWST komplett — Q1+Q2/2026 + 4 Korrekturen 2025 eingereicht, Saldierung Q1/25–Q2/26 gebucht
 
 **Alle 6 Abrechnungen eingereicht 01.09. 13:20–13:34** (PDFs in `00_Rechnungen/02_MWST Abrechnung/`, alle gegen das Journal verifiziert, durchgehend BRUTTO — der 2025er-Fehler ist damit vollständig bereinigt). **Saldierung Q1/25–Q2/26 gebucht** (18 Zeilen nach 2024er-Muster, Belegnr 251/252/253, Quartalsende-Datum): alle 4 Salden treffen die Prognose exakt — **2202 = +7'234.63** (offene MWST-Schuld, erstmals seit 2025 wieder aussagekräftig), 2200 = 4'362.24, 1170 = 544.49, 1171 = 251.24 (je laufendes Q3/26 + bekannte Altlast).
