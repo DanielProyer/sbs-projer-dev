@@ -27,6 +27,9 @@ class AnlageLocal {
   int anzahlHaehne = 1;
   bool backpython = false;
   bool booster = false;
+
+  /// Dekorsäule mit Eismantel — muss wie der Booster vor dem Service aus.
+  bool eissaeule = false;
   String vorkuehler = 'keiner';
   String? durchlaufkuehler;
   DateTime? letzterWasserwechsel;

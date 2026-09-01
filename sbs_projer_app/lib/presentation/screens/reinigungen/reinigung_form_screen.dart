@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
+import 'package:sbs_projer_app/core/util/service_schalter.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -148,6 +149,42 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
     } else {
       _loadPreisData();
     }
+  }
+
+  /// Anlagen der aktuellen Auswahl — eine Reinigung kann mehrere umfassen.
+  List<AnlageLocal> get _gewaehlteAnlagen => _anlagenDesBetrieb
+      .where((a) => _selectedAnlageIds.contains(a.serverId ?? a.routeId))
+      .toList();
+
+  /// Booster/Eissäule der gewählten Anlagen — müssen vor dem Service aus.
+  List<String> get _schalterKomponenten =>
+      ServiceSchalter.komponentenAusAnlagen(_gewaehlteAnlagen);
+
+  /// Auffällige Hinweisbox. Bewusst aus Container/Row statt einem Material-
+  /// Komfort-Widget gebaut (CanvasKit-Regel in CLAUDE.md).
+  Widget _hinweisBox(String text, IconData icon) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withAlpha(30),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.warning.withAlpha(120)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppColors.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatTime(TimeOfDay time) {
@@ -1166,6 +1203,13 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   ),
                   const SizedBox(height: 12),
                 ],
+                // Gegenstück zum Hinweis beim Beginn: Was vor dem Service
+                // ausgeschaltet wurde, muss jetzt wieder an.
+                if (ServiceSchalter.hinweisEnde(_schalterKomponenten)
+                    case final hinweis?) ...[
+                  _hinweisBox(hinweis, Icons.power_settings_new),
+                  const SizedBox(height: 12),
+                ],
                 const Text('Zahlungsart für DIESE Reinigung:'),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -1437,6 +1481,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   ),
                 ),
               ],
+            ],
+
+            // Booster/Eissäule vor dem Service ausschalten — sonst friert
+            // Wasser oder Lauge in der Leitung ein (Daniel, 01.09.2026).
+            // Steht bewusst direkt über der Zeiterfassung: Wer hier die
+            // Startzeit einträgt, fängt gleich an.
+            if (ServiceSchalter.hinweisBeginn(_schalterKomponenten)
+                case final hinweis?) ...[
+              _hinweisBox(hinweis, Icons.power_settings_new),
+              const SizedBox(height: 16),
             ],
 
             // === Zeiterfassung ===

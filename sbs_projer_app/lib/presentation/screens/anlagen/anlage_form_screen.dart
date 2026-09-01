@@ -33,6 +33,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
   int _anzahlHaehne = 1;
   bool _backpython = false;
   bool _booster = false;
+  bool _eissaeule = false;
   String _vorkuehler = 'keiner';
   String? _durchlaufkuehler;
   String? _gasTyp1;
@@ -65,6 +66,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
       _anzahlHaehne = anlage.anzahlHaehne;
       _backpython = anlage.backpython;
       _booster = anlage.booster;
+      _eissaeule = anlage.eissaeule;
       _vorkuehler = anlage.vorkuehler;
       _durchlaufkuehler = anlage.durchlaufkuehler;
       _gasTyp1 = anlage.gasTyp1;
@@ -103,6 +105,7 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
       anlage.anzahlHaehne = _anzahlHaehne;
       anlage.backpython = _backpython;
       anlage.booster = _booster;
+      anlage.eissaeule = _eissaeule;
       anlage.vorkuehler = _vorkuehler;
       anlage.durchlaufkuehler = _durchlaufkuehler;
       anlage.gasTyp1 = _gasTyp1;
@@ -350,6 +353,13 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
               value: _booster,
               contentPadding: EdgeInsets.zero,
               onChanged: (v) => setState(() => _booster = v),
+            ),
+            SwitchListTile(
+              title: const Text('Eissäule'),
+              subtitle: const Text('Muss vor der Reinigung ausgeschaltet werden'),
+              value: _eissaeule,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _eissaeule = v),
             ),
             const SizedBox(height: 12),
             Row(

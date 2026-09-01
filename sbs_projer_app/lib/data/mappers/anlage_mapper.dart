@@ -14,6 +14,7 @@ class AnlageMapper {
     local.anzahlHaehne = dto.anzahlHaehne;
     local.backpython = dto.backpython;
     local.booster = dto.booster;
+    local.eissaeule = dto.eissaeule;
     local.vorkuehler = dto.vorkuehler;
     local.durchlaufkuehler = dto.durchlaufkuehler;
     local.letzterWasserwechsel = dto.letzterWasserwechsel;
@@ -44,6 +45,7 @@ class AnlageMapper {
       'anzahl_haehne': local.anzahlHaehne,
       'backpython': local.backpython,
       'booster': local.booster,
+      'eissaeule': local.eissaeule,
       'vorkuehler': local.vorkuehler,
       'durchlaufkuehler': local.durchlaufkuehler,
       'letzter_wasserwechsel': local.letzterWasserwechsel?.toIso8601String().split('T').first,

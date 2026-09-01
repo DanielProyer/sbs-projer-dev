@@ -130,6 +130,7 @@ class _AnlageDetailContent extends ConsumerWidget {
                 _InfoRow('Durchlaufkühler', anlage.durchlaufkuehler!),
               _InfoRow('Backpython', anlage.backpython ? 'Ja' : 'Nein'),
               _InfoRow('Booster', anlage.booster ? 'Ja' : 'Nein'),
+              _InfoRow('Eissäule', anlage.eissaeule ? 'Ja' : 'Nein'),
               if (anlage.gasTyp1 != null) _InfoRow('Gas Typ 1', anlage.gasTyp1!),
               if (anlage.gasTyp2 != null) _InfoRow('Gas Typ 2', anlage.gasTyp2!),
               if (anlage.hauptdruckBar != null)

@@ -9,6 +9,11 @@ class Anlage {
   final int anzahlHaehne;
   final bool backpython;
   final bool booster;
+
+  /// Dekorsäule mit Eismantel. Kein Kühler — muss aber wie der Booster vor dem
+  /// Service ausgeschaltet werden, sonst friert Wasser oder Lauge in der
+  /// Leitung.
+  final bool eissaeule;
   final String vorkuehler;
   final String? durchlaufkuehler;
   final DateTime? letzterWasserwechsel;
@@ -35,6 +40,7 @@ class Anlage {
     this.anzahlHaehne = 1,
     this.backpython = false,
     this.booster = false,
+    this.eissaeule = false,
     this.vorkuehler = 'keiner',
     this.durchlaufkuehler,
     this.letzterWasserwechsel,
@@ -63,6 +69,7 @@ class Anlage {
       anzahlHaehne: json['anzahl_haehne'] ?? 1,
       backpython: json['backpython'] ?? false,
       booster: json['booster'] ?? false,
+      eissaeule: json['eissaeule'] ?? false,
       vorkuehler: json['vorkuehler'] ?? 'keiner',
       durchlaufkuehler: json['durchlaufkuehler'],
       letzterWasserwechsel: json['letzter_wasserwechsel'] != null
@@ -100,6 +107,7 @@ class Anlage {
       'anzahl_haehne': anzahlHaehne,
       'backpython': backpython,
       'booster': booster,
+      'eissaeule': eissaeule,
       'vorkuehler': vorkuehler,
       'durchlaufkuehler': durchlaufkuehler,
       'letzter_wasserwechsel': letzterWasserwechsel?.toIso8601String(),

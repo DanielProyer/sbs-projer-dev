@@ -50,6 +50,7 @@ class AnlagePdfService {
       ['Vorkühler', s(anlage.vorkuehler)],
       ['Durchlaufkühler', s(anlage.durchlaufkuehler)],
       ['Booster', jn(anlage.booster)],
+      ['Eissäule', jn(anlage.eissaeule)],
       ['Backpython', jn(anlage.backpython)],
       ['Hauptdruck (bar)', anlage.hauptdruckBar?.toString() ?? '-'],
       ['Niederdruck', jn(anlage.hatNiederdruck)],

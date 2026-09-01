@@ -18,6 +18,7 @@ class AnlageLocal {
   int anzahlHaehne = 1;
   bool backpython = false;
   bool booster = false;
+  bool eissaeule = false;
   String vorkuehler = 'keiner';
   String? durchlaufkuehler;
   DateTime? letzterWasserwechsel;
