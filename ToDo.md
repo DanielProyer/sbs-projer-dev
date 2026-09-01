@@ -1,5 +1,16 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
+## 📌 SESSION-ÜBERGABE 01.09. abends (für die nächste Session)
+
+**Stand:** v0.95.0 live · 1212 Tests grün · Migrationen bis 180 ausgeführt · Bank per 31.08. rappengenau · MWST komplett eingereicht · Kreditoren-Modul in Betrieb · Bank-Wächter aktiv (Karte aktuell **rot**: 2002 im Soll — das ist korrekt, bis der Lohnlauf läuft).
+
+**Nächste konkrete Schritte, in sinnvoller Reihenfolge:**
+1. **Daniel: August-Lohnlauf** (Netto = Wächter-Anzeige; nach nächstem Import 8'500 mit den 5'000 vom 01.09.) → Wächter-Karte wird grün
+2. **Nächster camt-Import** (Export ab 01.09.): erwartet 2× ESTV (3'885.01/2'293.00 → 2202), 2× Franchise 3'772.70 (→ **erster automatischer Stufe-2-Match** auf die Eingangsrechnungen Juli+Aug; bei Mehrdeutigkeit Prüfliste = ok), Lohn 5'000 (→ 2002), dabei erstmals den **grünen Anschluss-Kasten** im Import prüfen
+3. **ESTV-Post** zur 2025er-Berichtigung (~1'507) abwarten → zahlen
+4. **Entflechtung ab KW 36** (Plan: `Datenbank/oauth-entflechtung-plan.md`): zuerst Daniels 3 Kontakte-Entscheide (welche der 5 Gruppen · Personenzahl · die ~237 ohne Gruppe), dann Heineken-Projekt, dann Kalender — **Absprache mit den Sessions Heineken + Finanzapp ist Pflicht** (Memory: projektuebergreifend-absprechen)
+5. Klein: Papierstapel Lieferantenrechnungen seit Juni erfassen · Kreditor 2000 Rest +96.95 · Klicktest Pull-to-Refresh (v0.93.0)
+
 ## 🟢 ERLEDIGT 01.09. (v0.94.2, live): Kreditoren-Modul in Betrieb + camt-Abgleich August
 
 **Modul-Historie geklärt:** Das Eingangsrechnungs-Modul war seit Ende Juni **fertig validiert** (End-zu-End mit synthetischem camt, pain001 von der GKB akzeptiert, Kategorien von Daniel bestätigt) — die 23 «verworfenen» Einträge waren aufgeräumte Testdaten, kein Fehlschlag. Es fehlte nur der Echtbetrieb. **Heute gestartet:** Franchise **Juli+August** als Eingangsrechnungen erfasst + Stufe 1 gebucht (Daniel); Zahlung 02.09. → Stufe-2-Match im nächsten Export.
