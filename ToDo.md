@@ -9,7 +9,16 @@
 **v0.94.2:** Fortschrittsdialog «12 von 32 …» bei «Alle verbuchen» + Einzel-Verbuchen (vorher ~10 s ohne Lebenszeichen). TDD, 1200 Tests grün.
 
 - [x] ~~Zuordnungen August-Export~~ **KOMPLETT 01.09. ~16:30** — alle 58 TX verbucht, **Bank 1020 per 31.08. = 23'351.23 = camt-CLBD rappengenau** (TX-genau fortgeführt). Die 3'500 vom 10.08. war eine **Lohnzahlung** (2002 an 1020) · Heineken 10'102.16 → Juli-Monatsrechnung 2026-08-1370 **bezahlt** (**Fahrplan-Schritt 5a erledigt**) · Franchise Juni als Direktaufwand mit VSt, Beleg verknüpft · Swisscom 6510, Büromiete 6000.
-- [ ] **🔵 Daniel: Lohnlauf ausführen** — die Lohnzahlung 3'500 (10.08.) hat kein Gegenstück, **2002 steht auf −3'500** (Lohnläufe bis Juli endeten auf 0.00). Klären: Lohn für Juli oder August? → entsprechenden Lohnlauf in der App ausführen (produktiv seit v0.73.5), dann 2002 wieder ausgeglichen. Gleiches Muster wie Franchise-Januar: Tilgung ohne Aufbau.
+- [ ] **🔵 Daniel: August-Lohnlauf ausführen** — die 3'500 vom 10.08. waren **August-Lohn** (geklärt 01.09.); heute kamen weitere **5'000** dazu (Zahlung ausgelöst, noch nicht im camt). **Lohn-Prozess ab jetzt** (Daniel zahlt unregelmässig): Zahlungen laufen automatisch über camt auf 2002; der **Bank-Wächter zeigt den Soll-Überhang** («Konto 2002 steht X im Soll») = exakt der Netto-Betrag für den nächsten Lohnlauf. Einmal pro Monat: Lohnlauf mit diesem Netto ausführen → 2002 wieder 0. Kein Kopfrechnen, kein Vergessen möglich — die Karte bleibt rot, bis es passiert.
+
+## 🟢 ERLEDIGT 01.09. (v0.95.0, live): Bank-Wächter — Lückenlos-Prüfung + «Tilgung ohne Aufbau»
+
+**Anlass:** Daniels Sorge, dass untertags gezogene camt-Exporte Zahlungen verlieren, plus zweimal am selben Tag «Tilgung ohne Aufbau» (Franchise Januar, Lohn August). **Lösung:** Die Bank liefert die Prüfung selbst — der Parser las OPBD/CLBD seit je, genutzt hat sie niemand.
+
+- **Beim Import** (Bestätigen-Schritt, VOR jeder Buchung): «✓ Anschluss lückenlos: Anfangssaldo X = Journal» oder rote Warnung mit Differenz; dazu Lücken-Warnung, wenn zwischen zwei Exporten ganze Tage fehlen (Überlappung ist ok — Import ist über tx_keys idempotent). **Damit ist der Exportzeitpunkt egal:** stimmt der Anfangssaldo, fehlt nichts.
+- **Dauerhaft** (Karte im Buchhaltungs-Dashboard): Journal 1020 vs. letzter Bank-Schlusssaldo + Soll-Überhänge auf 2000/2002/2202/227x. Grün = alles im Lot; rot mit konkretem Text. Aktualisiert sich mit jeder Buchung.
+- Migration 180 (`camt_dateien.anfangssaldo/schlusssaldo`, Nachtrag für den 01.09.-Export), `BuchungService.bankSaldoPer()`, `BankWaechter` pure mit 12 Tests. Der Wächter **informiert nur, blockiert nie**. 1212 Tests grün.
+- ⚠️ Visuell ungeprüft (Login nur bei Daniel) — beim nächsten camt-Import anschauen: Karte im Dashboard (dürfte aktuell **rot** sein wegen 2002 −3'500) + grüner Kasten im Import-Schritt.
 - [ ] **Papierstapel seit Juni erfassen:** alle herumliegenden Lieferantenrechnungen (offen wie bezahlt) über Eingangsrechnungen-Upload — Betriebsregel ab jetzt: jede eintreffende Rechnung sofort in die App
 
 ## 🟢 ERLEDIGT 01.09.: MWST komplett — Q1+Q2/2026 + 4 Korrekturen 2025 eingereicht, Saldierung Q1/25–Q2/26 gebucht
