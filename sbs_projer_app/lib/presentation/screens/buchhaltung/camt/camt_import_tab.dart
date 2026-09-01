@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/abgleich_fenster.dart';
+import 'package:sbs_projer_app/core/util/bank_waechter.dart';
+import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
@@ -59,6 +61,11 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   bool _loading = false;
   String? _error;
   int _automatisierbarCount = 0;
+
+  /// Bank-Wächter: Anschluss-Check (OPBD vs. Journal) und Lücken-Warnung,
+  /// berechnet direkt nach dem Parsen. `null` = noch nicht geprüft.
+  SaldoCheck? _anschlussCheck;
+  String? _lueckenWarnung;
 
   final _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -159,7 +166,37 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
           .where((t) => CamtStichtag.istAutomatisierbar(t.bookingDate))
           .length;
 
+      // Bank-Wächter: Anschluss ans Journal prüfen, BEVOR irgendetwas
+      // gebucht wird. Fängt untertags gezogene Exporte mit verlorenen
+      // Transaktionen (Sorge Daniel 01.09.2026) — die Saldokette der Bank
+      // ist die Wahrheit, unabhängig vom Exportzeitpunkt.
+      schritt = 'Bank-Wächter (Anschluss-Prüfung)';
+      SaldoCheck? anschluss;
+      String? luecke;
+      try {
+        final vortag =
+            statement.fromDate.subtract(const Duration(days: 1));
+        final journalVortag = await BuchungService.bankSaldoPer(vortag);
+        anschluss = BankWaechter.pruefeAnschluss(
+            opbd: statement.openingBalance, journalVortag: journalVortag);
+        final dateien = await CamtDateiRepository.getAll();
+        final letzteBis = dateien.isEmpty
+            ? null
+            : dateien
+                .map((d) => d.zeitraumBis)
+                .whereType<DateTime>()
+                .fold<DateTime?>(null,
+                    (max, d) => max == null || d.isAfter(max) ? d : max);
+        luecke = BankWaechter.luecke(
+            letztesBis: letzteBis, neuesVon: statement.fromDate);
+      } catch (e) {
+        // Der Wächter darf den Import nie verhindern — nur informieren.
+        debugPrint('[BankWaechter] Prüfung fehlgeschlagen: $e');
+      }
+
       setState(() {
+        _anschlussCheck = anschluss;
+        _lueckenWarnung = luecke;
         _statement = statement;
         _xmlRoh = xmlString;
         _dateiname = picked.name;
@@ -206,6 +243,44 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
               ],
             ),
           ),
+          // Bank-Wächter: Anschluss-Prüfung + Lücken-Warnung (robuste
+          // Container statt Material-Komfort-Widgets — CanvasKit-Regel).
+          if (_anschlussCheck != null || _lueckenWarnung != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: (_lueckenWarnung == null &&
+                        (_anschlussCheck?.ok ?? true))
+                    ? AppColors.success.withAlpha(25)
+                    : AppColors.error.withAlpha(25),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: (_lueckenWarnung == null &&
+                          (_anschlussCheck?.ok ?? true))
+                      ? AppColors.success.withAlpha(120)
+                      : AppColors.error.withAlpha(120),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_anschlussCheck != null)
+                    Text(
+                      '${_anschlussCheck!.ok ? '✓' : '⚠'} ${_anschlussCheck!.text}',
+                      style: const TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                  if (_lueckenWarnung != null) ...[
+                    if (_anschlussCheck != null) const SizedBox(height: 4),
+                    Text('⚠ $_lueckenWarnung',
+                        style: const TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  ],
+                ],
+              ),
+            ),
           const SizedBox(height: 32),
           Icon(Icons.auto_awesome, size: 56, color: AppColors.primary.withAlpha(120)),
           const SizedBox(height: 20),
@@ -403,7 +478,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       await CamtDateiRepository.speichern(
         CamtDatei(id: '', userId: '', dateiname: _dateiname ?? 'camt.xml',
           zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
-          anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: ''),
+          anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: '',
+          // Bank-Salden für den Bank-Wächter (Lückenlos- und Schluss-Check).
+          anfangssaldo: stmt.openingBalance, schlusssaldo: stmt.closingBalance),
         Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
 
       setState(() {

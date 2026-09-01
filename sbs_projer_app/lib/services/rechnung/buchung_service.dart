@@ -111,4 +111,38 @@ class BuchungService {
     final saldi = await getAllSaldi();
     return saldi[kontonummer] ?? 0;
   }
+
+  /// Bank-Saldo 1020 per Stichtag (einschliesslich) — für den Bank-Wächter.
+  /// Bewusst OHNE SaldoExpansion: auf 1020 liegt nie ein `mwst_konto`.
+  static Future<double> bankSaldoPer(DateTime bis) async {
+    final bisTag = bis.toIso8601String().split('T').first;
+    final rows = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      final page = await SupabaseService.client
+          .from('buchungen')
+          .select('soll_konto, haben_konto, betrag_brutto, ist_storniert, storno_von_id')
+          .eq('user_id', SupabaseService.dataUserId)
+          .or('soll_konto.eq.1020,haben_konto.eq.1020')
+          .lte('datum', bisTag)
+          .order('id') // stabile Pagination (sonst fallen Zeilen durch)
+          .range(from, from + pageSize - 1);
+      rows.addAll(List<Map<String, dynamic>>.from(page));
+      if (page.length < pageSize) break;
+      from += pageSize;
+    }
+    var saldo = 0.0;
+    for (final row in rows) {
+      if (!zaehltFuerSaldo(
+          istStorniert: row['ist_storniert'] == true,
+          stornoVonId: row['storno_von_id'] as String?)) {
+        continue;
+      }
+      final brutto = double.tryParse(row['betrag_brutto'].toString()) ?? 0;
+      if (row['soll_konto'] == 1020) saldo += brutto;
+      if (row['haben_konto'] == 1020) saldo -= brutto;
+    }
+    return saldo;
+  }
 }

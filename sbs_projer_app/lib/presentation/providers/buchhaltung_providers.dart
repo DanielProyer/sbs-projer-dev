@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/data/repositories/konto_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/audit_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
@@ -107,6 +111,47 @@ List<BuchungSaldo> _toSaldoInput(List<Buchung> buchungen) => buchungen
     .toList();
 
 /// Audit-Befunde: verdächtige Salden / fehlende Buchungen.
+/// Bank-Wächter fürs Dashboard: Journal 1020 gegen den letzten
+/// Bank-Schlusssaldo + Soll-Überhänge auf Verbindlichkeitskonten
+/// («Tilgung ohne Aufbau» — zweimal am 01.09.2026 gefunden: Franchise
+/// Januar und Lohn August).
+final bankWaechterProvider = FutureProvider<BankWaechterStand>((ref) async {
+  // Nach jeder Buchung neu rechnen (gleicher Auslöser wie die Kennzahlen).
+  ref.watch(buchungenStreamProvider);
+  final saldi = await BuchungService.getAllSaldi();
+  final verbindlichkeiten = BankWaechter.verbindlichkeitsWarnungen(saldi);
+
+  SaldoCheck? schluss;
+  DateTime? per;
+  final dateien = await CamtDateiRepository.getAll();
+  CamtDatei? letzte;
+  for (final d in dateien) {
+    if (d.schlusssaldo == null || d.zeitraumBis == null) continue;
+    if (letzte == null || d.zeitraumBis!.isAfter(letzte.zeitraumBis!)) {
+      letzte = d;
+    }
+  }
+  if (letzte != null) {
+    per = letzte.zeitraumBis;
+    final journal = await BuchungService.bankSaldoPer(per!);
+    schluss = BankWaechter.pruefeSchluss(
+        clbd: letzte.schlusssaldo!, journal: journal);
+  }
+  return BankWaechterStand(
+      schluss: schluss, per: per, verbindlichkeiten: verbindlichkeiten);
+});
+
+class BankWaechterStand {
+  final SaldoCheck? schluss;
+  final DateTime? per;
+  final List<String> verbindlichkeiten;
+  const BankWaechterStand(
+      {this.schluss, this.per, required this.verbindlichkeiten});
+
+  bool get allesImLot =>
+      verbindlichkeiten.isEmpty && (schluss?.ok ?? true);
+}
+
 final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
   final saldi = await BuchungService.getAllSaldi();
   final konten = await KontoRepository.getAll();

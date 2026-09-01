@@ -10,6 +10,11 @@ class CamtDatei {
   final int anzahlGutschriften;
   final String storagePfad;
 
+  /// Bank-Salden aus der Datei (OPBD/CLBD) — Grundlage des Bank-Wächters.
+  /// `null` bei Dateien, die vor Migration 180 importiert wurden.
+  final double? anfangssaldo;
+  final double? schlusssaldo;
+
   CamtDatei({
     required this.id,
     required this.userId,
@@ -21,6 +26,8 @@ class CamtDatei {
     this.anzahlEintraege = 0,
     this.anzahlGutschriften = 0,
     required this.storagePfad,
+    this.anfangssaldo,
+    this.schlusssaldo,
   });
 
   static DateTime? _d(dynamic v) =>
@@ -37,6 +44,12 @@ class CamtDatei {
         anzahlEintraege: (j['anzahl_eintraege'] ?? 0) as int,
         anzahlGutschriften: (j['anzahl_gutschriften'] ?? 0) as int,
         storagePfad: j['storage_pfad'] as String,
+        anfangssaldo: j['anfangssaldo'] == null
+            ? null
+            : double.tryParse(j['anfangssaldo'].toString()),
+        schlusssaldo: j['schlusssaldo'] == null
+            ? null
+            : double.tryParse(j['schlusssaldo'].toString()),
       );
 
   Map<String, dynamic> toInsert() => {
@@ -47,5 +60,7 @@ class CamtDatei {
         'anzahl_eintraege': anzahlEintraege,
         'anzahl_gutschriften': anzahlGutschriften,
         'storage_pfad': storagePfad,
+        'anfangssaldo': anfangssaldo,
+        'schlusssaldo': schlusssaldo,
       };
 }

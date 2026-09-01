@@ -127,6 +127,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             ],
           ),
 
+          const SizedBox(height: 12),
+
+          // Bank-Wächter: Journal vs. letzter Bank-Schlusssaldo +
+          // «Tilgung ohne Aufbau» auf Verbindlichkeitskonten.
+          _BankWaechterCard(stand: ref.watch(bankWaechterProvider)),
+
           const SizedBox(height: 24),
 
           // Navigation
@@ -383,6 +389,66 @@ class _NavTile extends StatelessWidget {
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
         trailing: const Icon(Icons.chevron_right, size: 20),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// Bank-Wächter-Karte: grün wenn Journal = Bank-Schlusssaldo und keine
+/// Verbindlichkeit im Soll steht; sonst rote Warnliste. Robuste Container
+/// statt Material-Komfort-Widgets (CanvasKit-Regel).
+class _BankWaechterCard extends StatelessWidget {
+  final AsyncValue<BankWaechterStand> stand;
+  const _BankWaechterCard({required this.stand});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = stand.valueOrNull;
+    if (s == null) return const SizedBox.shrink(); // lädt/Fehler: nichts zeigen
+    final ok = s.allesImLot;
+    final farbe = ok ? AppColors.success : AppColors.error;
+    String datum(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: farbe.withAlpha(20),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: farbe.withAlpha(110)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(ok ? Icons.verified : Icons.warning_amber,
+                  size: 18, color: farbe),
+              const SizedBox(width: 8),
+              Text('Bank-Wächter',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13, color: farbe)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (s.schluss != null)
+            Text(
+              '${s.schluss!.ok ? '✓' : '⚠'} ${s.schluss!.text}'
+              '${s.per != null ? ' (per ${datum(s.per!)})' : ''}',
+              style: const TextStyle(fontSize: 12.5),
+            ),
+          if (s.verbindlichkeiten.isEmpty && s.schluss != null)
+            const Text('✓ Keine Verbindlichkeit im Soll.',
+                style: TextStyle(fontSize: 12.5)),
+          for (final w in s.verbindlichkeiten)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('⚠ $w',
+                  style: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w600)),
+            ),
+        ],
       ),
     );
   }
