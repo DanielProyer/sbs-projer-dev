@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/abgleich_fenster.dart';
 import 'package:sbs_projer_app/core/util/zahlung_paarung.dart';
+import 'package:sbs_projer_app/presentation/widgets/fortschritts_dialog.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -460,6 +461,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   }
 
   Future<void> _verbuche(AutoTreffer t) async {
+    final stand = ValueNotifier<int>(0);
+    FortschrittsDialog.zeige(context,
+        titel: 'Zahlung verbuchen', stand: stand);
     try {
       await ForderungsAbgleichService.verbuche(
         zahlbetrag: t.gutschrift.amount,
@@ -475,6 +479,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Fortschritt zu
       setState(() {
         widget.ergebnis.auto.remove(t);
         _entferneVerbuchte(t.forderungen.map((r) => r.id).toSet());
@@ -485,6 +490,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       }
     } catch (e) {
       if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // Fortschritt zu
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Verbuchungs-Fehler: $e')));
       }
@@ -495,33 +501,46 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final treffer = List<AutoTreffer>.from(widget.ergebnis.auto);
     final fehler = <String>[];
     final verbuchteTreffer = <AutoTreffer>[];
-    for (final t in treffer) {
-      try {
-        await ForderungsAbgleichService.verbuche(
-          zahlbetrag: t.gutschrift.amount,
-          datum: t.gutschrift.bookingDate,
-          forderungen: t.forderungen,
-          camtTxKey: t.gutschrift.txKey,
-        );
-        verbuchteTreffer.add(t);
-      } catch (e) {
-        fehler.add('${t.gutschrift.amount.toStringAsFixed(2)} CHF: $e');
-      }
-    }
-    // Auto-Treffer lernen (wenn aktiviert): je eindeutigem Betrieb+Zahlername
-    // einmal (spart wiederholte getAll()-Fetches).
-    if (_autoLernen) {
-      final gelernt = <String>{};
-      for (final t in verbuchteTreffer) {
-        final bid = t.forderungen.first.betriebId;
-        if (bid == null) continue;
-        final name = effektiverZahlername(
-            partyName: t.gutschrift.partyName,
-            additionalInfo: t.gutschrift.additionalInfo);
-        if (name == null || !gelernt.add('$bid|${zahlernameNorm(name)}')) {
-          continue;
+    // Fortschritt sichtbar machen: 30+ sequenzielle Buchungen dauerten vorher
+    // ~10 s ohne jedes Lebenszeichen (Rückmeldung Daniel 01.09.2026).
+    final stand = ValueNotifier<int>(0);
+    FortschrittsDialog.zeige(context,
+        titel: 'Zahlungen verbuchen', stand: stand, total: treffer.length);
+    try {
+      for (final t in treffer) {
+        try {
+          await ForderungsAbgleichService.verbuche(
+            zahlbetrag: t.gutschrift.amount,
+            datum: t.gutschrift.bookingDate,
+            forderungen: t.forderungen,
+            camtTxKey: t.gutschrift.txKey,
+          );
+          verbuchteTreffer.add(t);
+        } catch (e) {
+          fehler.add('${t.gutschrift.amount.toStringAsFixed(2)} CHF: $e');
         }
-        await _lerneAlias(bid, t.gutschrift);
+        stand.value++;
+      }
+      // Auto-Treffer lernen (wenn aktiviert): je eindeutigem Betrieb+Zahlername
+      // einmal (spart wiederholte getAll()-Fetches). Bewusst noch INNERHALB
+      // des Fortschrittsdialogs — auch das sind Netzaufrufe.
+      if (_autoLernen) {
+        final gelernt = <String>{};
+        for (final t in verbuchteTreffer) {
+          final bid = t.forderungen.first.betriebId;
+          if (bid == null) continue;
+          final name = effektiverZahlername(
+              partyName: t.gutschrift.partyName,
+              additionalInfo: t.gutschrift.additionalInfo);
+          if (name == null || !gelernt.add('$bid|${zahlernameNorm(name)}')) {
+            continue;
+          }
+          await _lerneAlias(bid, t.gutschrift);
+        }
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
     }
     ref.invalidate(rechnungenStreamProvider);
