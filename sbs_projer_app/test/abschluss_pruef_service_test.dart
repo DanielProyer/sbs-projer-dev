@@ -109,9 +109,11 @@ void main() {
             k(
               camt: [
                 a,
+                // deckt den Rest des Jahres ab — sonst greift die
+                // End-Abdeckungs-Warnung
                 CamtDateiInfo(
                   von: DateTime(2025, 4, 1),
-                  bis: DateTime(2025, 6, 30),
+                  bis: DateTime(2025, 12, 31),
                   anfangssaldo: 100,
                   schlusssaldo: 200,
                 ),
@@ -467,13 +469,12 @@ void main() {
         schlusssaldo: 100,
       ),
     ];
-    expect(
-      f(
-        AbschlussPruefService.pruefe(k(buchungen: bu, camt: camt)),
-        'bank_camt',
-      ).status,
-      PruefStatus.gruen,
-    );
+    final l = AbschlussPruefService.pruefe(k(buchungen: bu, camt: camt));
+    expect(f(l, 'bank_camt').status, PruefStatus.gruen);
+    // Der Bankabgleich per 30.06. stimmt — die Kette meldet trotzdem, dass
+    // das zweite Halbjahr gar nicht abgedeckt ist.
+    expect(f(l, 'camt_kette').status, PruefStatus.gelb);
+    expect(f(l, 'camt_kette').hinweis, contains('nur bis 30.06.2025'));
   });
 
   test('camt-Datei umspannt den Stichtag → gelb mit Teil-Export-Hinweis', () {
@@ -511,30 +512,66 @@ void main() {
       );
       expect(r.status, PruefStatus.gelb);
       expect(r.hinweis, contains('OPBD'));
-      expect(
-        f(
-          AbschlussPruefService.pruefe(
-            k(
-              camt: [
-                CamtDateiInfo(
-                  von: DateTime(2025, 1, 1),
-                  bis: DateTime(2025, 3, 31),
-                  anfangssaldo: 0,
-                  schlusssaldo: 100,
-                ),
-                CamtDateiInfo(
-                  von: DateTime(2025, 4, 1),
-                  bis: DateTime(2025, 6, 30),
-                  anfangssaldo: null,
-                  schlusssaldo: null,
-                ),
-              ],
-            ),
+      // Kein Saldosprung (nicht rot), aber auch nicht grün: der Anschluss
+      // liess sich mangels OPBD/CLBD gar nicht prüfen.
+      final kette = f(
+        AbschlussPruefService.pruefe(
+          k(
+            camt: [
+              CamtDateiInfo(
+                von: DateTime(2025, 1, 1),
+                bis: DateTime(2025, 3, 31),
+                anfangssaldo: 0,
+                schlusssaldo: 100,
+              ),
+              CamtDateiInfo(
+                von: DateTime(2025, 4, 1),
+                bis: DateTime(2025, 12, 31),
+                anfangssaldo: null,
+                schlusssaldo: null,
+              ),
+            ],
           ),
-          'camt_kette',
-        ).status,
-        PruefStatus.gruen,
+        ),
+        'camt_kette',
       );
+      expect(kette.status, PruefStatus.gelb);
+      expect(kette.hinweis, contains('ohne Bank-Saldi'));
+    },
+  );
+
+  test(
+    'Fehlende Saldi verstecken keinen Sprung: ungeprüfter Anschluss → gelb',
+    () {
+      final kette = f(
+        AbschlussPruefService.pruefe(
+          k(
+            camt: [
+              CamtDateiInfo(
+                von: DateTime(2025, 1, 1),
+                bis: DateTime(2025, 3, 31),
+                anfangssaldo: 0,
+                schlusssaldo: 100,
+              ),
+              CamtDateiInfo(
+                von: DateTime(2025, 4, 1),
+                bis: DateTime(2025, 6, 30),
+                anfangssaldo: null,
+                schlusssaldo: null,
+              ),
+              CamtDateiInfo(
+                von: DateTime(2025, 7, 1),
+                bis: DateTime(2025, 12, 31),
+                anfangssaldo: 99999,
+                schlusssaldo: 99999,
+              ),
+            ],
+          ),
+        ),
+        'camt_kette',
+      );
+      expect(kette.status, PruefStatus.gelb);
+      expect(kette.hinweis, contains('2 Export(e) ohne Bank-Saldi'));
     },
   );
 

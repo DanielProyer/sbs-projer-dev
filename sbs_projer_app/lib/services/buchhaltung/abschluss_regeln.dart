@@ -28,8 +28,9 @@ const _andernortsGeprueft = {
   2208, // Steuerrückstellung
 };
 
-/// Kontokorrente, die naturgemäss beide Vorzeichen annehmen (Verrechnungssteuer,
-/// Privatkonto, Kreditkarte).
+/// Kontokorrente, die naturgemäss beide Vorzeichen annehmen: 1190 Kontokorrent
+/// Gesellschafter, 2260 Privatkonto, 2276 Kontokorrent
+/// Kurzarbeitsentschädigung.
 const _kontokorrente = {1190, 2260, 2276};
 
 String _datum(DateTime d) => DateFormat('dd.MM.yyyy').format(d);
@@ -160,6 +161,7 @@ class CamtKetteRegel extends AbschlussRegel {
     // insgesamt abgedeckte Zeitraum, nicht der direkte Listenvorgänger.
     var abgedecktBis = l.first.bis;
     var abgedecktSaldo = l.first.schlusssaldo;
+    var ungeprueft = 0;
     for (var i = 1; i < l.length; i++) {
       final c = l[i];
       final luecke = BankWaechter.luecke(
@@ -172,7 +174,9 @@ class CamtKetteRegel extends AbschlussRegel {
       final nahtlos = _tageDiff(c.von, abgedecktBis) == 1;
       final opbd = c.anfangssaldo;
       final clbd = abgedecktSaldo;
-      if (nahtlos &&
+      if (nahtlos && (opbd == null || clbd == null)) {
+        ungeprueft++;
+      } else if (nahtlos &&
           opbd != null &&
           clbd != null &&
           (opbd - clbd).abs() > _toleranz) {
@@ -185,6 +189,14 @@ class CamtKetteRegel extends AbschlussRegel {
         abgedecktBis = c.bis;
         abgedecktSaldo = c.schlusssaldo;
       }
+    }
+
+    // Grün darf nur heissen «geprüft und in Ordnung», nicht «nichts geprüft».
+    if (k.jahrAbgeschlossen && abgedecktBis.isBefore(k.stichtag)) {
+      warne('Exporte reichen nur bis ${_datum(abgedecktBis)}');
+    }
+    if (ungeprueft > 0) {
+      warne('$ungeprueft Export(e) ohne Bank-Saldi — Anschluss nicht prüfbar');
     }
     return befund(
       status,
