@@ -57,6 +57,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_form_scr
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/berichte_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/auswertung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/audit_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/steuern/steuerjahr_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/steuern/steuern_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/mwst_abrechnung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/kontakte/kontakte_list_screen.dart';
@@ -481,6 +482,17 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/steuern',
       builder: (context, state) => const SteuernScreen(),
+    ),
+    GoRoute(
+      path: '/buchhaltung/steuern/:jahr',
+      // Unlesbares Jahr (z. B. aus einem alten Lesezeichen) führt zurück auf
+      // die Übersicht statt in einen Absturz.
+      redirect: (context, state) =>
+          int.tryParse(state.pathParameters['jahr'] ?? '') == null
+          ? '/buchhaltung/steuern'
+          : null,
+      builder: (context, state) =>
+          SteuerjahrScreen(jahr: int.parse(state.pathParameters['jahr']!)),
     ),
     GoRoute(
       path: '/buchhaltung/mahnwesen',
