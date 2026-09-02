@@ -15,6 +15,7 @@ weil RLS). Spec: docs/superpowers/specs/2026-09-02-steuern-dokumente-audit-desig
 """
 import csv
 import os
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -37,7 +38,8 @@ def lese(name):
 
 
 def safe(n):
-    return ''.join(c if c.isalnum() or c in '._-' else '_' for c in n)
+    # Gleiche Regel wie dokumentStoragePfad() in Dart: nur ASCII A-Za-z0-9._- bleibt.
+    return re.sub(r'[^A-Za-z0-9._-]', '_', n)
 
 
 def leer_zu_none(row):
