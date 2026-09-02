@@ -1,10 +1,9 @@
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
+import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 
-final _chf = NumberFormat('#,##0.00', 'de_CH');
-String chf(double v) => _chf.format(v);
 String _datum(DateTime d) => DateFormat('dd.MM.yyyy').format(d);
 
 /// Eine einzelne Abschluss-Prüfregel. Reine Logik — alle Daten kommen aus
