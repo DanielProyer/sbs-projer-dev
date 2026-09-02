@@ -54,4 +54,9 @@ void main() {
     expect(pflichtTypen(jahr: 2026, heute: DateTime(2026, 9, 2)),
         ['jahresrechnung', 'lohnausweis', 'zinsausweis']);
   });
+
+  test('Pflicht-Typ-Label: mit und ohne Steuerart-Suffix', () {
+    expect(pflichtTypLabel('veranlagung:kanton'), 'Veranlagungsverfügung Kanton/Gemeinde');
+    expect(pflichtTypLabel('jahresrechnung'), 'Jahresrechnung');
+  });
 }

@@ -92,3 +92,13 @@ List<String> pflichtTypen({required int jahr, required DateTime heute}) {
     'veranlagung:kanton',
   ];
 }
+
+/// Lesbares Label für einen Pflicht-Dokumenttyp aus [pflichtTypen], z. B.
+/// `'veranlagung:kanton'` → `'Veranlagungsverfügung Kanton/Gemeinde'`.
+String pflichtTypLabel(String schluessel) {
+  final teile = schluessel.split(':');
+  final basis = dokumentTypLabel(teile[0]);
+  if (teile.length < 2) return basis;
+  final art = steuerarten[teile[1]] ?? teile[1];
+  return '$basis $art';
+}
