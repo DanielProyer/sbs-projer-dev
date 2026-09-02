@@ -66,6 +66,7 @@ import 'package:sbs_projer_app/presentation/screens/events/event_detail_screen.d
 import 'package:sbs_projer_app/presentation/screens/events/event_lageplan_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/bergkundenpauschalen/bergkundenpauschale_detail_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/dokumente/dokumente_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/einstellungen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/google_kalender/google_termine_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/preis_version_form_screen.dart';
@@ -634,6 +635,12 @@ final router = GoRouter(
         final id = state.pathParameters['id']!;
         return BergkundenpauschaleDetailScreen(pauschaleId: id);
       },
+    ),
+
+    // Dokumente (Steuern, Versicherungen, Verträge, …)
+    GoRoute(
+      path: '/dokumente',
+      builder: (context, state) => const DokumenteScreen(),
     ),
 
     // Einstellungen

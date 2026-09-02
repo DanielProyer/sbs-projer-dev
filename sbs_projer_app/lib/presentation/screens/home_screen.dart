@@ -241,6 +241,13 @@ class _WeitereSection extends ConsumerWidget {
             count: buchungenCount > 0 ? '$buchungenCount' : null,
             onTap: () => context.push('/buchhaltung'),
           ),
+        // Dokumentenablage — wie die Buchhaltung nichts für den Gast
+        if (!SupabaseService.isGuest)
+          _MenuListTile(
+            icon: Icons.folder_open,
+            label: 'Dokumente',
+            onTap: () => context.push('/dokumente'),
+          ),
         _MenuListTile(
           icon: Icons.query_stats,
           label: 'Auswertung Arbeitstage',
