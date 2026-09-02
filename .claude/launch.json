@@ -6,6 +6,12 @@
       "runtimeExecutable": "py",
       "runtimeArgs": ["-m", "http.server", "8080", "-d", "sbs_projer_app/build/web"],
       "port": 8080
+    },
+    {
+      "name": "flutter-web-check",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-m", "http.server", "8081", "-d", "C:/Users/furmi/AppData/Local/Temp/claude/D--01-SBS-Projer-GmbH-00-Entwicklung-SBS-Projer-DEV/17070d3c-a1a2-4b7a-8991-fd336a12355e/scratchpad/webcheck"],
+      "port": 8081
     }
   ]
 }
