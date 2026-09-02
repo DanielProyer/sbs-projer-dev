@@ -22,6 +22,7 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
   int? _jahr;
 
   void _reload() {
+    if (!mounted) return;
     ref.invalidate(dokumenteProvider);
     ref.invalidate(dokumentJahreProvider);
   }
@@ -30,6 +31,7 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await DokumentRepository.delete(d);
+      if (!mounted) return;
       _reload();
     } catch (e) {
       messenger.showSnackBar(
@@ -42,6 +44,11 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
   Widget build(BuildContext context) {
     final docs = ref.watch(dokumenteProvider((bereich: _bereich, jahr: _jahr)));
     final jahre = ref.watch(dokumentJahreProvider(_bereich)).value ?? const [];
+    // Das gewählte Jahr muss als Option bestehen bleiben, auch wenn das
+    // letzte Dokument dieses Jahres gerade gelöscht wurde — sonst zeigt der
+    // DropdownButton auf einen Wert, den es nicht mehr gibt (Assertion).
+    final jahrOptionen = <int>{if (_jahr != null) _jahr!, ...jahre}.toList()
+      ..sort((a, b) => b.compareTo(a));
     return Scaffold(
       appBar: AppBar(title: const Text('Dokumente')),
       body: Column(
@@ -73,7 +80,7 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
                     hint: 'Alle Jahre',
                     isExpanded: true,
                     value: _jahr,
-                    options: [for (final j in jahre) (j, '$j')],
+                    options: [for (final j in jahrOptionen) (j, '$j')],
                     onChanged: (v) => setState(() => _jahr = v),
                   ).build(context),
                 ),
@@ -83,7 +90,22 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
           Expanded(
             child: docs.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Fehler: $e')),
+              error: (e, _) => Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text('Fehler: $e', textAlign: TextAlign.center),
+                    ),
+                    TapKnopf(
+                      text: 'Erneut laden',
+                      primaer: false,
+                      onTap: _reload,
+                    ),
+                  ],
+                ),
+              ),
               data: (list) => ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
@@ -92,20 +114,31 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TapKnopf(
-              text: 'Dokument hochladen',
-              icon: Icons.upload_file,
-              onTap: () async {
-                final d = await showDokumentUploadDialog(
-                  context,
-                  bereich: _bereich ?? 'sonstiges',
-                  bereichFix: false,
-                  jahr: _jahr,
-                );
-                if (d != null) _reload();
-              },
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: TapKnopf(
+                text: 'Dokument hochladen',
+                icon: Icons.upload_file,
+                onTap: () async {
+                  final d = await showDokumentUploadDialog(
+                    context,
+                    bereich: _bereich ?? 'sonstiges',
+                    bereichFix: false,
+                    jahr: _jahr,
+                  );
+                  if (d == null) return;
+                  if (!mounted) return;
+                  // Filter auf das frisch hochgeladene Dokument ausrichten,
+                  // sonst landet es unsichtbar hinter dem alten Filter.
+                  setState(() {
+                    _bereich = d.bereich;
+                    if (_jahr != null && d.jahr != _jahr) _jahr = null;
+                  });
+                  _reload();
+                },
+              ),
             ),
           ),
         ],

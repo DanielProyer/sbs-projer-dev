@@ -100,6 +100,18 @@ class DokumentListe extends StatelessWidget {
               padding: EdgeInsets.only(left: 6),
               child: Icon(Icons.link, size: 16),
             ),
+          // Langdruck allein ist auf dem Handy schwer zu erraten — deshalb
+          // zusätzlich ein sichtbarer Knopf mit derselben Rückfrage.
+          if (onLoeschen != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              tooltip: 'Löschen',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.only(left: 8),
+              color: AppColors.textSecondary,
+              onPressed: () => _loeschenFragen(context, d),
+            ),
         ],
       ),
     ),

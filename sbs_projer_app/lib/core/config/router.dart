@@ -89,9 +89,10 @@ final router = GoRouter(
     if (!isLoggedIn && !isLoginPage) return '/login';
     if (isLoggedIn && isLoginPage) return '/';
 
-    // Gast (Heineken) hat keinen Zugriff auf die Buchhaltung
+    // Gast (Heineken) hat keinen Zugriff auf Buchhaltung und Dokumente
+    const gastGesperrt = ['/buchhaltung', '/dokumente'];
     if (SupabaseService.isGuest &&
-        state.matchedLocation.startsWith('/buchhaltung')) {
+        gastGesperrt.any(state.matchedLocation.startsWith)) {
       return '/';
     }
 
