@@ -22,6 +22,8 @@ class Buchung {
   final bool istStorniert;
   final String? stornoVonId;
   final String? notizen;
+  final int? steuerjahr;
+  final String? steuerart;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -49,6 +51,8 @@ class Buchung {
     this.istStorniert = false,
     this.stornoVonId,
     this.notizen,
+    this.steuerjahr,
+    this.steuerart,
     this.createdAt,
     this.updatedAt,
   });
@@ -78,6 +82,8 @@ class Buchung {
       istStorniert: json['ist_storniert'] ?? false,
       stornoVonId: json['storno_von_id'],
       notizen: json['notizen'],
+      steuerjahr: json['steuerjahr'],
+      steuerart: json['steuerart'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -106,6 +112,8 @@ class Buchung {
       'ist_storniert': istStorniert,
       'storno_von_id': stornoVonId,
       'notizen': notizen,
+      'steuerjahr': steuerjahr,
+      'steuerart': steuerart,
     };
   }
 

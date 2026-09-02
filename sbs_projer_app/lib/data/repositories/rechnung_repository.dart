@@ -85,6 +85,26 @@ class RechnungRepository {
     return total;
   }
 
+  /// Alle offenen Rechnungen (nicht bezahlt/abgeschrieben), älteste zuerst.
+  static Future<List<Rechnung>> getOffene() async {
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    int from = 0;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('rechnungen').select()
+          .eq('user_id', _userId)
+          .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")')
+          .order('rechnungsdatum')
+          .order('id') // stabile Pagination
+          .range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all.map((r) => Rechnung.fromJson(r)).toList();
+  }
+
   /// Erstellt eine Rechnung und gibt das DB-Ergebnis zurück (inkl. generierter ID).
   /// Vergibt für Kundentypen automatisch eine eindeutige SCOR-Referenz; bei einer
   /// Referenz-Kollision (zwei Rechnungsnummern mit identischen Ziffern) wird mit
