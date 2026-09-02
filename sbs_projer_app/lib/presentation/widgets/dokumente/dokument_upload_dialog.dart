@@ -1,9 +1,9 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/util/chf_betrag.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/dokument.dart';
 import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
@@ -27,6 +27,9 @@ Future<Dokument?> showDokumentUploadDialog(
   ),
 );
 
+/// Dropdown-Wert für einen frei eingetippten Dokumenttyp.
+const _typAnderer = '__anderer__';
+
 class _UploadDialog extends StatefulWidget {
   final String bereich;
   final bool bereichFix;
@@ -49,6 +52,8 @@ class _UploadDialogState extends State<_UploadDialog> {
   late String _typ = dokumentTypen(widget.bereich).first;
   String? _kategorie;
   late final _jahr = TextEditingController(text: widget.jahr?.toString() ?? '');
+  final _typFrei = TextEditingController();
+  final _kategorieFrei = TextEditingController();
   final _titel = TextEditingController();
   final _betrag = TextEditingController();
   final _referenz = TextEditingController();
@@ -65,12 +70,17 @@ class _UploadDialogState extends State<_UploadDialog> {
   @override
   void dispose() {
     _jahr.dispose();
+    _typFrei.dispose();
+    _kategorieFrei.dispose();
     _titel.dispose();
     _betrag.dispose();
     _referenz.dispose();
     _notizen.dispose();
     super.dispose();
   }
+
+  void _meldung(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _pdfWaehlen() async {
     final r = await FilePicker.platform.pickFiles(
@@ -92,17 +102,21 @@ class _UploadDialogState extends State<_UploadDialog> {
     if (x == null) return;
     final bytes = await x.readAsBytes();
     if (!mounted) return;
-    final mime = x.name.toLowerCase().endsWith('.png')
-        ? 'image/png'
-        : 'image/jpeg';
+    // mimeType liefert der Picker nicht auf allen Plattformen — dann
+    // entscheidet die Endung.
+    final mime =
+        x.mimeType ??
+        (x.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
     _uebernehmen(bytes, x.name, mime);
   }
 
   void _uebernehmen(Uint8List bytes, String name, String mime) {
+    if (bytes.isEmpty) {
+      _meldung('Datei ist leer.');
+      return;
+    }
     if (bytes.length > _maxBytes) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Datei grösser als 20 MB.')));
+      _meldung('Datei grösser als 20 MB.');
       return;
     }
     setState(() {
@@ -118,19 +132,39 @@ class _UploadDialogState extends State<_UploadDialog> {
     });
   }
 
+  bool get _bereit => _bytes != null && _titel.text.trim().isNotEmpty;
+
   Future<void> _speichern() async {
-    if (_bytes == null || _titel.text.trim().isEmpty) return;
+    if (_bytes == null) return;
+    if (_titel.text.trim().isEmpty) {
+      _meldung('Titel ist Pflicht');
+      return;
+    }
+    // Freier Typ: kleingeschrieben, Leerzeichen zu _ (z. B. police_haftpflicht).
+    var typ = _typ;
+    if (typ == _typAnderer) {
+      typ = _typFrei.text.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+      if (typ.isEmpty) {
+        _meldung('Typ fehlt');
+        return;
+      }
+    }
+    // Ein Tippfehler im Betrag darf nicht still als «kein Betrag» durchgehen.
+    final betragRoh = _betrag.text.trim();
+    final betrag = chfBetragParsen(betragRoh);
+    if (betragRoh.isNotEmpty && betrag == null) {
+      _meldung('Betrag ungültig');
+      return;
+    }
     setState(() => _laeuft = true);
     try {
       final d = await DokumentRepository.upload(
         bereich: _bereich,
-        typ: _typ,
+        typ: typ,
         kategorie: _kategorie,
         jahr: int.tryParse(_jahr.text),
         dokumentDatum: _datum,
-        betrag: double.tryParse(
-          _betrag.text.replaceAll("'", '').replaceAll(',', '.'),
-        ),
+        betrag: betrag,
         referenz: _referenz.text.trim().isEmpty ? null : _referenz.text.trim(),
         titel: _titel.text.trim(),
         notizen: _notizen.text.trim().isEmpty ? null : _notizen.text.trim(),
@@ -143,178 +177,215 @@ class _UploadDialogState extends State<_UploadDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _laeuft = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Upload fehlgeschlagen: $e')));
+        _meldung('Upload fehlgeschlagen: $e');
       }
     }
   }
 
+  void _bereichWechseln(String neu) => setState(() {
+    _bereich = neu;
+    _typ = dokumentTypen(neu).first;
+    _typFrei.clear();
+    _kategorie = null;
+    _kategorieFrei.clear();
+    // Zahlungen werden nur im Steuer-Bereich verknüpft — sonst bliebe eine
+    // Buchung hängen, die im neuen Bereich gar nicht mehr angeboten wird.
+    _buchungId = null;
+  });
+
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('dd.MM.yyyy');
-    return AlertDialog(
-      title: const Text('Dokument hochladen'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!widget.bereichFix)
+    final zeigeBuchungen = _bereich == 'steuern' && widget.buchungen.isNotEmpty;
+    return PopScope(
+      canPop: !_laeuft,
+      child: AlertDialog(
+        title: const Text('Dokument hochladen'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!widget.bereichFix)
+                DropdownButtonFormField<String>(
+                  initialValue: _bereich,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Bereich'),
+                  items: [
+                    for (final e in dokumentBereiche.entries)
+                      DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  ],
+                  onChanged: (v) => _bereichWechseln(v!),
+                ),
               DropdownButtonFormField<String>(
-                initialValue: _bereich,
-                decoration: const InputDecoration(labelText: 'Bereich'),
-                items: [
-                  for (final e in dokumentBereiche.entries)
-                    DropdownMenuItem(value: e.key, child: Text(e.value)),
-                ],
-                onChanged: (v) => setState(() {
-                  _bereich = v!;
-                  _typ = dokumentTypen(v).first;
-                  _kategorie = null;
-                }),
-              ),
-            DropdownButtonFormField<String>(
-              initialValue: _typ,
-              decoration: const InputDecoration(labelText: 'Typ'),
-              items: [
-                for (final t in dokumentTypen(_bereich))
-                  DropdownMenuItem(value: t, child: Text(dokumentTypLabel(t))),
-              ],
-              onChanged: (v) => setState(() => _typ = v!),
-            ),
-            if (_bereich == 'steuern')
-              DropdownButtonFormField<String?>(
-                initialValue: _kategorie,
-                decoration: const InputDecoration(labelText: 'Steuerart'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('—')),
-                  for (final e in steuerarten.entries)
-                    DropdownMenuItem(value: e.key, child: Text(e.value)),
-                ],
-                onChanged: (v) => setState(() => _kategorie = v),
-              )
-            else
-              TextField(
-                decoration: const InputDecoration(labelText: 'Kategorie'),
-                onChanged: (v) =>
-                    _kategorie = v.trim().isEmpty ? null : v.trim(),
-              ),
-            TextField(
-              controller: _jahr,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Jahr'),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Datum: ${_datum == null ? '—' : df.format(_datum!)}',
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final p = await showDatePicker(
-                      context: context,
-                      initialDate: _datum ?? DateTime.now(),
-                      firstDate: DateTime(2015),
-                      lastDate: DateTime(2035),
-                    );
-                    if (p != null) setState(() => _datum = p);
-                  },
-                  child: const Text('wählen'),
-                ),
-              ],
-            ),
-            TextField(
-              controller: _betrag,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Betrag CHF (Guthaben negativ)',
-              ),
-            ),
-            TextField(
-              controller: _referenz,
-              decoration: const InputDecoration(
-                labelText: 'Referenz / Rechnungs-Nr.',
-              ),
-            ),
-            TextField(
-              controller: _titel,
-              decoration: const InputDecoration(labelText: 'Titel *'),
-            ),
-            TextField(
-              controller: _notizen,
-              decoration: const InputDecoration(labelText: 'Notizen'),
-              maxLines: 2,
-            ),
-            if (widget.buchungen.isNotEmpty)
-              DropdownButtonFormField<String?>(
-                initialValue: _buchungId,
+                initialValue: _typ,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Zahlung verknüpfen',
-                ),
+                decoration: const InputDecoration(labelText: 'Typ'),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('—')),
-                  for (final b in widget.buchungen)
+                  for (final t in dokumentTypen(_bereich))
                     DropdownMenuItem(
-                      value: b.id,
-                      child: Text(
-                        '${df.format(b.datum)} '
-                        '${b.betragBrutto.toStringAsFixed(2)} '
-                        '${b.beschreibung}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      value: t,
+                      child: Text(dokumentTypLabel(t)),
                     ),
+                  const DropdownMenuItem(
+                    value: _typAnderer,
+                    child: Text('Anderer…'),
+                  ),
                 ],
-                onChanged: (v) => setState(() => _buchungId = v),
+                onChanged: (v) => setState(() => _typ = v!),
               ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                TapKnopf(
-                  text: 'PDF',
-                  icon: Icons.picture_as_pdf,
-                  primaer: false,
-                  onTap: _pdfWaehlen,
+              if (_typ == _typAnderer)
+                TextField(
+                  controller: _typFrei,
+                  decoration: const InputDecoration(labelText: 'Typ (frei)'),
                 ),
-                TapKnopf(
-                  text: 'Galerie',
-                  icon: Icons.photo,
-                  primaer: false,
-                  onTap: () => _bildWaehlen(ImageSource.gallery),
+              if (_bereich == 'steuern')
+                DropdownButtonFormField<String?>(
+                  initialValue: _kategorie,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Steuerart'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('—')),
+                    for (final e in steuerarten.entries)
+                      DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  ],
+                  onChanged: (v) => setState(() => _kategorie = v),
+                )
+              else
+                TextField(
+                  controller: _kategorieFrei,
+                  decoration: const InputDecoration(labelText: 'Kategorie'),
+                  onChanged: (v) =>
+                      _kategorie = v.trim().isEmpty ? null : v.trim(),
                 ),
-                TapKnopf(
-                  text: 'Kamera',
-                  icon: Icons.camera_alt,
-                  primaer: false,
-                  onTap: () => _bildWaehlen(ImageSource.camera),
+              TextField(
+                controller: _jahr,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                maxLength: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Jahr',
+                  counterText: '',
                 ),
-              ],
-            ),
-            if (_dateiname != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text('Datei: $_dateiname'),
               ),
-          ],
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Datum: ${_datum == null ? '—' : df.format(_datum!)}',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final p = await showDatePicker(
+                        context: context,
+                        initialDate: _datum ?? DateTime.now(),
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime(2035),
+                      );
+                      if (p != null && mounted) setState(() => _datum = p);
+                    },
+                    child: const Text('wählen'),
+                  ),
+                ],
+              ),
+              TextField(
+                controller: _betrag,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Betrag CHF (Guthaben negativ)',
+                ),
+              ),
+              TextField(
+                controller: _referenz,
+                decoration: const InputDecoration(
+                  labelText: 'Referenz / Rechnungs-Nr.',
+                ),
+              ),
+              TextField(
+                controller: _titel,
+                decoration: const InputDecoration(labelText: 'Titel *'),
+                // Gibt den Speichern-Knopf frei, sobald ein Titel dasteht.
+                onChanged: (_) => setState(() {}),
+              ),
+              TextField(
+                controller: _notizen,
+                decoration: const InputDecoration(labelText: 'Notizen'),
+                maxLines: 2,
+              ),
+              if (zeigeBuchungen)
+                DropdownButtonFormField<String?>(
+                  initialValue: _buchungId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Zahlung verknüpfen',
+                  ),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('—')),
+                    for (final b in widget.buchungen)
+                      DropdownMenuItem(
+                        value: b.id,
+                        child: Text(
+                          '${df.format(b.datum)} '
+                          '${b.betragBrutto.toStringAsFixed(2)} '
+                          '${b.beschreibung}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _buchungId = v),
+                ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TapKnopf(
+                    text: 'PDF',
+                    icon: Icons.picture_as_pdf,
+                    primaer: false,
+                    onTap: _laeuft ? null : _pdfWaehlen,
+                  ),
+                  TapKnopf(
+                    text: 'Galerie',
+                    icon: Icons.photo,
+                    primaer: false,
+                    onTap: _laeuft
+                        ? null
+                        : () => _bildWaehlen(ImageSource.gallery),
+                  ),
+                  TapKnopf(
+                    text: 'Kamera',
+                    icon: Icons.camera_alt,
+                    primaer: false,
+                    onTap: _laeuft
+                        ? null
+                        : () => _bildWaehlen(ImageSource.camera),
+                  ),
+                ],
+              ),
+              if (_dateiname != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text('Datei: $_dateiname'),
+                ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _laeuft ? null : () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          TapKnopf(
+            text: 'Speichern',
+            laeuft: _laeuft,
+            onTap: _bereit ? _speichern : null,
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _laeuft ? null : () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
-        ),
-        TapKnopf(
-          text: _laeuft ? 'Lädt…' : 'Speichern',
-          onTap: (_laeuft || _bytes == null) ? null : _speichern,
-        ),
-      ],
     );
   }
 }

@@ -117,8 +117,37 @@ class DokumentListe extends StatelessWidget {
         if (!context.mounted) return;
         await showDialog<void>(
           context: context,
-          builder: (_) =>
-              Dialog(child: InteractiveViewer(child: Image.network(url))),
+          builder: (ctx) => Dialog(
+            child: Stack(
+              children: [
+                InteractiveViewer(
+                  child: Image.network(
+                    url,
+                    loadingBuilder: (_, kind, fortschritt) =>
+                        fortschritt == null
+                        ? kind
+                        : const Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                    errorBuilder: (_, _, _) => const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Text('Bild konnte nicht geladen werden'),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Schliessen',
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       }
     } catch (e) {
