@@ -479,7 +479,10 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/buchhaltung/audit',
-      builder: (context, state) => const AuditScreen(),
+      // ?jahr= wählt das Prüfjahr vor; der Screen prüft es und fällt bei
+      // Unsinn aufs laufende Jahr zurück.
+      builder: (context, state) => AuditScreen(
+          jahr: int.tryParse(state.uri.queryParameters['jahr'] ?? '')),
     ),
     GoRoute(
       path: '/buchhaltung/steuern',

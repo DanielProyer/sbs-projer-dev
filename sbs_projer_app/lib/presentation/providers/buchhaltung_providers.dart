@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
@@ -5,8 +7,12 @@ import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
 import 'package:sbs_projer_app/data/repositories/konto_repository.dart';
-import 'package:sbs_projer_app/services/buchhaltung/audit_service.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
+import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
@@ -112,7 +118,6 @@ List<BuchungSaldo> toSaldoInput(List<Buchung> buchungen) => buchungen
         ))
     .toList();
 
-/// Audit-Befunde: verdächtige Salden / fehlende Buchungen.
 /// Bank-Wächter fürs Dashboard: Journal 1020 gegen den letzten
 /// Bank-Schlusssaldo + Soll-Überhänge auf Verbindlichkeitskonten
 /// («Tilgung ohne Aufbau» — zweimal am 01.09.2026 gefunden: Franchise
@@ -154,17 +159,70 @@ class BankWaechterStand {
       verbindlichkeiten.isEmpty && (schluss?.ok ?? true);
 }
 
-final auditBefundeProvider = FutureProvider<List<AuditBefund>>((ref) async {
-  final saldi = await BuchungService.getAllSaldi();
-  final konten = await KontoRepository.getAll();
-  final infos = konten
-      .map((k) => KontoInfo(
-            kontonummer: k.kontonummer,
-            bezeichnung: k.bezeichnung,
-            kategorie: k.kategorie ?? '—',
-          ))
-      .toList();
-  return AuditService.befunde(saldi, infos);
+/// Abschlussprüfung je Jahr (14 Regeln, Spec 02.09.2026 Abschnitt 4).
+/// Lädt alles vorab, damit die Regeln rein bleiben; rechnet nach jeder
+/// Buchung neu.
+final abschlussPruefungProvider =
+    FutureProvider.family<List<Pruefbefund>, int>((ref, jahr) async {
+  ref.watch(buchungenStreamProvider);
+  // Voneinander unabhängig — parallel laden, sonst summieren sich sieben
+  // Roundtrips zur Wartezeit.
+  final (buchungen, konten, dateien, offene, ohneJahr, docs, steuerjahre) =
+      await (
+    BuchungRepository.getAll(),
+    KontoRepository.getAll(),
+    CamtDateiRepository.getAll(),
+    RechnungRepository.getOffene(),
+    SteuerzahlungRepository.getNichtZugeordnet(),
+    DokumentRepository.getAll(bereich: 'steuern', jahr: jahr),
+    SteuerjahrRepository.getAll(),
+  ).wait;
+  final statusListe =
+      steuerjahre.where((s) => s.jahr == jahr).map((s) => s.status).toList();
+  final offeneIds = offene.map((r) => r.id).toSet();
+  // Rechnung steht auf «offen», obwohl der Zahlungseingang (Haben 1100) auf
+  // sie gebucht ist.
+  final mitZahlung = buchungen
+      .where((b) =>
+          !b.istStorniert &&
+          b.habenKonto == 1100 &&
+          b.belegId != null &&
+          offeneIds.contains(b.belegId))
+      .map((b) => b.belegId!)
+      .toSet();
+  return AbschlussPruefService.pruefe(AbschlussKontext(
+    jahr: jahr,
+    heute: DateTime.now(),
+    buchungen: toSaldoInput(buchungen),
+    konten: konten
+        .map((k) => KontoInfo(
+              kontonummer: k.kontonummer,
+              bezeichnung: k.bezeichnung,
+              kategorie: k.kategorie ?? '—',
+            ))
+        .toList(),
+    camtDateien: [
+      for (final d in dateien)
+        if (d.zeitraumVon != null && d.zeitraumBis != null)
+          CamtDateiInfo(
+            von: d.zeitraumVon!,
+            bis: d.zeitraumBis!,
+            anfangssaldo: d.anfangssaldo,
+            schlusssaldo: d.schlusssaldo,
+          ),
+    ],
+    offeneRechnungen: offene
+        .map((r) => OffeneRechnungInfo(
+              id: r.id,
+              datum: r.rechnungsdatum,
+              brutto: r.betragBrutto,
+            ))
+        .toList(),
+    steuerbuchungenOhneJahr: ohneJahr.length,
+    dokumentTypen: docs.map((d) => d.typ).toSet(),
+    steuerjahrStatus: statusListe.isEmpty ? 'offen' : statusListe.first,
+    offeneRechnungenMitZahlung: mitZahlung,
+  ));
 });
 
 /// Debitoren-Übersicht: Gesamtsaldo 1100, native offene Rechnungen,

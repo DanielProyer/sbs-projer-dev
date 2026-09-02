@@ -175,8 +175,8 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
           ),
           _NavTile(
             icon: Icons.fact_check,
-            title: 'Audit',
-            subtitle: 'Verdächtige Buchungen & Salden',
+            title: 'Abschlussprüfung',
+            subtitle: 'Jahres-Check: Bank, MWST, Debitoren, Steuern',
             onTap: () => context.push('/buchhaltung/audit'),
           ),
           _NavTile(
@@ -454,6 +454,22 @@ class _BankWaechterCard extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 12.5, fontWeight: FontWeight.w600)),
             ),
+          // Weiter zur vollen Abschlussprüfung (14 Regeln) fürs laufende Jahr.
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () => context
+                  .push('/buchhaltung/audit?jahr=${DateTime.now().year}'),
+              child: const Padding(
+                padding: EdgeInsets.only(top: 6, left: 8),
+                child: Text('Details →',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary)),
+              ),
+            ),
+          ),
         ],
       ),
     );
