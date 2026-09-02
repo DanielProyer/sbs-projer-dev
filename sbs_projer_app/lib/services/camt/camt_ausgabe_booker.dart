@@ -138,6 +138,13 @@ Map<int, double> rueckstellungsRest(List<Buchung> buchungen) {
 Set<int> rueckstellungsJahre(List<Buchung> buchungen) =>
     rueckstellungsRest(buchungen).keys.toSet();
 
+/// Steht die Bank (1020/1000) im Soll, kommt das Steuerkonto ins Haben — eine
+/// Zahlung fliesst dann ZUR Firma zurück und die Rückstellung baut auf; sonst
+/// wird sie verbraucht. Einzige Quelle für beides: die Seitenwahl in
+/// [steuerFelderAnwenden] und die Fortschreibung des Rückstellungs-Rests.
+bool rueckstellungBautAuf(Map<String, dynamic> felder) =>
+    felder['soll_konto'] == kCamtBankKonto || felder['soll_konto'] == 1000;
+
 /// Setzt bei einer bestätigten Steuerzahlung das Steuerkonto auf die Seite
 /// GEGENÜBER der Bank und stempelt Steuerjahr/Steuerart, damit die
 /// Steuer-Übersicht die Zahlung ohne Nacharbeit findet.
@@ -152,11 +159,9 @@ Map<String, dynamic> steuerFelderAnwenden(
 }) {
   final konto = steuerKontoFuer(
       steuerart: steuer.steuerart, hatRueckstellung: steuer.hatRueckstellung);
-  final bankImSoll = felder['soll_konto'] == kCamtBankKonto ||
-      felder['soll_konto'] == 1000;
   return {
     ...felder,
-    if (bankImSoll) 'haben_konto': konto else 'soll_konto': konto,
+    if (rueckstellungBautAuf(felder)) 'haben_konto': konto else 'soll_konto': konto,
     'mwst_konto': null,
     'mwst_satz': 0,
     'mwst_betrag': 0.0,

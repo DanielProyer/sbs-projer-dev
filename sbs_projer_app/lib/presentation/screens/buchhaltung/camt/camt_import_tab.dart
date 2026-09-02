@@ -595,6 +595,22 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
             if (_vorschlaege.isNotEmpty) ...[
+              // Einmalige Warnung statt einer pro Zeile — und nur dort, wo sie
+              // zutrifft: MWST (2202) und Bussen (8900) kennen gar keine
+              // Rückstellung, dort widerspräche sie dem Zielkonto-Hinweis.
+              if (_rueckstellungFehler &&
+                  _steuer.values.any((z) =>
+                      z.steuerart == 'bund' || z.steuerart == 'kanton'))
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 12, 8),
+                  child: Text(
+                    'Rückstellungs-Prüfung fehlgeschlagen — Kontierung auf 8900, bitte prüfen',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
                 child: Align(
@@ -742,8 +758,20 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     final gebuchtesKonto = steuerKontoFuer(
         steuerart: z.steuerart, hatRueckstellung: z.hatRueckstellung);
     if (gebuchtesKonto != 2208) return; // 8900/2202 rühren die Rückstellung nicht an
+    // Vorzeichen aus derselben Quelle wie die Seitenwahl beim Buchen (die
+    // Bankseite), nicht aus der camt-Richtung — eine als «Bank an 2208»
+    // definierte Vorlage baut die Rückstellung auch bei einer Belastung auf.
+    final k = kontenFuerCamt(v.vorlage!);
+    final bautAuf = rueckstellungBautAuf(ausgabeBuchungsFelder(
+      betrag: v.tx.amount,
+      isCredit: v.tx.isCredit,
+      mwstSatz: v.vorlage!.mwstSatz ?? 0,
+      vorlageSoll: k.sollKonto,
+      vorlageHaben: k.habenKonto,
+      vorlageMwstKonto: k.mwstKonto,
+    ));
     final rest = (_rueckstellungRest[z.steuerjahr] ?? 0) +
-        (v.tx.isCredit ? v.tx.amount : -v.tx.amount);
+        (bautAuf ? v.tx.amount : -v.tx.amount);
     _rueckstellungRest[z.steuerjahr] = rest;
     final hat = rest > 0.05;
     for (final e in _steuer.entries.toList()) {
@@ -899,14 +927,6 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600),
           ),
-          if (_rueckstellungFehler)
-            const Text(
-              'Rückstellungs-Prüfung fehlgeschlagen — Kontierung auf 8900, bitte prüfen',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.warning,
-                  fontWeight: FontWeight.w600),
-            ),
         ],
       ),
     );

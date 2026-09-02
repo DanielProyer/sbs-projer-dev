@@ -106,6 +106,18 @@ void main() {
       expect(f['steuerart'], 'mwst');
     });
 
+    test('rueckstellungBautAuf: Bank im Soll = Zufluss auf 2208', () {
+      // Dieselbe Quelle wie die Seitenwahl in steuerFelderAnwenden: steht die
+      // Bank im Soll, landet das Steuerkonto im Haben → die Rückstellung
+      // wächst; sonst wird sie verbraucht.
+      expect(rueckstellungBautAuf(felder(isCredit: false)), isFalse);
+      expect(rueckstellungBautAuf(felder(isCredit: true)), isTrue);
+      expect(
+          rueckstellungBautAuf(
+              felder(isCredit: false, vorlageSoll: 1020, vorlageHaben: 2208)),
+          isTrue);
+    });
+
     test('Steuern tragen keine Vorsteuer — MwSt-Split wird neutralisiert', () {
       final f = steuerFelderAnwenden(
         felder(isCredit: false, mwstSatz: 8.1, mwstKonto: 1171),
