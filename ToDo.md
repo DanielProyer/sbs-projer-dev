@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 02.09. spät (für die nächste Session)
 
-**Stand:** **v0.96.0 live** (deploy `d56cda9`) · Migrationen bis **184** ausgeführt · Branch `feature/steuern-dokumente-audit` nach `main` gemergt. **Neu in v0.96.0** (Spec `docs/superpowers/specs/2026-09-02-steuern-dokumente-audit-design.md`, Plan `docs/superpowers/plans/2026-09-02-steuern-dokumente-audit.md`, 15 Tasks subagent-driven mit je 2 Reviews):
+**Stand:** **v0.96.1 live** (v0.96.0 `d56cda9` + Review-Fixes) · Migrationen bis **185** ausgeführt · Branch `feature/steuern-dokumente-audit` nach `main` gemergt. **Neu in v0.96.0** (Spec `docs/superpowers/specs/2026-09-02-steuern-dokumente-audit-design.md`, Plan `docs/superpowers/plans/2026-09-02-steuern-dokumente-audit.md`, 15 Tasks subagent-driven mit je 2 Reviews):
 - **Dokumente-Modul** (Home → Dokumente, Bucket `dokumente`, Tabelle `dokumente`, Bereiche steuern/versicherungen/verträge/behörden/bank/sonstiges, Filter Bereich/Jahr, Upload PDF/JPG/PNG ≤ 20 MB).
 - **Buchhaltung → Steuern**: Jahreskarten 2019–2025 mit Ampel (Soll aus Veranlagung vs. bezahlt aus `view_steuerjahr_zahlungen`), Jahresdetail mit Veranlagungsdaten, Soll/Ist, Zahlungen (zuordnen/entfernen), Dossier-Checkliste + Dokumente je Jahr. Tabelle `steuerjahre`, `buchungen.steuerjahr/steuerart`.
 - **Abschlussprüfung** (ersetzt den alten Audit-Screen): 14 Regeln (Bank = camt, camt-Kette, Kasse, MWST saldiert/2202, verjährte Debitoren, Delkredere 5 %, Rechnungen mit Zahlung, Rückstellung 2208, vorzeichenwidrige Salden, Lohnkonten, FEHLER-Konten, Steuer-Zuordnung, Steuererklärung) mit Jahreswahl, rot/gelb/grün, Tap → Zielscreen; Dashboard-Kachel «Abschlussprüfung» + «Details →» im Bank-Wächter.
@@ -10,6 +10,13 @@
 - **Import-Echtlauf 02.09.:** 76 Steuerdokumente 2019–2025 (inkl. Steuererklärungen 2019–2024, Jahresrechnungen, Veranlagungen, Rechnungen), 7 Steuerjahre, 63 Zahlungszuordnungen — **0 Steuerbuchungen ohne Jahr**. View: 2024 Bund 2'405.50 / Kanton 2'748.00, 2025 dito (provisorisch, über 2208).
 
 **⚠️ UNGETESTET IM BROWSER (Login nicht möglich) — Daniel bitte am Handy klicken:** Buchhaltung → Steuern (Karten, Ampeln, Summe) → Jahr 2024 (Dossier 4/6, Zahlungen, Dokumente öffnen) → Jahr 2025 (Formular speichern, Dokument hochladen) → Abschlussprüfung (Jahr 2025 und 2026 wechseln, «grüne zeigen», Zeile antippen) → Home → Dokumente (Filter) → beim nächsten camt-Import die Steuerzeile mit den zwei Dropdowns. Bei «sehe X nicht»: Screenshot schicken (CanvasKit-Falle). Bekannte Punkte: Dropdown-Wechsel in der Abschlussprüfung spiegelt sich nicht in der URL (bewusst offen); Bussen-Vorlage bucht auf 6280, erscheint deshalb nicht als Steuerzeile.
+
+**Gesamt-Review nach Merge (02.09. spät) — erledigt:** Migration **185** `view_steuerjahr_zahlungen` auf `security_invoker=on` (war als einzige View SECURITY DEFINER → mit dem anon-Key ohne Login lesbar; Advisor-ERROR weg) · Abschlussprüfung/Steuern-Sicht werden nach Dokument-Upload/-Löschung und Zuordnung invalidiert · Jahr-Vorschlag im Zuordnungsdialog geklemmt. **Folgepunkte (nicht blockierend):**
+- [ ] Widget-Tests für die vier neuen Screens (Steuern-Übersicht leer, Jahresdetail ohne `steuerjahre`-Satz, Dokumente, Abschlussprüfung) — Vorbild `test/camt_bankauszug_screen_test.dart`
+- [ ] Dokumente doppelt geladen (`steuernUebersichtProvider` + `steuerDokumenteProvider`, `dokumenteProvider` + `dokumentJahreProvider`) → ableiten statt zweimal holen
+- [ ] Tap-Flächen < 44 px: Zahlungszeile im Jahresdetail, Lösch-Icon in `DokumentListe`, camt-Steuer-Dropdowns (`isDense`)
+- [ ] Toter Code: `rueckstellungsJahre` (nur Test), `DokumentRepository.update` (kein Bearbeiten-Pfad); MIME wird beim Upload nur nach Endung gesetzt
+- [ ] Vorbestehende Security-Advisor-Hinweise: `google_calendar_events`/`google_calendar_tokens` RLS ohne Policy, `verwaiste_belege()` SECURITY DEFINER für `authenticated`, Extensions `pg_trgm`/`pg_net`/`fuzzystrmatch` in `public`
 
 **Für die Steuererklärung 2025 in die App laden (Daniel, Steuern → 2025 → Dokumente):** Jahresrechnung 2025 (unterschrieben), Lohnausweis 2025, **GKB Zins-/Kapitalausweis 31.12.2025** (fehlt noch, bei der Bank holen). Danach Formular 11a ausfüllen und bis **30.09.2026** einreichen (Kennzahlen: steuerbarer Gewinn 21'201.23, Kapital 75'950.93), Status im Jahresdetail auf «eingereicht» setzen.
 
