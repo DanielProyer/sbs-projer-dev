@@ -13,6 +13,10 @@ class Dokument {
   final String titel;
   final String? notizen;
   final String dateiname;
+
+  /// MIME-Typ (application/pdf, image/jpeg, image/png) — anders als bei
+  /// buchungs_belege, wo die Endung steht; der Bucket prüft die
+  /// MIME-Allowlist.
   final String dateityp;
   final int? groesseBytes;
   final int? seiten;

@@ -50,6 +50,62 @@ class Steuerjahr {
         notizen: j['notizen'],
       );
 
+  /// Sentinel: unterscheidet «Feld nicht angegeben» von «ausdrücklich auf
+  /// null setzen». Ohne ihn liesse sich z.B. `bundDefinitiv` nie wieder
+  /// leeren, weil `null` bei `??` immer den alten Wert durchreicht.
+  static const _unset = Object();
+
+  Steuerjahr copyWith({
+    Object? id = _unset,
+    int? jahr,
+    String? status,
+    Object? eingereichtAm = _unset,
+    Object? veranlagtAm = _unset,
+    Object? steuerbarerGewinn = _unset,
+    Object? steuerbaresKapital = _unset,
+    Object? verlustvortragVerrechnet = _unset,
+    Object? bundProvisorisch = _unset,
+    Object? bundDefinitiv = _unset,
+    Object? kantonProvisorisch = _unset,
+    Object? kantonDefinitiv = _unset,
+    Object? notizen = _unset,
+  }) =>
+      Steuerjahr(
+        id: identical(id, _unset) ? this.id : id as String?,
+        jahr: jahr ?? this.jahr,
+        status: status ?? this.status,
+        eingereichtAm: identical(eingereichtAm, _unset)
+            ? this.eingereichtAm
+            : eingereichtAm as DateTime?,
+        veranlagtAm: identical(veranlagtAm, _unset)
+            ? this.veranlagtAm
+            : veranlagtAm as DateTime?,
+        steuerbarerGewinn: identical(steuerbarerGewinn, _unset)
+            ? this.steuerbarerGewinn
+            : steuerbarerGewinn as double?,
+        steuerbaresKapital: identical(steuerbaresKapital, _unset)
+            ? this.steuerbaresKapital
+            : steuerbaresKapital as double?,
+        verlustvortragVerrechnet: identical(verlustvortragVerrechnet, _unset)
+            ? this.verlustvortragVerrechnet
+            : verlustvortragVerrechnet as double?,
+        bundProvisorisch: identical(bundProvisorisch, _unset)
+            ? this.bundProvisorisch
+            : bundProvisorisch as double?,
+        bundDefinitiv: identical(bundDefinitiv, _unset)
+            ? this.bundDefinitiv
+            : bundDefinitiv as double?,
+        kantonProvisorisch: identical(kantonProvisorisch, _unset)
+            ? this.kantonProvisorisch
+            : kantonProvisorisch as double?,
+        kantonDefinitiv: identical(kantonDefinitiv, _unset)
+            ? this.kantonDefinitiv
+            : kantonDefinitiv as double?,
+        notizen: identical(notizen, _unset) ? this.notizen : notizen as String?,
+      );
+
+  /// Ohne `id`/`user_id`: die ID vergibt die DB, `user_id` setzt das
+  /// Repository — beides gehört nicht in die Nutzlast.
   Map<String, dynamic> toJson() => {
         'jahr': jahr,
         'status': status,

@@ -26,10 +26,27 @@ void main() {
     );
   });
 
+  test('Storage-Pfad ersetzt Umlaute und Leerzeichen', () {
+    expect(
+      dokumentStoragePfad(
+          userId: 'u1',
+          bereich: 'steuern',
+          jahr: 2024,
+          dokumentId: 'd3',
+          dateiname: 'Veranlagung Zürich.pdf'),
+      'u1/steuern/2024/d3_Veranlagung_Z_rich.pdf',
+    );
+  });
+
   test('Typ-Vorschläge je Bereich: steuern enthält veranlagung, sonstiges immer dabei', () {
     expect(dokumentTypen('steuern'), contains('veranlagung'));
     expect(dokumentTypen('versicherungen'), contains('sonstiges'));
     expect(dokumentTypLabel('rechnung_definitiv'), 'Rechnung definitiv');
+  });
+
+  test('Unbekannter Bereich/Typ fällt sauber zurück', () {
+    expect(dokumentTypen('unbekannt'), ['sonstiges']);
+    expect(dokumentTypLabel('xyz'), 'xyz');
   });
 
   test('Pflicht-Typen: abgeschlossenes Jahr 6, laufendes Jahr 3', () {
