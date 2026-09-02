@@ -1,8 +1,20 @@
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/steuerjahr.dart';
+import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 
 enum SteuerAmpel { ausgeglichen, schuld, guthaben }
+
+/// Saldo-Buchungen nach Kalenderjahr bündeln, damit die Erfolgsrechnung je
+/// Jahr nur ihre eigenen Zeilen sieht — sonst läuft die Übersicht die
+/// Gesamtliste einmal pro Jahr durch (O(n·Jahre) statt O(n)).
+Map<int, List<BuchungSaldo>> gruppiereNachJahr(List<BuchungSaldo> saldi) {
+  final jeJahr = <int, List<BuchungSaldo>>{};
+  for (final b in saldi) {
+    (jeJahr[b.datum.year] ??= []).add(b);
+  }
+  return jeJahr;
+}
 
 /// Eine Steuerart im Soll/Ist-Vergleich eines Jahres.
 class SollIstZeile {

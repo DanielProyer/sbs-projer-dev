@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/data/models/steuerjahr.dart';
+import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart'
+    show BuchungSaldo;
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart';
 
 void main() {
@@ -182,6 +184,30 @@ void main() {
       );
       expect(d.total, 3);
       expect(d.vorhanden, 0);
+    });
+  });
+
+  group('gruppiereNachJahr', () {
+    BuchungSaldo b(DateTime datum) => BuchungSaldo(
+      sollKonto: 1020,
+      habenKonto: 3400,
+      betrag: 100,
+      datum: datum,
+      storniert: false,
+    );
+
+    test('3 Buchungen in 2 Jahren ergeben 2 Gruppen', () {
+      final g = gruppiereNachJahr([
+        b(DateTime(2024, 1, 31)),
+        b(DateTime(2025, 6, 15)),
+        b(DateTime(2024, 12, 31)),
+      ]);
+      expect(g.keys.toSet(), {2024, 2025});
+      expect(g[2024]!.length, 2);
+      expect(g[2025]!.length, 1);
+    });
+    test('leere Eingabe ergibt leere Gruppierung', () {
+      expect(gruppiereNachJahr([]), isEmpty);
     });
   });
 }
