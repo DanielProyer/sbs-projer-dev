@@ -88,3 +88,13 @@ Gewinn 2025 = 30'579.16 − 2'235.90 + 2'079.39 − 4'600.00 − 5'629.38 = **20
 - Delkredere jährlich auf 5 % des Debitorenbestands nachführen; Jahrgang 2020 im Abschluss 2026 abschreiben (76 Rg, 7'216.30).
 - Tresen-Rechnungen Dez 2025, die per Excel-Delta bezahlt, aber noch «offen» sind (~20 Stück, z. B. Center Fontauna, Stau, Surselva, Hotel Chur) → Status nachziehen (Debitoren-Hygiene, ergebnisneutral).
 
+
+## 8. Steuerunterlagen-Inventar (02.09.2026)
+
+**Ordner `00_Rechnungen/01_Steuern/`:** 22 Rechnungen/Mahnungen als benannte PDFs (`JJJJ_Steuerart_Typ_RgNr_Betrag.pdf`), `Unterlagen/` 27 PDFs (Verfügungen, Einspracheentscheide, Bewertungsmeldungen, Zinsausweise; 18 Trennblätter nur archiviert), Originale in `_Originalscans/`, Zuordnung in `_Index_PDF-zu-Originalscan.txt`. `Steuererklärungen 2019-2024/` = eingereichte 11a-Formulare + Bilanz/ER (2023 ohne 11a — Ermessenstaxation).
+
+**Abgleich Zahlungen (8900/2208) ↔ Belege: alle 28 Zahlungen/Rückzahlungen belegt** (inkl. Rückzahlungen 2019 def. 434.20/553.00, 2020 def. 181.35/85.60, 2021 def. 78.00, 2022 def. 33.00). Noch fehlende Papiere (nur Vollständigkeit, keine Zahlungslücke): Bund-Rg 9766206 (2019 prov., 425), Kanton-Rg 9760463 (2019 prov., 600 — nur Mahnung), Rg 13985320/13985321 (2023 def., nur Mahnungen), Rg 14403952 (Bund 2024 prov., nur Mahnung), Bussen-Rg 11539779/13960127 (nur Mahnungen), Bussverfügung 21.11.2024, Bewertungsmeldung per 31.12.2023, **GKB Zins-/Kapitalausweis 31.12.2025** (für Steuererklärung 2025 nötig; 2024er liegt vor).
+
+**Eingereichte Bilanz 31.12.2024 (10.11.2025):** Kasse 1'142.19 · Bank 11'829.71 (GKB-Zinsausweis: 10'869.26!) · Debitoren 85'749.45 · 1170 261.80 · 1171 33.14 · 2000 7'642.35 · 2200 2'803.06 · 2202 6'360.47 · 2260 13'599.36 · 2271 6'115.87 · 2272 1'690.10 · 2273 485.97 · 2500 5'000 · EK 20'000 + 6'920.04 + 28'399.07 = 55'319.11 · Bilanzsumme 99'016.29. Formular 11a 2024: Reingewinn 28'399, Verlustvortrag aufgebraucht (Vortrag 41'257 aus 2020 bis 2023 verrechnet), steuerbar 28'399 / Kapital 48'918. Jahresrechnung-2025-PDF zeigt diese Werte als Vorjahresspalte.
+
+**Steuerhistorie (Verfügungen):** 2019 Verlust −4'973 · 2020 Verlust −36'284 (Einsprache gutgeheissen 16.03.2022; Busse 150 wegen verspäteter Erklärung) · 2021 Gewinn 16'072 voll verrechnet · 2022 Gewinn 18'049 voll verrechnet (Rest-Vortrag 7'136) · 2023 **Ermessenstaxation** (keine Erklärung; Aufrechnung 20'000, steuerbar 12'864; Busse 200) · 2024 steuerbar 28'399, Bund 2'405.50 / Kanton 2'748.00. Steuerwert Stammanteile per 31.12.2024: 985 (netto 689.50) je Anteil.
