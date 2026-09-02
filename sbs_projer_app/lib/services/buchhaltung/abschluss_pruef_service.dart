@@ -22,9 +22,13 @@ class Pruefbefund {
 }
 
 /// Zeitraum + Saldi einer importierten camt-Datei.
+///
+/// [anfangssaldo]/[schlusssaldo] sind bewusst nullable: OPBD/CLBD fehlen in
+/// älteren Importen (produktiv bei 2 von 3 Zeilen NULL). Regeln, die Saldi
+/// vergleichen, überspringen solche Dateien, statt 0 anzunehmen.
 class CamtDateiInfo {
   final DateTime von, bis;
-  final double anfangssaldo, schlusssaldo;
+  final double? anfangssaldo, schlusssaldo;
   const CamtDateiInfo({
     required this.von,
     required this.bis,
@@ -57,10 +61,6 @@ class AbschlussKontext {
   final Set<String> dokumentTypen;
   final String steuerjahrStatus;
   final Set<String> offeneRechnungenMitZahlung;
-  late final Map<int, double> saldi = BilanzService.saldiPerStichtag(
-    buchungen,
-    stichtag,
-  );
 
   AbschlussKontext({
     required this.jahr,
@@ -71,22 +71,33 @@ class AbschlussKontext {
     required this.offeneRechnungen,
     required this.steuerbuchungenOhneJahr,
     required this.dokumentTypen,
-    required this.steuerjahrStatus,
+    this.steuerjahrStatus = 'offen',
     required this.offeneRechnungenMitZahlung,
   });
 
   bool get jahrAbgeschlossen => jahr < heute.year;
 
-  /// Abgeschlossenes Jahr: 31.12.; laufendes Jahr: heute (Datum ohne Uhrzeit).
-  DateTime get stichtag => jahrAbgeschlossen
-      ? DateTime(jahr, 12, 31)
-      : DateTime(heute.year, heute.month, heute.day);
+  /// «heute» ohne Uhrzeit — sonst hängen Stichtag und Quartalsgrenze davon ab,
+  /// zu welcher Tageszeit die Prüfung läuft.
+  DateTime get heuteDatum => DateTime(heute.year, heute.month, heute.day);
+
+  /// Abgeschlossenes Jahr: 31.12.; laufendes Jahr: heute.
+  DateTime get stichtag =>
+      jahrAbgeschlossen ? DateTime(jahr, 12, 31) : heuteDatum;
+
+  late final Map<int, double> saldi = saldiPer(stichtag);
 
   double saldo(int konto) => saldi[konto] ?? 0;
 
-  Map<int, double> saldiPer(DateTime d) =>
-      BilanzService.saldiPerStichtag(buchungen, d);
+  final Map<DateTime, Map<int, double>> _saldiCache = {};
 
+  /// Saldi per beliebigem Datum (mehrere Regeln fragen dieselben Stichtage ab).
+  Map<int, double> saldiPer(DateTime d) => _saldiCache.putIfAbsent(
+    d,
+    () => BilanzService.saldiPerStichtag(buchungen, d),
+  );
+
+  /// Letzte camt-Datei, die vollständig bis [d] reicht (`bis <= d`).
   CamtDateiInfo? letzteCamtDateiBis(DateTime d) {
     CamtDateiInfo? l;
     for (final c in camtDateien) {
@@ -95,13 +106,22 @@ class AbschlussKontext {
     return l;
   }
 
+  /// camt-Datei, deren Zeitraum den Stichtag überspannt (`von <= d < bis`).
+  /// Produktiv der Normalfall: ein einziger Export 09.08.2024–07.08.2026.
+  CamtDateiInfo? camtDateiUeber(DateTime d) {
+    for (final c in camtDateien) {
+      if (!c.von.isAfter(d) && c.bis.isAfter(d)) return c;
+    }
+    return null;
+  }
+
   /// Letztes Quartalsende ≤ Stichtag, das schon vollständig vor «heute» liegt.
   /// `DateTime(jahr, monat, 0)` ist der letzte Tag des Vormonats.
   DateTime letztesQuartalsende() {
     DateTime qEnde(DateTime x) =>
         DateTime(x.year, ((x.month - 1) ~/ 3) * 3 + 4, 0);
     var q = qEnde(stichtag);
-    if (q.isAfter(stichtag) || !q.isBefore(heute)) {
+    if (q.isAfter(stichtag) || !q.isBefore(heuteDatum)) {
       q = qEnde(DateTime(q.year, q.month - 3, 1));
     }
     return q;
@@ -109,11 +129,18 @@ class AbschlussKontext {
 }
 
 /// Regelbasierte Abschlussprüfung: führt alle Regeln aus und sortiert die
-/// Befunde nach Dringlichkeit (rot → gelb → grün).
+/// Befunde nach Dringlichkeit (rot → gelb → grün). Bei gleicher Ampel bleibt
+/// die Reihenfolge aus [alleAbschlussRegeln] erhalten — `List.sort` ist nicht
+/// stabil, deshalb der Tiebreak über den Regel-Index.
 class AbschlussPruefService {
   static List<Pruefbefund> pruefe(AbschlussKontext k) {
-    final l = alleAbschlussRegeln().map((r) => r.pruefe(k)).toList();
-    l.sort((a, b) => a.status.index.compareTo(b.status.index));
+    final regeln = alleAbschlussRegeln();
+    final rang = {for (var i = 0; i < regeln.length; i++) regeln[i].id: i};
+    final l = regeln.map((r) => r.pruefe(k)).toList();
+    l.sort((a, b) {
+      final s = a.status.index.compareTo(b.status.index);
+      return s != 0 ? s : rang[a.regelId]!.compareTo(rang[b.regelId]!);
+    });
     return l;
   }
 }

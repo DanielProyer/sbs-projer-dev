@@ -4,7 +4,43 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 
+/// Rundungsdifferenzen unter einem halben Zehnrappen sind kein Befund
+/// (5-Rappen-Rundung der Kundenrechnungen).
+const _toleranz = 0.05;
+
+/// Ab diesem Kassenbestand ist ein Kassensturz/Privatbezug fällig — mehr Bargeld
+/// hält das Geschäft nie physisch vor.
+const _kasseMax = 10000.0;
+
+/// Delkredere-Abweichung in Franken, die noch als «auf 5 % geführt» gilt;
+/// darunter lohnt keine Korrekturbuchung.
+const _delkredereToleranz = 50.0;
+
+/// Verjährungsfrist für Forderungen aus Dienstleistung (Art. 128 OR).
+const _verjaehrungJahre = 5;
+
+/// Konten mit eigener Regel — hier ausgenommen, sonst meldet die
+/// Vorzeichen-Prüfung dieselbe Sache ein zweites Mal mit anderer Ampel.
+const _andernortsGeprueft = {
+  1109, // Delkredere (Haben-Saldo ist gewollt)
+  2002, 2270, 2271, 2272, 2273, // Lohnkonten
+  2202, // MWST-Abrechnungskonto
+  2208, // Steuerrückstellung
+};
+
+/// Kontokorrente, die naturgemäss beide Vorzeichen annehmen (Verrechnungssteuer,
+/// Privatkonto, Kreditkarte).
+const _kontokorrente = {1190, 2260, 2276};
+
 String _datum(DateTime d) => DateFormat('dd.MM.yyyy').format(d);
+
+/// Kalendertage zwischen zwei Daten — über UTC gerechnet, damit die
+/// Sommerzeit-Umstellung keinen 23-Stunden-Tag als «0 Tage» ausweist.
+int _tageDiff(DateTime a, DateTime b) => DateTime.utc(
+  a.year,
+  a.month,
+  a.day,
+).difference(DateTime.utc(b.year, b.month, b.day)).inDays;
 
 /// Eine einzelne Abschluss-Prüfregel. Reine Logik — alle Daten kommen aus
 /// [AbschlussKontext], damit die Regeln ohne Repository testbar bleiben.
@@ -40,24 +76,50 @@ class BankCamtRegel extends AbschlussRegel {
   String get titel => 'Bank 1020 = Bank-Schlusssaldo';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
+    const route = '/buchhaltung/camt-import';
     final letzte = k.letzteCamtDateiBis(k.stichtag);
     if (letzte == null) {
+      final ueber = k.camtDateiUeber(k.stichtag);
+      if (ueber != null) {
+        return befund(
+          PruefStatus.gelb,
+          ist: '${_datum(ueber.von)}–${_datum(ueber.bis)}',
+          hinweis:
+              'Export läuft über den Stichtag hinaus — Teil-Export bis '
+              '${_datum(k.stichtag)} ziehen.',
+          route: route,
+        );
+      }
       return befund(
         PruefStatus.gelb,
         hinweis: 'Keine camt-Datei bis zum Stichtag — Bankauszug importieren.',
-        route: '/buchhaltung/camt-import',
+        route: route,
       );
     }
-    final journal = k.saldo(1020);
-    final diff = journal - letzte.schlusssaldo;
+    // Journal per camt-Ende, nicht per Stichtag: sonst zählen Buchungen mit,
+    // die der Bankauszug gar nicht abdeckt.
+    final journal = k.saldiPer(letzte.bis)[1020] ?? 0;
+    final clbd = letzte.schlusssaldo;
+    if (clbd == null) {
+      return befund(
+        PruefStatus.gelb,
+        ist: chf(journal),
+        hinweis:
+            'Datei ohne Bank-Saldi (OPBD/CLBD) — Abgleich per '
+            '${_datum(letzte.bis)} nicht möglich.',
+        route: route,
+      );
+    }
+    final diff = journal - clbd;
+    final ok = diff.abs() <= _toleranz;
     return befund(
-      diff.abs() <= 0.05 ? PruefStatus.gruen : PruefStatus.rot,
+      ok ? PruefStatus.gruen : PruefStatus.rot,
       ist: chf(journal),
-      soll: chf(letzte.schlusssaldo),
-      hinweis: diff.abs() <= 0.05
+      soll: chf(clbd),
+      hinweis: ok
           ? 'per ${_datum(letzte.bis)}'
           : 'Differenz ${chf(diff)} — Buchungen fehlen oder sind doppelt.',
-      route: '/buchhaltung/camt-import',
+      route: route,
     );
   }
 }
@@ -71,25 +133,57 @@ class CamtKetteRegel extends AbschlussRegel {
   String get titel => 'camt-Exporte lückenlos';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
+    const route = '/buchhaltung/camt-import';
     final l = k.camtDateien.where((c) => !c.von.isAfter(k.stichtag)).toList()
       ..sort((a, c) => a.von.compareTo(c.von));
+    if (l.isEmpty) {
+      return befund(
+        PruefStatus.gelb,
+        ist: '0 Dateien',
+        hinweis: 'Keine camt-Exporte — Bankauszüge importieren.',
+        route: route,
+      );
+    }
+
     final probleme = <String>[];
     var status = PruefStatus.gruen;
+    void warne(String t) {
+      probleme.add(t);
+      if (status == PruefStatus.gruen) status = PruefStatus.gelb;
+    }
+
+    if (k.jahrAbgeschlossen && l.first.von.isAfter(DateTime(k.jahr, 1, 1))) {
+      warne('Export beginnt erst am ${_datum(l.first.von)}');
+    }
+
+    // Exporte überlappen sich im Betrieb. Massgebend ist deshalb der bisher
+    // insgesamt abgedeckte Zeitraum, nicht der direkte Listenvorgänger.
+    var abgedecktBis = l.first.bis;
+    var abgedecktSaldo = l.first.schlusssaldo;
     for (var i = 1; i < l.length; i++) {
+      final c = l[i];
       final luecke = BankWaechter.luecke(
-        letztesBis: l[i - 1].bis,
-        neuesVon: l[i].von,
+        letztesBis: abgedecktBis,
+        neuesVon: c.von,
       );
-      if (luecke != null) {
-        probleme.add(luecke);
-        if (status == PruefStatus.gruen) status = PruefStatus.gelb;
-      }
-      if ((l[i].anfangssaldo - l[i - 1].schlusssaldo).abs() > 0.05) {
+      if (luecke != null) warne(luecke);
+      // Saldovergleich nur bei nahtlosem Anschluss (Folgetag) und wenn beide
+      // Saldi vorhanden sind — bei Überlappung sagt OPBD nichts über CLBD aus.
+      final nahtlos = _tageDiff(c.von, abgedecktBis) == 1;
+      final opbd = c.anfangssaldo;
+      final clbd = abgedecktSaldo;
+      if (nahtlos &&
+          opbd != null &&
+          clbd != null &&
+          (opbd - clbd).abs() > _toleranz) {
         probleme.add(
-          'Saldosprung ${chf(l[i - 1].schlusssaldo)} → '
-          '${chf(l[i].anfangssaldo)} am ${_datum(l[i].von)}',
+          'Saldosprung ${chf(clbd)} → ${chf(opbd)} am ${_datum(c.von)}',
         );
         status = PruefStatus.rot;
+      }
+      if (c.bis.isAfter(abgedecktBis)) {
+        abgedecktBis = c.bis;
+        abgedecktSaldo = c.schlusssaldo;
       }
     }
     return befund(
@@ -98,6 +192,7 @@ class CamtKetteRegel extends AbschlussRegel {
       hinweis: probleme.isEmpty
           ? 'Anschluss aller Exporte stimmt.'
           : probleme.join(' · '),
+      route: route,
     );
   }
 }
@@ -112,14 +207,14 @@ class KasseRegel extends AbschlussRegel {
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
     final s = k.saldo(1000);
-    if (s < -0.05) {
+    if (s < -_toleranz) {
       return befund(
         PruefStatus.rot,
         ist: chf(s),
         hinweis: 'Negative Kasse — Buchung in falscher Periode.',
       );
     }
-    if (s > 10000) {
+    if (s > _kasseMax) {
       return befund(
         PruefStatus.gelb,
         ist: chf(s),
@@ -142,7 +237,7 @@ class MwstSaldiertRegel extends AbschlussRegel {
     final q = k.letztesQuartalsende();
     final saldi = k.saldiPer(q);
     final reste = [2200, 1170, 1171]
-        .where((kt) => (saldi[kt] ?? 0).abs() > 0.05)
+        .where((kt) => (saldi[kt] ?? 0).abs() > _toleranz)
         .map((kt) => '$kt ${chf(saldi[kt]!)}')
         .toList();
     return befund(
@@ -166,9 +261,9 @@ class Mwst2202Regel extends AbschlussRegel {
   Pruefbefund pruefe(AbschlussKontext k) {
     final s = k.saldo(2202); // roh Soll−Haben: Haben-Saldo negativ = Schuld
     return befund(
-      s > 0.05 ? PruefStatus.gelb : PruefStatus.gruen,
+      s > _toleranz ? PruefStatus.gelb : PruefStatus.gruen,
       ist: chf(-s),
-      hinweis: s > 0.05
+      hinweis: s > _toleranz
           ? 'Mehr an die ESTV bezahlt als saldiert — Saldierung oder '
                 'Rückzahlung prüfen.'
           : 'Geschuldete MWST',
@@ -185,8 +280,10 @@ class DebitorenVerjaehrtRegel extends AbschlussRegel {
   String get titel => 'Offene Rechnungen älter als 5 Jahre';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
+    // Am 29.02. verschiebt DateTime die Grenze auf den 01.03. — ein Tag
+    // Unschärfe alle vier Jahre, für eine Verjährungswarnung unerheblich.
     final grenze = DateTime(
-      k.stichtag.year - 5,
+      k.stichtag.year - _verjaehrungJahre,
       k.stichtag.month,
       k.stichtag.day,
     );
@@ -216,18 +313,25 @@ class DelkredereRegel extends AbschlussRegel {
     final deb = k.saldo(1100);
     final wb = -k.saldo(1109);
     final soll = rundeAufRappen(deb * 0.05);
-    if (deb <= 0.05) {
-      return befund(PruefStatus.gruen, ist: chf(wb), soll: '0.00');
+    if (deb <= _toleranz) {
+      return befund(
+        wb > _toleranz ? PruefStatus.gelb : PruefStatus.gruen,
+        ist: chf(wb),
+        soll: '0.00',
+        hinweis: wb > _toleranz
+            ? 'Keine offenen Debitoren mehr — Delkredere auflösen.'
+            : '',
+      );
     }
-    if (wb <= 0.05) {
+    if (wb <= _toleranz) {
       return befund(
         PruefStatus.rot,
-        ist: '0.00',
+        ist: chf(wb),
         soll: chf(soll),
         hinweis: 'Kein Delkredere gebildet (3805 an 1109).',
       );
     }
-    final passt = (wb - soll).abs() <= 50;
+    final passt = (wb - soll).abs() <= _delkredereToleranz;
     return befund(
       passt ? PruefStatus.gruen : PruefStatus.gelb,
       ist: chf(wb),
@@ -266,11 +370,11 @@ class RueckstellungRegel extends AbschlussRegel {
   String get titel => 'Steuerrückstellung 2208';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
-    final s = -k.saldo(2208);
-    if (s > 0.05) return befund(PruefStatus.gruen, ist: chf(s));
+    final s = -k.saldo(2208); // Haben-Überhang = gebildete Rückstellung
+    if (s > _toleranz) return befund(PruefStatus.gruen, ist: chf(s));
     return befund(
       k.jahrAbgeschlossen ? PruefStatus.rot : PruefStatus.gelb,
-      ist: '0.00',
+      ist: chf(s),
       hinweis: 'Rückstellung für Gewinn-/Kapitalsteuern buchen (8900 an 2208).',
       route: '/buchhaltung/steuern',
     );
@@ -288,10 +392,13 @@ class NegativeSaldenRegel extends AbschlussRegel {
   Pruefbefund pruefe(AbschlussKontext k) {
     final probleme = <String>[];
     k.saldi.forEach((kt, v) {
-      if (kt >= 1000 && kt < 2000 && kt != 1109 && v < -0.05) {
+      if (_andernortsGeprueft.contains(kt) || _kontokorrente.contains(kt)) {
+        return;
+      }
+      if (kt >= 1000 && kt < 2000 && v < -_toleranz) {
         probleme.add('$kt ${chf(v)}');
       }
-      if (kt >= 2000 && kt < 3000 && kt != 2970 && kt != 2980 && v > 0.05) {
+      if (kt >= 2000 && kt < 3000 && v > _toleranz) {
         probleme.add('$kt ${chf(v)} im Soll');
       }
     });
@@ -309,11 +416,11 @@ class LohnkontenRegel extends AbschlussRegel {
   @override
   String get gruppe => 'Abschluss';
   @override
-  String get titel => 'Lohnkonten 2270–2273';
+  String get titel => 'Lohnkonten 2002/2270–2273';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
-    final soll = [2270, 2271, 2272, 2273]
-        .where((kt) => k.saldo(kt) > 0.05)
+    final soll = [2002, 2270, 2271, 2272, 2273]
+        .where((kt) => k.saldo(kt) > _toleranz)
         .map((kt) => '$kt ${chf(k.saldo(kt))}')
         .toList();
     return befund(
@@ -341,7 +448,7 @@ class FehlerKontenRegel extends AbschlussRegel {
         .where(
           (ko) =>
               ko.bezeichnung.toUpperCase().contains('FEHLER') &&
-              k.saldo(ko.kontonummer).abs() > 0.05,
+              k.saldo(ko.kontonummer).abs() > _toleranz,
         )
         .map((ko) => '${ko.kontonummer} ${chf(k.saldo(ko.kontonummer))}')
         .toList();
@@ -384,9 +491,10 @@ class SteuererklaerungRegel extends AbschlussRegel {
     if (!k.jahrAbgeschlossen) {
       return befund(PruefStatus.gruen, hinweis: 'Jahr läuft noch.');
     }
+    // Leerer Status heisst «unbekannt», nicht «eingereicht».
     final ok =
         k.dokumentTypen.contains('steuererklaerung') ||
-        k.steuerjahrStatus != 'offen';
+        (k.steuerjahrStatus.isNotEmpty && k.steuerjahrStatus != 'offen');
     return befund(
       ok ? PruefStatus.gruen : PruefStatus.gelb,
       ist: k.steuerjahrStatus,

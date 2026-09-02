@@ -24,6 +24,7 @@ final d = DateTime(2025, 6, 30);
 
 AbschlussKontext k({
   int jahr = 2025,
+  DateTime? heute,
   List<BuchungSaldo> buchungen = const [],
   List<KontoInfo> konten = const [],
   List<CamtDateiInfo> camt = const [],
@@ -34,7 +35,7 @@ AbschlussKontext k({
   Set<String> offeneRechnungenMitZahlung = const {},
 }) => AbschlussKontext(
   jahr: jahr,
-  heute: DateTime(2026, 9, 2),
+  heute: heute ?? DateTime(2026, 9, 2),
   buchungen: buchungen,
   konten: konten,
   camtDateien: camt,
@@ -447,5 +448,200 @@ void main() {
     expect(l.length, 14);
     expect(l.first.status, PruefStatus.rot);
     expect(l.last.status, PruefStatus.gruen);
+  });
+
+  // --- Review-Befunde 02.09.2026 -------------------------------------------
+
+  test('Bank: Journal wird per camt-Ende verglichen, nicht per Stichtag', () {
+    // Buchung im November liegt NACH dem camt-Ende (30.06.) und darf den
+    // Vergleich nicht verfälschen.
+    final bu = [
+      b(1020, 2800, 100, DateTime(2025, 3, 1)),
+      b(1020, 2800, 50, DateTime(2025, 11, 1)),
+    ];
+    final camt = [
+      CamtDateiInfo(
+        von: DateTime(2025, 1, 1),
+        bis: DateTime(2025, 6, 30),
+        anfangssaldo: 0,
+        schlusssaldo: 100,
+      ),
+    ];
+    expect(
+      f(
+        AbschlussPruefService.pruefe(k(buchungen: bu, camt: camt)),
+        'bank_camt',
+      ).status,
+      PruefStatus.gruen,
+    );
+  });
+
+  test('camt-Datei umspannt den Stichtag → gelb mit Teil-Export-Hinweis', () {
+    final r = f(
+      AbschlussPruefService.pruefe(
+        k(
+          camt: [
+            CamtDateiInfo(
+              von: DateTime(2024, 8, 9),
+              bis: DateTime(2026, 8, 7),
+              anfangssaldo: 0,
+              schlusssaldo: 5,
+            ),
+          ],
+        ),
+      ),
+      'bank_camt',
+    );
+    expect(r.status, PruefStatus.gelb);
+    expect(r.hinweis, contains('31.12.2025'));
+  });
+
+  test(
+    'camt ohne OPBD/CLBD: bank_camt gelb, Kette ohne falschen Saldosprung',
+    () {
+      final ohneSaldi = CamtDateiInfo(
+        von: DateTime(2025, 1, 1),
+        bis: DateTime(2025, 12, 31),
+        anfangssaldo: null,
+        schlusssaldo: null,
+      );
+      final r = f(
+        AbschlussPruefService.pruefe(k(camt: [ohneSaldi])),
+        'bank_camt',
+      );
+      expect(r.status, PruefStatus.gelb);
+      expect(r.hinweis, contains('OPBD'));
+      expect(
+        f(
+          AbschlussPruefService.pruefe(
+            k(
+              camt: [
+                CamtDateiInfo(
+                  von: DateTime(2025, 1, 1),
+                  bis: DateTime(2025, 3, 31),
+                  anfangssaldo: 0,
+                  schlusssaldo: 100,
+                ),
+                CamtDateiInfo(
+                  von: DateTime(2025, 4, 1),
+                  bis: DateTime(2025, 6, 30),
+                  anfangssaldo: null,
+                  schlusssaldo: null,
+                ),
+              ],
+            ),
+          ),
+          'camt_kette',
+        ).status,
+        PruefStatus.gruen,
+      );
+    },
+  );
+
+  test('camt-Kette: keine Exporte → gelb; Beginn nach 01.01. → gelb', () {
+    expect(
+      f(AbschlussPruefService.pruefe(k()), 'camt_kette').status,
+      PruefStatus.gelb,
+    );
+    final r = f(
+      AbschlussPruefService.pruefe(
+        k(
+          camt: [
+            CamtDateiInfo(
+              von: DateTime(2025, 2, 1),
+              bis: DateTime(2025, 12, 31),
+              anfangssaldo: 0,
+              schlusssaldo: 100,
+            ),
+          ],
+        ),
+      ),
+      'camt_kette',
+    );
+    expect(r.status, PruefStatus.gelb);
+    expect(r.hinweis, contains('01.02.2025'));
+  });
+
+  test('Überlappende Exporte: weder falsche Lücke noch falscher Saldosprung', () {
+    final camt = [
+      CamtDateiInfo(
+        von: DateTime(2025, 1, 1),
+        bis: DateTime(2025, 3, 31),
+        anfangssaldo: 0,
+        schlusssaldo: 100,
+      ),
+      // überlappt den Vorgänger — Anfangssaldo passt deshalb NICHT zu dessen Schluss
+      CamtDateiInfo(
+        von: DateTime(2025, 3, 1),
+        bis: DateTime(2025, 6, 30),
+        anfangssaldo: 60,
+        schlusssaldo: 200,
+      ),
+      CamtDateiInfo(
+        von: DateTime(2025, 7, 1),
+        bis: DateTime(2025, 12, 31),
+        anfangssaldo: 200,
+        schlusssaldo: 300,
+      ),
+    ];
+    expect(
+      f(AbschlussPruefService.pruefe(k(camt: camt)), 'camt_kette').status,
+      PruefStatus.gruen,
+    );
+  });
+
+  test(
+    'negative_salden: andernorts geprüfte Konten werden nicht doppelt gemeldet',
+    () {
+      expect(
+        f(
+          AbschlussPruefService.pruefe(
+            k(
+              buchungen: [
+                b(2202, 3400, 5, d),
+                b(2208, 3400, 5, d),
+                b(2271, 3400, 5, d),
+              ],
+            ),
+          ),
+          'negative_salden',
+        ).status,
+        PruefStatus.gruen,
+      );
+    },
+  );
+
+  test('Lohnkonto 2002 im Soll → gelb mit Lohn-Route', () {
+    final r = f(
+      AbschlussPruefService.pruefe(k(buchungen: [b(2002, 3400, 3500, d)])),
+      'lohnkonten',
+    );
+    expect(r.status, PruefStatus.gelb);
+    expect(r.aktionRoute, '/buchhaltung/lohn');
+  });
+
+  test('letztesQuartalsende ignoriert die Uhrzeit von heute', () {
+    final ktx = k(jahr: 2026, heute: DateTime(2026, 6, 30, 14, 0));
+    expect(ktx.stichtag, DateTime(2026, 6, 30));
+    expect(ktx.letztesQuartalsende(), DateTime(2026, 3, 31));
+  });
+
+  test('steuerjahrStatus leer zählt nicht als eingereicht → gelb', () {
+    expect(
+      f(
+        AbschlussPruefService.pruefe(k(steuerjahrStatus: '')),
+        'steuererklaerung',
+      ).status,
+      PruefStatus.gelb,
+    );
+  });
+
+  test('Delkredere ohne Debitoren, aber mit Wertberichtigung → gelb', () {
+    final r = f(
+      AbschlussPruefService.pruefe(k(buchungen: [b(3805, 1109, 500, d)])),
+      'delkredere',
+    );
+    expect(r.status, PruefStatus.gelb);
+    expect(r.ist, contains('500'));
   });
 }
