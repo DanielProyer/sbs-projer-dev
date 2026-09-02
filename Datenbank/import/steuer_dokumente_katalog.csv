@@ -1,0 +1,77 @@
+datei;jahr;typ;kategorie;datum;betrag;referenz;titel;zahlung_belegnummer
+00_Rechnungen/01_Steuern/2019_Kanton_Mahnung-1_Rg9760463_600.00.pdf;2019;mahnung;kanton;2020-06-17;600.00;9760463;1. Mahnung Kanton 2019 provisorisch (Rg 9760463 vom 01.03.2020);301_2020_07_01_Steu_00060000
+00_Rechnungen/01_Steuern/2020_Bund_definitiv_Rg11540582_85.00.pdf;2020;rechnung_definitiv;bund;2022-02-14;85.00;11540582;Bund 2020 definitiv (Ermessen, später per Einsprache aufgehoben);301_2022_02_15_Steu_00008500
+00_Rechnungen/01_Steuern/2020_Bund_provisorisch_Rg10661247_603.50_storniert.pdf;2020;rechnung_provisorisch;bund;2021-03-01;603.50;10661247;Bund 2020 provisorisch — storniert (Mail 31.03.2021);
+00_Rechnungen/01_Steuern/2020_Kanton_definitiv_Rg11541046_95.00.pdf;2020;rechnung_definitiv;kanton;2022-02-14;95.00;11541046;Kanton 2020 definitiv (Total 184, Saldo 95; später per Einsprache aufgehoben);301_2022_02_15_Steu_00009500
+00_Rechnungen/01_Steuern/2020_Kanton_provisorisch-korrigiert_Rg10772334_89.00.pdf;2020;rechnung_provisorisch;kanton;2021-04-26;89.00;10772334;Kanton 2020 provisorisch korrigiert;301_2021_05_05_Steu_00008900
+00_Rechnungen/01_Steuern/2020_Kanton_provisorisch_Rg10655332_717.00_storniert.pdf;2020;rechnung_provisorisch;kanton;2021-03-01;717.00;10655332;Kanton 2020 provisorisch — storniert (ersetzt durch Rg 10772334);
+00_Rechnungen/01_Steuern/2021_Busse-Kanton_definitiv_Rg11182516_400.00_DanielProjer-privat.pdf;2021;bussverfuegung;busse;2021-12-13;400.00;11182516;Ordnungsbusse Kanton 24.11.2021 (adressiert an Daniel Projer privat);301_2022_03_17_Steu_00040000
+00_Rechnungen/01_Steuern/2021_Kanton_provisorisch_Rg11580976_89.00.pdf;2021;rechnung_provisorisch;kanton;2022-03-01;89.00;11580976;Kanton 2021 provisorisch;301_2022_05_10_Steu_00008900
+00_Rechnungen/01_Steuern/2022_Busse-Kanton_Mahnung-1_Rg11539779_150.00.pdf;2020;mahnung;busse;2022-05-30;150.00;11539779;1. Mahnung Ordnungsbusse Kanton 17.01.2022 (Steuererklärung 2020);301_2022_06_08_Steu_00015000
+00_Rechnungen/01_Steuern/2022_Kanton_definitiv_Rg13032700_-33.00_Rueckzahlung.pdf;2022;rechnung_definitiv;kanton;2023-12-08;-33.00;13032700;Kanton 2022 definitiv (Total 56, Guthaben 33);302_2023_12_12_StRZ_00003300
+00_Rechnungen/01_Steuern/2022_Kanton_provisorisch_Rg12490588_89.00.pdf;2022;rechnung_provisorisch;kanton;2023-03-01;89.00;12490588;Kanton 2022 provisorisch;301_2023_05_02_Steu_00008900
+00_Rechnungen/01_Steuern/2022_MWST_Korrektur-Q1-2022_ESTV_394.20.pdf;2022;rechnung_definitiv;mwst;2022-10-07;394.20;K8EA5Q12022988947;ESTV MWST Korrektur provisorischer Steuerbetrag Q1/2022;301_2022_11_03_Steu_00039420
+00_Rechnungen/01_Steuern/2023_Bund_Mahnung-1_Rg13985321_1088.00.pdf;2023;mahnung;bund;2025-01-29;1088.00;13985321;1. Mahnung Bund 2023 definitiv (Rg 13985321 vom 13.12.2024);301_2025_02_03_Steu_00108800
+00_Rechnungen/01_Steuern/2023_Kanton_Mahnung-2_Rg13985320_1253.00.pdf;2023;mahnung;kanton;2025-04-30;1253.00;13985320;2. Mahnung Kanton 2023 definitiv (1'223 + 30 Mahngebühr);301_2025_05_14_Steu_00125300
+00_Rechnungen/01_Steuern/2023_Kanton_provisorisch_Rg13428518_56.00.pdf;2023;rechnung_provisorisch;kanton;2024-03-01;56.00;13428518;Kanton 2023 provisorisch;301_2024_04_09_Steu_00005600
+00_Rechnungen/01_Steuern/2024_Bund_Mahnung-1_Rg14403952_1088.00.pdf;2024;mahnung;bund;2025-04-30;1088.00;14403952;1. Mahnung Bund 2024 provisorisch (Rg 14403952 vom 01.03.2025);301_2025_05_14_Steu_00108800
+00_Rechnungen/01_Steuern/2024_Bund_definitiv_Rg14926768_1317.50.pdf;2024;rechnung_definitiv;bund;2026-01-09;1317.50;14926768;Bund 2024 definitiv (Total 2'405.50, Saldo 1'317.50);301_2026_02_10_Steu_00131750
+00_Rechnungen/01_Steuern/2024_Busse-Kanton_Mahnung-1_Rg13960127_200.00.pdf;2023;mahnung;busse;2025-03-12;200.00;13960127;1. Mahnung Ordnungsbusse Kanton 21.11.2024 (Steuererklärung 2023);301_2025_03_20_Steu_00020000
+00_Rechnungen/01_Steuern/2024_Kanton_definitiv_Rg14926769_1469.00.pdf;2024;rechnung_definitiv;kanton;2026-01-09;1469.00;14926769;Kanton 2024 definitiv (Total 2'748, Saldo 1'469);ZV20260415/076670/1
+00_Rechnungen/01_Steuern/2024_Kanton_provisorisch_Rg14403955_1279.00.pdf;2024;rechnung_provisorisch;kanton;2025-03-01;1279.00;14403955;Kanton 2024 provisorisch;301_2025_05_14_Steu_00127900
+00_Rechnungen/01_Steuern/2025_Bund_provisorisch_Rg15326321_2405.50.pdf;2025;rechnung_provisorisch;bund;2026-03-01;2405.50;15326321;Bund 2025 provisorisch;ZV20260415/076670/2
+00_Rechnungen/01_Steuern/2025_Kanton_provisorisch_Rg15326323_2748.00.pdf;2025;rechnung_provisorisch;kanton;2026-03-01;2748.00;15326323;Kanton 2025 provisorisch;ZV20260505/864008/2
+00_Rechnungen/01_Steuern/Unterlagen/2019-2020_Bewertung-Stammanteile_per-31.12.2019-2020_Steuerwert70.pdf;2020;bewertung_stammanteile;;2021-01-12;70.00;;Bewertung Stammanteile per 31.12.2019/2020 (Steuerwert 70);
+00_Rechnungen/01_Steuern/Unterlagen/2019_Brief_Aufforderung-Steuererklaerung_13.12.2019.pdf;2019;brief;;2019-12-13;;;Aufforderung zur Einreichung der Steuererklärung 2019;
+00_Rechnungen/01_Steuern/Unterlagen/2019_Bund_Veranlagungsverfuegung_12.01.2021_Verlust-4973.pdf;2019;veranlagung;bund;2021-01-12;0.00;;Veranlagungsverfügung Bund 2019 (Verlust -4'973);
+00_Rechnungen/01_Steuern/Unterlagen/2019_Bund_definitiv_Rg10607693_-434.20_Rueckzahlung_mit-Zinsausweis.pdf;2019;rechnung_definitiv;bund;2021-01-25;-434.20;10607693;Bund 2019 definitiv — Guthaben 434.20 (inkl. Zinsausweis);302_2021_02_01_StRZ_00043420
+00_Rechnungen/01_Steuern/Unterlagen/2019_Kanton_Veranlagungsverfuegung_12.01.2021_Total47.00.pdf;2019;veranlagung;kanton;2021-01-12;47.00;;Veranlagungsverfügung Kanton 2019 (Total 47);
+00_Rechnungen/01_Steuern/Unterlagen/2019_Kanton_definitiv_Rg10609334_-553.00_Rueckzahlung.pdf;2019;rechnung_definitiv;kanton;2021-01-25;-553.00;10609334;Kanton 2019 definitiv — Guthaben 553.00;302_2021_02_01_StRZ_00055300
+00_Rechnungen/01_Steuern/Unterlagen/2020_Brief_Letzte-Mahnung-Steuererklaerung_22.12.2021.pdf;2020;brief;;2021-12-22;;;Letzte Mahnung zur Einreichung der Steuererklärung 2020;
+00_Rechnungen/01_Steuern/Unterlagen/2020_Bund_Einspracheentscheid_16.03.2022_Verlust-36284.pdf;2020;einspracheentscheid;bund;2022-03-16;0.00;;Einspracheentscheid Bund 2020 (gutgeheissen, Verlust -36'284);
+00_Rechnungen/01_Steuern/Unterlagen/2020_Bund_definitiv_Rg11640155_-85.60_Rueckzahlung_mit-Zinsausweis.pdf;2020;rechnung_definitiv;bund;2022-04-11;-85.60;11640155;Bund 2020 definitiv nach Einsprache — Guthaben 85.60 (inkl. Zinsausweis);302_2022_04_19_StRZ_00008560
+00_Rechnungen/01_Steuern/Unterlagen/2020_Busse-Kanton_Bussverfuegung_17.01.2022_150.00.pdf;2020;bussverfuegung;busse;2022-01-17;150.00;;Bussverfügung Kanton 2020 (Steuererklärung nicht eingereicht);301_2022_06_08_Steu_00015000
+00_Rechnungen/01_Steuern/Unterlagen/2020_Kanton_Einspracheentscheid_16.03.2022_Verlust-36284.pdf;2020;einspracheentscheid;kanton;2022-03-16;0.00;;Einspracheentscheid Kanton 2020 (gutgeheissen, steuerbares EK 0);
+00_Rechnungen/01_Steuern/Unterlagen/2020_Kanton_definitiv_Rg11640530_-181.35_Rueckzahlung.pdf;2020;rechnung_definitiv;kanton;2022-04-11;-181.35;11640530;Kanton 2020 definitiv nach Einsprache — Guthaben 181.35;302_2022_04_19_StRZ_00018135
+00_Rechnungen/01_Steuern/Unterlagen/2021_Bewertung-Stammanteile_per-31.12.2021_Steuerwert0.pdf;2021;bewertung_stammanteile;;2023-03-06;0.00;;Bewertung Stammanteile per 31.12.2021 (Steuerwert 0);
+00_Rechnungen/01_Steuern/Unterlagen/2021_Bund_Veranlagungsverfuegung_06.03.2023_Steuer0.pdf;2021;veranlagung;bund;2023-03-06;0.00;;Veranlagungsverfügung Bund 2021 (Gewinn 16'072 verrechnet, Steuer 0);
+00_Rechnungen/01_Steuern/Unterlagen/2021_Kanton_Veranlagungsverfuegung_06.03.2023_Total11.00.pdf;2021;veranlagung;kanton;2023-03-06;11.00;;Veranlagungsverfügung Kanton 2021 (Total 11);
+00_Rechnungen/01_Steuern/Unterlagen/2021_Kanton_definitiv_Rg12541293_-78.00_Rueckzahlung.pdf;2021;rechnung_definitiv;kanton;2023-03-10;-78.00;12541293;Kanton 2021 definitiv — Guthaben 78.00;302_2023_03_14_StRZ_00007800
+00_Rechnungen/01_Steuern/Unterlagen/2022_Bewertung-Stammanteile_per-31.12.2022_Steuerwert700.pdf;2022;bewertung_stammanteile;;2023-12-05;700.00;;Bewertung Stammanteile per 31.12.2022 (Steuerwert 700, netto 490);
+00_Rechnungen/01_Steuern/Unterlagen/2022_Brief_Aufforderung-Steuererklaerung_12.12.2022.pdf;2022;brief;;2022-12-12;;;Aufforderung zur Einreichung der Steuererklärung 2022;
+00_Rechnungen/01_Steuern/Unterlagen/2022_Bund_Veranlagungsverfuegung_05.12.2023_Steuer0.pdf;2022;veranlagung;bund;2023-12-05;0.00;;Veranlagungsverfügung Bund 2022 (Gewinn 18'049 verrechnet, Steuer 0);
+00_Rechnungen/01_Steuern/Unterlagen/2022_Kanton_Veranlagungsverfuegung_05.12.2023_Total56.00.pdf;2022;veranlagung;kanton;2023-12-05;56.00;;Veranlagungsverfügung Kanton 2022 (Total 56);
+00_Rechnungen/01_Steuern/Unterlagen/2022_MWST_Korrektur-Q2-2022_ESTV_-343.45_Gutschrift.pdf;2022;rechnung_definitiv;mwst;2023-02-23;-343.45;K8EA5Q22022666287;ESTV MWST Korrektur Q2/2022 — Gutschrift 343.45;
+00_Rechnungen/01_Steuern/Unterlagen/2023_Bund_Veranlagungsverfuegung-Ermessen_10.12.2024_1088.00.pdf;2023;veranlagung;bund;2024-12-10;1088.00;;Veranlagungsverfügung Bund 2023 — Ermessenstaxation (1'088);
+00_Rechnungen/01_Steuern/Unterlagen/2023_Kanton_Veranlagungsverfuegung-Ermessen_10.12.2024_Total1279.00.pdf;2023;veranlagung;kanton;2024-12-10;1279.00;;Veranlagungsverfügung Kanton 2023 — Ermessenstaxation (1'279);
+00_Rechnungen/01_Steuern/Unterlagen/2024_Bewertung-Stammanteile_per-31.12.2024_Steuerwert985.pdf;2024;bewertung_stammanteile;;2025-12-22;985.00;;Bewertung Stammanteile per 31.12.2024 (Steuerwert 985, netto 689.50);
+00_Rechnungen/01_Steuern/Unterlagen/2024_Bund_Veranlagungsverfuegung_22.12.2025_2405.50.pdf;2024;veranlagung;bund;2025-12-22;2405.50;;Veranlagungsverfügung Bund 2024 (2'405.50);
+00_Rechnungen/01_Steuern/Unterlagen/2024_Kanton_Veranlagungsverfuegung_22.12.2025_Total2748.00.pdf;2024;veranlagung;kanton;2025-12-22;2748.00;;Veranlagungsverfügung Kanton 2024 (Total 2'748);
+00_Rechnungen/01_Steuern/Unterlagen/Rueckseiten_Zahlungshinweise_Steuerrechnungen.pdf;;sonstiges;;;;;Rückseiten Steuerrechnungen (Zahlungs- und Verzugszinshinweise);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2019/2019_Bilanz.pdf;2019;jahresrechnung;;2019-12-31;;;Bilanz 31.12.2019 (eingereicht);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2019/2019_Erfolgsrechnung.pdf;2019;jahresrechnung;;2019-12-31;;;Erfolgsrechnung 2019 (eingereicht);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2019/2019_SBS_Projer_2019.pdf;2019;steuererklaerung;;2020-11-30;;;Steuererklärung 2019 (Formular 11a);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2019/2019_SBS_Projer_2019_Q.pdf;2019;steuererklaerung;;2020-11-30;;;Steuererklärung 2019 — Quittung;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2020/2020 Jahresabschluss Bilanz.pdf;2020;jahresrechnung;;2020-12-31;;;Bilanz 31.12.2020 (eingereicht);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2020/2020 Jahresabschluss Erfolgsrechnung.pdf;2020;jahresrechnung;;2020-12-31;;;Erfolgsrechnung 2020 (eingereicht);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2020/2020_SBS_Projer_2020.pdf;2020;steuererklaerung;;2022-02-23;;;Steuererklärung 2020 (Formular 11a);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2020/2020_SBS_Projer_2020_Q.pdf;2020;steuererklaerung;;2022-02-23;;;Steuererklärung 2020 — Quittung;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2020/2020_SBS_Projer_2020_Q2.pdf;2020;steuererklaerung;;2022-02-23;;;Steuererklärung 2020 — Quittung 2;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2021/2021 Jahresabschluss Bilanz.pdf;2021;jahresrechnung;;2021-12-31;;;Bilanz 31.12.2021 (eingereicht);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2021/2021 Jahresabschluss Erfolgsrechnung.pdf;2021;jahresrechnung;;2021-12-31;;;Erfolgsrechnung 2021 (eingereicht);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2021/2021_SBS_Projer_2021.pdf;2021;steuererklaerung;;2022-12-31;;;Steuererklärung 2021 (Formular 11a);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2021/2021_SBS_Projer_2021_DB.pdf;2021;steuererklaerung;;2022-12-31;;;Steuererklärung 2021 — Deckblatt;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2021/2021_SBS_Projer_2021_Q.pdf;2021;steuererklaerung;;2022-12-31;;;Steuererklärung 2021 — Quittung;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2022/2022 Jahresabschluss Bilanz.pdf;2022;jahresrechnung;;2022-12-31;;;Bilanz 31.12.2022 (eingereicht 27.11.2023);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2022/2022 Jahresabschluss Erfolgsrechnung.pdf;2022;jahresrechnung;;2022-12-31;;;Erfolgsrechnung 2022 (eingereicht 27.11.2023);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2022/Ems, 11a_2022.pdf;2022;steuererklaerung;;2023-11-27;;;Steuererklärung 2022 (Formular 11a);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2022/Ems, 11a_2022_DB.pdf;2022;steuererklaerung;;2023-11-27;;;Steuererklärung 2022 — Deckblatt;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2022/Ems, 11a_2022_Q.pdf;2022;steuererklaerung;;2023-11-27;;;Steuererklärung 2022 — Quittung;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2023/2023 Jahresabschluss Bilanz.pdf;2023;jahresrechnung;;2023-12-31;;;Bilanz 31.12.2023 (erstellt 22.12.2025, nicht eingereicht — Ermessenstaxation);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2023/2023 Jahresabschluss Erfolgsrechnung.pdf;2023;jahresrechnung;;2023-12-31;;;Erfolgsrechnung 2023 (erstellt 22.12.2025, nicht eingereicht — Ermessenstaxation);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2024/2024 Jahresabschluss Bilanz.pdf;2024;jahresrechnung;;2024-12-31;;;Bilanz 31.12.2024 (eingereicht 10.11.2025);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2024/2024 Jahresabschluss Erfolgsrechnung.pdf;2024;jahresrechnung;;2024-12-31;;;Erfolgsrechnung 2024 (eingereicht 10.11.2025);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2024/2024-12-31_00-00-00-10376550601-85206411570758-Zins- und Kapitalausweis.pdf;2024;zinsausweis;;2024-12-31;10869.26;;GKB Zins- und Kapitalausweis 31.12.2024 (Saldo 10'869.26, Zins 0);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2024/Ems, 11a_2024.pdf;2024;steuererklaerung;;2025-11-10;;;Steuererklärung 2024 (Formular 11a, SofTax);
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2024/Ems, 11a_2024_DB.pdf;2024;steuererklaerung;;2025-11-10;;;Steuererklärung 2024 — Deckblatt;
+00_Rechnungen/01_Steuern/Steuererklärungen 2019-2024/2024/Ems, 11a_2024_Q.pdf;2024;steuererklaerung;;2025-11-10;;;Steuererklärung 2024 — Quittung;
