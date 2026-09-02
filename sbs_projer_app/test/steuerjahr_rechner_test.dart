@@ -128,6 +128,43 @@ void main() {
       expect(s.totalDefinitiv, 5153.50);
     });
     test(
+      'totalDefinitivOderNull ist null, solange nur provisorisch da ist',
+      () {
+        final s = SteuerjahrRechner.sollIst(
+          jahr: const Steuerjahr(
+            jahr: 2025,
+            bundProvisorisch: 2405.50,
+            kantonProvisorisch: 2748,
+          ),
+          bezahlt: {'bund': 2405.50, 'mwst': 394.20},
+        );
+        expect(s.totalDefinitivOderNull, isNull);
+        expect(s.totalDefinitiv, 0);
+      },
+    );
+    test(
+      'totalDefinitivOderNull liefert die Summe, sobald definitiv steht',
+      () {
+        final s = SteuerjahrRechner.sollIst(
+          jahr: const Steuerjahr(
+            jahr: 2024,
+            bundProvisorisch: 1088,
+            bundDefinitiv: 2405.50,
+            kantonDefinitiv: 2748,
+          ),
+          bezahlt: {'mwst': 394.20},
+        );
+        expect(s.totalDefinitivOderNull, 5153.50);
+
+        // Ein erfasstes definitiv: 0 ist eine echte Null, kein «unbekannt».
+        final nullVeranlagung = SteuerjahrRechner.sollIst(
+          jahr: const Steuerjahr(jahr: 2020, bundDefinitiv: 0),
+          bezahlt: {},
+        );
+        expect(nullVeranlagung.totalDefinitivOderNull, 0);
+      },
+    );
+    test(
       'Ampel-Grenze bei 0.05: 0.05 noch ausgeglichen, 0.06 schon schuld',
       () {
         final ausgeglichen = SteuerjahrRechner.sollIst(

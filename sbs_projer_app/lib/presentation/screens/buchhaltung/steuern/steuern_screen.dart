@@ -5,25 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/steuerjahr.dart';
 import 'package:sbs_projer_app/presentation/providers/steuern_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/steuern/steuer_ampel.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart';
 
 final _chf = NumberFormat('#,##0.00', 'de_CH');
-
-/// Ampelfarbe für Soll/Ist (auch vom Jahresdetail genutzt).
-Color ampelFarbe(SteuerAmpel a) => switch (a) {
-  SteuerAmpel.ausgeglichen => Colors.green,
-  SteuerAmpel.schuld => AppColors.error,
-  SteuerAmpel.guthaben => AppColors.info,
-};
-
-/// Status-Label mit grossem Anfangsbuchstaben — `Steuerjahr.statusLabels`
-/// liefert die Kleinschreibung, die anderswo im Satz gebraucht wird.
-String statusLabelGross(String status) {
-  final label = Steuerjahr.statusLabels[status] ?? status;
-  if (label.isEmpty) return label;
-  return label[0].toUpperCase() + label.substring(1);
-}
 
 class SteuernScreen extends ConsumerWidget {
   const SteuernScreen({super.key});
@@ -64,7 +50,7 @@ class SteuernScreen extends ConsumerWidget {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Total bezahlte Steuern',
+                        'Total bezahlte Steuern $kSteuerJahrAb–heute',
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -108,12 +94,14 @@ class SteuernScreen extends ConsumerWidget {
   ) async {
     final vorhanden = zeilen.map((z) => z.jahr.jahr).toSet();
     final kandidat = [
-      for (var j = DateTime.now().year; j >= 2019; j--)
+      for (var j = DateTime.now().year; j >= kSteuerJahrAb; j--)
         if (!vorhanden.contains(j)) j,
     ];
     if (kandidat.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Alle Jahre seit 2019 sind vorhanden.')),
+        SnackBar(
+          content: Text('Alle Jahre seit $kSteuerJahrAb sind vorhanden.'),
+        ),
       );
       return;
     }
@@ -144,8 +132,17 @@ class _JahrCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = z.sollIst;
     final unvollstaendig = s.sollUnvollstaendig;
+    final definitiv = s.totalDefinitivOderNull;
+    // Vor der Veranlagung steht nur die provisorische Rechnung — die zeigen
+    // wir dann statt eines nichtssagenden «—».
+    final provisorisch = [
+      s.zeile('bund').provisorisch,
+      s.zeile('kanton').provisorisch,
+    ].whereType<double>();
+    final zeigeProvisorisch = definitiv == null && provisorisch.isNotEmpty;
     return InkWell(
       onTap: () => context.push('/buchhaltung/steuern/${z.jahr.jahr}'),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
@@ -177,7 +174,7 @@ class _JahrCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    statusLabelGross(z.jahr.status),
+                    Steuerjahr.statusLabel(z.jahr.status),
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -186,7 +183,7 @@ class _JahrCard extends StatelessWidget {
                   Icons.folder,
                   size: 16,
                   color: z.dossier.fehlend.isEmpty
-                      ? Colors.green
+                      ? AppColors.success
                       : AppColors.textSecondary,
                 ),
                 const SizedBox(width: 4),
@@ -201,28 +198,26 @@ class _JahrCard extends StatelessWidget {
               children: [
                 _z('Gewinn', z.buchhaltungsgewinn),
                 _z('steuerbar', z.jahr.steuerbarerGewinn),
-                _z('Steuern def.', s.totalDefinitiv),
+                _z(
+                  zeigeProvisorisch ? 'Steuern prov.' : 'Steuern def.',
+                  zeigeProvisorisch
+                      ? provisorisch.reduce((a, b) => a + b)
+                      : definitiv,
+                ),
               ],
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: unvollstaendig
-                        ? AppColors.warning
-                        : ampelFarbe(s.ampel),
-                  ),
+                AmpelPunkt(
+                  farbe: unvollstaendig
+                      ? AppColors.warning
+                      : ampelFarbe(s.ampel),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    unvollstaendig
-                        ? 'bezahlt ${_chf.format(s.totalBezahlt)} · Veranlagung fehlt'
-                        : 'bezahlt ${_chf.format(s.totalBezahlt)} · ${s.ampel == SteuerAmpel.guthaben ? 'Guthaben' : 'offen'} ${_chf.format(s.totalOffen.abs())}',
+                    _ampelText(s, unvollstaendig),
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -234,6 +229,17 @@ class _JahrCard extends StatelessWidget {
     );
   }
 
+  String _ampelText(SollIst s, bool unvollstaendig) {
+    final bezahlt = 'bezahlt ${_chf.format(s.totalBezahlt)}';
+    if (unvollstaendig) return '$bezahlt · Veranlagung fehlt';
+    return switch (s.ampel) {
+      SteuerAmpel.ausgeglichen => '$bezahlt · ausgeglichen',
+      SteuerAmpel.guthaben =>
+        '$bezahlt · Guthaben ${_chf.format(s.totalOffen.abs())}',
+      SteuerAmpel.schuld => '$bezahlt · offen ${_chf.format(s.totalOffen)}',
+    };
+  }
+
   Widget _z(String label, double? v) => Expanded(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,9 +248,15 @@ class _JahrCard extends StatelessWidget {
           label,
           style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
         ),
-        Text(
-          v == null ? '—' : _chf.format(v),
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        // Lange Beträge (siebenstellig) sprengen bei 375 px sonst die Spalte;
+        // skalieren statt kürzen, damit die Zahl lesbar bleibt.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            v == null ? '—' : _chf.format(v),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     ),

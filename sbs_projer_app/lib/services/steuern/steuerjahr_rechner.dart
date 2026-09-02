@@ -5,6 +5,9 @@ import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 
 enum SteuerAmpel { ausgeglichen, schuld, guthaben }
 
+/// Frühestes Jahr, für das die App Steuerjahre führt.
+const int kSteuerJahrAb = 2019;
+
 /// Saldo-Buchungen nach Kalenderjahr bündeln, damit die Erfolgsrechnung je
 /// Jahr nur ihre eigenen Zeilen sieht — sonst läuft die Übersicht die
 /// Gesamtliste einmal pro Jahr durch (O(n·Jahre) statt O(n)).
@@ -50,13 +53,20 @@ class SollIst {
     orElse: () => SollIstZeile(steuerart: art, bezahlt: 0),
   );
 
+  Iterable<SollIstZeile> get _bundKanton =>
+      zeilen.where((z) => z.steuerart == 'bund' || z.steuerart == 'kanton');
+
   /// Nur «Steuern definitiv (Bund + Kanton)» — Busse/MWST/Sonstiges haben
   /// kein separates Veranlagungs-Soll und würden die Summe sonst verwässern.
-  double get totalDefinitiv => rundeAufRappen(
-    zeilen
-        .where((z) => z.steuerart == 'bund' || z.steuerart == 'kanton')
-        .fold(0.0, (s, z) => s + (z.definitiv ?? 0)),
-  );
+  double get totalDefinitiv =>
+      rundeAufRappen(_bundKanton.fold(0.0, (s, z) => s + (z.definitiv ?? 0)));
+
+  /// Wie [totalDefinitiv], aber null, solange weder für Bund noch Kanton eine
+  /// Veranlagung erfasst ist — sonst zeigten Screens eine 0.00, die wie
+  /// «keine Steuern geschuldet» aussieht statt wie «noch nicht veranlagt».
+  /// Ein erfasstes `definitiv: 0` bleibt eine echte 0.
+  double? get totalDefinitivOderNull =>
+      _bundKanton.any((z) => z.definitiv != null) ? totalDefinitiv : null;
   double get totalBezahlt =>
       rundeAufRappen(zeilen.fold(0.0, (s, z) => s + z.bezahlt));
   double get totalOffen =>
@@ -69,12 +79,8 @@ class SollIst {
   /// True, wenn Geld für Bund oder Kanton geflossen ist, aber noch keine
   /// Veranlagung/Rechnung erfasst wurde — Screens zeigen dann «Veranlagung
   /// fehlt» statt eines (irreführenden) blauen Guthaben-Punkts.
-  bool get sollUnvollstaendig => zeilen.any(
-    (z) =>
-        (z.steuerart == 'bund' || z.steuerart == 'kanton') &&
-        z.bezahlt != 0 &&
-        !z.sollErfasst,
-  );
+  bool get sollUnvollstaendig =>
+      _bundKanton.any((z) => z.bezahlt != 0 && !z.sollErfasst);
 }
 
 class Dossier {

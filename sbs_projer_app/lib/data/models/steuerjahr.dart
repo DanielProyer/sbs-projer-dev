@@ -127,4 +127,13 @@ class Steuerjahr {
     'veranlagt': 'veranlagt',
     'ermessen': 'Ermessen',
   };
+
+  /// Label mit grossem Anfangsbuchstaben — für Chips und Überschriften.
+  /// [statusLabels] bleibt kleingeschrieben, weil die Labels dort auch
+  /// mitten im Satz verwendet werden.
+  static String statusLabel(String status) {
+    final label = statusLabels[status] ?? status;
+    if (label.isEmpty) return label;
+    return label[0].toUpperCase() + label.substring(1);
+  }
 }
