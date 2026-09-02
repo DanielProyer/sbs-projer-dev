@@ -162,14 +162,17 @@ class BankWaechterStand {
 /// Abschlussprüfung je Jahr (14 Regeln, Spec 02.09.2026 Abschnitt 4).
 /// Lädt alles vorab, damit die Regeln rein bleiben; rechnet nach jeder
 /// Buchung neu.
+/// `autoDispose`, weil jedes einmal gewählte Jahr sonst dauerhaft mitrechnet:
+/// bei jeder Buchung würde jede je besuchte Jahres-Instanz sechs Requests
+/// nachladen.
 final abschlussPruefungProvider =
-    FutureProvider.family<List<Pruefbefund>, int>((ref, jahr) async {
-  ref.watch(buchungenStreamProvider);
-  // Voneinander unabhängig — parallel laden, sonst summieren sich sieben
+    FutureProvider.autoDispose.family<List<Pruefbefund>, int>((ref, jahr) async {
+  // Buchungen aus dem laufenden Stream — nicht zusätzlich per Repository
+  // laden, das wäre derselbe Datensatz ein zweites Mal.
+  final buchungen = await ref.watch(buchungenStreamProvider.future);
+  // Voneinander unabhängig — parallel laden, sonst summieren sich sechs
   // Roundtrips zur Wartezeit.
-  final (buchungen, konten, dateien, offene, ohneJahr, docs, steuerjahre) =
-      await (
-    BuchungRepository.getAll(),
+  final (konten, dateien, offene, ohneJahr, docs, steuerjahre) = await (
     KontoRepository.getAll(),
     CamtDateiRepository.getAll(),
     RechnungRepository.getOffene(),
@@ -179,17 +182,28 @@ final abschlussPruefungProvider =
   ).wait;
   final statusListe =
       steuerjahre.where((s) => s.jahr == jahr).map((s) => s.status).toList();
-  final offeneIds = offene.map((r) => r.id).toSet();
   // Rechnung steht auf «offen», obwohl der Zahlungseingang (Haben 1100) auf
-  // sie gebucht ist.
-  final mitZahlung = buchungen
-      .where((b) =>
-          !b.istStorniert &&
-          b.habenKonto == 1100 &&
-          b.belegId != null &&
-          offeneIds.contains(b.belegId))
-      .map((b) => b.belegId!)
-      .toSet();
+  // sie gebucht ist. Erst die SUMME aller Eingänge zählt — eine Teilzahlung
+  // oder eine Skonto-Differenz ist kein falscher Status. Stornierte Buchungen
+  // und Storno-Gegenbuchungen zählen nicht mit (`zaehltFuerSaldo`).
+  final bruttoJeRechnung = {for (final r in offene) r.id: r.betragBrutto};
+  final gezahlt = <String, double>{};
+  for (final b in buchungen) {
+    if (!zaehltFuerSaldo(
+        istStorniert: b.istStorniert, stornoVonId: b.stornoVonId)) {
+      continue;
+    }
+    if (b.habenKonto != 1100) continue;
+    final id = b.belegId;
+    if (id == null || !bruttoJeRechnung.containsKey(id)) continue;
+    gezahlt[id] = (gezahlt[id] ?? 0) + b.betragBrutto;
+  }
+  final mitZahlung = {
+    for (final e in gezahlt.entries)
+      // 5 Rappen Toleranz: gerundete Kundenrechnungen treffen den Brutto-
+      // betrag nicht auf den Rappen genau.
+      if (e.value >= bruttoJeRechnung[e.key]! - 0.05) e.key,
+  };
   return AbschlussPruefService.pruefe(AbschlussKontext(
     jahr: jahr,
     heute: DateTime.now(),

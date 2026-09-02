@@ -455,19 +455,23 @@ class _BankWaechterCard extends StatelessWidget {
                       fontSize: 12.5, fontWeight: FontWeight.w600)),
             ),
           // Weiter zur vollen Abschlussprüfung (14 Regeln) fürs laufende Jahr.
-          Align(
-            alignment: Alignment.centerRight,
-            child: InkWell(
-              onTap: () => context
-                  .push('/buchhaltung/audit?jahr=${DateTime.now().year}'),
-              child: const Padding(
-                padding: EdgeInsets.only(top: 6, left: 8),
-                child: Text('Details →',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary)),
-              ),
+          // Mindesthöhe 44 px — einhändig am Handy ist eine 20-px-Zeile nicht
+          // zuverlässig zu treffen.
+          InkWell(
+            onTap: () =>
+                context.push('/buchhaltung/audit?jahr=${DateTime.now().year}'),
+            child: Container(
+              // volle Breite, damit «rechtsbündig» in der Column auch greift
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 44),
+              alignment: Alignment.centerRight,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: const Text('Details →',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary)),
             ),
           ),
         ],

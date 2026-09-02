@@ -27,6 +27,16 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
   static bool _gueltig(int? j) =>
       j != null && j >= kSteuerJahrAb && j <= DateTime.now().year;
 
+  @override
+  void didUpdateWidget(AuditScreen alt) {
+    super.didUpdateWidget(alt);
+    // Zurück-Navigation oder neuer ?jahr=-Link auf derselben Seite: der State
+    // überlebt, das Jahr muss deshalb nachgezogen werden.
+    if (widget.jahr != alt.jahr && _gueltig(widget.jahr)) {
+      setState(() => _jahr = widget.jahr!);
+    }
+  }
+
   Color _farbe(PruefStatus s) => switch (s) {
     PruefStatus.rot => AppColors.error,
     PruefStatus.gelb => AppColors.warning,
@@ -62,8 +72,11 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
           ),
           Expanded(
             child: async.when(
+              // Nach jeder Buchung rechnet die Prüfung neu — ohne das fiele
+              // die Liste dabei jedes Mal auf den Spinner zurück.
+              skipLoadingOnReload: true,
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Fehler: $e')),
+              error: (e, _) => _fehler(e),
               data: (befunde) {
                 int n(PruefStatus s) =>
                     befunde.where((b) => b.status == s).length;
@@ -154,6 +167,34 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
       ),
     );
   }
+
+  Widget _fehler(Object e) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Fehler: $e', textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () => ref.invalidate(abschlussPruefungProvider(_jahr)),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 44),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: const Text(
+                'Erneut laden',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _zaehler(PruefStatus s, int Function(PruefStatus) n, String label) =>
       Row(
