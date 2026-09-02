@@ -89,7 +89,7 @@ for r in lese('steuer_dokumente_katalog.csv'):
         buchung_id = res[0]['id'] if res else None
         if buchung_id is None:
             print('  (keine Buchung zu', r['zahlung_belegnummer'], ')')
-    print('upload', pfad.name, '→', r['typ'], r['kategorie'] or '-', jahr, 'Buchung' if buchung_id else '')
+    print('upload', pfad.name, '->', r['typ'], r['kategorie'] or '-', jahr, 'Buchung' if buchung_id else '')
     if DRY:
         continue
     data = pfad.read_bytes()

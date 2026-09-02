@@ -1,8 +1,8 @@
 jahr;status;eingereicht_am;veranlagt_am;steuerbarer_gewinn;steuerbares_kapital;verlustvortrag_verrechnet;bund_provisorisch;bund_definitiv;kanton_provisorisch;kanton_definitiv;notizen
 2019;veranlagt;;2021-01-12;-4973;15027;;425;0;600;47;Rumpfjahr ab 18.04.2019. Verlust -4'973 vorgetragen. Provisorische 425/600 wurden am 01.02.2021 zurückbezahlt (434.20 inkl. Zins / 553.00).
 2020;veranlagt;;2022-03-16;-36284;0;;85;0;89;0;Verlust -36'284 (kumuliert -41'257). Provisorische 603.50/717 storniert (Mail 31.03.2021). Ermessensveranlagung 07.02.2022 (Bund 85 / Kanton 184) per Einsprache 23.02.2022 aufgehoben (Entscheid 16.03.2022) — Rückzahlungen 85.60 / 181.35 am 19.04.2022. Busse 150 wegen verspäteter Erklärung.
-2021;veranlagt;;2023-03-06;0;2618;16072;;0;89;11;Gewinn 16'072 voll mit Verlustvortrag verrechnet. Kanton nur Kapitalsteuer 11; Rückzahlung 78 am 14.03.2023.
-2022;veranlagt;;2023-12-05;0;12864;18049;;0;89;56;Gewinn 18'049 voll verrechnet (Restvortrag 7'136). Kanton 56 (Kapitalsteuer); Rückzahlung 33 am 12.12.2023.
+2021;veranlagt;;2023-03-06;0;2618;16072;;0;89;11;Gewinn 16'072 voll mit Verlustvortrag verrechnet. Kanton nur Kapitalsteuer 11 — Rückzahlung 78 am 14.03.2023.
+2022;veranlagt;;2023-12-05;0;12864;18049;;0;89;56;Gewinn 18'049 voll verrechnet (Restvortrag 7'136). Kanton 56 (Kapitalsteuer) — Rückzahlung 33 am 12.12.2023.
 2023;ermessen;;2024-12-10;12864;32864;7136;;1088;56;1309;Keine Steuererklärung eingereicht → Ermessenstaxation (Aufrechnung 20'000, steuerbar 12'864). Kanton definitiv 1'279 + 30 Mahngebühr = 1'309. Busse 200 (21.11.2024).
 2024;veranlagt;2025-11-10;2025-12-22;28399;55319;;1088;2405.50;1279;2748;Formular 11a 2024 (SofTax) eingereicht 10.11.2025. Verfügungen 22.12.2025: Bund 2'405.50 (8.5 % auf 28'300), Kanton 2'748 (Gewinn 1'146 + Kapital 114 + Kultus 158 + Gemeinde 1'330).
 2025;offen;;;;;;2405.50;;2748;;Jahresabschluss 2025 gebucht 02.09.2026 (Gewinn 20'890.22, Rückstellung 4'000 auf 2208). Provisorische Rechnungen 01.03.2026 bezahlt 15.04./05.05.2026 (gegen 2208 umgebucht). Einreichung bis 30.09.2026.
