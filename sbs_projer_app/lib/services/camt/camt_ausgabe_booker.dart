@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 
 import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 
 double _round2(double v) => (v * 100).roundToDouble() / 100;
 
@@ -72,13 +73,84 @@ Map<String, dynamic> ausgabeBuchungsFelder({
   };
 }
 
+/// Zuordnung einer Steuerzahlung beim camt-Bestätigen (Spec 02.09.2026, Abschnitt 5).
+class SteuerZuordnung {
+  final int steuerjahr;
+  final String steuerart; // bund | kanton | mwst | busse
+  final bool hatRueckstellung; // 2208-Saldo des Jahres > 0
+  const SteuerZuordnung({
+    required this.steuerjahr,
+    required this.steuerart,
+    required this.hatRueckstellung,
+  });
+}
+
+/// Vorlagen mit diesem Soll-Konto sind Steuerzahlungen → Zuordnung anbieten.
+bool istSteuerKonto(int konto) =>
+    konto == 8900 || konto == 2208 || konto == 2202;
+
+/// Gewinn-/Kapitalsteuer gegen die Rückstellung, sofern eine gebildet wurde;
+/// Bussen sind nie zurückgestellt; MWST läuft über das Abrechnungskonto.
+int steuerKontoFuer({required String steuerart, required bool hatRueckstellung}) {
+  if (steuerart == 'mwst') return 2202;
+  if (steuerart == 'busse') return 8900;
+  return hatRueckstellung ? 2208 : 8900;
+}
+
+/// Steuerjahre, deren Rückstellung (Konto 2208) noch einen Haben-Saldo trägt.
+///
+/// Zugeordnet wird nach `steuerjahr`, sonst nach `geschaeftsjahr` — die
+/// Rückstellung entsteht im Abschluss des Steuerjahres (8900 an 2208), die
+/// Umbuchungen der Zahlungen fallen ins Folgejahr (2208 an 8900) und tragen
+/// das Steuerjahr. Ist die Rückstellung aufgebraucht (Saldo ≤ 0), gehören
+/// weitere Zahlungen auf 8900 statt nochmals gegen 2208.
+Set<int> rueckstellungsJahre(List<Buchung> buchungen) {
+  final saldoJeJahr = <int, double>{};
+  for (final b in buchungen) {
+    if (!zaehltFuerSaldo(
+        istStorniert: b.istStorniert, stornoVonId: b.stornoVonId)) {
+      continue;
+    }
+    final jahr = b.steuerjahr ?? b.geschaeftsjahr;
+    if (b.habenKonto == 2208) {
+      saldoJeJahr[jahr] = (saldoJeJahr[jahr] ?? 0) + b.betragBrutto;
+    } else if (b.sollKonto == 2208) {
+      saldoJeJahr[jahr] = (saldoJeJahr[jahr] ?? 0) - b.betragBrutto;
+    }
+  }
+  return saldoJeJahr.entries
+      .where((e) => e.value > 0.05)
+      .map((e) => e.key)
+      .toSet();
+}
+
+/// Setzt bei einer bestätigten Steuerzahlung das Steuerkonto auf die Seite
+/// gegenüber der Bank (Belastung → Soll, Gutschrift/Rückzahlung → Haben) und
+/// stempelt Steuerjahr/Steuerart, damit die Steuer-Übersicht sie ohne
+/// Nacharbeit findet.
+Map<String, dynamic> steuerFelderAnwenden(
+  Map<String, dynamic> felder, {
+  required bool isCredit,
+  required SteuerZuordnung steuer,
+}) {
+  final konto = steuerKontoFuer(
+      steuerart: steuer.steuerart, hatRueckstellung: steuer.hatRueckstellung);
+  return {
+    ...felder,
+    if (isCredit) 'haben_konto': konto else 'soll_konto': konto,
+    'steuerjahr': steuer.steuerjahr,
+    'steuerart': steuer.steuerart,
+  };
+}
+
 /// Bucht eine Ausgabe/Bargeld-Transaktion aus camt anhand einer Buchungsvorlage.
 /// Erzeugt EINE Buchung (Brutto/Netto/MwSt in einer Zeile) und stempelt den
 /// camt_tx_key direkt für robusten Dedup.
 class CamtAusgabeBooker {
-  static Future<Buchung> book(CamtTransaction tx, BuchungsVorlage vorlage) async {
+  static Future<Buchung> book(CamtTransaction tx, BuchungsVorlage vorlage,
+      {SteuerZuordnung? steuer}) async {
     final konten = kontenFuerCamt(vorlage);
-    final felder = ausgabeBuchungsFelder(
+    var felder = ausgabeBuchungsFelder(
       betrag: tx.amount,
       isCredit: tx.isCredit,
       mwstSatz: vorlage.mwstSatz ?? 0,
@@ -86,6 +158,10 @@ class CamtAusgabeBooker {
       vorlageHaben: konten.habenKonto,
       vorlageMwstKonto: konten.mwstKonto,
     );
+    if (steuer != null) {
+      felder = steuerFelderAnwenden(felder,
+          isCredit: tx.isCredit, steuer: steuer);
+    }
     final datumStr = tx.bookingDate.toIso8601String().split('T').first;
     final beschreibung = tx.partyName != null
         ? '${tx.isCredit ? "Zahlung" : "Belastung"} ${tx.partyName}'
@@ -94,6 +170,7 @@ class CamtAusgabeBooker {
       if (kontenWerdenGetauscht(
           isCredit: tx.isCredit, vorlageSoll: konten.sollKonto))
         'GUTSCHRIFT auf Ausgabe-Regel (Konten getauscht) — MwSt manuell prüfen',
+      if (steuer != null) 'Steuer ${steuer.steuerjahr} ${steuer.steuerart}',
       if (tx.strukturierteReferenz != null) 'Ref: ${tx.strukturierteReferenz}',
       if (tx.partyIban != null) 'IBAN: ${tx.partyIban}',
     ].join('\n');

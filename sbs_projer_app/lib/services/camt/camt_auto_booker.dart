@@ -251,13 +251,16 @@ class CamtAutoBooker {
 
   /// Bucht EINEN bestätigten Vorschlag über die bestehenden Booker
   /// (mit korrektem Datum + camt_tx_key).
-  static Future<void> bucheVorschlag(CamtVorschlag v) async {
+  /// [steuer] (nur bei Ausgabe-Vorschlägen auf Steuerkonten) kontiert die
+  /// Zahlung auf 2208/8900/2202 und stempelt Steuerjahr/Steuerart.
+  static Future<void> bucheVorschlag(CamtVorschlag v,
+      {SteuerZuordnung? steuer}) async {
     switch (v.typ) {
       case CamtVorschlagTyp.kreditor:
         await CamtKreditorBooker.book(v.tx, v.eingangsrechnung!);
         break;
       case CamtVorschlagTyp.ausgabe:
-        await CamtAusgabeBooker.book(v.tx, v.vorlage!);
+        await CamtAusgabeBooker.book(v.tx, v.vorlage!, steuer: steuer);
         break;
       case CamtVorschlagTyp.heineken:
         final b = await HeinekenBuchungService.createZahlungseingang(

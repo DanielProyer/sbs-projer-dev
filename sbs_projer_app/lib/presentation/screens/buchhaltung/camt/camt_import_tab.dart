@@ -27,12 +27,15 @@ import 'package:sbs_projer_app/services/camt/zahlername.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/camt/camt053_parser.dart';
+import 'package:sbs_projer_app/services/camt/camt_ausgabe_booker.dart';
 import 'package:sbs_projer_app/services/camt/camt_auto_booker.dart';
 import 'package:sbs_projer_app/services/camt/camt_bereich_router.dart';
 import 'package:sbs_projer_app/services/camt/camt_stichtag.dart';
 import 'package:sbs_projer_app/services/camt/camt_vorschlag.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
+import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
+import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart';
 
 class CamtImportTab extends ConsumerStatefulWidget {
   final VoidCallback? onZurPruefliste;
@@ -52,6 +55,14 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   String? _xmlRoh;
   String? _dateiname; // echter Name der gewählten Datei (fürs Archiv)
   List<CamtVorschlag> _vorschlaege = []; // Bereich 2: zu bestätigen
+
+  /// Steuer-Zuordnung je Transaktion (txKey) — vorbelegt, damit «Alle
+  /// bestätigen» ohne einen einzigen Klick richtig kontiert.
+  final _steuer = <String, SteuerZuordnung>{};
+
+  /// Steuerjahre mit noch offener Rückstellung (2208) — bestimmt, ob eine
+  /// Zahlung gegen 2208 oder direkt auf 8900 läuft.
+  Set<int> _rueckstellungJahre = {};
   int _prueflisteCount = 0;
   int _uebersprungen = 0;
   int _altpostenAusgeblendet = 0;
@@ -458,6 +469,25 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       await CamtAutoBooker.zuPruefliste(plan.pruefliste);
       ref.invalidate(camtPrueflisteProvider);
 
+      // Steuerzahlungen (Vorlage auf 8900/2208/2202) vorbelegen: Jahr, Art und
+      // Zielkonto stehen damit schon vor dem ersten Klick richtig.
+      final steuerVorschlaege = plan.vorschlaege.where(_istSteuerVorschlag);
+      final rueckJahre = <int>{};
+      final steuerInit = <String, SteuerZuordnung>{};
+      if (steuerVorschlaege.isNotEmpty) {
+        try {
+          rueckJahre.addAll(rueckstellungsJahre(
+              await BuchungRepository.getAll()));
+        } catch (e) {
+          // Ohne Rückstellungs-Info wird auf 8900 kontiert — im Dropdown
+          // korrigierbar; der Import darf daran nicht scheitern.
+          debugPrint('[camt] Rückstellungs-Prüfung fehlgeschlagen: $e');
+        }
+        for (final v in steuerVorschlaege) {
+          steuerInit[v.tx.txKey] = _initialeSteuerZuordnung(v, rueckJahre);
+        }
+      }
+
       final preStichtagOderVerarbeitet = stmtTx
           .where((t) =>
               !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
@@ -485,6 +515,10 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
 
       setState(() {
         _vorschlaege = plan.vorschlaege;
+        _rueckstellungJahre = rueckJahre;
+        _steuer
+          ..clear()
+          ..addAll(steuerInit);
         _prueflisteCount = plan.pruefliste.length;
         _uebersprungen = plan.uebersprungen + preStichtagOderVerarbeitet;
         _altpostenAusgeblendet = ausgeblendeteAltposten;
@@ -597,6 +631,8 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                 _step = 0;
                 _statement = null;
                 _vorschlaege = [];
+                _steuer.clear();
+                _rueckstellungJahre = {};
                 _prueflisteCount = 0;
                 _uebersprungen = 0;
                 _abgleich = null;
@@ -632,6 +668,47 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     return teile.isEmpty ? null : teile.join(' · ');
   }
 
+  /// Zahlt dieser Vorschlag auf ein Steuerkonto (8900/2208/2202)? Dann sind
+  /// Steuerjahr und Steuerart zu erfassen, sonst fehlen sie im Steuer-Screen.
+  bool _istSteuerVorschlag(CamtVorschlag v) {
+    if (v.typ != CamtVorschlagTyp.ausgabe || v.vorlage == null) return false;
+    try {
+      return istSteuerKonto(kontenFuerCamt(v.vorlage!).sollKonto);
+    } catch (_) {
+      // Unvollständige Vorlage — das Buchen scheitert ohnehin sichtbar.
+      return false;
+    }
+  }
+
+  /// Vorschlag: Steuerart aus dem Zahlungsempfänger, Jahr = Vorjahr (Gewinn-/
+  /// Kapitalsteuer wird nachschüssig bezahlt), bei MWST das Buchungsjahr.
+  SteuerZuordnung _initialeSteuerZuordnung(
+      CamtVorschlag v, Set<int> rueckstellungJahre) {
+    final art = steuerartVorschlag(effektiverZahlername(
+            partyName: v.tx.partyName, additionalInfo: v.tx.additionalInfo) ??
+        '');
+    final jahr = art == 'mwst'
+        ? v.tx.bookingDate.year
+        : v.tx.bookingDate.year - 1;
+    return SteuerZuordnung(
+      steuerjahr: jahr,
+      steuerart: art,
+      hatRueckstellung: rueckstellungJahre.contains(jahr),
+    );
+  }
+
+  void _setzeSteuer(CamtVorschlag v, {int? jahr, String? art}) {
+    final alt = _steuer[v.tx.txKey]!;
+    final neuJahr = jahr ?? alt.steuerjahr;
+    setState(() {
+      _steuer[v.tx.txKey] = SteuerZuordnung(
+        steuerjahr: neuJahr,
+        steuerart: art ?? alt.steuerart,
+        hatRueckstellung: _rueckstellungJahre.contains(neuJahr),
+      );
+    });
+  }
+
   /// Öffnet den erfassten Beleg (PDF/Bild) einer Eingangsrechnung (frisch signiert).
   Future<void> _oeffneBeleg(String belegPfad) async {
     try {
@@ -651,57 +728,129 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     final belegPfad = v.typ == CamtVorschlagTyp.kreditor
         ? v.eingangsrechnung?.belegPfad
         : null;
+    final steuer = _steuer[v.tx.txKey];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${v.tx.amount.toStringAsFixed(2)} CHF',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 15)),
-                const SizedBox(height: 2),
-                Text(
-                  '${v.label} · ${_dateFormat.format(v.tx.bookingDate)}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${v.tx.amount.toStringAsFixed(2)} CHF',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${v.label} · ${_dateFormat.format(v.tx.bookingDate)}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                    if (info != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        info,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ],
                 ),
-                if (info != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    info,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (belegPfad != null && belegPfad.isNotEmpty)
-            GestureDetector(
-              onTap: () => _oeffneBeleg(belegPfad),
-              behavior: HitTestBehavior.opaque,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.picture_as_pdf, size: 16, color: AppColors.primary),
-                  SizedBox(width: 3),
-                  Text('Beleg',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600)),
-                ]),
               ),
-            ),
-          const SizedBox(width: 8),
-          _tapButton('Verbuchen', () => _bucheVorschlag(v), primaer: true),
+              if (belegPfad != null && belegPfad.isNotEmpty)
+                GestureDetector(
+                  onTap: () => _oeffneBeleg(belegPfad),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.picture_as_pdf, size: 16, color: AppColors.primary),
+                      SizedBox(width: 3),
+                      Text('Beleg',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              _tapButton('Verbuchen', () => _bucheVorschlag(v), primaer: true),
+            ],
+          ),
+          if (steuer != null) _steuerZeile(v, steuer),
+        ],
+      ),
+    );
+  }
+
+  /// Steuerjahr + Steuerart einer Steuerzahlung (Spec 02.09.2026, Abschnitt 5).
+  /// Bewusst schmal gehalten (zwei Dropdowns nebeneinander passen auf 375 px).
+  Widget _steuerZeile(CamtVorschlag v, SteuerZuordnung z) {
+    final jahre = <int>{
+      for (int j = DateTime.now().year; j >= kSteuerJahrAb; j--) j,
+      z.steuerjahr,
+    }.toList()
+      ..sort((a, b) => b.compareTo(a));
+    final konto = steuerKontoFuer(
+        steuerart: z.steuerart, hatRueckstellung: z.hatRueckstellung);
+    const kontoText = {
+      2208: '→ 2208 Rückstellung',
+      8900: '→ 8900 Steueraufwand',
+      2202: '→ 2202 MWST',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButton<int>(
+                  value: z.steuerjahr,
+                  isDense: true,
+                  isExpanded: true,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  items: [
+                    for (final j in jahre)
+                      DropdownMenuItem(value: j, child: Text('Steuerjahr $j')),
+                  ],
+                  onChanged: (j) =>
+                      j == null ? null : _setzeSteuer(v, jahr: j),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButton<String>(
+                  value: z.steuerart,
+                  isDense: true,
+                  isExpanded: true,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  items: [
+                    for (final e in steuerarten.entries)
+                      DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  ],
+                  onChanged: (a) =>
+                      a == null ? null : _setzeSteuer(v, art: a),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            kontoText[konto] ?? '→ $konto',
+            style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -709,11 +858,14 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
 
   Future<void> _bucheVorschlag(CamtVorschlag v) async {
     try {
-      await CamtAutoBooker.bucheVorschlag(v);
+      await CamtAutoBooker.bucheVorschlag(v, steuer: _steuer[v.tx.txKey]);
       ref.invalidate(buchungenStreamProvider);
       ref.invalidate(eingangsrechnungenProvider);
       if (!mounted) return;
-      setState(() => _vorschlaege.remove(v));
+      setState(() {
+        _vorschlaege.remove(v);
+        _steuer.remove(v.tx.txKey);
+      });
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Verbucht.')));
@@ -732,7 +884,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     final ok = <CamtVorschlag>[];
     for (final v in liste) {
       try {
-        await CamtAutoBooker.bucheVorschlag(v);
+        await CamtAutoBooker.bucheVorschlag(v, steuer: _steuer[v.tx.txKey]);
         ok.add(v);
       } catch (e) {
         fehler.add('${v.label}: $e');
@@ -741,7 +893,12 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     ref.invalidate(buchungenStreamProvider);
     ref.invalidate(eingangsrechnungenProvider);
     if (mounted) {
-      setState(() => _vorschlaege.removeWhere((v) => ok.contains(v)));
+      setState(() {
+        _vorschlaege.removeWhere((v) => ok.contains(v));
+        for (final v in ok) {
+          _steuer.remove(v.tx.txKey);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(fehler.isEmpty
             ? '${ok.length} verbucht.'
