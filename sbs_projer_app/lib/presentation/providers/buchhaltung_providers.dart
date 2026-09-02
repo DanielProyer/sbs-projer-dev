@@ -96,7 +96,9 @@ final mwstQuartalDetailProvider =
 
 double _toDouble(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
 
-List<BuchungSaldo> _toSaldoInput(List<Buchung> buchungen) => buchungen
+/// Buchungen → Saldo-Input für Bilanz/Erfolgsrechnung.
+/// Öffentlich, weil auch die Steuern-Provider die ER je Jahr rechnen.
+List<BuchungSaldo> toSaldoInput(List<Buchung> buchungen) => buchungen
     .map((b) => BuchungSaldo(
           sollKonto: b.sollKonto,
           habenKonto: b.habenKonto,
@@ -210,7 +212,7 @@ final bilanzStichtagProvider =
             kategorie: k.kategorie ?? '—',
           ))
       .toList();
-  return BilanzService.erstelle(_toSaldoInput(buchungen), infos, stichtag);
+  return BilanzService.erstelle(toSaldoInput(buchungen), infos, stichtag);
 });
 
 /// Erfolgsrechnung (Stufengliederung) über einen Zeitraum.
@@ -218,7 +220,7 @@ final erfolgsrechnungZeitraumProvider =
     FutureProvider.family<ErfolgsrechnungDaten, Zeitraum>((ref, z) async {
   final buchungen = await BuchungRepository.getAll();
   return ErfolgsrechnungService.berechne(
-    _toSaldoInput(buchungen),
+    toSaldoInput(buchungen),
     von: z.von,
     bis: z.bis,
   );
@@ -232,7 +234,7 @@ final erKontenAufstellungProvider =
   final konten = await KontoRepository.getAll();
   final namen = {for (final k in konten) k.kontonummer: k.bezeichnung};
   final roh = ErfolgsrechnungService.kontenAufstellung(
-      _toSaldoInput(buchungen), von: z.von, bis: z.bis);
+      toSaldoInput(buchungen), von: z.von, bis: z.bis);
   final klassen = roh.klassen
       .map((kl) => ErKlasse(
             kl.klasse,
