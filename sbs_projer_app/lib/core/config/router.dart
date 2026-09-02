@@ -79,6 +79,8 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohnlauf_screen.
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/lohn_einstellungen_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/spesen/spesen_scanner_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_zuweisungen_screen.dart';
+import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
+    show kSteuerJahrAb;
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 final router = GoRouter(
@@ -485,12 +487,15 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/buchhaltung/steuern/:jahr',
-      // Unlesbares Jahr (z. B. aus einem alten Lesezeichen) führt zurück auf
-      // die Übersicht statt in einen Absturz.
-      redirect: (context, state) =>
-          int.tryParse(state.pathParameters['jahr'] ?? '') == null
-          ? '/buchhaltung/steuern'
-          : null,
+      // Unlesbares oder unsinniges Jahr (altes Lesezeichen, vertippte URL)
+      // führt zurück auf die Übersicht statt in einen Absturz oder in ein
+      // Detail zu einem Jahr, das die App gar nicht führt.
+      redirect: (context, state) {
+        final j = int.tryParse(state.pathParameters['jahr'] ?? '');
+        final ok =
+            j != null && j >= kSteuerJahrAb && j <= DateTime.now().year + 1;
+        return ok ? null : '/buchhaltung/steuern';
+      },
       builder: (context, state) =>
           SteuerjahrScreen(jahr: int.parse(state.pathParameters['jahr']!)),
     ),

@@ -50,12 +50,20 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
   bool _geladen = false;
   bool _speichert = false;
 
+  /// Ungespeicherte Formular-Änderungen. Steuert Rückfrage beim Verlassen
+  /// und das Sternchen am Speichern-Knopf.
+  bool _geaendert = false;
+
   @override
   void dispose() {
     for (final c in _c.values) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  void _markiereGeaendert() {
+    if (!_geaendert) setState(() => _geaendert = true);
   }
 
   /// Formular einmalig aus dem geladenen Steuerjahr füllen (nicht bei jedem
@@ -75,7 +83,35 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
     _c['kp']!.text = t(s.kantonProvisorisch);
     _c['kd']!.text = t(s.kantonDefinitiv);
     _c['notizen']!.text = s.notizen ?? '';
+    // Erst nach dem Befüllen horchen — sonst gälte das Laden selbst schon
+    // als Änderung und die Rückfrage käme bei jedem Verlassen.
+    for (final c in _c.values) {
+      c.addListener(_markiereGeaendert);
+    }
   }
+
+  /// Rückfrage vor dem Verlassen mit ungespeicherten Änderungen.
+  Future<bool> _verwerfenFragen() async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Änderungen verwerfen?'),
+          content: const Text(
+            'Die Veranlagung wurde geändert, aber nicht gespeichert.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Weiter bearbeiten'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Verwerfen'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
 
   double? _n(String k) => chfBetragParsen(_c[k]!.text);
 
@@ -121,6 +157,8 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
               : _c['notizen']!.text.trim(),
         ),
       );
+      // Gespeichert = nicht mehr «offen»; das setState folgt im finally.
+      _geaendert = false;
       if (!mounted) return;
       invalidateSteuern(ref);
       messenger.showSnackBar(
@@ -153,6 +191,23 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
     final zahlungen = ref.watch(steuerzahlungenProvider(widget.jahr));
     final offen = ref.watch(nichtZugeordneteSteuerbuchungenProvider);
     final docs = ref.watch(steuerDokumenteProvider(widget.jahr));
+    return PopScope(
+      canPop: !_geaendert,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final verwerfen = await _verwerfenFragen();
+        if (verwerfen && context.mounted) Navigator.pop(context);
+      },
+      child: _inhalt(zeile, zahlungen, offen, docs),
+    );
+  }
+
+  Widget _inhalt(
+    AsyncValue<SteuerjahrZeile> zeile,
+    AsyncValue<List<Buchung>> zahlungen,
+    AsyncValue<List<Buchung>> offen,
+    AsyncValue<List<Dokument>> docs,
+  ) {
     return Scaffold(
       appBar: AppBar(title: Text('Steuern ${widget.jahr}')),
       body: zeile.when(
@@ -195,6 +250,9 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
                       )
                     : Column(
                         children: [
+                          // Auch zugeordnete Zeilen sind antippbar — eine
+                          // falsche Zuordnung liesse sich sonst nicht mehr
+                          // korrigieren.
                           for (final b in l)
                             _zahlungZeile(
                               b,
@@ -214,15 +272,17 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
                           const Padding(
                             padding: EdgeInsets.only(top: 10, bottom: 4),
                             child: Text(
-                              'Nicht zugeordnete Steuerbuchungen',
+                              // Die Liste ist bewusst nicht jahresgefiltert —
+                              // ohne Zuordnung ist ja unbekannt, wohin die
+                              // Buchung gehört.
+                              'Nicht zugeordnete Steuerbuchungen (alle Jahre)',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.warning,
                               ),
                             ),
                           ),
-                          for (final b in l)
-                            _zahlungZeile(b, false, zuordnen: true),
+                          for (final b in l) _zahlungZeile(b, false),
                         ],
                       ),
               ),
@@ -234,21 +294,22 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
                 data: (l) => DokumentListe(dokumente: l, onLoeschen: _loeschen),
               ),
               const SizedBox(height: 8),
-              SafeArea(
-                top: false,
-                child: TapKnopf(
-                  text: 'Dokument hochladen',
-                  icon: Icons.upload_file,
-                  onTap: () async {
-                    final d = await showDokumentUploadDialog(
-                      context,
-                      bereich: 'steuern',
-                      jahr: widget.jahr,
-                      buchungen: zahlungen.value ?? const [],
-                    );
-                    if (d != null && mounted) invalidateSteuern(ref);
-                  },
-                ),
+              TapKnopf(
+                text: 'Dokument hochladen',
+                icon: Icons.upload_file,
+                // Solange die Zahlungen laden, böte der Dialog eine leere
+                // Verknüpfungs-Liste an — der Beleg landete ohne Zahlung.
+                onTap: zahlungen.isLoading
+                    ? null
+                    : () async {
+                        final d = await showDokumentUploadDialog(
+                          context,
+                          bereich: 'steuern',
+                          jahr: widget.jahr,
+                          buchungen: zahlungen.value ?? const [],
+                        );
+                        if (d != null && mounted) invalidateSteuern(ref);
+                      },
               ),
               const SizedBox(height: 24),
             ],
@@ -299,7 +360,12 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
                 firstDate: DateTime(kSteuerJahrAb),
                 lastDate: DateTime(2035),
               );
-              if (p != null && mounted) setState(() => set(p));
+              if (p != null && mounted) {
+                setState(() {
+                  set(p);
+                  _geaendert = true;
+                });
+              }
             },
             child: const Text('wählen'),
           ),
@@ -309,7 +375,10 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
               tooltip: 'löschen',
               visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(),
-              onPressed: () => setState(() => set(null)),
+              onPressed: () => setState(() {
+                set(null);
+                _geaendert = true;
+              }),
             ),
         ],
       );
@@ -328,7 +397,10 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
                 child: Text(Steuerjahr.statusLabel(k)),
               ),
           ],
-          onChanged: (v) => setState(() => _status = v!),
+          onChanged: (v) => setState(() {
+            _status = v!;
+            _geaendert = true;
+          }),
         ),
         _datumZeile('Eingereicht', _eingereicht, (d) => _eingereicht = d),
         _datumZeile('Veranlagt', _veranlagt, (d) => _veranlagt = d),
@@ -360,7 +432,8 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
         Align(
           alignment: Alignment.centerRight,
           child: TapKnopf(
-            text: 'Speichern',
+            // Sternchen = ungespeicherte Änderungen.
+            text: _geaendert ? 'Speichern*' : 'Speichern',
             laeuft: _speichert,
             onTap: () => _speichern(s),
           ),
@@ -369,20 +442,34 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
     ),
   );
 
+  /// Breite einer Zahlenspalte. Fest, damit jede Zeile dieselbe natürliche
+  /// Breite hat — nur so skaliert die [FittedBox] alle Zeilen um denselben
+  /// Faktor und die Spalten stehen untereinander. Eine FittedBox je Zelle
+  /// würde jede Zelle einzeln skalieren: unterschiedlich grosse Schriften
+  /// in einer Zeile.
+  static const double _spalte = 64;
+
   Widget _sollIstTabelle(SteuerjahrZeile z) {
     final s = z.sollIst;
-    Widget cell(String t, {bool bold = false, Color? c}) => Expanded(
+    Widget zelle(String t, {bool bold = false, Color? c}) => SizedBox(
+      width: _spalte,
+      child: Text(
+        t,
+        textAlign: TextAlign.right,
+        softWrap: false,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+          color: c,
+        ),
+      ),
+    );
+    // Vier Zahlenspalten als eine Einheit skalieren.
+    Widget zahlen(List<Widget> zellen) => Expanded(
       child: FittedBox(
         fit: BoxFit.scaleDown,
         alignment: Alignment.centerRight,
-        child: Text(
-          t,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-            color: c,
-          ),
-        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: zellen),
       ),
     );
     Color offenFarbe(double v) => v.abs() <= 0.05
@@ -393,29 +480,35 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
         children: [
           Row(
             children: [
-              const Expanded(flex: 2, child: Text('')),
-              cell('prov.', bold: true),
-              cell('def.', bold: true),
-              cell('bezahlt', bold: true),
-              cell('offen', bold: true),
+              const SizedBox(width: 74),
+              zahlen([
+                zelle('prov.', bold: true),
+                zelle('def.', bold: true),
+                zelle('bezahlt', bold: true),
+                zelle('offen', bold: true),
+              ]),
             ],
           ),
           for (final zl in s.zeilen)
             Row(
               children: [
-                Expanded(
-                  flex: 2,
+                SizedBox(
+                  width: 74,
                   child: Text(
                     steuerarten[zl.steuerart] ?? zl.steuerart,
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
-                cell(
-                  zl.provisorisch == null ? '—' : _chf.format(zl.provisorisch),
-                ),
-                cell(zl.definitiv == null ? '—' : _chf.format(zl.definitiv)),
-                cell(_chf.format(zl.bezahlt)),
-                cell(_chf.format(zl.offen), c: offenFarbe(zl.offen)),
+                zahlen([
+                  zelle(
+                    zl.provisorisch == null
+                        ? '—'
+                        : _chf.format(zl.provisorisch),
+                  ),
+                  zelle(zl.definitiv == null ? '—' : _chf.format(zl.definitiv)),
+                  zelle(_chf.format(zl.bezahlt)),
+                  zelle(_chf.format(zl.offen), c: offenFarbe(zl.offen)),
+                ]),
               ],
             ),
           const Divider(),
@@ -445,9 +538,9 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
     );
   }
 
-  /// Eine Zahlungszeile. [zuordnen] = noch ohne Steuerjahr, Tippen öffnet den
-  /// Zuordnungs-Dialog.
-  Widget _zahlungZeile(Buchung b, bool hatBeleg, {bool zuordnen = false}) {
+  /// Eine Zahlungszeile. Tippen öffnet immer den Zuordnungs-Dialog — auch bei
+  /// bereits zugeordneten Zeilen, sonst wäre ein Fehlgriff nicht korrigierbar.
+  Widget _zahlungZeile(Buchung b, bool hatBeleg) {
     // Rückstellungs-/Umbuchungszeilen (2208 an 8900) tragen ein Steuerjahr,
     // sind aber kein Geldfluss — ohne den Hinweis widersprächen Liste und
     // «bezahlt»-Spalte einander.
@@ -456,26 +549,31 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
         b.sollKonto == 1020 ||
         b.habenKonto == 1000 ||
         b.habenKonto == 1020;
+    // Das offene Jahr nur vorschlagen, wenn es zum Buchungsdatum passt —
+    // die Liste der nicht zugeordneten Buchungen umfasst alle Jahre, und ein
+    // falscher Vorschlag wird beim Durchklicken zu einer falschen Zuordnung.
+    final vorschlag =
+        (b.datum.year == widget.jahr || b.datum.year - 1 == widget.jahr)
+        ? widget.jahr
+        : null;
     return InkWell(
-      onTap: zuordnen
-          ? () async {
-              final messenger = ScaffoldMessenger.of(context);
-              try {
-                if (await showSteuerZuordnungDialog(
-                      context,
-                      b,
-                      vorschlagJahr: widget.jahr,
-                    ) &&
-                    mounted) {
-                  invalidateSteuern(ref);
-                }
-              } catch (e) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text('Zuordnen fehlgeschlagen: $e')),
-                );
-              }
-            }
-          : null,
+      onTap: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        try {
+          if (await showSteuerZuordnungDialog(
+                context,
+                b,
+                vorschlagJahr: vorschlag,
+              ) &&
+              mounted) {
+            invalidateSteuern(ref);
+          }
+        } catch (e) {
+          messenger.showSnackBar(
+            SnackBar(content: Text('Zuordnen fehlgeschlagen: $e')),
+          );
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         decoration: const BoxDecoration(
@@ -516,11 +614,12 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
                 padding: EdgeInsets.only(left: 4),
                 child: Icon(Icons.attach_file, size: 14),
               ),
-            if (zuordnen)
-              const Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Icon(Icons.edit, size: 16, color: AppColors.warning),
-              ),
+            // Dezent: das Icon markiert nur die Antippbarkeit, nicht einen
+            // Missstand — jede Zeile lässt sich bearbeiten.
+            const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(Icons.edit, size: 16, color: AppColors.textSecondary),
+            ),
           ],
         ),
       ),

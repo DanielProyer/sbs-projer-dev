@@ -247,4 +247,36 @@ void main() {
       expect(gruppiereNachJahr([]), isEmpty);
     });
   });
+
+  group('steuerartVorschlag', () {
+    test('MWST-Abrechnung wird als mwst vorgeschlagen', () {
+      expect(steuerartVorschlag('MWST-Abrechnung Q2 2026'), 'mwst');
+      expect(steuerartVorschlag('Mehrwertsteuer 1. Semester'), 'mwst');
+      expect(steuerartVorschlag('ESTV Ref K8QT 1234 5678'), 'mwst');
+    });
+
+    test('direkte Bundessteuer wird als bund vorgeschlagen', () {
+      expect(steuerartVorschlag('Direkte Bundessteuer 2024'), 'bund');
+      expect(steuerartVorschlag('Akonto DBST 2025'), 'bund');
+    });
+
+    test('Busse wird als busse vorgeschlagen', () {
+      expect(steuerartVorschlag('Busse wegen Verspätung'), 'busse');
+    });
+
+    test('«eidgen» ohne weiteres Stichwort fällt auf mwst', () {
+      expect(
+        steuerartVorschlag('Eidgenössische Steuerverwaltung, Bern'),
+        'mwst',
+      );
+    });
+
+    test('ohne Treffer bleibt Kanton/Gemeinde', () {
+      expect(
+        steuerartVorschlag('Steueramt Vaz/Obervaz Akontozahlung'),
+        'kanton',
+      );
+      expect(steuerartVorschlag(''), 'kanton');
+    });
+  });
 }

@@ -54,6 +54,16 @@ class SteuerzahlungRepository {
         .eq('id', buchungId);
   }
 
+  /// Zuordnung zurücknehmen — die Buchung taucht danach wieder unter
+  /// «nicht zugeordnet» auf. Ohne das bliebe eine falsch getippte Zuordnung
+  /// nur über einen direkten DB-Eingriff korrigierbar.
+  static Future<void> zuordnungLoeschen(String buchungId) async {
+    await SupabaseService.client
+        .from('buchungen')
+        .update({'steuerjahr': null, 'steuerart': null})
+        .eq('id', buchungId);
+  }
+
   /// Bezahlt je (jahr, steuerart) aus der View.
   ///
   /// Zeilen ohne `steuerart` laufen unter `'unbekannt'` — sie einer echten

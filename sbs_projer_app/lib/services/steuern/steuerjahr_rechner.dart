@@ -8,6 +8,28 @@ enum SteuerAmpel { ausgeglichen, schuld, guthaben }
 /// Frühestes Jahr, für das die App Steuerjahre führt.
 const int kSteuerJahrAb = 2019;
 
+/// Steuerart-Vorschlag aus dem Buchungstext — nur ein Vorschlag, der Nutzer
+/// bestätigt ihn im Zuordnungs-Dialog.
+///
+/// «Eidgenössische Steuerverwaltung» ist der Absender sowohl der MWST- als
+/// auch der direkten Bundessteuer. Deshalb entscheiden zuerst die eindeutigen
+/// Wörter (MWST-Abrechnung, Bundessteuer/DBST, Busse); `eidgen` allein fällt
+/// auf MWST zurück, weil das die weit häufigere Zahlung ist. Ohne jeden
+/// Treffer bleibt Kanton/Gemeinde — dort landet die Mehrheit der Zahlungen.
+String steuerartVorschlag(String beschreibung) {
+  final t = beschreibung.toLowerCase();
+  // `k8qt` ist das Präfix der ESTV-MWST-Referenznummern auf den Einzahlungen.
+  if (t.contains('mwst') ||
+      t.contains('mehrwertsteuer') ||
+      t.contains('k8qt')) {
+    return 'mwst';
+  }
+  if (t.contains('bundessteuer') || t.contains('dbst')) return 'bund';
+  if (t.contains('busse')) return 'busse';
+  if (t.contains('eidgen')) return 'mwst';
+  return 'kanton';
+}
+
 /// Saldo-Buchungen nach Kalenderjahr bündeln, damit die Erfolgsrechnung je
 /// Jahr nur ihre eigenen Zeilen sieht — sonst läuft die Übersicht die
 /// Gesamtliste einmal pro Jahr durch (O(n·Jahre) statt O(n)).

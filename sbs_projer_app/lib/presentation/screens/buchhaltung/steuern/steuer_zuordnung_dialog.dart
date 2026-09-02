@@ -1,30 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
-    show kSteuerJahrAb;
+    show kSteuerJahrAb, steuerartVorschlag;
 
-/// Ordnet eine Steuerbuchung Jahr + Steuerart zu. Rückgabe true = gespeichert.
+/// Ergebnis der Dialog-Bedienung (nicht des Speicherns).
+enum _Aktion { zuordnen, entfernen }
+
+/// Ordnet eine Steuerbuchung Jahr + Steuerart zu — oder nimmt eine bestehende
+/// Zuordnung zurück. Rückgabe true = etwas geändert und gespeichert.
 ///
-/// Fehler beim Speichern werden bewusst durchgereicht — die SnackBar zeigt
-/// der aufrufende Screen, der auch den passenden Messenger hat.
+/// Ist [b] bereits zugeordnet, sind die Felder mit ihren gespeicherten Werten
+/// vorbelegt; sonst kommt der Vorschlag aus [vorschlagJahr] bzw. aus dem
+/// Buchungstext. Fehler beim Speichern werden bewusst durchgereicht — die
+/// SnackBar zeigt der aufrufende Screen, der auch den passenden Messenger hat.
 Future<bool> showSteuerZuordnungDialog(
   BuildContext context,
   Buchung b, {
   int? vorschlagJahr,
 }) async {
-  // Steuern werden im Folgejahr bezahlt — ohne Vorschlag ist das Vorjahr die
-  // wahrscheinlichste Zuordnung.
-  int jahr = vorschlagJahr ?? b.datum.year - 1;
-  final t = b.beschreibung.toLowerCase();
-  String art = t.contains('eidgen')
-      ? 'mwst'
-      : (t.contains('busse') ? 'busse' : 'kanton');
+  final istZugeordnet = b.steuerjahr != null;
+  // Steuern werden im Folgejahr bezahlt — ohne plausiblen Vorschlag von aussen
+  // ist das Vorjahr der Buchung die wahrscheinlichste Zuordnung.
+  int jahr = b.steuerjahr ?? vorschlagJahr ?? b.datum.year - 1;
+  String art = b.steuerart ?? steuerartVorschlag(b.beschreibung);
   final df = DateFormat('dd.MM.yyyy');
-  final ok = await showDialog<bool>(
+  final aktion = await showDialog<_Aktion>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setS) => AlertDialog(
@@ -60,20 +65,46 @@ Future<bool> showSteuerZuordnungDialog(
                 ],
                 onChanged: (v) => setS(() => art = v!),
               ),
+              // Nur bei noch nicht zugeordneten Buchungen: dort stammen die
+              // Werte aus der Heuristik. Bei einer Korrektur stehen die
+              // gespeicherten Werte da, kein Vorschlag.
+              if (!istZugeordnet)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Vorschlag aus dem Buchungstext — bitte prüfen',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Abbrechen'),
           ),
-          TapKnopf(text: 'Zuordnen', onTap: () => Navigator.pop(ctx, true)),
+          if (istZugeordnet)
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, _Aktion.entfernen),
+              child: const Text('Zuordnung entfernen'),
+            ),
+          TapKnopf(
+            text: 'Zuordnen',
+            onTap: () => Navigator.pop(ctx, _Aktion.zuordnen),
+          ),
         ],
       ),
     ),
   );
-  if (ok != true) return false;
+  if (aktion == null) return false;
+  if (aktion == _Aktion.entfernen) {
+    await SteuerzahlungRepository.zuordnungLoeschen(b.id);
+    return true;
+  }
   await SteuerzahlungRepository.zuordnen(
     b.id,
     steuerjahr: jahr,
