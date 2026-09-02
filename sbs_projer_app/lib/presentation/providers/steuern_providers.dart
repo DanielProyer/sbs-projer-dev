@@ -6,7 +6,7 @@ import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart'
-    show toSaldoInput;
+    show toSaldoInput, abschlussPruefungProvider;
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/dokument_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart'
@@ -38,12 +38,12 @@ final steuerjahreProvider = FutureProvider<List<Steuerjahr>>(
 final steuernUebersichtProvider = FutureProvider<List<SteuerjahrZeile>>((
   ref,
 ) async {
-  final jahre = await ref.watch(steuerjahreProvider.future);
-  final bezahlt = await SteuerzahlungRepository.bezahltJeJahr();
-  final docs = await DokumentRepository.getAll(bereich: 'steuern');
   // Journal über den Stream: rechnet nach camt-Import/Lohnlauf neu und spart
   // den zweiten Download (gleiches Muster wie bankWaechterProvider).
   final buchungen = await ref.watch(buchungenStreamProvider.future);
+  final jahre = await ref.watch(steuerjahreProvider.future);
+  final bezahlt = await SteuerzahlungRepository.bezahltJeJahr();
+  final docs = await DokumentRepository.getAll(bereich: 'steuern');
   final jeJahr = gruppiereNachJahr(toSaldoInput(buchungen));
   final heute = DateTime.now();
 
@@ -144,4 +144,8 @@ void invalidateSteuern(WidgetRef ref) {
   // Der Dokument-Cache hängt an denselben Uploads/Löschungen.
   ref.invalidate(dokumenteProvider);
   ref.invalidate(dokumentJahreProvider);
+  // Family-Invalidate ohne Argument trifft alle Jahre — der Audit-Screen
+  // bleibt unter der gepushten Route mounted und zeigte sonst nach einer
+  // Steuer-Zuordnung/Upload weiter alte Zahlen.
+  ref.invalidate(abschlussPruefungProvider);
 }

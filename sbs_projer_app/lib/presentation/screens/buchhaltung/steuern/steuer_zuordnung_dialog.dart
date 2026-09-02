@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -25,8 +27,13 @@ Future<bool> showSteuerZuordnungDialog(
 }) async {
   final istZugeordnet = b.steuerjahr != null;
   // Steuern werden im Folgejahr bezahlt — ohne plausiblen Vorschlag von aussen
-  // ist das Vorjahr der Buchung die wahrscheinlichste Zuordnung.
-  int jahr = b.steuerjahr ?? vorschlagJahr ?? b.datum.year - 1;
+  // ist das Vorjahr der Buchung die wahrscheinlichste Zuordnung. Geklemmt auf
+  // kSteuerJahrAb, sonst liegt der Vorschlag unter dem ältesten Dropdown-Jahr
+  // und der DropdownButton hat keinen passenden Eintrag (Assertion).
+  int jahr = math.max(
+    kSteuerJahrAb,
+    b.steuerjahr ?? vorschlagJahr ?? b.datum.year - 1,
+  );
   String art = b.steuerart ?? steuerartVorschlag(b.beschreibung);
   final df = DateFormat('dd.MM.yyyy');
   final aktion = await showDialog<_Aktion>(
@@ -50,7 +57,17 @@ Future<bool> showSteuerZuordnungDialog(
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Steuerjahr'),
                 items: [
-                  for (var j = DateTime.now().year; j >= kSteuerJahrAb; j--)
+                  // jahr in die Optionen aufnehmen, falls es (z. B. bei einer
+                  // bereits gespeicherten Zuordnung) ausserhalb des üblichen
+                  // Bereichs liegt — sonst hat der Dropdown keinen passenden
+                  // Eintrag (Assertion).
+                  for (final j
+                      in <int>{
+                        for (var y = DateTime.now().year; y >= kSteuerJahrAb; y--)
+                          y,
+                        jahr,
+                      }.toList()
+                        ..sort((a, b) => b.compareTo(a)))
                     DropdownMenuItem(value: j, child: Text('$j')),
                 ],
                 onChanged: (v) => setS(() => jahr = v!),

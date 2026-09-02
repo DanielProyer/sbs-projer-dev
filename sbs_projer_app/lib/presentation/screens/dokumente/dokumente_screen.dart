@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/data/models/dokument.dart';
 import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/dokument_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/steuern_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/dokumente/dokument_liste.dart';
 import 'package:sbs_projer_app/presentation/widgets/dokumente/dokument_upload_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
@@ -32,7 +33,7 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
     try {
       await DokumentRepository.delete(d);
       if (!mounted) return;
-      _reload();
+      invalidateSteuern(ref);
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Löschen fehlgeschlagen: $e')),
@@ -136,7 +137,7 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
                     _bereich = d.bereich;
                     if (_jahr != null && d.jahr != _jahr) _jahr = null;
                   });
-                  _reload();
+                  invalidateSteuern(ref);
                 },
               ),
             ),
