@@ -1,10 +1,12 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 01.09. abends (für die nächste Session)
+## 📌 SESSION-ÜBERGABE 02.09. (für die nächste Session)
 
-**Stand:** v0.95.0 live · 1212 Tests grün · Migrationen bis 180 ausgeführt · Bank per 31.08. rappengenau · MWST komplett eingereicht · Kreditoren-Modul in Betrieb · Bank-Wächter aktiv (Karte aktuell **rot**: 2002 im Soll — das ist korrekt, bis der Lohnlauf läuft).
+**Stand:** v0.95.0 live · 1212 Tests grün · Migrationen bis 180 ausgeführt · Bank per 31.08. rappengenau · MWST komplett eingereicht · Kreditoren-Modul in Betrieb · Bank-Wächter aktiv (Karte **rot**: 2002 im Soll — korrekt, bis der Lohnlauf läuft) · **Entflechtung Vorhaben ① KOMPLETT** (sbs.projer@ = 723 Geschäftskontakte verifiziert, dani.proyer@ = 46 Private unter Label «Privat»).
 
-**Nächste konkrete Schritte, in sinnvoller Reihenfolge:**
+**🎯 ANSAGE DANIEL 02.09.: Nächste Session = JAHRESSCHLUSS + STEUERERKLÄRUNG der GmbH.** Dafür relevant aus dem Bestand: Historik-Restposten aus Fahrplan 7 (v. a. **(c) EK/Gewinnvortrag 35'319.11 fehlt — Bilanzgleichung geht nicht auf**, (b) MwSt-Altsalden-Aufsetzkorrektur per 31.12.2025 inkl. der −450.61 auf 2202), offener August-Lohnlauf, Papierstapel Lieferantenrechnungen. Geschäftsjahr-Abgrenzung zu Beginn mit Daniel klären.
+
+**Weitere offene Schritte, in sinnvoller Reihenfolge:**
 1. **Daniel: August-Lohnlauf** (Netto = Wächter-Anzeige; nach nächstem Import 8'500 mit den 5'000 vom 01.09.) → Wächter-Karte wird grün
 2. **Nächster camt-Import** (Export ab 01.09.): erwartet 2× ESTV (3'885.01/2'293.00 → 2202), 2× Franchise 3'772.70 (→ **erster automatischer Stufe-2-Match** auf die Eingangsrechnungen Juli+Aug; bei Mehrdeutigkeit Prüfliste = ok), Lohn 5'000 (→ 2002), dabei erstmals den **grünen Anschluss-Kasten** im Import prüfen
 3. **ESTV-Post** zur 2025er-Berichtigung (~1'507) abwarten → zahlen
