@@ -77,8 +77,8 @@ Buchhaltung ab dem Übergang lückenlos in der App führen. Die **Ertragsseite**
 
 ## PHASE 4 — Aufsetz-Entscheidungen (nur Daniel — fachlich)
 
-- [ ] **4.1 MwSt-Aufsetzpunkt:** 2200/1171/1170-Salden für die Alt-Ära sind unbrauchbar (Alt-Ertrag steht brutto, ~83'430 MwSt-Anteil 2019–2025). **Empfehlung:** Aufsetzkorrektur per 31.12.2025 mit den Excel-Bilanzwerten (2200 = 17'223.38 geschuldet, 1171 = 1'148.11, 1170 = 3'654.08). Alternativ: Konten für Alt-Ära als „nicht bilanzfähig" markieren. → Entscheidung Daniel.
-- [ ] **4.2 EK / Gewinnvortrag:** 13 Jahresabschluss-Buchungen (9000/9100/2970/2980) wurden als storniert importiert → Gewinnvortrag 35'319.11 fehlt, Bilanzgleichung geht nie auf. Optionen: entstornieren/nachbuchen ODER bewusst als reine Verkehrszahlen-Buchhaltung ohne EK-Abschluss dokumentieren. → Entscheidung Daniel.
+- [x] **4.1 ✅ ERLEDIGT 02.09.2026** (siehe `docs/buchhaltung/jahresabschluss-2025.md`, Schritt B — Excel-Werte NICHT übernommen, Referenz ESTV/camt; 2200/1170/1171 per 31.12.2025 = 0, 2202 = 6'577.40). *Alt:* **MwSt-Aufsetzpunkt:** 2200/1171/1170-Salden für die Alt-Ära sind unbrauchbar (Alt-Ertrag steht brutto, ~83'430 MwSt-Anteil 2019–2025). **Empfehlung:** Aufsetzkorrektur per 31.12.2025 mit den Excel-Bilanzwerten (2200 = 17'223.38 geschuldet, 1171 = 1'148.11, 1170 = 3'654.08). Alternativ: Konten für Alt-Ära als „nicht bilanzfähig" markieren. → Entscheidung Daniel.
+- [x] **4.2 ✅ ERLEDIGT** (Phase 2b Modell 2: Vortrag/Jahresergebnis werden aus den Erfolgskonten berechnet, Vortrag 01.01.2025 = 35'060.71; Jahresabschluss 2025 gebucht 02.09.2026). *Alt:* **EK / Gewinnvortrag:** 13 Jahresabschluss-Buchungen (9000/9100/2970/2980) wurden als storniert importiert → Gewinnvortrag 35'319.11 fehlt, Bilanzgleichung geht nie auf. Optionen: entstornieren/nachbuchen ODER bewusst als reine Verkehrszahlen-Buchhaltung ohne EK-Abschluss dokumentieren. → Entscheidung Daniel.
 
 ---
 

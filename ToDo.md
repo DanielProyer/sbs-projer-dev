@@ -1,12 +1,15 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 02.09. (für die nächste Session)
+## 📌 SESSION-ÜBERGABE 02.09. abends (für die nächste Session)
 
-**Stand:** v0.95.0 live · 1212 Tests grün · Migrationen bis 180 ausgeführt · Bank per 31.08. rappengenau · MWST komplett eingereicht · Kreditoren-Modul in Betrieb · Bank-Wächter aktiv (Karte **rot**: 2002 im Soll — korrekt, bis der Lohnlauf läuft) · **Entflechtung Vorhaben ① KOMPLETT** (sbs.projer@ = 723 Geschäftskontakte verifiziert, dani.proyer@ = 46 Private unter Label «Privat»).
+**Stand:** v0.95.0 live · Migrationen bis **181** ausgeführt (`beleg_typ` + `abschreibung`/`abschluss`) · **JAHRESABSCHLUSS 2025 GEBUCHT** (Freigabe Daniel, Schritte A–E, Details + Rollback: `docs/buchhaltung/jahresabschluss-2025.md`) · Bank per 31.12.2025 = camt rappengenau (12'202.73) · **Gewinn 2025 = 20'890.22**, EK 75'950.93, Bilanzsumme 127'898.75 · Jahresrechnung 2025 als PDF: `00_Buchhaltung/Jahresrechnung 2025.pdf` (Bilanz+ER mit Vorjahr, Anhang OR 959c, Beilage Steuererklärung).
 
-**🎯 ANSAGE DANIEL 02.09.: Nächste Session = JAHRESSCHLUSS + STEUERERKLÄRUNG der GmbH.** Dafür relevant aus dem Bestand: Historik-Restposten aus Fahrplan 7 (v. a. **(c) EK/Gewinnvortrag 35'319.11 fehlt — Bilanzgleichung geht nicht auf**, (b) MwSt-Altsalden-Aufsetzkorrektur per 31.12.2025 inkl. der −450.61 auf 2202), offener August-Lohnlauf, Papierstapel Lieferantenrechnungen. Geschäftsjahr-Abgrenzung zu Beginn mit Daniel klären.
+**Gebucht 02.09.:** A Abschreibung Jahrgang 2019 (29 Rg, 2'235.90; MwSt-Rückholung 159.90 datiert Q3/2026 → **Ziff. 235 in der Q3-Abrechnung!**) · B MwSt-Altlast 2019–24 aufgelöst (2200/1170/1171 = 0, 2202 = 6'577.40 real, 2'079.39 + Kreditor-Rest 96.95 → 8000) · C Lohn-Umgliederungen auf 31.12.2025 datiert + UVG-Guthaben 2'067.50 auf 1180 (Rückbuchung 01.01.2026) · D Steuerrückstellung 4'000 (Veranlagung 2024: 18.2 % effektiv) · E Delkredere 5 % = 5'629.38. Excel-Bilanz als Referenz verworfen (geht selbst nicht auf); «Gewinnvortrag fehlt» war durch Phase 2b bereits erledigt (Vortrag 35'060.71, Excel 35'319.11, Diff 258.40 dokumentiert).
+
+**Offen für die Steuererklärung 2025 (Daniel):** Jahresrechnung unterschreiben · Lohnausweis 2025 beilegen · Steuererklärung ausfüllen (Kennzahlen auf Seite 4 des PDFs: steuerbarer Gewinn Vorschlag 21'201.23 = 20'890.22 + Bussen 311.01; Kapital 75'950.93).
 
 **Weitere offene Schritte, in sinnvoller Reihenfolge:**
+0. **2026-Folgen des Abschlusses:** Belastung Steuerverwaltung 05.05.2026 (2'748.00) prüfen — falls provisorische Rechnung 2025 → von 8900 auf **2208** umbuchen; Q3/2026-MWST: Ziff. 235 159.90; ~20 Tresen-Rechnungen Dez 2025 (per Excel-Delta bezahlt, Status noch «offen») nachziehen.
 1. **Daniel: August-Lohnlauf** (Netto = Wächter-Anzeige; nach nächstem Import 8'500 mit den 5'000 vom 01.09.) → Wächter-Karte wird grün
 2. **Nächster camt-Import** (Export ab 01.09.): erwartet 2× ESTV (3'885.01/2'293.00 → 2202), 2× Franchise 3'772.70 (→ **erster automatischer Stufe-2-Match** auf die Eingangsrechnungen Juli+Aug; bei Mehrdeutigkeit Prüfliste = ok), Lohn 5'000 (→ 2002), dabei erstmals den **grünen Anschluss-Kasten** im Import prüfen
 3. **ESTV-Post** zur 2025er-Berichtigung (~1'507) abwarten → zahlen
