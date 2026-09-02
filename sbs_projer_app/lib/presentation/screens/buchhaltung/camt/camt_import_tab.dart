@@ -60,9 +60,15 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   /// bestätigen» ohne einen einzigen Klick richtig kontiert.
   final _steuer = <String, SteuerZuordnung>{};
 
-  /// Steuerjahre mit noch offener Rückstellung (2208) — bestimmt, ob eine
-  /// Zahlung gegen 2208 oder direkt auf 8900 läuft.
-  Set<int> _rueckstellungJahre = {};
+  /// Noch nicht verbrauchte Rückstellung (2208) je Steuerjahr — bestimmt, ob
+  /// eine Zahlung gegen 2208 oder direkt auf 8900 läuft. Wird nach jeder
+  /// Steuerbuchung fortgeschrieben, damit die zweite Zahlung desselben Jahres
+  /// nicht nochmals gegen eine bereits aufgebrauchte Rückstellung läuft.
+  Map<int, double> _rueckstellungRest = {};
+
+  /// Die Rückstellungs-Prüfung ist gescheitert (Journal nicht ladbar) — es
+  /// wird auf 8900 kontiert, die Zeile weist sichtbar darauf hin.
+  bool _rueckstellungFehler = false;
   int _prueflisteCount = 0;
   int _uebersprungen = 0;
   int _altpostenAusgeblendet = 0;
@@ -472,19 +478,22 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       // Steuerzahlungen (Vorlage auf 8900/2208/2202) vorbelegen: Jahr, Art und
       // Zielkonto stehen damit schon vor dem ersten Klick richtig.
       final steuerVorschlaege = plan.vorschlaege.where(_istSteuerVorschlag);
-      final rueckJahre = <int>{};
+      final rueckRest = <int, double>{};
       final steuerInit = <String, SteuerZuordnung>{};
+      var rueckFehler = false;
       if (steuerVorschlaege.isNotEmpty) {
         try {
-          rueckJahre.addAll(rueckstellungsJahre(
+          rueckRest.addAll(rueckstellungsRest(
               await BuchungRepository.getAll()));
         } catch (e) {
           // Ohne Rückstellungs-Info wird auf 8900 kontiert — im Dropdown
-          // korrigierbar; der Import darf daran nicht scheitern.
+          // korrigierbar; der Import darf daran nicht scheitern. Der Fehler
+          // wird in der Steuerzeile sichtbar gemacht (nicht nur geloggt).
+          rueckFehler = true;
           debugPrint('[camt] Rückstellungs-Prüfung fehlgeschlagen: $e');
         }
         for (final v in steuerVorschlaege) {
-          steuerInit[v.tx.txKey] = _initialeSteuerZuordnung(v, rueckJahre);
+          steuerInit[v.tx.txKey] = _initialeSteuerZuordnung(v, rueckRest);
         }
       }
 
@@ -515,7 +524,8 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
 
       setState(() {
         _vorschlaege = plan.vorschlaege;
-        _rueckstellungJahre = rueckJahre;
+        _rueckstellungRest = rueckRest;
+        _rueckstellungFehler = rueckFehler;
         _steuer
           ..clear()
           ..addAll(steuerInit);
@@ -632,7 +642,8 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                 _statement = null;
                 _vorschlaege = [];
                 _steuer.clear();
-                _rueckstellungJahre = {};
+                _rueckstellungRest = {};
+                _rueckstellungFehler = false;
                 _prueflisteCount = 0;
                 _uebersprungen = 0;
                 _abgleich = null;
@@ -673,27 +684,39 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   bool _istSteuerVorschlag(CamtVorschlag v) {
     if (v.typ != CamtVorschlagTyp.ausgabe || v.vorlage == null) return false;
     try {
-      return istSteuerKonto(kontenFuerCamt(v.vorlage!).sollKonto);
+      final k = kontenFuerCamt(v.vorlage!);
+      // Auch die Haben-Seite prüfen: Rückerstattungs-Vorlagen sind als
+      // «Bank an 2208/8900» definiert und blieben sonst ohne Steuerjahr —
+      // sie fielen aus `view_steuerjahr_zahlungen` heraus.
+      return istSteuerKonto(k.sollKonto) || istSteuerKonto(k.habenKonto);
     } catch (_) {
       // Unvollständige Vorlage — das Buchen scheitert ohnehin sichtbar.
       return false;
     }
   }
 
-  /// Vorschlag: Steuerart aus dem Zahlungsempfänger, Jahr = Vorjahr (Gewinn-/
-  /// Kapitalsteuer wird nachschüssig bezahlt), bei MWST das Buchungsjahr.
+  /// Vorschlag: Steuerart aus Zahlungsempfänger + Referenz/Zusatzinfo (die
+  /// ESTV-MWST-Referenz `k8qt` steht nicht im Namen), Jahr = Vorjahr
+  /// (Gewinn-/Kapitalsteuer wird nachschüssig bezahlt).
+  ///
+  /// Bei MWST das Buchungsjahr: die Quartalsabrechnungen Q1–Q3 werden im
+  /// selben Jahr bezahlt. Die Q4-Abrechnung fällt ins Folgejahr — dort ist die
+  /// Vorbelegung um ein Jahr zu hoch und per Dropdown zu korrigieren
+  /// (bewusste Spec-Entscheidung 02.09.2026: der häufigere Fall gewinnt).
   SteuerZuordnung _initialeSteuerZuordnung(
-      CamtVorschlag v, Set<int> rueckstellungJahre) {
-    final art = steuerartVorschlag(effektiverZahlername(
+      CamtVorschlag v, Map<int, double> rueckstellungRest) {
+    final name = effektiverZahlername(
             partyName: v.tx.partyName, additionalInfo: v.tx.additionalInfo) ??
-        '');
+        '';
+    final art = steuerartVorschlag('$name '
+        '${v.tx.strukturierteReferenz ?? ''} ${v.tx.additionalInfo ?? ''}');
     final jahr = art == 'mwst'
         ? v.tx.bookingDate.year
         : v.tx.bookingDate.year - 1;
     return SteuerZuordnung(
       steuerjahr: jahr,
       steuerart: art,
-      hatRueckstellung: rueckstellungJahre.contains(jahr),
+      hatRueckstellung: (rueckstellungRest[jahr] ?? 0) > 0.05,
     );
   }
 
@@ -704,9 +727,34 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       _steuer[v.tx.txKey] = SteuerZuordnung(
         steuerjahr: neuJahr,
         steuerart: art ?? alt.steuerart,
-        hatRueckstellung: _rueckstellungJahre.contains(neuJahr),
+        hatRueckstellung: (_rueckstellungRest[neuJahr] ?? 0) > 0.05,
       );
     });
+  }
+
+  /// Schreibt die Rückstellung nach einer verbuchten Steuerzahlung fort und
+  /// bewertet die übrigen Vorschläge desselben Jahres neu — sonst liefen zwei
+  /// Zahlungen aus demselben Auszug beide gegen eine Rückstellung, die schon
+  /// die erste aufgebraucht hat. Ohne Aufruf aus `setState`.
+  void _steuerWirkungAnwenden(CamtVorschlag v) {
+    final z = _steuer[v.tx.txKey];
+    if (z == null) return;
+    final gebuchtesKonto = steuerKontoFuer(
+        steuerart: z.steuerart, hatRueckstellung: z.hatRueckstellung);
+    if (gebuchtesKonto != 2208) return; // 8900/2202 rühren die Rückstellung nicht an
+    final rest = (_rueckstellungRest[z.steuerjahr] ?? 0) +
+        (v.tx.isCredit ? v.tx.amount : -v.tx.amount);
+    _rueckstellungRest[z.steuerjahr] = rest;
+    final hat = rest > 0.05;
+    for (final e in _steuer.entries.toList()) {
+      if (e.key == v.tx.txKey || e.value.steuerjahr != z.steuerjahr) continue;
+      if (e.value.hatRueckstellung == hat) continue;
+      _steuer[e.key] = SteuerZuordnung(
+        steuerjahr: e.value.steuerjahr,
+        steuerart: e.value.steuerart,
+        hatRueckstellung: hat,
+      );
+    }
   }
 
   /// Öffnet den erfassten Beleg (PDF/Bild) einer Eingangsrechnung (frisch signiert).
@@ -851,6 +899,14 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600),
           ),
+          if (_rueckstellungFehler)
+            const Text(
+              'Rückstellungs-Prüfung fehlgeschlagen — Kontierung auf 8900, bitte prüfen',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w600),
+            ),
         ],
       ),
     );
@@ -863,6 +919,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       ref.invalidate(eingangsrechnungenProvider);
       if (!mounted) return;
       setState(() {
+        _steuerWirkungAnwenden(v);
         _vorschlaege.remove(v);
         _steuer.remove(v.tx.txKey);
       });
@@ -885,6 +942,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     for (final v in liste) {
       try {
         await CamtAutoBooker.bucheVorschlag(v, steuer: _steuer[v.tx.txKey]);
+        // Rückstellung sofort fortschreiben — die nächste Zahlung desselben
+        // Jahres im selben Auszug muss den neuen Rest sehen.
+        _steuerWirkungAnwenden(v);
         ok.add(v);
       } catch (e) {
         fehler.add('${v.label}: $e');

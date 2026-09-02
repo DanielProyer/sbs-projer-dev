@@ -97,15 +97,22 @@ int steuerKontoFuer({required String steuerart, required bool hatRueckstellung})
   return hatRueckstellung ? 2208 : 8900;
 }
 
-/// Steuerjahre, deren Rückstellung (Konto 2208) noch einen Haben-Saldo trägt.
+/// Noch nicht verbrauchte Steuerrückstellung (Konto 2208) je Steuerjahr.
 ///
-/// Zugeordnet wird nach `steuerjahr`, sonst nach `geschaeftsjahr` — die
+/// Gruppiert wird nach `steuerjahr`, sonst nach `geschaeftsjahr` — die
 /// Rückstellung entsteht im Abschluss des Steuerjahres (8900 an 2208), die
-/// Umbuchungen der Zahlungen fallen ins Folgejahr (2208 an 8900) und tragen
-/// das Steuerjahr. Ist die Rückstellung aufgebraucht (Saldo ≤ 0), gehören
-/// weitere Zahlungen auf 8900 statt nochmals gegen 2208.
-Set<int> rueckstellungsJahre(List<Buchung> buchungen) {
+/// Umbuchungen der Zahlungen fallen ins Folgejahr (2208 an 8900).
+///
+/// **Der Gesamtsaldo des Kontos ist die Schranke.** Am 02.09.2026 trugen alle
+/// drei 2208-Zeilen `steuerjahr = NULL`: Rückstellung 4'000.00 im Jahr 2025,
+/// die beiden Umbuchungen (2'405.50 + 2'748.00) im Jahr 2026. Rein nach Jahr
+/// gruppiert sähe 2025 nach +4'000.00 aus, obwohl das Konto gesamthaft mit
+/// −1'153.50 überzogen ist — eine weitere Zahlung gegen 2208 hätte die
+/// Rückstellung noch tiefer ins Minus gezogen. Deshalb: Gesamtsaldo ≤ 0 →
+/// keine Rückstellung; sonst deckelt er jeden Jahreswert.
+Map<int, double> rueckstellungsRest(List<Buchung> buchungen) {
   final saldoJeJahr = <int, double>{};
+  double gesamt = 0;
   for (final b in buchungen) {
     if (!zaehltFuerSaldo(
         istStorniert: b.istStorniert, stornoVonId: b.stornoVonId)) {
@@ -114,30 +121,46 @@ Set<int> rueckstellungsJahre(List<Buchung> buchungen) {
     final jahr = b.steuerjahr ?? b.geschaeftsjahr;
     if (b.habenKonto == 2208) {
       saldoJeJahr[jahr] = (saldoJeJahr[jahr] ?? 0) + b.betragBrutto;
+      gesamt += b.betragBrutto;
     } else if (b.sollKonto == 2208) {
       saldoJeJahr[jahr] = (saldoJeJahr[jahr] ?? 0) - b.betragBrutto;
+      gesamt -= b.betragBrutto;
     }
   }
-  return saldoJeJahr.entries
-      .where((e) => e.value > 0.05)
-      .map((e) => e.key)
-      .toSet();
+  if (gesamt <= 0.05) return {};
+  return {
+    for (final e in saldoJeJahr.entries)
+      if (e.value > 0.05) e.key: e.value < gesamt ? e.value : gesamt,
+  };
 }
 
+/// Steuerjahre, deren Rückstellung (Konto 2208) noch etwas hergibt.
+Set<int> rueckstellungsJahre(List<Buchung> buchungen) =>
+    rueckstellungsRest(buchungen).keys.toSet();
+
 /// Setzt bei einer bestätigten Steuerzahlung das Steuerkonto auf die Seite
-/// gegenüber der Bank (Belastung → Soll, Gutschrift/Rückzahlung → Haben) und
-/// stempelt Steuerjahr/Steuerart, damit die Steuer-Übersicht sie ohne
-/// Nacharbeit findet.
+/// GEGENÜBER der Bank und stempelt Steuerjahr/Steuerart, damit die
+/// Steuer-Übersicht die Zahlung ohne Nacharbeit findet.
+///
+/// Die Seite folgt der Bank (1020/1000) und nicht der camt-Richtung: eine als
+/// «Bank an 2208» definierte Rückerstattungs-Vorlage würde sonst bei einer
+/// Belastung die Bank überschreiben und der Zahlungsweg ginge verloren.
+/// Steuern tragen keine Vorsteuer → der MwSt-Split wird neutralisiert.
 Map<String, dynamic> steuerFelderAnwenden(
   Map<String, dynamic> felder, {
-  required bool isCredit,
   required SteuerZuordnung steuer,
 }) {
   final konto = steuerKontoFuer(
       steuerart: steuer.steuerart, hatRueckstellung: steuer.hatRueckstellung);
+  final bankImSoll = felder['soll_konto'] == kCamtBankKonto ||
+      felder['soll_konto'] == 1000;
   return {
     ...felder,
-    if (isCredit) 'haben_konto': konto else 'soll_konto': konto,
+    if (bankImSoll) 'haben_konto': konto else 'soll_konto': konto,
+    'mwst_konto': null,
+    'mwst_satz': 0,
+    'mwst_betrag': 0.0,
+    'betrag_netto': felder['betrag_brutto'],
     'steuerjahr': steuer.steuerjahr,
     'steuerart': steuer.steuerart,
   };
@@ -159,8 +182,7 @@ class CamtAusgabeBooker {
       vorlageMwstKonto: konten.mwstKonto,
     );
     if (steuer != null) {
-      felder = steuerFelderAnwenden(felder,
-          isCredit: tx.isCredit, steuer: steuer);
+      felder = steuerFelderAnwenden(felder, steuer: steuer);
     }
     final datumStr = tx.bookingDate.toIso8601String().split('T').first;
     final beschreibung = tx.partyName != null
