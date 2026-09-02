@@ -180,6 +180,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/audit'),
           ),
           _NavTile(
+            icon: Icons.account_balance,
+            title: 'Steuern',
+            subtitle: 'Veranlagungen, Zahlungen, Unterlagen',
+            onTap: () => context.push('/buchhaltung/steuern'),
+          ),
+          _NavTile(
             icon: Icons.receipt_long,
             title: 'Forderungen',
             subtitle: 'Rechnungen, Mahnwesen & Debitoren',
