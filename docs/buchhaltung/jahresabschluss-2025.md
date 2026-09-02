@@ -68,7 +68,12 @@ Gewinn 2025 = 30'579.16 − 2'235.90 + 2'079.39 − 4'600.00 − 5'629.38 = **20
 - Bilanz 31.12.2025 + ER 2025 (App: Berichte → PDF) mit Vorjahreswerten; Anhang OR 959c (Kleinst-GmbH).
 - Lohnausweis 2025 (liegt: `00_Rechnungen/12_Lohnausweis/Lohnausweis 2025.pdf`, 83'124 / 70'700).
 - Bankauszug 31.12.2025 (12'202.73), Stammkapital 20'000, keine Beteiligungen, kein Anlagevermögen, Vortrag 35'060.71.
-- Offen: Papierstapel Lieferantenrechnungen 2025? (falls 2025er-Belege dabei → Aufwand 2025 nachbuchen VOR Abschluss).
+- ~~Offen: Papierstapel Lieferantenrechnungen 2025?~~ Geklärt 02.09.: keine 2025er-Belege im Stapel.
+
+### 5a. Dossier in der App (seit v0.96.0, 02.09.2026)
+- **Buchhaltung → Steuern → 2025** zeigt Veranlagungsdaten, Soll/Ist (provisorisch Bund 2'405.50 / Kanton 2'748.00 bezahlt, beide über 2208), die Dossier-Checkliste und die Dokumente des Jahres. Alle Steuerunterlagen 2019–2025 aus `00_Rechnungen/01_Steuern/` liegen im Bucket `dokumente` (Import-Skript `Datenbank/import/import_steuer_dokumente.py`, Echtlauf 02.09.: 76 Dokumente, 7 Steuerjahre, 63 Zahlungszuordnungen).
+- **Noch hochzuladen (Daniel):** unterschriebene Jahresrechnung 2025 (Typ «Jahresrechnung»), Lohnausweis 2025, GKB Zins-/Kapitalausweis 31.12.2025 (bei der Bank holen). Nach Einreichung: Status «eingereicht» + Datum setzen, Formular 11a als «Steuererklärung» ablegen.
+- Die **Abschlussprüfung** (Buchhaltung → Abschlussprüfung, Jahr 2025) ist die Checkliste vor dem Einreichen: Bank = camt, MWST saldiert, Delkredere 5 %, Rückstellung, Steuerzuordnung, Steuererklärung vorhanden.
 
 ## 6. Erledigt (02.09.2026, alle nach Freigabe Daniel)
 - [x] Migration 181: `beleg_typ` um `abschreibung`/`abschluss` erweitert (ausgeführt).
@@ -84,7 +89,7 @@ Gewinn 2025 = 30'579.16 − 2'235.90 + 2'079.39 − 4'600.00 − 5'629.38 = **20
 
 ## 7. Folgepunkte 2026
 - MWST Q3/2026: Ziff. 235 Entgeltsminderung 159.90 (Buchung `JA2025_A_MWST` liegt im Journal).
-- Steuerzahlungen für 2025 (provisorisch/definitiv) gegen **2208** buchen, nicht 8900 — prüfen, ob die Belastung 05.05.2026 (2'748.00) die provisorische Rechnung 2025 ist → auf 2208 umbuchen.
+- ~~Belastung 05.05.2026 prüfen~~ Erledigt 02.09.: Bund 15.04.2026 (2'405.50) und Kanton 05.05.2026 (2'748.00) = provisorische Rechnungen 2025 → auf 2208 umgebucht (`JA2025_D_U1`, `JA2025_D_U2`). 2208 steht damit **1'153.50 im Soll** (Rückstellung 4'000 war zu tief) — bei der definitiven Veranlagung 2025 gegen 8900 ausgleichen. Künftige Steuerzahlungen kontiert der camt-Import selbst: 2208, solange die Rückstellung des Jahres offen ist, sonst 8900 (MWST 2202).
 - Delkredere jährlich auf 5 % des Debitorenbestands nachführen; Jahrgang 2020 im Abschluss 2026 abschreiben (76 Rg, 7'216.30).
 - Tresen-Rechnungen Dez 2025, die per Excel-Delta bezahlt, aber noch «offen» sind (~20 Stück, z. B. Center Fontauna, Stau, Surselva, Hotel Chur) → Status nachziehen (Debitoren-Hygiene, ergebnisneutral).
 

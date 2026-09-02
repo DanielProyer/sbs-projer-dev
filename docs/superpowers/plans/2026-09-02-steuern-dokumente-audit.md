@@ -1,5 +1,7 @@
 # Steuern-Screen, Dokumente-Modul, Abschlussprüfung — Implementation Plan
 
+> **Status 02.09.2026:** Tasks 1–15 umgesetzt (subagent-driven, je Spec- + Quality-Review), live als **v0.96.0** (gh-pages `d56cda9`), Import-Echtlauf 76/7/63 verifiziert. Browser-Klicktest durch Daniel offen (siehe `ToDo.md`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Steuerunterlagen 2019 ff. in der App ablegen (generisches Dokumente-Modul), ein Steuern-Screen mit Soll/Ist je Jahr, und der Audit-Screen als regelbasierte Abschlussprüfung mit Jahreswahl.
