@@ -18,6 +18,14 @@
 - [ ] Toter Code: `rueckstellungsJahre` (nur Test), `DokumentRepository.update` (kein Bearbeiten-Pfad); MIME wird beim Upload nur nach Endung gesetzt
 - [ ] Vorbestehende Security-Advisor-Hinweise: `google_calendar_events`/`google_calendar_tokens` RLS ohne Policy, `verwaiste_belege()` SECURITY DEFINER für `authenticated`, Extensions `pg_trgm`/`pg_net`/`fuzzystrmatch` in `public`
 
+**Tagesschluss 04.09. (Fable, Prüfung 03.+04.09. gegen Preisliste — alles stimmig):**
+- [ ] **🔵 Daniel Montag 07.09.: Materialbestellung** — Zapfhahn David (Bestand 0, vorgemerkt) + **Lüftermotor für Heigenie-Kühler** (gibt es noch nicht als Lagerartikel, nur «Lüfter David Innenraum/Säule» — beim Bestellen als Artikel anlegen, DBO/SAP-Nr. nachtragen). Störung Sternen 461 (Lüftermotor ersetzt) hat deshalb kein Material erfasst.
+- [x] Nachgebucht 04.09. (Freigabe Daniel): Kreuz Inwil 03.09. 94.05 und Vincenz Brigels 04.09. 74.60, je 1100/3400 mit Reinigungsprotokoll als Beleg. **Ursache:** Die Abschluss-Kette im Browser (~10 Requests nacheinander) bricht ab, wenn das Handy weggesteckt wird — Server hatte die Vorlagen-Abfrage mit 200 beantwortet, Antwort kam nie an; gestern brach die Kette schon nach der Preis-Abfrage ab und die App lud neu (keine Meldung). Erkennung existiert (Rechnungen-Liste «OHNE BUCHUNG»), Reparatur nur manuell.
+- [ ] **Fix offen (Opus, ~1 h + Deploy):** (1) Buchung für abgeschlossene Reinigungen automatisch nachholen (idempotent, z. B. beim Öffnen der Reinigungen-Liste über `ReinigungenOhneRechnung` + `createFromReinigung`); (2) Regel «Reinigungen ohne Buchung» in der Abschlussprüfung.
+- [x] Korrekturen 04.09.: Alpsu Disentis = Kulanz-Reinigung (war 0.00 ohne Kulanz-Flag) · Arbeitsbeginn 04.09. 05:20 → 07:16 · Lager Zapfhahn David −1 → 0 (Abgang Platten wurde erst bei der Nachbearbeitung gebucht, nicht am 03.09.) · Störung Platten Gersau Referenz-Nr 452.
+- [ ] Störung Dancing Zur Zinne Sargans 28.08. ohne Referenz-Nr.
+- [ ] **Klären:** Daniel «Störungspreise mit AltApp abgleichen, keine MWST» — Störungen tragen hier netto+MwSt (115 / 124.30); gemeint ist vermutlich die Anzeige in der neuen Android-App (netto wie in der alten). Rückfrage gestellt.
+
 **Für die Steuererklärung 2025 in die App laden (Daniel, Steuern → 2025 → Dokumente):** Jahresrechnung 2025 (unterschrieben), Lohnausweis 2025, **GKB Zins-/Kapitalausweis 31.12.2025** (fehlt noch, bei der Bank holen). Danach Formular 11a ausfüllen und bis **30.09.2026** einreichen (Kennzahlen: steuerbarer Gewinn 21'201.23, Kapital 75'950.93), Status im Jahresdetail auf «eingereicht» setzen.
 
 ---
