@@ -490,20 +490,37 @@ void main() {
   });
 
   test('Reinigungen ohne Buchung: nur das geprüfte Jahr zählt', () {
-    final befunde = AbschlussPruefService.pruefe(
-      k(
-        jahr: 2025,
-        unverbuchteReinigungen: [
-          UnverbuchteReinigung(
-            datum: DateTime(2024, 5, 1),
-            betrieb: 'Alt',
-            brutto: 50,
-          ),
-        ],
+    final beide = [
+      UnverbuchteReinigung(
+        datum: DateTime(2024, 5, 1),
+        betrieb: 'Vorjahr',
+        brutto: 50,
       ),
+      UnverbuchteReinigung(
+        datum: DateTime(2025, 5, 1),
+        betrieb: 'Prüfjahr',
+        brutto: 94.05,
+      ),
+    ];
+    // 2025 sieht nur die eigene Zeile — nicht beide, nicht keine.
+    final imJahr = f(
+      AbschlussPruefService.pruefe(
+        k(jahr: 2025, unverbuchteReinigungen: beide),
+      ),
+      'reinigungen_ohne_buchung',
     );
+    expect(imJahr.status, PruefStatus.rot);
+    expect(imJahr.ist, contains('1 Reinigungen'));
+    expect(imJahr.ist, contains('94.05'));
+
+    // 2023 hat keine → grün, obwohl die Liste zwei Einträge hat.
     expect(
-      f(befunde, 'reinigungen_ohne_buchung').status,
+      f(
+        AbschlussPruefService.pruefe(
+          k(jahr: 2023, unverbuchteReinigungen: beide),
+        ),
+        'reinigungen_ohne_buchung',
+      ).status,
       PruefStatus.gruen,
     );
   });

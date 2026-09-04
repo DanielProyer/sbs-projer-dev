@@ -51,16 +51,27 @@ class ReinigungenOhneRechnung {
     final client = SupabaseService.client;
     final userId = SupabaseService.currentUser!.id;
 
-    final rows = List<Map<String, dynamic>>.from(
-      await client
-          .from('reinigungen')
-          .select()
-          .eq('user_id', userId)
-          .eq('status', 'abgeschlossen')
-          .gte('datum', stichtag.toIso8601String().split('T').first)
-          .neq('quelle', 'excel_import')
-          .order('datum', ascending: false),
-    );
+    // Seitenweise: seit 04.09.2026 liegen über 1000 Reinigungen im Fenster,
+    // und ein ungeteiltes select() liefert stumm nur die ersten 1000 — die
+    // ältesten Fälle wären dauerhaft unsichtbar, die Warnung falsch beruhigt.
+    const pageSize = 1000;
+    final rows = <Map<String, dynamic>>[];
+    for (var seite = 0; ; seite++) {
+      final teil = List<Map<String, dynamic>>.from(
+        await client
+            .from('reinigungen')
+            .select()
+            .eq('user_id', userId)
+            .eq('status', 'abgeschlossen')
+            .gte('datum', stichtag.toIso8601String().split('T').first)
+            .neq('quelle', 'excel_import')
+            .order('datum', ascending: false)
+            .order('id')
+            .range(seite * pageSize, (seite + 1) * pageSize - 1),
+      );
+      rows.addAll(teil);
+      if (teil.length < pageSize) break;
+    }
     if (rows.isEmpty) return [];
 
     // Verrechnete Reinigungen GEZIELT nachschlagen, in Blöcken. Ein select()

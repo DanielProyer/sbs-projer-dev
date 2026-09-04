@@ -1032,12 +1032,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
           //    Buchung ist eben durchgelaufen), also der beste Moment dafür.
           //    Nur die letzten zwei Wochen: ein Nachlauf über die ganze
           //    Historie darf nie unbemerkt aus einem Formular heraus starten.
+          //    Mit Timeout: der Nachlauf darf die Kette, um die es hier geht,
+          //    nicht selbst verlängern. Läuft er ins Leere, ist nichts
+          //    verloren — der nächste Abschluss und der Knopf in den
+          //    Forderungen holen ihn nach.
           if (buchungVerbucht) {
             try {
               final erg = await BuchungNachholService.nachholen(
                 ab: DateTime.now().subtract(const Duration(days: 14)),
-              );
+              ).timeout(const Duration(seconds: 20));
               nachgeholt = erg.gebucht;
+              if (nachgeholt > 0) ref.invalidate(reinigungenOhneRechnungProvider);
             } catch (e) {
               debugPrint('[Nachbuchung] Fehler: $e');
             }

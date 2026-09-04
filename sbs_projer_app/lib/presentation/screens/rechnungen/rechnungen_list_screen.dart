@@ -73,13 +73,66 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
 
   /// Bucht fehlende Ertragsbuchungen nach (04.09.2026: zwei Reinigungen
   /// blieben unverbucht, weil die Abschluss-Kette im Browser abbrach).
-  /// Idempotent — eine bereits vorhandene Buchung wird nicht verdoppelt.
+  ///
+  /// Zeigt ERST, was gebucht würde, und bucht nur nach Bestätigung — hier
+  /// entstehen echte Erträge, und die Auswahl hängt an der Zahlungsart des
+  /// Betriebs, die sich zwischenzeitlich geändert haben kann. Reinigungen aus
+  /// einem bereits abgeschlossenen Geschäftsjahr werden nur gemeldet.
   Future<void> _buchungenNachholen() async {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
-      const SnackBar(content: Text('Buchungen werden nachgeholt …')),
+      const SnackBar(content: Text('Fehlende Buchungen werden gesucht …')),
     );
     try {
+      final offen = await BuchungNachholService.finde();
+      if (!mounted) return;
+      final buchbar = offen.where((e) => !e.gesperrt).toList();
+      final gesperrt = offen.where((e) => e.gesperrt).toList();
+      if (buchbar.isEmpty) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              gesperrt.isEmpty
+                  ? 'Keine fehlenden Buchungen.'
+                  : '${gesperrt.length} fehlende Buchungen liegen in einem '
+                        'abgeschlossenen Jahr — bitte manuell klären.',
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+        return;
+      }
+
+      final summe = buchbar.fold<double>(0, (s, e) => s + e.brutto);
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('${buchbar.length} Buchungen nachholen?'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Text(
+                '${buchbar.map((e) => e.zeile).join('\n')}\n\n'
+                'Summe ${summe.toStringAsFixed(2)} CHF.'
+                '${gesperrt.isEmpty ? '' : '\n\n${gesperrt.length} weitere liegen in einem abgeschlossenen Geschäftsjahr und werden NICHT gebucht.'}',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Buchen'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+
       final erg = await BuchungNachholService.nachholen();
       ref.invalidate(buchungenStreamProvider);
       ref.invalidate(reinigungenOhneRechnungProvider);
@@ -138,14 +191,16 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               // Fehlende BUCHUNGEN kann die App selbst nachziehen — dieselbe
               // Logik wie beim Abschluss, nur später. Fehlende RECHNUNGEN
               // nicht: die brauchen den Versandweg im Reinigungs-Detail.
-              if (offen.any((e) => e.fehltBuchung))
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _buchungenNachholen();
-                  },
-                  child: const Text('Buchungen nachholen'),
-                ),
+              // Der Knopf fragt den Nachhol-Service selbst, statt sich auf
+              // `fehltBuchung` zu verlassen: diese Liste blendet
+              // 'jahresrechnung' aus, gebucht wird sie trotzdem.
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _buchungenNachholen();
+                },
+                child: const Text('Buchungen prüfen'),
+              ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('OK'),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 
 /// Die Entscheidung «braucht diese abgeschlossene Reinigung eine
@@ -50,6 +51,43 @@ void main() {
 
     test('Unbekannte Art wird nicht gebucht', () {
       expect(brauchtErtragsbuchung(art: 'gutschein', netto: 69), isFalse);
+    });
+
+    test('deckt sich mit der alten Guard-Kette in allen Kombinationen', () {
+      // Vor dem 04.09.2026 standen die Guards inline in createFromReinigung:
+      //   (istBar || rechnungsTypen.contains(rs)) && !kulanz && !monteur
+      //   && netto > 0
+      // Diese Schleife hält fest, dass die herausgezogene Funktion exakt
+      // dasselbe entscheidet — sonst würde ein Regelwechsel unbemerkt nur
+      // eine der beiden Seiten treffen.
+      for (final art in [
+        ...zahlungsarten,
+        'gutschein',
+        '',
+      ]) {
+        for (final kulanz in [false, true]) {
+          for (final monteur in [false, true]) {
+            for (final netto in [-1.0, 0.0, 0.01, 69.0]) {
+              final alt =
+                  (art == 'barzahlung' ||
+                      reinigungRechnungsTypen.contains(art)) &&
+                  !kulanz &&
+                  !monteur &&
+                  netto > 0;
+              expect(
+                brauchtErtragsbuchung(
+                  art: art,
+                  netto: netto,
+                  istKulanz: kulanz,
+                  istHeinekenMonteur: monteur,
+                ),
+                alt,
+                reason: 'art=$art kulanz=$kulanz monteur=$monteur netto=$netto',
+              );
+            }
+          }
+        }
+      }
     });
   });
 }
