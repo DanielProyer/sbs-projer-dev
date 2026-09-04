@@ -6,7 +6,10 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart'
+    show buchungenStreamProvider;
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
@@ -68,9 +71,46 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   int _selectedMonth = 0; // 0 = Alle Monate
 
 
+  /// Bucht fehlende Ertragsbuchungen nach (04.09.2026: zwei Reinigungen
+  /// blieben unverbucht, weil die Abschluss-Kette im Browser abbrach).
+  /// Idempotent — eine bereits vorhandene Buchung wird nicht verdoppelt.
+  Future<void> _buchungenNachholen() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Buchungen werden nachgeholt …')),
+    );
+    try {
+      final erg = await BuchungNachholService.nachholen();
+      ref.invalidate(buchungenStreamProvider);
+      ref.invalidate(reinigungenOhneRechnungProvider);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: erg.fehler.isEmpty ? null : AppColors.error,
+          content: Text(
+            erg.fehler.isEmpty
+                ? '${erg.gebucht} Buchungen nachgeholt.'
+                : '${erg.gebucht} nachgeholt, ${erg.fehler.length} '
+                      'fehlgeschlagen: ${erg.fehler.first}',
+          ),
+          duration: Duration(seconds: erg.fehler.isEmpty ? 4 : 10),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text('Nachbuchen fehlgeschlagen: $e'),
+          duration: const Duration(seconds: 10),
+        ),
+      );
+    }
+  }
+
   /// Frühwarnung: abgeschlossene Reinigungen ohne Rechnung. Stumm, solange
-  /// nichts fehlt — nur so fällt der Ernstfall auf. Meldet, repariert nicht:
-  /// Nachholen geht über das Rechnungs-Menü im Reinigungs-Detail.
+  /// nichts fehlt — nur so fällt der Ernstfall auf. Fehlende Buchungen kann
+  /// der Dialog reparieren, fehlende Rechnungen brauchen das Reinigungs-Detail.
   Widget _warnungOhneRechnung() {
     final async = ref.watch(reinigungenOhneRechnungProvider);
     final offen = async.valueOrNull;
@@ -95,6 +135,17 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               ),
             ),
             actions: [
+              // Fehlende BUCHUNGEN kann die App selbst nachziehen — dieselbe
+              // Logik wie beim Abschluss, nur später. Fehlende RECHNUNGEN
+              // nicht: die brauchen den Versandweg im Reinigungs-Detail.
+              if (offen.any((e) => e.fehltBuchung))
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _buchungenNachholen();
+                  },
+                  child: const Text('Buchungen nachholen'),
+                ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('OK'),

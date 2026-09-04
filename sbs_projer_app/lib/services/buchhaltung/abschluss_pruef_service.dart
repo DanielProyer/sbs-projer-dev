@@ -50,6 +50,20 @@ class OffeneRechnungInfo {
 }
 
 /// Alles, was die Regeln brauchen — vorab geladen, damit die Regeln rein bleiben.
+/// Eine abgeschlossene Reinigung, zu der keine Ertragsbuchung existiert.
+/// Am 03./04.09.2026 entstanden zwei solche Fälle, weil die Abschluss-Kette im
+/// Browser abbrach — der Ertrag fehlte damit in der Erfolgsrechnung.
+class UnverbuchteReinigung {
+  final DateTime datum;
+  final String betrieb;
+  final double brutto;
+  const UnverbuchteReinigung({
+    required this.datum,
+    required this.betrieb,
+    required this.brutto,
+  });
+}
+
 class AbschlussKontext {
   final int jahr;
   final DateTime heute;
@@ -61,6 +75,7 @@ class AbschlussKontext {
   final Set<String> dokumentTypen;
   final String steuerjahrStatus;
   final Set<String> offeneRechnungenMitZahlung;
+  final List<UnverbuchteReinigung> unverbuchteReinigungen;
 
   AbschlussKontext({
     required this.jahr,
@@ -73,6 +88,7 @@ class AbschlussKontext {
     required this.dokumentTypen,
     this.steuerjahrStatus = 'offen',
     required this.offeneRechnungenMitZahlung,
+    this.unverbuchteReinigungen = const [],
   });
 
   bool get jahrAbgeschlossen => jahr < heute.year;

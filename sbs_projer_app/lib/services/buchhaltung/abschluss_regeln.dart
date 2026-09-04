@@ -519,6 +519,37 @@ class SteuererklaerungRegel extends AbschlussRegel {
   }
 }
 
+/// Abgeschlossene Reinigungen, zu denen keine Ertragsbuchung existiert.
+/// Anlass: 03./04.09.2026 blieben zwei Reinigungen unverbucht, weil die
+/// Abschluss-Kette im Browser abbrach (Handy weggesteckt). Der Ertrag fehlte
+/// in der Erfolgsrechnung, ohne dass irgendwo etwas rot war.
+class ReinigungenOhneBuchungRegel extends AbschlussRegel {
+  @override
+  String get id => 'reinigungen_ohne_buchung';
+  @override
+  String get gruppe => 'Abschluss';
+  @override
+  String get titel => 'Reinigungen ohne Ertragsbuchung';
+  @override
+  Pruefbefund pruefe(AbschlussKontext k) {
+    final offen = k.unverbuchteReinigungen
+        .where((r) => r.datum.year == k.jahr)
+        .toList();
+    if (offen.isEmpty) {
+      return befund(PruefStatus.gruen, ist: 'keine', soll: '0');
+    }
+    final summe = offen.fold(0.0, (s, r) => s + r.brutto);
+    return befund(
+      PruefStatus.rot,
+      ist: '${offen.length} Reinigungen · ${chf(summe)}',
+      soll: '0',
+      hinweis:
+          'Ertrag fehlt in der Erfolgsrechnung — in den Forderungen nachbuchen.',
+      route: '/rechnungen',
+    );
+  }
+}
+
 List<AbschlussRegel> alleAbschlussRegeln() => [
   BankCamtRegel(),
   CamtKetteRegel(),
@@ -532,6 +563,7 @@ List<AbschlussRegel> alleAbschlussRegeln() => [
   NegativeSaldenRegel(),
   LohnkontenRegel(),
   FehlerKontenRegel(),
+  ReinigungenOhneBuchungRegel(),
   SteuerZuordnungRegel(),
   SteuererklaerungRegel(),
 ];

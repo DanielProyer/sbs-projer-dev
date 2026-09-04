@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
@@ -159,7 +160,7 @@ class BankWaechterStand {
       verbindlichkeiten.isEmpty && (schluss?.ok ?? true);
 }
 
-/// Abschlussprüfung je Jahr (14 Regeln, Spec 02.09.2026 Abschnitt 4).
+/// Abschlussprüfung je Jahr (15 Regeln, Spec 02.09.2026 Abschnitt 4).
 /// Lädt alles vorab, damit die Regeln rein bleiben; rechnet nach jeder
 /// Buchung neu.
 /// `autoDispose`, weil jedes einmal gewählte Jahr sonst dauerhaft mitrechnet:
@@ -172,13 +173,15 @@ final abschlussPruefungProvider =
   final buchungen = await ref.watch(buchungenStreamProvider.future);
   // Voneinander unabhängig — parallel laden, sonst summieren sich sechs
   // Roundtrips zur Wartezeit.
-  final (konten, dateien, offene, ohneJahr, docs, steuerjahre) = await (
+  final (konten, dateien, offene, ohneJahr, docs, steuerjahre, unverbucht) =
+      await (
     KontoRepository.getAll(),
     CamtDateiRepository.getAll(),
     RechnungRepository.getOffene(),
     SteuerzahlungRepository.getNichtZugeordnet(),
     DokumentRepository.getAll(bereich: 'steuern', jahr: jahr),
     SteuerjahrRepository.getAll(),
+    BuchungNachholService.fuerAbschluss(),
   ).wait;
   final statusListe =
       steuerjahre.where((s) => s.jahr == jahr).map((s) => s.status).toList();
@@ -236,6 +239,7 @@ final abschlussPruefungProvider =
     dokumentTypen: docs.map((d) => d.typ).toSet(),
     steuerjahrStatus: statusListe.isEmpty ? 'offen' : statusListe.first,
     offeneRechnungenMitZahlung: mitZahlung,
+    unverbuchteReinigungen: unverbucht,
   ));
 });
 

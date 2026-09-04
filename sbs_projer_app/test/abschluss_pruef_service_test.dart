@@ -33,6 +33,7 @@ AbschlussKontext k({
   Set<String> dokumentTypen = const {},
   String steuerjahrStatus = 'offen',
   Set<String> offeneRechnungenMitZahlung = const {},
+  List<UnverbuchteReinigung> unverbuchteReinigungen = const [],
 }) => AbschlussKontext(
   jahr: jahr,
   heute: heute ?? DateTime(2026, 9, 2),
@@ -44,6 +45,7 @@ AbschlussKontext k({
   dokumentTypen: dokumentTypen,
   steuerjahrStatus: steuerjahrStatus,
   offeneRechnungenMitZahlung: offeneRechnungenMitZahlung,
+  unverbuchteReinigungen: unverbuchteReinigungen,
 );
 
 Pruefbefund f(List<Pruefbefund> l, String id) =>
@@ -445,11 +447,65 @@ void main() {
     expect(k(jahr: 2025).letztesQuartalsende(), DateTime(2025, 12, 31));
     expect(k(jahr: 2026).letztesQuartalsende(), DateTime(2026, 6, 30));
   });
-  test('Sortierung: rot vor gelb vor grün; 14 Regeln', () {
+  test('Sortierung: rot vor gelb vor grün; 15 Regeln', () {
     final l = AbschlussPruefService.pruefe(k(buchungen: [b(6200, 1020, 5, d)]));
-    expect(l.length, 14);
+    expect(l.length, 15);
     expect(l.first.status, PruefStatus.rot);
     expect(l.last.status, PruefStatus.gruen);
+  });
+
+  // --- Reinigungen ohne Ertragsbuchung (Befund 04.09.2026) ------------------
+  // Am 03./04.09. blieben zwei abgeschlossene Reinigungen ohne Buchung, weil
+  // die Abschluss-Kette im Browser abbrach. Der Ertrag fehlte damit in der
+  // Erfolgsrechnung — genau das muss der Jahres-Check sehen.
+
+  test('Reinigungen ohne Buchung: keine → grün, welche → rot mit Summe', () {
+    expect(
+      f(AbschlussPruefService.pruefe(k()), 'reinigungen_ohne_buchung').status,
+      PruefStatus.gruen,
+    );
+    final r = f(
+      AbschlussPruefService.pruefe(
+        k(
+          unverbuchteReinigungen: [
+            UnverbuchteReinigung(
+              datum: DateTime(2025, 9, 3),
+              betrieb: 'Kreuz Inwil',
+              brutto: 94.05,
+            ),
+            UnverbuchteReinigung(
+              datum: DateTime(2025, 9, 4),
+              betrieb: 'Vincenz',
+              brutto: 74.60,
+            ),
+          ],
+        ),
+      ),
+      'reinigungen_ohne_buchung',
+    );
+    expect(r.status, PruefStatus.rot);
+    expect(r.ist, contains('2'));
+    expect(r.ist, contains('168.65'));
+    expect(r.aktionRoute, '/rechnungen');
+  });
+
+  test('Reinigungen ohne Buchung: nur das geprüfte Jahr zählt', () {
+    final befunde = AbschlussPruefService.pruefe(
+      k(
+        jahr: 2025,
+        unverbuchteReinigungen: [
+          UnverbuchteReinigung(
+            datum: DateTime(2024, 5, 1),
+            betrieb: 'Alt',
+            brutto: 50,
+          ),
+        ],
+      ),
+    );
+    expect(
+      f(befunde, 'reinigungen_ohne_buchung').status,
+      PruefStatus.gruen,
+    );
   });
 
   // --- Review-Befunde 02.09.2026 -------------------------------------------

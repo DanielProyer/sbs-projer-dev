@@ -32,6 +32,7 @@ import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
@@ -757,6 +758,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       // Kundenrechnung + Buchung erstellen bei Abschluss (nicht bei Kulanz/Heineken)
       bool buchungVerbucht = false;
       String? buchungTypLabel;
+      int nachgeholt = 0;
       if (abschliessen && kIsWeb && !_istKulanz && !_istHeinekenMonteur) {
         final betrieb =
             _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
@@ -1022,6 +1024,24 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               );
             }
           }
+
+          // 3. Frühere Abschlüsse nachziehen, deren Buchung nie ankam.
+          //    Am 03./04.09.2026 brach die Abschluss-Kette zweimal ab, weil
+          //    das Handy weggesteckt wurde — einmal ganz ohne Fehlermeldung.
+          //    Hier ist die Verbindung nachweislich in Ordnung (die eigene
+          //    Buchung ist eben durchgelaufen), also der beste Moment dafür.
+          //    Nur die letzten zwei Wochen: ein Nachlauf über die ganze
+          //    Historie darf nie unbemerkt aus einem Formular heraus starten.
+          if (buchungVerbucht) {
+            try {
+              final erg = await BuchungNachholService.nachholen(
+                ab: DateTime.now().subtract(const Duration(days: 14)),
+              );
+              nachgeholt = erg.gebucht;
+            } catch (e) {
+              debugPrint('[Nachbuchung] Fehler: $e');
+            }
+          }
         } else {
           // Ohne Betrieb entstehen WEDER Rechnung NOCH Buchung — bisher völlig
           // lautlos. Das ist der letzte Zweig hier, der ohne Ausnahme und ohne
@@ -1080,6 +1100,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
               abschliessen
                   ? (buchungVerbucht
                         ? 'Reinigung abgeschlossen – $buchungTypLabel verbucht'
+                              '${nachgeholt > 0 ? ' · $nachgeholt frühere Buchung${nachgeholt == 1 ? '' : 'en'} nachgeholt' : ''}'
                         : 'Reinigung abgeschlossen')
                   : buchungKorrigiert
                   ? 'Reinigung aktualisiert – Buchhaltung korrigiert ($korrekturTypLabel)'

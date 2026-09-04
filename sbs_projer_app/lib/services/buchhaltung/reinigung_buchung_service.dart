@@ -9,6 +9,33 @@ import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dar
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+/// Zahlungsarten, die eine Debitoren-Buchung auslösen. 'jahresrechnung' ist
+/// dabei, obwohl sie KEINE Einzelrechnung erzeugt — die Forderung entsteht
+/// trotzdem. Deshalb taugt `istRechnungsart` aus zahlungsart.dart hier nicht.
+const reinigungRechnungsTypen = {
+  'rechnung_tresen',
+  'rechnung_mail',
+  'rechnung_post',
+  'jahresrechnung',
+};
+
+/// Braucht diese abgeschlossene Reinigung eine Ertragsbuchung?
+///
+/// Dieselbe Bedingung wie in [ReinigungBuchungService.createFromReinigung] —
+/// bewusst als reine Funktion, damit die Nachhol-Suche
+/// ([BuchungNachholService]) nicht eine zweite, driftende Kopie führt. `art`
+/// ist die bereits aufgelöste Zahlungsart (`resolveZahlungsart`).
+bool brauchtErtragsbuchung({
+  required String art,
+  required double netto,
+  bool istKulanz = false,
+  bool istHeinekenMonteur = false,
+}) {
+  if (istKulanz || istHeinekenMonteur) return false;
+  if (netto <= 0) return false;
+  return art == 'barzahlung' || reinigungRechnungsTypen.contains(art);
+}
+
 class ReinigungBuchungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
   static double _mwstFaktor = 0.081;
@@ -16,12 +43,9 @@ class ReinigungBuchungService {
   /// Schweizer Rappenrundung: auf 5 Rappen (0.05 CHF) runden.
   static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
 
-  static const _rechnungsTypen = {
-    'rechnung_tresen',
-    'rechnung_mail',
-    'rechnung_post',
-    'jahresrechnung',
-  };
+  /// Netto-Betrag einer Reinigung — auch für die Nachhol-Suche, damit dort
+  /// dieselbe Zahl über «buchen oder nicht» entscheidet wie hier.
+  static double netto(ReinigungLocal reinigung) => _calcNetto(reinigung);
 
   /// Berechnet den tatsächlichen Netto-Betrag aus allen Komponenten.
   /// preis_netto in der DB kann unvollständig sein (nur Grundtarif).
@@ -59,19 +83,25 @@ class ReinigungBuchungService {
 
     // Massgebend ist die Zahlungsart der REINIGUNG (Ursache der 38: hier stand
     // betrieb.rechnungsstellung — heineken fiel lautlos durch, Cache veraltete).
-    final rs = resolveZahlungsart(reinigung.zahlungsart, betrieb.rechnungsstellung);
+    final rs = resolveZahlungsart(
+      reinigung.zahlungsart,
+      betrieb.rechnungsstellung,
+    );
     final istBar = rs == 'barzahlung';
-    final istRechnung = _rechnungsTypen.contains(rs);
 
-    // Guard: Nur Barzahlung oder Rechnungs-Typen
-    if (!istBar && !istRechnung) return null;
-
-    // Guard: Keine Kulanz, kein Heineken-Monteur
-    if (reinigung.istKulanz || reinigung.istHeinekenMonteur) return null;
-
-    // Guard: Preis > 0 — Netto aus Komponenten berechnen (preisNetto kann unvollständig sein)
+    // Netto aus den Komponenten rechnen (preisNetto kann unvollständig sein).
     final netto = _calcNetto(reinigung);
-    if (netto <= 0) return null;
+
+    // Einzige Stelle für «wird gebucht oder nicht» — dieselbe Funktion nutzt
+    // die Nachhol-Suche, damit beide nie auseinanderlaufen.
+    if (!brauchtErtragsbuchung(
+      art: rs,
+      netto: netto,
+      istKulanz: reinigung.istKulanz,
+      istHeinekenMonteur: reinigung.istHeinekenMonteur,
+    )) {
+      return null;
+    }
 
     // Duplikat-Check via belegId
     final existing = await BuchungRepository.getByBeleg(reinigung.serverId!);
