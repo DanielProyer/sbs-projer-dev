@@ -32,6 +32,7 @@ import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.da
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/core/util/routen_optimierung.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/touren/saison_termine_sektion.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/war_geschlossen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
@@ -330,7 +331,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                     ),
                     _ArbeitstagZeile(datum: _selectedDate),
                     if (autoTermine.isNotEmpty)
-                      _AutoTermineSektion(
+                      SaisonTermineSektion(
                         eintraege: autoTermine,
                         onUebernehmen: (e) => ref
                             .read(tagesplanProvider.notifier)
@@ -2390,142 +2391,6 @@ class _TippFeld extends StatelessWidget {
 }
 
 /// Abend-Erfassung: Arbeitsende und km-Stand.
-class _AutoTermineSektion extends StatelessWidget {
-  final List<TourEintrag> eintraege;
-  final void Function(TourEintrag) onUebernehmen;
-  final VoidCallback onAlleUebernehmen;
-  final void Function(TourEintrag) onTap;
-
-  const _AutoTermineSektion({
-    required this.eintraege,
-    required this.onUebernehmen,
-    required this.onAlleUebernehmen,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      decoration: BoxDecoration(
-        color: AppColors.info.withAlpha(12),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.info.withAlpha(50)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 4, 2),
-            child: Row(
-              children: [
-                const Icon(Icons.auto_awesome, size: 16, color: AppColors.info),
-                const SizedBox(width: 6),
-                Text(
-                  'Saison-Termine (${eintraege.length})',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.info,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: onAlleUebernehmen,
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  child: const Text(
-                    'Alle übernehmen',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ...eintraege.map(
-            (e) => _AutoTerminKarte(
-              eintrag: e,
-              onUebernehmen: () => onUebernehmen(e),
-              onTap: () => onTap(e),
-            ),
-          ),
-          const SizedBox(height: 4),
-        ],
-      ),
-    );
-  }
-}
-
-class _AutoTerminKarte extends StatelessWidget {
-  final TourEintrag eintrag;
-  final VoidCallback onUebernehmen;
-  final VoidCallback onTap;
-
-  const _AutoTerminKarte({
-    required this.eintrag,
-    required this.onUebernehmen,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = eintrag.faelligkeit != null
-        ? faelligkeitFarbe(eintrag.faelligkeit!)
-        : AppColors.info;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    eintrag.betriebName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    eintrag.beschreibung,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(
-                Icons.add_circle_outline,
-                color: AppColors.primary,
-              ),
-              onPressed: onUebernehmen,
-              tooltip: 'Zum Tagesplan',
-              iconSize: 22,
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ─── Info-Zeile: Ruhetage / Servicezeiten / Ruhetag-Warnung ───
 
 class _TourInfoZeile extends ConsumerWidget {
