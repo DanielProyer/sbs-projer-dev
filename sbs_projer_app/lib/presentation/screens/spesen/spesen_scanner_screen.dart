@@ -1320,8 +1320,11 @@ String _katLabel(String kategorie) {
   switch (kategorie) {
     case 'privat':
       return 'Privat · 2260';
+    // Die Kategorie heisst historisch 'benzin', umfasst aber alle
+    // Fahrzeug-Betriebsmittel auf 6200 — AdBlue, Scheibenwischwasser,
+    // Frostschutz (Entscheid Daniel 07.09.2026).
     case 'benzin':
-      return 'Benzin · 6200';
+      return 'Fahrzeug · 6200';
     case 'material':
       return 'Material · 4004';
     case 'berufskleider':

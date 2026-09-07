@@ -106,8 +106,13 @@ KATEGORIE-ERKENNUNG - ZUERST Artikel prüfen, DANN gruppieren:
      Feinschnitt, Schnupftabak, Snus, Filter/Blättchen, sowie Belegtexte
      wie "Tabakwaren", "Rauchwaren", "Tabak", "Zig.", "Rauchw."
      Das ist ein Privatkauf und KEIN Geschäftsaufwand.
-   - "benzin": Diesel, Benzin, Bleifrei, Tankzeit, AdBlue, Treibstoff, Fuel,
-     Zapfsäule, Liter-Angabe bei Kraftstoff
+   - "benzin": ALLE Fahrzeug-Betriebsmittel (Konto 6200), nicht nur Treibstoff
+     — Diesel, Benzin, Bleifrei, Tankzeit, AdBlue, Treibstoff, Fuel,
+     Zapfsäule, Liter-Angabe bei Kraftstoff; dazu Scheibenwischwasser,
+     Wischwasser, Klarsicht/Klarsicht-Konzentrat (auch "Klarsich", "Som
+     Klarsich" = Sommer-Scheibenreiniger), Frostschutz, Kühlerfrostschutz,
+     Motoröl, Bremsflüssigkeit. Diese Regel geht der Kategorie "material"
+     VOR — ein Scheibenreiniger ist Fahrzeugaufwand, kein Putzmittel.
    - "parkgebuehren": Parkhaus, Parking, Parkplatz, Parkuhr, Parkgebühr,
      Parkschein, Tiefgarage
    - "berufskleider": Arbeitshandschuhe, Sicherheitsschuhe, Arbeitshose,
@@ -118,7 +123,10 @@ KATEGORIE-ERKENNUNG - ZUERST Artikel prüfen, DANN gruppieren:
      Dübel, Muttern, Dichtungen, Schläuche, Rohre, Kabel, Klebeband,
      Silikon, Farbe, Holz, Bleche, Bohrer, Sägeblätter, Zangen, Schlüssel,
      Messgeräte, Batterien, Leuchtmittel, Putzmittel/Reinigungsmittel,
-     Lappen, Kabelbinder, Schleifpapier
+     Lappen, Kabelbinder, Schleifpapier.
+     NICHT hierher: Fahrzeug-Betriebsmittel wie Scheibenwischwasser oder
+     Frostschutz — die sind "benzin" (siehe oben), auch wenn sie im
+     Baumarkt oder an der Tankstelle als "Non-Food" auf dem Beleg stehen.
    - "essen" NUR für tatsächliche Verpflegung: Lebensmittel, Getränke,
      Snacks, Sandwiches, Kaffee, Menü, Restaurant
 2. GESCHÄFTS-HINWEIS nutzen: In einem Baumarkt/Fachhandel (Bauhaus, Jumbo,
