@@ -101,6 +101,20 @@ Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Ar
 
   ⚠️ **Die Mahnung droht die Kündigung des Anschlussvertrags an** («ohne Sie nochmals zu mahnen») und die Information von Aufsichtsbehörde und Arbeitnehmer. Daniel zahlt am 09.09. nur 4'467.90 — **ein Quartal bleibt offen, die nächste Mahnung ist absehbar.**
 
+  ✅ **BELEGT 08.09. aus `Pensionskassenausweis_452968_2026-01-01.pdf`** (gültig ab 01.01.2026, erstellt 08.01.2026) — der Ausweis nennt die Beiträge selbst, Seite 2:
+
+  | | Arbeitgeber | Arbeitnehmer |
+  |---|---|---|
+  | Sparbeitrag | 7'500.00 | 7'500.00 |
+  | Risikobeitrag | 1'398.00 | 1'398.00 |
+  | Gesetzliche Beiträge | 37.80 | 37.80 |
+  | **Gesamtbeitrag** | **8'935.80** | **8'935.80** |
+  | **Monatsbeitrag** | **744.65** | **744.65** |
+
+  **Versicherter Lohn 100'000.00** (Jahreslohn 100'000), Altersguthaben per 01.01.2026: 127'919.10. Damit ist der Satz belegt und **der Beitragskonto-Auszug für die Lohnkorrektur nicht mehr nötig** — er klärt nur noch, welches der beiden offenen Quartale wann gemahnt wird.
+
+  ⚠️ **Zu prüfen: Der versicherte Lohn steht auf 100'000.** Ob Daniels tatsächlicher Jahreslohn 2026 dort landet, ist offen — die gebuchten Lohnläufe schwanken monatlich stark. Liegt der Ist-Lohn darunter, ist der BVG-Beitrag auf einer zu hohen Basis gemeldet.
+
   **Beitragsentwicklung** (aus den Rechnungen im selben Ordner): Jahresbeitrag **12'258.00 (2021)** → Q1/2025 noch 3'119.70 → **17'871.60 (2026)**. Der Sprung 2026 ist die Folge des gestiegenen Lohns, nicht ein Fehler der AXA. Unser Lohnlauf ist einfach nicht mitgezogen.
 
   Der Ordner enthält die AXA-Historie als **105 Handy-Fotos** (72 + 33 in `Unterlagen/`, alle am 09.06.2026 abfotografiert, Dateinamen sind Zufallszahlen, Dokumentgrenzen durch eingelegte Trennblätter markiert). Systematisch durchgegangen ist er noch nicht.
