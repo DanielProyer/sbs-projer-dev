@@ -4,6 +4,8 @@
 
 **Stand:** **v0.99.11 live** · Migrationen bis **189** · **1356 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
 
+**Zur Entscheidung (08.09. abends):** App-Analyse mit priorisierten Vorschlägen in `docs/app-analyse-2026-09.md` — fünf Befunde (Startseite ist Menü statt Tagesansicht; Reinigung anlegen = 5 Schritte, kein Direktweg aus Tourenplan/Betrieb; 6 Einsatz-Typen mit 4 Status-Vokabularen; Werkstatt und Büro teilen eine Handy-Startseite; Ballast Events/Bergkundenpauschalen/Anlagen im Hauptmenü) und Vorschläge in drei Stufen A/B/C. Empfehlung: zuerst Nutzungszähler, dann A1–A3/A5/A6.
+
 **Heute gelaufen (4 Deploys, 23 Commits):** Post-Eingang ausgewertet · BVG-Lohnkorrektur rückwirkend · Kreditor-Regeln umgestellt + 17. Abschlussregel als Wächter · **`00_Rechnungen` vollständig erschlossen: 252 Dokumente in der App** · Franchisevertrag Heineken ausgewertet · Rückläufer-Meldung der Heineken-Session geprüft und zwei Fehlalarme aufgeklärt.
 
 ### 🔴 Morgen zuerst
