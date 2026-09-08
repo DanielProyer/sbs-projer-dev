@@ -42,7 +42,12 @@ class UngespeichertSchutz extends StatelessWidget {
 /// Die Rückfrage — mit [TapKnopf] statt Material-Buttons, weil
 /// FilledButton/OutlinedButton auf CanvasKit zweimal nicht reagierten
 /// (CLAUDE.md). «Weiter bearbeiten» ist der sichere Weg und darum der
-/// hervorgehobene.
+/// hervorgehobene und obere.
+///
+/// Die Knöpfe stehen untereinander, nicht nebeneinander: Auf 360 px —
+/// Daniels Pixel 9 — lief die Zeile um 42 px über und schnitt ausgerechnet
+/// den rettenden Knopf an. Untereinander sind sie ausserdem einhändig
+/// sicherer zu treffen.
 Future<bool> verwerfenFragen(
   BuildContext context, {
   required String was,
@@ -53,14 +58,20 @@ Future<bool> verwerfenFragen(
       title: const Text('Änderungen verwerfen?'),
       content: Text('$was wurde geändert, aber nicht gespeichert.'),
       actions: [
-        TapKnopf(
-          text: 'Verwerfen',
-          primaer: false,
-          onTap: () => Navigator.pop(ctx, true),
-        ),
-        TapKnopf(
-          text: 'Weiter bearbeiten',
-          onTap: () => Navigator.pop(ctx, false),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TapKnopf(
+              text: 'Weiter bearbeiten',
+              onTap: () => Navigator.pop(ctx, false),
+            ),
+            const SizedBox(height: 8),
+            TapKnopf(
+              text: 'Verwerfen',
+              primaer: false,
+              onTap: () => Navigator.pop(ctx, true),
+            ),
+          ],
         ),
       ],
     ),

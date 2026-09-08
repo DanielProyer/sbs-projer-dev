@@ -106,7 +106,7 @@ Ein unabhängiger Prüfer hat die Analyse nach dem Schreiben auf Lücken abgeklo
 
 **A6 · Ballast aus dem Hauptmenü.** Events und Bergkundenpauschalen unter «Mehr»; Anlagen nur noch über Betrieb (die Liste bleibt als Suchwerkzeug erreichbar); Auswertung Arbeitstage in die Buchhaltung. Nichts wird gelöscht, nur der Menüplatz wird frei.
 
-**A7 · «Änderungen verwerfen?» in allen 19 Formularen.** Ein gemeinsames Formular-Gerüst mit `PopScope` — einmal gebaut, überall gleich. Ein halber Tag, und die grösste Datenverlust-Falle der App ist zu.
+**A7 · «Änderungen verwerfen?» in allen 19 Formularen.** ✅ **Erledigt in v0.99.12 (08.09.2026).** Ein gemeinsames Formular-Gerüst mit `PopScope` — einmal gebaut, überall gleich. Ein halber Tag, und die grösste Datenverlust-Falle der App ist zu.
 
 **A8 · «Erledigt» auf den Detailseiten von Störung und Montage.** Dazu führt der Tourenplan-Tap auf den Einsatz statt auf die Anlage. Aus vier Sprüngen werden zwei.
 

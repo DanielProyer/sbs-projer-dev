@@ -63,11 +63,17 @@ class TapKnopf extends StatelessWidget {
                   Icon(icon, size: 18, color: textFarbe),
                   const SizedBox(width: 6),
                 ],
-                Text(
-                  text,
-                  style: TextStyle(
-                    color: textFarbe,
-                    fontWeight: FontWeight.w600,
+                // Flexible, damit der Text umbricht statt überzulaufen:
+                // bei vergrösserter Systemschrift oder in einem engen
+                // Dialog wurde sonst genau die Beschriftung abgeschnitten,
+                // an der man den Knopf erkennt.
+                Flexible(
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      color: textFarbe,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],

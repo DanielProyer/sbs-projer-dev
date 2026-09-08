@@ -84,6 +84,22 @@ void main() {
     expect(find.byType(TextButton), findsNothing);
   });
 
+  testWidgets('Dialog läuft auf 360 px nicht über', (tester) async {
+    // Daniel arbeitet einhändig auf dem Pixel 9. Zwei TapKnöpfe nebeneinander
+    // in AlertDialog.actions sind der enge Fall — «Weiter bearbeiten» ist
+    // lang, und ein Überlauf würde den rettenden Knopf abschneiden.
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await _oeffnen(tester, geaendert: true);
+    await _zurueck(tester);
+
+    expect(find.text('Änderungen verwerfen?'), findsOneWidget);
+    expect(find.text('Weiter bearbeiten'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Mixin: markieren rebuildet einmal, zurücksetzen hebt auf',
       (tester) async {
     final key = GlobalKey<_ProbeState>();
