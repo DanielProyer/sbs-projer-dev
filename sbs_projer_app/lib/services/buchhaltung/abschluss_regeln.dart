@@ -581,6 +581,69 @@ class GeschaeftsjahrDatumRegel extends AbschlussRegel {
   }
 }
 
+
+/// Sozialversicherungs-Rechnungen, die gegen den Kreditor 2000 in den Aufwand
+/// gebucht wurden.
+///
+/// Der Lohnlauf bucht den Aufwand bereits (5700/5710/5720/5730/5740 an
+/// 2270–2273); die Rechnung von SVA, SUVA oder AXA ist danach nur noch
+/// Tilgung (`2270/2271/2272 an 1020`). Läuft sie zusätzlich über das
+/// Kreditoren-Modul in den Aufwand, steht er doppelt in der Erfolgsrechnung —
+/// bei der AXA-Beitragsrechnung wäre davon sogar die Hälfte Arbeitnehmeranteil,
+/// der beim Lohn längst abgezogen wurde.
+///
+/// Anlass: Die Kreditor-Seed-Regeln stammten aus dem Juni 2026 und zeigten
+/// noch auf die Aufwandskonten; am 08.09.2026 auf 2270/2271/2272 umgestellt.
+/// Diese Regel ist der Wächter dagegen, dass sie zurückkippen —
+/// `KreditorLernService` überschreibt eine Regel still, sobald beim Buchen
+/// ein anderes Konto gewählt wird.
+///
+/// Nicht betroffen sind Versicherungen, die echter Betriebsaufwand sind
+/// (6300 Haftpflicht, 6301 Franchise) — die dürfen über den Kreditor laufen.
+class SozialversicherungKreditorRegel extends AbschlussRegel {
+  /// Lohnnebenkosten-Aufwandskonten, die nur der Lohnlauf bebuchen darf.
+  static const _lohnnebenkonten = {5700, 5710, 5720, 5730, 5740};
+
+  /// Sammelkonto Kreditoren.
+  static const _kreditor = 2000;
+
+  @override
+  String get id => 'sozialvers_kreditor';
+  @override
+  String get gruppe => 'Abschluss';
+  @override
+  String get titel => 'Sozialversicherung nicht gegen Kreditor';
+  @override
+  Pruefbefund pruefe(AbschlussKontext k) {
+    final treffer = k.buchungen
+        .where(
+          (x) =>
+              !x.storniert &&
+              !x.istGegenbuchung &&
+              x.datum.year == k.jahr &&
+              x.habenKonto == _kreditor &&
+              _lohnnebenkonten.contains(x.sollKonto),
+        )
+        .toList();
+    if (treffer.isEmpty) {
+      return befund(PruefStatus.gruen, ist: 'keine', soll: '0');
+    }
+    final summe = treffer.fold(0.0, (s, x) => s + x.betrag);
+    final konten = (treffer.map((x) => x.sollKonto).toSet().toList()..sort())
+        .join(', ');
+    return befund(
+      PruefStatus.rot,
+      ist: '${treffer.length} Buchungen · ${chf(summe)}',
+      soll: '0',
+      hinweis:
+          'Konto $konten gegen Kreditor 2000 gebucht — den Aufwand bucht '
+          'schon der Lohnlauf, hier steht er doppelt. Die Rechnung gehört '
+          'auf 2270/2271/2272 (Tilgung). Kreditor-Regel prüfen.',
+      route: '/buchhaltung/buchungen',
+    );
+  }
+}
+
 List<AbschlussRegel> alleAbschlussRegeln() => [
   BankCamtRegel(),
   CamtKetteRegel(),
@@ -596,6 +659,7 @@ List<AbschlussRegel> alleAbschlussRegeln() => [
   FehlerKontenRegel(),
   ReinigungenOhneBuchungRegel(),
   GeschaeftsjahrDatumRegel(),
+  SozialversicherungKreditorRegel(),
   SteuerZuordnungRegel(),
   SteuererklaerungRegel(),
 ];

@@ -449,9 +449,9 @@ void main() {
     expect(k(jahr: 2025).letztesQuartalsende(), DateTime(2025, 12, 31));
     expect(k(jahr: 2026).letztesQuartalsende(), DateTime(2026, 6, 30));
   });
-  test('Sortierung: rot vor gelb vor grün; 16 Regeln', () {
+  test('Sortierung: rot vor gelb vor grün; 17 Regeln', () {
     final l = AbschlussPruefService.pruefe(k(buchungen: [b(6200, 1020, 5, d)]));
-    expect(l.length, 16);
+    expect(l.length, 17);
     expect(l.first.status, PruefStatus.rot);
     expect(l.last.status, PruefStatus.gruen);
   });
@@ -775,5 +775,98 @@ void main() {
     expect(r.status, PruefStatus.rot);
     expect(r.ist, contains('12'));
     expect(r.aktionRoute, '/buchhaltung/buchungen');
+  });
+
+  group('Sozialversicherung nicht gegen Kreditor', () {
+    test('keine solche Buchung → grün', () {
+      expect(
+        f(AbschlussPruefService.pruefe(k()), 'sozialvers_kreditor').status,
+        PruefStatus.gruen,
+      );
+    });
+
+    test('Lohnlauf (5700 an 2270) und Haftpflicht (6300 an 2000) sind sauber', () {
+      final bu = [
+        b(5700, 2270, 484.85, d), // Lohnlauf: Aufwand an Verbindlichkeit
+        b(5720, 2271, 562.95, d),
+        b(6300, 2000, 811.55, d), // Haftpflicht DARF über den Kreditor laufen
+        b(6301, 2000, 3772.70, d), // Franchise ebenso
+      ];
+      expect(
+        f(
+          AbschlussPruefService.pruefe(k(buchungen: bu)),
+          'sozialvers_kreditor',
+        ).status,
+        PruefStatus.gruen,
+      );
+    });
+
+    test('5700 an 2000 → rot, mit Anzahl und Summe', () {
+      final bu = [
+        b(5700, 2000, 1081.10, d),
+        b(5720, 2000, 4467.90, DateTime(2025, 7, 3)),
+      ];
+      final r = f(
+        AbschlussPruefService.pruefe(k(buchungen: bu)),
+        'sozialvers_kreditor',
+      );
+      expect(r.status, PruefStatus.rot);
+      expect(r.ist, contains('2'));
+      expect(r.ist, contains("5'549.00")); // 1081.10 + 4467.90
+      expect(r.aktionRoute, '/buchhaltung/buchungen');
+    });
+
+    test('alle fünf Lohnnebenkonten werden erfasst', () {
+      for (final konto in [5700, 5710, 5720, 5730, 5740]) {
+        final r = f(
+          AbschlussPruefService.pruefe(k(buchungen: [b(konto, 2000, 100, d)])),
+          'sozialvers_kreditor',
+        );
+        expect(r.status, PruefStatus.rot, reason: 'Konto $konto');
+      }
+    });
+
+    test('stornierte Buchungen und Gegenbuchungen zählen nicht', () {
+      final storniert = BuchungSaldo(
+        sollKonto: 5700,
+        habenKonto: 2000,
+        betrag: 500,
+        datum: d,
+        storniert: true,
+      );
+      final gegen = BuchungSaldo(
+        sollKonto: 5700,
+        habenKonto: 2000,
+        betrag: 500,
+        datum: d,
+        storniert: false,
+        istGegenbuchung: true,
+      );
+      expect(
+        f(
+          AbschlussPruefService.pruefe(k(buchungen: [storniert, gegen])),
+          'sozialvers_kreditor',
+        ).status,
+        PruefStatus.gruen,
+      );
+    });
+
+    test('ein anderes Jahr zählt nicht ins geprüfte Jahr', () {
+      final bu = [b(5700, 2000, 900, DateTime(2024, 5, 5))];
+      expect(
+        f(
+          AbschlussPruefService.pruefe(k(jahr: 2025, buchungen: bu)),
+          'sozialvers_kreditor',
+        ).status,
+        PruefStatus.gruen,
+      );
+      expect(
+        f(
+          AbschlussPruefService.pruefe(k(jahr: 2024, buchungen: bu)),
+          'sozialvers_kreditor',
+        ).status,
+        PruefStatus.rot,
+      );
+    });
   });
 }
