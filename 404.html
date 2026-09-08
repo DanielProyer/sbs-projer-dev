@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SBS Projer — Weiterleitung</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #333; }
+    .v { color: #777; font-size: .85rem; }
+    a { color: #008200; }
+  </style>
+</head>
+<body>
+  <p>Weiterleitung zur App …</p>
+  <p class="v">SBS Projer <span id="ver">Version wird geladen</span> · Umleitung</p>
+  <noscript>
+    <p>Diese Seite braucht JavaScript.
+       <a href="/sbs-projer-dev/">Zur Startseite</a></p>
+  </noscript>
+
+  <script>
+    // GitHub Pages liefert diese Datei fuer jeden Pfad aus, den es nicht als
+    // Datei gibt - also fuer jede Route der App. Ohne sie sieht man die
+    // GitHub-Fehlerseite und kommt gar nicht erst in die App.
+    //
+    // Die App fuehrt ihre Routen im Hash (Flutter-Standard, es gibt kein
+    // usePathUrlStrategy), darum wird hier /sbs-projer-dev/dokumente zu
+    // /sbs-projer-dev/#/dokumente. Beim Start liest GoRouter diesen Hash und
+    // oeffnet den Bereich direkt.
+    //
+    // ACHTUNG: Der Versions-Redirect in index.html muss den Hash behalten -
+    // sonst landet man trotzdem auf dem Startbildschirm.
+    // test/web_404_weiche_test.dart haelt beide Haelften zusammen.
+    (function () {
+      var basis = '/sbs-projer-dev/';
+      var pfad = window.location.pathname;
+      var route = pfad.indexOf(basis) === 0 ? pfad.slice(basis.length) : '';
+      window.location.replace(
+        window.location.origin + basis + window.location.search + '#/' + route);
+    })();
+
+    // Faellt die Weiterleitung aus (blockiertes JS, kaputte URL), soll wenigstens
+    // ablesbar sein, welcher Stand hier liegt - eine Meldung ohne Versionsangabe
+    // ist nicht auswertbar.
+    fetch('/sbs-projer-dev/version.json?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { document.getElementById('ver').textContent = 'v' + d.version; })
+      .catch(function () { document.getElementById('ver').textContent = '(Version unbekannt)'; });
+  </script>
+</body>
+</html>

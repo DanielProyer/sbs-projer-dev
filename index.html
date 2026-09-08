@@ -188,9 +188,13 @@
       clearAllCaches().then(function() {
         // Bestehende Query-Parameter ERHALTEN (z.B. OAuth ?code/?state von Google),
         // nur den Cache-Buster v= setzen/aktualisieren.
+        // Der Hash muss ebenfalls mit: dort steht die Route (#/dokumente), die
+        // 404.html aus dem Pfad gebaut hat. Ohne ihn landet jeder Deep-Link
+        // still auf dem Startbildschirm.
         var params = new URLSearchParams(window.location.search);
         params.set('v', ver);
-        window.location.replace(window.location.pathname + '?' + params.toString());
+        window.location.replace(
+          window.location.pathname + '?' + params.toString() + window.location.hash);
       });
     }
 
