@@ -10,7 +10,50 @@
 
 **Offen für Daniel:** Steuererklärung 2025 bis 30.09. [Jahresrechnung unterschreiben, Lohnausweis, GKB Zins-/Kapitalausweis holen, alles unter Steuern → 2025 hochladen] · Materialbestellung [Zapfhahn David = 0, Zapfkopf David = 1, Lüftermotor Heigenie als Artikel anlegen] · August-Lohnlauf [2002 im Soll] · nächster camt-Import · Anlage bei Pizzeria Badus erfassen [dann `ist_mein_kunde` gegenprüfen] · Referenz-Nr für die Störung Dancing Zur Zinne vom 28.08.
 
-**Der Heineken-Session bestätigen** (SendMessage fehlt hier): Geschäftsjahr-Korrektur, Pizzeria Badus, Weissfluhjoch-Küche — alles erledigt, beide Stämme wieder gleich.
+**Der Heineken-Session bestätigt 08.09.** (SendMessage ist in dieser Session verfügbar — `mcp__ccd_session_mgmt__send_message`, Ziel-ID `local_badeb863-e595-4181-8947-3ad1ff9e815a`): Geschäftsjahr-Korrektur, Pizzeria Badus, Weissfluhjoch-Küche und die `fahrzeug`/`benzin`-Mappingfrage — alle vier raus, beide Stämme wieder gleich.
+
+---
+
+## 📬 POST-EINGANG 08.09.2026 (7 Dokumente, ausgewertet + abgelegt)
+
+Scans lagen in `D:\01_SBS_Projer_GmbH\SCAN\08.09.2026\` (Dokument 280–286). Keine Textebene — JPEGs aus den PDF-Streams gezogen und die 20 Seiten gelesen. Originale unverändert liegen geblieben, Kopien umbenannt nach Belegnummer-Schema in `20_Buchaltung/01_Belege/`.
+
+**Alle Zahlungsdokumente tragen Daniels Handvermerk «Bez. 09.09.26»** — Belastungen sind noch NICHT im camt. Die Dateinamen tragen deshalb vorläufig den 09.09.; beim nächsten camt-Import gegen das echte Belastungsdatum abgleichen und ggf. umbenennen.
+
+### ESTV — die vier Korrekturabrechnungen 2025 sind da ✅
+Alle datiert Bern 01.09.2026, Eingang unserer Korrekturen 01.09.2026 bestätigt:
+
+| Quartal | ESTV | unsere Prognose | Datei (`250_MWST_Abrechnung/`) |
+|---|---|---|---|
+| Q1/2025 | 244.25 | 244.49 | `254_2026_09_09_MWST_00024425.pdf` |
+| Q2/2025 | 260.25 | 260.43 | `254_2026_09_09_MWST_00026025.pdf` |
+| Q3/2025 | 352.38 | 352.61 | `254_2026_09_09_MWST_00035238.pdf` |
+| Q4/2025 | 650.35 | 651.09 | `254_2026_09_09_MWST_00065035.pdf` |
+| **Total** | **1'507.23** | 1'508.62 | Differenz −1.39 = ESTV-Rundung |
+
+Die Beilagen bestätigen die Einreichung Ziffer für Ziffer (Q1: Ziff. 200 51'017 → 55'150, Ziff. 303 3'822.74 → 4'132.40, Ziff. 400 848.07 → 398.54, Ziff. 405 333.13 → 848.07, Valutadatum 30.05.2025). **Der Netto-statt-Brutto-Fehler 2025 ist damit formell abgeschlossen.**
+- [ ] Nach der Belastung: 4 × `2202 an 1020` buchen (der camt-Import kontiert Steuerzahlungen selbst auf 2202)
+
+### SVA Graubünden — Akontorechnung Q3/2026
+02.09.2026, Lohnbeiträge 01.07.–30.09.2026. AHV/IV/EO 814.45 + ALV 169.05 + FAK 115.25 + Verwaltungskosten 40.75 = Zwischentotal 1'139.50, **abzüglich CO2-Rückverteilung 58.40 → 1'081.10**, fällig 10.10.2026. Datei `230_Sozialversicherungen/230_2026_09_09_AHV__00108110.pdf`.
+- ⚠️ **Basis weiterhin 7'683.50/Quartal = 30'734/Jahr** — die seit 04/2021 eingefrorene Akonto-Grundlage (siehe Memory). Die tatsächliche Lohnsumme 2026 liegt darüber (Juli-Lohn allein 11'285 AHV-Basis) → die Schlussabrechnung wird wieder nachfordern, mit Verzugszins.
+
+### ⚠️ AXA Berufliche Vorsorge — zwei Befunde
+Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Arbeitnehmeranteil 2'233.95**, Jahresbeitrag 17'871.60, Vertrag 2/452968. Datei `230_Sozialversicherungen/231_2026_09_09_BeVo_00446790.pdf`.
+
+- [ ] **🔴 Ein Quartal bleibt offen.** Die Rechnung weist «Saldo zu unseren Gunsten 8'935.80» aus = zwei Quartale. Daniel zahlt am 09.09. nur 4'467.90. Die letzte AXA-Zahlung war 09.04.2026 über 3'377.75 — das ist genau ein Quartal zum ALTEN Satz, vermutlich Q4/2025. **Q1/2026 dürfte nie bezahlt worden sein.** Die AXA erhebt 5 % Verzugszins auf ausstehende Beiträge. → Beitragskonto-Auszug bei der AXA anfordern (Giuseppe Lamanna, services17.bvg@axa.ch, 052 218 89 73) und die Lücke schliessen.
+- [ ] **🔴 Der BVG-Satz im Lohnlauf ist veraltet.** Unsere Lohnbuchungen rechnen 562.95 AG + 562.95 AN monatlich = **13'510.80/Jahr**; die AXA fordert **17'871.60/Jahr**. Differenz **4'360.80/Jahr**. Das erklärt den Ausstand strukturell — es fehlt jeden Monat Geld auf 2271. Satz aus dem AXA-Vertrag nachführen, dann rückwirkend ab 01.01.2026 korrigieren.
+- Nebenbei aufgefallen: **Der Februar-Lohnlauf 2026 fehlt** (gebucht sind Jan, Mär, Apr, Mai, Jun, Jul; August ist bekannt offen). Prüfen, ob im Februar bewusst kein Lohn lief.
+
+### SUVA — Verfügung Prämiensätze ab 01.01.2027 (Info, keine Rechnung)
+17.08.2026, Kunden-Nr. 4-00003-10064, 5 Seiten + Prämientarif-Auszug. **BUV 0,6618 % → 0,6230 %** (sinkt, Rückerstattung überschüssiger Ausgleichsreserven, einmalig), **NBUV 0,8000 % unverändert**. Klasse 15D (Mikro-/Medizinaltechnik, Elektrotechnik), Lohnsumme 2018–2025 451'200. Abgelegt als `230_Sozialversicherungen/SUVA_Praemienverfuegung_ab_2027_2026_08_17.pdf` (kein Belegnummer-Schema, weil kein Zahlungsbeleg).
+- [ ] Beim Lohnlauf ab 01.01.2027 den neuen BUV-Satz übernehmen. Gehört zusätzlich in die App unter **Dokumente → Versicherungen**.
+
+### 🔴 Kreditor-Regeln SVA/SUVA/PK zeigen auf die falschen Konten
+Die Seed-Regeln stammen aus dem Juni — von **vor** dem Lohnmodell (2270–2273, August). Sie buchen Sozialversicherungs-Rechnungen in den **Aufwand**: `Ausgleichskasse → 5700`, `SUVA → 5730`, `AXA/Ref-98 → 5720`. Der Lohnlauf bucht diesen Aufwand aber bereits; die Rechnung ist danach nur noch **Tilgung** (`2270/2271/2272 an 1020`). Die AXA-Rechnung zeigt es exemplarisch: von 4'467.90 sind 2'233.95 Arbeitnehmeranteil, beim Lohn längst abgezogen.
+- **Produktiv gebucht wurde darüber noch nichts** — die einzige SVA/PK-Erfassung ist ein verworfenes AXA-Testdokument vom 19.09.2025. Alle 15 echten Zahlungen liefen korrekt über 2270/2271/2272.
+- [ ] Regeln auf `2270` / `2272` / `2271` umstellen (Feld heisst `aufwandskonto`, ist technisch das Soll-Konto — annimmt es ein Bilanzkonto? prüfen). Danach können SVA/SUVA/PK übers Kreditoren-Modul laufen, inkl. pain.001 und camt-Abschluss. **Freigabe Daniel steht noch aus.**
+- Der Heineken-Session am 08.09. gemeldet (Mapping-Hinweis für v2: Kategorie `sozialversicherung`/`unfall_krankheit` → Bilanzkonto, nicht Aufwand).
 
 ---
 
@@ -43,7 +86,7 @@
 
 **Spesen-Scanner 07.09. (Meldung aus der Heineken-Session, Commit `e6b41d4`):** «SH Som Klarsich» (Scheibenwischwasser, Shell Ganda, 4.90) wurde als Putzmittel gelesen → 4004/100_Werkzeug_Material. **Alle 35 vergleichbaren Buchungen seit 2019 (Scheibenwischwasser, AdBlue) liegen auf 6200/040_Tanken** — der Beleg war der einzige Ausreisser. `parse-beleg` ist gefixt und **live als Version 40**: Kategorie «benzin» umfasst jetzt alle Fahrzeug-Betriebsmittel (Wischwasser, Klarsicht, Frostschutz, Motoröl, Bremsflüssigkeit) und geht «material» vor; Label im Scanner neu «Fahrzeug · 6200» (sichtbar erst nach dem nächsten App-Deploy).
 - [x] **Umgebucht 08.09.** (Freigabe Daniel): Buchung `17d769de` vom 07.09. von 4004/100_Werkzeug_Material auf **6200/040_Tanken** (4.90; MwSt 8.1 % und Vorsteuer 1171 unverändert, Grund in den Notizen der Buchung). Gegenprobe: keine Buchung mit Scheibenwischwasser/AdBlue/Frostschutz liegt mehr ausserhalb 6200, und im September steht nichts mehr auf 4004.
-- [ ] **Rückmeldung an die Heineken-Session** (SendMessage war hier nicht verfügbar): Wir haben **keine** eigene Kategorie «fahrzeug» eingeführt — in der Alt-App löst «benzin» nichts weiter aus als Konto 6200 und Ordner 040_Tanken, eine zweite Kategorie mit gleichem Ziel wäre Doppelstruktur. Für das Ablösungs-Mapping gilt: v2 «fahrzeug» + «benzin» → Alt-App «benzin».
+- [x] **Rückmeldung an die Heineken-Session** (erledigt 08.09. via SendMessage): Wir haben **keine** eigene Kategorie «fahrzeug» eingeführt — in der Alt-App löst «benzin» nichts weiter aus als Konto 6200 und Ordner 040_Tanken, eine zweite Kategorie mit gleichem Ziel wäre Doppelstruktur. Für das Ablösungs-Mapping gilt: v2 «fahrzeug» + «benzin» → Alt-App «benzin».
 
 **Saison-Historie 08.09. (v0.98.0 live, Migration 186, Spec `docs/superpowers/specs/2026-09-08-saison-historie-design.md`):** Die Saisondaten am Betrieb hielten immer nur die laufende Saison — beim Eintragen der neuen ging die alte verloren. Neu wandert ein abgelaufenes Fenster ins Archiv, sobald sich das **Startdatum** ändert (ein geändertes Ende ist eine Korrektur derselben Saison und archiviert nichts). Im Betriebs-Formular steht unter den Saison-Feldern `Bisher: 13.12.2025–29.03.2026 · …`. Keine Automatik, keine Vorschläge — bewusst. **Nicht** aus den 345 erfassten Endreinigungen abgeleitet: eine Endreinigung kann mitten in der Zwischensaison liegen (Entscheid Daniel). Die Tabelle startet leer und füllt sich ab der nächsten Saisonänderung.
 - [ ] **Offen:** 53 von 89 Saisonbetrieben tragen abgelaufene Saisondaten. Ob es dafür eine Prüfliste braucht (Infrastruktur `aufgaben`/`betrieb_vorschlaege` existiert), ist noch nicht entschieden.
@@ -54,14 +97,14 @@
 - [ ] Beachten beim Durchgehen: Die Vorschläge zeigen, wann du dort **warst**, nicht wann du **darfst**. Bei Tödi Ilanz wären das 07:05 statt der hinterlegten 09:00 — bei Betrieben mit Schlüssel/Badge fällt das auseinander. Bei Il Pub zeigt die Historie umgekehrt ein zweites Fenster am Nachmittag, das bisher fehlt.
 
 **Geschäftsjahr-Korrektur 08.09. (v0.99.4, Freigabe Daniel, Befund aus der Heineken-Session):** Zwölf MWST-Saldierungen mit Datum 2025 trugen `geschaeftsjahr` 2026 — der SQL-Lauf vom 01.09. setzte pauschal das laufende Jahr. **Korrigiert**, Grund steht in den Notizen der Buchungen. Gegenprobe: keine abweichenden Jahre mehr, 2202 per 31.12.2025 unverändert 6'577.40. Wirkung war klein (Bilanz rechnet über das Datum, Erfolgsrechnung nur 3000–6999, MWST-Abrechnung filtert `mwst_konto IS NOT NULL`) — falsch einsortiert war nur die Buchungsliste. **Es gibt keine Saldierungsfunktion im App-Code**, der Fehler kam aus einem Handlauf; deshalb neu die **16. Regel «Geschäftsjahr passt zum Datum»** in der Abschlussprüfung.
-- [ ] Der Heineken-Session bestätigen, dass wir das übernommen haben (SendMessage hier nicht verfügbar) — ihr v2-Nachzug sollte jetzt durchlaufen.
+- [x] ~~Der Heineken-Session bestätigen~~ **erledigt 08.09. via SendMessage.**
 
 **Stammdaten 08.09. (Freigabe Daniel, Meldung aus der Heineken-Session):** «Pizzeria Fortuna» Sedrun heisst nach Wirtewechsel **«Pizzeria Badus»** (Via Alpsu 87, 7188), Status wieder **aktiv**, `ist_mein_kunde` auf true, `inaktiv_seit`/`inaktiv_grund` geleert (die hatte der Vorschlag übersehen — von 305 aktiven Betrieben trägt sonst genau einer noch ein Inaktiv-Datum). Gleiche UUID, kein neuer Betrieb. Hausnummer separat in `nr`, wie bei Soliva an derselben Strasse.
 - [ ] **Daniel: Anlage erfassen** — Heineken führt 2 Hahnen, in beiden Systemen steht keine Anlage. Beim nächsten Besuch nachtragen (`inaktiv_grund` lautete «Anlage demontiert»).
 - [x] ~~Was bedeutet `ist_mein_kunde`?~~ **Geklärt 08.09. (Daniel):** true = konventionelle Anlage, die er regelmässig reinigt; Heigenie- und David-Systeme gehören Heineken — dort nur Störungen und Aushilfsreinigungen. false heisst also **nicht** «wird nicht bedient». Geprüft: Das Feld ist konsistent, **74 der 76 mit false haben gar keine Anlage erfasst**. In der Memory festgehalten.
 - [x] **08.09.: nur Bellevue Flims Dorf umgestellt** (true → false, David-System). **Gspan Arosa und Weiss Kreuz Preda blieben false** — ich hatte sie kurz auf true gesetzt und Daniel korrigierte: Gspan ist Heigenie (der Buffetanstich wird vom Monteur mitgereinigt), Weiss Kreuz Preda liegt in einem anderen FN-Gebiet. **Lehre: Eine erfasste Anlage heisst nicht, dass Daniel sie reinigt** — nicht aus den Daten ableiten, fragen. In der Memory festgehalten. Namensdoppel beachten: «Bellevue» dreimal (Bad Ragaz/Davos/Flims Dorf), «Weiss Kreuz» zweimal (Preda/Splügen) — immer über die ID ändern.
 - [ ] **Badus:** `ist_mein_kunde` steht jetzt auf true — das stimmt nur, wenn dort eine konventionelle Anlage steht. Beim Erfassen der Anlage mitprüfen.
-- [ ] Rückmeldung an die Heineken-Session (SendMessage hier nicht verfügbar): erledigt, beide Stämme wieder gleich.
+- [x] ~~Rückmeldung an die Heineken-Session~~ **erledigt 08.09. via SendMessage.**
 
 **Anlagen 08.09. (Feldansage Daniel via Heineken-Session):** **Weissfluhjoch Davos, Anlage «Küche» demontiert** → Status auf `demontiert` gesetzt (den Wert gab es bereits, 6 weitere Anlagen tragen ihn). Der Tourenplan filtert an mehreren Stellen auf `status != 'aktiv'`, sie fällt damit aus Planung und Fälligkeit. Diamond und Eckbar bleiben aktiv, beide 2 Hähne. Anlagen-IDs sind in beiden Systemen identisch. Grund steht in den Notizen der Anlage, jederzeit rückgängig zu machen.
 - Hinweis der Heineken-Session zu **Robinson Club Arosa, «Frühstück Wein»**: steht hier bereits auf `inaktiv` — kein Handlungsbedarf.
