@@ -1,10 +1,23 @@
 /// Reine Hilfsfunktionen des Dokumente-Moduls (kein DB-Zugriff, testbar).
 library;
 
+/// Oberste Ablage-Ebene. Ein Bereich = ein Absender mit eigenem Belegkreis.
+///
+/// Die Sozialversicherungen standen bis 08.09.2026 als Kategorien unter einem
+/// gemeinsamen Bereich «Versicherungen». Das hiess: wer eine SUVA-Verfügung
+/// suchte, sah zuerst 101 Dokumente von vier Absendern. Seit dem Entscheid
+/// Daniels an diesem Tag hat jede Stelle ihre eigene Ebene — sie schicken
+/// verschiedene Belege, haben verschiedene Ansprechpartner und verschiedene
+/// Fristen. «Versicherungen (übrige)» bleibt als Auffangbereich für alles, was
+/// später dazukommt (Sach, Rechtsschutz, Fahrzeug).
 const dokumentBereiche = <String, String>{
   'steuern': 'Steuern',
-  'versicherungen': 'Versicherungen',
+  'ahv': 'AHV/SVA',
+  'unfall': 'Unfall/SUVA',
+  'krankentaggeld': 'Krankentaggeld',
   'pensionskasse': 'Pensionskasse',
+  'haftpflicht': 'Haftpflicht',
+  'versicherungen': 'Versicherungen (übrige)',
   'vertraege': 'Verträge',
   'behoerden': 'Behörden',
   'bank': 'Bank',
@@ -51,13 +64,51 @@ const _typenJeBereich = <String, List<String>>{
     'brief',
     'sonstiges',
   ],
+  // Die SVA stellt akonto und rechnet am Jahresende ab; Bussen und
+  // Verzugszinsen kommen als eigene Verfügung.
+  'ahv': [
+    'rechnung_provisorisch',
+    'rechnung_definitiv',
+    'mahnung',
+    'verfuegung',
+    'bussverfuegung',
+    'kontoauszug',
+    'vertrag',
+    'brief',
+    'sonstiges',
+  ],
+  // Die SUVA schickt eine provisorische Prämienrechnung und im Folgejahr die
+  // Prämienverfügung mit der Abrechnung.
+  'unfall': [
+    'police',
+    'rechnung_provisorisch',
+    'rechnung_definitiv',
+    'verfuegung',
+    'mahnung',
+    'vertrag',
+    'brief',
+    'sonstiges',
+  ],
+  'krankentaggeld': [
+    'police',
+    'rechnung_definitiv',
+    'mahnung',
+    'vertrag',
+    'brief',
+    'sonstiges',
+  ],
+  'haftpflicht': [
+    'police',
+    'rechnung_definitiv',
+    'mahnung',
+    'vertrag',
+    'brief',
+    'sonstiges',
+  ],
   'versicherungen': [
     'police',
     'rechnung_definitiv',
     'mahnung',
-    'kontoauszug',
-    'verfuegung',
-    'freizuegigkeit',
     'vertrag',
     'brief',
     'sonstiges',
@@ -86,18 +137,6 @@ const steuerarten = <String, String>{
   'busse': 'Busse',
 };
 
-/// Kategorien im Bereich «Versicherungen» — analog [steuerarten].
-/// Die berufliche Vorsorge steht NICHT hier, sondern als eigener Bereich
-/// «Pensionskasse» (Entscheid Daniel 08.09.2026): 40 Dokumente über sieben
-/// Jahre sind genug für eine eigene Ebene, und man sucht sie dort zuerst.
-const versicherungsarten = <String, String>{
-  'ahv': 'AHV/IV/EO/ALV/FAK (SVA)',
-  'unfall': 'Unfall (UVG/SUVA)',
-  'krankentaggeld': 'Krankentaggeld (KTG)',
-  'haftpflicht': 'Haftpflicht',
-  'fahrzeug': 'Fahrzeug',
-};
-
 /// Kategorien im Bereich «Verträge» — der Ordner 17_Firmengründung enthält
 /// Gründungsakte, den Heineken-Franchisevertrag und den
 /// Fahrzeugüberlassungsvertrag; ohne Trennung liegen sie unauffindbar
@@ -114,7 +153,6 @@ const vertragsarten = <String, String>{
 /// Der Upload-Dialog zeigt danach ein Dropdown statt eines Textfelds.
 Map<String, String>? dokumentKategorien(String bereich) => switch (bereich) {
   'steuern' => steuerarten,
-  'versicherungen' => versicherungsarten,
   'vertraege' => vertragsarten,
   _ => null,
 };

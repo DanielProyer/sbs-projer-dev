@@ -67,13 +67,6 @@ void main() {
       expect(k!.keys, containsAll(['bund', 'kanton', 'mwst', 'busse']));
     });
 
-    test('Versicherungen kennen die uebrigen Sozialversicherungen', () {
-      final k = dokumentKategorien('versicherungen');
-      expect(k, isNotNull);
-      expect(k!['ahv'], 'AHV/IV/EO/ALV/FAK (SVA)');
-      expect(k.keys, containsAll(['ahv', 'unfall', 'krankentaggeld', 'haftpflicht']));
-    });
-
     test('Vertraege kennen Gruendung und Franchise', () {
       final k = dokumentKategorien('vertraege');
       expect(k, isNotNull);
@@ -96,32 +89,6 @@ void main() {
     }
   });
 
-  group('Dokumenttypen der Versicherungen', () {
-    test('decken ab, was im PK-Ordner tatsaechlich liegt', () {
-      final t = dokumentTypen('versicherungen');
-      expect(
-        t,
-        containsAll([
-          'police',
-          'rechnung_definitiv',
-          'mahnung',
-          'kontoauszug',
-          'freizuegigkeit',
-          'verfuegung',
-          'vertrag',
-        ]),
-        reason: 'Die Ordner 06_PK und 04_SVA enthalten genau diese Typen',
-      );
-    });
-
-    test('haben alle ein Label', () {
-      for (final typ in dokumentTypen('versicherungen')) {
-        expect(dokumentTypLabel(typ), isNot(typ),
-            reason: 'Typ $typ ohne Label faellt im UI als Code auf');
-      }
-    });
-  });
-
   group('Pensionskasse als eigener Bereich', () {
     test('steht im Bereichs-Dropdown', () {
       expect(dokumentBereiche['pensionskasse'], 'Pensionskasse');
@@ -131,17 +98,6 @@ void main() {
       final t = dokumentTypen('pensionskasse');
       expect(t, containsAll(
           ['police', 'rechnung_definitiv', 'mahnung', 'kontoauszug', 'freizuegigkeit']));
-      for (final typ in t) {
-        expect(dokumentTypLabel(typ), isNot(typ));
-      }
-    });
-
-    test('taucht nicht mehr als Kategorie der Versicherungen auf', () {
-      // Sonst stuende dieselbe Sache auf zwei Ebenen und man sucht zweimal.
-      expect(dokumentKategorien('versicherungen')!.containsKey('pensionskasse'),
-          isFalse);
-      expect(dokumentKategorien('versicherungen')!.keys,
-          containsAll(['ahv', 'unfall', 'haftpflicht', 'krankentaggeld']));
     });
 
     test('braucht selbst keine Kategorienliste (Freitext genuegt)', () {
@@ -158,6 +114,112 @@ void main() {
             dateiname: 'Ausweis.pdf'),
         'u1/pensionskasse/2026/d1_Ausweis.pdf',
       );
+    });
+  });
+
+  group('Sozialversicherungen als eigene Bereiche', () {
+    // Entscheid Daniel 08.09.2026: Jede Stelle mit eigenem Belegkreis bekommt
+    // eine eigene Ebene. Als Sammeltopf hiess «Versicherungen», dass man vier
+    // Absender durchsehen musste, um eine SUVA-Verfuegung zu finden.
+    test('alle vier stehen im Bereichs-Dropdown', () {
+      expect(dokumentBereiche['ahv'], 'AHV/SVA');
+      expect(dokumentBereiche['unfall'], 'Unfall/SUVA');
+      expect(dokumentBereiche['krankentaggeld'], 'Krankentaggeld');
+      expect(dokumentBereiche['haftpflicht'], 'Haftpflicht');
+    });
+
+    test('AHV deckt ab, was die SVA schickt', () {
+      // Bestand 04_SVA: 23 Rechnungen, 8 Mahnungen, 6 Verfuegungen, 6 Briefe,
+      // 1 Anschlussvertrag. Akonto- und Schlussrechnung sind verschiedene
+      // Typen, die Bussen kommen als eigene Verfuegung.
+      expect(
+        dokumentTypen('ahv'),
+        containsAll([
+          'rechnung_provisorisch',
+          'rechnung_definitiv',
+          'mahnung',
+          'verfuegung',
+          'bussverfuegung',
+          'kontoauszug',
+          'vertrag',
+          'brief',
+        ]),
+      );
+    });
+
+    test('Unfall deckt ab, was die SUVA schickt', () {
+      expect(
+        dokumentTypen('unfall'),
+        containsAll([
+          'police',
+          'rechnung_provisorisch',
+          'rechnung_definitiv',
+          'verfuegung',
+          'vertrag',
+          'brief',
+        ]),
+      );
+    });
+
+    test('Krankentaggeld und Haftpflicht kennen Police und Rechnung', () {
+      for (final bereich in ['krankentaggeld', 'haftpflicht']) {
+        expect(dokumentTypen(bereich),
+            containsAll(['police', 'rechnung_definitiv', 'mahnung', 'vertrag', 'brief']),
+            reason: 'Bereich $bereich');
+      }
+    });
+
+    test('keiner der vier braucht eine Kategorienliste', () {
+      for (final bereich in ['ahv', 'unfall', 'krankentaggeld', 'haftpflicht']) {
+        expect(dokumentKategorien(bereich), isNull, reason: 'Bereich $bereich');
+      }
+    });
+
+    test('Versicherungen bleibt als Sammelbereich, aber ohne Unterkategorien', () {
+      // Fuer Sach-, Rechtsschutz- oder Fahrzeugversicherung, die spaeter
+      // dazukommt. Die vier bekannten Stellen stehen nicht mehr darunter.
+      expect(dokumentBereiche['versicherungen'], 'Versicherungen (übrige)');
+      expect(dokumentKategorien('versicherungen'), isNull);
+    });
+
+    test('Storage-Pfade nutzen die neuen Bereiche', () {
+      expect(
+        dokumentStoragePfad(
+            userId: 'u1',
+            bereich: 'unfall',
+            jahr: 2025,
+            dokumentId: 'd9',
+            dateiname: 'Praemienverfuegung.pdf'),
+        'u1/unfall/2025/d9_Praemienverfuegung.pdf',
+      );
+    });
+  });
+
+  group('Wächter über die Bereichs-Konfiguration', () {
+    test('jeder Bereich bringt eigene Typen mit', () {
+      // Ohne Eintrag in _typenJeBereich faellt ein Bereich still auf
+      // ['sonstiges'] zurueck — im UI sieht man dann ein Dropdown mit einem
+      // einzigen Eintrag und merkt es erst beim Hochladen.
+      for (final bereich in dokumentBereiche.keys) {
+        expect(dokumentTypen(bereich), isNot(['sonstiges']),
+            reason: 'Bereich $bereich hat keine eigene Typenliste');
+      }
+    });
+
+    test('jeder angebotene Typ hat ein Label', () {
+      for (final bereich in dokumentBereiche.keys) {
+        for (final typ in dokumentTypen(bereich)) {
+          expect(dokumentTypLabel(typ), isNot(typ),
+              reason: 'Typ $typ (Bereich $bereich) ohne Label faellt im UI als Code auf');
+        }
+      }
+    });
+
+    test('jede Kategorienliste gehoert zu einem existierenden Bereich', () {
+      for (final bereich in ['steuern', 'vertraege']) {
+        expect(dokumentBereiche.containsKey(bereich), isTrue);
+        expect(dokumentKategorien(bereich), isNotNull);
+      }
     });
   });
 }
