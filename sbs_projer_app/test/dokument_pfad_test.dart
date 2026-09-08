@@ -67,12 +67,11 @@ void main() {
       expect(k!.keys, containsAll(['bund', 'kanton', 'mwst', 'busse']));
     });
 
-    test('Versicherungen kennen die Pensionskasse', () {
+    test('Versicherungen kennen die uebrigen Sozialversicherungen', () {
       final k = dokumentKategorien('versicherungen');
       expect(k, isNotNull);
-      expect(k!['pensionskasse'], 'Pensionskasse (BVG)');
-      expect(k['ahv'], 'AHV/IV/EO/ALV/FAK (SVA)');
-      expect(k.keys, containsAll(['ahv', 'pensionskasse', 'unfall', 'haftpflicht']));
+      expect(k!['ahv'], 'AHV/IV/EO/ALV/FAK (SVA)');
+      expect(k.keys, containsAll(['ahv', 'unfall', 'krankentaggeld', 'haftpflicht']));
     });
 
     test('Vertraege kennen Gruendung und Franchise', () {
@@ -120,6 +119,45 @@ void main() {
         expect(dokumentTypLabel(typ), isNot(typ),
             reason: 'Typ $typ ohne Label faellt im UI als Code auf');
       }
+    });
+  });
+
+  group('Pensionskasse als eigener Bereich', () {
+    test('steht im Bereichs-Dropdown', () {
+      expect(dokumentBereiche['pensionskasse'], 'Pensionskasse');
+    });
+
+    test('bringt die Typen mit, die im Ordner 06_PK liegen', () {
+      final t = dokumentTypen('pensionskasse');
+      expect(t, containsAll(
+          ['police', 'rechnung_definitiv', 'mahnung', 'kontoauszug', 'freizuegigkeit']));
+      for (final typ in t) {
+        expect(dokumentTypLabel(typ), isNot(typ));
+      }
+    });
+
+    test('taucht nicht mehr als Kategorie der Versicherungen auf', () {
+      // Sonst stuende dieselbe Sache auf zwei Ebenen und man sucht zweimal.
+      expect(dokumentKategorien('versicherungen')!.containsKey('pensionskasse'),
+          isFalse);
+      expect(dokumentKategorien('versicherungen')!.keys,
+          containsAll(['ahv', 'unfall', 'haftpflicht', 'krankentaggeld']));
+    });
+
+    test('braucht selbst keine Kategorienliste (Freitext genuegt)', () {
+      expect(dokumentKategorien('pensionskasse'), isNull);
+    });
+
+    test('Storage-Pfad nutzt den neuen Bereich', () {
+      expect(
+        dokumentStoragePfad(
+            userId: 'u1',
+            bereich: 'pensionskasse',
+            jahr: 2026,
+            dokumentId: 'd1',
+            dateiname: 'Ausweis.pdf'),
+        'u1/pensionskasse/2026/d1_Ausweis.pdf',
+      );
     });
   });
 }

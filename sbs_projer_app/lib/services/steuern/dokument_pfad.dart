@@ -4,6 +4,7 @@ library;
 const dokumentBereiche = <String, String>{
   'steuern': 'Steuern',
   'versicherungen': 'Versicherungen',
+  'pensionskasse': 'Pensionskasse',
   'vertraege': 'Verträge',
   'behoerden': 'Behörden',
   'bank': 'Bank',
@@ -61,6 +62,17 @@ const _typenJeBereich = <String, List<String>>{
     'brief',
     'sonstiges',
   ],
+  'pensionskasse': [
+    'police',
+    'rechnung_definitiv',
+    'mahnung',
+    'kontoauszug',
+    'verfuegung',
+    'freizuegigkeit',
+    'vertrag',
+    'brief',
+    'sonstiges',
+  ],
   'vertraege': ['vertrag', 'statuten', 'urkunde', 'protokoll', 'brief', 'sonstiges'],
   'behoerden': ['brief', 'veranlagung', 'sonstiges'],
   'bank': ['zinsausweis', 'vertrag', 'brief', 'sonstiges'],
@@ -75,12 +87,11 @@ const steuerarten = <String, String>{
 };
 
 /// Kategorien im Bereich «Versicherungen» — analog [steuerarten].
-/// Die Pensionskasse ist der Grund dafür: Der Ordner 06_PK enthält 31
-/// BVG-Dokumente, die sich sonst nicht von Haftpflicht oder Unfall trennen
-/// liessen.
+/// Die berufliche Vorsorge steht NICHT hier, sondern als eigener Bereich
+/// «Pensionskasse» (Entscheid Daniel 08.09.2026): 40 Dokumente über sieben
+/// Jahre sind genug für eine eigene Ebene, und man sucht sie dort zuerst.
 const versicherungsarten = <String, String>{
   'ahv': 'AHV/IV/EO/ALV/FAK (SVA)',
-  'pensionskasse': 'Pensionskasse (BVG)',
   'unfall': 'Unfall (UVG/SUVA)',
   'krankentaggeld': 'Krankentaggeld (KTG)',
   'haftpflicht': 'Haftpflicht',
