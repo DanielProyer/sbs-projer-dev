@@ -16,6 +16,8 @@ import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/models/google_betrieb_daten.dart';
 import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_saison_historie_repository.dart';
+import 'package:sbs_projer_app/core/util/saison_historie.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/google_calendar_providers.dart';
@@ -83,6 +85,16 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   /// einer wirklich geänderten Position neu berechnet werden.
   double? _latitudeBeimLaden;
   double? _longitudeBeimLaden;
+
+  /// Saisondaten beim Laden — Vergleichswerte fürs Archiv: ändert sich ein
+  /// START-Datum, wandert das bisherige Fenster in die Saison-Historie.
+  DateTime? _winterStartBeimLaden;
+  DateTime? _winterEndeBeimLaden;
+  DateTime? _sommerStartBeimLaden;
+  DateTime? _sommerEndeBeimLaden;
+
+  /// Bereits archivierte Saisons dieses Betriebs (Anzeige unter den Feldern).
+  List<ArchivierteSaison> _saisonHistorie = [];
   bool _googleLoading = false;
   bool _websiteLoading = false;
   List<String> _zapfsysteme = [];
@@ -155,6 +167,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       _sommerSaisonAktiv = betrieb.sommerSaisonAktiv;
       _sommerStartDatum = betrieb.sommerStartDatum;
       _sommerEndeDatum = betrieb.sommerEndeDatum;
+      _winterStartBeimLaden = betrieb.winterStartDatum;
+      _winterEndeBeimLaden = betrieb.winterEndeDatum;
+      _sommerStartBeimLaden = betrieb.sommerStartDatum;
+      _sommerEndeBeimLaden = betrieb.sommerEndeDatum;
       final geladeneStarts = [
         betrieb.ferienStart,
         betrieb.ferien2Start,
@@ -211,6 +227,33 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
         } catch (_) {}
       }
     });
+
+    // Archivierte Saisons nachladen — reine Anzeige, darf das Formular nicht
+    // aufhalten. Ohne serverId (frisch angelegt) gibt es noch keine.
+    final sid = betrieb.serverId;
+    if (sid != null && sid.isNotEmpty) {
+      final historie = await BetriebSaisonHistorieRepository.getFuerBetrieb(
+        sid,
+      );
+      if (mounted) setState(() => _saisonHistorie = historie);
+    }
+  }
+
+  /// Frühere Saisons als Hinweiszeile, z. B. «Bisher: 13.12.2025–29.03.2026 ·
+  /// 05.12.2024–31.03.2025». Zeigt die letzten fünf; ohne Historie nichts.
+  Widget _saisonHistorieZeile(String saison) {
+    final eintraege = _saisonHistorie
+        .where((e) => e.saison == saison)
+        .take(5)
+        .toList();
+    if (eintraege.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: Text(
+        'Bisher: ${eintraege.map((e) => e.zeitraum).join(' · ')}',
+        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+      ),
+    );
   }
 
   void _aliasHinzufuegen() {
@@ -557,6 +600,39 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
           (_latitude != _latitudeBeimLaden ||
               _longitude != _longitudeBeimLaden)) {
         unawaited(FahrzeitRepository.anfahrtBerechnen(sid));
+      }
+
+      // Abgelaufene Saison ins Archiv, damit die Vorjahre beim nächsten Mal
+      // als Anhaltspunkt dastehen. Ausgelöst nur durch ein geändertes
+      // START-Datum — ein neues Ende ist eine Korrektur derselben Saison.
+      final archivSid = betrieb.serverId;
+      if (archivSid != null && archivSid.isNotEmpty) {
+        final eintraege = [
+          saisonArchivEintrag(
+            saison: 'winter',
+            altStart: _winterStartBeimLaden,
+            altEnde: _winterEndeBeimLaden,
+            neuStart: betrieb.winterStartDatum,
+          ),
+          saisonArchivEintrag(
+            saison: 'sommer',
+            altStart: _sommerStartBeimLaden,
+            altEnde: _sommerEndeBeimLaden,
+            neuStart: betrieb.sommerStartDatum,
+          ),
+        ].whereType<SaisonArchivEintrag>().toList();
+        if (eintraege.isNotEmpty) {
+          await BetriebSaisonHistorieRepository.archiviere(
+            archivSid,
+            eintraege,
+          );
+          // Merker nachziehen: Ein zweites Speichern ohne weitere Änderung
+          // soll nicht erneut archivieren wollen.
+          _winterStartBeimLaden = betrieb.winterStartDatum;
+          _winterEndeBeimLaden = betrieb.winterEndeDatum;
+          _sommerStartBeimLaden = betrieb.sommerStartDatum;
+          _sommerEndeBeimLaden = betrieb.sommerEndeDatum;
+        }
       }
 
       // Saison-/Ferien-Reinigungen optional in den Google Kalender eintragen
@@ -1214,6 +1290,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     ),
                   ],
                 ),
+              if (_winterSaisonAktiv) _saisonHistorieZeile('winter'),
               const SizedBox(height: 8),
               // Sommer
               SwitchListTile(
@@ -1242,6 +1319,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
                     ),
                   ],
                 ),
+              if (_sommerSaisonAktiv) _saisonHistorieZeile('sommer'),
             ],
 
             // === Ruhetage (für alle Betriebe) ===
