@@ -35,6 +35,10 @@
 - [ ] **Offen:** 53 von 89 Saisonbetrieben tragen abgelaufene Saisondaten. Ob es dafür eine Prüfliste braucht (Infrastruktur `aufgaben`/`betrieb_vorschlaege` existiert), ist noch nicht entschieden.
 - [x] ~~Deploy über ein eigenes `git worktree`~~ — **verworfen 08.09. (Daniel): normal deployen.** Die bestehende Prüfung vor dem Branch-Wechsel (Lockfiles `~$*` + laufende Office-Prozesse) bleibt Pflicht.
 
+**Servicezeiten-Durchsicht 08.09. (v0.99.0 live, Migration 187):** Betriebe → Uhr-Symbol oben rechts. Ein Betrieb pro Karte, wischen nach rechts übernimmt was in den Feldern steht, nach links kommt er in der nächsten Runde wieder (beides auch als Knopf). Vorschlag aus den Besuchen seit 2019: frühestes und spätestes Zehntel fällt weg, dann auf viertel Stunden gerundet; unter drei Besuchen kein Vorschlag. **201 von 305 aktiven Betrieben haben noch gar keine Servicezeit.**
+- [ ] **⚠️ Daniel: Screen vor dem ernsthaften Durchgehen einmal ansehen** — neuer Screen mit Wischgesten, von mir nicht im Browser geprüft (Login). Bei «ich sehe X nicht»: Screenshot.
+- [ ] Beachten beim Durchgehen: Die Vorschläge zeigen, wann du dort **warst**, nicht wann du **darfst**. Bei Tödi Ilanz wären das 07:05 statt der hinterlegten 09:00 — bei Betrieben mit Schlüssel/Badge fällt das auseinander. Bei Il Pub zeigt die Historie umgekehrt ein zweites Fenster am Nachmittag, das bisher fehlt.
+
 **Für die Steuererklärung 2025 in die App laden (Daniel, Steuern → 2025 → Dokumente):** Jahresrechnung 2025 (unterschrieben), Lohnausweis 2025, **GKB Zins-/Kapitalausweis 31.12.2025** (fehlt noch, bei der Bank holen). Danach Formular 11a ausfüllen und bis **30.09.2026** einreichen (Kennzahlen: steuerbarer Gewinn 21'201.23, Kapital 75'950.93), Status im Jahresdetail auf «eingereicht» setzen.
 
 ---
