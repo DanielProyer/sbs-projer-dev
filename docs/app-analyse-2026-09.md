@@ -20,6 +20,7 @@ Diese App ist produktiv und führend; die v2 entsteht im Heineken-Projekt auf de
 | Buchhaltung | gut zwei Dutzend Routen, 13 Menüpunkte auf der Buchhaltungs-Startseite |
 | Grösster Feature-Ordner | **Events**: 12 Dateien, 8'731 Zeilen — letzte Änderung 24.08.2026, seit Gampel im eigenen Repo liegt |
 | Kontakt-Modelle | 3 (`kontakt`, `betrieb_kontakt`, `event_kontakt`) |
+| Formular-Screens | 19 — keines schützt vor Datenverlust beim Zurück-Wischen |
 | Offene Punkte in ToDo.md | 128, darunter mehrere «Klicktest Daniel (Handy)», die nie stattfanden |
 
 Die App ist keine Service-App mehr, sondern ein vollständiges ERP für eine Ein-Personen-GmbH: Einsatzplanung, Zeiterfassung mit GPS, Spesen-Scanner, Materialwirtschaft, Rechnungsstellung in zwei Welten (Heineken monatlich, eigene Kunden jährlich/bar), Finanzbuchhaltung mit Bankabgleich, MWST, Lohn, Steuern, Dokumentenablage, Jahresabschluss. Das ist eine Leistung — und der Grund, warum die Übersicht leidet.
@@ -76,6 +77,19 @@ Die Buchhaltungs-Startseite zeigt vier Jahres-Kennzahlen (Umsatz, offene Rechnun
 - **Einstellungen** mischt Stammdaten (Preise, Biersorten, Regionen), Verbindungen (Google Kalender, Google Kontakte) und Wartung (Speicher aufräumen, Dateien löschen).
 - **Tourenplan**: 2'751 Zeilen, acht Icon-Knöpfe verteilt auf Titelleiste, Wochen-Navigator und Tagesplan-Kopf — der dichteste Screen der App.
 
+### Befund 6 — Was die Gegenprobe zusätzlich fand
+
+Ein unabhängiger Prüfer hat die Analyse nach dem Schreiben auf Lücken abgeklopft. Acht Punkte, alle mit Datei und Zeile belegt und stichprobenartig nachgemessen:
+
+1. **Kein Formular schützt vor Datenverlust.** Von 19 Formular-Screens hat keines einen «Änderungen verwerfen?»-Schutz (`PopScope`) — auch nicht das Reinigungsformular mit Fotos, Positionen und Zeiten, auch nicht das Montageformular. Auf dem Pixel 9 mit Gesten-Navigation reicht ein Wischer am Rand, und die ganze Erfassung ist weg. Geschützt sind nur die Steuer-Jahresmaske, das Material-Detail und der Dokument-Upload.
+2. **Die häufigste Aktion liegt auf dem unsichersten Widget.** «Reinigung abschliessen» ist ein `FilledButton.icon` — genau der Typ, der auf CanvasKit zweimal nicht reagierte. Störung und Montage schliessen über den sicheren `ArbeitBeendenKnopf` ab: drei Widget-Typen für «Arbeit fertig». In `presentation/` stehen 207 `FilledButton`/`OutlinedButton`; das sichere `TapKnopf` nutzen sieben Dateien. Der Wächter-Test prüft nur `ExpansionTile dense`.
+3. **Störung oder Montage erledigen braucht vier Sprünge.** Tourenplan → Detail → Stift → Formular → «Arbeit beenden». Die Detailseite hat nur Stift und Papierkorb, keine Status-Aktion. Und der Tourenplan führt bei einer Reinigung auf die Anlagen-Seite, bei Störung und Montage auf den Einsatz — inkonsistent.
+4. **Zwei «Aufgaben»-Listen mit verschiedenem Inhalt.** Die Glocke zeigt die automatischen Erinnerungen (Heineken-Rechnung fällig, MWST-Quartal, Mahnlauf, Saisondaten) plus fällige eigene Aufgaben; die Kachel «Aufgaben» zeigt eigene Aufgaben, offene Störungen, Montagen und Eröffnungen — bewusst ohne die Erinnerungen. Wer die Kachel öffnet, sieht die fällige Heineken-Rechnung nicht; wer die Glocke öffnet, nicht die offenen Störungen.
+5. **Die Betrieb-Auswahl ist siebenmal gebaut, mit drei Suchlogiken.** Störung und Reinigung finden nach Name, Ort und Betriebsnummer; Montage, Kontakt und Diktat nach Name und Ort; Eigenauftrag und Eröffnungsreinigung nur nach Name — dort liefert «Chur» nichts.
+6. **Spesen: ein Zähler ohne Liste.** Die Kachel zeigt 243 Belege und führt direkt in die Kamera; `/spesen` ist ausschliesslich der Scanner. Ein Beleg von letzter Woche ist nur über das Buchungs-Journal auffindbar.
+7. **Ein Bereich, fünf Namen.** Kundenrechnungen heissen «Forderungen» (Menü, Titelleiste), `/rechnungen`, `/buchhaltung/mahnwesen` und `/buchhaltung/debitoren` (Weiterleitungen) — daneben «Jahresrechnungen». Der Screen «Heineken Zuweisungen» heisst je nach Einstieg «Kontakt-Zuweisungen», «Zuweisungen» oder ist ein namenloses Zahnrad. «Google-Termine zuordnen» — eine operative Aufgabe — ist nur über die Einstellungen erreichbar.
+8. **Rund 25 Lösch-Dialoge, kein «Rückgängig».** Jedes Löschen fragt vorher — ein Extra-Tap bei jedem Vorgang; ein Snackbar mit Undo böte denselben Schutz ohne Unterbrechung (`SnackBarAction` kommt in der App genau einmal vor). Sieben Detailseiten wiederholen dasselbe Stift+Papierkorb-Paar samt je eigener «Nicht gefunden»-Seite (11 Kopien).
+
 ## 3. Vorschläge — nach Wirkung pro Aufwand
 
 ### A — klein, sofort, täglich spürbar (je ½ bis 1 Tag)
@@ -92,6 +106,12 @@ Die Buchhaltungs-Startseite zeigt vier Jahres-Kennzahlen (Umsatz, offene Rechnun
 
 **A6 · Ballast aus dem Hauptmenü.** Events und Bergkundenpauschalen unter «Mehr»; Anlagen nur noch über Betrieb (die Liste bleibt als Suchwerkzeug erreichbar); Auswertung Arbeitstage in die Buchhaltung. Nichts wird gelöscht, nur der Menüplatz wird frei.
 
+**A7 · «Änderungen verwerfen?» in allen 19 Formularen.** Ein gemeinsames Formular-Gerüst mit `PopScope` — einmal gebaut, überall gleich. Ein halber Tag, und die grösste Datenverlust-Falle der App ist zu.
+
+**A8 · «Erledigt» auf den Detailseiten von Störung und Montage.** Dazu führt der Tourenplan-Tap auf den Einsatz statt auf die Anlage. Aus vier Sprüngen werden zwei.
+
+**A9 · Ein Betrieb-Wähler für alle Formulare.** Das Vollbild aus der Reinigung, mit Suche nach Name, Ort und Betriebsnummer. Sieben Kopien werden eine — und «Chur» findet überall.
+
 ### B — mittel (2 bis 4 Tage): Struktur, die bleibt
 
 **B1 · Untere Navigationsleiste mit vier Zielen: Heute · Betriebe · Einsätze · Büro.** Von jedem Screen aus erreichbar, einhändig. Heute gibt es keine globale Navigation; jeder Weg ist push und pop, aus der Eingangsrechnung zurück zur Startseite sind es drei Mal «zurück». CanvasKit-sicher bauen (InkWell + Container, nicht `NavigationBar` — dreimal bestätigte Falle).
@@ -103,6 +123,12 @@ Die Buchhaltungs-Startseite zeigt vier Jahres-Kennzahlen (Umsatz, offene Rechnun
 **B4 · Monatsabschluss als geführte Checkliste.** Dieselbe Idee wie die Abschlussprüfung (17 Regeln, jährlich), nur monatlich: alle Einsätze des Monats erledigt? Bergkundenpauschalen berechnet? Heineken-Rechnung erzeugt → gesendet → freigegeben? Bank importiert, Prüfliste leer? Genau der Fehlertyp «Kette bricht ab», der am 03./04.09. Ertragsbuchungen kostete, wird damit sichtbar, bevor er teuer wird.
 
 **B5 · Tourenplan entlasten.** Titelleiste auf zwei Knöpfe (Heute, Aktualisieren) plus Überlauf-Menü; Wochen-Navigator und Tages-Chips zu einer Zeile; die Zeitachse bekommt den Platz.
+
+**B6 · Ein Aufgaben-Begriff.** Glocke und Kachel speisen sich aus derselben Quelle; Erinnerungen und offene Einsätze stehen in einer Liste, nach Fälligkeit sortiert. Was heute «bewusst getrennt» ist, war für die Glocke richtig gedacht und für die Kachel falsch.
+
+**B7 · Ein «Arbeit beenden»-Widget für alle Typen** plus ein Wächter-Test, der `FilledButton` in kritischen Aktionen abbricht. Die Regel aus CLAUDE.md wird damit erzwungen statt erinnert.
+
+Dazu, ohne eigene Nummer: eine Spesen-Liste hinter dem Zähler; ein Name für Forderungen/Rechnungen/Mahnwesen; Undo-Snackbar statt Lösch-Dialog; ein gemeinsames Detail-Gerüst statt elf «Nicht gefunden»-Kopien.
 
 ### C — gross, gehört in die v2 (hier nur als Anforderung)
 
@@ -125,15 +151,16 @@ Bevor irgendetwas fliegt, sollte eine Zahl da sein: **Welche Route wird wie oft 
 
 ## 6. Reihenfolge, wenn alles gilt
 
-1. **Diese Woche:** Nutzungszähler, dann A1, A2, A3, A5, A6 — fünf kleine Deploys, jeder für sich prüfbar am Handy.
-2. **Nächste zwei Wochen:** B1 (Navigationsleiste) und B2 (Einsätze + Status). B2 ist der grösste Hebel für Übersicht und der beste Vorlauf für die v2.
-3. **Danach nach Bedarf:** A4 (Diktat), B3/B4 (Büro), B5 (Tourenplan).
-4. **C** ins v2-Backlog, mit Verweis auf dieses Dokument.
+1. **Zuerst, noch diese Woche:** A7 — der Datenverlust-Schutz. Er kostet einen halben Tag und beendet die eine Falle, die jeden Tag zuschlagen kann.
+2. **Diese Woche:** Nutzungszähler, dann A1, A2, A3, A8, A5, A6 — kleine Deploys, jeder für sich prüfbar am Handy.
+3. **Nächste zwei Wochen:** B1 (Navigationsleiste), B2 (Einsätze + Status), B6 (ein Aufgaben-Begriff). B2 ist der grösste Hebel für Übersicht und der beste Vorlauf für die v2.
+4. **Danach nach Bedarf:** A4 (Diktat), A9 (Betrieb-Wähler), B3/B4 (Büro), B5 (Tourenplan), B7 (Widget + Wächter).
+5. **C** ins v2-Backlog, mit Verweis auf dieses Dokument.
 
 Jeder Schritt ist einzeln lieferbar und einzeln rücknehmbar. Keiner setzt einen anderen voraus — ausser B2, das A2 sinnvoll macht.
 
 ## 7. Prüfung
 
-Nach dem Schreiben haben elf unabhängige Prüfer 22 messbare Behauptungen dieses Dokuments im Code zu widerlegen versucht. 19 hielten stand, drei wurden korrigiert und sind oben eingearbeitet: die Status-Werte (*abgerechnet* ist überall ein Flag, kein Status), die Diktat-Arten (sechs statt vier) und die Zahl der `push`-Aufrufe (139 statt 144).
+Nach dem Schreiben haben elf unabhängige Prüfer 22 messbare Behauptungen dieses Dokuments im Code zu widerlegen versucht. 19 hielten stand, drei wurden korrigiert und sind oben eingearbeitet: die Status-Werte (*abgerechnet* ist überall ein Flag, kein Status), die Diktat-Arten (sechs statt vier) und die Zahl der `push`-Aufrufe (139 statt 144). Ein zwölfter Prüfer suchte nach Lücken und fand acht — sie stehen als Befund 6 und in den Vorschlägen A7–A9 und B6–B7; die vier gewichtigen habe ich selbst nachgemessen.
 
 Ein Punkt, der nicht im Dokument stand, kam dabei ans Licht: Die Heineken-Monatsrechnung grenzt ihre sieben Quellen **ausschliesslich über den Datumsbereich** ab. `abgerechnet` wird erst nach dem Erstellen gesetzt und nirgends als Filter gelesen. Wer eine Monatsrechnung neu erzeugt, bekommt alles im Datumsbereich — auch nachträglich Erfasstes; einen Zähler «noch nicht verrechnet» gibt es nicht. Genau den bräuchte die Checkliste aus B4.
