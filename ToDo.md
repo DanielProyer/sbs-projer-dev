@@ -68,7 +68,13 @@ Die Seed-Regeln stammen aus dem Juni — von **vor** dem Lohnmodell (2270–2273
   Gegenprobe: **keine** Buchung im ganzen Journal hat Soll 5700/5710/5720/5730/5740 an Haben 2000 — es ist nie etwas falsch durchgelaufen.
 
   Rollback: `update kreditor_regel set aufwandskonto=<alt> where lieferant_name_pattern=... and referenz_praefix is not distinct from ...` mit den Alt-Werten aus der Tabelle oben.
-- [ ] **Zu beachten:** `KreditorLernService` überschreibt die Regel, sobald beim Buchen ein anderes Konto gewählt wird. Wählt jemand einmal versehentlich 5700, kippt die Regel zurück. Ein Wächter dagegen wäre eine 17. Regel in der Abschlussprüfung («Sozialversicherungsaufwand gegen Kreditor gebucht») — noch nicht gebaut, mit Daniel zu klären.
+- [x] **Wächter gebaut — 17. Abschlussregel «Sozialversicherung nicht gegen Kreditor» (v0.99.5, live 08.09.).** Anlass: `KreditorLernService` überschreibt eine Regel still, sobald beim Buchen ein anderes Konto gewählt wird — wählt jemand einmal 5700 statt 2270, kippt die Umstellung zurück und niemand merkt es, bis der Aufwand doppelt in der ER steht.
+
+  Die Regel meldet **rot**, sobald im geprüften Jahr eine Buchung `Soll 5700/5710/5720/5730/5740 an Haben 2000` steht, und nennt Anzahl, Summe und die betroffenen Konten. Stornos und Storno-Gegenbuchungen zählen nicht. **6300 Haftpflicht und 6301 Franchise bleiben unberührt** — die dürfen über den Kreditor laufen. Tap führt auf `/buchhaltung/buchungen`.
+
+  Gebaut nach TDD (`SozialversicherungKreditorRegel` in `abschluss_regeln.dart`, 6 neue Tests in `test/abschluss_pruef_service_test.dart`). Der bestehende Regelzähler-Test hat den Zuwachs sofort gemeldet und steht jetzt auf 17. **1336 Tests grün**, Analyse unverändert (56 vorbestehende Infos).
+
+  ⚠️ **Von mir nicht im Browser gesehen** (Login) — die Regel erscheint als neue Zeile in der bestehenden Liste der Abschlussprüfung, ein eigenes UI hat sie nicht. Bei «sehe ich nicht»: Screenshot.
 - Der Heineken-Session am 08.09. gemeldet (Mapping-Hinweis für v2: Kategorie `sozialversicherung`/`unfall_krankheit` → Bilanzkonto, nicht Aufwand).
 
 ---
