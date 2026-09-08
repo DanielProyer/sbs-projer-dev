@@ -42,7 +42,9 @@ Die Dossier-Checkliste in der App zieht jetzt: **Lohnausweis 2025 ✓** und **Ja
 Der COVID-19-Kredit läuft noch (Saldo per 31.03.2023: 15'880, Limite 16'400, seit 31.03.2023 mit **1,5 % verzinst** statt zinslos). Solange er nicht vollständig zurückbezahlt ist, gilt laut Solidarbürgschaftsgesetz ein **Dividendenverbot** — verschärft auch auf das blosse *Beschliessen* von Dividenden und Tantiemen mit aufgeschobener Ausschüttung. Dazu ein **Umschuldungsverbot**. Verstösse können die Kündigung des Kredits und strafrechtliche Sanktionen nach Art. 25 SBüG auslösen.
 
 - [ ] Beim Jahresabschluss und bei jeder Überlegung zur Gewinnausschüttung im Kopf behalten. Die Behörden überwachen die Einhaltung laut Merkblatt systematisch.
-- [ ] Noch nicht abgelegt: `02_MWST Abrechnung` (36 Dateien, teils mit UUID-Dateinamen aus dem ESTV-Portal) und die 98 Fotos in `01_Steuern` (die 76 PDFs dort sind seit dem 02.09. im Modul). Beides bewusst zurückgestellt — die MWST-Abrechnungen liegen vollständig in der Buchhaltung, die Steuer-PDFs sind erfasst.
+- [x] **`02_MWST Abrechnung` und `01_Steuern` bleiben, wie sie sind — bestätigt Daniel 08.09.: beide sind bereits erfasst.** Die MWST-Abrechnungen liegen vollständig in `20_Buchaltung/01_Belege/250_MWST_Abrechnung`, die Steuerunterlagen seit dem 02.09. im Dokumente-Modul (76 PDFs; die 98 Fotos daneben sind deren Vorlagen). Die Rechnung geht auf: 76 + 7 Lohnausweise + 1 Jahresrechnung = die 84 Steuerdokumente im Modul.
+
+**Damit ist `00_Rechnungen` vollständig erschlossen.**
 
 ---
 
