@@ -88,6 +88,23 @@ Die Beilagen bestätigen die Einreichung Ziffer für Ziffer (Q1: Ziff. 200 51'01
 ### ⚠️ AXA Berufliche Vorsorge — zwei Befunde
 Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Arbeitnehmeranteil 2'233.95**, Jahresbeitrag 17'871.60, Vertrag 2/452968. Datei `230_Sozialversicherungen/231_2026_09_09_BeVo_00446790.pdf`.
 
+- [x] **GEKLÄRT 08.09. aus dem Ordner `00_Rechnungen/06_PK`** (Daniel wies darauf hin, ich hatte ihn übersehen — er liegt im Repo unter `00_Rechnungen`, nicht unter `01_SBS_Projer_GmbH`). Dort liegt die **AXA-Mahnung vom 26.02.2026**, und die erklärt die Zahlung vom 09.04.:
+
+  ```
+  Saldo per 31.12.2025      CHF 9'517.15
+  Ihre Zahlungen           - CHF 6'239.40
+  Mahngebuehren              CHF   100.00
+  Saldo zu unseren Gunsten   CHF 3'377.75   (zahlbar bis 18.03.2026, Handvermerk «Bez. 08.04.26»)
+  ```
+
+  **Die 3'377.75 waren also der Restsaldo 2025 samt Mahngebühr, kein Quartalsbeitrag** — meine erste Deutung («ein Quartal zum alten Satz») war falsch. Damit ist der heutige Ausstand von 8'935.80 sauber erklärt: **Q1/2026 und Q2/2026, beide unbezahlt**, je 4'467.90.
+
+  ⚠️ **Die Mahnung droht die Kündigung des Anschlussvertrags an** («ohne Sie nochmals zu mahnen») und die Information von Aufsichtsbehörde und Arbeitnehmer. Daniel zahlt am 09.09. nur 4'467.90 — **ein Quartal bleibt offen, die nächste Mahnung ist absehbar.**
+
+  **Beitragsentwicklung** (aus den Rechnungen im selben Ordner): Jahresbeitrag **12'258.00 (2021)** → Q1/2025 noch 3'119.70 → **17'871.60 (2026)**. Der Sprung 2026 ist die Folge des gestiegenen Lohns, nicht ein Fehler der AXA. Unser Lohnlauf ist einfach nicht mitgezogen.
+
+  Der Ordner enthält die AXA-Historie als **105 Handy-Fotos** (72 + 33 in `Unterlagen/`, alle am 09.06.2026 abfotografiert, Dateinamen sind Zufallszahlen, Dokumentgrenzen durch eingelegte Trennblätter markiert). Systematisch durchgegangen ist er noch nicht.
+
 - [ ] **🔴 Ein Quartal bleibt offen.** Die Rechnung weist «Saldo zu unseren Gunsten 8'935.80» aus = zwei Quartale. Daniel zahlt am 09.09. nur 4'467.90. Die letzte AXA-Zahlung war 09.04.2026 über 3'377.75 — das ist genau ein Quartal zum ALTEN Satz, vermutlich Q4/2025. **Q1/2026 dürfte nie bezahlt worden sein.** Die AXA erhebt 5 % Verzugszins auf ausstehende Beiträge. → Beitragskonto-Auszug bei der AXA anfordern (Giuseppe Lamanna, services17.bvg@axa.ch, 052 218 89 73) und die Lücke schliessen.
 - [ ] **🔴 Der BVG-Satz im Lohnlauf ist veraltet.** Unsere Lohnbuchungen rechnen 562.95 AG + 562.95 AN monatlich = **13'510.80/Jahr**; die AXA fordert **17'871.60/Jahr**. Differenz **4'360.80/Jahr**. Das erklärt den Ausstand strukturell — es fehlt jeden Monat Geld auf 2271. Satz aus dem AXA-Vertrag nachführen, dann rückwirkend ab 01.01.2026 korrigieren.
 - Nebenbei aufgefallen: **Der Februar-Lohnlauf 2026 fehlt** (gebucht sind Jan, Mär, Apr, Mai, Jun, Jul; August ist bekannt offen). Prüfen, ob im Februar bewusst kein Lohn lief.
