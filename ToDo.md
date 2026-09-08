@@ -14,6 +14,49 @@
 
 ---
 
+## ✅ ORDNER 07_VERSICHERUNG ERSCHLOSSEN (08.09.2026) — 26 Dokumente
+
+49 Handy-Fotos → 6 aufbereitete PDFs, dazu **20 Original-PDFs aus dem myAXA-Portal** (die hatte meine erste Ordnerzählung übersehen — bei den restlichen Ordnern genauer hinschauen). Kategorien **Haftpflicht** (7), **Krankentaggeld** (17) und **Unfall** (2).
+
+Der Ordner enthält **zwei Verträge**:
+
+| Police | Deckung | Jahresprämie | Laufzeit |
+|---|---|---|---|
+| **44.127.389** Personenversicherung Professional | Unfallzusatz 100.00 + **Krankentaggeld 1'696.00** | **1'796.00** | seit 25.04.2019 |
+| **14.560.085** KMU Versicherung (ersetzt 15.371.295) | Modul Haftpflicht | **811.55** | 01.01.2026–31.12.2028 |
+
+Die obligatorische UVG-Deckung läuft **nicht** über die AXA, sondern über die SUVA — in der Police ausdrücklich als «nicht versichert» markiert. Das Krankentaggeld zahlt ab 30 Tagen Wartefrist 80 % während 730 Tagen, Basis **Jahreslohn 80'000**, Taggeld 64'000.
+
+Kündigung der KMU-Versicherung: jährlich auf den 31.12., **drei Monate Frist** (abweichend von den AVB-Rahmenbedingungen).
+
+---
+
+## 🔴 GESAMTBEFUND: fünf Versicherer, fünf verschiedene Lohnsummen — keine stimmt
+
+Nach vier erschlossenen Ordnern lässt sich das erst jetzt nebeneinanderlegen:
+
+| Stelle | gemeldete Basis | wofür |
+|---|---|---|
+| **SVA** (AHV/IV/EO/ALV/FAK) | **30'734** | Akonto-Beiträge |
+| **SUVA** (BUV/NBUV) | **121'000** | provisorische Prämie 2026 |
+| **AXA BVG** (Pensionskasse) | **100'000** | versicherter Lohn |
+| **AXA Krankentaggeld** | **80'000** | Taggeld-Basis |
+| **AXA Haftpflicht** | **100'000** AHV-Lohnsumme, Umsatz **200'000** | Prämienbemessung |
+
+**Tatsächliche Lohnsumme:** 58'500 (2023) · 59'500 (2024) · 70'700 (2025) · 2026 nach sieben Monaten bereits 52'316, hochgerechnet mit dem korrigierten BVG-Brutto rund **90'000**.
+
+**Was daraus folgt, je nach Richtung des Fehlers:**
+- **SVA zu tief** → Nachzahlungen, Mahnungen, 300.00 Bussen, Verzugszinsen
+- **SUVA zu hoch** → 3'138.65 in vier Jahren zu viel vorausbezahlt und zurückerstattet
+- **BVG bei 100'000** → Beitrag korrekt gerechnet, aber auf einer Basis über dem Ist-Lohn
+- **Krankentaggeld bei 80'000** → im Leistungsfall zahlt die AXA 80 % von 80'000; liegt der Ist-Lohn tiefer, zahlst du Prämie für nicht bezogene Deckung, liegt er höher, fehlt Deckung
+- **Haftpflicht mit Umsatz 200'000** → gegen den tatsächlichen Umsatz zu prüfen
+
+- [ ] **🔵 Eine Zahl, fünf Meldungen.** Sobald die Lohnsumme 2026 feststeht (nach dem August- und den restlichen Lohnläufen), bei allen fünf Stellen dieselbe melden. Das ist ein Nachmittag Telefonate und beendet vier verschiedene Dauerprobleme auf einmal.
+- [ ] Beim Krankentaggeld zusätzlich prüfen, ob 80 % von 80'000 der Deckung entspricht, die Daniel im Krankheitsfall tatsächlich braucht.
+
+---
+
 ## ✅ ORDNER 17_FIRMENGRÜNDUNG ERSCHLOSSEN (08.09.2026) — 12 Dokumente, Bereich «Verträge»
 
 80 Handy-Fotos → **12 benannte PDFs** unter `00_Rechnungen/17_Firmengründung/aufbereitet/`, im Dokumente-Modul unter **Verträge** mit den neuen Kategorien **Gründung**, **Franchise (Heineken)** und **Fahrzeug**. 68 Nutzseiten lückenlos. Katalog `gruendung_dokumente_katalog.csv`, Skript `import_gruendung_dokumente.py`.
