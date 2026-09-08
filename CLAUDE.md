@@ -41,6 +41,7 @@ Branch `gh-pages`, Source: Root (`/`), NICHT `docs/`. Dateien aus `sbs_projer_ap
 - In `pubspec.yaml` Zeile 4 die Version bumpen (`version: 0.X.Y+Z`, beide Teile erhöhen)
 - **UND `kAppVersion` in `lib/core/app_version.dart` mitziehen** — das ist die Nummer, die die App anzeigt. Läuft sie auseinander, zeigt die App einen falschen Stand und man weiss nicht mehr, ob ein Fix angekommen ist (passiert am 06.08.2026, drei Auslieferungen lang). `test/app_version_test.dart` bricht ab, wenn es vergessen wird.
 - Nach dem Build `main.dart.js` in `flutter_bootstrap.js` cache-busten
+- **`404.html` gehört mit ausgeliefert** (seit v0.99.11): GitHub Pages kennt nur Dateien, also fängt sie jeden Routen-Pfad ab und schreibt ihn auf die Hash-Route um (`/sbs-projer-dev/dokumente` → `…/#/dokumente`). Sie hängt am Versions-Redirect in `index.html`, der den Hash behalten muss — `test/web_404_weiche_test.dart` hält beide Hälften zusammen.
 
 ```bash
 # 1. Build (--pwa-strategy=none = kein Service Worker, sofort aktuell nach Refresh)
@@ -54,10 +55,10 @@ cd .. && VER=$(grep -o '"version":"[^"]*"' sbs_projer_app/build/web/version.json
 
 # 3. Deploy auf gh-pages (vorher alle main-Änderungen committen + pushen!)
 git checkout gh-pages
-rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html manifest.json favicon.png version.json docs
+rm -rf assets canvaskit icons main.dart.js* flutter*.js index.html 404.html manifest.json favicon.png version.json docs
 cp -r sbs_projer_app/build/web/* .
 touch .nojekyll
-git add index.html main.dart.js* flutter*.js manifest.json favicon.png version.json .nojekyll assets/ canvaskit/ icons/
+git add index.html 404.html main.dart.js* flutter*.js manifest.json favicon.png version.json .nojekyll assets/ canvaskit/ icons/
 git commit -m "deploy vX.Y.Z — Kurzbeschreibung"
 git push origin gh-pages
 git checkout main
