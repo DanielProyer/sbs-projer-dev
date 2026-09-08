@@ -59,4 +59,49 @@ void main() {
     expect(pflichtTypLabel('veranlagung:kanton'), 'Veranlagungsverfügung Kanton/Gemeinde');
     expect(pflichtTypLabel('jahresrechnung'), 'Jahresrechnung');
   });
+
+  group('Kategorien je Bereich', () {
+    test('Steuern behalten ihre Steuerarten', () {
+      final k = dokumentKategorien('steuern');
+      expect(k, isNotNull);
+      expect(k!.keys, containsAll(['bund', 'kanton', 'mwst', 'busse']));
+    });
+
+    test('Versicherungen kennen die Pensionskasse', () {
+      final k = dokumentKategorien('versicherungen');
+      expect(k, isNotNull);
+      expect(k!['pensionskasse'], 'Pensionskasse (BVG)');
+      expect(k.keys, containsAll(['pensionskasse', 'unfall', 'haftpflicht']));
+    });
+
+    test('Bereiche ohne feste Liste liefern null (Freitext im Dialog)', () {
+      expect(dokumentKategorien('bank'), isNull);
+      expect(dokumentKategorien('sonstiges'), isNull);
+    });
+  });
+
+  group('Dokumenttypen der Versicherungen', () {
+    test('decken ab, was im PK-Ordner tatsaechlich liegt', () {
+      final t = dokumentTypen('versicherungen');
+      expect(
+        t,
+        containsAll([
+          'police',
+          'rechnung_definitiv',
+          'mahnung',
+          'kontoauszug',
+          'freizuegigkeit',
+          'vertrag',
+        ]),
+        reason: 'Der Ordner 06_PK enthaelt genau diese Typen',
+      );
+    });
+
+    test('haben alle ein Label', () {
+      for (final typ in dokumentTypen('versicherungen')) {
+        expect(dokumentTypLabel(typ), isNot(typ),
+            reason: 'Typ $typ ohne Label faellt im UI als Code auf');
+      }
+    });
+  });
 }

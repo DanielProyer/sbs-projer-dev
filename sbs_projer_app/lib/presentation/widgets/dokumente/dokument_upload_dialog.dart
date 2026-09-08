@@ -239,14 +239,18 @@ class _UploadDialogState extends State<_UploadDialog> {
                   controller: _typFrei,
                   decoration: const InputDecoration(labelText: 'Typ (frei)'),
                 ),
-              if (_bereich == 'steuern')
+              // Bereiche mit fester Kategorienliste (Steuern, Versicherungen)
+              // bekommen ein Dropdown, alle anderen ein Freitextfeld.
+              if (dokumentKategorien(_bereich) case final kategorien?)
                 DropdownButtonFormField<String?>(
                   initialValue: _kategorie,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Steuerart'),
+                  decoration: InputDecoration(
+                    labelText: _bereich == 'steuern' ? 'Steuerart' : 'Kategorie',
+                  ),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('—')),
-                    for (final e in steuerarten.entries)
+                    for (final e in kategorien.entries)
                       DropdownMenuItem(value: e.key, child: Text(e.value)),
                   ],
                   onChanged: (v) => setState(() => _kategorie = v),

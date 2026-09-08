@@ -23,6 +23,8 @@ const _typLabels = <String, String>{
   'zinsausweis': 'Zins-/Kapitalausweis',
   'lohnausweis': 'Lohnausweis',
   'police': 'Police',
+  'kontoauszug': 'Kontoauszug',
+  'freizuegigkeit': 'Freizügigkeitsleistung',
   'vertrag': 'Vertrag',
   'brief': 'Brief',
   'sonstiges': 'Sonstiges',
@@ -44,7 +46,16 @@ const _typenJeBereich = <String, List<String>>{
     'brief',
     'sonstiges',
   ],
-  'versicherungen': ['police', 'rechnung_definitiv', 'brief', 'sonstiges'],
+  'versicherungen': [
+    'police',
+    'rechnung_definitiv',
+    'mahnung',
+    'kontoauszug',
+    'freizuegigkeit',
+    'vertrag',
+    'brief',
+    'sonstiges',
+  ],
   'vertraege': ['vertrag', 'brief', 'sonstiges'],
   'behoerden': ['brief', 'veranlagung', 'sonstiges'],
   'bank': ['zinsausweis', 'vertrag', 'brief', 'sonstiges'],
@@ -56,6 +67,26 @@ const steuerarten = <String, String>{
   'kanton': 'Kanton/Gemeinde',
   'mwst': 'MWST',
   'busse': 'Busse',
+};
+
+/// Kategorien im Bereich «Versicherungen» — analog [steuerarten].
+/// Die Pensionskasse ist der Grund dafür: Der Ordner 06_PK enthält 31
+/// BVG-Dokumente, die sich sonst nicht von Haftpflicht oder Unfall trennen
+/// liessen.
+const versicherungsarten = <String, String>{
+  'pensionskasse': 'Pensionskasse (BVG)',
+  'unfall': 'Unfall (UVG/SUVA)',
+  'krankentaggeld': 'Krankentaggeld (KTG)',
+  'haftpflicht': 'Haftpflicht',
+  'fahrzeug': 'Fahrzeug',
+};
+
+/// Feste Kategorien eines Bereichs, oder null wenn dort Freitext gilt.
+/// Der Upload-Dialog zeigt danach ein Dropdown statt eines Textfelds.
+Map<String, String>? dokumentKategorien(String bereich) => switch (bereich) {
+  'steuern' => steuerarten,
+  'versicherungen' => versicherungsarten,
+  _ => null,
 };
 
 List<String> dokumentTypen(String bereich) =>

@@ -1,28 +1,32 @@
-dok;datum;typ;titel;betrag;bezahlt_am
-1;2026-02-26;mahnung;AXA BVG Mahnung (Saldo per 31.12.2025 9517.15 abzgl. Zahlung 6239.40 plus 100.00 Mahngebuehr);3377.75;2026-04-08
-2;2025-10-03;rechnung;AXA BVG Beitragsrechnung Q3/2025 (bis 30.09.2025);3119.70;2026-01-02
-3;2025-04-03;rechnung;AXA BVG Beitragsrechnung Q1/2025 (bis 31.03.2025);3119.70;2025-07-19
-4;2025-02-27;mahnung;AXA BVG Mahnung (Saldo per 31.12.2024 3305.75 plus 100.00 Mahngebuehr);3405.75;2025-03-20
-5;2024-10-03;rechnung;AXA BVG Beitragsrechnung Q3/2024 (bis 30.09.2024, Saldo 9427.50);3142.50;2024-11-05
-6;2024-02-22;mahnung;AXA BVG Mahnung (Saldo per 31.12.2023 3181.35 plus 100.00 Mahngebuehr);3281.35;2024-04-09
-7;2023-07-05;rechnung;AXA BVG Beitragsrechnung Q2/2023 (bis 30.06.2023);3117.90;2023-09-01
-8;2023-04-05;rechnung;AXA BVG Beitragsrechnung Q1/2023 (bis 31.03.2023, Saldo 3180.45);3117.90;2023-05-31
-9;2022-12-01;rechnung;AXA BVG Beitragsrechnung Q4/2022 (bis 31.12.2022, Saldo 6187.80);3093.90;2023-02-22
-10;2022-10-05;rechnung;AXA BVG Beitragsrechnung Q3/2022 (bis 30.09.2022);3093.90;2023-01-03
-11;2022-07-05;rechnung;AXA BVG Beitragsrechnung Q2/2022 (bis 30.06.2022);3093.90;2022-09-13
-12;2022-04-05;rechnung;AXA BVG Beitragsrechnung Q1/2022 (bis 31.03.2022);3093.90;2022-05-09
-13;2022-01-08;kontoauszug;AXA BVG Kontoauszug und Jahresrueckblick per 31.12.2021;3064.50;2022-02-15
-14;2021-10-05;rechnung;AXA BVG Beitragsrechnung Q3/2021 (bis 30.09.2021);3064.50;2021-10-28
-15;2021-07-05;rechnung;AXA BVG Beitragsrechnung Q2/2021 (bis 30.06.2021);3064.50;2021-08-11
-16;2021-04-07;rechnung;AXA BVG Beitragsrechnung Q1/2021 (bis 31.03.2021, Guthaben 3043.50);3064.50;2021-05-05
-17;2021-01-09;kontoauszug;AXA BVG Kontoauszug und Jahresrueckblick per 31.12.2020;3043.50;2021-02-03
-18;2020-12-01;rechnung;AXA BVG Beitragsrechnung Q4/2020 (bis 31.12.2020);3043.50;2021-01-14
-19;2019-10-03;rechnung;AXA BVG Beitragsrechnung Q3/2019 (bis 30.09.2019, Verzugszins damals 4%);3105.90;2019-11-04
-20;2020-10-05;rechnung;AXA BVG Beitragsrechnung Q3/2020 (bis 30.09.2020);3043.50;2020-11-02
-21;2020-07-03;rechnung;AXA BVG Beitragsrechnung Q2/2020 (bis 30.06.2020);3043.50;2020-08-05
-22;2026-01-10;kontoauszug;AXA BVG Kontoauszug und Jahresrueckblick per 31.12.2025 (Beitragskonto 9517.15, Total Beitraege 12478.80);3277.75;
-23;2023-04-18;info;AXA Informationen zu Konditionen und Neuerungen 2024;;
-24;2023-01-12;info;AXA Vorsorge per 01.01.2023 (Vorsorgeverzeichnis, Verzinsung);;
-25;2021-01-15;info;AXA Vorsorge per 01.01.2021 (Vorsorgeverzeichnis, Verzinsung);;
-26;2019-06-19;freizuegigkeit;PKG Pensionskasse Austritt per 30.04.2019 - Uebertrag Freizuegigkeitsleistung 48396.55 an die AXA;48396.55;
-27;2019-05-13;vertrag;AXA Neuanschluss per 01.05.2019 (Vertragsbeginn, Vorsorgeverzeichnis);;
+seiten;datum;aussteller;typ;detail;betrag;titel;bezahlt_am
+1;2026-02-26;AXA;mahnung;Mahnung;3377.75;Mahnung BVG - Saldo per 31.12.2025 9517.15 abzueglich Zahlung 6239.40 zuzueglich 100.00 Mahngebuehr;2026-04-08
+2-3;2025-10-03;AXA;rechnung_definitiv;Beitragsrechnung-Q3;3119.70;Beitragsrechnung BVG Q3/2025 (bis 30.09.2025), Jahresbeitrag 12478.80, AN-Anteil 1559.85;2026-01-02
+4-5;2025-04-03;AXA;rechnung_definitiv;Beitragsrechnung-Q1;3119.70;Beitragsrechnung BVG Q1/2025 (bis 31.03.2025);2025-07-19
+6-7;2025-02-27;AXA;mahnung;Mahnung;3405.75;Mahnung BVG - Saldo per 31.12.2024 3305.75 zuzueglich 100.00 Mahngebuehr;2025-03-20
+8-9;2025-01-11;AXA;kontoauszug;Kontoauszug-2024;3305.75;Kontoauszug und Jahresrueckblick per 31.12.2024, Zahlfrist 10.02.2025;
+10-11;2024-10-03;AXA;rechnung_definitiv;Beitragsrechnung-Q3;3142.50;Beitragsrechnung BVG Q3/2024 (bis 30.09.2024), Saldo 9427.50;2024-11-05
+12-13;2024-02-22;AXA;mahnung;Mahnung;3281.35;Mahnung BVG - Saldo per 31.12.2023 3181.35 zuzueglich 100.00 Mahngebuehr;2024-04-09
+14-15;2023-10-04;AXA;rechnung_definitiv;Beitragsrechnung-Q3;3117.90;Beitragsrechnung BVG Q3/2023 (bis 30.09.2023);2023-12-05
+16-17;2023-07-05;AXA;rechnung_definitiv;Beitragsrechnung-Q2;3117.90;Beitragsrechnung BVG Q2/2023 (bis 30.06.2023);2023-09-01
+18-19;2023-04-05;AXA;rechnung_definitiv;Beitragsrechnung-Q1;3117.90;Beitragsrechnung BVG Q1/2023 (bis 31.03.2023), Saldo 3180.45;2023-05-31
+20;2022-12-01;AXA;rechnung_definitiv;Beitragsrechnung-Q4;3093.90;Beitragsrechnung BVG Q4/2022 (bis 31.12.2022), Saldo 6187.80;2023-02-22
+21-24;2023-01-07;AXA;kontoauszug;Kontoauszug-2022;3156.45;Kontoauszug und Jahresrueckblick per 31.12.2022, Zahlfrist 06.02.2023;
+25-26;2022-10-05;AXA;rechnung_definitiv;Beitragsrechnung-Q3;3093.90;Beitragsrechnung BVG Q3/2022 (bis 30.09.2022);2023-01-03
+27;2022-07-05;AXA;rechnung_definitiv;Beitragsrechnung-Q2;3093.90;Beitragsrechnung BVG Q2/2022 (bis 30.06.2022);2022-09-13
+28-29;2022-04-05;AXA;rechnung_definitiv;Beitragsrechnung-Q1;3093.90;Beitragsrechnung BVG Q1/2022 (bis 31.03.2022);2022-05-09
+30-33;2022-01-08;AXA;kontoauszug;Kontoauszug-2021;3064.50;Kontoauszug und Jahresrueckblick per 31.12.2021 mit allen Bewegungen 01.01.2021-07.02.2022 und Zinssaetzen;2022-02-15
+34-35;2021-10-05;AXA;rechnung_definitiv;Beitragsrechnung-Q3;3064.50;Beitragsrechnung BVG Q3/2021 (bis 30.09.2021);2021-10-28
+36-37;2021-07-05;AXA;rechnung_definitiv;Beitragsrechnung-Q2;3064.50;Beitragsrechnung BVG Q2/2021 (bis 30.06.2021), Jahresbeitrag 12258.00;2021-08-11
+38-39;2021-04-07;AXA;rechnung_definitiv;Beitragsrechnung-Q1;3064.50;Beitragsrechnung BVG Q1/2021 (bis 31.03.2021), Guthaben 3043.50;2021-05-05
+40-43;2021-01-09;AXA;kontoauszug;Kontoauszug-2020;3043.50;Kontoauszug und Jahresrueckblick per 31.12.2020, Zahlfrist 08.02.2021;2021-02-03
+44-45;2020-12-01;AXA;rechnung_definitiv;Beitragsrechnung-Q4;3043.50;Beitragsrechnung BVG Q4/2020 (bis 31.12.2020);2021-01-14
+46-47;2019-10-03;AXA;rechnung_definitiv;Beitragsrechnung-Q3;3105.90;Beitragsrechnung BVG Q3/2019 (bis 30.09.2019), Verzugszins damals 4 Prozent;2019-11-04
+48;2020-10-05;AXA;rechnung_definitiv;Beitragsrechnung-Q3;3043.50;Beitragsrechnung BVG Q3/2020 (bis 30.09.2020);2020-11-02
+49-50;2020-07-03;AXA;rechnung_definitiv;Beitragsrechnung-Q2;3043.50;Beitragsrechnung BVG Q2/2020 (bis 30.06.2020);2020-08-05
+51-54;2026-01-10;AXA;kontoauszug;Kontoauszug-2025;3277.75;Kontoauszug und Jahresrueckblick per 31.12.2025 - Beitragskonto 9517.15, Total Beitraege 12478.80 (je 6239.40 AN und AG);
+55-56;2026-01-08;AXA;police;Vorsorgeverzeichnis-2026;;Vorsorge per 01.01.2026 mit Vorsorgeverzeichnis, Verzinsung 2025 gesamt 4.00 Prozent;
+57-58;2023-04-18;AXA;brief;Konditionen-2024;;Informationen zu Konditionen und Neuerungen 2024 (Verzinsung, Beitragsniveau, Umwandlungssaetze);
+59-62;2023-01-12;AXA;police;Vorsorgeverzeichnis-2023;;Vorsorge per 01.01.2023 mit Vorsorgeverzeichnis - versicherter Lohn 100000, Jahresbeitrag 12471.60, AN-Beitrag 519.65 monatlich;
+63-65;2021-01-15;AXA;police;Vorsorgeverzeichnis-2021;;Vorsorge per 01.01.2021 mit Vorsorgeverzeichnis und Verzinsung 2020;
+66;2019-06-19;PKG;freizuegigkeit;Austritt-Uebertrag;48396.55;PKG Pensionskasse Austritt per 30.04.2019 - Uebertrag der Freizuegigkeitsleistung 48396.55 an die AXA (Vorarbeitgeber Hunziker Zarn und Partner AG);
+67-76;2019-05-13;AXA;vertrag;Neuanschluss;;Neuanschluss per 01.05.2019 - Vertragsbeginn mit Vorsorgeverzeichnis;
