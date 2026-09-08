@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 08.09. spätabends
 
-**Stand:** **v0.99.9 live** · Migrationen bis **188** · **1348 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
+**Stand:** **v0.99.10 live** · Migrationen bis **189** · **1354 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
 
 **Heute gelaufen (4 Deploys, 23 Commits):** Post-Eingang ausgewertet · BVG-Lohnkorrektur rückwirkend · Kreditor-Regeln umgestellt + 17. Abschlussregel als Wächter · **`00_Rechnungen` vollständig erschlossen: 252 Dokumente in der App** · Franchisevertrag Heineken ausgewertet · Rückläufer-Meldung der Heineken-Session geprüft und zwei Fehlalarme aufgeklärt.
 
@@ -242,6 +242,10 @@ Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als
 **Bereich «Pensionskasse»** (v0.99.6 als Kategorie, seit **v0.99.9 eigener Bereich**): `versicherungsarten` in `dokument_pfad.dart` — AHV, Unfall, Krankentaggeld, Haftpflicht, Fahrzeug (anfangs auch Pensionskasse, siehe Korrektur unten) — dazu `dokumentKategorien(bereich)` als gemeinsamer Zugriff. Der Upload-Dialog zeigt damit **auch ausserhalb der Steuern ein Dropdown** statt eines Freitextfelds. Die Dokumenttypen des Bereichs decken neu ab, was wirklich im Ordner liegt (Mahnung, Kontoauszug, Freizügigkeit, Vertrag). 5 neue Tests in `test/dokument_pfad_test.dart`.
 
 **Korrektur v0.99.9 (Entscheid Daniel):** Die berufliche Vorsorge steht **nicht** unter «Versicherungen», sondern ist ein **eigener Bereich** neben Steuern, Versicherungen, Verträgen, Behörden und Bank — keine Sozialversicherung im Sinne der übrigen, sondern ein Vertrag mit eigenem Belegkreis (Police, Freizügigkeit, Beitragskonto, Vorsorgeausweis). `Migration 188` erweitert `dokumente_bereich_check`; die **40 PK-Dokumente** sind im Storage und in der Datenbank umgezogen (`{USER}/versicherungen/…` → `{USER}/pensionskasse/…`, `kategorie` leer). Versicherungen stehen damit bei 101 (AHV 44, Unfall 33, KTG 17, Haftpflicht 7). Bereichs-Dropdown und Upload-Dialog lesen die Liste generisch aus `dokument_pfad.dart` und brauchten keine Änderung.
+
+**Und weiter v0.99.10 (gleicher Entscheid, konsequent zu Ende):** Auch **AHV/SVA, Unfall/SUVA, Krankentaggeld und Haftpflicht** sind jetzt **eigene Bereiche**. Der Sammeltopf «Versicherungen» hiess, dass man für eine SUVA-Verfügung 101 Dokumente von vier Absendern durchsehen musste — vier Stellen mit eigenen Ansprechpartnern, Belegarten und Fristen. Die Kategorienebene `versicherungsarten` entfällt damit ganz; «**Versicherungen (übrige)**» bleibt als Auffangbereich für Sach-, Rechtsschutz- und Fahrzeugversicherung. Die **Typenlisten folgen dem tatsächlichen Belegkreis**: die SVA stellt akonto und rechnet am Jahresende ab (`rechnung_provisorisch` + `rechnung_definitiv` + `bussverfuegung`), die SUVA verfügt im Folgejahr. `Migration 189` erweitert den Constraint auf 11 Bereiche, **101 Dokumente umgezogen**. Neu im Repo: `Datenbank/werkzeuge/dokument_bereich_umziehen.py` — verschiebt Storage-Objekte **und** Tabellenzeilen, weil der Bereich im Pfad steht (ein blosses UPDATE lässt die App auf leere Pfade zeigen). Drei **Wächter-Tests** halten die Konfiguration zusammen: jeder Bereich braucht eine eigene Typenliste (sonst fällt er still auf `['sonstiges']` zurück), jeder Typ ein Label, jede Kategorienliste einen Bereich.
+
+**Ablage-Stand nach dem Umbau** (252 Dokumente): Steuern 84 · AHV/SVA 44 · Pensionskasse 40 · Unfall/SUVA 33 · Verträge 21 · Krankentaggeld 17 · Haftpflicht 7 · Behörden 4 · Bank 2.
 
 | Typ | Anzahl | Zeitraum |
 |---|---|---|
