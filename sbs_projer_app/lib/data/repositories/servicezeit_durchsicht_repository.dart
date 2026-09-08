@@ -32,6 +32,9 @@ class ServicezeitKandidat {
   /// Vorschlag am Rohmaterial nachprüfen lässt.
   final List<Besuch> besuchsliste;
 
+  /// Spanne und häufigste Startstunde über alle Besuche.
+  final BesuchsUebersicht? uebersicht;
+
   const ServicezeitKandidat({
     required this.betriebId,
     required this.name,
@@ -42,6 +45,7 @@ class ServicezeitKandidat {
     this.bisherNachmittagBis,
     required this.vorschlag,
     this.besuchsliste = const [],
+    this.uebersicht,
   });
 
   String get label =>
@@ -168,8 +172,13 @@ class ServicezeitDurchsichtRepository {
           bisherNachmittagAb: b['servicezeit_nachmittag_ab']?.toString(),
           bisherNachmittagBis: b['servicezeit_nachmittag_bis']?.toString(),
           vorschlag: servicezeitVorschlag(zeiten[b['id'].toString()] ?? []),
-          besuchsliste:
-              (besuche[b['id'].toString()] ?? []).reversed.toList(),
+          besuchsliste: [
+            // Neueste zuoberst — die letzten Besuche sagen am meisten
+            // darüber, wie es heute läuft.
+            ...(besuche[b['id'].toString()] ?? [])
+              ..sort((x, y) => y.datum.compareTo(x.datum)),
+          ],
+          uebersicht: besuchsUebersicht(zeiten[b['id'].toString()] ?? []),
         ),
     ];
     liste.sort((a, b) {

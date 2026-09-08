@@ -38,6 +38,55 @@ class ServicezeitVorschlag {
   bool get hatVorschlag => morgenAb != null || nachmittagAb != null;
 }
 
+/// Kopfzeile über der Besuchsliste: volle Spanne und die Stunde, in der die
+/// meisten Besuche begannen. Beantwortet beim Durchgehen die Frage, ob der
+/// Vorschlag zu dem passt, was tatsächlich gefahren wurde.
+class BesuchsUebersicht {
+  final String spanneVon;
+  final String spanneBis;
+  final int haeufigsteStunde;
+  final int haeufigkeit;
+
+  const BesuchsUebersicht({
+    required this.spanneVon,
+    required this.spanneBis,
+    required this.haeufigsteStunde,
+    required this.haeufigkeit,
+  });
+
+  /// «08–09 Uhr»
+  String get stundenText =>
+      '${haeufigsteStunde.toString().padLeft(2, '0')}–'
+      '${(haeufigsteStunde + 1).toString().padLeft(2, '0')} Uhr';
+}
+
+/// Fasst [besuche] für die Kopfzeile zusammen. null bei leerer Liste.
+BesuchsUebersicht? besuchsUebersicht(List<Besuchszeit> besuche) {
+  if (besuche.isEmpty) return null;
+  var frueheste = besuche.first.startMinuten;
+  var spaeteste = besuche.first.endeMinuten;
+  final jeStunde = <int, int>{};
+  for (final b in besuche) {
+    if (b.startMinuten < frueheste) frueheste = b.startMinuten;
+    if (b.endeMinuten > spaeteste) spaeteste = b.endeMinuten;
+    final stunde = b.startMinuten ~/ 60;
+    jeStunde[stunde] = (jeStunde[stunde] ?? 0) + 1;
+  }
+  // Bei Gleichstand die frühere Stunde — sonst hinge die Anzeige von der
+  // zufälligen Reihenfolge der Map ab.
+  final stunden = jeStunde.keys.toList()..sort();
+  var beste = stunden.first;
+  for (final s in stunden) {
+    if (jeStunde[s]! > jeStunde[beste]!) beste = s;
+  }
+  return BesuchsUebersicht(
+    spanneVon: _hhmm(frueheste),
+    spanneBis: _hhmm(spaeteste),
+    haeufigsteStunde: beste,
+    haeufigkeit: jeStunde[beste]!,
+  );
+}
+
 /// Besuche unterhalb dieser Zahl ergeben kein Fenster: Ein einzelner
 /// Sondereinsatz (Hürtel Küssnacht, 19:16) würde es sonst unbrauchbar
 /// weit machen.

@@ -37,6 +37,7 @@ class _ServicezeitDurchsichtScreenState
   TimeOfDay? _morgenBis;
   TimeOfDay? _nachmittagAb;
   TimeOfDay? _nachmittagBis;
+  bool _besucheOffen = false;
   bool _morgenKeinService = false;
   bool _nachmittagKeinService = false;
 
@@ -421,20 +422,57 @@ class _ServicezeitDurchsichtScreenState
   }
 
   /// Die Besuche, aus denen der Vorschlag stammt — zum Nachprüfen.
+  ///
+  /// Zugeklappt steht nur die Zusammenfassung da (Spanne und häufigste
+  /// Stunde); aufgeklappt alle Besuche, neueste zuoberst. Kein
+  /// `ExpansionTile`: das zeichnet auf dem produktiven CanvasKit unzuverlässig.
   Widget _besuche(ServicezeitKandidat k) {
-    final liste = k.besuchsliste.take(20).toList();
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Divider(height: 12),
-          Text(
-            'Bisherige Besuche (${k.besuchsliste.length})',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+    final u = k.uebersicht;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 20),
+        InkWell(
+          onTap: () => setState(() => _besucheOffen = !_besucheOffen),
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bisherige Besuche (${k.besuchsliste.length})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (u != null)
+                        Text(
+                          'Spanne ${u.spanneVon}–${u.spanneBis} · '
+                          'meist ${u.stundenText} (${u.haeufigkeit}×)',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  _besucheOffen ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          for (final b in liste)
+        ),
+        if (_besucheOffen)
+          for (final b in k.besuchsliste)
             Text(
               b.zeile,
               style: const TextStyle(
@@ -443,16 +481,7 @@ class _ServicezeitDurchsichtScreenState
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
-          if (k.besuchsliste.length > liste.length)
-            Text(
-              '… und ${k.besuchsliste.length - liste.length} weitere',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 
