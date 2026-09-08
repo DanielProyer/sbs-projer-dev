@@ -114,6 +114,13 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
         ),
         title: const Text('Betriebe'),
         actions: [
+          // Servicezeiten aller Betriebe der Reihe nach durchgehen
+          // (Vorschlag aus den Besuchszeiten seit 2019).
+          IconButton(
+            icon: const Icon(Icons.schedule),
+            tooltip: 'Servicezeiten durchgehen',
+            onPressed: () => context.push('/betriebe/servicezeiten'),
+          ),
           // Region-Filter oben rechts (gilt für Liste + Karte)
           if (regionen.isNotEmpty)
             Padding(
