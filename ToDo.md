@@ -133,7 +133,20 @@ Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Ar
   | Wer trägt die Differenz | die Firma | Daniel (Rückforderung über 2002) |
   | AHV-Deklaration | steigt | unverändert |
 
-  Empfehlung: **A** — die runden Nettobeträge zeigen, dass der Netto die Vorgabe war; A hält die Buchhaltung deckungsgleich mit den Bankzahlungen. Beide Varianten heben die Verbindlichkeit 2271 um 2'180.40 auf den Stand, den die AXA fordert.
+  ✅ **ENTSCHEID DANIEL 08.09.: Variante A — ausgeführt und verifiziert.** 6 Abrechnungen + 54 Buchungen korrigiert (Jan, Mär–Jul; Februar gibt es nicht). Rollback: `snapshot_lohn_bvg_2026_09_08_buchungen` / `_abrechnungen`.
+
+  | Monat | Brutto alt → neu | BVG je Seite | Netto |
+  |---|---|---|---|
+  | Jan | 7'011.70 → **7'205.80** | 744.65 | 6'000.00 |
+  | Mär | 9'148.45 → **9'342.55** | 744.65 | 8'000.00 |
+  | Apr | 5'943.35 → **6'137.45** | 744.65 | 5'000.00 |
+  | Mai | 9'682.65 → **9'876.75** | 744.65 | 8'500.00 |
+  | Jun | 8'080.10 → **8'274.20** | 744.65 | 7'000.00 |
+  | Jul | 11'285.20 → **11'479.30** | 744.65 | 10'000.00 |
+
+  AHV, ALV, FAK und BU sind auf dem neuen Brutto mitgezogen. **Verifikation: In allen sechs Monaten stimmen Netto-Feld, Snapshot-Wert, Nachrechnung aus den Feldern und die Summe aus den Buchungen auf den Rappen überein** — die Auszahlung ist unangetastet. Lohnsumme 2026: 51'151.45 → **52'316.05** (+1'164.60), BVG-Aufwand 5720: **4'467.90** (6 × 744.65).
+
+- [ ] **Rest-Differenz auf 2271: 245.08.** Unser Saldo per 31.07. steht auf **8'690.72**, die AXA fordert **8'935.80** (Q1+Q2/2026). Die Lücke stammt nicht aus dem Lohn, sondern aus zwei Altposten: **100.00 Mahngebühr** vom 26.02.2026, die in der Zahlung vom 09.04. komplett gegen 2271 gebucht wurde statt als Aufwand (gehört auf ein Gebühren-/Zinskonto), und **145.08 Differenz im Vortrag per 31.12.2025** (unsere Umgliederung 9'372.07 gegen AXA-Saldo 9'517.15). Beides beim nächsten Buchhaltungs-Durchgang klären.
 
 - [ ] **🔴 Der BVG-Satz im Lohnlauf ist veraltet.** Unsere Lohnbuchungen rechnen 562.95 AG + 562.95 AN monatlich = **13'510.80/Jahr**; die AXA fordert **17'871.60/Jahr**. Differenz **4'360.80/Jahr**. Das erklärt den Ausstand strukturell — es fehlt jeden Monat Geld auf 2271. Satz aus dem AXA-Vertrag nachführen, dann rückwirkend ab 01.01.2026 korrigieren.
 - Nebenbei aufgefallen: **Der Februar-Lohnlauf 2026 fehlt** (gebucht sind Jan, Mär, Apr, Mai, Jun, Jul; August ist bekannt offen). Prüfen, ob im Februar bewusst kein Lohn lief.
