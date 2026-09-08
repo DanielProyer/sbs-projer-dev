@@ -1,0 +1,45 @@
+seiten;datum;typ;detail;betrag;titel;bezahlt_am
+1;2026-03-03;rechnung_definitiv;Akonto-Q1;1139.50;Akontorechnung AHV Q1/2026 (Basis 7683.50), faellig 10.04.2026;2026-04-15
+2-3;2026-02-10;verfuegung;Verzugszins-2025;32.95;Verfuegung Verzugszinsen 2025 - wegen verspaetet eingereichter Lohndeklaration, zinspflichtig 5929.25 fuer 40 Tage;2026-03-11
+4;2025-12-02;rechnung_definitiv;Akonto-Q4;1147.20;Akontorechnung AHV Q4/2025, faellig 10.01.2026;2025-12-08
+5;2025-09-02;rechnung_definitiv;Akonto-Q3;1147.20;Akontorechnung AHV Q3/2025, faellig 10.10.2025 (CO2-Rueckverteilung 2025 auf 2026 verschoben);2025-10-06
+6;2025-06-03;rechnung_definitiv;Akonto-Q2;1242.80;Akontorechnung AHV Q2/2025 inkl. Verzugszins 34.35 und Mahngebuehr 61.25;2025-07-19
+7;2025-05-06;mahnung;Mahnung-Q1;1147.20;Gebuehrenpflichtige Mahnung Q1/2025, Mahngebuehr 24.40, Betreibungsandrohung;2025-05-14
+8;2025-04-02;verfuegung;Verzugszins-2024;34.35;Verfuegung Verzugszinsen auf der Schlussrechnung 2024 (4267.10, 58 Tage);
+9;2025-03-17;mahnung;Mahnung-Schlussrechnung-2024;4267.10;Gebuehrenpflichtige Mahnung Schlussrechnung 2024, Mahngebuehr 36.85;2025-04-01
+10;2024-12-03;rechnung_definitiv;Akonto-Q4;1147.20;Akontorechnung AHV Q4/2024, faellig 10.01.2025;2025-02-03
+11;2024-09-03;rechnung_definitiv;Akonto-Q3;1198.45;Akontorechnung AHV Q3/2024 inkl. Verzugszins 31.80 und Mahngebuehr 62.60, abzueglich CO2 43.15;2024-11-05
+12;2024-08-07;mahnung;Mahnung-Q2;1147.20;Gebuehrenpflichtige Mahnung Q2/2024, Mahngebuehr 24.40;2024-09-03
+13-14;2024-06-12;rechnung_definitiv;Schlussrechnung-2023;4605.30;Schlussrechnung 2023 - Basis 58500.00 statt Akonto 30734, inkl. Verzugszins 130.15, Mahngebuehren 137.05 und Bussen 300.00;2024-08-07
+15;2024-03-05;rechnung_definitiv;Akonto-Q1;1143.10;Akontorechnung AHV Q1/2024, faellig 10.04.2024;2024-04-09
+16;2023-12-05;rechnung_definitiv;Akonto-Q4;1143.10;Akontorechnung AHV Q4/2023, faellig 10.01.2024;2024-01-09
+17-18;2023-10-04;rechnung_definitiv;Akonto-Q3;1116.80;Akontorechnung AHV Q3/2023 inkl. Mahngebuehr 24.75, abzueglich CO2 51.05;2023-12-05
+19;2023-09-05;rechnung_definitiv;Akonto-Q3-Original;1116.80;Akontorechnung AHV Q3/2023 (Original), faellig 10.10.2023;2023-11-01
+20;2023-06-06;rechnung_definitiv;Akonto-Q2;1241.90;Akontorechnung AHV Q2/2023 inkl. Verzugszins 36.50 und Mahngebuehr 62.30;2023-09-01
+21;2023-05-09;mahnung;Mahnung-Q1;1143.10;Gebuehrenpflichtige Mahnung Q1/2023, Mahngebuehr 24.35;2023-05-16
+22;2023-03-13;mahnung;Mahnung-Schlussrechnung-2022;4533.60;Gebuehrenpflichtige Mahnung Schlussrechnung 2022, Mahngebuehr 37.95;2023-03-28
+23-24;2022-12-06;rechnung_definitiv;Akonto-Q4;1151.05;Akontorechnung AHV Q4/2022, faellig 10.01.2023;2023-01-30
+25-26;2022-09-06;rechnung_definitiv;Akonto-Q3;1075.65;Akontorechnung AHV Q3/2022 inkl. Verzugszins 55.95 und Mahngebuehr 48.30, mit Umbuchung;2022-10-07
+27-28;2022-06-29;mahnung;Mahnung-Schlussrechnung-2021;7130.45;Gebuehrenpflichtige Mahnung Schlussrechnung 2021, Mahngebuehr 48.30, Betreibungsandrohung;2022-07-18
+29-30;2022-06-08;rechnung_definitiv;Akonto-Q2;1175.55;Akontorechnung AHV Q2/2022 inkl. Mahngebuehr 24.50;2022-07-18
+31-32;2022-05-09;mahnung;Mahnung-Q1;1175.45;Gebuehrenpflichtige Mahnung Q1/2022, Mahngebuehr 24.50;2022-06-08
+33-34;2022-03-02;rechnung_definitiv;Akonto-Q1;1175.45;Akontorechnung AHV Q1/2022 inkl. Mahngebuehr 24.40;2022-05-09
+35-36;2022-02-09;mahnung;Mahnung-Q4-2021;1151.05;Gebuehrenpflichtige Mahnung Q4/2021, Mahngebuehr 24.40;2022-02-15
+37;2021-09-07;rechnung_definitiv;Akonto-Q3;1133.35;Akontorechnung AHV Q3/2021, abzueglich CO2 17.70;2021-10-10
+38;2021-06-08;rechnung_definitiv;Akonto-Q2;1151.05;Akontorechnung AHV Q2/2021 mit Umbuchung und Verzugszins 160.20;2021-06-29
+39-41;2021-05-06;verfuegung;Verzugszins-2020;160.20;Verfuegung Verzugszinsen auf der Schlussrechnung 2020 (13245.70 in fuenf Raten bezahlt);
+42;2021-02-02;verfuegung;Zahlungsaufschub-2020;13245.70;Zahlungsaufschub bewilligt fuer die Schlussrechnung 2020 - Ratenplan ueber 10 Raten;2021-05-05
+43-44;2021-04-09;rechnung_definitiv;Differenzrechnung-Q1;1151.05;Differenzrechnung Q1/2021 nach Anpassung der Lohnsumme - neue Basis 7683.50 statt 22125.00;2021-05-05
+45;2021-03-02;rechnung_definitiv;Akonto-Q1-alte-Basis;3314.30;Akontorechnung AHV Q1/2021 auf alter Basis 22125.00 - nicht bezahlt, per Mail vom 31.03.2021 Anpassung der Lohnsumme verlangt;
+46-47;2021-01-25;rechnung_definitiv;Schlussrechnung-2020;13245.70;Schlussrechnung 2020 - Basis 88500.00, Ratenzahlung beantragt;2021-05-05
+48;2020-08-24;rechnung_definitiv;Nachtragsrechnung-2019;1106.30;Nachtragsrechnung 2019 - Basis 59571.00 nach Nachtrag zur Lohndeklaration;2020-09-23
+49-50;2020-02-17;rechnung_definitiv;Schlussrechnung-2019;7648.10;Schlussrechnung 2019 (01.04.-31.12.2019) - Basis 52000.00, inkl. Verzugszins 49.60;2020-06-08
+51-56;2025-11-19;brief;Lohndeklaration-2025;;Aufforderung Lohndeklaration 2025, Frist 30.01.2026 - eingereicht erst 10.02.2026;
+57;2024-11-20;brief;Lohndeklaration-2024;;Aufforderung Lohndeklaration 2024, Frist 30.01.2025 - eingereicht 03.02.2025;
+58-61;2023-11-22;brief;Lohndeklaration-2023;;Aufforderung Lohndeklaration 2023, Frist 30.01.2024 - abgeschickt 02.02.2024;
+62-63;2023-03-29;verfuegung;Verzugszins-2022;36.50;Verfuegung Verzugszinsen auf der Schlussrechnung 2022 (4533.60, 58 Tage);
+64-65;2023-02-16;brief;Verwaltungskosten-2023;;Informationsschreiben Verwaltungskostenbeitraege ab 01.01.2023 - reduzierter Satz bei Nutzung des AHVeasy-Portals;
+66-68;2022-11-24;brief;Lohndeklaration-2022;;Aufforderung Lohndeklaration 2022, Frist 30.01.2023 - eingereicht via AHVeasy am 30.01.2023 (fristgerecht);
+69;2022-09-02;brief;CO2-Rueckverteilung-2022;75.40;CO2-Abgabe 2022 - Rueckverteilung an Unternehmen, Basis AHV-Lohnsumme 2020 von 88500.00;
+70-74;2022-07-19;verfuegung;Verzugszins-2021;55.95;Verfuegung Verzugszinsen auf der Schlussrechnung 2021 (7130.45, 58 Tage);
+75;2019-06-07;vertrag;Erfassung-Arbeitgeber;;Erfassung als Arbeitgeber bei der AHV-Ausgleichskasse Graubuenden, Abrechnungs-Nr. 10.000.969 - erfasst ab 01.04.2019 (Handnotiz Daniel - richtig waere 1. Mai);

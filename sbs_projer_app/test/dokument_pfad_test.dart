@@ -71,7 +71,8 @@ void main() {
       final k = dokumentKategorien('versicherungen');
       expect(k, isNotNull);
       expect(k!['pensionskasse'], 'Pensionskasse (BVG)');
-      expect(k.keys, containsAll(['pensionskasse', 'unfall', 'haftpflicht']));
+      expect(k['ahv'], 'AHV/IV/EO/ALV/FAK (SVA)');
+      expect(k.keys, containsAll(['ahv', 'pensionskasse', 'unfall', 'haftpflicht']));
     });
 
     test('Bereiche ohne feste Liste liefern null (Freitext im Dialog)', () {
@@ -91,9 +92,10 @@ void main() {
           'mahnung',
           'kontoauszug',
           'freizuegigkeit',
+          'verfuegung',
           'vertrag',
         ]),
-        reason: 'Der Ordner 06_PK enthaelt genau diese Typen',
+        reason: 'Die Ordner 06_PK und 04_SVA enthalten genau diese Typen',
       );
     });
 

@@ -14,6 +14,52 @@
 
 ---
 
+## ✅ ORDNER 04_SVA ERSCHLOSSEN (08.09.2026) — 44 Dokumente, Kategorie «AHV»
+
+119 Handy-Fotos (alle am 08.06.2026 abfotografiert) → **44 benannte PDFs** unter `00_Rechnungen/04_SVA/aufbereitet/`, alle im Dokumente-Modul unter **Versicherungen → AHV/IV/EO/ALV/FAK (SVA)**, Abrechnungs-Nr. 10.000.969. Katalog `Datenbank/import/sva_dokumente_katalog.csv`, Skript `import_sva_dokumente.py`. 44 Trennblätter sauber erkannt, 75 Nutzseiten lückenlos zugeordnet.
+
+Neu im Code (v0.99.7): Kategorie **`ahv`** und Dokumenttyp **`verfuegung`**.
+
+| Typ | Anzahl | Zeitraum |
+|---|---|---|
+| Beitragsrechnungen (Akonto, Schluss, Nachtrag, Differenz) | 23 | 2019–2026 |
+| **Mahnungen** | **8** | 2022–2025 |
+| **Verfügungen** (Verzugszins, Zahlungsaufschub) | **6** | 2021–2026 |
+| Lohndeklarations-Aufforderungen und Infoschreiben | 6 | 2019–2025 |
+| Erfassung als Arbeitgeber | 1 | 2019 |
+
+### 🔴 Der teuerste Befund des Tages: die eingefrorene Akonto-Basis
+
+**Am 31.03.2021 hat Daniel die SVA per Mail um eine Anpassung der Lohnsumme gebeten** — die Handnotiz steht auf der Akontorechnung Q1/2021 (`2021_SVA_Akonto-Q1-alte-Basis_3314.30.pdf`, dort auch «Rechnung nicht bezahlt»). Die SVA senkte daraufhin die Basis von **22'125.00 auf 7'683.50 pro Quartal** (Differenzrechnung vom 09.04.2021). Seither steht sie unverändert auf **30'734 im Jahr** — auch in der Akontorechnung Q3/2026 vom 02.09.2026.
+
+**Die tatsächliche Lohnsumme lag und liegt weit darüber:**
+
+| Jahr | Akonto-Basis | tatsächlich (Schlussrechnung) | Nachzahlung |
+|---|---|---|---|
+| 2019 (ab 01.04.) | — | 52'000 → 59'571 (Nachtrag) | 7'648.10 + 1'106.30 |
+| 2020 | 88'500 | 88'500 | 13'245.70 (in 10 Raten) |
+| 2021 | 30'734 ab Q2 | — | Mahnung über 7'130.45 |
+| 2022 | 30'734 | — | Mahnung über 4'533.60 |
+| 2023 | 30'734 | **58'500** | **4'605.30** |
+| 2024 | 30'734 | — | Mahnung über 4'267.10 |
+| 2026 | 30'734 | Lohnsumme Jan–Jul bereits 52'316.05 | folgt |
+
+**Was das gekostet hat (alles belegt):**
+- **Bussen 300.00** in der Schlussrechnung 2023 (wegen verspäteter Einreichung der Unterlagen)
+- **Verzugszinsen** in fünf Verfügungen: 160.20 (2020) · 55.95 (2021) · 36.50 (2022) · 34.35 (2024) · 32.95 (2025) = **319.95**
+- **Mahngebühren** auf 16 Dokumenten, dazu 8 förmliche Mahnungen mit Betreibungsandrohung
+- 2021 musste ein **Zahlungsaufschub** über 10 Raten beantragt werden (13'245.70)
+
+**Die Ursache ist doppelt:**
+1. **Die Akonto-Basis ist zu tief.** Jede Schlussrechnung bringt darum eine Nachzahlung von mehreren tausend Franken auf einmal — und die wird regelmässig zu spät bezahlt.
+2. **Die Lohndeklaration geht zu spät raus.** Frist ist jeweils der 30. Januar: 2022 eingereicht am 30.01.2023 (fristgerecht, via AHVeasy), 2023 am **02.02.2024**, 2024 am **03.02.2025**, 2025 am **10.02.2026**. Die Verfügung vom 10.02.2026 nennt genau das als Grund.
+
+- [ ] **🔴 Akonto-Basis bei der SVA anpassen lassen** (Marco Cavegn, 081 257 41 53, oder faktura@sva.gr.ch, Abrechnungs-Nr. 10.000.969). Realistisch wären für 2026 rund 90'000 statt 30'734. Das verteilt die Last auf vier Quartale statt eine Nachzahlung und beendet die Mahnspirale.
+- [ ] **🔵 Lohndeklaration 2026 bis 30.01.2027 einreichen** — via AHVeasy dauert das Minuten. Jeder Tag danach kostet 5 % Verzugszins auf der ganzen Beitragsdifferenz.
+- [ ] Prüfen, ob die SVA die **CO2-Rückverteilung** korrekt gutschreibt: Sie bemisst sich an der AHV-Lohnsumme; 2022 wurden 75.40 auf Basis 88'500 gutgeschrieben, seither auf der zu tiefen Basis entsprechend weniger.
+
+---
+
 ## ✅ ORDNER 06_PK ERSCHLOSSEN (08.09.2026) — 40 Dokumente in der App
 
 Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als Namen, alle am 09.06.2026 in einer halben Stunde abfotografiert) plus 12 Portal-PDFs. Jetzt: 27 benannte PDFs unter `00_Rechnungen/06_PK/aufbereitet/` und **36 Dokumente im Dokumente-Modul** (Bereich «versicherungen», Kategorie `bvg`, Referenz 2/452968).

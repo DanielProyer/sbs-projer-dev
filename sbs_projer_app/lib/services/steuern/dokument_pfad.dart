@@ -25,6 +25,7 @@ const _typLabels = <String, String>{
   'police': 'Police',
   'kontoauszug': 'Kontoauszug',
   'freizuegigkeit': 'Freizügigkeitsleistung',
+  'verfuegung': 'Verfügung',
   'vertrag': 'Vertrag',
   'brief': 'Brief',
   'sonstiges': 'Sonstiges',
@@ -51,6 +52,7 @@ const _typenJeBereich = <String, List<String>>{
     'rechnung_definitiv',
     'mahnung',
     'kontoauszug',
+    'verfuegung',
     'freizuegigkeit',
     'vertrag',
     'brief',
@@ -74,6 +76,7 @@ const steuerarten = <String, String>{
 /// BVG-Dokumente, die sich sonst nicht von Haftpflicht oder Unfall trennen
 /// liessen.
 const versicherungsarten = <String, String>{
+  'ahv': 'AHV/IV/EO/ALV/FAK (SVA)',
   'pensionskasse': 'Pensionskasse (BVG)',
   'unfall': 'Unfall (UVG/SUVA)',
   'krankentaggeld': 'Krankentaggeld (KTG)',
