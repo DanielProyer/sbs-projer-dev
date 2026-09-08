@@ -34,6 +34,7 @@ AbschlussKontext k({
   String steuerjahrStatus = 'offen',
   Set<String> offeneRechnungenMitZahlung = const {},
   List<UnverbuchteReinigung> unverbuchteReinigungen = const [],
+  int buchungenFalschesJahr = 0,
 }) => AbschlussKontext(
   jahr: jahr,
   heute: heute ?? DateTime(2026, 9, 2),
@@ -46,6 +47,7 @@ AbschlussKontext k({
   steuerjahrStatus: steuerjahrStatus,
   offeneRechnungenMitZahlung: offeneRechnungenMitZahlung,
   unverbuchteReinigungen: unverbuchteReinigungen,
+  buchungenFalschesJahr: buchungenFalschesJahr,
 );
 
 Pruefbefund f(List<Pruefbefund> l, String id) =>
@@ -447,9 +449,9 @@ void main() {
     expect(k(jahr: 2025).letztesQuartalsende(), DateTime(2025, 12, 31));
     expect(k(jahr: 2026).letztesQuartalsende(), DateTime(2026, 6, 30));
   });
-  test('Sortierung: rot vor gelb vor grün; 15 Regeln', () {
+  test('Sortierung: rot vor gelb vor grün; 16 Regeln', () {
     final l = AbschlussPruefService.pruefe(k(buchungen: [b(6200, 1020, 5, d)]));
-    expect(l.length, 15);
+    expect(l.length, 16);
     expect(l.first.status, PruefStatus.rot);
     expect(l.last.status, PruefStatus.gruen);
   });
@@ -753,5 +755,25 @@ void main() {
     );
     expect(r.status, PruefStatus.gelb);
     expect(r.ist, contains('500'));
+  });
+
+  // --- Geschäftsjahr passt nicht zum Datum (Befund 08.09.2026) ---------------
+  // Zwölf MWST-Saldierungen mit Datum 2025 trugen geschaeftsjahr 2026: Ein
+  // SQL-Lauf am 01.09. hatte pauschal das laufende Jahr gesetzt. Die Bilanz
+  // rechnet über das Datum und blieb richtig, die Buchungsliste sortierte sie
+  // aber ins falsche Jahr — und die v2-Plattform brach daran ab.
+
+  test('Buchungen mit falschem Geschäftsjahr: keine → grün, welche → rot', () {
+    expect(
+      f(AbschlussPruefService.pruefe(k()), 'geschaeftsjahr_datum').status,
+      PruefStatus.gruen,
+    );
+    final r = f(
+      AbschlussPruefService.pruefe(k(buchungenFalschesJahr: 12)),
+      'geschaeftsjahr_datum',
+    );
+    expect(r.status, PruefStatus.rot);
+    expect(r.ist, contains('12'));
+    expect(r.aktionRoute, '/buchhaltung/buchungen');
   });
 }

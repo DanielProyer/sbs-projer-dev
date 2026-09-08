@@ -77,6 +77,9 @@ class AbschlussKontext {
   final Set<String> offeneRechnungenMitZahlung;
   final List<UnverbuchteReinigung> unverbuchteReinigungen;
 
+  /// Buchungen, deren `geschaeftsjahr` nicht zum Jahr des Datums passt.
+  final int buchungenFalschesJahr;
+
   AbschlussKontext({
     required this.jahr,
     required this.heute,
@@ -89,6 +92,7 @@ class AbschlussKontext {
     this.steuerjahrStatus = 'offen',
     required this.offeneRechnungenMitZahlung,
     this.unverbuchteReinigungen = const [],
+    this.buchungenFalschesJahr = 0,
   });
 
   bool get jahrAbgeschlossen => jahr < heute.year;

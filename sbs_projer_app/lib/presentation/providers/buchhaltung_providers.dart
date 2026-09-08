@@ -160,7 +160,7 @@ class BankWaechterStand {
       verbindlichkeiten.isEmpty && (schluss?.ok ?? true);
 }
 
-/// Abschlussprüfung je Jahr (15 Regeln, Spec 02.09.2026 Abschnitt 4).
+/// Abschlussprüfung je Jahr (16 Regeln, Spec 02.09.2026 Abschnitt 4).
 /// Lädt alles vorab, damit die Regeln rein bleiben; rechnet nach jeder
 /// Buchung neu.
 /// `autoDispose`, weil jedes einmal gewählte Jahr sonst dauerhaft mitrechnet:
@@ -240,6 +240,15 @@ final abschlussPruefungProvider =
     steuerjahrStatus: statusListe.isEmpty ? 'offen' : statusListe.first,
     offeneRechnungenMitZahlung: mitZahlung,
     unverbuchteReinigungen: unverbucht,
+    // Datum und Geschäftsjahr müssen zusammenpassen — ein Saldierungslauf
+    // hatte am 01.09.2026 bei zwölf Zeilen pauschal das laufende Jahr
+    // gesetzt. Aus dem bereits geladenen Journal, kostet keine Abfrage.
+    buchungenFalschesJahr: buchungen
+        .where(
+          (b) =>
+              !b.istStorniert && b.datum.year != b.geschaeftsjahr,
+        )
+        .length,
   ));
 });
 

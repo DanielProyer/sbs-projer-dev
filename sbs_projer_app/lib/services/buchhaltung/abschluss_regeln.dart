@@ -550,6 +550,37 @@ class ReinigungenOhneBuchungRegel extends AbschlussRegel {
   }
 }
 
+/// Buchungen, deren Geschäftsjahr nicht zum Datum passt.
+///
+/// Anlass: Am 01.09.2026 setzte ein Saldierungslauf bei zwölf Zeilen mit
+/// Datum 2025 pauschal das laufende Jahr 2026. Die Bilanz rechnet über das
+/// Datum und blieb richtig — auffallen konnte es trotzdem nirgends, bis die
+/// v2-Plattform daran abbrach. Die Buchungsliste sortiert solche Zeilen ins
+/// falsche Jahr, und wer nach Geschäftsjahr auswertet, zählt sie doppelt
+/// daneben.
+class GeschaeftsjahrDatumRegel extends AbschlussRegel {
+  @override
+  String get id => 'geschaeftsjahr_datum';
+  @override
+  String get gruppe => 'Abschluss';
+  @override
+  String get titel => 'Geschäftsjahr passt zum Datum';
+  @override
+  Pruefbefund pruefe(AbschlussKontext k) {
+    final n = k.buchungenFalschesJahr;
+    return befund(
+      n == 0 ? PruefStatus.gruen : PruefStatus.rot,
+      ist: n == 0 ? 'alle stimmig' : '$n Buchungen',
+      soll: '0',
+      hinweis: n == 0
+          ? ''
+          : 'Datum und Geschäftsjahr laufen auseinander — die Buchungen '
+                'landen in der falschen Jahresauswertung.',
+      route: '/buchhaltung/buchungen',
+    );
+  }
+}
+
 List<AbschlussRegel> alleAbschlussRegeln() => [
   BankCamtRegel(),
   CamtKetteRegel(),
@@ -564,6 +595,7 @@ List<AbschlussRegel> alleAbschlussRegeln() => [
   LohnkontenRegel(),
   FehlerKontenRegel(),
   ReinigungenOhneBuchungRegel(),
+  GeschaeftsjahrDatumRegel(),
   SteuerZuordnungRegel(),
   SteuererklaerungRegel(),
 ];
