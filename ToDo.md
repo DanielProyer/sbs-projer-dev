@@ -14,6 +14,33 @@
 
 ---
 
+## ✅ ORDNER 17_FIRMENGRÜNDUNG ERSCHLOSSEN (08.09.2026) — 12 Dokumente, Bereich «Verträge»
+
+80 Handy-Fotos → **12 benannte PDFs** unter `00_Rechnungen/17_Firmengründung/aufbereitet/`, im Dokumente-Modul unter **Verträge** mit den neuen Kategorien **Gründung**, **Franchise (Heineken)** und **Fahrzeug**. 68 Nutzseiten lückenlos. Katalog `gruendung_dokumente_katalog.csv`, Skript `import_gruendung_dokumente.py`.
+
+**Inhaltlich der wertvollste Ordner bisher** — hier liegen die Papiere, auf denen das ganze Geschäft steht:
+
+| Dokument | Datum | Seiten |
+|---|---|---|
+| **Franchisevertrag Heineken Switzerland AG** | 04/2019 | 13 |
+| **Statuten** SBS Projer GmbH | 12.04.2019 | 11 |
+| **Öffentliche Beurkundung der Gründung** (Notar Althaus, Glarus) | 12.04.2019 | 5 |
+| GV-Protokoll (Zeichnungsberechtigung, Revisionsverzicht) | 12.04.2019 | 1 |
+| Handelsregisterauszug | 23.04.2019 | 2 |
+| UID-Zuteilung CHE-413.083.919 | 07.05.2019 | 2 |
+| Franchisemodell — Startup-Checkliste Version 7 | 10.10.2017 | 18 |
+| **Fahrzeugüberlassungsvertrag** (Caddy Maxi 4x4, GR 169832) | 26.03.2019 | 8 |
+| Akzept Einkaufsbedingungen und Lieferantenkodex | 25.04.2019 | 5 |
+| Kundenbrief und internes Memo zur Übernahme | 04/2019 | je 1 |
+
+**Kontext, der bisher nirgends festgehalten war:** Daniel übernahm das **Gebiet 16** (Graubünden ohne Engadin, Oberhalbstein und Albulatal) per **01.05.2019** von **Tino Hassler (SBS Hassler GmbH)**, der sich pensionieren liess. Im GV-Protokoll steht der erwartete Jahresumsatz von rund **170'000** und der Verzicht auf die eingeschränkte Revision.
+
+Neu im Code (v0.99.8): `vertragsarten` (Gründung, Franchise, Fahrzeug, Miete, Sonstiges) und die Dokumenttypen **Statuten**, **Öffentliche Urkunde**, **Protokoll**.
+
+- [ ] Der **Franchisevertrag** lohnt eine genaue Durchsicht — er regelt die Franchisegebühr (aktuell 3'772.70 monatlich), das Gebiet und die Kündigungsfristen. Falls die Ablösung Richtung v2 je vertragliche Fragen aufwirft, liegt die Antwort hier.
+
+---
+
 ## ✅ ORDNER 05_SUVA ERSCHLOSSEN (08.09.2026) — 26 Dokumente, Kategorie «Unfall»
 
 105 Handy-Fotos → **26 benannte PDFs** unter `00_Rechnungen/05_SUVA/aufbereitet/`, alle im Dokumente-Modul unter **Versicherungen → Unfall (UVG/SUVA)**, Kunden-Nr. 4-00003-10064. Katalog `suva_dokumente_katalog.csv`, Skript `import_suva_dokumente.py`. 88 Nutzseiten lückenlos zugeordnet.

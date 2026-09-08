@@ -26,6 +26,9 @@ const _typLabels = <String, String>{
   'kontoauszug': 'Kontoauszug',
   'freizuegigkeit': 'Freizügigkeitsleistung',
   'verfuegung': 'Verfügung',
+  'statuten': 'Statuten',
+  'urkunde': 'Öffentliche Urkunde',
+  'protokoll': 'Protokoll',
   'vertrag': 'Vertrag',
   'brief': 'Brief',
   'sonstiges': 'Sonstiges',
@@ -58,7 +61,7 @@ const _typenJeBereich = <String, List<String>>{
     'brief',
     'sonstiges',
   ],
-  'vertraege': ['vertrag', 'brief', 'sonstiges'],
+  'vertraege': ['vertrag', 'statuten', 'urkunde', 'protokoll', 'brief', 'sonstiges'],
   'behoerden': ['brief', 'veranlagung', 'sonstiges'],
   'bank': ['zinsausweis', 'vertrag', 'brief', 'sonstiges'],
   'sonstiges': ['brief', 'sonstiges'],
@@ -84,11 +87,24 @@ const versicherungsarten = <String, String>{
   'fahrzeug': 'Fahrzeug',
 };
 
+/// Kategorien im Bereich «Verträge» — der Ordner 17_Firmengründung enthält
+/// Gründungsakte, den Heineken-Franchisevertrag und den
+/// Fahrzeugüberlassungsvertrag; ohne Trennung liegen sie unauffindbar
+/// nebeneinander.
+const vertragsarten = <String, String>{
+  'gruendung': 'Gründung',
+  'franchise': 'Franchise (Heineken)',
+  'fahrzeug': 'Fahrzeug',
+  'miete': 'Miete',
+  'sonstiges': 'Sonstiges',
+};
+
 /// Feste Kategorien eines Bereichs, oder null wenn dort Freitext gilt.
 /// Der Upload-Dialog zeigt danach ein Dropdown statt eines Textfelds.
 Map<String, String>? dokumentKategorien(String bereich) => switch (bereich) {
   'steuern' => steuerarten,
   'versicherungen' => versicherungsarten,
+  'vertraege' => vertragsarten,
   _ => null,
 };
 

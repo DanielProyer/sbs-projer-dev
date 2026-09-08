@@ -75,10 +75,26 @@ void main() {
       expect(k.keys, containsAll(['ahv', 'pensionskasse', 'unfall', 'haftpflicht']));
     });
 
+    test('Vertraege kennen Gruendung und Franchise', () {
+      final k = dokumentKategorien('vertraege');
+      expect(k, isNotNull);
+      expect(k!['gruendung'], 'Gründung');
+      expect(k.keys, containsAll(['gruendung', 'franchise', 'fahrzeug']));
+    });
+
     test('Bereiche ohne feste Liste liefern null (Freitext im Dialog)', () {
       expect(dokumentKategorien('bank'), isNull);
       expect(dokumentKategorien('sonstiges'), isNull);
+      expect(dokumentKategorien('behoerden'), isNull);
     });
+  });
+
+  test('Dokumenttypen der Vertraege decken die Gruendungsakte ab', () {
+    final t = dokumentTypen('vertraege');
+    expect(t, containsAll(['vertrag', 'statuten', 'urkunde', 'protokoll']));
+    for (final typ in t) {
+      expect(dokumentTypLabel(typ), isNot(typ));
+    }
   });
 
   group('Dokumenttypen der Versicherungen', () {
