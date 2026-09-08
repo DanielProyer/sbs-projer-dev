@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/oeffnungszeiten_text.dart';
 import 'package:sbs_projer_app/core/util/servicezeit_vorschlag.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -35,6 +36,10 @@ class ServicezeitKandidat {
   /// Spanne und häufigste Startstunde über alle Besuche.
   final BesuchsUebersicht? uebersicht;
 
+  /// Öffnungszeiten des Betriebs als eine Zeile — damit beim Festlegen der
+  /// Servicezeit daneben steht, wann überhaupt offen ist.
+  final String? oeffnungszeiten;
+
   const ServicezeitKandidat({
     required this.betriebId,
     required this.name,
@@ -46,6 +51,7 @@ class ServicezeitKandidat {
     required this.vorschlag,
     this.besuchsliste = const [],
     this.uebersicht,
+    this.oeffnungszeiten,
   });
 
   String get label =>
@@ -111,8 +117,9 @@ class ServicezeitDurchsichtRepository {
       await client
           .from('betriebe')
           .select(
-            'id, name, ort, servicezeit_morgen_ab, servicezeit_morgen_bis, '
-            'servicezeit_nachmittag_ab, servicezeit_nachmittag_bis',
+            'id, name, ort, oeffnungszeiten, servicezeit_morgen_ab, '
+            'servicezeit_morgen_bis, servicezeit_nachmittag_ab, '
+            'servicezeit_nachmittag_bis',
           )
           .eq('user_id', userId)
           .eq('status', 'aktiv')
@@ -179,6 +186,11 @@ class ServicezeitDurchsichtRepository {
               ..sort((x, y) => y.datum.compareTo(x.datum)),
           ],
           uebersicht: besuchsUebersicht(zeiten[b['id'].toString()] ?? []),
+          oeffnungszeiten: oeffnungszeitenKompakt(
+            b['oeffnungszeiten'] is Map<String, dynamic>
+                ? b['oeffnungszeiten'] as Map<String, dynamic>
+                : null,
+          ),
         ),
     ];
     liste.sort((a, b) {

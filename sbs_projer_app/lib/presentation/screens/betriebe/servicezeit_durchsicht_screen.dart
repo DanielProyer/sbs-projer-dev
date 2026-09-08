@@ -246,6 +246,29 @@ class _ServicezeitDurchsichtScreenState
             k.label,
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           ),
+          if (k.oeffnungszeiten != null) ...[
+            const SizedBox(height: 3),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.storefront_outlined,
+                  size: 13,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    k.oeffnungszeiten!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             v.hatVorschlag
