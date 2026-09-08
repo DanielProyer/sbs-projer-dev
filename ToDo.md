@@ -1,6 +1,20 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 02.09. spät (für die nächste Session)
+## 📌 SESSION-ÜBERGABE 08.09. abends (für die nächste Session)
+
+**Stand:** **v0.99.4 live** · Migrationen bis **187** ausgeführt · 1330 Tests grün · Git sauber, alles gepusht.
+
+**Heute gebaut (6 Deploys):** Servicezeiten-Durchsicht [Betriebe → Uhr-Symbol, 201 von 305 Betrieben ohne Servicezeit] · Saison-Historie [Migration 186] · zwei Bugfixes [vergangene Saison-Termine im Kalender-Dialog; MWST-Saldierungen mit falschem Geschäftsjahr] · Spesen-Erkennung für Fahrzeug-Betriebsmittel.
+
+**⚠️ Zwei neue Screens sind von mir nie im Browser gesehen worden** (Login): **Servicezeiten-Durchsicht** [Wischgesten!] und die **Steuern-Screens aus v0.96**. Vor dem ernsthaften Einsatz einmal ansehen; bei «ich sehe X nicht» Screenshot schicken.
+
+**Offen für Daniel:** Steuererklärung 2025 bis 30.09. [Jahresrechnung unterschreiben, Lohnausweis, GKB Zins-/Kapitalausweis holen, alles unter Steuern → 2025 hochladen] · Materialbestellung [Zapfhahn David = 0, Zapfkopf David = 1, Lüftermotor Heigenie als Artikel anlegen] · August-Lohnlauf [2002 im Soll] · nächster camt-Import · Anlage bei Pizzeria Badus erfassen [dann `ist_mein_kunde` gegenprüfen] · Referenz-Nr für die Störung Dancing Zur Zinne vom 28.08.
+
+**Der Heineken-Session bestätigen** (SendMessage fehlt hier): Geschäftsjahr-Korrektur, Pizzeria Badus, Weissfluhjoch-Küche — alles erledigt, beide Stämme wieder gleich.
+
+---
+
+## 📌 SESSION-ÜBERGABE 02.09. spät
 
 **Stand:** **v0.96.1 live** (v0.96.0 `d56cda9` + Review-Fixes) · Migrationen bis **185** ausgeführt · Branch `feature/steuern-dokumente-audit` nach `main` gemergt. **Neu in v0.96.0** (Spec `docs/superpowers/specs/2026-09-02-steuern-dokumente-audit-design.md`, Plan `docs/superpowers/plans/2026-09-02-steuern-dokumente-audit.md`, 15 Tasks subagent-driven mit je 2 Reviews):
 - **Dokumente-Modul** (Home → Dokumente, Bucket `dokumente`, Tabelle `dokumente`, Bereiche steuern/versicherungen/verträge/behörden/bank/sonstiges, Filter Bereich/Jahr, Upload PDF/JPG/PNG ≤ 20 MB).
