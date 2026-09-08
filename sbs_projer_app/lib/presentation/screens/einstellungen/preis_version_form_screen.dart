@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/preis.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class PreisVersionFormScreen extends ConsumerStatefulWidget {
@@ -18,8 +19,8 @@ class PreisVersionFormScreen extends ConsumerStatefulWidget {
       _PreisVersionFormScreenState();
 }
 
-class _PreisVersionFormScreenState
-    extends ConsumerState<PreisVersionFormScreen> {
+class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = true;
   bool _isSaving = false;
@@ -186,6 +187,8 @@ class _PreisVersionFormScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Preisversion gespeichert')),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -206,7 +209,10 @@ class _PreisVersionFormScreenState
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (picked != null) setState(() => _gueltigAb = picked);
+    if (picked != null) {
+      markiereGeaendert();
+      setState(() => _gueltigAb = picked);
+    }
   }
 
   @override
@@ -218,140 +224,146 @@ class _PreisVersionFormScreenState
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isReadOnly
-            ? 'Preisversion ${DateFormat('dd.MM.yyyy').format(_gueltigAb)}'
-            : 'Neue Werte erfassen'),
-        actions: [
-          if (_isReadOnly)
-            IconButton(
-              icon: const Icon(Icons.copy),
-              tooltip: 'Als neue Version kopieren',
-              onPressed: () {
-                setState(() {
-                  _isReadOnly = false;
-                  _gueltigAb = DateTime.now();
-                });
-              },
-            ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          children: [
-            // Gültig ab
-            _FieldRow(
-              label: 'Gültig ab',
-              child: InkWell(
-                onTap: _isReadOnly ? null : _pickDate,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
-                    borderRadius: BorderRadius.circular(8),
-                    color: _isReadOnly ? Colors.grey.shade100 : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('dd.MM.yyyy').format(_gueltigAb),
-                        style: const TextStyle(fontSize: 15),
-                      ),
-                      if (!_isReadOnly) ...[
-                        const SizedBox(width: 8),
-                        Icon(Icons.edit_calendar,
-                            size: 18, color: Colors.grey.shade600),
-                      ],
-                    ],
-                  ),
-                ),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Preisversion',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isReadOnly
+              ? 'Preisversion ${DateFormat('dd.MM.yyyy').format(_gueltigAb)}'
+              : 'Neue Werte erfassen'),
+          actions: [
+            if (_isReadOnly)
+              IconButton(
+                icon: const Icon(Icons.copy),
+                tooltip: 'Als neue Version kopieren',
+                onPressed: () {
+                  markiereGeaendert();
+                  setState(() {
+                    _isReadOnly = false;
+                    _gueltigAb = DateTime.now();
+                  });
+                },
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // === KATEGORIE: Heineken Preise ===
-            _categoryHeader(
-              'Heineken Preise',
-              Icons.business,
-              'Änderung ca. alle 2–5 Jahre',
-            ),
-
-            // Reinigung Grundtarife
-            _sectionHeader('Reinigung Grundtarife'),
-            _numRow('Bier', _reinBierCtrl),
-            _numRow('Orion', _reinOrionCtrl),
-            _numRow('Heigenie', _reinHeigenieCtrl),
-            _numRow('Fremd', _reinFremdCtrl),
-            _numRow('Wein', _reinWeinCtrl),
-            const SizedBox(height: 16),
-
-            // Zusatz pro Hahn
-            _sectionHeader('Zusatz pro Hahn'),
-            _numRow('Eigen', _hahnEigenCtrl),
-            _numRow('Orion', _hahnOrionCtrl),
-            _numRow('Fremd', _hahnFremdCtrl),
-            _numRow('Wein', _hahnWeinCtrl),
-            _numRow('Anderer Standort', _hahnAndererCtrl),
-            const SizedBox(height: 16),
-
-            // Störungspreise
-            _sectionHeader('Störungspreise Normal'),
-            for (int i = 0; i < 5; i++)
-              _numRow(
-                'Bereich ${i + 1}',
-                [_st1NCtrl, _st2NCtrl, _st3NCtrl, _st4NCtrl, _st5NCtrl][i],
-              ),
-            const SizedBox(height: 12),
-            _sectionHeader('Störungspreise Bergkunde'),
-            for (int i = 0; i < 5; i++)
-              _numRow(
-                'Bereich ${i + 1}',
-                [_st1BCtrl, _st2BCtrl, _st3BCtrl, _st4BCtrl, _st5BCtrl][i],
-              ),
-            const SizedBox(height: 16),
-
-            // Anfahrt
-            _sectionHeader('Störung Anfahrt'),
-            _numRow('Pauschale', _anfahrtPauschCtrl),
-            _numRow('km-Grenze', _anfahrtKmGrCtrl, isInt: true),
-            _numRow('km-Satz', _anfahrtKmSatzCtrl),
-            _numRow('WE-Zuschlag', _weZuschlagCtrl),
-            const SizedBox(height: 16),
-
-            // Weitere
-            _sectionHeader('Weitere Preise'),
-            _numRow('Eigenauftrag', _eigenauftragCtrl),
-            _numRow('Montage/Std.', _montageStdCtrl),
-            _numRow('Pikett', _pikettPauschCtrl),
-            _numRow('Pikett Feiertag', _pikettFeiertagCtrl),
-            _numRow('Eröffnung Normal', _eroeffnungNCtrl),
-            _numRow('Eröffnung Bergk.', _eroeffnungBCtrl),
-            _numRow('Bergkunden-Zuschlag', _bergkundenZCtrl),
-            const SizedBox(height: 24),
-
-            if (!_isReadOnly)
-              FilledButton.icon(
-                onPressed: _isSaving ? null : _save,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.save),
-                label: const Text('Speichern'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-              ),
-
-            const SizedBox(height: 32),
           ],
+        ),
+        body: Form(
+          key: _formKey,
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            children: [
+              // Gültig ab
+              _FieldRow(
+                label: 'Gültig ab',
+                child: InkWell(
+                  onTap: _isReadOnly ? null : _pickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                      color: _isReadOnly ? Colors.grey.shade100 : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          DateFormat('dd.MM.yyyy').format(_gueltigAb),
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                        if (!_isReadOnly) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.edit_calendar,
+                              size: 18, color: Colors.grey.shade600),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // === KATEGORIE: Heineken Preise ===
+              _categoryHeader(
+                'Heineken Preise',
+                Icons.business,
+                'Änderung ca. alle 2–5 Jahre',
+              ),
+
+              // Reinigung Grundtarife
+              _sectionHeader('Reinigung Grundtarife'),
+              _numRow('Bier', _reinBierCtrl),
+              _numRow('Orion', _reinOrionCtrl),
+              _numRow('Heigenie', _reinHeigenieCtrl),
+              _numRow('Fremd', _reinFremdCtrl),
+              _numRow('Wein', _reinWeinCtrl),
+              const SizedBox(height: 16),
+
+              // Zusatz pro Hahn
+              _sectionHeader('Zusatz pro Hahn'),
+              _numRow('Eigen', _hahnEigenCtrl),
+              _numRow('Orion', _hahnOrionCtrl),
+              _numRow('Fremd', _hahnFremdCtrl),
+              _numRow('Wein', _hahnWeinCtrl),
+              _numRow('Anderer Standort', _hahnAndererCtrl),
+              const SizedBox(height: 16),
+
+              // Störungspreise
+              _sectionHeader('Störungspreise Normal'),
+              for (int i = 0; i < 5; i++)
+                _numRow(
+                  'Bereich ${i + 1}',
+                  [_st1NCtrl, _st2NCtrl, _st3NCtrl, _st4NCtrl, _st5NCtrl][i],
+                ),
+              const SizedBox(height: 12),
+              _sectionHeader('Störungspreise Bergkunde'),
+              for (int i = 0; i < 5; i++)
+                _numRow(
+                  'Bereich ${i + 1}',
+                  [_st1BCtrl, _st2BCtrl, _st3BCtrl, _st4BCtrl, _st5BCtrl][i],
+                ),
+              const SizedBox(height: 16),
+
+              // Anfahrt
+              _sectionHeader('Störung Anfahrt'),
+              _numRow('Pauschale', _anfahrtPauschCtrl),
+              _numRow('km-Grenze', _anfahrtKmGrCtrl, isInt: true),
+              _numRow('km-Satz', _anfahrtKmSatzCtrl),
+              _numRow('WE-Zuschlag', _weZuschlagCtrl),
+              const SizedBox(height: 16),
+
+              // Weitere
+              _sectionHeader('Weitere Preise'),
+              _numRow('Eigenauftrag', _eigenauftragCtrl),
+              _numRow('Montage/Std.', _montageStdCtrl),
+              _numRow('Pikett', _pikettPauschCtrl),
+              _numRow('Pikett Feiertag', _pikettFeiertagCtrl),
+              _numRow('Eröffnung Normal', _eroeffnungNCtrl),
+              _numRow('Eröffnung Bergk.', _eroeffnungBCtrl),
+              _numRow('Bergkunden-Zuschlag', _bergkundenZCtrl),
+              const SizedBox(height: 24),
+
+              if (!_isReadOnly)
+                FilledButton.icon(
+                  onPressed: _isSaving ? null : _save,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.save),
+                  label: const Text('Speichern'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

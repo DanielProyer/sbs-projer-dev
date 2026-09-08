@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 class StoerungFormScreen extends ConsumerStatefulWidget {
@@ -37,7 +38,8 @@ class StoerungFormScreen extends ConsumerStatefulWidget {
   ConsumerState<StoerungFormScreen> createState() => _StoerungFormScreenState();
 }
 
-class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
+class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   StoerungLocal? _existing;
@@ -118,6 +120,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
     try {
       final items = await LagerRepository.getAll();
       if (mounted) {
+        var befuellt = false;
+        final warGeaendert = geaendert;
         setState(() {
           _lagerItems = items;
           // Material-Controller mit Namen befüllen (wenn IDs gesetzt)
@@ -127,10 +131,22 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
               final lager = items
                   .where((l) => l.id == _materialIds[i])
                   .firstOrNull;
-              if (lager != null) _materialControllers[i].text = lager.name;
+              if (lager != null) {
+                _materialControllers[i].text = lager.name;
+                befuellt = true;
+              }
             }
           }
         });
+        // Das Lager kommt asynchron und kann NACH dem Aufbau des Formulars
+        // eintreffen (Reihenfolge zu _loadStoerung ist nicht garantiert).
+        // Das Befüllen der Material-Controller meldet TextFormField dann als
+        // Änderung — der Nutzer hat aber nichts angefasst.
+        if (befuellt && !warGeaendert) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => geaendertZuruecksetzen(),
+          );
+        }
       }
     } catch (_) {}
   }
@@ -269,6 +285,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         );
       }
     } catch (e) {
+      // Die Zeit steht jetzt nur noch lokal im Controller — der haengt an
+      // keinem FormField, also merkt Form.onChanged nichts davon.
+      markiereGeaendert();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ende nicht gespeichert: $e')),
@@ -300,6 +319,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       }
     } catch (e) {
       debugPrint('[Arbeitszeit] Beginn konnte nicht gespeichert werden: $e');
+      // Die Zeit steht jetzt nur noch lokal im Controller — der haengt an
+      // keinem FormField, also merkt Form.onChanged nichts davon.
+      markiereGeaendert();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -568,6 +590,8 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
           ),
         );
         if (kIsWeb) ref.invalidate(stoerungenStreamProvider);
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -678,289 +702,307 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _istKilometerabrechnung
-              ? (_isEdit
-                    ? 'Kilometerabrechnung bearbeiten'
-                    : 'Neue Kilometerabrechnung')
-              : (_isEdit ? 'Störung bearbeiten' : 'Neue Störung'),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Störung',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            _istKilometerabrechnung
+                ? (_isEdit
+                      ? 'Kilometerabrechnung bearbeiten'
+                      : 'Neue Kilometerabrechnung')
+                : (_isEdit ? 'Störung bearbeiten' : 'Neue Störung'),
+          ),
         ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Geplant / erledigt ===
-            // Bis v0.59.0 schrieb das Formular immer 'behoben' — eine Störung
-            // liess sich also gar nicht vorausplanen und tauchte nie im
-            // Tourenplan auf (Fund Daniel 31.07.2026).
-            SwitchListTile(
-              title: const Text('Erst geplant'),
-              subtitle: Text(
-                _geplant
-                    ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
-                    : 'Erledigt — Rapport wird jetzt erfasst',
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter, Chips, Datum/Zeit und die
+          // Material-Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Geplant / erledigt ===
+              // Bis v0.59.0 schrieb das Formular immer 'behoben' — eine Störung
+              // liess sich also gar nicht vorausplanen und tauchte nie im
+              // Tourenplan auf (Fund Daniel 31.07.2026).
+              SwitchListTile(
+                title: const Text('Erst geplant'),
+                subtitle: Text(
+                  _geplant
+                      ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
+                      : 'Erledigt — Rapport wird jetzt erfasst',
+                ),
+                secondary: Icon(
+                  _geplant ? Icons.event_outlined : Icons.check_circle_outline,
+                  color: _geplant ? AppColors.info : AppColors.success,
+                ),
+                value: _geplant,
+                activeTrackColor: AppColors.info,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _geplant = v);
+                },
               ),
-              secondary: Icon(
-                _geplant ? Icons.event_outlined : Icons.check_circle_outline,
-                color: _geplant ? AppColors.info : AppColors.success,
-              ),
-              value: _geplant,
-              activeTrackColor: AppColors.info,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _geplant = v),
-            ),
-            const Divider(height: 24),
+              const Divider(height: 24),
 
-            // === Kilometerabrechnung Switch ===
-            SwitchListTile(
-              title: const Text('Kilometerabrechnung'),
-              subtitle: const Text('Nur Anfahrt abrechnen (ohne Störung)'),
-              secondary: const Icon(Icons.directions_car),
-              value: _istKilometerabrechnung,
-              activeTrackColor: AppColors.primary,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) {
-                setState(() => _istKilometerabrechnung = v);
-                // Bei neuem Eintrag: Beschreibung aus letzter Km-Abrechnung vorausfüllen
-                if (v && !_isEdit) {
-                  final stoerungen = ref.read(stoerungenProvider);
-                  final letzte =
-                      stoerungen.where((s) => s.istKilometerabrechnung).toList()
-                        ..sort((a, b) => b.datum.compareTo(a.datum));
-                  if (letzte.isNotEmpty) {
-                    if (_beschreibungController.text.isEmpty) {
-                      _beschreibungController.text =
-                          letzte.first.problemBeschreibung;
-                    }
-                    if (_anfahrtKmController.text == '0') {
-                      _anfahrtKmController.text = letzte.first.anfahrtKm
-                          .toString();
+              // === Kilometerabrechnung Switch ===
+              SwitchListTile(
+                title: const Text('Kilometerabrechnung'),
+                subtitle: const Text('Nur Anfahrt abrechnen (ohne Störung)'),
+                secondary: const Icon(Icons.directions_car),
+                value: _istKilometerabrechnung,
+                activeTrackColor: AppColors.primary,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istKilometerabrechnung = v);
+                  // Bei neuem Eintrag: Beschreibung aus letzter Km-Abrechnung vorausfüllen
+                  if (v && !_isEdit) {
+                    final stoerungen = ref.read(stoerungenProvider);
+                    final letzte =
+                        stoerungen.where((s) => s.istKilometerabrechnung).toList()
+                          ..sort((a, b) => b.datum.compareTo(a.datum));
+                    if (letzte.isNotEmpty) {
+                      if (_beschreibungController.text.isEmpty) {
+                        _beschreibungController.text =
+                            letzte.first.problemBeschreibung;
+                      }
+                      if (_anfahrtKmController.text == '0') {
+                        _anfahrtKmController.text = letzte.first.anfahrtKm
+                            .toString();
+                      }
                     }
                   }
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // === Betrieb (nur bei normaler Störung) ===
-            if (!_istKilometerabrechnung) ...[
-              _sectionTitle(context, 'Betrieb'),
-              const SizedBox(height: 8),
-              _buildBetriebField(),
+                },
+              ),
               const SizedBox(height: 16),
 
-              // === Anlagentyp ===
-              _sectionTitle(context, 'Anlagentyp'),
-              const SizedBox(height: 8),
-              _buildAnlageTypChips(),
-              const SizedBox(height: 24),
-            ],
+              // === Betrieb (nur bei normaler Störung) ===
+              if (!_istKilometerabrechnung) ...[
+                _sectionTitle(context, 'Betrieb'),
+                const SizedBox(height: 8),
+                _buildBetriebField(),
+                const SizedBox(height: 16),
 
-            // === Zeiterfassung ===
-            _sectionTitle(context, 'Zeiterfassung'),
-            const SizedBox(height: 8),
-            _buildArbeitBeginnBlock(),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _datum,
-                        firstDate: DateTime(2024),
-                        lastDate: DateTime.now().add(const Duration(days: 1)),
-                      );
-                      if (picked != null) {
-                        setState(() => _datum = picked);
-                        _updatePikettAuto();
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Datum',
-                        prefixIcon: Icon(Icons.calendar_today),
+                // === Anlagentyp ===
+                _sectionTitle(context, 'Anlagentyp'),
+                const SizedBox(height: 8),
+                _buildAnlageTypChips(),
+                const SizedBox(height: 24),
+              ],
+
+              // === Zeiterfassung ===
+              _sectionTitle(context, 'Zeiterfassung'),
+              const SizedBox(height: 8),
+              _buildArbeitBeginnBlock(),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _datum,
+                          firstDate: DateTime(2024),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) {
+                          markiereGeaendert();
+                          setState(() => _datum = picked);
+                          _updatePikettAuto();
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Datum',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(_formatDate(_datum)),
                       ),
-                      child: Text(_formatDate(_datum)),
                     ),
                   ),
+                  if (!_istKilometerabrechnung) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _heinekennrController,
+                        decoration: const InputDecoration(
+                          labelText: 'Störungsnummer',
+                          prefixIcon: Icon(Icons.tag),
+                          isDense: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (!_istKilometerabrechnung) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _stoerungseingangController,
+                  decoration: const InputDecoration(
+                    labelText: 'Störungseingang (Uhrzeit)',
+                    prefixIcon: Icon(Icons.phone_callback),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => _updatePikettAuto(),
                 ),
-                if (!_istKilometerabrechnung) ...[
-                  const SizedBox(width: 12),
+              ],
+              const SizedBox(height: 12),
+              _buildArbeitZeitfelder(),
+              const SizedBox(height: 24),
+
+              // === Störungsbereiche (nur bei normaler Störung) ===
+              if (!_istKilometerabrechnung) ...[
+                _sectionTitle(context, 'Störungsbereiche'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    _bereichChip(1, 'Zapfhahn/Säule'),
+                    _bereichChip(2, 'Leitung/Python'),
+                    _bereichChip(3, 'Kühler/Vorkühler'),
+                    _bereichChip(4, 'Zapfkopf/Tank'),
+                    _bereichChip(5, 'Gas/Manometer'),
+                  ],
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // === Beschreibung ===
+              _sectionTitle(
+                context,
+                _istKilometerabrechnung ? 'Beschreibung' : 'Störungsbeschreibung',
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _beschreibungController,
+                decoration: InputDecoration(
+                  labelText: _istKilometerabrechnung
+                      ? 'Beschreibung (z.B. Fahrt Innerschweiz)'
+                      : 'Beschreibung',
+                  prefixIcon: const Icon(Icons.description),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.next,
+                validator: _istKilometerabrechnung
+                    ? (v) => (v == null || v.trim().isEmpty)
+                          ? 'Beschreibung erforderlich'
+                          : null
+                    : null,
+              ),
+              const SizedBox(height: 24),
+
+              // === Optionen (nur bei normaler Störung) ===
+              if (!_istKilometerabrechnung) ...[
+                _sectionTitle(context, 'Optionen'),
+                const SizedBox(height: 8),
+                _checkTile(
+                  'Pikett / Wochenende / Feiertag',
+                  _istPikettWochenende,
+                  (v) {
+                    markiereGeaendert();
+                    setState(() => _istPikettWochenende = v);
+                  },
+                ),
+                _checkTile(
+                  'Bergkunde',
+                  _istBergkunde,
+                  (v) {
+                    markiereGeaendert();
+                    setState(() => _istBergkunde = v);
+                  },
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // === Preiskalkulation ===
+              _sectionTitle(context, 'Preiskalkulation'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _heinekennrController,
+                      controller: _anfahrtKmController,
                       decoration: const InputDecoration(
-                        labelText: 'Störungsnummer',
-                        prefixIcon: Icon(Icons.tag),
+                        labelText: 'Anfahrt (km)',
+                        prefixIcon: Icon(Icons.directions_car),
                         isDense: true,
                       ),
                       keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.next,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _komplexitaetController,
+                      decoration: const InputDecoration(
+                        labelText: 'Zusatzkosten (CHF)',
+                        prefixIcon: Icon(Icons.add_circle_outline),
+                        isDense: true,
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
                 ],
-              ],
-            ),
-            if (!_istKilometerabrechnung) ...[
+              ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _stoerungseingangController,
-                decoration: const InputDecoration(
-                  labelText: 'Störungseingang (Uhrzeit)',
-                  prefixIcon: Icon(Icons.phone_callback),
-                ),
-                textInputAction: TextInputAction.next,
-                onChanged: (_) => _updatePikettAuto(),
-              ),
-            ],
-            const SizedBox(height: 12),
-            _buildArbeitZeitfelder(),
-            const SizedBox(height: 24),
-
-            // === Störungsbereiche (nur bei normaler Störung) ===
-            if (!_istKilometerabrechnung) ...[
-              _sectionTitle(context, 'Störungsbereiche'),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  _bereichChip(1, 'Zapfhahn/Säule'),
-                  _bereichChip(2, 'Leitung/Python'),
-                  _bereichChip(3, 'Kühler/Vorkühler'),
-                  _bereichChip(4, 'Zapfkopf/Tank'),
-                  _bereichChip(5, 'Gas/Manometer'),
-                ],
-              ),
+              _buildPreisPreview(),
               const SizedBox(height: 24),
-            ],
 
-            // === Beschreibung ===
-            _sectionTitle(
-              context,
-              _istKilometerabrechnung ? 'Beschreibung' : 'Störungsbeschreibung',
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _beschreibungController,
-              decoration: InputDecoration(
-                labelText: _istKilometerabrechnung
-                    ? 'Beschreibung (z.B. Fahrt Innerschweiz)'
-                    : 'Beschreibung',
-                prefixIcon: const Icon(Icons.description),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 3,
-              textInputAction: TextInputAction.next,
-              validator: _istKilometerabrechnung
-                  ? (v) => (v == null || v.trim().isEmpty)
-                        ? 'Beschreibung erforderlich'
-                        : null
-                  : null,
-            ),
-            const SizedBox(height: 24),
-
-            // === Optionen (nur bei normaler Störung) ===
-            if (!_istKilometerabrechnung) ...[
-              _sectionTitle(context, 'Optionen'),
-              const SizedBox(height: 8),
-              _checkTile(
-                'Pikett / Wochenende / Feiertag',
-                _istPikettWochenende,
-                (v) => setState(() => _istPikettWochenende = v),
-              ),
-              _checkTile(
-                'Bergkunde',
-                _istBergkunde,
-                (v) => setState(() => _istBergkunde = v),
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            // === Preiskalkulation ===
-            _sectionTitle(context, 'Preiskalkulation'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _anfahrtKmController,
-                    decoration: const InputDecoration(
-                      labelText: 'Anfahrt (km)',
-                      prefixIcon: Icon(Icons.directions_car),
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _komplexitaetController,
-                    decoration: const InputDecoration(
-                      labelText: 'Zusatzkosten (CHF)',
-                      prefixIcon: Icon(Icons.add_circle_outline),
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
+              // === Material (nur bei normaler Störung) ===
+              if (!_istKilometerabrechnung) ...[
+                _sectionTitle(context, 'Verwendetes Material'),
+                const SizedBox(height: 8),
+                ..._buildMaterialSlots(),
+                const SizedBox(height: 24),
               ],
-            ),
-            const SizedBox(height: 12),
-            _buildPreisPreview(),
-            const SizedBox(height: 24),
 
-            // === Material (nur bei normaler Störung) ===
-            if (!_istKilometerabrechnung) ...[
-              _sectionTitle(context, 'Verwendetes Material'),
+              // === Notizen ===
+              _sectionTitle(context, 'Notizen'),
               const SizedBox(height: 8),
-              ..._buildMaterialSlots(),
-              const SizedBox(height: 24),
-            ],
-
-            // === Notizen ===
-            _sectionTitle(context, 'Notizen'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 2,
+                textInputAction: TextInputAction.done,
               ),
-              maxLines: 2,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // === Aktionen ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _isEdit
-                          ? 'Speichern'
-                          : (_istKilometerabrechnung
-                                ? 'Kilometerabrechnung erfassen'
-                                : 'Störung erfassen'),
-                    ),
-            ),
-            const SizedBox(height: 32),
-          ],
+              // === Aktionen ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        _isEdit
+                            ? 'Speichern'
+                            : (_istKilometerabrechnung
+                                  ? 'Kilometerabrechnung erfassen'
+                                  : 'Störung erfassen'),
+                      ),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
@@ -1008,6 +1050,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                                         icon: const Icon(Icons.clear, size: 16),
                                         onPressed: () {
                                           controller.clear();
+                                          markiereGeaendert();
                                           setState(() {
                                             _materialIds[i] = null;
                                             _materialControllers[i].clear();
@@ -1055,6 +1098,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                         );
                       },
                       onSelected: (l) {
+                        markiereGeaendert();
                         setState(() {
                           _materialIds[i] = l.id;
                           _materialControllers[i].text = l.name;
@@ -1113,7 +1157,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         selected: selected,
         selectedColor: AppColors.primary.withAlpha(40),
         checkmarkColor: AppColors.primary,
-        onSelected: (v) => setState(() => _anlageTyp = v ? value : null),
+        onSelected: (v) {
+          markiereGeaendert();
+          setState(() => _anlageTyp = v ? value : null);
+        },
       );
     }
 
@@ -1172,6 +1219,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: () {
                       controller.clear();
+                      markiereGeaendert();
                       setState(() {
                         _betriebId = null;
                         _istBergkunde = false;
@@ -1211,6 +1259,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
         );
       },
       onSelected: (b) {
+        markiereGeaendert();
         setState(() {
           _betriebId = b.serverId;
           _istBergkunde = b.istBergkunde;
@@ -1230,6 +1279,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
       selectedColor: AppColors.primary.withAlpha(40),
       checkmarkColor: AppColors.primary,
       onSelected: (v) {
+        markiereGeaendert();
         setState(() {
           if (v) {
             _stoerungBereiche = [..._stoerungBereiche, value]..sort();
@@ -1418,6 +1468,7 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen> {
             final initial = _parseZeit(controller.text) ?? TimeOfDay.now();
             final picked = await zeigeZeitauswahl(context, initial: initial);
             if (picked != null) {
+              markiereGeaendert();
               setState(() {
                 controller.text =
                     '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';

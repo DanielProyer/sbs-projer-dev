@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/eroeffnungsreinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class EroeffnungsreinigungFormScreen extends ConsumerStatefulWidget {
@@ -25,7 +26,8 @@ class EroeffnungsreinigungFormScreen extends ConsumerStatefulWidget {
 }
 
 class _EroeffnungsreinigungFormScreenState
-    extends ConsumerState<EroeffnungsreinigungFormScreen> {
+    extends ConsumerState<EroeffnungsreinigungFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   EroeffnungsreinigungLocal? _existing;
@@ -85,6 +87,11 @@ class _EroeffnungsreinigungFormScreenState
       _istBergkunde = er.istBergkunde;
       _stoerungsnummerController.text = er.stoerungsnummer;
     });
+    // Das Form ist schon gebaut (kein Lade-Platzhalter) — das Befüllen der
+    // Controller meldet sich als Änderung. Erst im nächsten Frame zurücksetzen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      geaendertZuruecksetzen();
+    });
   }
 
   @override
@@ -98,109 +105,117 @@ class _EroeffnungsreinigungFormScreenState
     final isEdit = widget.eroeffnungsreinigungId != null;
     final preis = _istBergkunde ? _preisBergkunde : _preisNormal;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit
-            ? (_art == 'endreinigung' ? 'Endreinigung bearbeiten' : 'Eröffnungsreinigung bearbeiten')
-            : (_art == 'endreinigung' ? 'Neue Endreinigung' : 'Neue Eröffnungsreinigung')),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Art: Eröffnung / Endreinigung
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'eroeffnung',
-                  label: Text('Eröffnung'),
-                  icon: Icon(Icons.celebration),
-                ),
-                ButtonSegment(
-                  value: 'endreinigung',
-                  label: Text('Endreinigung'),
-                  icon: Icon(Icons.cleaning_services),
-                ),
-              ],
-              selected: {_art},
-              onSelectionChanged: (sel) =>
-                  setState(() => _art = sel.first),
-            ),
-            const SizedBox(height: 16),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Eröffnungsreinigung',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(isEdit
+              ? (_art == 'endreinigung' ? 'Endreinigung bearbeiten' : 'Eröffnungsreinigung bearbeiten')
+              : (_art == 'endreinigung' ? 'Neue Endreinigung' : 'Neue Eröffnungsreinigung')),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Art: Eröffnung / Endreinigung
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'eroeffnung',
+                    label: Text('Eröffnung'),
+                    icon: Icon(Icons.celebration),
+                  ),
+                  ButtonSegment(
+                    value: 'endreinigung',
+                    label: Text('Endreinigung'),
+                    icon: Icon(Icons.cleaning_services),
+                  ),
+                ],
+                selected: {_art},
+                onSelectionChanged: (sel) {
+                  markiereGeaendert();
+                  setState(() => _art = sel.first);
+                },
+              ),
+              const SizedBox(height: 16),
 
-            // Betrieb
-            _buildBetriebField(),
-            const SizedBox(height: 16),
+              // Betrieb
+              _buildBetriebField(),
+              const SizedBox(height: 16),
 
-            // Datum + Störungsnummer nebeneinander
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: InkWell(
-                    onTap: _pickDate,
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Datum *',
-                        prefixIcon: Icon(Icons.calendar_today),
+              // Datum + Störungsnummer nebeneinander
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: _pickDate,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Datum *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(_formatDate(_datum)),
                       ),
-                      child: Text(_formatDate(_datum)),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _stoerungsnummerController,
-                    decoration: const InputDecoration(
-                      labelText: 'Störungsnr. *',
-                      prefixIcon: Icon(Icons.tag),
-                      isDense: true,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _stoerungsnummerController,
+                      decoration: const InputDecoration(
+                        labelText: 'Störungsnr. *',
+                        prefixIcon: Icon(Icons.tag),
+                        isDense: true,
+                      ),
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
                     ),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Preis-Anzeige
+              InputDecorator(
+                decoration: InputDecoration(
+                  labelText: _istBergkunde ? 'Preis (Bergkunde)' : 'Preis',
+                  prefixIcon: const Icon(Icons.payments_outlined),
+                  suffixIcon: _istBergkunde
+                      ? const Icon(Icons.terrain, color: AppColors.warning)
+                      : null,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Preis-Anzeige
-            InputDecorator(
-              decoration: InputDecoration(
-                labelText: _istBergkunde ? 'Preis (Bergkunde)' : 'Preis',
-                prefixIcon: const Icon(Icons.payments_outlined),
-                suffixIcon: _istBergkunde
-                    ? const Icon(Icons.terrain, color: AppColors.warning)
-                    : null,
+                child: Text(
+                  '${preis.toStringAsFixed(2)} CHF',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary),
+                ),
               ),
-              child: Text(
-                '${preis.toStringAsFixed(2)} CHF',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary),
-              ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Speichern
-            FilledButton.icon(
-              onPressed: _isLoading ? null : _save,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save),
-              label: Text(isEdit
-                  ? 'Speichern'
-                  : (_art == 'endreinigung' ? 'Endreinigung erfassen' : 'Eröffnungsreinigung erfassen')),
-            ),
-            const SizedBox(height: 80),
-          ],
+              // Speichern
+              FilledButton.icon(
+                onPressed: _isLoading ? null : _save,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.save),
+                label: Text(isEdit
+                    ? 'Speichern'
+                    : (_art == 'endreinigung' ? 'Endreinigung erfassen' : 'Eröffnungsreinigung erfassen')),
+              ),
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );
@@ -242,6 +257,7 @@ class _EroeffnungsreinigungFormScreenState
               _betriebId == null ? 'Bitte Betrieb auswählen' : null,
           onChanged: (v) {
             if (v.isEmpty) {
+              markiereGeaendert();
               setState(() {
                 _betriebId = null;
                 _betriebSearchText = '';
@@ -283,6 +299,7 @@ class _EroeffnungsreinigungFormScreenState
         );
       },
       onSelected: (b) {
+        markiereGeaendert();
         setState(() {
           _betriebId = b.serverId;
           _betriebSearchText = b.name;
@@ -299,7 +316,10 @@ class _EroeffnungsreinigungFormScreenState
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (picked != null) setState(() => _datum = picked);
+    if (picked != null) {
+      markiereGeaendert();
+      setState(() => _datum = picked);
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -322,7 +342,11 @@ class _EroeffnungsreinigungFormScreenState
       await EroeffnungsreinigungRepository.save(er);
       ref.invalidate(eroeffnungsreinigungenStreamProvider);
 
-      if (mounted) context.pop();
+      if (mounted) {
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
+        context.pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

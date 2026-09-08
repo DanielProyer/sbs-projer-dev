@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/pikett_dienst_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/utils/schweizer_feiertage.dart';
 
@@ -20,7 +21,8 @@ class PikettDienstFormScreen extends ConsumerStatefulWidget {
 }
 
 class _PikettDienstFormScreenState
-    extends ConsumerState<PikettDienstFormScreen> {
+    extends ConsumerState<PikettDienstFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   PikettDienstLocal? _existing;
@@ -142,6 +144,8 @@ class _PikettDienstFormScreenState
           ),
         );
         if (kIsWeb) ref.invalidate(pikettDiensteStreamProvider);
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -165,182 +169,188 @@ class _PikettDienstFormScreenState
     final freitag = _freitagOfKw(_jahr, _kw);
     final samstag = _samstagOfKw(_jahr, _kw);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-            _isEdit ? 'Pikett bearbeiten' : 'Neuer Pikett-Dienst'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Kalenderwoche ===
-            _sectionTitle(context, 'Kalenderwoche'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    initialValue: _jahr,
-                    decoration: const InputDecoration(
-                      labelText: 'Jahr',
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    items: List.generate(3, (i) {
-                      final y = DateTime.now().year - 1 + i;
-                      return DropdownMenuItem(value: y, child: Text('$y'));
-                    }),
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _jahr = v);
-                        _berechneFeiertage();
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    initialValue: _kw,
-                    decoration: const InputDecoration(
-                      labelText: 'KW',
-                      prefixIcon: Icon(Icons.date_range),
-                    ),
-                    items: List.generate(53, (i) {
-                      final w = i + 1;
-                      return DropdownMenuItem(value: w, child: Text('KW $w'));
-                    }),
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _kw = v);
-                        _berechneFeiertage();
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Zeiten-Info
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary.withAlpha(40)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Pikett-Dienst',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+              _isEdit ? 'Pikett bearbeiten' : 'Neuer Pikett-Dienst'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Kalenderwoche ===
+              _sectionTitle(context, 'Kalenderwoche'),
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  Row(
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _jahr,
+                      decoration: const InputDecoration(
+                        labelText: 'Jahr',
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      items: List.generate(3, (i) {
+                        final y = DateTime.now().year - 1 + i;
+                        return DropdownMenuItem(value: y, child: Text('$y'));
+                      }),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _jahr = v);
+                          _berechneFeiertage();
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _kw,
+                      decoration: const InputDecoration(
+                        labelText: 'KW',
+                        prefixIcon: Icon(Icons.date_range),
+                      ),
+                      items: List.generate(53, (i) {
+                        final w = i + 1;
+                        return DropdownMenuItem(value: w, child: Text('KW $w'));
+                      }),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _kw = v);
+                          _berechneFeiertage();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Zeiten-Info
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.primary.withAlpha(40)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Einsatzzeiten KW $_kw',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Feiertage unter der Woche (Mo–Do) als zusätzliche Einsatztage
+                    for (final f in _erkanneFeiertage.where(
+                        (f) => f.datum.weekday >= DateTime.monday &&
+                               f.datum.weekday <= DateTime.thursday))
+                      _zeitRow(
+                        '${_wochentagName(f.datum.weekday)} (${f.name})',
+                        _formatDate(f.datum),
+                        '08:00 – 22:00',
+                      ),
+                    _zeitRow('Freitag', _formatDate(freitag), '17:00 – 22:00'),
+                    _zeitRow('Samstag', _formatDate(samstag), '08:00 – 22:00'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // === Vergütung ===
+              _sectionTitle(context, 'Vergütung'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Pauschale',
+                        prefixIcon: Icon(Icons.attach_money),
+                        suffixText: 'CHF',
+                      ),
+                      child: Text(_pauschale.toStringAsFixed(2)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      value: _anzahlFeiertage,
+                      decoration: const InputDecoration(
+                        labelText: 'Feiertage',
+                        prefixIcon: Icon(Icons.celebration),
+                      ),
+                      items: List.generate(4, (i) => DropdownMenuItem(
+                        value: i,
+                        child: Text('$i'),
+                      )),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _anzahlFeiertage = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              if (_erkanneFeiertage.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.warning.withAlpha(60)),
+                  ),
+                  child: Row(
                     children: [
-                      const Icon(Icons.schedule, size: 16, color: AppColors.primary),
+                      const Icon(Icons.celebration, size: 16, color: AppColors.warning),
                       const SizedBox(width: 8),
-                      Text(
-                        'Einsatzzeiten KW $_kw',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: AppColors.primary,
+                      Expanded(
+                        child: Text(
+                          _erkanneFeiertage.map((f) =>
+                            '${_wochentagName(f.datum.weekday)} ${_formatDate(f.datum)} – ${f.name}'
+                          ).join('\n'),
+                          style: const TextStyle(fontSize: 12, color: AppColors.warning),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  // Feiertage unter der Woche (Mo–Do) als zusätzliche Einsatztage
-                  for (final f in _erkanneFeiertage.where(
-                      (f) => f.datum.weekday >= DateTime.monday &&
-                             f.datum.weekday <= DateTime.thursday))
-                    _zeitRow(
-                      '${_wochentagName(f.datum.weekday)} (${f.name})',
-                      _formatDate(f.datum),
-                      '08:00 – 22:00',
-                    ),
-                  _zeitRow('Freitag', _formatDate(freitag), '17:00 – 22:00'),
-                  _zeitRow('Samstag', _formatDate(samstag), '08:00 – 22:00'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // === Vergütung ===
-            _sectionTitle(context, 'Vergütung'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Pauschale',
-                      prefixIcon: Icon(Icons.attach_money),
-                      suffixText: 'CHF',
-                    ),
-                    child: Text(_pauschale.toStringAsFixed(2)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _anzahlFeiertage,
-                    decoration: const InputDecoration(
-                      labelText: 'Feiertage',
-                      prefixIcon: Icon(Icons.celebration),
-                    ),
-                    items: List.generate(4, (i) => DropdownMenuItem(
-                      value: i,
-                      child: Text('$i'),
-                    )),
-                    onChanged: (v) {
-                      if (v != null) setState(() => _anzahlFeiertage = v);
-                    },
-                  ),
                 ),
               ],
-            ),
-            if (_erkanneFeiertage.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withAlpha(20),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.warning.withAlpha(60)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.celebration, size: 16, color: AppColors.warning),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _erkanneFeiertage.map((f) =>
-                          '${_wochentagName(f.datum.weekday)} ${_formatDate(f.datum)} – ${f.name}'
-                        ).join('\n'),
-                        style: const TextStyle(fontSize: 12, color: AppColors.warning),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            _buildKostenPreview(),
-            const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              _buildKostenPreview(),
+              const SizedBox(height: 24),
 
-            // === Speichern ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Pikett-Dienst erfassen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              // === Speichern ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Pikett-Dienst erfassen'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 
 class BetriebRechnungsadresseFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -22,7 +23,8 @@ class BetriebRechnungsadresseFormScreen extends ConsumerStatefulWidget {
 }
 
 class _BetriebRechnungsadresseFormScreenState
-    extends ConsumerState<BetriebRechnungsadresseFormScreen> {
+    extends ConsumerState<BetriebRechnungsadresseFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   BetriebRechnungsadresseLocal? _existing;
@@ -64,6 +66,11 @@ class _BetriebRechnungsadresseFormScreenState
           _objektController.text = betrieb.name;
         }
       });
+      // Befüllung nach dem ersten Frame — Form.onChanged meldet das
+      // fälschlich als Änderung, siehe UngespeichertMixin-Doku.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => geaendertZuruecksetzen(),
+      );
     }
   }
 
@@ -86,6 +93,11 @@ class _BetriebRechnungsadresseFormScreenState
         _emailController.text = existing.email ?? '';
         _notizenController.text = existing.notizen ?? '';
       });
+      // Befüllung nach dem ersten Frame — Form.onChanged meldet das
+      // fälschlich als Änderung, siehe UngespeichertMixin-Doku.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => geaendertZuruecksetzen(),
+      );
     }
   }
 
@@ -138,6 +150,8 @@ class _BetriebRechnungsadresseFormScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Rechnungsadresse gespeichert')),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -161,6 +175,7 @@ class _BetriebRechnungsadresseFormScreenState
         if (places != null && places.isNotEmpty) {
           final ort = places[0]['place name'] as String?;
           if (ort != null && _ortController.text.isEmpty) {
+            markiereGeaendert();
             setState(() => _ortController.text = ort);
           }
         }
@@ -195,185 +210,191 @@ class _BetriebRechnungsadresseFormScreenState
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Rechnungsadresse'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Firma (abweichend) ===
-            TextFormField(
-              controller: _firmaController,
-              decoration: const InputDecoration(
-                labelText: 'Firma (falls abweichend)',
-                prefixIcon: Icon(Icons.business),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Rechnungsadresse',
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Rechnungsadresse'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Firma (abweichend) ===
+              TextFormField(
+                controller: _firmaController,
+                decoration: const InputDecoration(
+                  labelText: 'Firma (falls abweichend)',
+                  prefixIcon: Icon(Icons.business),
+                ),
+                textInputAction: TextInputAction.next,
+                onChanged: (_) => setState(() {}),
               ),
-              textInputAction: TextInputAction.next,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // === Objekt / Betriebsbezeichnung ===
-            // Editierbar: Grosskunden verlangen eigene Bezeichnungen
-            // (SV: «Spiga Steinbock Chur»). Bei Sammelzahlern ist diese Zeile
-            // das Einzige, woran der Betrieb auf der Rechnung erkennbar ist.
-            TextFormField(
-              controller: _objektController,
-              decoration: InputDecoration(
-                labelText: 'Objekt / Betrieb *',
-                helperText: _firmaController.text.trim().isEmpty
-                    ? 'Vorbelegt mit dem Betriebsnamen'
-                    : 'Erscheint unter der Firma — so bleibt der Betrieb erkennbar',
-                prefixIcon: const Icon(Icons.store),
+              // === Objekt / Betriebsbezeichnung ===
+              // Editierbar: Grosskunden verlangen eigene Bezeichnungen
+              // (SV: «Spiga Steinbock Chur»). Bei Sammelzahlern ist diese Zeile
+              // das Einzige, woran der Betrieb auf der Rechnung erkennbar ist.
+              TextFormField(
+                controller: _objektController,
+                decoration: InputDecoration(
+                  labelText: 'Objekt / Betrieb *',
+                  helperText: _firmaController.text.trim().isEmpty
+                      ? 'Vorbelegt mit dem Betriebsnamen'
+                      : 'Erscheint unter der Firma — so bleibt der Betrieb erkennbar',
+                  prefixIcon: const Icon(Icons.store),
+                ),
+                textInputAction: TextInputAction.next,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Objekt / Betrieb ist erforderlich'
+                    : null,
               ),
-              textInputAction: TextInputAction.next,
-              validator: (v) => v == null || v.trim().isEmpty
-                  ? 'Objekt / Betrieb ist erforderlich'
-                  : null,
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // === Kostenstelle / Zusatz ===
-            TextFormField(
-              controller: _kostenstelleController,
-              decoration: const InputDecoration(
-                labelText: 'Kostenstelle / Referenz',
-                hintText: 'z. B. KST 28616406',
-                prefixIcon: Icon(Icons.tag),
+              // === Kostenstelle / Zusatz ===
+              TextFormField(
+                controller: _kostenstelleController,
+                decoration: const InputDecoration(
+                  labelText: 'Kostenstelle / Referenz',
+                  hintText: 'z. B. KST 28616406',
+                  prefixIcon: Icon(Icons.tag),
+                ),
+                textInputAction: TextInputAction.next,
               ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _zusatzController,
-              decoration: const InputDecoration(
-                labelText: 'Zusatz (Abteilung / Eingangskanal)',
-                hintText: 'z. B. Scanning Center',
-                prefixIcon: Icon(Icons.corporate_fare),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _zusatzController,
+                decoration: const InputDecoration(
+                  labelText: 'Zusatz (Abteilung / Eingangskanal)',
+                  hintText: 'z. B. Scanning Center',
+                  prefixIcon: Icon(Icons.corporate_fare),
+                ),
+                textInputAction: TextInputAction.next,
               ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // === Adresse ===
-            Text('Adresse',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    )),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _postfachController,
-              decoration: const InputDecoration(
-                labelText: 'Postfach',
-                hintText: 'z. B. Postfach 440 — ersetzt die Strasse',
-                prefixIcon: Icon(Icons.markunread_mailbox_outlined),
+              // === Adresse ===
+              Text('Adresse',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      )),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _postfachController,
+                decoration: const InputDecoration(
+                  labelText: 'Postfach',
+                  hintText: 'z. B. Postfach 440 — ersetzt die Strasse',
+                  prefixIcon: Icon(Icons.markunread_mailbox_outlined),
+                ),
+                textInputAction: TextInputAction.next,
+                onChanged: (_) => setState(() {}),
               ),
-              textInputAction: TextInputAction.next,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: _strasseController,
-                    decoration: InputDecoration(
-                      labelText: _postfachController.text.trim().isEmpty
-                          ? 'Strasse *'
-                          : 'Strasse',
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextFormField(
+                      controller: _strasseController,
+                      decoration: InputDecoration(
+                        labelText: _postfachController.text.trim().isEmpty
+                            ? 'Strasse *'
+                            : 'Strasse',
+                      ),
+                      textInputAction: TextInputAction.next,
+                      // Postfach ersetzt die Strasse — dann ist sie nicht nötig.
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) &&
+                                  _postfachController.text.trim().isEmpty
+                              ? 'Strasse oder Postfach ist erforderlich'
+                              : null,
                     ),
-                    textInputAction: TextInputAction.next,
-                    // Postfach ersetzt die Strasse — dann ist sie nicht nötig.
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) &&
-                                _postfachController.text.trim().isEmpty
-                            ? 'Strasse oder Postfach ist erforderlich'
-                            : null,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _nrController,
-                    decoration: const InputDecoration(labelText: 'Nr.'),
-                    textInputAction: TextInputAction.next,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nrController,
+                      decoration: const InputDecoration(labelText: 'Nr.'),
+                      textInputAction: TextInputAction.next,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _plzController,
-                    decoration: const InputDecoration(labelText: 'PLZ *'),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    onChanged: _lookupPlz,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'PLZ ist erforderlich'
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _ortController,
-                    decoration: const InputDecoration(labelText: 'Ort *'),
-                    textInputAction: TextInputAction.next,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Ort ist erforderlich'
-                        : null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // === Kontakt ===
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'E-Mail (für Rechnungsversand)',
-                prefixIcon: Icon(Icons.email_outlined),
+                ],
               ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-
-            // === Notizen ===
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _plzController,
+                      decoration: const InputDecoration(labelText: 'PLZ *'),
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      onChanged: _lookupPlz,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'PLZ ist erforderlich'
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _ortController,
+                      decoration: const InputDecoration(labelText: 'Ort *'),
+                      textInputAction: TextInputAction.next,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Ort ist erforderlich'
+                          : null,
+                    ),
+                  ),
+                ],
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-            // === Speichern ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Speichern'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              // === Kontakt ===
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'E-Mail (für Rechnungsversand)',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+
+              // === Notizen ===
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: 24),
+
+              // === Speichern ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Speichern'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

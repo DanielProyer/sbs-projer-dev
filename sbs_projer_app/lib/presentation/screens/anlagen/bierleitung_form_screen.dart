@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/bierleitung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/biersorte_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 class BierleitungFormScreen extends ConsumerStatefulWidget {
@@ -21,8 +22,8 @@ class BierleitungFormScreen extends ConsumerStatefulWidget {
       _BierleitungFormScreenState();
 }
 
-class _BierleitungFormScreenState
-    extends ConsumerState<BierleitungFormScreen> {
+class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   BierleitungLocal? _existing;
@@ -175,6 +176,8 @@ class _BierleitungFormScreenState
                 : 'Bierleitung erstellt'),
           ),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -207,154 +210,169 @@ class _BierleitungFormScreenState
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-            _isEdit ? 'Bierleitung bearbeiten' : 'Neue Bierleitung'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Leitungs-Nummer ===
-            DropdownButtonFormField<int>(
-              initialValue: _leitungsNummer,
-              decoration: const InputDecoration(
-                labelText: 'Leitungs-Nummer *',
-                prefixIcon: Icon(Icons.format_list_numbered),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Bierleitung',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+              _isEdit ? 'Bierleitung bearbeiten' : 'Neue Bierleitung'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Leitungs-Nummer ===
+              DropdownButtonFormField<int>(
+                initialValue: _leitungsNummer,
+                decoration: const InputDecoration(
+                  labelText: 'Leitungs-Nummer *',
+                  prefixIcon: Icon(Icons.format_list_numbered),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('Leitung 1')),
+                  DropdownMenuItem(value: 2, child: Text('Leitung 2')),
+                  DropdownMenuItem(value: 3, child: Text('Leitung 3')),
+                  DropdownMenuItem(value: 4, child: Text('Leitung 4')),
+                  DropdownMenuItem(value: 5, child: Text('Leitung 5')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _leitungsNummer = v);
+                },
               ),
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('Leitung 1')),
-                DropdownMenuItem(value: 2, child: Text('Leitung 2')),
-                DropdownMenuItem(value: 3, child: Text('Leitung 3')),
-                DropdownMenuItem(value: 4, child: Text('Leitung 4')),
-                DropdownMenuItem(value: 5, child: Text('Leitung 5')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _leitungsNummer = v);
-              },
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // === Biersorte (Autocomplete) ===
-            Autocomplete<String>(
-              initialValue: _biersorreController.value,
-              optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return _biersortenVorschlaege;
-                }
-                final query = textEditingValue.text.toLowerCase();
-                return _biersortenVorschlaege
-                    .where((s) => s.toLowerCase().contains(query));
-              },
-              onSelected: (value) => _biersorreController.text = value,
-              fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                // Sync mit unserem Controller
-                controller.text = _biersorreController.text;
-                controller.addListener(() {
-                  if (_biersorreController.text != controller.text) {
-                    _biersorreController.text = controller.text;
+              // === Biersorte (Autocomplete) ===
+              Autocomplete<String>(
+                initialValue: _biersorreController.value,
+                optionsBuilder: (textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return _biersortenVorschlaege;
                   }
-                });
-                return TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
+                  final query = textEditingValue.text.toLowerCase();
+                  return _biersortenVorschlaege
+                      .where((s) => s.toLowerCase().contains(query));
+                },
+                onSelected: (value) => _biersorreController.text = value,
+                fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                  // Sync mit unserem Controller
+                  controller.text = _biersorreController.text;
+                  controller.addListener(() {
+                    if (_biersorreController.text != controller.text) {
+                      _biersorreController.text = controller.text;
+                    }
+                  });
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      labelText: 'Biersorte',
+                      prefixIcon: Icon(Icons.local_drink),
+                      hintText: 'z.B. Heineken, Feldschlösschen',
+                    ),
+                    textInputAction: TextInputAction.next,
+                    onFieldSubmitted: (_) => onSubmitted(),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // === Hahn-Typ ===
+              DropdownButtonFormField<String>(
+                initialValue: _selectedHahnTyp,
+                decoration: const InputDecoration(
+                  labelText: 'Hahn-Typ',
+                  prefixIcon: Icon(Icons.plumbing),
+                ),
+                items: _hahnTypen
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  _selectedHahnTyp = v;
+                  if (v != 'Anderer') _hahnTypController.text = '';
+                }),
+              ),
+              if (_selectedHahnTyp == 'Anderer') ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _hahnTypController,
                   decoration: const InputDecoration(
-                    labelText: 'Biersorte',
-                    prefixIcon: Icon(Icons.local_drink),
-                    hintText: 'z.B. Heineken, Feldschlösschen',
+                    labelText: 'Hahn-Typ (Freitext)',
+                    prefixIcon: Icon(Icons.edit),
                   ),
                   textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => onSubmitted(),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // === Hahn-Typ ===
-            DropdownButtonFormField<String>(
-              initialValue: _selectedHahnTyp,
-              decoration: const InputDecoration(
-                labelText: 'Hahn-Typ',
-                prefixIcon: Icon(Icons.plumbing),
-              ),
-              items: _hahnTypen
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                  .toList(),
-              onChanged: (v) => setState(() {
-                _selectedHahnTyp = v;
-                if (v != 'Anderer') _hahnTypController.text = '';
-              }),
-            ),
-            if (_selectedHahnTyp == 'Anderer') ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _hahnTypController,
-                decoration: const InputDecoration(
-                  labelText: 'Hahn-Typ (Freitext)',
-                  prefixIcon: Icon(Icons.edit),
                 ),
-                textInputAction: TextInputAction.next,
+              ],
+              const SizedBox(height: 12),
+
+              // === Niederdruck ===
+              TextFormField(
+                controller: _niederdruckBarController,
+                decoration: const InputDecoration(
+                  labelText: 'Niederdruck (bar)',
+                  prefixIcon: Icon(Icons.speed),
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.done,
               ),
+              const SizedBox(height: 12),
+
+              // === FOB-Stop ===
+              SwitchListTile(
+                title: const Text('FOB-Stop'),
+                subtitle: const Text('Foam on Beer Stop vorhanden'),
+                value: _hatFobStop,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _hatFobStop = v);
+                },
+              ),
+
+              // === Gekoppelt ===
+              SwitchListTile(
+                title: const Text('Gekoppelt'),
+                subtitle: const Text('Zwei Tanks an einer Leitung'),
+                value: _istGekoppelt,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istGekoppelt = v);
+                },
+              ),
+
+              // === Aktiv ===
+              SwitchListTile(
+                title: const Text('Aktiv'),
+                subtitle: const Text('Leitung ist in Betrieb'),
+                value: _istAktiv,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istAktiv = v);
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // === Speichern ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        _isEdit ? 'Speichern' : 'Bierleitung erstellen'),
+              ),
+              const SizedBox(height: 32),
             ],
-            const SizedBox(height: 12),
-
-            // === Niederdruck ===
-            TextFormField(
-              controller: _niederdruckBarController,
-              decoration: const InputDecoration(
-                labelText: 'Niederdruck (bar)',
-                prefixIcon: Icon(Icons.speed),
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 12),
-
-            // === FOB-Stop ===
-            SwitchListTile(
-              title: const Text('FOB-Stop'),
-              subtitle: const Text('Foam on Beer Stop vorhanden'),
-              value: _hatFobStop,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _hatFobStop = v),
-            ),
-
-            // === Gekoppelt ===
-            SwitchListTile(
-              title: const Text('Gekoppelt'),
-              subtitle: const Text('Zwei Tanks an einer Leitung'),
-              value: _istGekoppelt,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istGekoppelt = v),
-            ),
-
-            // === Aktiv ===
-            SwitchListTile(
-              title: const Text('Aktiv'),
-              subtitle: const Text('Leitung ist in Betrieb'),
-              value: _istAktiv,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istAktiv = v),
-            ),
-            const SizedBox(height: 24),
-
-            // === Speichern ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _isEdit ? 'Speichern' : 'Bierleitung erstellen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );

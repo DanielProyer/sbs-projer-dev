@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 
 /// Formular zum Anlegen/Bearbeiten eines Event-Jahres (E1).
 /// Bei Neu-Anlage optional Kontakte aus dem Vorjahres-Event übernehmen.
@@ -21,7 +22,8 @@ class EventFormScreen extends ConsumerStatefulWidget {
   ConsumerState<EventFormScreen> createState() => _EventFormScreenState();
 }
 
-class _EventFormScreenState extends ConsumerState<EventFormScreen> {
+class _EventFormScreenState extends ConsumerState<EventFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   EventLocal? _existing;
@@ -174,6 +176,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             SnackBar(content: Text('${teile.join(', ')} übernommen')),
           );
         }
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         if (_isEdit) {
           context.pop();
         } else {
@@ -212,169 +216,185 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         .toList();
     final betriebNamen = ref.watch(betriebNameMapProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Event bearbeiten' : 'Neues Event'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Betrieb: bei Bearbeiten read-only, bei Neu-Anlage Dropdown
-            if (_isEdit)
-              InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Veranstaltungs-Betrieb',
-                  prefixIcon: Icon(Icons.festival),
-                ),
-                child: Text(
-                  betriebNamen[_betriebId] ?? 'Unbekannter Betrieb',
-                ),
-              )
-            else if (veranstaltungsBetriebe.isEmpty)
-              Card(
-                color: AppColors.warning.withValues(alpha: 0.1),
-                child: const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: AppColors.warning),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Kein Veranstaltungs-Betrieb vorhanden — zuerst '
-                          'Betrieb mit Zapfsystem ‹Veranstaltungen› anlegen',
-                        ),
-                      ),
-                    ],
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Event',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Event bearbeiten' : 'Neues Event'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Checkboxen und Datumsfelder melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Betrieb: bei Bearbeiten read-only, bei Neu-Anlage Dropdown
+              if (_isEdit)
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Veranstaltungs-Betrieb',
+                    prefixIcon: Icon(Icons.festival),
                   ),
-                ),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: _betriebId,
-                decoration: const InputDecoration(
-                  labelText: 'Veranstaltungs-Betrieb *',
-                  prefixIcon: Icon(Icons.festival),
-                ),
-                items: veranstaltungsBetriebe
-                    .map((b) => DropdownMenuItem(
-                          value: b.serverId,
+                  child: Text(
+                    betriebNamen[_betriebId] ?? 'Unbekannter Betrieb',
+                  ),
+                )
+              else if (veranstaltungsBetriebe.isEmpty)
+                Card(
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  child: const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: AppColors.warning),
+                        SizedBox(width: 12),
+                        Expanded(
                           child: Text(
-                            b.ort != null && b.ort!.isNotEmpty
-                                ? '${b.name} (${b.ort})'
-                                : b.name,
-                            overflow: TextOverflow.ellipsis,
+                            'Kein Veranstaltungs-Betrieb vorhanden — zuerst '
+                            'Betrieb mit Zapfsystem ‹Veranstaltungen› anlegen',
                           ),
-                        ))
-                    .toList(),
-                validator: (v) =>
-                    v == null ? 'Betrieb ist erforderlich' : null,
-                onChanged: (v) {
-                  setState(() => _betriebId = v);
-                  _pruefeVorjahr();
-                },
-              ),
-            const SizedBox(height: 12),
-
-            // Jahr
-            TextFormField(
-              controller: _jahrCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Jahr *',
-                prefixIcon: Icon(Icons.calendar_month),
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (v) {
-                final jahr = int.tryParse(v?.trim() ?? '');
-                if (jahr == null || jahr < 2020 || jahr > 2100) {
-                  return 'Jahr zwischen 2020 und 2100';
-                }
-                return null;
-              },
-              onChanged: (_) => _pruefeVorjahr(),
-            ),
-            const SizedBox(height: 12),
-
-            // Termin von/bis
-            Row(
-              children: [
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Termin von',
-                    value: _terminVon,
-                    onChanged: (v) => setState(() => _terminVon = v),
+                        ),
+                      ],
+                    ),
                   ),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: _betriebId,
+                  decoration: const InputDecoration(
+                    labelText: 'Veranstaltungs-Betrieb *',
+                    prefixIcon: Icon(Icons.festival),
+                  ),
+                  items: veranstaltungsBetriebe
+                      .map((b) => DropdownMenuItem(
+                            value: b.serverId,
+                            child: Text(
+                              b.ort != null && b.ort!.isNotEmpty
+                                  ? '${b.name} (${b.ort})'
+                                  : b.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ))
+                      .toList(),
+                  validator: (v) =>
+                      v == null ? 'Betrieb ist erforderlich' : null,
+                  onChanged: (v) {
+                    setState(() => _betriebId = v);
+                    _pruefeVorjahr();
+                  },
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DatePickerField(
-                    label: 'Termin bis',
-                    value: _terminBis,
-                    onChanged: (v) => setState(() => _terminBis = v),
+              const SizedBox(height: 12),
+
+              // Jahr
+              TextFormField(
+                controller: _jahrCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Jahr *',
+                  prefixIcon: Icon(Icons.calendar_month),
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (v) {
+                  final jahr = int.tryParse(v?.trim() ?? '');
+                  if (jahr == null || jahr < 2020 || jahr > 2100) {
+                    return 'Jahr zwischen 2020 und 2100';
+                  }
+                  return null;
+                },
+                onChanged: (_) => _pruefeVorjahr(),
+              ),
+              const SizedBox(height: 12),
+
+              // Termin von/bis
+              Row(
+                children: [
+                  Expanded(
+                    child: _DatePickerField(
+                      label: 'Termin von',
+                      value: _terminVon,
+                      onChanged: (v) {
+                        markiereGeaendert();
+                        setState(() => _terminVon = v);
+                      },
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DatePickerField(
+                      label: 'Termin bis',
+                      value: _terminBis,
+                      onChanged: (v) {
+                        markiereGeaendert();
+                        setState(() => _terminBis = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Notizen
+              TextFormField(
+                controller: _notizenCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+
+              // Vorjahres-Übernahme (nur Neu-Anlage, wenn Vorjahres-Event da)
+              if (!_isEdit && _vorjahrEvent != null) ...[
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(
+                    'Kontakte aus '
+                    '‹${betriebNamen[_vorjahrEvent!.betriebId] ?? 'Betrieb'} '
+                    '${_vorjahrEvent!.jahr}› übernehmen',
+                  ),
+                  value: _uebernehmeVorjahr,
+                  onChanged: (v) {
+                    markiereGeaendert();
+                    setState(() => _uebernehmeVorjahr = v ?? false);
+                  },
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(
+                    'Stände aus '
+                    '‹${betriebNamen[_vorjahrEvent!.betriebId] ?? 'Betrieb'} '
+                    '${_vorjahrEvent!.jahr}› übernehmen',
+                  ),
+                  value: _uebernehmeVorjahrStaende,
+                  onChanged: (v) {
+                    markiereGeaendert();
+                    setState(() => _uebernehmeVorjahrStaende = v ?? false);
+                  },
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 24),
 
-            // Notizen
-            TextFormField(
-              controller: _notizenCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+              // Speichern
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Event erstellen'),
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
-
-            // Vorjahres-Übernahme (nur Neu-Anlage, wenn Vorjahres-Event da)
-            if (!_isEdit && _vorjahrEvent != null) ...[
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(
-                  'Kontakte aus '
-                  '‹${betriebNamen[_vorjahrEvent!.betriebId] ?? 'Betrieb'} '
-                  '${_vorjahrEvent!.jahr}› übernehmen',
-                ),
-                value: _uebernehmeVorjahr,
-                onChanged: (v) =>
-                    setState(() => _uebernehmeVorjahr = v ?? false),
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(
-                  'Stände aus '
-                  '‹${betriebNamen[_vorjahrEvent!.betriebId] ?? 'Betrieb'} '
-                  '${_vorjahrEvent!.jahr}› übernehmen',
-                ),
-                value: _uebernehmeVorjahrStaende,
-                onChanged: (v) =>
-                    setState(() => _uebernehmeVorjahrStaende = v ?? false),
-              ),
+              const SizedBox(height: 32),
             ],
-            const SizedBox(height: 24),
-
-            // Speichern
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Event erstellen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );

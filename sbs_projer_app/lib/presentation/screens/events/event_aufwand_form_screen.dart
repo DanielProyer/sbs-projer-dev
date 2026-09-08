@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/util/event_aufwand_slots.dart';
 import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_aufwand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 
 // kAufwandKategorien liegt in core/util/event_aufwand_slots.dart — eine
 // Wahrheit für Formular-Dropdown und die generierten Montage-Slot-Texte.
@@ -25,8 +26,8 @@ class EventAufwandFormScreen extends ConsumerStatefulWidget {
       _EventAufwandFormScreenState();
 }
 
-class _EventAufwandFormScreenState
-    extends ConsumerState<EventAufwandFormScreen> {
+class _EventAufwandFormScreenState extends ConsumerState<EventAufwandFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _initialLoading = false;
@@ -79,7 +80,10 @@ class _EventAufwandFormScreenState
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
-    if (d != null && mounted) setState(() => _datum = d);
+    if (d != null && mounted) {
+      markiereGeaendert();
+      setState(() => _datum = d);
+    }
   }
 
   Future<void> _save() async {
@@ -100,6 +104,8 @@ class _EventAufwandFormScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isEdit ? 'Zeit aktualisiert' : 'Zeit erfasst')),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -125,75 +131,81 @@ class _EventAufwandFormScreenState
     if (_initialLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return Scaffold(
-      appBar: AppBar(title: Text(_isEdit ? 'Zeit bearbeiten' : 'Zeit erfassen')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            InkWell(
-              onTap: _datumWaehlen,
-              borderRadius: BorderRadius.circular(4),
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Datum',
-                  prefixIcon: Icon(Icons.event),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Aufwand',
+      child: Scaffold(
+        appBar: AppBar(title: Text(_isEdit ? 'Zeit bearbeiten' : 'Zeit erfassen')),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              InkWell(
+                onTap: _datumWaehlen,
+                borderRadius: BorderRadius.circular(4),
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Datum',
+                    prefixIcon: Icon(Icons.event),
+                  ),
+                  child: Text(_ddMMyyyy(_datum)),
                 ),
-                child: Text(_ddMMyyyy(_datum)),
               ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _kategorie,
-              decoration: const InputDecoration(
-                labelText: 'Kategorie *',
-                prefixIcon: Icon(Icons.category),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _kategorie,
+                decoration: const InputDecoration(
+                  labelText: 'Kategorie *',
+                  prefixIcon: Icon(Icons.category),
+                ),
+                items: [
+                  for (final e in kAufwandKategorien.entries)
+                    DropdownMenuItem(value: e.key, child: Text(e.value)),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _kategorie = v);
+                },
               ),
-              items: [
-                for (final e in kAufwandKategorien.entries)
-                  DropdownMenuItem(value: e.key, child: Text(e.value)),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _kategorie = v);
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _notizController,
-              decoration: const InputDecoration(
-                labelText: 'Notiz',
-                prefixIcon: Icon(Icons.note),
-                hintText: 'z.B. 10:00–02:00 oder Essen CHF 120',
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _notizController,
+                decoration: const InputDecoration(
+                  labelText: 'Notiz',
+                  prefixIcon: Icon(Icons.note),
+                  hintText: 'z.B. 10:00–02:00 oder Essen CHF 120',
+                ),
+                textInputAction: TextInputAction.next,
               ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _stundenController,
-              decoration: const InputDecoration(
-                labelText: 'Stunden *',
-                prefixIcon: Icon(Icons.schedule),
-                suffixText: 'h',
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _stundenController,
+                decoration: const InputDecoration(
+                  labelText: 'Stunden *',
+                  prefixIcon: Icon(Icons.schedule),
+                  suffixText: 'h',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  final n = double.tryParse((v ?? '').replaceAll(',', '.'));
+                  if (n == null || n <= 0) return 'Stunden > 0 erforderlich';
+                  return null;
+                },
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) {
-                final n = double.tryParse((v ?? '').replaceAll(',', '.'));
-                if (n == null || n <= 0) return 'Stunden > 0 erforderlich';
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20, width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(_isEdit ? 'Speichern' : 'Zeit erfassen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(_isEdit ? 'Speichern' : 'Zeit erfassen'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

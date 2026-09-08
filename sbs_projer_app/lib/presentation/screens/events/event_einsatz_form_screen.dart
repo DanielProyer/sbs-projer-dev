@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 /// Freitext-Option im Material-Autocomplete (kein Lager-Artikel).
@@ -32,7 +33,8 @@ class EventEinsatzFormScreen extends ConsumerStatefulWidget {
 }
 
 class _EventEinsatzFormScreenState
-    extends ConsumerState<EventEinsatzFormScreen> {
+    extends ConsumerState<EventEinsatzFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _initialLoading = false;
@@ -118,6 +120,7 @@ class _EventEinsatzFormScreenState
       initial: TimeOfDay.fromDateTime(_zeitpunkt),
     );
     if (zeit == null || !mounted) return;
+    markiereGeaendert();
     setState(() {
       _zeitpunkt = DateTime(
         datum.year,
@@ -166,6 +169,8 @@ class _EventEinsatzFormScreenState
             content: Text(_isEdit ? 'Einsatz aktualisiert' : 'Einsatz erfasst'),
           ),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -205,6 +210,7 @@ class _EventEinsatzFormScreenState
         return [if (q.isNotEmpty) _MaterialFreitext(q), ...matches];
       },
       onSelected: (o) {
+        markiereGeaendert();
         setState(() {
           if (o is Lager) {
             _selectedLager = o;
@@ -227,12 +233,14 @@ class _EventEinsatzFormScreenState
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: () {
                       controller.clear();
+                      markiereGeaendert();
                       setState(() => _selectedLager = null);
                     },
                   )
                 : null,
           ),
           onChanged: (t) {
+            markiereGeaendert();
             if (_selectedLager != null && t != _selectedLager!.name) {
               setState(() => _selectedLager = null);
             }
@@ -290,101 +298,107 @@ class _EventEinsatzFormScreenState
 
     final staendeAsync = ref.watch(eventStaendeProvider(widget.eventId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Einsatz bearbeiten' : 'Neuer Einsatz'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Stand ganz oben
-            staendeAsync.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Fehler beim Laden der Stände: $e'),
-              data: (staende) {
-                final gueltig =
-                    _standId != null &&
-                    staende.any((s) => s.serverId == _standId);
-                return DropdownButtonFormField<String?>(
-                  initialValue: gueltig ? _standId : null,
-                  decoration: const InputDecoration(
-                    labelText: 'Stand',
-                    prefixIcon: Icon(Icons.storefront),
-                  ),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('— (kein Stand)'),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Einsatz',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Einsatz bearbeiten' : 'Neuer Einsatz'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Autocomplete und Zeitpunkt melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Stand ganz oben
+              staendeAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Fehler beim Laden der Stände: $e'),
+                data: (staende) {
+                  final gueltig =
+                      _standId != null &&
+                      staende.any((s) => s.serverId == _standId);
+                  return DropdownButtonFormField<String?>(
+                    initialValue: gueltig ? _standId : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Stand',
+                      prefixIcon: Icon(Icons.storefront),
                     ),
-                    for (final s in staende)
-                      DropdownMenuItem<String?>(
-                        value: s.serverId,
-                        child: Text(s.name),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('— (kein Stand)'),
                       ),
-                  ],
-                  onChanged: (v) => setState(() => _standId = v),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _beschreibungController,
-              decoration: const InputDecoration(
-                labelText: 'Beschreibung *',
-                prefixIcon: Icon(Icons.description),
-                alignLabelWithHint: true,
+                      for (final s in staende)
+                        DropdownMenuItem<String?>(
+                          value: s.serverId,
+                          child: Text(s.name),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _standId = v),
+                  );
+                },
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.newline,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Beschreibung erforderlich'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            _materialFeld(),
-            if (_selectedLager != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
-                controller: _mengeController,
-                decoration: InputDecoration(
-                  labelText: 'Menge',
-                  prefixIcon: const Icon(Icons.numbers),
-                  suffixText: _selectedLager!.einheit,
-                  helperText:
-                      'Bestand aktuell: ${_selectedLager!.bestandAktuell.toStringAsFixed(0)} ${_selectedLager!.einheit}',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            InkWell(
-              onTap: _zeitpunktWaehlen,
-              borderRadius: BorderRadius.circular(4),
-              child: InputDecorator(
+                controller: _beschreibungController,
                 decoration: const InputDecoration(
-                  labelText: 'Zeitpunkt',
-                  prefixIcon: Icon(Icons.schedule),
+                  labelText: 'Beschreibung *',
+                  prefixIcon: Icon(Icons.description),
+                  alignLabelWithHint: true,
                 ),
-                child: Text(_ddMMyyyyHHmm(_zeitpunkt)),
+                maxLines: 3,
+                textInputAction: TextInputAction.newline,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Beschreibung erforderlich'
+                    : null,
               ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Einsatz erfassen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              const SizedBox(height: 16),
+              _materialFeld(),
+              if (_selectedLager != null) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _mengeController,
+                  decoration: InputDecoration(
+                    labelText: 'Menge',
+                    prefixIcon: const Icon(Icons.numbers),
+                    suffixText: _selectedLager!.einheit,
+                    helperText:
+                        'Bestand aktuell: ${_selectedLager!.bestandAktuell.toStringAsFixed(0)} ${_selectedLager!.einheit}',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _zeitpunktWaehlen,
+                borderRadius: BorderRadius.circular(4),
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Zeitpunkt',
+                    prefixIcon: Icon(Icons.schedule),
+                  ),
+                  child: Text(_ddMMyyyyHHmm(_zeitpunkt)),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Einsatz erfassen'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

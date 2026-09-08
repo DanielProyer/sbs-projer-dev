@@ -39,6 +39,7 @@ import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_qr_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -80,7 +81,8 @@ String _monatName(int monat) {
   return namen[monat];
 }
 
-class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
+class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   ReinigungLocal? _existing;
@@ -416,6 +418,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   }
 
   void _onPhotoTaken(Uint8List bytes) {
+    markiereGeaendert();
     setState(() {
       _fotoBytes = bytes;
       _existingFotoPfad = null;
@@ -1125,6 +1128,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
             ref.invalidate(buchungenStreamProvider);
           }
         }
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -1499,261 +1504,270 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Reinigung bearbeiten' : 'Neue Reinigung'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Betrieb-Info ===
-            if (_betrieb != null) ...[
-              _buildBetriebCard(),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Reinigung',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Reinigung bearbeiten' : 'Neue Reinigung'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Betrieb-Info ===
+              if (_betrieb != null) ...[
+                _buildBetriebCard(),
+                const SizedBox(height: 8),
+              ],
+
+              // === Heineken-Monteur Switch ===
+              _buildHeinekenMonteurSwitch(),
               const SizedBox(height: 8),
-            ],
 
-            // === Heineken-Monteur Switch ===
-            _buildHeinekenMonteurSwitch(),
-            const SizedBox(height: 8),
+              // === Anlagen-Auswahl ===
+              if (!_istHeinekenMonteur) ...[
+                if (_anlagenDesBetrieb.isNotEmpty) ...[
+                  _buildAnlagenAuswahl(),
+                  const SizedBox(height: 16),
+                ] else if (!_anlagenLoaded && _betrieb != null) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ],
+              ],
 
-            // === Anlagen-Auswahl ===
-            if (!_istHeinekenMonteur) ...[
-              if (_anlagenDesBetrieb.isNotEmpty) ...[
-                _buildAnlagenAuswahl(),
+              // Booster/Eissäule vor dem Service ausschalten — sonst friert
+              // Wasser oder Lauge in der Leitung ein (Daniel, 01.09.2026).
+              // Steht bewusst direkt über der Zeiterfassung: Wer hier die
+              // Startzeit einträgt, fängt gleich an.
+              if (ServiceSchalter.hinweisBeginn(_schalterKomponenten)
+                  case final hinweis?) ...[
+                _hinweisBox(hinweis, Icons.power_settings_new),
                 const SizedBox(height: 16),
-              ] else if (!_anlagenLoaded && _betrieb != null) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
               ],
-            ],
 
-            // Booster/Eissäule vor dem Service ausschalten — sonst friert
-            // Wasser oder Lauge in der Leitung ein (Daniel, 01.09.2026).
-            // Steht bewusst direkt über der Zeiterfassung: Wer hier die
-            // Startzeit einträgt, fängt gleich an.
-            if (ServiceSchalter.hinweisBeginn(_schalterKomponenten)
-                case final hinweis?) ...[
-              _hinweisBox(hinweis, Icons.power_settings_new),
-              const SizedBox(height: 16),
-            ],
-
-            // === Zeiterfassung ===
-            _sectionTitle(context, 'Zeiterfassung'),
-            const SizedBox(height: 8),
-            // Datum, Start und Ende in einer Zeile
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _datum,
-                        firstDate: DateTime(2024),
-                        lastDate: DateTime.now().add(const Duration(days: 1)),
-                      );
-                      if (picked != null) {
-                        setState(() => _datum = picked);
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Datum',
-                        prefixIcon: Icon(Icons.calendar_today),
-                      ),
-                      child: Text(_formatDate(_datum)),
-                    ),
-                  ),
-                ),
-                // Bei Heineken-Monteur: nur Datum, Start/Ende ausblenden
-                if (!_istHeinekenMonteur) ...[
-                  const SizedBox(width: 8),
+              // === Zeiterfassung ===
+              _sectionTitle(context, 'Zeiterfassung'),
+              const SizedBox(height: 8),
+              // Datum, Start und Ende in einer Zeile
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Expanded(
-                    flex: 3,
-                    child: TextFormField(
-                      controller: _uhrzeitStartController,
-                      decoration: const InputDecoration(
-                        labelText: 'Start',
-                        isDense: true,
-                      ),
-                      textInputAction: TextInputAction.next,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 3,
-                    child: TextFormField(
-                      controller: _uhrzeitEndeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Ende',
-                        isDense: true,
-                      ),
-                      textInputAction: TextInputAction.next,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-
-            // Bei Heineken-Monteur: Rest ausblenden
-            if (!_istHeinekenMonteur) ...[
-              const SizedBox(height: 24),
-
-              // === Service-Art & Wasserwechsel ===
-              _sectionTitle(context, 'Service-Art'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: _serviceArt,
-                decoration: const InputDecoration(
-                  labelText: 'Service-Art',
-                  prefixIcon: Icon(Icons.build),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'standardservice',
-                    child: Text('Standardservice'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'endreinigung',
-                    child: Text('Endreinigung'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'eroeffnungsservice',
-                    child: Text('Eröffnungsservice'),
-                  ),
-                ],
-                onChanged: (v) {
-                  if (v != null) setState(() => _serviceArt = v);
-                },
-              ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                value: _wasserKuehlerGewechselt,
-                onChanged: (v) =>
-                    setState(() => _wasserKuehlerGewechselt = v ?? false),
-                title: const Text('Wasser im Kühler gewechselt'),
-                secondary: const Icon(Icons.water_drop),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              const SizedBox(height: 24),
-
-              // === Protokoll ===
-              _sectionTitle(context, 'Protokoll'),
-              const SizedBox(height: 8),
-              if (_fotoBytes == null && _existingFotoPfad == null)
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 56,
-                        child: FilledButton.icon(
-                          onPressed: _fotoUploading ? null : _takePhoto,
-                          icon: const Icon(Icons.document_scanner, size: 24),
-                          label: const Text(
-                            'Digitalisieren',
-                            style: TextStyle(fontSize: 15),
-                          ),
+                    flex: 4,
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _datum,
+                          firstDate: DateTime(2024),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) {
+                          markiereGeaendert();
+                          setState(() => _datum = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Datum',
+                          prefixIcon: Icon(Icons.calendar_today),
                         ),
+                        child: Text(_formatDate(_datum)),
+                      ),
+                    ),
+                  ),
+                  // Bei Heineken-Monteur: nur Datum, Start/Ende ausblenden
+                  if (!_istHeinekenMonteur) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _uhrzeitStartController,
+                        decoration: const InputDecoration(
+                          labelText: 'Start',
+                          isDense: true,
+                        ),
+                        textInputAction: TextInputAction.next,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: SizedBox(
-                        height: 56,
-                        child: OutlinedButton.icon(
-                          onPressed: _fotoUploading ? null : _pickPhoto,
-                          icon: const Icon(Icons.upload_file, size: 24),
-                          label: const Text(
-                            'Hochladen',
-                            style: TextStyle(fontSize: 15),
-                          ),
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _uhrzeitEndeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Ende',
+                          isDense: true,
                         ),
+                        textInputAction: TextInputAction.next,
                       ),
                     ),
                   ],
-                ),
-              if (_fotoBytes != null || _existingFotoPfad != null)
-                _buildFotoSection(),
-              const SizedBox(height: 24),
-
-              // === Beanstandungen / Notizen ===
-              _sectionTitle(context, 'Beanstandungen / Notizen'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _notizenController,
-                decoration: const InputDecoration(
-                  labelText: 'Beanstandungen / Notizen',
-                  prefixIcon: Icon(Icons.note),
-                  alignLabelWithHint: true,
-                  hintText: 'Auffälligkeiten, Mängel, Kundenhinweise...',
-                ),
-                maxLines: 4,
-                textInputAction: TextInputAction.done,
+                ],
               ),
-              const SizedBox(height: 24),
 
-              // === Kulanz Switch ===
-              _buildKulanzSwitch(),
-              const SizedBox(height: 16),
+              // Bei Heineken-Monteur: Rest ausblenden
+              if (!_istHeinekenMonteur) ...[
+                const SizedBox(height: 24),
 
-              // === Positionen ===
-              _sectionTitle(context, 'Positionen'),
-              const SizedBox(height: 8),
-              _buildPositionen(),
-              const SizedBox(height: 16),
-
-              // === Preisliste-Referenz ===
-              if (_preisliste != null) _buildPreislisteReferenz(),
-              const SizedBox(height: 24),
-            ],
-
-            // === Aktionen ===
-            if (_isEdit) ...[
-              FilledButton(
-                onPressed: _isLoading ? null : () => _save(),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Speichern'),
-              ),
-              if (_status == 'offen') ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _showAbschlussDialog,
-                  icon: const Icon(Icons.check_circle),
-                  label: const Text('Reinigung abschliessen'),
+                // === Service-Art & Wasserwechsel ===
+                _sectionTitle(context, 'Service-Art'),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _serviceArt,
+                  decoration: const InputDecoration(
+                    labelText: 'Service-Art',
+                    prefixIcon: Icon(Icons.build),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'standardservice',
+                      child: Text('Standardservice'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'endreinigung',
+                      child: Text('Endreinigung'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'eroeffnungsservice',
+                      child: Text('Eröffnungsservice'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _serviceArt = v);
+                  },
                 ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: _wasserKuehlerGewechselt,
+                  onChanged: (v) {
+                    markiereGeaendert();
+                    setState(() => _wasserKuehlerGewechselt = v ?? false);
+                  },
+                  title: const Text('Wasser im Kühler gewechselt'),
+                  secondary: const Icon(Icons.water_drop),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                const SizedBox(height: 24),
+
+                // === Protokoll ===
+                _sectionTitle(context, 'Protokoll'),
+                const SizedBox(height: 8),
+                if (_fotoBytes == null && _existingFotoPfad == null)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 56,
+                          child: FilledButton.icon(
+                            onPressed: _fotoUploading ? null : _takePhoto,
+                            icon: const Icon(Icons.document_scanner, size: 24),
+                            label: const Text(
+                              'Digitalisieren',
+                              style: TextStyle(fontSize: 15),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SizedBox(
+                          height: 56,
+                          child: OutlinedButton.icon(
+                            onPressed: _fotoUploading ? null : _pickPhoto,
+                            icon: const Icon(Icons.upload_file, size: 24),
+                            label: const Text(
+                              'Hochladen',
+                              style: TextStyle(fontSize: 15),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (_fotoBytes != null || _existingFotoPfad != null)
+                  _buildFotoSection(),
+                const SizedBox(height: 24),
+
+                // === Beanstandungen / Notizen ===
+                _sectionTitle(context, 'Beanstandungen / Notizen'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _notizenController,
+                  decoration: const InputDecoration(
+                    labelText: 'Beanstandungen / Notizen',
+                    prefixIcon: Icon(Icons.note),
+                    alignLabelWithHint: true,
+                    hintText: 'Auffälligkeiten, Mängel, Kundenhinweise...',
+                  ),
+                  maxLines: 4,
+                  textInputAction: TextInputAction.done,
+                ),
+                const SizedBox(height: 24),
+
+                // === Kulanz Switch ===
+                _buildKulanzSwitch(),
+                const SizedBox(height: 16),
+
+                // === Positionen ===
+                _sectionTitle(context, 'Positionen'),
+                const SizedBox(height: 8),
+                _buildPositionen(),
+                const SizedBox(height: 16),
+
+                // === Preisliste-Referenz ===
+                if (_preisliste != null) _buildPreislisteReferenz(),
+                const SizedBox(height: 24),
               ],
-            ] else
-              FilledButton.icon(
-                onPressed: _isLoading ? null : _showAbschlussDialog,
-                icon: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.check_circle),
-                label: Text(
-                  _istHeinekenMonteur
-                      ? 'Heineken-Monteur erfassen'
-                      : 'Reinigung abschliessen',
+
+              // === Aktionen ===
+              if (_isEdit) ...[
+                FilledButton(
+                  onPressed: _isLoading ? null : () => _save(),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Speichern'),
                 ),
-              ),
-            const SizedBox(height: 32),
-          ],
+                if (_status == 'offen') ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _showAbschlussDialog,
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Reinigung abschliessen'),
+                  ),
+                ],
+              ] else
+                FilledButton.icon(
+                  onPressed: _isLoading ? null : _showAbschlussDialog,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_circle),
+                  label: Text(
+                    _istHeinekenMonteur
+                        ? 'Heineken-Monteur erfassen'
+                        : 'Reinigung abschliessen',
+                  ),
+                ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
@@ -1853,6 +1867,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
                   child: CheckboxListTile(
                     value: isSelected,
                     onChanged: (v) {
+                      markiereGeaendert();
                       setState(() {
                         if (v == true) {
                           _selectedAnlageIds.add(anlageId);
@@ -1927,10 +1942,13 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         secondary: const Icon(Icons.engineering, color: AppColors.info),
         value: _istHeinekenMonteur,
         contentPadding: EdgeInsets.zero,
-        onChanged: (v) => setState(() {
-          _istHeinekenMonteur = v;
-          if (v) _istKulanz = false;
-        }),
+        onChanged: (v) {
+          markiereGeaendert();
+          setState(() {
+            _istHeinekenMonteur = v;
+            if (v) _istKulanz = false;
+          });
+        },
       ),
     );
   }
@@ -1962,10 +1980,13 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
         ),
         value: _istKulanz,
         contentPadding: EdgeInsets.zero,
-        onChanged: (v) => setState(() {
-          _istKulanz = v;
-          if (v) _istHeinekenMonteur = false;
-        }),
+        onChanged: (v) {
+          markiereGeaendert();
+          setState(() {
+            _istKulanz = v;
+            if (v) _istHeinekenMonteur = false;
+          });
+        },
       ),
     );
   }
@@ -2133,6 +2154,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen> {
   }
 
   void _updatePositionAndPreis(VoidCallback update) {
+    // Deckt die +/- Knöpfe der Hähne mit ab — die sind kein FormField.
+    markiereGeaendert();
     setState(() {
       update();
     });

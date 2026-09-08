@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/models/event_stand_anlage.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 
 /// Formular zum Anlegen/Bearbeiten eines Event-Stands mit dynamischen
 /// Schankanlagen-Zeilen (Typ + Anzahl).
@@ -27,7 +28,8 @@ class EventStandFormScreen extends ConsumerStatefulWidget {
       _EventStandFormScreenState();
 }
 
-class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
+class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _initialLoading = false;
@@ -98,6 +100,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
   }
 
   void _anlageHinzufuegen() {
+    markiereGeaendert();
     setState(() {
       _typen.add(EventStandAnlage.typen.first);
       _anzahl.add(1);
@@ -107,6 +110,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
   }
 
   void _anlageEntfernen(int i) {
+    markiereGeaendert();
     setState(() {
       _typen.removeAt(i);
       _anzahl.removeAt(i);
@@ -180,6 +184,8 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
           SnackBar(
               content: Text(_isEdit ? 'Stand aktualisiert' : 'Stand angelegt')),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -210,132 +216,143 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Stand bearbeiten' : 'Neuer Stand'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Stand ===
-            _sectionTitle(context, 'Stand'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name *',
-                prefixIcon: Icon(Icons.storefront),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Stand',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Stand bearbeiten' : 'Neuer Stand'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Stand ===
+              _sectionTitle(context, 'Stand'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name *',
+                  prefixIcon: Icon(Icons.storefront),
+                ),
+                textInputAction: TextInputAction.next,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Name erforderlich'
+                    : null,
               ),
-              textInputAction: TextInputAction.next,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Name erforderlich' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _standnummerController,
-              decoration: const InputDecoration(
-                labelText: 'Standnummer',
-                prefixIcon: Icon(Icons.tag),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _standnummerController,
+                decoration: const InputDecoration(
+                  labelText: 'Standnummer',
+                  prefixIcon: Icon(Icons.tag),
+                ),
+                textInputAction: TextInputAction.next,
               ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // === Position ===
-            // Direkte Koordinaten-Eingabe (Daniel 11.08.2026): In Google Maps
-            // Rechtsklick auf den Punkt → die Koordinaten stehen zuoberst im
-            // Menü und lassen sich mit einem Klick kopieren. Eine ganze
-            // Standliste ist so schneller erfasst als über die Karte.
-            _sectionTitle(context, 'Position'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _koordinatenController,
-              decoration: const InputDecoration(
-                labelText: 'Koordinaten',
-                hintText: '46.849994916702336, 9.532274794958706',
-                helperText: 'Aus Google Maps einfügen · leer = keine Position',
-                helperMaxLines: 2,
-                prefixIcon: Icon(Icons.my_location),
+              // === Position ===
+              // Direkte Koordinaten-Eingabe (Daniel 11.08.2026): In Google Maps
+              // Rechtsklick auf den Punkt → die Koordinaten stehen zuoberst im
+              // Menü und lassen sich mit einem Klick kopieren. Eine ganze
+              // Standliste ist so schneller erfasst als über die Karte.
+              _sectionTitle(context, 'Position'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _koordinatenController,
+                decoration: const InputDecoration(
+                  labelText: 'Koordinaten',
+                  hintText: '46.849994916702336, 9.532274794958706',
+                  helperText:
+                      'Aus Google Maps einfügen · leer = keine Position',
+                  helperMaxLines: 2,
+                  prefixIcon: Icon(Icons.my_location),
+                ),
+                textInputAction: TextInputAction.next,
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  final t = (v ?? '').trim();
+                  if (t.isEmpty) return null;
+                  final k = koordinatenAus(t);
+                  if (k == null) {
+                    return 'Nicht lesbar — erwartet: 46.8500, 9.5323';
+                  }
+                  if (!istInDerSchweiz(k.lat, k.lng)) {
+                    // Warnung, keine Sperre: Anlässe ausserhalb der Schweiz sind
+                    // denkbar, vertauschte Werte aber viel wahrscheinlicher.
+                    return 'Ausserhalb der Schweiz — Breite und Länge vertauscht?';
+                  }
+                  return null;
+                },
               ),
-              textInputAction: TextInputAction.next,
-              onChanged: (_) => setState(() {}),
-              validator: (v) {
-                final t = (v ?? '').trim();
-                if (t.isEmpty) return null;
-                final k = koordinatenAus(t);
-                if (k == null) {
-                  return 'Nicht lesbar — erwartet: 46.8500, 9.5323';
-                }
-                if (!istInDerSchweiz(k.lat, k.lng)) {
-                  // Warnung, keine Sperre: Anlässe ausserhalb der Schweiz sind
-                  // denkbar, vertauschte Werte aber viel wahrscheinlicher.
-                  return 'Ausserhalb der Schweiz — Breite und Länge vertauscht?';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            _GenauigkeitAuswahl(
-              wert: _genauigkeit,
-              aktiv: _koordinatenController.text.trim().isNotEmpty,
-              onChanged: (v) => setState(() => _genauigkeit = v),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              _GenauigkeitAuswahl(
+                wert: _genauigkeit,
+                aktiv: _koordinatenController.text.trim().isNotEmpty,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _genauigkeit = v);
+                },
+              ),
+              const SizedBox(height: 24),
 
-            // === Schankanlagen ===
-            _sectionTitle(context, 'Schankanlagen'),
-            const SizedBox(height: 8),
-            if (_typen.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'Noch keine Anlagen erfasst.',
-                  style: TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary),
+              // === Schankanlagen ===
+              _sectionTitle(context, 'Schankanlagen'),
+              const SizedBox(height: 8),
+              if (_typen.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Noch keine Anlagen erfasst.',
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ),
+              ..._buildAnlagenZeilen(),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _anlageHinzufuegen,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Anlage'),
                 ),
               ),
-            ..._buildAnlagenZeilen(),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _anlageHinzufuegen,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Anlage'),
-              ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // === Notizen ===
-            _sectionTitle(context, 'Notizen'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+              // === Notizen ===
+              _sectionTitle(context, 'Notizen'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.newline,
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.newline,
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // === Speichern ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Stand anlegen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              // === Speichern ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Stand anlegen'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

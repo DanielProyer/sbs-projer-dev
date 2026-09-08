@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 
 class AnlageFormScreen extends ConsumerStatefulWidget {
   final String? anlageId; // null = neu erstellen
@@ -16,7 +17,8 @@ class AnlageFormScreen extends ConsumerStatefulWidget {
   ConsumerState<AnlageFormScreen> createState() => _AnlageFormScreenState();
 }
 
-class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
+class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   AnlageLocal? _existing;
@@ -127,6 +129,8 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
           ),
         );
         if (kIsWeb) ref.invalidate(anlagenStreamProvider);
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e, stack) {
@@ -176,318 +180,342 @@ class _AnlageFormScreenState extends ConsumerState<AnlageFormScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Anlage bearbeiten' : 'Neue Anlage'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Grunddaten ===
-            _sectionTitle(context, 'Grunddaten'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _typAnlage,
-              decoration: const InputDecoration(
-                labelText: 'Anlage-Typ *',
-                prefixIcon: Icon(Icons.precision_manufacturing),
-              ),
-              items: const [
-                DropdownMenuItem(
-                    value: 'Warmanstich', child: Text('Warmanstich')),
-                DropdownMenuItem(
-                    value: 'Kaltanstich', child: Text('Kaltanstich')),
-                DropdownMenuItem(
-                    value: 'Buffetanstich', child: Text('Buffetanstich')),
-                DropdownMenuItem(value: 'Orion', child: Text('Orion')),
-              ],
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() {
-                    _typAnlage = v;
-                    if (v == 'Buffetanstich') {
-                      _vorkuehler = 'Buffet';
-                      _durchlaufkuehler = 'keiner';
-                    }
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _bezeichnungController,
-              decoration: const InputDecoration(
-                labelText: 'Bezeichnung',
-                prefixIcon: Icon(Icons.label),
-              ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _seriennummerController,
-              decoration: const InputDecoration(
-                labelText: 'Seriennummer',
-                prefixIcon: Icon(Icons.tag),
-              ),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String?>(
-              initialValue: _typSaeule,
-              decoration: const InputDecoration(
-                labelText: 'Säulen-Typ',
-                prefixIcon: Icon(Icons.view_column),
-              ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Keine Angabe')),
-                DropdownMenuItem(value: 'Keine', child: Text('Keine')),
-                DropdownMenuItem(value: 'Europe 1-Way', child: Text('Europe 1-Way')),
-                DropdownMenuItem(value: 'Europe 2-Way', child: Text('Europe 2-Way')),
-                DropdownMenuItem(value: 'Europe 3-Way', child: Text('Europe 3-Way')),
-                DropdownMenuItem(value: 'Europe 4-Way', child: Text('Europe 4-Way')),
-                DropdownMenuItem(value: 'HeiTube 1-Way', child: Text('HeiTube 1-Way')),
-                DropdownMenuItem(value: 'Arrow 1-Way', child: Text('Arrow 1-Way')),
-                DropdownMenuItem(value: 'Fountain 1-Way', child: Text('Fountain 1-Way')),
-                DropdownMenuItem(value: 'Fountain Extra Cold 1-Way', child: Text('Fountain Extra Cold 1-Way')),
-                DropdownMenuItem(value: 'Cobra 1-Way', child: Text('Cobra 1-Way')),
-                DropdownMenuItem(value: 'Cola Säule', child: Text('Cola Säule')),
-                DropdownMenuItem(value: 'Falco 2-Way', child: Text('Falco 2-Way')),
-                DropdownMenuItem(value: 'Keramik 1-Way', child: Text('Keramik 1-Way')),
-                DropdownMenuItem(value: 'Keramik 2-Way', child: Text('Keramik 2-Way')),
-                DropdownMenuItem(value: 'Adimat', child: Text('Adimat')),
-                DropdownMenuItem(value: 'BuyToSell', child: Text('BuyToSell')),
-                DropdownMenuItem(value: 'Fremdsäule', child: Text('Fremdsäule')),
-                DropdownMenuItem(value: 'Smartschank', child: Text('Smartschank')),
-                DropdownMenuItem(value: 'Spezial', child: Text('Spezial')),
-              ],
-              onChanged: (v) => setState(() => _typSaeule = v),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Text('Anzahl Hähne: '),
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  onPressed: _anzahlHaehne > 1
-                      ? () => setState(() => _anzahlHaehne--)
-                      : null,
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Anlage',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Anlage bearbeiten' : 'Neue Anlage'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Zähler melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Grunddaten ===
+              _sectionTitle(context, 'Grunddaten'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _typAnlage,
+                decoration: const InputDecoration(
+                  labelText: 'Anlage-Typ *',
+                  prefixIcon: Icon(Icons.precision_manufacturing),
                 ),
-                Text(
-                  '$_anzahlHaehne',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  onPressed: () => setState(() => _anzahlHaehne++),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // === Kühlung & Gas ===
-            _sectionTitle(context, 'Kühlung & Gas'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _vorkuehler,
-              decoration: const InputDecoration(
-                labelText: 'Vorkühler',
-                prefixIcon: Icon(Icons.ac_unit),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'Warmanstich', child: Text('Warmanstich')),
+                  DropdownMenuItem(
+                      value: 'Kaltanstich', child: Text('Kaltanstich')),
+                  DropdownMenuItem(
+                      value: 'Buffetanstich', child: Text('Buffetanstich')),
+                  DropdownMenuItem(value: 'Orion', child: Text('Orion')),
+                ],
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() {
+                      _typAnlage = v;
+                      if (v == 'Buffetanstich') {
+                        _vorkuehler = 'Buffet';
+                        _durchlaufkuehler = 'keiner';
+                      }
+                    });
+                  }
+                },
               ),
-              items: const [
-                DropdownMenuItem(value: 'keiner', child: Text('Keiner')),
-                DropdownMenuItem(value: 'Fasskühler', child: Text('Fasskühler')),
-                DropdownMenuItem(value: 'Kühlzelle', child: Text('Kühlzelle')),
-                DropdownMenuItem(value: 'Buffet', child: Text('Buffet')),
-                DropdownMenuItem(value: 'Bierbar', child: Text('Bierbar')),
-                DropdownMenuItem(value: 'Kühlkeller', child: Text('Kühlkeller')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _vorkuehler = v);
-              },
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String?>(
-              initialValue: _durchlaufkuehler,
-              decoration: const InputDecoration(
-                labelText: 'Durchlaufkühler',
-                prefixIcon: Icon(Icons.kitchen),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _bezeichnungController,
+                decoration: const InputDecoration(
+                  labelText: 'Bezeichnung',
+                  prefixIcon: Icon(Icons.label),
+                ),
+                textInputAction: TextInputAction.next,
               ),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Keine Angabe')),
-                DropdownMenuItem(value: 'H60', child: Text('H60')),
-                DropdownMenuItem(value: 'H75', child: Text('H75')),
-                DropdownMenuItem(value: 'H100', child: Text('H100')),
-                DropdownMenuItem(value: 'H120', child: Text('H120')),
-                DropdownMenuItem(value: 'H150', child: Text('H150')),
-                DropdownMenuItem(value: 'H200', child: Text('H200')),
-                DropdownMenuItem(value: 'Orion', child: Text('Orion')),
-                DropdownMenuItem(value: 'OT-Lux', child: Text('OT-Lux')),
-                DropdownMenuItem(value: 'OT-Dry Cooler', child: Text('OT-Dry Cooler')),
-                DropdownMenuItem(value: 'OT-Berg', child: Text('OT-Berg')),
-                DropdownMenuItem(value: 'OT-Fest', child: Text('OT-Fest')),
-                DropdownMenuItem(value: 'V100', child: Text('V100')),
-                DropdownMenuItem(value: 'Gamko liegend', child: Text('Gamko liegend')),
-                DropdownMenuItem(value: 'Gamko stehend', child: Text('Gamko stehend')),
-                DropdownMenuItem(value: 'Gamko Sat.', child: Text('Gamko Sat.')),
-                DropdownMenuItem(value: 'Safari', child: Text('Safari')),
-                DropdownMenuItem(value: 'CR5', child: Text('CR5')),
-                DropdownMenuItem(value: 'Coca Cola', child: Text('Coca Cola')),
-                DropdownMenuItem(value: 'Fremdkühler', child: Text('Fremdkühler')),
-                DropdownMenuItem(value: 'Fremdkühler Sat.', child: Text('Fremdkühler Sat.')),
-                DropdownMenuItem(value: 'keiner', child: Text('Keiner')),
-              ],
-              onChanged: (v) => setState(() => _durchlaufkuehler = v),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text('Backpython'),
-              value: _backpython,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _backpython = v),
-            ),
-            SwitchListTile(
-              title: const Text('Booster'),
-              value: _booster,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _booster = v),
-            ),
-            SwitchListTile(
-              title: const Text('Eissäule'),
-              subtitle: const Text('Muss vor der Reinigung ausgeschaltet werden'),
-              value: _eissaeule,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _eissaeule = v),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: _gasTyp1,
-                    decoration:
-                        const InputDecoration(labelText: 'Gas Typ 1'),
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Keiner')),
-                      DropdownMenuItem(value: 'Aligal1', child: Text('Aligal1')),
-                      DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
-                      DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
-                      DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
-                    ],
-                    onChanged: (v) => setState(() => _gasTyp1 = v),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _seriennummerController,
+                decoration: const InputDecoration(
+                  labelText: 'Seriennummer',
+                  prefixIcon: Icon(Icons.tag),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _typSaeule,
+                decoration: const InputDecoration(
+                  labelText: 'Säulen-Typ',
+                  prefixIcon: Icon(Icons.view_column),
+                ),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Keine Angabe')),
+                  DropdownMenuItem(value: 'Keine', child: Text('Keine')),
+                  DropdownMenuItem(value: 'Europe 1-Way', child: Text('Europe 1-Way')),
+                  DropdownMenuItem(value: 'Europe 2-Way', child: Text('Europe 2-Way')),
+                  DropdownMenuItem(value: 'Europe 3-Way', child: Text('Europe 3-Way')),
+                  DropdownMenuItem(value: 'Europe 4-Way', child: Text('Europe 4-Way')),
+                  DropdownMenuItem(value: 'HeiTube 1-Way', child: Text('HeiTube 1-Way')),
+                  DropdownMenuItem(value: 'Arrow 1-Way', child: Text('Arrow 1-Way')),
+                  DropdownMenuItem(value: 'Fountain 1-Way', child: Text('Fountain 1-Way')),
+                  DropdownMenuItem(value: 'Fountain Extra Cold 1-Way', child: Text('Fountain Extra Cold 1-Way')),
+                  DropdownMenuItem(value: 'Cobra 1-Way', child: Text('Cobra 1-Way')),
+                  DropdownMenuItem(value: 'Cola Säule', child: Text('Cola Säule')),
+                  DropdownMenuItem(value: 'Falco 2-Way', child: Text('Falco 2-Way')),
+                  DropdownMenuItem(value: 'Keramik 1-Way', child: Text('Keramik 1-Way')),
+                  DropdownMenuItem(value: 'Keramik 2-Way', child: Text('Keramik 2-Way')),
+                  DropdownMenuItem(value: 'Adimat', child: Text('Adimat')),
+                  DropdownMenuItem(value: 'BuyToSell', child: Text('BuyToSell')),
+                  DropdownMenuItem(value: 'Fremdsäule', child: Text('Fremdsäule')),
+                  DropdownMenuItem(value: 'Smartschank', child: Text('Smartschank')),
+                  DropdownMenuItem(value: 'Spezial', child: Text('Spezial')),
+                ],
+                onChanged: (v) => setState(() => _typSaeule = v),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text('Anzahl Hähne: '),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: _anzahlHaehne > 1
+                        ? () {
+                            markiereGeaendert();
+                            setState(() => _anzahlHaehne--);
+                          }
+                        : null,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: _gasTyp2,
-                    decoration:
-                        const InputDecoration(labelText: 'Gas Typ 2'),
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Keiner')),
-                      DropdownMenuItem(value: 'Aligal1', child: Text('Aligal1')),
-                      DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
-                      DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
-                      DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
-                    ],
-                    onChanged: (v) => setState(() => _gasTyp2 = v),
+                  Text(
+                    '$_anzahlHaehne',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: () {
+                      markiereGeaendert();
+                      setState(() => _anzahlHaehne++);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // === Kühlung & Gas ===
+              _sectionTitle(context, 'Kühlung & Gas'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _vorkuehler,
+                decoration: const InputDecoration(
+                  labelText: 'Vorkühler',
+                  prefixIcon: Icon(Icons.ac_unit),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _hauptdruckController,
-              decoration: const InputDecoration(
-                labelText: 'Hauptdruck (bar)',
-                prefixIcon: Icon(Icons.speed),
+                items: const [
+                  DropdownMenuItem(value: 'keiner', child: Text('Keiner')),
+                  DropdownMenuItem(value: 'Fasskühler', child: Text('Fasskühler')),
+                  DropdownMenuItem(value: 'Kühlzelle', child: Text('Kühlzelle')),
+                  DropdownMenuItem(value: 'Buffet', child: Text('Buffet')),
+                  DropdownMenuItem(value: 'Bierbar', child: Text('Bierbar')),
+                  DropdownMenuItem(value: 'Kühlkeller', child: Text('Kühlkeller')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _vorkuehler = v);
+                },
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              textInputAction: TextInputAction.next,
-            ),
-            SwitchListTile(
-              title: const Text('Niederdruck vorhanden'),
-              value: _hatNiederdruck,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _hatNiederdruck = v),
-            ),
-            const SizedBox(height: 16),
-
-            // === Reinigung ===
-            _sectionTitle(context, 'Reinigung'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _reinigungRhythmus,
-              decoration: const InputDecoration(
-                labelText: 'Reinigung-Rhythmus',
-                prefixIcon: Icon(Icons.cleaning_services),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _durchlaufkuehler,
+                decoration: const InputDecoration(
+                  labelText: 'Durchlaufkühler',
+                  prefixIcon: Icon(Icons.kitchen),
+                ),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Keine Angabe')),
+                  DropdownMenuItem(value: 'H60', child: Text('H60')),
+                  DropdownMenuItem(value: 'H75', child: Text('H75')),
+                  DropdownMenuItem(value: 'H100', child: Text('H100')),
+                  DropdownMenuItem(value: 'H120', child: Text('H120')),
+                  DropdownMenuItem(value: 'H150', child: Text('H150')),
+                  DropdownMenuItem(value: 'H200', child: Text('H200')),
+                  DropdownMenuItem(value: 'Orion', child: Text('Orion')),
+                  DropdownMenuItem(value: 'OT-Lux', child: Text('OT-Lux')),
+                  DropdownMenuItem(value: 'OT-Dry Cooler', child: Text('OT-Dry Cooler')),
+                  DropdownMenuItem(value: 'OT-Berg', child: Text('OT-Berg')),
+                  DropdownMenuItem(value: 'OT-Fest', child: Text('OT-Fest')),
+                  DropdownMenuItem(value: 'V100', child: Text('V100')),
+                  DropdownMenuItem(value: 'Gamko liegend', child: Text('Gamko liegend')),
+                  DropdownMenuItem(value: 'Gamko stehend', child: Text('Gamko stehend')),
+                  DropdownMenuItem(value: 'Gamko Sat.', child: Text('Gamko Sat.')),
+                  DropdownMenuItem(value: 'Safari', child: Text('Safari')),
+                  DropdownMenuItem(value: 'CR5', child: Text('CR5')),
+                  DropdownMenuItem(value: 'Coca Cola', child: Text('Coca Cola')),
+                  DropdownMenuItem(value: 'Fremdkühler', child: Text('Fremdkühler')),
+                  DropdownMenuItem(value: 'Fremdkühler Sat.', child: Text('Fremdkühler Sat.')),
+                  DropdownMenuItem(value: 'keiner', child: Text('Keiner')),
+                ],
+                onChanged: (v) => setState(() => _durchlaufkuehler = v),
               ),
-              items: const [
-                DropdownMenuItem(value: '4-Wochen', child: Text('4-Wochen')),
-                DropdownMenuItem(value: '6-Wochen', child: Text('6-Wochen')),
-                DropdownMenuItem(value: '2-Monate', child: Text('2-Monate')),
-                DropdownMenuItem(value: '3-Monate', child: Text('3-Monate')),
-                DropdownMenuItem(value: '6-Monate', child: Text('6-Monate')),
-                DropdownMenuItem(value: 'Jährlich', child: Text('Jährlich')),
-                DropdownMenuItem(value: 'auf-Abruf', child: Text('Auf Abruf')),
-                DropdownMenuItem(value: 'Selbstreiniger', child: Text('Selbstreiniger')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _reinigungRhythmus = v);
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // === Einstellungen ===
-            _sectionTitle(context, 'Einstellungen'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                prefixIcon: Icon(Icons.circle),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                title: const Text('Backpython'),
+                value: _backpython,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _backpython = v);
+                },
               ),
-              items: const [
-                DropdownMenuItem(value: 'aktiv', child: Text('Aktiv')),
-                DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
-                DropdownMenuItem(value: 'stillgelegt', child: Text('Stillgelegt')),
-                DropdownMenuItem(value: 'demontiert', child: Text('Demontiert')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _status = v);
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // === Notizen ===
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+              SwitchListTile(
+                title: const Text('Booster'),
+                value: _booster,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _booster = v);
+                },
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 24),
+              SwitchListTile(
+                title: const Text('Eissäule'),
+                subtitle: const Text('Muss vor der Reinigung ausgeschaltet werden'),
+                value: _eissaeule,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _eissaeule = v);
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _gasTyp1,
+                      decoration:
+                          const InputDecoration(labelText: 'Gas Typ 1'),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('Keiner')),
+                        DropdownMenuItem(value: 'Aligal1', child: Text('Aligal1')),
+                        DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
+                        DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
+                        DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
+                      ],
+                      onChanged: (v) => setState(() => _gasTyp1 = v),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _gasTyp2,
+                      decoration:
+                          const InputDecoration(labelText: 'Gas Typ 2'),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('Keiner')),
+                        DropdownMenuItem(value: 'Aligal1', child: Text('Aligal1')),
+                        DropdownMenuItem(value: 'Aligal2', child: Text('Aligal2')),
+                        DropdownMenuItem(value: 'Aligal13', child: Text('Aligal13')),
+                        DropdownMenuItem(value: 'Kompressor', child: Text('Kompressor')),
+                      ],
+                      onChanged: (v) => setState(() => _gasTyp2 = v),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _hauptdruckController,
+                decoration: const InputDecoration(
+                  labelText: 'Hauptdruck (bar)',
+                  prefixIcon: Icon(Icons.speed),
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.next,
+              ),
+              SwitchListTile(
+                title: const Text('Niederdruck vorhanden'),
+                value: _hatNiederdruck,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _hatNiederdruck = v);
+                },
+              ),
+              const SizedBox(height: 16),
 
-            // === Speichern ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Anlage erstellen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              // === Reinigung ===
+              _sectionTitle(context, 'Reinigung'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _reinigungRhythmus,
+                decoration: const InputDecoration(
+                  labelText: 'Reinigung-Rhythmus',
+                  prefixIcon: Icon(Icons.cleaning_services),
+                ),
+                items: const [
+                  DropdownMenuItem(value: '4-Wochen', child: Text('4-Wochen')),
+                  DropdownMenuItem(value: '6-Wochen', child: Text('6-Wochen')),
+                  DropdownMenuItem(value: '2-Monate', child: Text('2-Monate')),
+                  DropdownMenuItem(value: '3-Monate', child: Text('3-Monate')),
+                  DropdownMenuItem(value: '6-Monate', child: Text('6-Monate')),
+                  DropdownMenuItem(value: 'Jährlich', child: Text('Jährlich')),
+                  DropdownMenuItem(value: 'auf-Abruf', child: Text('Auf Abruf')),
+                  DropdownMenuItem(value: 'Selbstreiniger', child: Text('Selbstreiniger')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _reinigungRhythmus = v);
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // === Einstellungen ===
+              _sectionTitle(context, 'Einstellungen'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _status,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  prefixIcon: Icon(Icons.circle),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'aktiv', child: Text('Aktiv')),
+                  DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
+                  DropdownMenuItem(value: 'stillgelegt', child: Text('Stillgelegt')),
+                  DropdownMenuItem(value: 'demontiert', child: Text('Demontiert')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _status = v);
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // === Notizen ===
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: 24),
+
+              // === Speichern ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Anlage erstellen'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

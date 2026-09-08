@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/util/google_kontakte.dart';
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
@@ -25,7 +26,8 @@ class BetriebKontaktFormScreen extends ConsumerStatefulWidget {
 }
 
 class _BetriebKontaktFormScreenState
-    extends ConsumerState<BetriebKontaktFormScreen> {
+    extends ConsumerState<BetriebKontaktFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   BetriebKontaktLocal? _existing;
@@ -93,6 +95,8 @@ class _BetriebKontaktFormScreenState
                 Text(_isEdit ? 'Kontakt aktualisiert' : 'Kontakt erstellt'),
           ),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -112,6 +116,7 @@ class _BetriebKontaktFormScreenState
       final roh = await waehleHandyKontakt();
       if (roh == null || !mounted) return;
       final k = kontaktAusPicker(roh.name, roh.telefon, roh.email);
+      markiereGeaendert();
       setState(() {
         if (k.vorname != null) _vornameController.text = k.vorname!;
         if (k.nachname != null) _nachnameController.text = k.nachname!;
@@ -142,139 +147,151 @@ class _BetriebKontaktFormScreenState
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Kontakt bearbeiten' : 'Neuer Kontakt'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Import aus Handy-Kontakten (Contact Picker, nur Chrome/Android)
-            if (kontaktPickerVerfuegbar)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.contact_phone_outlined),
-                  label: const Text('Aus Handy-Kontakten'),
-                  onPressed: _importAusHandy,
-                ),
-              ),
-
-            // === Name ===
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _vornameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Vorname *',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    textInputAction: TextInputAction.next,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Vorname ist erforderlich'
-                        : null,
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Kontakt',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Kontakt bearbeiten' : 'Neuer Kontakt'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Import aus Handy-Kontakten (Contact Picker, nur Chrome/Android)
+              if (kontaktPickerVerfuegbar)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.contact_phone_outlined),
+                    label: const Text('Aus Handy-Kontakten'),
+                    onPressed: _importAusHandy,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _nachnameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nachname',
+
+              // === Name ===
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _vornameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Vorname *',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      textInputAction: TextInputAction.next,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Vorname ist erforderlich'
+                          : null,
                     ),
-                    textInputAction: TextInputAction.next,
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nachnameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nachname',
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // === Funktion ===
+              DropdownButtonFormField<String>(
+                initialValue: _selectedFunktion,
+                decoration: const InputDecoration(
+                  labelText: 'Funktion',
+                  prefixIcon: Icon(Icons.work_outline),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // === Funktion ===
-            DropdownButtonFormField<String>(
-              initialValue: _selectedFunktion,
-              decoration: const InputDecoration(
-                labelText: 'Funktion',
-                prefixIcon: Icon(Icons.work_outline),
+                items: const [
+                  DropdownMenuItem(value: 'Geschäftsführer', child: Text('Geschäftsführer')),
+                  DropdownMenuItem(value: 'F&B Manager', child: Text('F&B Manager')),
+                  DropdownMenuItem(value: 'Mitarbeiter', child: Text('Mitarbeiter')),
+                  DropdownMenuItem(value: 'Hauswart', child: Text('Hauswart')),
+                  DropdownMenuItem(value: 'Sonstige', child: Text('Sonstige')),
+                ],
+                onChanged: (v) => setState(() => _selectedFunktion = v),
               ),
-              items: const [
-                DropdownMenuItem(value: 'Geschäftsführer', child: Text('Geschäftsführer')),
-                DropdownMenuItem(value: 'F&B Manager', child: Text('F&B Manager')),
-                DropdownMenuItem(value: 'Mitarbeiter', child: Text('Mitarbeiter')),
-                DropdownMenuItem(value: 'Hauswart', child: Text('Hauswart')),
-                DropdownMenuItem(value: 'Sonstige', child: Text('Sonstige')),
-              ],
-              onChanged: (v) => setState(() => _selectedFunktion = v),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // === Telefon ===
-            TextFormField(
-              controller: _telefonController,
-              decoration: const InputDecoration(
-                labelText: 'Telefon',
-                hintText: '+41 81 378 40 20',
-                prefixIcon: Icon(Icons.phone),
+              // === Telefon ===
+              TextFormField(
+                controller: _telefonController,
+                decoration: const InputDecoration(
+                  labelText: 'Telefon',
+                  hintText: '+41 81 378 40 20',
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [_PhoneFormatter()],
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  final digits = v.replaceAll(RegExp(r'[^\d]'), '');
+                  if (!v.startsWith('+') || digits.length < 10) {
+                    return 'Format: +41 81 378 40 20';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [_PhoneFormatter()],
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                final digits = v.replaceAll(RegExp(r'[^\d]'), '');
-                if (!v.startsWith('+') || digits.length < 10) {
-                  return 'Format: +41 81 378 40 20';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // === Optionen ===
-            SwitchListTile(
-              title: const Text('Hauptkontakt'),
-              subtitle: const Text('Primärer Ansprechpartner'),
-              value: _istHauptkontakt,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istHauptkontakt = v),
-            ),
-            SwitchListTile(
-              title: Text(_istDuAnrede ? 'Du' : 'Sie'),
-              subtitle: Text(_istDuAnrede ? 'Informelle Anrede' : 'Formelle Anrede'),
-              value: _istDuAnrede,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istDuAnrede = v),
-            ),
-            const SizedBox(height: 12),
-
-            // === Notizen ===
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+              // === Optionen ===
+              SwitchListTile(
+                title: const Text('Hauptkontakt'),
+                subtitle: const Text('Primärer Ansprechpartner'),
+                value: _istHauptkontakt,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istHauptkontakt = v);
+                },
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 24),
+              SwitchListTile(
+                title: Text(_istDuAnrede ? 'Du' : 'Sie'),
+                subtitle: Text(_istDuAnrede ? 'Informelle Anrede' : 'Formelle Anrede'),
+                value: _istDuAnrede,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istDuAnrede = v);
+                },
+              ),
+              const SizedBox(height: 12),
 
-            // === Speichern ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Kontakt erstellen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              // === Notizen ===
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: 24),
+
+              // === Speichern ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Kontakt erstellen'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

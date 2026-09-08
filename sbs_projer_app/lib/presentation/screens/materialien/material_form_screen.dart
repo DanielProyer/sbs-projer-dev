@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/data/repositories/material_artikel_repository.dart';
 import 'package:sbs_projer_app/data/repositories/material_kategorie_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 
 class MaterialFormScreen extends ConsumerStatefulWidget {
   final String? materialId;
@@ -19,7 +20,8 @@ class MaterialFormScreen extends ConsumerStatefulWidget {
       _MaterialFormScreenState();
 }
 
-class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
+class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   Lager? _existing;
@@ -133,6 +135,8 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
               content: Text(
                   _isEdit ? 'Material aktualisiert' : 'Material erstellt')),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -154,184 +158,193 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Material bearbeiten' : 'Neues Material'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Name
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name *',
-                helperText: 'Kurz & prägnant, z.B. "Bierhahn Celli"',
-              ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Name eingeben' : null,
-            ),
-            const SizedBox(height: 12),
-
-            // Beschreibung
-            TextFormField(
-              controller: _beschreibungController,
-              decoration:
-                  const InputDecoration(labelText: 'Beschreibung'),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-
-            // Kategorie
-            DropdownButtonFormField<String>(
-              initialValue: _kategorieId,
-              decoration: const InputDecoration(labelText: 'Kategorie'),
-              items: [
-                const DropdownMenuItem(
-                    value: null, child: Text('Keine Kategorie')),
-                ..._kategorien.map((k) => DropdownMenuItem(
-                      value: k.id,
-                      child: Text(k.name),
-                    )),
-              ],
-              onChanged: (v) => setState(() => _kategorieId = v),
-            ),
-            const SizedBox(height: 12),
-
-            // Einheit
-            DropdownButtonFormField<String>(
-              initialValue: _einheit,
-              decoration: const InputDecoration(labelText: 'Einheit'),
-              items: const [
-                DropdownMenuItem(value: 'Stück', child: Text('Stück')),
-                DropdownMenuItem(value: 'Liter', child: Text('Liter')),
-                DropdownMenuItem(value: 'Meter', child: Text('Meter')),
-                DropdownMenuItem(
-                    value: 'Kilogramm', child: Text('Kilogramm')),
-                DropdownMenuItem(
-                    value: 'Packung', child: Text('Packung')),
-                DropdownMenuItem(value: 'Set', child: Text('Set')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _einheit = v);
-              },
-            ),
-            if (_einheit == 'Packung') ...[
-              const SizedBox(height: 12),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Das Material',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Material bearbeiten' : 'Neues Material'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Name
               TextFormField(
-                controller: _stueckProPackungController,
+                controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Stück pro Packung',
-                  border: OutlineInputBorder(),
+                  labelText: 'Name *',
+                  helperText: 'Kurz & prägnant, z.B. "Bierhahn Celli"',
                 ),
-                keyboardType: TextInputType.number,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Name eingeben' : null,
               ),
-            ],
-            const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-            // Bestand
-            Text('Bestand',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _bestandAktuellController,
-                    decoration:
-                        const InputDecoration(labelText: 'Aktuell'),
-                    keyboardType: TextInputType.number,
+              // Beschreibung
+              TextFormField(
+                controller: _beschreibungController,
+                decoration:
+                    const InputDecoration(labelText: 'Beschreibung'),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+
+              // Kategorie
+              DropdownButtonFormField<String>(
+                initialValue: _kategorieId,
+                decoration: const InputDecoration(labelText: 'Kategorie'),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('Keine Kategorie')),
+                  ..._kategorien.map((k) => DropdownMenuItem(
+                        value: k.id,
+                        child: Text(k.name),
+                      )),
+                ],
+                onChanged: (v) => setState(() => _kategorieId = v),
+              ),
+              const SizedBox(height: 12),
+
+              // Einheit
+              DropdownButtonFormField<String>(
+                initialValue: _einheit,
+                decoration: const InputDecoration(labelText: 'Einheit'),
+                items: const [
+                  DropdownMenuItem(value: 'Stück', child: Text('Stück')),
+                  DropdownMenuItem(value: 'Liter', child: Text('Liter')),
+                  DropdownMenuItem(value: 'Meter', child: Text('Meter')),
+                  DropdownMenuItem(
+                      value: 'Kilogramm', child: Text('Kilogramm')),
+                  DropdownMenuItem(
+                      value: 'Packung', child: Text('Packung')),
+                  DropdownMenuItem(value: 'Set', child: Text('Set')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _einheit = v);
+                },
+              ),
+              if (_einheit == 'Packung') ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _stueckProPackungController,
+                  decoration: const InputDecoration(
+                    labelText: 'Stück pro Packung',
+                    border: OutlineInputBorder(),
                   ),
+                  keyboardType: TextInputType.number,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _bestandMindestController,
-                    decoration:
-                        const InputDecoration(labelText: 'Mindest'),
-                    keyboardType: TextInputType.number,
+              ],
+              const SizedBox(height: 16),
+
+              // Bestand
+              Text('Bestand',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _bestandAktuellController,
+                      decoration:
+                          const InputDecoration(labelText: 'Aktuell'),
+                      keyboardType: TextInputType.number,
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _bestandMindestController,
+                      decoration:
+                          const InputDecoration(labelText: 'Mindest'),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _bestandOptimalController,
+                      decoration:
+                          const InputDecoration(labelText: 'Optimal'),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Heineken-Artikel
+              Text('Heineken-Artikel',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              if (_dboNr != null)
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.link),
+                    title: Text(_linkedArtikelName ?? _dboNr!),
+                    subtitle: Text(
+                        'DBO $_dboNr${_sapNr != null ? '  ·  SAP $_sapNr' : ''}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        markiereGeaendert();
+                        setState(() {
+                          _materialId = null;
+                          _dboNr = null;
+                          _sapNr = null;
+                          _linkedArtikelName = null;
+                        });
+                      },
+                    ),
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: _showArtikelPicker,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Heineken-Artikel verknüpfen'),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _bestandOptimalController,
-                    decoration:
-                        const InputDecoration(labelText: 'Optimal'),
-                    keyboardType: TextInputType.number,
+              const SizedBox(height: 16),
+
+              // Notizen
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(labelText: 'Notizen'),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 24),
+
+              // Save
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Erstellen'),
+              ),
+
+              if (_isEdit) ...[
+                const SizedBox(height: 32),
+                const Divider(),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _confirmDelete,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Material löschen'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-
-            // Heineken-Artikel
-            Text('Heineken-Artikel',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            if (_dboNr != null)
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.link),
-                  title: Text(_linkedArtikelName ?? _dboNr!),
-                  subtitle: Text(
-                      'DBO $_dboNr${_sapNr != null ? '  ·  SAP $_sapNr' : ''}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => setState(() {
-                      _materialId = null;
-                      _dboNr = null;
-                      _sapNr = null;
-                      _linkedArtikelName = null;
-                    }),
-                  ),
-                ),
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: _showArtikelPicker,
-                icon: const Icon(Icons.search),
-                label: const Text('Heineken-Artikel verknüpfen'),
-              ),
-            const SizedBox(height: 16),
-
-            // Notizen
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(labelText: 'Notizen'),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-
-            // Save
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Erstellen'),
-            ),
-
-            if (_isEdit) ...[
-              const SizedBox(height: 32),
-              const Divider(),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _isLoading ? null : _confirmDelete,
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Material löschen'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                ),
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -360,6 +373,8 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
       await LagerRepository.delete(_existing!.id);
       if (mounted) {
         ref.invalidate(materialienStreamProvider);
+        // Gelöscht — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.go('/materialien');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Material gelöscht')),
@@ -395,6 +410,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen> {
       builder: (ctx) => const _ArtikelPickerDialog(),
     );
     if (result != null && mounted) {
+      markiereGeaendert();
       setState(() {
         _materialId = result.id;
         _dboNr = result.dboNr;

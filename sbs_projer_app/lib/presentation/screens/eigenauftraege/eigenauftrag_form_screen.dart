@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 
 class EigenauftragFormScreen extends ConsumerStatefulWidget {
   final String? eigenauftragId;
@@ -27,7 +28,7 @@ class EigenauftragFormScreen extends ConsumerStatefulWidget {
 }
 
 class _EigenauftragFormScreenState
-    extends ConsumerState<EigenauftragFormScreen> {
+    extends ConsumerState<EigenauftragFormScreen> with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   EigenauftragLocal? _existing;
@@ -106,6 +107,10 @@ class _EigenauftragFormScreenState
         } catch (_) {}
       }
     }
+
+    // Das Form ist beim Laden schon gebaut (kein Platzhalter) — die
+    // Controller-Befüllung oben meldet sich sonst fälschlich als Änderung.
+    WidgetsBinding.instance.addPostFrameCallback((_) => geaendertZuruecksetzen());
   }
 
   @override
@@ -126,140 +131,146 @@ class _EigenauftragFormScreenState
   Widget build(BuildContext context) {
     final isEdit = widget.eigenauftragId != null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Eigenauftrag bearbeiten' : 'Neuer Eigenauftrag'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Betrieb
-            _buildBetriebField(),
-            const SizedBox(height: 16),
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Eigenauftrag',
+      child: Scaffold(
+        appBar: AppBar(
+          title:
+              Text(isEdit ? 'Eigenauftrag bearbeiten' : 'Neuer Eigenauftrag'),
+        ),
+        body: Form(
+          key: _formKey,
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Betrieb
+              _buildBetriebField(),
+              const SizedBox(height: 16),
 
-            // Datum + Störungsnummer nebeneinander
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: InkWell(
-                    onTap: _pickDate,
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Datum *',
-                        prefixIcon: Icon(Icons.calendar_today),
+              // Datum + Störungsnummer nebeneinander
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: _pickDate,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Datum *',
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(_formatDate(_datum)),
                       ),
-                      child: Text(_formatDate(_datum)),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _stoerungsnummerController,
-                    decoration: const InputDecoration(
-                      labelText: 'Störungsnr. *',
-                      prefixIcon: Icon(Icons.tag),
-                      isDense: true,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _stoerungsnummerController,
+                      decoration: const InputDecoration(
+                        labelText: 'Störungsnr. *',
+                        prefixIcon: Icon(Icons.tag),
+                        isDense: true,
+                      ),
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
                     ),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Beschreibung
-            TextFormField(
-              controller: _beschreibungController,
-              decoration: const InputDecoration(
-                labelText: 'Beschreibung *',
-                prefixIcon: Icon(Icons.description),
-              ),
-              maxLines: 3,
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
-            ),
-            const SizedBox(height: 16),
-
-            // Anzahl + Preis
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _anzahlController,
-                    decoration: const InputDecoration(
-                      labelText: 'Anzahl *',
-                      prefixIcon: Icon(Icons.numbers),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Pflichtfeld';
-                      final n = int.tryParse(v);
-                      if (n == null || n < 1) return 'Min. 1';
-                      return null;
-                    },
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildPreisPreview(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Status (nur bei Bearbeiten)
-            if (isEdit) ...[
-              DropdownButtonFormField<String>(
-                initialValue: _status,
-                decoration: const InputDecoration(
-                  labelText: 'Status',
-                  prefixIcon: Icon(Icons.flag),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                      value: 'behoben', child: Text('Behoben')),
-                  DropdownMenuItem(
-                      value: 'nicht_behebbar',
-                      child: Text('Nicht behebbar')),
-                  DropdownMenuItem(
-                      value: 'nachbearbeitung_noetig',
-                      child: Text('Nachbearbeitung nötig')),
                 ],
-                onChanged: (v) => setState(() => _status = v!),
               ),
               const SizedBox(height: 16),
+
+              // Beschreibung
+              TextFormField(
+                controller: _beschreibungController,
+                decoration: const InputDecoration(
+                  labelText: 'Beschreibung *',
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 3,
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Pflichtfeld' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Anzahl + Preis
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _anzahlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Anzahl *',
+                        prefixIcon: Icon(Icons.numbers),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Pflichtfeld';
+                        final n = int.tryParse(v);
+                        if (n == null || n < 1) return 'Min. 1';
+                        return null;
+                      },
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildPreisPreview(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Status (nur bei Bearbeiten)
+              if (isEdit) ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _status,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    prefixIcon: Icon(Icons.flag),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'behoben', child: Text('Behoben')),
+                    DropdownMenuItem(
+                        value: 'nicht_behebbar',
+                        child: Text('Nicht behebbar')),
+                    DropdownMenuItem(
+                        value: 'nachbearbeitung_noetig',
+                        child: Text('Nachbearbeitung nötig')),
+                  ],
+                  onChanged: (v) => setState(() => _status = v!),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Material
+              const Text('Material',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 8),
+              ..._buildMaterialSlots(),
+              const SizedBox(height: 16),
+
+              const SizedBox(height: 24),
+
+              // Speichern
+              FilledButton.icon(
+                onPressed: _isLoading ? null : _save,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.save),
+                label: Text(isEdit ? 'Speichern' : 'Eigenauftrag erfassen'),
+              ),
+              const SizedBox(height: 80),
             ],
-
-            // Material
-            const Text('Material',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            const SizedBox(height: 8),
-            ..._buildMaterialSlots(),
-            const SizedBox(height: 16),
-
-            const SizedBox(height: 24),
-
-            // Speichern
-            FilledButton.icon(
-              onPressed: _isLoading ? null : _save,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save),
-              label: Text(isEdit ? 'Speichern' : 'Eigenauftrag erfassen'),
-            ),
-            const SizedBox(height: 80),
-          ],
+          ),
         ),
       ),
     );
@@ -334,6 +345,7 @@ class _EigenauftragFormScreenState
         );
       },
       onSelected: (b) {
+        markiereGeaendert();
         setState(() {
           _betriebId = b.serverId;
           _betriebSearchText = b.name;
@@ -395,6 +407,7 @@ class _EigenauftragFormScreenState
                         );
                       },
                       onSelected: (l) {
+                        markiereGeaendert();
                         setState(() => _materialIds[i] = l.id);
                       },
                     )
@@ -429,7 +442,10 @@ class _EigenauftragFormScreenState
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (picked != null) setState(() => _datum = picked);
+    if (picked != null) {
+      markiereGeaendert();
+      setState(() => _datum = picked);
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -494,7 +510,11 @@ class _EigenauftragFormScreenState
         ref.invalidate(materialienStreamProvider);
       }
 
-      if (mounted) context.pop();
+      if (mounted) {
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
+        context.pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

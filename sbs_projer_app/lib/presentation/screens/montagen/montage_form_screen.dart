@@ -29,6 +29,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 /// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
@@ -63,7 +64,8 @@ class MontageFormScreen extends ConsumerStatefulWidget {
   ConsumerState<MontageFormScreen> createState() => _MontageFormScreenState();
 }
 
-class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
+class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   MontageLocal? _existing;
@@ -394,6 +396,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     final vorschlag = aufViertelstunde(_gemesseneStunden);
     if (vorschlag == null) return false;
     if (_emptyToNull(_stundenController.text) != null) return false;
+    markiereGeaendert();
     setState(() => _stundenController.text = vorschlag.toStringAsFixed(2));
     return true;
   }
@@ -438,6 +441,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         );
       }
     } catch (e) {
+      // Endzeit und Schalterstellung stehen jetzt nur noch im Formular —
+      // der Schutz muss beim Verlassen fragen.
+      markiereGeaendert();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ende nicht gespeichert: $e')),
@@ -473,6 +479,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       }
     } catch (e) {
       debugPrint('[Arbeitszeit] Beginn konnte nicht gespeichert werden: $e');
+      // Die Beginnzeit steht jetzt nur noch im Formular — der Schutz muss
+      // beim Verlassen fragen.
+      markiereGeaendert();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -513,6 +522,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
     if (image == null || !mounted) return;
 
     final bytes = await image.readAsBytes();
+    markiereGeaendert();
     setState(() {
       _fotoBytes = bytes;
       _existingFotoPfad = null;
@@ -530,6 +540,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
   }
 
   Future<void> _onPhotoTaken(Uint8List bytes) async {
+    // Das Foto landet in beiden Zweigen unten in _fotoBytes.
+    markiereGeaendert();
     setState(() {
       _fotoProcessing = true;
       _fotoProcessingStep = 'Foto wird optimiert...';
@@ -826,6 +838,8 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           ),
         );
         if (kIsWeb) ref.invalidate(montagenStreamProvider);
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
@@ -867,424 +881,436 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Montage bearbeiten' : 'Neue Montage'),
-      ),
-      body: Stack(
-        children: [
-          Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // === Geplant / erledigt ===
-                // Bis v0.59.0 schrieb das Formular immer 'abgeschlossen' —
-                // eine Montage liess sich also nicht vorausplanen und tauchte
-                // nie im Tourenplan auf (Fund Daniel 31.07.2026).
-                SwitchListTile(
-                  title: const Text('Erst geplant'),
-                  subtitle: Text(
-                    _geplant
-                        ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
-                        : 'Erledigt — Rapport wird jetzt erfasst',
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Die Montage',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Montage bearbeiten' : 'Neue Montage'),
+        ),
+        body: Stack(
+          children: [
+            Form(
+              key: _formKey,
+              // Deckt alle FormFields ab; Schalter, Zeit- und Datumswahl
+              // melden sich selbst.
+              onChanged: markiereGeaendert,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // === Geplant / erledigt ===
+                  // Bis v0.59.0 schrieb das Formular immer 'abgeschlossen' —
+                  // eine Montage liess sich also nicht vorausplanen und tauchte
+                  // nie im Tourenplan auf (Fund Daniel 31.07.2026).
+                  SwitchListTile(
+                    title: const Text('Erst geplant'),
+                    subtitle: Text(
+                      _geplant
+                          ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
+                          : 'Erledigt — Rapport wird jetzt erfasst',
+                    ),
+                    secondary: Icon(
+                      _geplant
+                          ? Icons.event_outlined
+                          : Icons.check_circle_outline,
+                      color: _geplant ? AppColors.info : AppColors.success,
+                    ),
+                    value: _geplant,
+                    activeTrackColor: AppColors.info,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (v) {
+                      markiereGeaendert();
+                      setState(() => _geplant = v);
+                    },
                   ),
-                  secondary: Icon(
-                    _geplant
-                        ? Icons.event_outlined
-                        : Icons.check_circle_outline,
-                    color: _geplant ? AppColors.info : AppColors.success,
-                  ),
-                  value: _geplant,
-                  activeTrackColor: AppColors.info,
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (v) => setState(() => _geplant = v),
-                ),
-                const Divider(height: 24),
+                  const Divider(height: 24),
 
-                // === Arbeitszeit (Beginn-Knopf + von Hand aenderbare
-                // Zeitfelder) — typ-unabhaengig, gilt fuer jede Montage. ===
-                _buildArbeitBeginnBlock(),
-                _sectionTitle(context, 'Arbeitszeit'),
-                const SizedBox(height: 8),
-                _buildArbeitZeitfelder(),
-                const SizedBox(height: 24),
-
-                // === Betrieb ===
-                _sectionTitle(context, 'Betrieb'),
-                const SizedBox(height: 8),
-                _buildBetriebField(),
-                const SizedBox(height: 24),
-
-                // === Montage-Typ ===
-                _sectionTitle(context, 'Montage-Typ'),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: _montageTyp,
-                  decoration: const InputDecoration(
-                    labelText: 'Typ *',
-                    prefixIcon: Icon(Icons.build),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'neumontage',
-                      child: Text('Neumontage'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'demontage',
-                      child: Text('Demontage'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'abaenderung',
-                      child: Text('Abänderung'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'heigenie_service',
-                      child: Text('HeiGenie Service'),
-                    ),
-                    DropdownMenuItem(value: 'anlass', child: Text('Anlass')),
-                    DropdownMenuItem(value: 'spesen', child: Text('Spesen')),
-                    DropdownMenuItem(
-                      value: 'aufwandsentschaedigung',
-                      child: Text('Aufwandsentschädigung'),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() {
-                        _montageTyp = v;
-                        if (_betriebDisabled) _betriebId = null;
-                        // Anlass: Stundenfelder auf 0 setzen
-                        if (v == 'anlass') {
-                          for (int i = 0; i < 5; i++) {
-                            _materialMengen[i] = 0;
-                            _materialMengenControllers[i].text = '0';
-                          }
-                        }
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // === HeiGenie: Hähne + Bergkunde ===
-                if (_isHeigenie) ...[
-                  _sectionTitle(context, 'HeiGenie Service'),
+                  // === Arbeitszeit (Beginn-Knopf + von Hand aenderbare
+                  // Zeitfelder) — typ-unabhaengig, gilt fuer jede Montage. ===
+                  _buildArbeitBeginnBlock(),
+                  _sectionTitle(context, 'Arbeitszeit'),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: _datum,
-                              firstDate: DateTime(2024),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 365),
-                              ),
-                            );
-                            if (picked != null) {
-                              setState(() => _datum = picked);
+                  _buildArbeitZeitfelder(),
+                  const SizedBox(height: 24),
+
+                  // === Betrieb ===
+                  _sectionTitle(context, 'Betrieb'),
+                  const SizedBox(height: 8),
+                  _buildBetriebField(),
+                  const SizedBox(height: 24),
+
+                  // === Montage-Typ ===
+                  _sectionTitle(context, 'Montage-Typ'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _montageTyp,
+                    decoration: const InputDecoration(
+                      labelText: 'Typ *',
+                      prefixIcon: Icon(Icons.build),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'neumontage',
+                        child: Text('Neumontage'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'demontage',
+                        child: Text('Demontage'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'abaenderung',
+                        child: Text('Abänderung'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'heigenie_service',
+                        child: Text('HeiGenie Service'),
+                      ),
+                      DropdownMenuItem(value: 'anlass', child: Text('Anlass')),
+                      DropdownMenuItem(value: 'spesen', child: Text('Spesen')),
+                      DropdownMenuItem(
+                        value: 'aufwandsentschaedigung',
+                        child: Text('Aufwandsentschädigung'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() {
+                          _montageTyp = v;
+                          if (_betriebDisabled) _betriebId = null;
+                          // Anlass: Stundenfelder auf 0 setzen
+                          if (v == 'anlass') {
+                            for (int i = 0; i < 5; i++) {
+                              _materialMengen[i] = 0;
+                              _materialMengenControllers[i].text = '0';
                             }
-                          },
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Datum',
-                              prefixIcon: Icon(Icons.calendar_today),
+                          }
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // === HeiGenie: Hähne + Bergkunde ===
+                  if (_isHeigenie) ...[
+                    _sectionTitle(context, 'HeiGenie Service'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _datum,
+                                firstDate: DateTime(2024),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
+                                ),
+                              );
+                              if (picked != null) {
+                                markiereGeaendert();
+                                setState(() => _datum = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Datum',
+                                prefixIcon: Icon(Icons.calendar_today),
+                              ),
+                              child: Text(_formatDate(_datum)),
                             ),
-                            child: Text(_formatDate(_datum)),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 110,
-                        child: TextFormField(
-                          initialValue: _anzahlHaehne > 0
-                              ? _anzahlHaehne.toString()
-                              : '',
-                          decoration: const InputDecoration(
-                            labelText: 'Anz. Hähne',
-                            prefixIcon: Icon(Icons.countertops),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 110,
+                          child: TextFormField(
+                            initialValue: _anzahlHaehne > 0
+                                ? _anzahlHaehne.toString()
+                                : '',
+                            decoration: const InputDecoration(
+                              labelText: 'Anz. Hähne',
+                              prefixIcon: Icon(Icons.countertops),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (v) {
+                              if (!_isHeigenie) return null;
+                              final n = int.tryParse(v ?? '');
+                              if (n == null || n <= 0) return 'Min. 1';
+                              return null;
+                            },
+                            onChanged: (v) {
+                              setState(() {
+                                _anzahlHaehne = int.tryParse(v) ?? 0;
+                              });
+                            },
                           ),
-                          keyboardType: TextInputType.number,
-                          validator: (v) {
-                            if (!_isHeigenie) return null;
-                            final n = int.tryParse(v ?? '');
-                            if (n == null || n <= 0) return 'Min. 1';
-                            return null;
-                          },
-                          onChanged: (v) {
-                            setState(() {
-                              _anzahlHaehne = int.tryParse(v) ?? 0;
-                            });
-                          },
+                        ),
+                      ],
+                    ),
+                    if (_istBergkunde) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.landscape,
+                              size: 18,
+                              color: Colors.orange.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Bergkunde (Zuschlag ${_preisliste?.bergkundenZuschlag.toStringAsFixed(2) ?? '–'} CHF inkl.)',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.orange.shade800,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                  if (_istBergkunde) ...[
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Row(
+                    _buildHeigenieKostenPreview(),
+                    const SizedBox(height: 24),
+
+                    // Protokoll-Scan
+                    _sectionTitle(context, 'Reinigungsprotokoll'),
+                    const SizedBox(height: 8),
+                    if (_fotoBytes == null && _existingFotoPfad == null)
+                      Row(
                         children: [
-                          Icon(
-                            Icons.landscape,
-                            size: 18,
-                            color: Colors.orange.shade700,
+                          Expanded(
+                            child: SizedBox(
+                              height: 56,
+                              child: FilledButton.icon(
+                                onPressed: _fotoUploading ? null : _takePhoto,
+                                icon: const Icon(
+                                  Icons.document_scanner,
+                                  size: 24,
+                                ),
+                                label: const Text(
+                                  'Digitalisieren',
+                                  style: TextStyle(fontSize: 15),
+                                ),
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Bergkunde (Zuschlag ${_preisliste?.bergkundenZuschlag.toStringAsFixed(2) ?? '–'} CHF inkl.)',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.orange.shade800,
+                          Expanded(
+                            child: SizedBox(
+                              height: 56,
+                              child: OutlinedButton.icon(
+                                onPressed: _fotoUploading ? null : _pickPhoto,
+                                icon: const Icon(Icons.upload_file, size: 24),
+                                label: const Text(
+                                  'Hochladen',
+                                  style: TextStyle(fontSize: 15),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    if (_fotoBytes != null || _existingFotoPfad != null)
+                      _buildFotoSection(),
+                    const SizedBox(height: 24),
                   ],
-                  const SizedBox(height: 8),
-                  _buildHeigenieKostenPreview(),
-                  const SizedBox(height: 24),
 
-                  // Protokoll-Scan
-                  _sectionTitle(context, 'Reinigungsprotokoll'),
-                  const SizedBox(height: 8),
-                  if (_fotoBytes == null && _existingFotoPfad == null)
+                  // === Datum & Stunden (nicht HeiGenie) ===
+                  if (!_isHeigenie) ...[
+                    _sectionTitle(context, 'Datum & Aufwand'),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
-                          child: SizedBox(
-                            height: 56,
-                            child: FilledButton.icon(
-                              onPressed: _fotoUploading ? null : _takePhoto,
-                              icon: const Icon(
-                                Icons.document_scanner,
-                                size: 24,
+                          flex: 2,
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _datum,
+                                firstDate: DateTime(2024),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
+                                ),
+                              );
+                              if (picked != null) {
+                                markiereGeaendert();
+                                setState(() => _datum = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: _isAnlass ? 'Startdatum' : 'Datum',
+                                prefixIcon: const Icon(Icons.calendar_today),
                               ),
-                              label: const Text(
-                                'Digitalisieren',
-                                style: TextStyle(fontSize: 15),
-                              ),
+                              child: Text(_formatDate(_datum)),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: SizedBox(
-                            height: 56,
-                            child: OutlinedButton.icon(
-                              onPressed: _fotoUploading ? null : _pickPhoto,
-                              icon: const Icon(Icons.upload_file, size: 24),
-                              label: const Text(
-                                'Hochladen',
-                                style: TextStyle(fontSize: 15),
-                              ),
-                            ),
-                          ),
+                          child: _isSpesen
+                              ? TextFormField(
+                                  controller: _betragController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Betrag',
+                                    prefixIcon: Icon(Icons.payments),
+                                    suffixText: 'CHF',
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  textInputAction: TextInputAction.next,
+                                  onChanged: (_) => setState(() {}),
+                                )
+                              : _isAnlass
+                              ? InputDecorator(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Total Stunden',
+                                    prefixIcon: Icon(Icons.timer),
+                                    suffixText: 'h',
+                                  ),
+                                  child: Text(
+                                    _anlassTotalStunden.toStringAsFixed(2),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                )
+                              : TextFormField(
+                                  controller: _stundenController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Stunden',
+                                    prefixIcon: Icon(Icons.timer),
+                                    suffixText: 'h',
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  textInputAction: TextInputAction.next,
+                                  onChanged: (_) => setState(() {}),
+                                ),
                         ),
                       ],
                     ),
-                  if (_fotoBytes != null || _existingFotoPfad != null)
-                    _buildFotoSection(),
-                  const SizedBox(height: 24),
-                ],
-
-                // === Datum & Stunden (nicht HeiGenie) ===
-                if (!_isHeigenie) ...[
-                  _sectionTitle(context, 'Datum & Aufwand'),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: _datum,
-                              firstDate: DateTime(2024),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 365),
-                              ),
-                            );
-                            if (picked != null) {
-                              setState(() => _datum = picked);
-                            }
-                          },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: _isAnlass ? 'Startdatum' : 'Datum',
-                              prefixIcon: const Icon(Icons.calendar_today),
-                            ),
-                            child: Text(_formatDate(_datum)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _isSpesen
-                            ? TextFormField(
-                                controller: _betragController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Betrag',
-                                  prefixIcon: Icon(Icons.payments),
-                                  suffixText: 'CHF',
-                                ),
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                textInputAction: TextInputAction.next,
-                                onChanged: (_) => setState(() {}),
-                              )
-                            : _isAnlass
-                            ? InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Total Stunden',
-                                  prefixIcon: Icon(Icons.timer),
-                                  suffixText: 'h',
-                                ),
-                                child: Text(
-                                  _anlassTotalStunden.toStringAsFixed(2),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              )
-                            : TextFormField(
-                                controller: _stundenController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Stunden',
-                                  prefixIcon: Icon(Icons.timer),
-                                  suffixText: 'h',
-                                ),
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                textInputAction: TextInputAction.next,
-                                onChanged: (_) => setState(() {}),
-                              ),
-                      ),
+                    if (!_isAnlass) ...[
+                      const SizedBox(height: 12),
+                      if (!_isSpesen) _buildGemesseneZeitHinweis(),
+                      _buildKostenPreview(),
                     ],
-                  ),
-                  if (!_isAnlass) ...[
-                    const SizedBox(height: 12),
-                    if (!_isSpesen) _buildGemesseneZeitHinweis(),
-                    _buildKostenPreview(),
+                    const SizedBox(height: 24),
                   ],
-                  const SizedBox(height: 24),
-                ],
 
-                // === Beschreibung ===
-                _sectionTitle(context, 'Beschreibung'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _beschreibungController,
-                  decoration: InputDecoration(
-                    labelText: _betriebDisabled
-                        ? 'Beschreibung *'
-                        : 'Beschreibung',
-                    prefixIcon: const Icon(Icons.description),
-                    alignLabelWithHint: true,
-                    hintText: _isSpesen
-                        ? 'z.B. AdBlue, Arbeitsschuhe, Autobahnvignette'
-                        : _montageTyp == 'aufwandsentschaedigung'
-                        ? 'z.B. Schulung, Einführung neuer Mitarbeiter'
-                        : _isHeigenie
-                        ? 'z.B. HeiGenie Service Reinigung'
-                        : _isAnlass
-                        ? 'z.B. Festival Zürich 18.-20. April'
+                  // === Beschreibung ===
+                  _sectionTitle(context, 'Beschreibung'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _beschreibungController,
+                    decoration: InputDecoration(
+                      labelText: _betriebDisabled
+                          ? 'Beschreibung *'
+                          : 'Beschreibung',
+                      prefixIcon: const Icon(Icons.description),
+                      alignLabelWithHint: true,
+                      hintText: _isSpesen
+                          ? 'z.B. AdBlue, Arbeitsschuhe, Autobahnvignette'
+                          : _montageTyp == 'aufwandsentschaedigung'
+                          ? 'z.B. Schulung, Einführung neuer Mitarbeiter'
+                          : _isHeigenie
+                          ? 'z.B. HeiGenie Service Reinigung'
+                          : _isAnlass
+                          ? 'z.B. Festival Zürich 18.-20. April'
+                          : null,
+                    ),
+                    maxLines: 3,
+                    textInputAction: TextInputAction.next,
+                    validator: _betriebDisabled
+                        ? (v) => (v == null || v.trim().isEmpty)
+                              ? 'Beschreibung erforderlich'
+                              : null
                         : null,
                   ),
-                  maxLines: 3,
-                  textInputAction: TextInputAction.next,
-                  validator: _betriebDisabled
-                      ? (v) => (v == null || v.trim().isEmpty)
-                            ? 'Beschreibung erforderlich'
-                            : null
-                      : null,
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // === Anlass: Tages-/Spesen-Einträge ===
-                if (_isAnlass) ...[
-                  _sectionTitle(context, 'Tage & Spesen'),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Einzelne Tage und Spesen erfassen. Stunden werden automatisch summiert.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  // === Anlass: Tages-/Spesen-Einträge ===
+                  if (_isAnlass) ...[
+                    _sectionTitle(context, 'Tage & Spesen'),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Einzelne Tage und Spesen erfassen. Stunden werden automatisch summiert.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
+                    const SizedBox(height: 8),
+                    ..._buildAnlassSlots(),
+                    const SizedBox(height: 8),
+                    _buildAnlassSumme(),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // === Material (nur bei Standard-Montagen) ===
+                  if (!_isHeigenie &&
+                      !_isAnlass &&
+                      !_isSpesen &&
+                      _montageTyp != 'aufwandsentschaedigung') ...[
+                    _sectionTitle(context, 'Verwendetes Material'),
+                    const SizedBox(height: 8),
+                    ..._buildMaterialSlots(),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // === Speichern ===
+                  FilledButton(
+                    onPressed: _isLoading ? null : _save,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(_isEdit ? 'Speichern' : 'Montage erfassen'),
                   ),
-                  const SizedBox(height: 8),
-                  ..._buildAnlassSlots(),
-                  const SizedBox(height: 8),
-                  _buildAnlassSumme(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                 ],
-
-                // === Material (nur bei Standard-Montagen) ===
-                if (!_isHeigenie &&
-                    !_isAnlass &&
-                    !_isSpesen &&
-                    _montageTyp != 'aufwandsentschaedigung') ...[
-                  _sectionTitle(context, 'Verwendetes Material'),
-                  const SizedBox(height: 8),
-                  ..._buildMaterialSlots(),
-                  const SizedBox(height: 24),
-                ],
-
-                // === Speichern ===
-                FilledButton(
-                  onPressed: _isLoading ? null : _save,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(_isEdit ? 'Speichern' : 'Montage erfassen'),
-                ),
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
-          ),
-          // Foto-Processing Overlay
-          if (_fotoProcessing)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
-                        Text(_fotoProcessingStep),
-                      ],
+            // Foto-Processing Overlay
+            if (_fotoProcessing)
+              Container(
+                color: Colors.black54,
+                child: Center(
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text(_fotoProcessingStep),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1533,6 +1559,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 16),
                           onPressed: () {
+                            markiereGeaendert();
                             setState(() {
                               _materialControllers[i].clear();
                               _materialIds[i] = null;
@@ -1668,6 +1695,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                                         icon: const Icon(Icons.clear, size: 16),
                                         onPressed: () {
                                           controller.clear();
+                                          markiereGeaendert();
                                           setState(() {
                                             _materialIds[i] = null;
                                             _materialControllers[i].clear();
@@ -1715,6 +1743,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                         );
                       },
                       onSelected: (l) {
+                        markiereGeaendert();
                         setState(() {
                           _materialIds[i] = l.id;
                           _materialControllers[i].text = l.name;
@@ -1800,6 +1829,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: () {
                       controller.clear();
+                      markiereGeaendert();
                       setState(() {
                         _betriebId = null;
                         _istBergkunde = false;
@@ -1840,6 +1870,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
         );
       },
       onSelected: (b) {
+        markiereGeaendert();
         setState(() {
           _betriebId = b.serverId;
           // Bergkunde automatisch aus Betrieb übernehmen
@@ -2012,6 +2043,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
             final initial = _parseZeit(controller.text) ?? TimeOfDay.now();
             final picked = await zeigeZeitauswahl(context, initial: initial);
             if (picked != null) {
+              // Die Zeitfelder sind InputDecorator, keine FormFields —
+              // Form.onChanged sieht sie nicht.
+              markiereGeaendert();
               setState(() => controller.text = _formatZeit(picked));
               // Sobald beide Zeiten stehen, den Vorschlag gleich eintragen —
               // der «Beenden»-Knopf erscheint nur bei laufender Arbeit und
@@ -2072,6 +2106,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen> {
           ),
           GestureDetector(
             onTap: () {
+              markiereGeaendert();
               setState(() {
                 _stundenController.text = vorschlag.toStringAsFixed(2);
               });

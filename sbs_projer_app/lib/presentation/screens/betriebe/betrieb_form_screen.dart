@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -36,7 +37,8 @@ class BetriebFormScreen extends ConsumerStatefulWidget {
   ConsumerState<BetriebFormScreen> createState() => _BetriebFormScreenState();
 }
 
-class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
+class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   BetriebLocal? _existing;
@@ -259,6 +261,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
   void _aliasHinzufuegen() {
     final norm = zahlernameNorm(_aliasController.text);
     if (norm.isEmpty) return;
+    markiereGeaendert();
     setState(() {
       if (!_zahlerAliase.contains(norm)) _zahlerAliase.add(norm);
       _aliasController.clear();
@@ -468,6 +471,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     );
 
     if (uebernehmen == true) {
+      markiereGeaendert();
       setState(() {
         for (final k in kandidaten) {
           if (auswahl[k] == true) k.uebernehmen();
@@ -674,6 +678,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
         if (kIsWeb) {
           ref.invalidate(betriebeStreamProvider);
         }
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e, stack) {
@@ -810,761 +816,823 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Betrieb bearbeiten' : 'Neuer Betrieb'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // === Name ===
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name *',
-                prefixIcon: Icon(Icons.store),
-              ),
-              textInputAction: TextInputAction.next,
-              validator: (v) => v == null || v.trim().isEmpty
-                  ? 'Name ist erforderlich'
-                  : null,
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _googleLoading ? null : _ausGoogleUebernehmen,
-              icon: _googleLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.travel_explore),
-              label: const Text('Aus Google übernehmen'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _websiteLoading ? null : _oeffnungszeitenVonWebsite,
-              icon: _websiteLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.schedule),
-              label: const Text('Öffnungszeiten von Website'),
-            ),
-            const SizedBox(height: 8),
-
-            // === Zapfsysteme (direkt unter Name) ===
-            Wrap(
-              spacing: 8,
-              children:
-                  [
-                    'David',
-                    'Konventionell',
-                    'Higenie',
-                    'Orion',
-                    'Veranstaltungen',
-                  ].map((system) {
-                    final selected = _zapfsysteme.contains(system);
-                    return FilterChip(
-                      label: Text(system),
-                      selected: selected,
-                      onSelected: (v) {
-                        setState(() {
-                          if (v) {
-                            _zapfsysteme.add(system);
-                          } else {
-                            _zapfsysteme.remove(system);
-                          }
-                          // Vorschlag: Mein Kunde je nach Status + Zapfsystemen neu setzen
-                          _istMeinKunde = istMeinKundeVorschlag(
-                            _status,
-                            _zapfsysteme.toList(),
-                          );
-                        });
-                      },
-                    );
-                  }).toList(),
-            ),
-            SwitchListTile(
-              title: const Text('Mein Kunde'),
-              value: _istMeinKunde,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istMeinKunde = v),
-            ),
-            SwitchListTile(
-              title: const Text('Bergkunde'),
-              subtitle: const Text('+100 CHF Zuschlag'),
-              value: _istBergkunde,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istBergkunde = v),
-            ),
-            if (_istMeinKunde)
-              DropdownButtonFormField<String>(
-                initialValue: _rechnungsstellung,
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Betrieb',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Betrieb bearbeiten' : 'Neuer Betrieb'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // === Name ===
+              TextFormField(
+                controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Rechnungsstellung',
-                  prefixIcon: Icon(Icons.receipt),
+                  labelText: 'Name *',
+                  prefixIcon: Icon(Icons.store),
+                ),
+                textInputAction: TextInputAction.next,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Name ist erforderlich'
+                    : null,
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _googleLoading ? null : _ausGoogleUebernehmen,
+                icon: _googleLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.travel_explore),
+                label: const Text('Aus Google übernehmen'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _websiteLoading ? null : _oeffnungszeitenVonWebsite,
+                icon: _websiteLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.schedule),
+                label: const Text('Öffnungszeiten von Website'),
+              ),
+              const SizedBox(height: 8),
+
+              // === Zapfsysteme (direkt unter Name) ===
+              Wrap(
+                spacing: 8,
+                children:
+                    [
+                      'David',
+                      'Konventionell',
+                      'Higenie',
+                      'Orion',
+                      'Veranstaltungen',
+                    ].map((system) {
+                      final selected = _zapfsysteme.contains(system);
+                      return FilterChip(
+                        label: Text(system),
+                        selected: selected,
+                        onSelected: (v) {
+                          markiereGeaendert();
+                          setState(() {
+                            if (v) {
+                              _zapfsysteme.add(system);
+                            } else {
+                              _zapfsysteme.remove(system);
+                            }
+                            // Vorschlag: Mein Kunde je nach Status + Zapfsystemen neu setzen
+                            _istMeinKunde = istMeinKundeVorschlag(
+                              _status,
+                              _zapfsysteme.toList(),
+                            );
+                          });
+                        },
+                      );
+                    }).toList(),
+              ),
+              SwitchListTile(
+                title: const Text('Mein Kunde'),
+                value: _istMeinKunde,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istMeinKunde = v);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Bergkunde'),
+                subtitle: const Text('+100 CHF Zuschlag'),
+                value: _istBergkunde,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istBergkunde = v);
+                },
+              ),
+              if (_istMeinKunde)
+                DropdownButtonFormField<String>(
+                  initialValue: _rechnungsstellung,
+                  decoration: const InputDecoration(
+                    labelText: 'Rechnungsstellung',
+                    prefixIcon: Icon(Icons.receipt),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'rechnung_mail',
+                      child: Text('Per E-Mail'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rechnung_post',
+                      child: Text('Per Post'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rechnung_tresen',
+                      child: Text('Rechnung Tresen'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'barzahlung',
+                      child: Text('Barzahlung'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'jahresrechnung',
+                      child: Text('Jahresrechnung'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'heineken',
+                      child: Text('Via Heineken'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _rechnungsstellung = v);
+                  },
+                ),
+              const SizedBox(height: 16),
+
+              if (_istMeinKunde) ...[
+                // === Zahlernamen-Aliase (Bank zu Betrieb-Lernen) ===
+                Text(
+                  'Zahlernamen (Bank)',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const Text(
+                  'Namen, unter denen dieser Betrieb Zahlungen überweist. '
+                  'Wird beim Bankauszug-Import automatisch gelernt.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                if (_zahlerAliase.isNotEmpty)
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final a in _zahlerAliase)
+                        InputChip(
+                          label: Text(a),
+                          onDeleted: () {
+                            markiereGeaendert();
+                            setState(() => _zahlerAliase.remove(a));
+                          },
+                        ),
+                    ],
+                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _aliasController,
+                        decoration: const InputDecoration(
+                          labelText: 'Zahlername hinzufügen',
+                          prefixIcon: Icon(Icons.account_balance),
+                        ),
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _aliasHinzufuegen(),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      tooltip: 'Hinzufügen',
+                      onPressed: _aliasHinzufuegen,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // === Adresse ===
+              Text(
+                'Adresse',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextFormField(
+                      controller: _strasseController,
+                      decoration: const InputDecoration(labelText: 'Strasse'),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nrController,
+                      decoration: const InputDecoration(labelText: 'Nr.'),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _plzController,
+                      decoration: const InputDecoration(labelText: 'PLZ'),
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      onChanged: _lookupPlz,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _ortController,
+                      decoration: const InputDecoration(labelText: 'Ort'),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _telefonController,
+                decoration: const InputDecoration(
+                  labelText: 'Telefon',
+                  hintText: '+41 81 377 14 94',
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [_PhoneFormatter()],
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  final digits = v.replaceAll(RegExp(r'[^\d]'), '');
+                  if (!v.startsWith('+') || digits.length < 10) {
+                    return 'Format: +41 81 377 14 94';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // === Kontakt ===
+              Text(
+                'Kontakt',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'E-Mail',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _websiteController,
+                decoration: const InputDecoration(
+                  labelText: 'Website',
+                  prefixIcon: Icon(Icons.language),
+                ),
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.next,
+              ),
+
+              // === Nummern (nur für "meine Kunden") ===
+              if (_istMeinKunde) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Nummern',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _betriebNrController,
+                  decoration: const InputDecoration(
+                    labelText: 'Betrieb Nr.',
+                    prefixIcon: Icon(Icons.tag),
+                  ),
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _weNummerController,
+                  decoration: const InputDecoration(
+                    labelText: 'WE-Nummer',
+                    prefixIcon: Icon(Icons.tag),
+                  ),
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _agNummerController,
+                  decoration: const InputDecoration(
+                    labelText: 'AG-Nummer',
+                    prefixIcon: Icon(Icons.tag),
+                  ),
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                ),
+              ],
+              const SizedBox(height: 16),
+
+              // === Einstellungen ===
+              Text(
+                'Einstellungen',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _status,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  prefixIcon: Icon(Icons.circle),
                 ),
                 items: const [
+                  DropdownMenuItem(value: 'aktiv', child: Text('Aktiv')),
+                  DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
                   DropdownMenuItem(
-                    value: 'rechnung_mail',
-                    child: Text('Per E-Mail'),
+                    value: 'saisonpause',
+                    child: Text('Saisonpause'),
                   ),
                   DropdownMenuItem(
-                    value: 'rechnung_post',
-                    child: Text('Per Post'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'rechnung_tresen',
-                    child: Text('Rechnung Tresen'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'barzahlung',
-                    child: Text('Barzahlung'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'jahresrechnung',
-                    child: Text('Jahresrechnung'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'heineken',
-                    child: Text('Via Heineken'),
+                    value: 'geschlossen',
+                    child: Text('Geschlossen (dauerhaft)'),
                   ),
                 ],
                 onChanged: (v) {
-                  if (v != null) setState(() => _rechnungsstellung = v);
-                },
-              ),
-            const SizedBox(height: 16),
-
-            if (_istMeinKunde) ...[
-              // === Zahlernamen-Aliase (Bank zu Betrieb-Lernen) ===
-              Text(
-                'Zahlernamen (Bank)',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const Text(
-                'Namen, unter denen dieser Betrieb Zahlungen überweist. '
-                'Wird beim Bankauszug-Import automatisch gelernt.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              if (_zahlerAliase.isNotEmpty)
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final a in _zahlerAliase)
-                      InputChip(
-                        label: Text(a),
-                        onDeleted: () =>
-                            setState(() => _zahlerAliase.remove(a)),
-                      ),
-                  ],
-                ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _aliasController,
-                      decoration: const InputDecoration(
-                        labelText: 'Zahlername hinzufügen',
-                        prefixIcon: Icon(Icons.account_balance),
-                      ),
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _aliasHinzufuegen(),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Hinzufügen',
-                    onPressed: _aliasHinzufuegen,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // === Adresse ===
-            Text(
-              'Adresse',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: _strasseController,
-                    decoration: const InputDecoration(labelText: 'Strasse'),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _nrController,
-                    decoration: const InputDecoration(labelText: 'Nr.'),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _plzController,
-                    decoration: const InputDecoration(labelText: 'PLZ'),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    onChanged: _lookupPlz,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _ortController,
-                    decoration: const InputDecoration(labelText: 'Ort'),
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _telefonController,
-              decoration: const InputDecoration(
-                labelText: 'Telefon',
-                hintText: '+41 81 377 14 94',
-                prefixIcon: Icon(Icons.phone),
-              ),
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [_PhoneFormatter()],
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                final digits = v.replaceAll(RegExp(r'[^\d]'), '');
-                if (!v.startsWith('+') || digits.length < 10) {
-                  return 'Format: +41 81 377 14 94';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // === Kontakt ===
-            Text(
-              'Kontakt',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'E-Mail',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _websiteController,
-              decoration: const InputDecoration(
-                labelText: 'Website',
-                prefixIcon: Icon(Icons.language),
-              ),
-              keyboardType: TextInputType.url,
-              textInputAction: TextInputAction.next,
-            ),
-
-            // === Nummern (nur für "meine Kunden") ===
-            if (_istMeinKunde) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Nummern',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _betriebNrController,
-                decoration: const InputDecoration(
-                  labelText: 'Betrieb Nr.',
-                  prefixIcon: Icon(Icons.tag),
-                ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _weNummerController,
-                decoration: const InputDecoration(
-                  labelText: 'WE-Nummer',
-                  prefixIcon: Icon(Icons.tag),
-                ),
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _agNummerController,
-                decoration: const InputDecoration(
-                  labelText: 'AG-Nummer',
-                  prefixIcon: Icon(Icons.tag),
-                ),
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.next,
-              ),
-            ],
-            const SizedBox(height: 16),
-
-            // === Einstellungen ===
-            Text(
-              'Einstellungen',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                prefixIcon: Icon(Icons.circle),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'aktiv', child: Text('Aktiv')),
-                DropdownMenuItem(value: 'inaktiv', child: Text('Inaktiv')),
-                DropdownMenuItem(
-                  value: 'saisonpause',
-                  child: Text('Saisonpause'),
-                ),
-                DropdownMenuItem(
-                  value: 'geschlossen',
-                  child: Text('Geschlossen (dauerhaft)'),
-                ),
-              ],
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() {
-                    _status = v;
-                    _istMeinKunde = istMeinKundeVorschlag(
-                      _status,
-                      _zapfsysteme.toList(),
-                    );
-                    if (_status != 'geschlossen') {
-                      _schliessungsgrund = null;
-                      _schliessungsdatum = null;
-                    }
-                  });
-                }
-              },
-            ),
-            if (_status == 'geschlossen') ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _schliessungsgrund,
-                decoration: const InputDecoration(
-                  labelText: 'Schliessungsgrund',
-                  prefixIcon: Icon(Icons.info_outline),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'umnutzung',
-                    child: Text('Umnutzung'),
-                  ),
-                  DropdownMenuItem(value: 'abbruch', child: Text('Abbruch')),
-                  DropdownMenuItem(value: 'konkurs', child: Text('Konkurs')),
-                  DropdownMenuItem(
-                    value: 'sonstiges',
-                    child: Text('Sonstiges'),
-                  ),
-                ],
-                onChanged: (v) => setState(() => _schliessungsgrund = v),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: () async {
-                  final d = await showDatePicker(
-                    context: context,
-                    initialDate: _schliessungsdatum ?? DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (d != null) setState(() => _schliessungsdatum = d);
-                },
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Schliessungsdatum',
-                    prefixIcon: Icon(Icons.event),
-                  ),
-                  child: Text(
-                    _schliessungsdatum == null
-                        ? 'Datum wählen'
-                        : '${_schliessungsdatum!.day.toString().padLeft(2, '0')}.'
-                              '${_schliessungsdatum!.month.toString().padLeft(2, '0')}.'
-                              '${_schliessungsdatum!.year}',
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            // === Region ===
-            DropdownButtonFormField<String>(
-              initialValue: _regionId,
-              decoration: const InputDecoration(
-                labelText: 'Region',
-                prefixIcon: Icon(Icons.map),
-              ),
-              items: [
-                const DropdownMenuItem<String>(
-                  value: null,
-                  child: Text('Keine Region'),
-                ),
-                ..._regionen.map(
-                  (r) => DropdownMenuItem<String>(
-                    value: r.serverId ?? r.id.toString(),
-                    child: Text(r.name),
-                  ),
-                ),
-              ],
-              onChanged: (v) => setState(() => _regionId = v),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text('Saisonbetrieb'),
-              value: _istSaisonbetrieb,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() => _istSaisonbetrieb = v),
-            ),
-
-            // === Saison-Details (bedingt) ===
-            if (_istSaisonbetrieb) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Saison-Details',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              // Winter
-              SwitchListTile(
-                title: const Text('Wintersaison'),
-                value: _winterSaisonAktiv,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (v) => setState(() => _winterSaisonAktiv = v),
-              ),
-              if (_winterSaisonAktiv)
-                Row(
-                  children: [
-                    Expanded(
-                      child: _DatePickerField(
-                        label: 'Saison von',
-                        value: _winterStartDatum,
-                        onChanged: (v) => setState(() => _winterStartDatum = v),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _DatePickerField(
-                        label: 'Saison bis',
-                        value: _winterEndeDatum,
-                        onChanged: (v) => setState(() => _winterEndeDatum = v),
-                      ),
-                    ),
-                  ],
-                ),
-              if (_winterSaisonAktiv) _saisonHistorieZeile('winter'),
-              const SizedBox(height: 8),
-              // Sommer
-              SwitchListTile(
-                title: const Text('Sommersaison'),
-                value: _sommerSaisonAktiv,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (v) => setState(() => _sommerSaisonAktiv = v),
-              ),
-              if (_sommerSaisonAktiv)
-                Row(
-                  children: [
-                    Expanded(
-                      child: _DatePickerField(
-                        label: 'Saison von',
-                        value: _sommerStartDatum,
-                        onChanged: (v) => setState(() => _sommerStartDatum = v),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _DatePickerField(
-                        label: 'Saison bis',
-                        value: _sommerEndeDatum,
-                        onChanged: (v) => setState(() => _sommerEndeDatum = v),
-                      ),
-                    ),
-                  ],
-                ),
-              if (_sommerSaisonAktiv) _saisonHistorieZeile('sommer'),
-            ],
-
-            // === Ruhetage (für alle Betriebe) ===
-            const SizedBox(height: 16),
-            Text(
-              'Ruhetage',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                FilterChip(
-                  label: const Text('Keine'),
-                  selected: _ruhetage.contains('keine'),
-                  onSelected: (v) {
+                  if (v != null) {
                     setState(() {
-                      if (v) {
-                        _ruhetage = ['keine'];
-                      } else {
-                        _ruhetage.remove('keine');
+                      _status = v;
+                      _istMeinKunde = istMeinKundeVorschlag(
+                        _status,
+                        _zapfsysteme.toList(),
+                      );
+                      if (_status != 'geschlossen') {
+                        _schliessungsgrund = null;
+                        _schliessungsdatum = null;
                       }
                     });
+                  }
+                },
+              ),
+              if (_status == 'geschlossen') ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _schliessungsgrund,
+                  decoration: const InputDecoration(
+                    labelText: 'Schliessungsgrund',
+                    prefixIcon: Icon(Icons.info_outline),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'umnutzung',
+                      child: Text('Umnutzung'),
+                    ),
+                    DropdownMenuItem(value: 'abbruch', child: Text('Abbruch')),
+                    DropdownMenuItem(value: 'konkurs', child: Text('Konkurs')),
+                    DropdownMenuItem(
+                      value: 'sonstiges',
+                      child: Text('Sonstiges'),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _schliessungsgrund = v),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () async {
+                    final d = await showDatePicker(
+                      context: context,
+                      initialDate: _schliessungsdatum ?? DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (d != null) {
+                      markiereGeaendert();
+                      setState(() => _schliessungsdatum = d);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Schliessungsdatum',
+                      prefixIcon: Icon(Icons.event),
+                    ),
+                    child: Text(
+                      _schliessungsdatum == null
+                          ? 'Datum wählen'
+                          : '${_schliessungsdatum!.day.toString().padLeft(2, '0')}.'
+                                '${_schliessungsdatum!.month.toString().padLeft(2, '0')}.'
+                                '${_schliessungsdatum!.year}',
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              // === Region ===
+              DropdownButtonFormField<String>(
+                initialValue: _regionId,
+                decoration: const InputDecoration(
+                  labelText: 'Region',
+                  prefixIcon: Icon(Icons.map),
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Keine Region'),
+                  ),
+                  ..._regionen.map(
+                    (r) => DropdownMenuItem<String>(
+                      value: r.serverId ?? r.id.toString(),
+                      child: Text(r.name),
+                    ),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _regionId = v),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                title: const Text('Saisonbetrieb'),
+                value: _istSaisonbetrieb,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() => _istSaisonbetrieb = v);
+                },
+              ),
+
+              // === Saison-Details (bedingt) ===
+              if (_istSaisonbetrieb) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Saison-Details',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                // Winter
+                SwitchListTile(
+                  title: const Text('Wintersaison'),
+                  value: _winterSaisonAktiv,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) {
+                    markiereGeaendert();
+                    setState(() => _winterSaisonAktiv = v);
                   },
                 ),
-                ...['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((tag) {
-                  final selected = _ruhetage.contains(tag);
-                  return FilterChip(
-                    label: Text(tag),
-                    selected: selected,
+                if (_winterSaisonAktiv)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Saison von',
+                          value: _winterStartDatum,
+                          onChanged: (v) {
+                            markiereGeaendert();
+                            setState(() => _winterStartDatum = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Saison bis',
+                          value: _winterEndeDatum,
+                          onChanged: (v) {
+                            markiereGeaendert();
+                            setState(() => _winterEndeDatum = v);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                if (_winterSaisonAktiv) _saisonHistorieZeile('winter'),
+                const SizedBox(height: 8),
+                // Sommer
+                SwitchListTile(
+                  title: const Text('Sommersaison'),
+                  value: _sommerSaisonAktiv,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) {
+                    markiereGeaendert();
+                    setState(() => _sommerSaisonAktiv = v);
+                  },
+                ),
+                if (_sommerSaisonAktiv)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Saison von',
+                          value: _sommerStartDatum,
+                          onChanged: (v) {
+                            markiereGeaendert();
+                            setState(() => _sommerStartDatum = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Saison bis',
+                          value: _sommerEndeDatum,
+                          onChanged: (v) {
+                            markiereGeaendert();
+                            setState(() => _sommerEndeDatum = v);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                if (_sommerSaisonAktiv) _saisonHistorieZeile('sommer'),
+              ],
+
+              // === Ruhetage (für alle Betriebe) ===
+              const SizedBox(height: 16),
+              Text(
+                'Ruhetage',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilterChip(
+                    label: const Text('Keine'),
+                    selected: _ruhetage.contains('keine'),
                     onSelected: (v) {
+                      markiereGeaendert();
                       setState(() {
-                        _ruhetage.remove('keine');
                         if (v) {
-                          _ruhetage.add(tag);
+                          _ruhetage = ['keine'];
                         } else {
-                          _ruhetage.remove(tag);
+                          _ruhetage.remove('keine');
                         }
                       });
                     },
-                  );
-                }),
-              ],
-            ),
-
-            // === Betriebsferien (bis 5 Perioden, kompakt) ===
-            const SizedBox(height: 16),
-            Text(
-              'Betriebsferien',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              title: const Text('Keine Betriebsferien'),
-              value: _keineBetriebsferien,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (v) => setState(() {
-                _keineBetriebsferien = v;
-                if (v) {
-                  for (var i = 0; i < 5; i++) {
-                    _ferienStarts[i] = null;
-                    _ferienEnden[i] = null;
-                  }
-                  _ferienZeilen = 1;
-                }
-              }),
-            ),
-            if (!_keineBetriebsferien) ...[
-              for (var i = 0; i < _ferienZeilen; i++) ...[
-                if (i > 0) const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _DatePickerField(
-                        label: 'Ferien ${i + 1} von',
-                        value: _ferienStarts[i],
-                        onChanged: (v) => setState(() => _ferienStarts[i] = v),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _DatePickerField(
-                        label: 'Ferien ${i + 1} bis',
-                        value: _ferienEnden[i],
-                        onChanged: (v) => setState(() => _ferienEnden[i] = v),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              if (_ferienZeilen < 5)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => setState(() => _ferienZeilen++),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Weitere Ferien'),
                   ),
-                ),
-            ],
+                  ...['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((tag) {
+                    final selected = _ruhetage.contains(tag);
+                    return FilterChip(
+                      label: Text(tag),
+                      selected: selected,
+                      onSelected: (v) {
+                        markiereGeaendert();
+                        setState(() {
+                          _ruhetage.remove('keine');
+                          if (v) {
+                            _ruhetage.add(tag);
+                          } else {
+                            _ruhetage.remove(tag);
+                          }
+                        });
+                      },
+                    );
+                  }),
+                ],
+              ),
 
-            // === Öffnungszeiten ===
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Öffnungszeiten',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: _oeffnungszeitenAlleUebernehmen,
-                  icon: const Icon(Icons.copy_all, size: 16),
-                  label: const Text(
-                    'Mo → alle',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ..._buildOeffnungszeitenForm(),
-
-            // === Servicezeiten (nur für "meine Kunden") ===
-            if (_istMeinKunde) ...[
+              // === Betriebsferien (bis 5 Perioden, kompakt) ===
               const SizedBox(height: 16),
               Text(
-                'Servicezeiten',
+                'Betriebsferien',
                 style: Theme.of(
                   context,
                 ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TimePickerField(
-                      label: 'Morgen von',
-                      value: _parseTime(_servicezeitMorgenAbCtrl.text),
-                      onChanged: (t) => setState(
-                        () => _servicezeitMorgenAbCtrl.text =
-                            _formatTime(t) ?? '',
+              SwitchListTile(
+                title: const Text('Keine Betriebsferien'),
+                value: _keineBetriebsferien,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) {
+                  markiereGeaendert();
+                  setState(() {
+                    _keineBetriebsferien = v;
+                    if (v) {
+                      for (var i = 0; i < 5; i++) {
+                        _ferienStarts[i] = null;
+                        _ferienEnden[i] = null;
+                      }
+                      _ferienZeilen = 1;
+                    }
+                  });
+                },
+              ),
+              if (!_keineBetriebsferien) ...[
+                for (var i = 0; i < _ferienZeilen; i++) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Ferien ${i + 1} von',
+                          value: _ferienStarts[i],
+                          onChanged: (v) {
+                            markiereGeaendert();
+                            setState(() => _ferienStarts[i] = v);
+                          },
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _TimePickerField(
-                      label: 'Morgen bis',
-                      value: _parseTime(_servicezeitMorgenBisCtrl.text),
-                      onChanged: (t) => setState(
-                        () => _servicezeitMorgenBisCtrl.text =
-                            _formatTime(t) ?? '',
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _DatePickerField(
+                          label: 'Ferien ${i + 1} bis',
+                          value: _ferienEnden[i],
+                          onChanged: (v) {
+                            markiereGeaendert();
+                            setState(() => _ferienEnden[i] = v);
+                          },
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
+                if (_ferienZeilen < 5)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _ferienZeilen++),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Weitere Ferien'),
+                    ),
+                  ),
+              ],
+
+              // === Öffnungszeiten ===
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                    child: _TimePickerField(
-                      label: 'Nachmittag von',
-                      value: _parseTime(_servicezeitNachmittagAbCtrl.text),
-                      onChanged: (t) => setState(
-                        () => _servicezeitNachmittagAbCtrl.text =
-                            _formatTime(t) ?? '',
+                    child: Text(
+                      'Öffnungszeiten',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _TimePickerField(
-                      label: 'Nachmittag bis',
-                      value: _parseTime(_servicezeitNachmittagBisCtrl.text),
-                      onChanged: (t) => setState(
-                        () => _servicezeitNachmittagBisCtrl.text =
-                            _formatTime(t) ?? '',
-                      ),
+                  TextButton.icon(
+                    onPressed: _oeffnungszeitenAlleUebernehmen,
+                    icon: const Icon(Icons.copy_all, size: 16),
+                    label: const Text(
+                      'Mo → alle',
+                      style: TextStyle(fontSize: 12),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              _servicezeitHinweis(),
+              ..._buildOeffnungszeitenForm(),
+
+              // === Servicezeiten (nur für "meine Kunden") ===
+              if (_istMeinKunde) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Servicezeiten',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TimePickerField(
+                        label: 'Morgen von',
+                        value: _parseTime(_servicezeitMorgenAbCtrl.text),
+                        onChanged: (t) {
+                          markiereGeaendert();
+                          setState(
+                            () => _servicezeitMorgenAbCtrl.text =
+                                _formatTime(t) ?? '',
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _TimePickerField(
+                        label: 'Morgen bis',
+                        value: _parseTime(_servicezeitMorgenBisCtrl.text),
+                        onChanged: (t) {
+                          markiereGeaendert();
+                          setState(
+                            () => _servicezeitMorgenBisCtrl.text =
+                                _formatTime(t) ?? '',
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TimePickerField(
+                        label: 'Nachmittag von',
+                        value: _parseTime(_servicezeitNachmittagAbCtrl.text),
+                        onChanged: (t) {
+                          markiereGeaendert();
+                          setState(
+                            () => _servicezeitNachmittagAbCtrl.text =
+                                _formatTime(t) ?? '',
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _TimePickerField(
+                        label: 'Nachmittag bis',
+                        value: _parseTime(_servicezeitNachmittagBisCtrl.text),
+                        onChanged: (t) {
+                          markiereGeaendert();
+                          setState(
+                            () => _servicezeitNachmittagBisCtrl.text =
+                                _formatTime(t) ?? '',
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _servicezeitHinweis(),
+              ],
+              const SizedBox(height: 16),
+
+              // === Notizen ===
+              TextFormField(
+                controller: _zugangController,
+                decoration: const InputDecoration(
+                  labelText: 'Zugang / Schlüssel',
+                  prefixIcon: Icon(Icons.vpn_key),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 2,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _serviceHinweisController,
+                decoration: const InputDecoration(
+                  labelText: 'Service-Hinweis (erscheint beim Reinigungs-Abschluss)',
+                  helperText: 'z.B. «Nächste Reinigung GRATIS — Kulanz». Nach dem Einlösen hier wieder löschen.',
+                  prefixIcon: Icon(Icons.campaign),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 2,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _notizenController,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: 24),
+
+              // === Speichern ===
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Betrieb erstellen'),
+              ),
+              const SizedBox(height: 32),
             ],
-            const SizedBox(height: 16),
-
-            // === Notizen ===
-            TextFormField(
-              controller: _zugangController,
-              decoration: const InputDecoration(
-                labelText: 'Zugang / Schlüssel',
-                prefixIcon: Icon(Icons.vpn_key),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 2,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _serviceHinweisController,
-              decoration: const InputDecoration(
-                labelText: 'Service-Hinweis (erscheint beim Reinigungs-Abschluss)',
-                helperText: 'z.B. «Nächste Reinigung GRATIS — Kulanz». Nach dem Einlösen hier wieder löschen.',
-                prefixIcon: Icon(Icons.campaign),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 2,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _notizenController,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 24),
-
-            // === Speichern ===
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Betrieb erstellen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );
@@ -1632,6 +1700,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
 
   void _oeffnungszeitenAlleUebernehmen() {
     final moSlots = _oeffnungszeiten['Mo'] ?? [];
+    markiereGeaendert();
     setState(() {
       for (final tag in ['Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) {
         if (_ruhetage.contains(tag)) continue;
@@ -1659,6 +1728,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen> {
     );
 
     if (result != null) {
+      markiereGeaendert();
       setState(() {
         _oeffnungszeiten[tag] = result
             .where((s) => s['von']!.isNotEmpty && s['bis']!.isNotEmpty)
