@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/core/util/google_kontakte.dart';
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
+import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 
@@ -29,7 +30,8 @@ class KontaktFormScreen extends ConsumerStatefulWidget {
   ConsumerState<KontaktFormScreen> createState() => _KontaktFormScreenState();
 }
 
-class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
+class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   KontaktLocal? _existing;
@@ -101,8 +103,10 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
 
       // Telefon normalisieren
       if (kontakt.telefon != null) {
-        kontakt.telefonNormalized =
-            kontakt.telefon!.replaceAll(RegExp(r'[^\d+]'), '');
+        kontakt.telefonNormalized = kontakt.telefon!.replaceAll(
+          RegExp(r'[^\d+]'),
+          '',
+        );
       }
 
       await KontaktRepository.save(kontakt);
@@ -114,16 +118,20 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(_isEdit ? 'Kontakt aktualisiert' : 'Kontakt erstellt')),
+            content: Text(
+              _isEdit ? 'Kontakt aktualisiert' : 'Kontakt erstellt',
+            ),
+          ),
         );
+        // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
+        geaendertZuruecksetzen();
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -166,9 +174,9 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
     final filtered = betriebe.where((b) => b.serverId != null).toList();
     final currentName = _betriebId != null
         ? filtered
-            .where((b) => b.serverId == _betriebId)
-            .map((b) => b.name)
-            .firstOrNull
+              .where((b) => b.serverId == _betriebId)
+              .map((b) => b.name)
+              .firstOrNull
         : null;
 
     return Autocomplete<BetriebLocal>(
@@ -179,9 +187,11 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) return filtered.take(20);
         final query = textEditingValue.text.toLowerCase();
-        return filtered.where((b) =>
-            b.name.toLowerCase().contains(query) ||
-            (b.ort?.toLowerCase().contains(query) ?? false));
+        return filtered.where(
+          (b) =>
+              b.name.toLowerCase().contains(query) ||
+              (b.ort?.toLowerCase().contains(query) ?? false),
+        );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return TextFormField(
@@ -195,6 +205,7 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: () {
                       controller.clear();
+                      markiereGeaendert();
                       setState(() => _betriebId = null);
                     },
                   )
@@ -230,7 +241,10 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
           ),
         );
       },
-      onSelected: (b) => setState(() => _betriebId = b.serverId),
+      onSelected: (b) {
+        markiereGeaendert();
+        setState(() => _betriebId = b.serverId);
+      },
     );
   }
 
@@ -243,218 +257,234 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen> {
     final betriebe = ref.watch(betriebeProvider);
     final rollen = Kontakt.rollenFuerKategorie(_kategorie);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Kontakt bearbeiten' : 'Neuer Kontakt'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Import aus Handy-Kontakten (Contact Picker, nur Chrome/Android)
-            if (kontaktPickerVerfuegbar)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.contact_phone_outlined),
-                  label: const Text('Aus Handy-Kontakten'),
-                  onPressed: _importAusHandy,
-                ),
-              ),
-
-            // Kategorie
-            DropdownButtonFormField<String>(
-              initialValue: _kategorie,
-              decoration: const InputDecoration(
-                labelText: 'Kategorie',
-                prefixIcon: Icon(Icons.category),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'betrieb', child: Text('Betrieb')),
-                DropdownMenuItem(value: 'heineken', child: Text('Heineken')),
-                DropdownMenuItem(value: 'event', child: Text('Event')),
-              ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() {
-                  _kategorie = v;
-                  _rolle = null; // Rolle zurücksetzen bei Kategorie-Wechsel
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Betrieb (nur bei Kategorie betrieb)
-            if (_kategorie == 'betrieb') ...[
-              _buildBetriebAutocomplete(betriebe),
-              const SizedBox(height: 12),
-            ],
-
-            // Rolle
-            if (rollen.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _rolle,
-                decoration: const InputDecoration(
-                  labelText: 'Rolle',
-                  prefixIcon: Icon(Icons.work_outline),
-                ),
-                items: rollen
-                    .map((r) => DropdownMenuItem(
-                          value: r,
-                          child: Text(Kontakt.rolleLabelStatic(r)),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _rolle = v),
-              ),
-            if (rollen.isNotEmpty) const SizedBox(height: 12),
-
-            // Name
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _vornameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Vorname *',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    textInputAction: TextInputAction.next,
-                    textCapitalization: TextCapitalization.words,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Vorname ist erforderlich'
-                        : null,
+    return UngespeichertSchutz(
+      geaendert: geaendert,
+      was: 'Der Kontakt',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Kontakt bearbeiten' : 'Neuer Kontakt'),
+        ),
+        body: Form(
+          key: _formKey,
+          // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
+          onChanged: markiereGeaendert,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Import aus Handy-Kontakten (Contact Picker, nur Chrome/Android)
+              if (kontaktPickerVerfuegbar)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.contact_phone_outlined),
+                    label: const Text('Aus Handy-Kontakten'),
+                    onPressed: _importAusHandy,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _nachnameCtrl,
-                    decoration: const InputDecoration(labelText: 'Nachname'),
-                    textInputAction: TextInputAction.next,
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
 
-            // Telefon
-            TextFormField(
-              controller: _telefonCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Telefon',
-                hintText: '+41 81 378 40 20',
-                prefixIcon: Icon(Icons.phone),
-              ),
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [_PhoneFormatter()],
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                final digits = v.replaceAll(RegExp(r'[^\d]'), '');
-                if (!v.startsWith('+') || digits.length < 10) {
-                  return 'Format: +41 81 378 40 20';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // E-Mail
-            TextFormField(
-              controller: _emailCtrl,
-              decoration: const InputDecoration(
-                labelText: 'E-Mail',
-                prefixIcon: Icon(Icons.email),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
-                  return 'Ungültige E-Mail-Adresse';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Du/Sie
-            Row(
-              children: [
-                const Text('Anrede: '),
-                const SizedBox(width: 8),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Sie')),
-                    ButtonSegment(value: true, label: Text('Du')),
-                  ],
-                  selected: {_istDuAnrede},
-                  onSelectionChanged: (v) =>
-                      setState(() => _istDuAnrede = v.first),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Hauptkontakt (nur Betrieb)
-            if (_kategorie == 'betrieb')
-              SwitchListTile(
-                title: const Text('Hauptkontakt'),
-                subtitle: const Text('Primärer Ansprechpartner'),
-                value: _istHauptkontakt,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (v) => setState(() => _istHauptkontakt = v),
-              ),
-
-            // Kontaktmethode (nur Betrieb)
-            if (_kategorie == 'betrieb') ...[
+              // Kategorie
               DropdownButtonFormField<String>(
-                initialValue: _kontaktMethode,
+                initialValue: _kategorie,
                 decoration: const InputDecoration(
-                  labelText: 'Bevorzugte Kontaktmethode',
-                  prefixIcon: Icon(Icons.contact_phone),
+                  labelText: 'Kategorie',
+                  prefixIcon: Icon(Icons.category),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'telefon', child: Text('Telefon')),
-                  DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
-                  DropdownMenuItem(value: 'email', child: Text('E-Mail')),
-                  DropdownMenuItem(value: 'sms', child: Text('SMS')),
+                  DropdownMenuItem(value: 'betrieb', child: Text('Betrieb')),
+                  DropdownMenuItem(value: 'heineken', child: Text('Heineken')),
+                  DropdownMenuItem(value: 'event', child: Text('Event')),
                 ],
                 onChanged: (v) {
-                  if (v != null) setState(() => _kontaktMethode = v);
+                  if (v == null) return;
+                  setState(() {
+                    _kategorie = v;
+                    _rolle = null; // Rolle zurücksetzen bei Kategorie-Wechsel
+                  });
                 },
               ),
               const SizedBox(height: 12),
-            ],
 
-            // Notizen
-            TextFormField(
-              controller: _notizenCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Notizen',
-                prefixIcon: Icon(Icons.note),
-                alignLabelWithHint: true,
+              // Betrieb (nur bei Kategorie betrieb)
+              if (_kategorie == 'betrieb') ...[
+                _buildBetriebAutocomplete(betriebe),
+                const SizedBox(height: 12),
+              ],
+
+              // Rolle
+              if (rollen.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  value: _rolle,
+                  decoration: const InputDecoration(
+                    labelText: 'Rolle',
+                    prefixIcon: Icon(Icons.work_outline),
+                  ),
+                  items: rollen
+                      .map(
+                        (r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(Kontakt.rolleLabelStatic(r)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _rolle = v),
+                ),
+              if (rollen.isNotEmpty) const SizedBox(height: 12),
+
+              // Name
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _vornameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Vorname *',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.words,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Vorname ist erforderlich'
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nachnameCtrl,
+                      decoration: const InputDecoration(labelText: 'Nachname'),
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.words,
+                    ),
+                  ),
+                ],
               ),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 12),
 
-            // Speichern
-            FilledButton(
-              onPressed: _isLoading ? null : _save,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEdit ? 'Speichern' : 'Kontakt erstellen'),
-            ),
-            const SizedBox(height: 32),
-          ],
+              // Telefon
+              TextFormField(
+                controller: _telefonCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Telefon',
+                  hintText: '+41 81 378 40 20',
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [_PhoneFormatter()],
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  final digits = v.replaceAll(RegExp(r'[^\d]'), '');
+                  if (!v.startsWith('+') || digits.length < 10) {
+                    return 'Format: +41 81 378 40 20';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // E-Mail
+              TextFormField(
+                controller: _emailCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'E-Mail',
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
+                    return 'Ungültige E-Mail-Adresse';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // Du/Sie
+              Row(
+                children: [
+                  const Text('Anrede: '),
+                  const SizedBox(width: 8),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('Sie')),
+                      ButtonSegment(value: true, label: Text('Du')),
+                    ],
+                    selected: {_istDuAnrede},
+                    onSelectionChanged: (v) {
+                      markiereGeaendert();
+                      setState(() => _istDuAnrede = v.first);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Hauptkontakt (nur Betrieb)
+              if (_kategorie == 'betrieb')
+                SwitchListTile(
+                  title: const Text('Hauptkontakt'),
+                  subtitle: const Text('Primärer Ansprechpartner'),
+                  value: _istHauptkontakt,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) {
+                    markiereGeaendert();
+                    setState(() => _istHauptkontakt = v);
+                  },
+                ),
+
+              // Kontaktmethode (nur Betrieb)
+              if (_kategorie == 'betrieb') ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _kontaktMethode,
+                  decoration: const InputDecoration(
+                    labelText: 'Bevorzugte Kontaktmethode',
+                    prefixIcon: Icon(Icons.contact_phone),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'telefon', child: Text('Telefon')),
+                    DropdownMenuItem(
+                      value: 'whatsapp',
+                      child: Text('WhatsApp'),
+                    ),
+                    DropdownMenuItem(value: 'email', child: Text('E-Mail')),
+                    DropdownMenuItem(value: 'sms', child: Text('SMS')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _kontaktMethode = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Notizen
+              TextFormField(
+                controller: _notizenCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen',
+                  prefixIcon: Icon(Icons.note),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: 24),
+
+              // Speichern
+              FilledButton(
+                onPressed: _isLoading ? null : _save,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEdit ? 'Speichern' : 'Kontakt erstellen'),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
