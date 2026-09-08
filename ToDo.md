@@ -49,6 +49,9 @@
 - [ ] **Badus:** `ist_mein_kunde` steht jetzt auf true — das stimmt nur, wenn dort eine konventionelle Anlage steht. Beim Erfassen der Anlage mitprüfen.
 - [ ] Rückmeldung an die Heineken-Session (SendMessage hier nicht verfügbar): erledigt, beide Stämme wieder gleich.
 
+**Anlagen 08.09. (Feldansage Daniel via Heineken-Session):** **Weissfluhjoch Davos, Anlage «Küche» demontiert** → Status auf `demontiert` gesetzt (den Wert gab es bereits, 6 weitere Anlagen tragen ihn). Der Tourenplan filtert an mehreren Stellen auf `status != 'aktiv'`, sie fällt damit aus Planung und Fälligkeit. Diamond und Eckbar bleiben aktiv, beide 2 Hähne. Anlagen-IDs sind in beiden Systemen identisch. Grund steht in den Notizen der Anlage, jederzeit rückgängig zu machen.
+- Hinweis der Heineken-Session zu **Robinson Club Arosa, «Frühstück Wein»**: steht hier bereits auf `inaktiv` — kein Handlungsbedarf.
+
 **Für die Steuererklärung 2025 in die App laden (Daniel, Steuern → 2025 → Dokumente):** Jahresrechnung 2025 (unterschrieben), Lohnausweis 2025, **GKB Zins-/Kapitalausweis 31.12.2025** (fehlt noch, bei der Bank holen). Danach Formular 11a ausfüllen und bis **30.09.2026** einreichen (Kennzahlen: steuerbarer Gewinn 21'201.23, Kapital 75'950.93), Status im Jahresdetail auf «eingereicht» setzen.
 
 ---
