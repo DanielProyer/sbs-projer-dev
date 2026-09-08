@@ -1,16 +1,40 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 08.09. abends (für die nächste Session)
+## 📌 SESSION-ÜBERGABE 08.09. spätabends
 
-**Stand:** **v0.99.4 live** · Migrationen bis **187** ausgeführt · 1330 Tests grün · Git sauber, alles gepusht.
+**Stand:** **v0.99.8 live** · Migrationen bis **187** (keine neuen heute) · **1343 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
 
-**Heute gebaut (6 Deploys):** Servicezeiten-Durchsicht [Betriebe → Uhr-Symbol, 201 von 305 Betrieben ohne Servicezeit] · Saison-Historie [Migration 186] · zwei Bugfixes [vergangene Saison-Termine im Kalender-Dialog; MWST-Saldierungen mit falschem Geschäftsjahr] · Spesen-Erkennung für Fahrzeug-Betriebsmittel.
+**Heute gelaufen (4 Deploys, 23 Commits):** Post-Eingang ausgewertet · BVG-Lohnkorrektur rückwirkend · Kreditor-Regeln umgestellt + 17. Abschlussregel als Wächter · **`00_Rechnungen` vollständig erschlossen: 252 Dokumente in der App** · Franchisevertrag Heineken ausgewertet · Rückläufer-Meldung der Heineken-Session geprüft und zwei Fehlalarme aufgeklärt.
 
-**⚠️ Zwei neue Screens sind von mir nie im Browser gesehen worden** (Login): **Servicezeiten-Durchsicht** [Wischgesten!] und die **Steuern-Screens aus v0.96**. Vor dem ernsthaften Einsatz einmal ansehen; bei «ich sehe X nicht» Screenshot schicken.
+### 🔴 Morgen zuerst
 
-**Offen für Daniel:** Steuererklärung 2025 bis 30.09. [Jahresrechnung unterschreiben, Lohnausweis, GKB Zins-/Kapitalausweis holen, alles unter Steuern → 2025 hochladen] · Materialbestellung [Zapfhahn David = 0, Zapfkopf David = 1, Lüftermotor Heigenie als Artikel anlegen] · August-Lohnlauf [2002 im Soll] · nächster camt-Import · Anlage bei Pizzeria Badus erfassen [dann `ist_mein_kunde` gegenprüfen] · Referenz-Nr für die Störung Dancing Zur Zinne vom 28.08.
+1. **AXA-Zahlung** — vorgesehen sind 4'467.90, **offen sind 8'935.80** (Q1+Q2/2026). Beide Quartale zahlen erspart die Februar-Mahnung samt 100.— Gebühr und 5 % Verzugszins. Das Muster läuft sonst ins vierte Jahr.
+2. **Eine Lohnsumme an fünf Stellen melden**, sobald 2026 feststeht (realistisch rund 90'000):
 
-**Der Heineken-Session bestätigt 08.09.** (SendMessage ist in dieser Session verfügbar — `mcp__ccd_session_mgmt__send_message`, Ziel-ID `local_badeb863-e595-4181-8947-3ad1ff9e815a`): Geschäftsjahr-Korrektur, Pizzeria Badus, Weissfluhjoch-Küche und die `fahrzeug`/`benzin`-Mappingfrage — alle vier raus, beide Stämme wieder gleich.
+   | Stelle | gemeldet | Kontakt |
+   |---|---|---|
+   | SVA | 30'734 | Marco Cavegn, 081 257 41 53 |
+   | SUVA | 121'000 | Nadine Ackermann, 081 286 27 42 |
+   | AXA BVG | 100'000 | Giuseppe Lamanna, 052 218 89 73 |
+   | AXA Krankentaggeld | 80'000 | Hauptagentur Ilanz, 081 920 00 50 |
+   | AXA Haftpflicht | 100'000 / Umsatz 200'000 | dieselbe |
+
+   Tatsächlich: 58'500 (2023) · 59'500 (2024) · 70'700 (2025). Ein Nachmittag Telefonate beendet die SVA-Mahnspirale **und** die SUVA-Vorauszahlungen.
+3. **Steuererklärung 2025 bis 30.09.** — Lohnausweis und Jahresrechnung liegen seit heute in der App. **Es fehlt nur noch der GKB Zins-/Kapitalausweis per 31.12.2025.** Dann Formular 11a (steuerbarer Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht».
+
+### 🔵 Danach
+
+- **August-Lohnlauf** — der Satz steht jetzt auf 744.65, der Lauf rechnet korrekt. Bank-Wächter zeigt den Netto-Betrag.
+- **Nächster camt-Import** — erwartet: 4 ESTV-Korrekturen (1'507.23), SVA 1'081.10, AXA 4'467.90 (oder 8'935.80), alle mit Handvermerk «Bez. 09.09.26». Danach die Dateinamen der sieben abgelegten Belege gegen das echte Belastungsdatum prüfen.
+- **Materialbestellung** — Zapfhahn David = 0, Zapfkopf David = 1, Lüftermotor Heigenie als Artikel anlegen.
+- **Servicezeiten-Durchsicht** — 201 von 305 aktiven Betrieben ohne Servicezeit.
+- **Franchisevertrag**: Unsere Unterschrift fehlt auf Seite 13. Bei Gelegenheit ein gegengezeichnetes Exemplar bei Heineken nachziehen.
+- **Corona-Kredit**: Dividendenverbot bis zur vollständigen Rückzahlung — beim Jahresabschluss beachten.
+- **Dischma 2026-05-0579** (74.60): abschreiben, Entscheid Daniel. **Concordia 2026-05-0580** (74.60): zugestellt, aber unbezahlt → Mahnlauf.
+
+### ⚠️ Von mir nie im Browser gesehen (Login)
+
+Servicezeiten-Durchsicht, Steuern-Screens, **Dokumente-Modul mit den neuen Kategorien**. Bei «ich sehe X nicht»: Screenshot statt Raten (CanvasKit-Falle).
 
 ---
 
