@@ -120,6 +120,21 @@ Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Ar
   Der Ordner enthält die AXA-Historie als **105 Handy-Fotos** (72 + 33 in `Unterlagen/`, alle am 09.06.2026 abfotografiert, Dateinamen sind Zufallszahlen, Dokumentgrenzen durch eingelegte Trennblätter markiert). Systematisch durchgegangen ist er noch nicht.
 
 - [ ] **🔴 Ein Quartal bleibt offen.** Die Rechnung weist «Saldo zu unseren Gunsten 8'935.80» aus = zwei Quartale. Daniel zahlt am 09.09. nur 4'467.90. Die letzte AXA-Zahlung war 09.04.2026 über 3'377.75 — das ist genau ein Quartal zum ALTEN Satz, vermutlich Q4/2025. **Q1/2026 dürfte nie bezahlt worden sein.** Die AXA erhebt 5 % Verzugszins auf ausstehende Beiträge. → Beitragskonto-Auszug bei der AXA anfordern (Giuseppe Lamanna, services17.bvg@axa.ch, 052 218 89 73) und die Lücke schliessen.
+- [x] **Satz in `lohn_einstellungen` 2026 auf 744.65 gesetzt (08.09., beide Seiten).** Alt-Werte für Rollback: `bvg_an_betrag = bvg_ag_betrag = 562.95`. Damit rechnet der **ausstehende August-Lauf** korrekt. Die sechs bereits gebuchten Läufe (Jan, Mär–Jul; Februar fehlt ganz) sind davon **nicht** berührt — die Korrektur dort wartet auf Daniels Entscheid.
+
+  **Warum das nicht mit einem UPDATE auf zwei Buchungszeilen getan ist:** `LohnRepository.berechnen()` rechnet vorwärts vom Brutto; der Netto ist das Ergebnis (`netto = brutto − 5.3 % − 1.1 % − bvgAn`). Die gebuchten Nettolöhne sind aber durchweg runde Zahlen — 6'000, 8'000, 5'000, 8'500, 7'000, 10'000 — also Daniels tatsächliche Überweisungen; er hat den Brutto jeweils passend dazu gesucht. Ein höherer BVG-Abzug verschiebt deshalb entweder den Netto (stimmt dann nicht mehr mit der Bank) oder den Brutto (und mit ihm AHV, ALV, FAK, UVG).
+
+  | | Variante A: Netto bleibt | Variante B: Brutto bleibt |
+  |---|---|---|
+  | Brutto je Monat | **+194.10** (z. B. Juli 11'285.20 → 11'479.30) | unverändert |
+  | Netto je Monat | unverändert (= Überweisung) | **−181.70** |
+  | Lohnsumme 2026 | +1'164.60 | unverändert |
+  | AG-Beiträge | +1'190.10 | +1'090.20 (nur BVG) |
+  | Wer trägt die Differenz | die Firma | Daniel (Rückforderung über 2002) |
+  | AHV-Deklaration | steigt | unverändert |
+
+  Empfehlung: **A** — die runden Nettobeträge zeigen, dass der Netto die Vorgabe war; A hält die Buchhaltung deckungsgleich mit den Bankzahlungen. Beide Varianten heben die Verbindlichkeit 2271 um 2'180.40 auf den Stand, den die AXA fordert.
+
 - [ ] **🔴 Der BVG-Satz im Lohnlauf ist veraltet.** Unsere Lohnbuchungen rechnen 562.95 AG + 562.95 AN monatlich = **13'510.80/Jahr**; die AXA fordert **17'871.60/Jahr**. Differenz **4'360.80/Jahr**. Das erklärt den Ausstand strukturell — es fehlt jeden Monat Geld auf 2271. Satz aus dem AXA-Vertrag nachführen, dann rückwirkend ab 01.01.2026 korrigieren.
 - Nebenbei aufgefallen: **Der Februar-Lohnlauf 2026 fehlt** (gebucht sind Jan, Mär, Apr, Mai, Jun, Jul; August ist bekannt offen). Prüfen, ob im Februar bewusst kein Lohn lief.
 
