@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 08.09. spätabends
 
-**Stand:** **v0.99.10 live** · Migrationen bis **189** · **1354 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
+**Stand:** **v0.99.11 live** · Migrationen bis **189** · **1356 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
 
 **Heute gelaufen (4 Deploys, 23 Commits):** Post-Eingang ausgewertet · BVG-Lohnkorrektur rückwirkend · Kreditor-Regeln umgestellt + 17. Abschlussregel als Wächter · **`00_Rechnungen` vollständig erschlossen: 252 Dokumente in der App** · Franchisevertrag Heineken ausgewertet · Rückläufer-Meldung der Heineken-Session geprüft und zwei Fehlalarme aufgeklärt.
 
@@ -246,6 +246,10 @@ Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als
 **Und weiter v0.99.10 (gleicher Entscheid, konsequent zu Ende):** Auch **AHV/SVA, Unfall/SUVA, Krankentaggeld und Haftpflicht** sind jetzt **eigene Bereiche**. Der Sammeltopf «Versicherungen» hiess, dass man für eine SUVA-Verfügung 101 Dokumente von vier Absendern durchsehen musste — vier Stellen mit eigenen Ansprechpartnern, Belegarten und Fristen. Die Kategorienebene `versicherungsarten` entfällt damit ganz; «**Versicherungen (übrige)**» bleibt als Auffangbereich für Sach-, Rechtsschutz- und Fahrzeugversicherung. Die **Typenlisten folgen dem tatsächlichen Belegkreis**: die SVA stellt akonto und rechnet am Jahresende ab (`rechnung_provisorisch` + `rechnung_definitiv` + `bussverfuegung`), die SUVA verfügt im Folgejahr. `Migration 189` erweitert den Constraint auf 11 Bereiche, **101 Dokumente umgezogen**. Neu im Repo: `Datenbank/werkzeuge/dokument_bereich_umziehen.py` — verschiebt Storage-Objekte **und** Tabellenzeilen, weil der Bereich im Pfad steht (ein blosses UPDATE lässt die App auf leere Pfade zeigen). Drei **Wächter-Tests** halten die Konfiguration zusammen: jeder Bereich braucht eine eigene Typenliste (sonst fällt er still auf `['sonstiges']` zurück), jeder Typ ein Label, jede Kategorienliste einen Bereich.
 
 **Ablage-Stand nach dem Umbau** (252 Dokumente): Steuern 84 · AHV/SVA 44 · Pensionskasse 40 · Unfall/SUVA 33 · Verträge 21 · Krankentaggeld 17 · Haftpflicht 7 · Behörden 4 · Bank 2.
+
+**Deep-Links (v0.99.11):** GitHub Pages kennt nur Dateien — `/sbs-projer-dev/dokumente` war keine, also kam die GitHub-Fehlerseite. Neu fängt `web/404.html` jeden Routen-Pfad ab und schreibt ihn auf die Hash-Route um (`…/#/dokumente`); die App führt ihre Routen im Hash, weil `usePathUrlStrategy` nicht gesetzt ist. **Der eigentliche Blocker lag woanders:** Der Versions-Redirect in `index.html` baute die Ziel-URL aus `pathname + query` und liess den Hash weg — jeder Deep-Link wäre auch mit 404.html still auf dem Startbildschirm gelandet. `test/web_404_weiche_test.dart` hält beide Hälften zusammen, `CLAUDE.md` nennt 404.html in den Deploy-Schritten (dort wird jede Datei einzeln aufgelistet).
+
+⚠️ **Was damit noch NICHT geht:** Beim Navigieren ändert sich die Adresse nicht — die App nutzt durchgehend `context.push` (144 Stellen), und GoRouter führt imperative Pushes nur im History-State, nicht in der sichtbaren URL. Ein Lesezeichen lässt sich also von Hand tippen, aber nicht aus der Adressleiste kopieren. Wer das will, bräuchte `context.go` für die Haupteinstiege — grösserer Umbau, bisher nicht verlangt.
 
 | Typ | Anzahl | Zeitraum |
 |---|---|---|
