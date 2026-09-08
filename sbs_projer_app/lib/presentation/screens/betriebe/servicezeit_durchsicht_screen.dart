@@ -37,6 +37,8 @@ class _ServicezeitDurchsichtScreenState
   TimeOfDay? _morgenBis;
   TimeOfDay? _nachmittagAb;
   TimeOfDay? _nachmittagBis;
+  bool _morgenKeinService = false;
+  bool _nachmittagKeinService = false;
 
   @override
   void initState() {
@@ -74,6 +76,12 @@ class _ServicezeitDurchsichtScreenState
       _morgenBis = zeitAusText(v.morgenBis);
       _nachmittagAb = zeitAusText(v.nachmittagAb);
       _nachmittagBis = zeitAusText(v.nachmittagBis);
+      // Ein gefüllter Block heisst: der andere ist bewusst leer (Regel
+      // Daniel 29.07.2026). Genau das zeigt der Schalter an.
+      final hatMorgen = _morgenAb != null && _morgenBis != null;
+      final hatNachmittag = _nachmittagAb != null && _nachmittagBis != null;
+      _morgenKeinService = !hatMorgen && hatNachmittag;
+      _nachmittagKeinService = hatMorgen && !hatNachmittag;
     });
   }
 
@@ -257,51 +265,82 @@ class _ServicezeitDurchsichtScreenState
             ),
           ],
           const Divider(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ZeitFeld(
-                  label: 'Morgen von',
-                  value: _morgenAb,
-                  onChanged: (t) => setState(() => _morgenAb = t),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ZeitFeld(
-                  label: 'Morgen bis',
-                  value: _morgenBis,
-                  onChanged: (t) => setState(() => _morgenBis = t),
-                ),
-              ),
-            ],
+          _blockKopf(
+            'Vormittag',
+            keinService: _morgenKeinService,
+            // Gegenseitig ausschliessend: irgendwann muss Service möglich
+            // sein, sonst waere der Betrieb gar nicht bedienbar.
+            sperren: _nachmittagKeinService,
+            onChanged: (v) => setState(() {
+              _morgenKeinService = v;
+              if (v) {
+                _morgenAb = null;
+                _morgenBis = null;
+              }
+            }),
           ),
+          if (!_morgenKeinService)
+            Row(
+              children: [
+                Expanded(
+                  child: ZeitFeld(
+                    label: 'Morgen von',
+                    value: _morgenAb,
+                    onChanged: (t) => setState(() => _morgenAb = t),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZeitFeld(
+                    label: 'Morgen bis',
+                    value: _morgenBis,
+                    onChanged: (t) => setState(() => _morgenBis = t),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ZeitFeld(
-                  label: 'Nachmittag von',
-                  value: _nachmittagAb,
-                  onChanged: (t) => setState(() => _nachmittagAb = t),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ZeitFeld(
-                  label: 'Nachmittag bis',
-                  value: _nachmittagBis,
-                  onChanged: (t) => setState(() => _nachmittagBis = t),
-                ),
-              ),
-            ],
+          _blockKopf(
+            'Nachmittag',
+            keinService: _nachmittagKeinService,
+            sperren: _morgenKeinService,
+            onChanged: (v) => setState(() {
+              _nachmittagKeinService = v;
+              if (v) {
+                _nachmittagAb = null;
+                _nachmittagBis = null;
+              }
+            }),
           ),
+          if (!_nachmittagKeinService)
+            Row(
+              children: [
+                Expanded(
+                  child: ZeitFeld(
+                    label: 'Nachmittag von',
+                    value: _nachmittagAb,
+                    onChanged: (t) => setState(() => _nachmittagAb = t),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZeitFeld(
+                    label: 'Nachmittag bis',
+                    value: _nachmittagBis,
+                    onChanged: (t) => setState(() => _nachmittagBis = t),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 10),
-          const Text(
-            'Leer lassen heisst: keine Einschränkung. Wischen nach rechts '
-            'übernimmt, nach links kommt der Betrieb später nochmals.',
-            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          Text(
+            _hinweisText(),
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
           ),
+          if (k.besuchsliste.isNotEmpty) _besuche(k),
         ],
       ),
     );
@@ -316,6 +355,105 @@ class _ServicezeitDurchsichtScreenState
       teile.add('${k.bisherNachmittagAb}–${k.bisherNachmittagBis ?? '?'}');
     }
     return teile.join(' · ');
+  }
+
+  /// Blocküberschrift mit «kein Service»-Schalter.
+  Widget _blockKopf(
+    String titel, {
+    required bool keinService,
+    required bool sperren,
+    required ValueChanged<bool> onChanged,
+  }) => Row(
+    children: [
+      Text(
+        titel,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+      ),
+      const Spacer(),
+      InkWell(
+        onTap: sperren ? null : () => onChanged(!keinService),
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                keinService
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
+                size: 18,
+                color: sperren
+                    ? Colors.grey.shade400
+                    : (keinService ? AppColors.error : AppColors.textSecondary),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'kein Service',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: sperren
+                      ? Colors.grey.shade400
+                      : (keinService
+                            ? AppColors.error
+                            : AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+
+  /// Was beim Übernehmen gespeichert wird — im Klartext, weil «leer» je nach
+  /// dem anderen Block zweierlei bedeutet.
+  String _hinweisText() {
+    final hatMorgen = _morgenAb != null && _morgenBis != null;
+    final hatNachmittag = _nachmittagAb != null && _nachmittagBis != null;
+    if (!hatMorgen && !hatNachmittag) {
+      return 'Nichts erfasst — gilt als «keine Einschränkung bekannt».';
+    }
+    if (hatMorgen && hatNachmittag) return 'Service vormittags und nachmittags.';
+    return hatMorgen
+        ? 'Service nur vormittags — nachmittags kein Service.'
+        : 'Service nur nachmittags — morgens kein Service.';
+  }
+
+  /// Die Besuche, aus denen der Vorschlag stammt — zum Nachprüfen.
+  Widget _besuche(ServicezeitKandidat k) {
+    final liste = k.besuchsliste.take(20).toList();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 12),
+          Text(
+            'Bisherige Besuche (${k.besuchsliste.length})',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          for (final b in liste)
+            Text(
+              b.zeile,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          if (k.besuchsliste.length > liste.length)
+            Text(
+              '… und ${k.besuchsliste.length - liste.length} weitere',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _fertig() => Center(

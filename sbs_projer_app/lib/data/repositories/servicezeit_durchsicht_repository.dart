@@ -1,6 +1,21 @@
 import 'package:sbs_projer_app/core/util/servicezeit_vorschlag.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+/// Ein einzelner Besuch, wie er unten auf der Karte steht.
+class Besuch {
+  final DateTime datum;
+  final String von;
+  final String? bis;
+  const Besuch({required this.datum, required this.von, this.bis});
+
+  String get zeile {
+    final d =
+        '${datum.day.toString().padLeft(2, '0')}.'
+        '${datum.month.toString().padLeft(2, '0')}.${datum.year}';
+    return '$d   $von${bis == null ? '' : '–$bis'}';
+  }
+}
+
 /// Ein Betrieb in der Servicezeiten-Durchsicht: Stammdaten, bisher
 /// hinterlegte Zeiten und der aus den Besuchen abgeleitete Vorschlag.
 class ServicezeitKandidat {
@@ -13,6 +28,10 @@ class ServicezeitKandidat {
   final String? bisherNachmittagBis;
   final ServicezeitVorschlag vorschlag;
 
+  /// Die zugrunde liegenden Besuche, neueste zuerst — damit sich der
+  /// Vorschlag am Rohmaterial nachprüfen lässt.
+  final List<Besuch> besuchsliste;
+
   const ServicezeitKandidat({
     required this.betriebId,
     required this.name,
@@ -22,6 +41,7 @@ class ServicezeitKandidat {
     this.bisherNachmittagAb,
     this.bisherNachmittagBis,
     required this.vorschlag,
+    this.besuchsliste = const [],
   });
 
   String get label =>
@@ -102,11 +122,12 @@ class ServicezeitDurchsichtRepository {
     // ungeteiltes select() liefert stumm nur die ersten 1000.
     const pageSize = 1000;
     final zeiten = <String, List<Besuchszeit>>{};
+    final besuche = <String, List<Besuch>>{};
     for (var seite = 0; ; seite++) {
       final teil = List<Map<String, dynamic>>.from(
         await client
             .from('reinigungen')
-            .select('betrieb_id, uhrzeit_start, uhrzeit_ende')
+            .select('betrieb_id, datum, uhrzeit_start, uhrzeit_ende')
             .eq('user_id', userId)
             .eq('status', 'abgeschlossen')
             .gte('datum', _ab.toIso8601String().split('T').first)
@@ -122,6 +143,16 @@ class ServicezeitDurchsichtRepository {
         (zeiten[bid] ??= []).add(
           Besuchszeit(startMinuten: start, endeMinuten: ende),
         );
+        final datum = DateTime.tryParse(r['datum']?.toString() ?? '');
+        if (datum != null) {
+          (besuche[bid] ??= []).add(
+            Besuch(
+              datum: datum,
+              von: r['uhrzeit_start'].toString().substring(0, 5),
+              bis: r['uhrzeit_ende']?.toString().substring(0, 5),
+            ),
+          );
+        }
       }
       if (teil.length < pageSize) break;
     }
@@ -137,6 +168,8 @@ class ServicezeitDurchsichtRepository {
           bisherNachmittagAb: b['servicezeit_nachmittag_ab']?.toString(),
           bisherNachmittagBis: b['servicezeit_nachmittag_bis']?.toString(),
           vorschlag: servicezeitVorschlag(zeiten[b['id'].toString()] ?? []),
+          besuchsliste:
+              (besuche[b['id'].toString()] ?? []).reversed.toList(),
         ),
     ];
     liste.sort((a, b) {
