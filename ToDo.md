@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 08.09. spätabends
 
-**Stand:** **v0.99.8 live** · Migrationen bis **187** (keine neuen heute) · **1343 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
+**Stand:** **v0.99.9 live** · Migrationen bis **188** · **1348 Tests grün** · Analyse unverändert (56 vorbestehende Infos) · Git sauber, alles gepusht.
 
 **Heute gelaufen (4 Deploys, 23 Commits):** Post-Eingang ausgewertet · BVG-Lohnkorrektur rückwirkend · Kreditor-Regeln umgestellt + 17. Abschlussregel als Wächter · **`00_Rechnungen` vollständig erschlossen: 252 Dokumente in der App** · Franchisevertrag Heineken ausgewertet · Rückläufer-Meldung der Heineken-Session geprüft und zwei Fehlalarme aufgeklärt.
 
@@ -239,7 +239,9 @@ Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als
 1. **Die Trennblatt-Erkennung übersah zwei Blätter** — bei ihnen hatte der Blitz den unteren Balken überbelichtet, sodass die Helligkeitsschwelle nicht griff. Neu über den **Anteil dunkler Pixel**, oben streng und unten locker: 29 statt 27.
 2. **Wichtiger: Es gibt Dokumentgrenzen ohne Trennblatt.** Zwischen der Rechnung Q4/2022 und dem Kontoauszug 07.01.2023 fehlt eines, ebenso zwischen der Mahnung 27.02.2025 und dem Kontoauszug 11.01.2025. Eine rein maschinelle Gruppierung kann das nicht sehen. **Die Zuordnung steht deshalb jetzt explizit im Katalog** (Spalte `seiten`, 1-basiert auf den 76 Nutzseiten) und wird beim Bauen auf Lückenlosigkeit und Doppelbelegung geprüft. Ergebnis: **31 statt 27** Foto-Dokumente.
 
-**Neue Kategorie «Pensionskasse»** (v0.99.6): `versicherungsarten` in `dokument_pfad.dart` — Pensionskasse, Unfall, Krankentaggeld, Haftpflicht, Fahrzeug — dazu `dokumentKategorien(bereich)` als gemeinsamer Zugriff. Der Upload-Dialog zeigt damit **auch ausserhalb der Steuern ein Dropdown** statt eines Freitextfelds. Die Dokumenttypen des Bereichs decken neu ab, was wirklich im Ordner liegt (Mahnung, Kontoauszug, Freizügigkeit, Vertrag). 5 neue Tests in `test/dokument_pfad_test.dart`.
+**Bereich «Pensionskasse»** (v0.99.6 als Kategorie, seit **v0.99.9 eigener Bereich**): `versicherungsarten` in `dokument_pfad.dart` — AHV, Unfall, Krankentaggeld, Haftpflicht, Fahrzeug (anfangs auch Pensionskasse, siehe Korrektur unten) — dazu `dokumentKategorien(bereich)` als gemeinsamer Zugriff. Der Upload-Dialog zeigt damit **auch ausserhalb der Steuern ein Dropdown** statt eines Freitextfelds. Die Dokumenttypen des Bereichs decken neu ab, was wirklich im Ordner liegt (Mahnung, Kontoauszug, Freizügigkeit, Vertrag). 5 neue Tests in `test/dokument_pfad_test.dart`.
+
+**Korrektur v0.99.9 (Entscheid Daniel):** Die berufliche Vorsorge steht **nicht** unter «Versicherungen», sondern ist ein **eigener Bereich** neben Steuern, Versicherungen, Verträgen, Behörden und Bank — keine Sozialversicherung im Sinne der übrigen, sondern ein Vertrag mit eigenem Belegkreis (Police, Freizügigkeit, Beitragskonto, Vorsorgeausweis). `Migration 188` erweitert `dokumente_bereich_check`; die **40 PK-Dokumente** sind im Storage und in der Datenbank umgezogen (`{USER}/versicherungen/…` → `{USER}/pensionskasse/…`, `kategorie` leer). Versicherungen stehen damit bei 101 (AHV 44, Unfall 33, KTG 17, Haftpflicht 7). Bereichs-Dropdown und Upload-Dialog lesen die Liste generisch aus `dokument_pfad.dart` und brauchten keine Änderung.
 
 | Typ | Anzahl | Zeitraum |
 |---|---|---|
