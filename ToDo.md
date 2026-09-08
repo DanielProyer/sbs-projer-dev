@@ -14,20 +14,25 @@
 
 ---
 
-## ✅ ORDNER 06_PK ERSCHLOSSEN (08.09.2026) — 36 Dokumente in der App
+## ✅ ORDNER 06_PK ERSCHLOSSEN (08.09.2026) — 40 Dokumente in der App
 
 Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als Namen, alle am 09.06.2026 in einer halben Stunde abfotografiert) plus 12 Portal-PDFs. Jetzt: 27 benannte PDFs unter `00_Rechnungen/06_PK/aufbereitet/` und **36 Dokumente im Dokumente-Modul** (Bereich «versicherungen», Kategorie `bvg`, Referenz 2/452968).
 
-**Wie die Fotos zu Dokumenten wurden:** Daniel legt beim Scannen Trennblätter ein («SBS Projer – Dokument-Trenner»). Die sind an ihren schwarzen Balken oben und unten maschinell erkennbar — 27 Stück gefunden, dazwischen liegen die Dokumente. Aus jeder Gruppe ein PDF, benannt `JJJJ-MM-TT_typ_betrag.pdf`. Skripte: `Datenbank/import/import_pk_dokumente.py` und `import_pk_ausweise.py`, Katalog `pk_dokumente_katalog.csv`. Beide idempotent.
+**Wie die Fotos zu Dokumenten wurden:** Daniel legt beim Scannen Trennblätter ein («SBS Projer – Dokument-Trenner»). Aus jeder Gruppe ein PDF unter `00_Rechnungen/06_PK/aufbereitet/`, benannt **nach dem Muster der Steuerablage**: `JAHR_Aussteller_Typ-Detail_Betrag.pdf`, also `2026_AXA_Mahnung_3377.75.pdf`. Skript `Datenbank/import/import_pk_dokumente.py` (idempotent, mit `--ersetzen` und `--dry-run`), Katalog `pk_dokumente_katalog.csv`.
+
+⚠️ **Zwei Korrekturen am ersten Durchgang (Meldung Daniel):**
+1. **Die Trennblatt-Erkennung übersah zwei Blätter** — bei ihnen hatte der Blitz den unteren Balken überbelichtet, sodass die Helligkeitsschwelle nicht griff. Neu über den **Anteil dunkler Pixel**, oben streng und unten locker: 29 statt 27.
+2. **Wichtiger: Es gibt Dokumentgrenzen ohne Trennblatt.** Zwischen der Rechnung Q4/2022 und dem Kontoauszug 07.01.2023 fehlt eines, ebenso zwischen der Mahnung 27.02.2025 und dem Kontoauszug 11.01.2025. Eine rein maschinelle Gruppierung kann das nicht sehen. **Die Zuordnung steht deshalb jetzt explizit im Katalog** (Spalte `seiten`, 1-basiert auf den 76 Nutzseiten) und wird beim Bauen auf Lückenlosigkeit und Doppelbelegung geprüft. Ergebnis: **31 statt 27** Foto-Dokumente.
+
+**Neue Kategorie «Pensionskasse»** (v0.99.6): `versicherungsarten` in `dokument_pfad.dart` — Pensionskasse, Unfall, Krankentaggeld, Haftpflicht, Fahrzeug — dazu `dokumentKategorien(bereich)` als gemeinsamer Zugriff. Der Upload-Dialog zeigt damit **auch ausserhalb der Steuern ein Dropdown** statt eines Freitextfelds. Die Dokumenttypen des Bereichs decken neu ab, was wirklich im Ordner liegt (Mahnung, Kontoauszug, Freizügigkeit, Vertrag). 5 neue Tests in `test/dokument_pfad_test.dart`.
 
 | Typ | Anzahl | Zeitraum |
 |---|---|---|
-| Beitragsrechnungen | 16 | 2019–2025 |
-| Pensionskassenausweise | 7 | 2020–2026 |
-| Kontoauszüge/Jahresrückblicke | 3 | 2021, 2022, 2026 |
+| Beitragsrechnungen | 17 | 2019–2025 |
+| Policen (Ausweise, Vorsorgepläne, -verzeichnisse) | 12 | 2020–2026 |
+| Kontoauszüge/Jahresrückblicke | 5 | 2020–2025 |
 | **Mahnungen** | **3** | 2024, 2025, 2026 |
-| Info-Schreiben | 3 | 2021–2023 |
-| Vorsorgepläne | 2 | 2021, 2024 |
+| Info-Schreiben | 1 | 2023 |
 | Freizügigkeit (PKG-Austritt) | 1 | 2019 |
 | Neuanschluss-Vertrag | 1 | 2019 |
 
@@ -41,7 +46,9 @@ Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als
 | 27.02.2025 | 31.12.2024: 3'305.75 | 100.00 | 3'405.75 | 20.03.2025 |
 | 26.02.2026 | 31.12.2025: 9'517.15 ./. 6'239.40 | 100.00 | 3'377.75 | 08.04.2026 |
 
-**Das Muster ist jedes Jahr dasselbe**: Die Quartalsrechnungen bleiben liegen, im Januar kommt der Kontoauszug mit Zahlfrist Anfang Februar, im Februar die Mahnung mit 100 CHF Gebühr und der **Androhung, den Anschlussvertrag zu kündigen** («ohne Sie nochmals zu mahnen») samt Meldung an Aufsichtsbehörde und Arbeitnehmer. Dazu 5 % Verzugszins auf allen offenen Beiträgen (2019 noch 4 %).
+**Der versicherte Lohn erklärt den Beitragssprung NICHT** — das Vorsorgeverzeichnis per 01.01.2023 weist bereits 100'000 aus, genau wie der Ausweis 2026. Der Anstieg von 12'471.60 (2023) auf 17'871.60 (2026) kommt aus der **Altersstaffelung der Sparbeiträge**: Daniel (Jahrgang 1981) wechselt 2026 in die Altersgruppe 45–54, wo der BVG-Sparbeitrag von 10 % auf 15 % steigt. Meine erste Erklärung («Folge des gestiegenen Lohns») war falsch.
+
+**Das Mahnungs-Muster ist jedes Jahr dasselbe**: Die Quartalsrechnungen bleiben liegen, im Januar kommt der Kontoauszug mit Zahlfrist Anfang Februar, im Februar die Mahnung mit 100 CHF Gebühr und der **Androhung, den Anschlussvertrag zu kündigen** («ohne Sie nochmals zu mahnen») samt Meldung an Aufsichtsbehörde und Arbeitnehmer. Dazu 5 % Verzugszins auf allen offenen Beiträgen (2019 noch 4 %).
 
 Von 21 erfassten Beitragsrechnungen wurde **keine einzige innert Frist bezahlt**; die Verzögerung liegt zwischen zwei Wochen und dreieinhalb Monaten (Q3/2025: fällig 03.11.2025, bezahlt 02.01.2026).
 
@@ -153,7 +160,7 @@ Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Ar
 
   **Versicherter Lohn 100'000.00** (Jahreslohn 100'000), Altersguthaben per 01.01.2026: 127'919.10. Damit ist der Satz belegt und **der Beitragskonto-Auszug für die Lohnkorrektur nicht mehr nötig** — er klärt nur noch, welches der beiden offenen Quartale wann gemahnt wird.
 
-  ⚠️ **Zu prüfen: Der versicherte Lohn steht auf 100'000.** Ob Daniels tatsächlicher Jahreslohn 2026 dort landet, ist offen — die gebuchten Lohnläufe schwanken monatlich stark. Liegt der Ist-Lohn darunter, ist der BVG-Beitrag auf einer zu hohen Basis gemeldet.
+  ⚠️ **Zu prüfen: Der versicherte Lohn steht auf 100'000** — unverändert seit mindestens 2023 (Vorsorgeverzeichnis 01.01.2023). Die gebuchte Lohnsumme 2026 liegt bei 52'316.05 für sieben Monate, hochgerechnet also in dieser Grössenordnung. Weicht der Ist-Lohn dauerhaft ab, gehört der versicherte Lohn der AXA gemeldet — zu hoch heisst zu hohe Beiträge, zu tief eine Deckungslücke.
 
   **Beitragsentwicklung** (aus den Rechnungen im selben Ordner): Jahresbeitrag **12'258.00 (2021)** → Q1/2025 noch 3'119.70 → **17'871.60 (2026)**. Der Sprung 2026 ist die Folge des gestiegenen Lohns, nicht ein Fehler der AXA. Unser Lohnlauf ist einfach nicht mitgezogen.
 
