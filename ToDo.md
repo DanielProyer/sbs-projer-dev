@@ -14,6 +14,41 @@
 
 ---
 
+## 🔴 RÜCKLÄUFER: drei (vermutlich vier) Rechnungen nie zugestellt — Meldung Heineken-Session 08.09.
+
+Die Heineken-Session liest seit dem 08.09. das Geschäftspostfach mit (nur lesend, `gmail.readonly`) und wertet Unzustellbarkeits-Rückläufer aus. **Alle drei Meldungen in unserem Stamm bestätigt, Beträge auf den Rappen.**
+
+| Rechnung | Betrag | versendet | Status heute | Rechnungsadresse heute | geändert am |
+|---|---|---|---|---|---|
+| Dischma `2026-05-0579` | 74.60 | 09.06. | **offen** | `hotel@hotelconcordia.ch` | 17.07. — **unverändert** |
+| Bräma `2026-08-1366` | 118.90 | 13.08. | **gesendet** | `invoice@hotelgrischa.ch` ✓ | **13.08. 09:26** |
+| Alpenblick Weggis `2026-09-1406` | 94.05 | 03.09. | **gesendet** | `kreditoren@sinnvollgastro.ch` ✓ | **03.09. 11:25** |
+
+Bei Bräma (ging an `hotelgrischa.com`) und Alpenblick (`sinvollgastro`) wurde die Adresse **am Versandtag selbst korrigiert** — offenbar nach dem Versand. Deshalb steht heute überall das Richtige, während die Mail mit der alten Adresse rausging. Ein Neuversand sollte durchgehen.
+
+- [ ] **🔴 Daniel entscheidet: Neuversand für Bräma + Alpenblick Weggis** (Adressen sind korrekt). Beide stehen auf «gesendet», obwohl der Kunde nie etwas gesehen hat — der Status müsste beim Neuversand ohnehin neu gesetzt werden.
+- [ ] **🔴 Dischma `2026-05-0579`, seit vier Monaten offen** — Adresse unverändert, laut Heineken-Session **zweimal** abgewiesen. Hier hilft kein Neuversand: **anrufen** (+41 81 410 12 50) und die Rechnungsadresse klären.
+- [ ] **Zusatzfund (von mir, nicht aus der Meldung):** An derselben Adresse hängt **Concordia `2026-05-0580`, 74.60, ebenfalls am 09.06. versendet und bis heute offen**. Gleiche Domain, gleicher Tag, gleiches Muster — dürfte derselbe Rückläufer sein. Dann wären es **vier Rechnungen über CHF 362.15** statt drei über 287.55. Beim Anruf mitklären.
+
+**⚠️ Falscher Alarm bei der Breitensuche — für die nächste Session festgehalten:** Ich habe zuerst nach «Betrieb steht auf `rechnung_mail`, Rechnung offen, nie versendet» gesucht und 16 Fälle über gut CHF 1'500 gefunden (Grischa 182.70, Kulm 118.90, Löwen, Conditorei Fischer …). **Alles Fehlalarm.** Seit v0.50.0 fixiert die Reinigung ihre eigene `zahlungsart` und übersteuert `betriebe.rechnungsstellung`; die vermeintlichen Fälle sind **Tresen-Rechnungen**, die Daniel vor Ort übergibt und die nie per Mail rausgehen. Wer über `betriebe.rechnungsstellung` allein auswertet, erzeugt diese Phantome zuverlässig — **die effektive Art steht in `reinigungen.zahlungsart`, der Betrieb ist nur der Fallback** (`resolveZahlungsart`). Mit korrektem Filter bleibt seit dem Echtbetrieb des Mailversands (17.07.2026) **kein einziger** unversendeter Fall über 14 Tage.
+
+- [ ] **Offen zu klären:** Es gibt keine Regel, die einen Versand-Rückläufer bemerkt — der Status «gesendet» sagt nur, dass die Edge Function den Gmail-Aufruf abgesetzt hat, nicht dass zugestellt wurde. Zwei Rechnungen standen wochenlang auf «gesendet», ohne dass der Kunde je etwas sah. Denkbar wäre, die Rückläufer-Auswertung der Heineken-Session auch hier zu nutzen oder eine Abschlussregel «gesendet, aber seit X Tagen weder bezahlt noch gemahnt».
+
+## Spesen-Mapping: Korrektur der Notiz vom 07.09.
+
+Die Angabe «v2 `fahrzeug` + `benzin` → Alt-App `benzin`» **war falsch — v2 hat kein `fahrzeug`** (Rückmeldung Heineken-Session 08.09., von mir gegengeprüft). Der Fehler entstand, weil die Alt-App **zwei getrennte Kategoriesysteme** hat und die Vorsession sie verwechselte:
+
+- **System 1 — Spesen-Scanner** (`parse-beleg`, Kleinbelege): `privat`, `benzin`, `material`, `berufskleider`, `parkgebuehren`, `entsorgung`, `essen`. Genau diese sieben hat v2 übernommen.
+- **System 2 — Eingangsrechnungen** (`parse-rechnung` + `eingangsrechnung_kategorie`, Migration 116, Lieferantenrechnungen): 15 Kategorien, darunter `fahrzeug` → 6250. **Daher stammt der Name.**
+
+**Richtig ist: v2 `benzin` → Alt-App `benzin`, eins zu eins.** Gegengeprüft und kein Befund: `fahrzeug` → **6250 Autoreparaturen**, `benzin` → **6200 Betriebsaufwand Fahrzeuge** — zwei Konten, aber fachlich richtig getrennt (Werkstattrechnung ≠ Treibstoff).
+
+## Heineken-Monatsübersicht bleibt aus (Meldung Heineken-Session)
+
+- [ ] **Seit 24.07. keine Monatsübersicht von Heineken mehr** (letzte «per Juni 2026»). Fiel deren Postfach-Abgleich auf. Bei Heineken nachfragen.
+
+---
+
 ## 📬 POST-EINGANG 08.09.2026 (7 Dokumente, ausgewertet + abgelegt)
 
 Scans lagen in `D:\01_SBS_Projer_GmbH\SCAN\08.09.2026\` (Dokument 280–286). Keine Textebene — JPEGs aus den PDF-Streams gezogen und die 20 Seiten gelesen. Originale unverändert liegen geblieben, Kopien umbenannt nach Belegnummer-Schema in `20_Buchaltung/01_Belege/`.
@@ -109,6 +144,7 @@ Die Seed-Regeln stammen aus dem Juni — von **vor** dem Lohnmodell (2270–2273
 **Spesen-Scanner 07.09. (Meldung aus der Heineken-Session, Commit `e6b41d4`):** «SH Som Klarsich» (Scheibenwischwasser, Shell Ganda, 4.90) wurde als Putzmittel gelesen → 4004/100_Werkzeug_Material. **Alle 35 vergleichbaren Buchungen seit 2019 (Scheibenwischwasser, AdBlue) liegen auf 6200/040_Tanken** — der Beleg war der einzige Ausreisser. `parse-beleg` ist gefixt und **live als Version 40**: Kategorie «benzin» umfasst jetzt alle Fahrzeug-Betriebsmittel (Wischwasser, Klarsicht, Frostschutz, Motoröl, Bremsflüssigkeit) und geht «material» vor; Label im Scanner neu «Fahrzeug · 6200» (sichtbar erst nach dem nächsten App-Deploy).
 - [x] **Umgebucht 08.09.** (Freigabe Daniel): Buchung `17d769de` vom 07.09. von 4004/100_Werkzeug_Material auf **6200/040_Tanken** (4.90; MwSt 8.1 % und Vorsteuer 1171 unverändert, Grund in den Notizen der Buchung). Gegenprobe: keine Buchung mit Scheibenwischwasser/AdBlue/Frostschutz liegt mehr ausserhalb 6200, und im September steht nichts mehr auf 4004.
 - [x] **Rückmeldung an die Heineken-Session** (erledigt 08.09. via SendMessage): Wir haben **keine** eigene Kategorie «fahrzeug» eingeführt — in der Alt-App löst «benzin» nichts weiter aus als Konto 6200 und Ordner 040_Tanken, eine zweite Kategorie mit gleichem Ziel wäre Doppelstruktur. Für das Ablösungs-Mapping gilt: v2 «fahrzeug» + «benzin» → Alt-App «benzin».
+- [x] ⚠️ **Der letzte Satz jener Notiz war falsch** («v2 «fahrzeug» + «benzin» → Alt-App «benzin»») — **v2 hat kein `fahrzeug`**, das Mapping ist 1:1. Siehe Abschnitt «Spesen-Mapping: Korrektur der Notiz vom 07.09.» weiter oben.
 
 **Saison-Historie 08.09. (v0.98.0 live, Migration 186, Spec `docs/superpowers/specs/2026-09-08-saison-historie-design.md`):** Die Saisondaten am Betrieb hielten immer nur die laufende Saison — beim Eintragen der neuen ging die alte verloren. Neu wandert ein abgelaufenes Fenster ins Archiv, sobald sich das **Startdatum** ändert (ein geändertes Ende ist eine Korrektur derselben Saison und archiviert nichts). Im Betriebs-Formular steht unter den Saison-Feldern `Bisher: 13.12.2025–29.03.2026 · …`. Keine Automatik, keine Vorschläge — bewusst. **Nicht** aus den 345 erfassten Endreinigungen abgeleitet: eine Endreinigung kann mitten in der Zwischensaison liegen (Entscheid Daniel). Die Tabelle startet leer und füllt sich ab der nächsten Saisonänderung.
 - [ ] **Offen:** 53 von 89 Saisonbetrieben tragen abgelaufene Saisondaten. Ob es dafür eine Prüfliste braucht (Infrastruktur `aufgaben`/`betrieb_vorschlaege` existiert), ist noch nicht entschieden.
