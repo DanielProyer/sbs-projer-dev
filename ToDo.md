@@ -14,6 +14,38 @@
 
 ---
 
+## ✅ RESTLICHE ORDNER ERSCHLOSSEN (08.09.2026) — 28 Dokumente
+
+Die neun kleineren Ordner aus `00_Rechnungen` sind abgelegt. **Bewusst gröber als die grossen Ordner:** Sie enthalten überwiegend gleichartige Kleinbelege (Fahrbewilligungen à 40.—, Gemeinderechnungen, Swisscom-Rechnungen), die in `20_Buchaltung/01_Belege` längst nach Belegnummer liegen. Jeder Ordner wird deshalb als **ein** PDF geführt — auffindbar, ohne jede Einzelquittung zu katalogisieren. Ausnahme: `13_Unfall_Krankheit`, dort trennen Trennblätter die fünf Dokumente des Schadenfalls.
+
+| Ordner | Bereich | Inhalt |
+|---|---|---|
+| 16_Corona_Kredit | bank | GKB COVID-19-Darlehen, Konto 10.376.550.602, ursprünglich 20'000 |
+| 03_Bankunterlagen | bank | Zins-/Kapitalausweise zum Darlehen |
+| 10_Auto_Fahrbewilligung | behoerden | Fahrbewilligungen der Gemeinden (Flims «W» Foppa/Startgels 40.—/Jahr) |
+| 09_Gemeinde | behoerden | Domat/Ems: Feuerwehrersatzabgabe + Kehricht (2026: 153.00) |
+| 14_Corona_Erwerbsersatz | behoerden | SVA-Erwerbsersatz Mai 2021: 31 Tage à 196.00 = 6'464.85 |
+| 15_Kurzarbeit | behoerden | KIGA-Auszahlung März 2020: 1'265.15 |
+| 11_Natel_Internet | vertraege | Swisscom (Kd-Nr. 95142497) |
+| 13_Unfall_Krankheit | versicherungen/unfall | **Schadenfall 23.32069.21.0** — Unfall 18.01.2021 16:30, 100 % arbeitsunfähig bis 25.01., SUVA-Taggeld 1'333.50 |
+| 12_Lohnausweis | steuern | **Lohnausweise 2019–2025** |
+| 08_Franchise | vertraege/franchise | Heineken-Franchiserechnungen Januar–August 2026 |
+
+### 🔵 Zwei offene Punkte der Steuererklärung 2025 sind damit erledigt
+
+Die Dossier-Checkliste in der App zieht jetzt: **Lohnausweis 2025 ✓** und **Jahresrechnung 2025 ✓** (aus `00_Buchhaltung/Jahresrechnung 2025.pdf`) sind hochgeladen. Jedes Steuerjahr 2019–2025 hat jetzt seinen Lohnausweis.
+
+**Es fehlt nur noch der GKB Zins-/Kapitalausweis per 31.12.2025** — den muss Daniel bei der Bank holen. Danach ist das Dossier 2025 vollständig und die Erklärung kann bis zum 30.09. raus.
+
+### ⚠️ Aus dem Corona-Kredit, für die Gewinnverwendung
+
+Der COVID-19-Kredit läuft noch (Saldo per 31.03.2023: 15'880, Limite 16'400, seit 31.03.2023 mit **1,5 % verzinst** statt zinslos). Solange er nicht vollständig zurückbezahlt ist, gilt laut Solidarbürgschaftsgesetz ein **Dividendenverbot** — verschärft auch auf das blosse *Beschliessen* von Dividenden und Tantiemen mit aufgeschobener Ausschüttung. Dazu ein **Umschuldungsverbot**. Verstösse können die Kündigung des Kredits und strafrechtliche Sanktionen nach Art. 25 SBüG auslösen.
+
+- [ ] Beim Jahresabschluss und bei jeder Überlegung zur Gewinnausschüttung im Kopf behalten. Die Behörden überwachen die Einhaltung laut Merkblatt systematisch.
+- [ ] Noch nicht abgelegt: `02_MWST Abrechnung` (36 Dateien, teils mit UUID-Dateinamen aus dem ESTV-Portal) und die 98 Fotos in `01_Steuern` (die 76 PDFs dort sind seit dem 02.09. im Modul). Beides bewusst zurückgestellt — die MWST-Abrechnungen liegen vollständig in der Buchhaltung, die Steuer-PDFs sind erfasst.
+
+---
+
 ## ✅ ORDNER 07_VERSICHERUNG ERSCHLOSSEN (08.09.2026) — 26 Dokumente
 
 49 Handy-Fotos → 6 aufbereitete PDFs, dazu **20 Original-PDFs aus dem myAXA-Portal** (die hatte meine erste Ordnerzählung übersehen — bei den restlichen Ordnern genauer hinschauen). Kategorien **Haftpflicht** (7), **Krankentaggeld** (17) und **Unfall** (2).
