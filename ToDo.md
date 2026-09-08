@@ -251,7 +251,7 @@ Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als
 
 **Deep-Links (v0.99.11):** GitHub Pages kennt nur Dateien — `/sbs-projer-dev/dokumente` war keine, also kam die GitHub-Fehlerseite. Neu fängt `web/404.html` jeden Routen-Pfad ab und schreibt ihn auf die Hash-Route um (`…/#/dokumente`); die App führt ihre Routen im Hash, weil `usePathUrlStrategy` nicht gesetzt ist. **Der eigentliche Blocker lag woanders:** Der Versions-Redirect in `index.html` baute die Ziel-URL aus `pathname + query` und liess den Hash weg — jeder Deep-Link wäre auch mit 404.html still auf dem Startbildschirm gelandet. `test/web_404_weiche_test.dart` hält beide Hälften zusammen, `CLAUDE.md` nennt 404.html in den Deploy-Schritten (dort wird jede Datei einzeln aufgelistet).
 
-⚠️ **Was damit noch NICHT geht:** Beim Navigieren ändert sich die Adresse nicht — die App nutzt durchgehend `context.push` (144 Stellen), und GoRouter führt imperative Pushes nur im History-State, nicht in der sichtbaren URL. Ein Lesezeichen lässt sich also von Hand tippen, aber nicht aus der Adressleiste kopieren. Wer das will, bräuchte `context.go` für die Haupteinstiege — grösserer Umbau, bisher nicht verlangt.
+⚠️ **Was damit noch NICHT geht:** Beim Navigieren ändert sich die Adresse nicht — die App nutzt fast durchgehend `context.push` (139 Stellen, dazu 5 × `context.go`), und GoRouter führt imperative Pushes nur im History-State, nicht in der sichtbaren URL. Ein Lesezeichen lässt sich also von Hand tippen, aber nicht aus der Adressleiste kopieren. Wer das will, bräuchte `context.go` für die Haupteinstiege — grösserer Umbau, bisher nicht verlangt.
 
 | Typ | Anzahl | Zeitraum |
 |---|---|---|

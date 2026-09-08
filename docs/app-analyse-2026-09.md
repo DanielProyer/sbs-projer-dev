@@ -40,18 +40,20 @@ Eine Reinigung anlegen geht ausschliesslich über: **Startseite → Reinigungen 
 
 - Der **Tourenplan-Block** bietet «Betriebsseite öffnen», «auf Schätzung zurücksetzen», «War geschlossen», «Aus Plan entfernen» — aber kein «Reinigung beginnen».
 - Die **Betriebsseite** listet bestehende Reinigungen, hat aber keinen Knopf für eine neue (für Störungen und Eigenaufträge schon).
-- Das **Diktat** — der modernste Einstieg der App: sprechen, KI wertet aus, bestätigen — kann Störung, Montage, Aufgabe, Eröffnungsreinigung. **Keine Reinigung, keine Spesen.** Ausgerechnet die beiden häufigsten Vorgänge.
+- Das **Diktat** — der modernste Einstieg der App: sprechen, KI wertet aus, bestätigen — kann sechs Dinge anlegen: Störung, Montage, Eröffnungs- und Endreinigung (als Termin), Aufgabe, neuen Betrieb. **Keine Reinigung, keine Spesen.** Ausgerechnet die beiden häufigsten Vorgänge.
 
 ### Befund 3 — Sechs Einsatz-Typen, vier Status-Sprachen
 
 Für die Arbeit sind Reinigung, Störung, Montage, Eigenauftrag, Eröffnungsreinigung und Pikett dasselbe: ein Einsatz bei einem Betrieb an einem Tag, der Heineken verrechnet wird. Im Code sind es sechs Welten mit vier Vokabularen:
 
-| Typ | Status-Werte im Code |
-|---|---|
-| Reinigung | offen · abgeschlossen · abgerechnet |
-| Störung | offen · in_bearbeitung · behoben · abgerechnet |
-| Montage | geplant · abgerechnet |
-| Eigenauftrag | abgerechnet |
+| Typ | Status-Werte, die der Code schreibt | «verrechnet» |
+|---|---|---|
+| Reinigung | offen · abgeschlossen | eigenes Flag `istAbgerechnet` |
+| Störung | offen · in_bearbeitung · behoben | eigenes Flag `abgerechnet` |
+| Montage | geplant · in_bearbeitung · abgeschlossen | eigenes Flag `abgerechnet` |
+| Eigenauftrag | behoben (einziger Wert) | eigenes Flag `abgerechnet` |
+
+«Fertig» heisst je nach Typ *abgeschlossen* oder *behoben*; «verrechnet» ist nirgends ein Status, sondern überall ein zweites Feld daneben. Die Datenbank erlaubt zusätzlich Werte, die der Code nie schreibt (storniert, nicht_behebbar, abgebrochen, nachbearbeitung_noetig) — und in `anlage_detail_screen.dart` wird eine Störung mit `== 'abgeschlossen'` verglichen, einem Wert, den Störungen nie haben. So etwas fällt in vier Vokabularen nicht auf.
 
 Der Aufgaben-Screen, die Heute-Karte, der Tourenplan und die Heineken-Rechnung bauen die Vereinigung jedes Mal neu — sechs Provider, sechs `where`-Filter, sechs Sonderfälle. Das ist der Grund, warum die «Kette» zwischen Erfassen und Buchen reissen konnte (03./04.09.): Jeder Typ hat seine eigene.
 
@@ -108,7 +110,7 @@ Die Buchhaltungs-Startseite zeigt vier Jahres-Kennzahlen (Umsatz, offene Rechnun
 - **C2** Ein Kontakt-Modell mit Rollen (Betrieb, Event, privat) statt drei.
 - **C3** Reinigung auf die Felder reduzieren, die das Formular schreibt. Die Servicekarte ist ein PDF, kein Datenmodell.
 - **C4** Einstellungen in Stammdaten / Verbindungen / Wartung.
-- **C5** Navigation mit `context.go` an den Haupteinstiegen, damit die Adresszeile die Route zeigt (heute: 144 × `context.push`, die URL bleibt stehen).
+- **C5** Navigation mit `context.go` an den Haupteinstiegen, damit die Adresszeile die Route zeigt (heute 139 × `context.push` gegen 5 × `context.go`; die URL bleibt beim Navigieren stehen).
 
 ## 4. Was ich nicht vorschlage
 
@@ -129,3 +131,9 @@ Bevor irgendetwas fliegt, sollte eine Zahl da sein: **Welche Route wird wie oft 
 4. **C** ins v2-Backlog, mit Verweis auf dieses Dokument.
 
 Jeder Schritt ist einzeln lieferbar und einzeln rücknehmbar. Keiner setzt einen anderen voraus — ausser B2, das A2 sinnvoll macht.
+
+## 7. Prüfung
+
+Nach dem Schreiben haben elf unabhängige Prüfer 22 messbare Behauptungen dieses Dokuments im Code zu widerlegen versucht. 19 hielten stand, drei wurden korrigiert und sind oben eingearbeitet: die Status-Werte (*abgerechnet* ist überall ein Flag, kein Status), die Diktat-Arten (sechs statt vier) und die Zahl der `push`-Aufrufe (139 statt 144).
+
+Ein Punkt, der nicht im Dokument stand, kam dabei ans Licht: Die Heineken-Monatsrechnung grenzt ihre sieben Quellen **ausschliesslich über den Datumsbereich** ab. `abgerechnet` wird erst nach dem Erstellen gesetzt und nirgends als Filter gelesen. Wer eine Monatsrechnung neu erzeugt, bekommt alles im Datumsbereich — auch nachträglich Erfasstes; einen Zähler «noch nicht verrechnet» gibt es nicht. Genau den bräuchte die Checkliste aus B4.
