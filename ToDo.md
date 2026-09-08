@@ -14,6 +14,47 @@
 
 ---
 
+## ✅ ORDNER 05_SUVA ERSCHLOSSEN (08.09.2026) — 26 Dokumente, Kategorie «Unfall»
+
+105 Handy-Fotos → **26 benannte PDFs** unter `00_Rechnungen/05_SUVA/aufbereitet/`, alle im Dokumente-Modul unter **Versicherungen → Unfall (UVG/SUVA)**, Kunden-Nr. 4-00003-10064. Katalog `suva_dokumente_katalog.csv`, Skript `import_suva_dokumente.py`. 88 Nutzseiten lückenlos zugeordnet.
+
+**Die Trennblatt-Erkennung reichte hier nicht** — nur 17 Trennblätter auf 105 Fotos, eine Gruppe umfasste 20 Seiten. Die SUVA setzt ihr Logo auf **jede** Seite, deshalb taugt es allein nicht als Anfangsmerkmal. Erst die Kombination aus Logo **und** vorhandenem Adressblock (die Folgeseiten haben dort nichts) trennte sauber; zwei verbliebene Fehlgruppen habe ich beim Lesen korrigiert. Ergebnis: 26 statt der maschinell vermuteten 28 bzw. 62.
+
+| Typ | Anzahl | Zeitraum |
+|---|---|---|
+| Prämienrechnungen (provisorisch und definitiv) | 12 | 2020–2026 |
+| Verfügungen (Prämiensätze, Einreihung) | 6 | 2019–2025 |
+| Briefe (Lohndeklaration, Betriebsbeschreibung, Kundennummer) | 7 | 2020–2024 |
+| Versicherungsbeginn | 1 | 2019 |
+
+### 🔴 Das Spiegelbild zur SVA: hier ist die Lohnsumme zu HOCH
+
+Die SUVA rechnet provisorisch mit rund **120'000**, tatsächlich sind es **58'500–70'700**. Jedes Jahr fliesst deshalb Geld hin und wieder zurück:
+
+| Jahr | provisorisch | definitiv | zurückerstattet |
+|---|---|---|---|
+| 2022 | 90'000 → 1'407.40 | 61'000 → 953.90 | **453.50** |
+| 2023 | 116'000 → 1'896.25 | 58'500 → 956.30 | **939.95** |
+| 2024 | 118'000 → 1'937.30 | 59'500 → 976.85 | **960.45** |
+| 2025 | 120'000 → 1'910.15 | 70'700 → 1'125.40 | **784.75** |
+| 2026 | 121'000 → 1'768.80 | läuft | |
+
+**Total zu viel vorausbezahlt 2022–2025: 3'138.65.** Das Geld kommt zurück, ist aber jeweils ein Jahr lang gebunden — und die provisorische Basis wird jedes Jahr automatisch um 1–2 % **erhöht**, weil sie sich am Vorjahr orientiert statt an der tatsächlichen Lohnsumme.
+
+**Beide Sozialversicherer rechnen also mit einer falschen Lohnsumme — in entgegengesetzte Richtungen:**
+
+| | gemeldete Basis | tatsächlich | Folge |
+|---|---|---|---|
+| **SVA** | 30'734 | ~59'000 | Nachzahlungen, Mahnungen, 300.00 Bussen |
+| **SUVA** | 121'000 | ~59'000–70'700 | jährlich ~800–960 zu viel bezahlt |
+
+- [ ] **🔵 Bei beiden dieselbe Zahl melden.** Ein Anruf genügt je Kasse. Realistisch für 2026: rund 90'000 (Lohnsumme Jan–Jul bereits 52'316, plus der korrigierte BVG-Brutto). Damit stimmen Akonto und Prämie, und beide Effekte hören auf.
+- [ ] Bei der SUVA prüfen, ob die **Umtriebskosten von 200.00** in der definitiven Rechnung 2021 begründet waren (sie tauchen nur dort auf).
+
+**Nebenbefunde:** Die Kundennummer wechselte am 01.09.2024 von `1318-17113.7` auf `4-00003-10064`. Die Prämiensätze sind seit 2019 deutlich gesunken (BUV 1,4342 % → 0,6618 %, NBUV 1,6000 % → 0,8000 % ab 2026) — teils durch die Neueinreihung nach dem Telefonat vom 05.11.2019, teils durch Überschussrückgaben der SUVA.
+
+---
+
 ## ✅ ORDNER 04_SVA ERSCHLOSSEN (08.09.2026) — 44 Dokumente, Kategorie «AHV»
 
 119 Handy-Fotos (alle am 08.06.2026 abfotografiert) → **44 benannte PDFs** unter `00_Rechnungen/04_SVA/aufbereitet/`, alle im Dokumente-Modul unter **Versicherungen → AHV/IV/EO/ALV/FAK (SVA)**, Abrechnungs-Nr. 10.000.969. Katalog `Datenbank/import/sva_dokumente_katalog.csv`, Skript `import_sva_dokumente.py`. 44 Trennblätter sauber erkannt, 75 Nutzseiten lückenlos zugeordnet.

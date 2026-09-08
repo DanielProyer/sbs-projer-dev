@@ -1,0 +1,27 @@
+seiten;datum;typ;detail;betrag;titel;bezahlt_am
+1;2026-02-10;rechnung_definitiv;Praemien-definitiv-2025;1125.40;Rechnung definitive Praemien 2025 - Lohnsumme 70700, Zahlungen 1910.15, Guthaben 784.75 zurueckerstattet;
+2;2025-11-25;rechnung_definitiv;Praemien-provisorisch-2026;1768.80;Rechnung provisorische Praemien 2026 - Lohnsumme 121000 (provisorisch 2025 plus 1 Prozent);2025-12-08
+3;2025-02-04;rechnung_definitiv;Praemien-definitiv-2024;976.85;Rechnung definitive Praemien 2024 - Lohnsumme 59500, Zahlungen 1937.30, Guthaben 960.45 zurueckerstattet;
+4;2024-11-26;rechnung_definitiv;Praemien-provisorisch-2025;1910.15;Rechnung provisorische Praemien 2025 - Lohnsumme 120000;2025-02-03
+5;2023-11-29;rechnung_definitiv;Praemien-provisorisch-2024;1937.30;Rechnung provisorische Praemien 2024 - Lohnsumme 118000;2024-02-05
+6;2024-02-02;rechnung_definitiv;Praemien-definitiv-2023;956.30;Rechnung definitive Praemien 2023 - Lohnsumme 58500, Zahlungen 1896.25, Guthaben 939.95 zurueckerstattet;
+7;2022-12-03;rechnung_definitiv;Praemien-provisorisch-2023;1896.25;Rechnung provisorische Praemien 2023 - Lohnsumme 116000;2023-01-30
+8;2022-03-02;rechnung_definitiv;Praemien-definitiv-2021;2341.25;Rechnung definitive Praemien 2021 - Lohnsumme 113000, inkl. Umtriebskosten 200.00, Saldo 825.35;2022-04-21
+9;2021-11-23;rechnung_definitiv;Praemien-provisorisch-2022;1407.40;Rechnung provisorische Praemien 2022 - Lohnsumme 90000;2021-12-13
+10;2021-01-25;rechnung_definitiv;Praemien-definitiv-2020;1672.90;Rechnung definitive Praemien 2020 - Lohnsumme 88500 gemaess Lohnerklaerung, Saldo 160.65;2021-02-03
+11;2020-11-26;rechnung_definitiv;Praemien-provisorisch-2021;1515.90;Rechnung provisorische Praemien 2021 - Lohnsumme 80000;2021-01-14
+12-20;2025-08-18;verfuegung;Praemiensaetze-ab-2026;;Verfuegung Praemiensaetze ab 01.01.2026 mit Einreihung und Praemientarif - BUV 0.6618 unveraendert, NBUV 0.93 auf 0.80 gesenkt;
+21-22;2024-08-29;brief;Neue-Kundennummer;;Neue Kundennummer 4-00003-10064 ab 01.09.2024 (bisher 1318-17113.7);
+23-30;2024-08-16;verfuegung;Praemiensaetze-ab-2025;;Verfuegung Praemiensaetze ab 01.01.2025 mit Einreihung und Praemientarif - NBUV 0.98 auf 0.93 gesenkt;
+31-33;2023-12-06;brief;Lohndeklaration-2023;;Aufforderung Lohndeklaration 2023, Frist 31.01.2024, Online-Code CVU5-NZP3-D269-MH6P;
+34-41;2023-08-16;verfuegung;Praemiensaetze-ab-2024;;Verfuegung Praemiensaetze ab 01.01.2024 mit Einreihung und Praemientarif - BUV 0.6547 auf 0.6618 erhoeht;
+42;2023-03-17;brief;Betriebsverhaeltnisse-aktualisiert;;Aktualisierte Betriebsverhaeltnisse - Reparatur und Unterhalt Elektrotechnik 95 Prozent, Buerotaetigkeiten 5 Prozent, keine Neueinreihung;
+43;2023-01-31;rechnung_definitiv;Praemien-definitiv-2022;953.90;Rechnung definitive Praemien 2022 - Lohnsumme 61000, Zahlungen 1407.40, Guthaben 453.50 zurueckerstattet;
+44-45;2023-03-08;brief;Betriebsbeschreibung-aktualisieren;;Aufforderung zur Aktualisierung der Betriebsbeschreibung bis 28.03.2023 - sonst kann die Praemie nicht korrekt festgelegt werden;
+46-48;2022-12-09;brief;Lohndeklaration-2022;;Aufforderung Lohndeklaration 2022, Frist 31.01.2023 - eingereicht 30.01.2023 (fristgerecht);
+49-56;2021-08-16;verfuegung;Praemiensaetze-ab-2022;;Verfuegung Praemiensaetze ab 01.01.2022 - Covid-Gutschrift und ausserordentlicher Abzug 15 Prozent, BUV 0.7649 auf 0.5838 gesenkt;
+57;2021-01-22;brief;Lohnerklaerung-2020;;Lohnerklaerung fuer die definitiven Praemien 2020 - Total praemienpflichtige Loehne 88500, elektronisch uebermittelt;
+58-59;2020-12-07;brief;Lohndeklaration-2020;;Aufforderung Lohndeklaration 2020, Frist 31.01.2021 - Hinweis auf Deklaration trotz Kurzarbeitsentschaedigung;
+60-67;2020-08-10;verfuegung;Praemiensaetze-ab-2021;;Verfuegung Praemiensaetze ab 01.01.2021 - ausserordentliche Abzuege entfielen, BUV 0.7603 auf 0.7649 erhoeht;
+68-74;2019-11-12;verfuegung;Betriebsverhaeltnisse-veraendert;;Veraenderte Betriebsverhaeltnisse nach Telefonat vom 05.11.2019 - Betriebsbeschreibung korrigiert, Neueinreihung mit Einreihungsverfuegung ab 01.01.2020;
+75-88;2019-07-26;vertrag;Versicherungsbeginn;;Versicherung bei der Suva ab 01.01.2020 - Wechsel vom bisherigen UVG-Versicherer, Kundennummer 1318-17113.7, Praemiensaetze BUV 1.4342 und NBUV 1.6000;
