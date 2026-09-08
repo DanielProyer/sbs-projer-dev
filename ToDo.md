@@ -14,6 +14,46 @@
 
 ---
 
+## ✅ ORDNER 06_PK ERSCHLOSSEN (08.09.2026) — 36 Dokumente in der App
+
+Der Ordner `00_Rechnungen/06_PK` enthielt **105 Handy-Fotos** (Zufallszahlen als Namen, alle am 09.06.2026 in einer halben Stunde abfotografiert) plus 12 Portal-PDFs. Jetzt: 27 benannte PDFs unter `00_Rechnungen/06_PK/aufbereitet/` und **36 Dokumente im Dokumente-Modul** (Bereich «versicherungen», Kategorie `bvg`, Referenz 2/452968).
+
+**Wie die Fotos zu Dokumenten wurden:** Daniel legt beim Scannen Trennblätter ein («SBS Projer – Dokument-Trenner»). Die sind an ihren schwarzen Balken oben und unten maschinell erkennbar — 27 Stück gefunden, dazwischen liegen die Dokumente. Aus jeder Gruppe ein PDF, benannt `JJJJ-MM-TT_typ_betrag.pdf`. Skripte: `Datenbank/import/import_pk_dokumente.py` und `import_pk_ausweise.py`, Katalog `pk_dokumente_katalog.csv`. Beide idempotent.
+
+| Typ | Anzahl | Zeitraum |
+|---|---|---|
+| Beitragsrechnungen | 16 | 2019–2025 |
+| Pensionskassenausweise | 7 | 2020–2026 |
+| Kontoauszüge/Jahresrückblicke | 3 | 2021, 2022, 2026 |
+| **Mahnungen** | **3** | 2024, 2025, 2026 |
+| Info-Schreiben | 3 | 2021–2023 |
+| Vorsorgepläne | 2 | 2021, 2024 |
+| Freizügigkeit (PKG-Austritt) | 1 | 2019 |
+| Neuanschluss-Vertrag | 1 | 2019 |
+
+**Duplikate erkannt und übersprungen** (per MD5, Originale liegen unangetastet): Ausweis 2026 war dreimal heruntergeladen, Vorsorgeplan 2024 zweimal.
+
+### 🔴 Befund: drei Mahnungen in drei Jahren, je 100 CHF Gebühr
+
+| Mahnung | Saldo per | Gebühr | Total | bezahlt |
+|---|---|---|---|---|
+| 22.02.2024 | 31.12.2023: 3'181.35 | 100.00 | 3'281.35 | 09.04.2024 |
+| 27.02.2025 | 31.12.2024: 3'305.75 | 100.00 | 3'405.75 | 20.03.2025 |
+| 26.02.2026 | 31.12.2025: 9'517.15 ./. 6'239.40 | 100.00 | 3'377.75 | 08.04.2026 |
+
+**Das Muster ist jedes Jahr dasselbe**: Die Quartalsrechnungen bleiben liegen, im Januar kommt der Kontoauszug mit Zahlfrist Anfang Februar, im Februar die Mahnung mit 100 CHF Gebühr und der **Androhung, den Anschlussvertrag zu kündigen** («ohne Sie nochmals zu mahnen») samt Meldung an Aufsichtsbehörde und Arbeitnehmer. Dazu 5 % Verzugszins auf allen offenen Beiträgen (2019 noch 4 %).
+
+Von 21 erfassten Beitragsrechnungen wurde **keine einzige innert Frist bezahlt**; die Verzögerung liegt zwischen zwei Wochen und dreieinhalb Monaten (Q3/2025: fällig 03.11.2025, bezahlt 02.01.2026).
+
+- [ ] **Aktuell offen: Q1+Q2/2026, zusammen 8'935.80.** Daniel zahlt am 09.09. nur 4'467.90 — damit läuft das Muster ins vierte Jahr, und die Mahnung im Februar 2027 ist absehbar. **Beide Quartale zahlen wäre die 100 CHF und den Verzugszins wert.**
+- [ ] Ein Dauerauftrag über 4'467.90 quartalsweise (fällig jeweils Anfang Februar/Mai/August/November) würde das Thema dauerhaft schliessen.
+
+### Die 145.08-Differenz ist geklärt
+
+Der **Jahresrückblick per 31.12.2025** (im Kontoauszug vom 10.01.2026) weist das Beitragskonto mit **9'517.15** aus, Total Beiträge 2025 **12'478.80** (je 6'239.40 AN und AG). Unsere Umgliederung per 31.12.2025 setzte 9'372.07 — **die Differenz von 145.08 ist damit belegt und stammt aus der Zeit vor 2025**. Zusammen mit der falsch gegen 2271 gebuchten Mahngebühr von 100.00 erklärt das die 245.08, die auf 2271 noch fehlen.
+
+---
+
 ## RÜCKLÄUFER-MELDUNG 08.09. — geprüft: eine von drei Rechnungen wirklich betroffen
 
 Die Heineken-Session liest seit dem 08.09. das Geschäftspostfach mit (nur lesend, `gmail.readonly`) und meldete drei abgewiesene Rechnungen. **Im Postfach nachgeprüft — zwei davon waren binnen Minuten repariert worden.**
