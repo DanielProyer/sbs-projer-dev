@@ -52,7 +52,23 @@ Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Ar
 ### 🔴 Kreditor-Regeln SVA/SUVA/PK zeigen auf die falschen Konten
 Die Seed-Regeln stammen aus dem Juni — von **vor** dem Lohnmodell (2270–2273, August). Sie buchen Sozialversicherungs-Rechnungen in den **Aufwand**: `Ausgleichskasse → 5700`, `SUVA → 5730`, `AXA/Ref-98 → 5720`. Der Lohnlauf bucht diesen Aufwand aber bereits; die Rechnung ist danach nur noch **Tilgung** (`2270/2271/2272 an 1020`). Die AXA-Rechnung zeigt es exemplarisch: von 4'467.90 sind 2'233.95 Arbeitnehmeranteil, beim Lohn längst abgezogen.
 - **Produktiv gebucht wurde darüber noch nichts** — die einzige SVA/PK-Erfassung ist ein verworfenes AXA-Testdokument vom 19.09.2025. Alle 15 echten Zahlungen liefen korrekt über 2270/2271/2272.
-- [ ] Regeln auf `2270` / `2272` / `2271` umstellen (Feld heisst `aufwandskonto`, ist technisch das Soll-Konto — annimmt es ein Bilanzkonto? prüfen). Danach können SVA/SUVA/PK übers Kreditoren-Modul laufen, inkl. pain.001 und camt-Abschluss. **Freigabe Daniel steht noch aus.**
+- [x] **UMGESTELLT 08.09. (Freigabe Daniel).** Es waren **vier** Regeln, nicht drei — `AXA` mit Referenz-Präfix `4412738` (UVG) hatte dasselbe Problem:
+
+  | Aussteller (Referenz-Präfix) | alt | neu |
+  |---|---|---|
+  | Ausgleichskasse | 5700 Sozialversicherungsaufwand | **2270** AHV/IV/EO/ALV |
+  | SUVA | 5730 UVG AG | **2272** UVG/SUVA |
+  | AXA (`98`) | 5720 BVG AG | **2271** BVG/Pensionskasse |
+  | AXA (`4412738`) | 5730 UVG AG | **2272** UVG/SUVA |
+
+  `AXA` mit Präfix `1537129` bleibt auf **6300 Haftpflichtversicherung** — echter Betriebsaufwand, kein Lohnnebenkonto.
+
+  Geprüft vor dem Eingriff: keine CHECK-Constraint und kein FK auf `kreditor_regel.aufwandskonto`; `kreditorBuchungsZeilen()` setzt es unverändert als `sollKonto` gegen Kreditor 2000, ohne Kontenklassen-Annahme. Eine SVA-Rechnung bucht damit `2270 an 2000`, die Zahlung `2000 an 1020` — kein doppelter Aufwand. Vorsteuer war bei allen vier schon null/`mwst_pflichtig=false`.
+
+  Gegenprobe: **keine** Buchung im ganzen Journal hat Soll 5700/5710/5720/5730/5740 an Haben 2000 — es ist nie etwas falsch durchgelaufen.
+
+  Rollback: `update kreditor_regel set aufwandskonto=<alt> where lieferant_name_pattern=... and referenz_praefix is not distinct from ...` mit den Alt-Werten aus der Tabelle oben.
+- [ ] **Zu beachten:** `KreditorLernService` überschreibt die Regel, sobald beim Buchen ein anderes Konto gewählt wird. Wählt jemand einmal versehentlich 5700, kippt die Regel zurück. Ein Wächter dagegen wäre eine 17. Regel in der Abschlussprüfung («Sozialversicherungsaufwand gegen Kreditor gebucht») — noch nicht gebaut, mit Daniel zu klären.
 - Der Heineken-Session am 08.09. gemeldet (Mapping-Hinweis für v2: Kategorie `sozialversicherung`/`unfall_krankheit` → Bilanzkonto, nicht Aufwand).
 
 ---
