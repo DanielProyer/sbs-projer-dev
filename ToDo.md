@@ -42,6 +42,11 @@
 **Geschäftsjahr-Korrektur 08.09. (v0.99.4, Freigabe Daniel, Befund aus der Heineken-Session):** Zwölf MWST-Saldierungen mit Datum 2025 trugen `geschaeftsjahr` 2026 — der SQL-Lauf vom 01.09. setzte pauschal das laufende Jahr. **Korrigiert**, Grund steht in den Notizen der Buchungen. Gegenprobe: keine abweichenden Jahre mehr, 2202 per 31.12.2025 unverändert 6'577.40. Wirkung war klein (Bilanz rechnet über das Datum, Erfolgsrechnung nur 3000–6999, MWST-Abrechnung filtert `mwst_konto IS NOT NULL`) — falsch einsortiert war nur die Buchungsliste. **Es gibt keine Saldierungsfunktion im App-Code**, der Fehler kam aus einem Handlauf; deshalb neu die **16. Regel «Geschäftsjahr passt zum Datum»** in der Abschlussprüfung.
 - [ ] Der Heineken-Session bestätigen, dass wir das übernommen haben (SendMessage hier nicht verfügbar) — ihr v2-Nachzug sollte jetzt durchlaufen.
 
+**Stammdaten 08.09. (Freigabe Daniel, Meldung aus der Heineken-Session):** «Pizzeria Fortuna» Sedrun heisst nach Wirtewechsel **«Pizzeria Badus»** (Via Alpsu 87, 7188), Status wieder **aktiv**, `ist_mein_kunde` auf true, `inaktiv_seit`/`inaktiv_grund` geleert (die hatte der Vorschlag übersehen — von 305 aktiven Betrieben trägt sonst genau einer noch ein Inaktiv-Datum). Gleiche UUID, kein neuer Betrieb. Hausnummer separat in `nr`, wie bei Soliva an derselben Strasse.
+- [ ] **Daniel: Anlage erfassen** — Heineken führt 2 Hahnen, in beiden Systemen steht keine Anlage. Beim nächsten Besuch nachtragen (`inaktiv_grund` lautete «Anlage demontiert»).
+- [ ] **Offen, grösser:** Was bedeutet `ist_mein_kunde` eigentlich? Bahnhofbuffet und Soliva in Sedrun stehen auf false, obwohl du sie bedienst (Bahnhofbuffet Störung 04.09.). 229 der 305 aktiven stehen auf true. Wenn das Flag etwas steuert, sind die 76 mit false zu prüfen.
+- [ ] Rückmeldung an die Heineken-Session (SendMessage hier nicht verfügbar): erledigt, beide Stämme wieder gleich.
+
 **Für die Steuererklärung 2025 in die App laden (Daniel, Steuern → 2025 → Dokumente):** Jahresrechnung 2025 (unterschrieben), Lohnausweis 2025, **GKB Zins-/Kapitalausweis 31.12.2025** (fehlt noch, bei der Bank holen). Danach Formular 11a ausfüllen und bis **30.09.2026** einreichen (Kennzahlen: steuerbarer Gewinn 21'201.23, Kapital 75'950.93), Status im Jahresdetail auf «eingereicht» setzen.
 
 ---
