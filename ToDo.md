@@ -14,21 +14,24 @@
 
 ---
 
-## 🔴 RÜCKLÄUFER: drei (vermutlich vier) Rechnungen nie zugestellt — Meldung Heineken-Session 08.09.
+## RÜCKLÄUFER-MELDUNG 08.09. — geprüft: eine von drei Rechnungen wirklich betroffen
 
-Die Heineken-Session liest seit dem 08.09. das Geschäftspostfach mit (nur lesend, `gmail.readonly`) und wertet Unzustellbarkeits-Rückläufer aus. **Alle drei Meldungen in unserem Stamm bestätigt, Beträge auf den Rappen.**
+Die Heineken-Session liest seit dem 08.09. das Geschäftspostfach mit (nur lesend, `gmail.readonly`) und meldete drei abgewiesene Rechnungen. **Im Postfach nachgeprüft — zwei davon waren binnen Minuten repariert worden.**
 
-| Rechnung | Betrag | versendet | Status heute | Rechnungsadresse heute | geändert am |
-|---|---|---|---|---|---|
-| Dischma `2026-05-0579` | 74.60 | 09.06. | **offen** | `hotel@hotelconcordia.ch` | 17.07. — **unverändert** |
-| Bräma `2026-08-1366` | 118.90 | 13.08. | **gesendet** | `invoice@hotelgrischa.ch` ✓ | **13.08. 09:26** |
-| Alpenblick Weggis `2026-09-1406` | 94.05 | 03.09. | **gesendet** | `kreditoren@sinnvollgastro.ch` ✓ | **03.09. 11:25** |
+**⚠️ NACHGEPRÜFT IM POSTFACH (08.09., Gmail `sbs.projer@`) — von den drei gemeldeten Fällen ist nur EINER echt.** Daniel erinnerte sich, Alpenblick neu gesendet zu haben. Er hatte recht, und bei Bräma war es genauso.
 
-Bei Bräma (ging an `hotelgrischa.com`) und Alpenblick (`sinvollgastro`) wurde die Adresse **am Versandtag selbst korrigiert** — offenbar nach dem Versand. Deshalb steht heute überall das Richtige, während die Mail mit der alten Adresse rausging. Ein Neuversand sollte durchgehen.
+| Rechnung | Betrag | Was wirklich geschah | Ergebnis |
+|---|---|---|---|
+| **Alpenblick Weggis** `2026-09-1406` | 94.05 | 03.09. 10:13:50 an `sinvollgastro.ch` → Bounce 10:13:52 · **Neuversand 11:25:34 an `sinnvollgastro.ch`** | ✅ **zugestellt, kein Bounce** |
+| **Bräma** `2026-08-1366` | 118.90 | 13.08. 09:24:52 an `hotelgrischa.com` → Bounce 09:24:56 · **Neuversand 09:27:06 an `hotelgrischa.ch`** | ✅ **zugestellt, kein Bounce** |
+| **Concordia** `2026-05-0580` | 74.60 | 09.06. 08:20:50 an `hotel@hotelconcordia.ch` | ✅ **sauber zugestellt** — mein Zusatzfund war ein Fehlalarm |
+| **Dischma** `2026-05-0579` | **74.60** | 09.06. 08:20:46 an `hotel@dischma.ch` → Delay 10.06. → Delay 11.06. → **Failure 12.06. 13:41** | 🔴 **nie angekommen** |
 
-- [ ] **🔴 Daniel entscheidet: Neuversand für Bräma + Alpenblick Weggis** (Adressen sind korrekt). Beide stehen auf «gesendet», obwohl der Kunde nie etwas gesehen hat — der Status müsste beim Neuversand ohnehin neu gesetzt werden.
-- [ ] **🔴 Dischma `2026-05-0579`, seit vier Monaten offen** — Adresse unverändert, laut Heineken-Session **zweimal** abgewiesen. Hier hilft kein Neuversand: **anrufen** (+41 81 410 12 50) und die Rechnungsadresse klären.
-- [ ] **Zusatzfund (von mir, nicht aus der Meldung):** An derselben Adresse hängt **Concordia `2026-05-0580`, 74.60, ebenfalls am 09.06. versendet und bis heute offen**. Gleiche Domain, gleicher Tag, gleiches Muster — dürfte derselbe Rückläufer sein. Dann wären es **vier Rechnungen über CHF 362.15** statt drei über 287.55. Beim Anruf mitklären.
+Bei Bräma und Alpenblick erklärt der Zeitverlauf alles: Adresse korrigiert (09:26:41 bzw. 11:25:15), Sekunden später neu versendet (09:27:06 bzw. 11:25:34). Die `updated_at` der Rechnungen passen auf die Sekunde. **Kein Handlungsbedarf.**
+
+- [ ] **🔴 Einziger echter Fall: Dischma `2026-05-0579`, 74.60, seit 08.05. offen.** Die Mail ging am 09.06. an `hotel@dischma.ch` und scheiterte endgültig. **Ein Neuversand geht heute aber an die inzwischen hinterlegte Rechnungsadresse `hotel@hotelconcordia.ch`** (angelegt 17.07., also nach dem Fehlversuch) — und die funktioniert nachweislich: Concordia-Rechnungen gingen am 09.06., 17.07. und 26.08. ohne Bounce dorthin. **Neuversand statt Anruf**, Freigabe Daniel steht aus.
+
+**Korrektur an die Heineken-Session (raus am 08.09.):** Ihre Auswertung hat drei Bounces gefunden, aber nicht geprüft, ob danach ein erfolgreicher Neuversand kam — zwei der drei waren binnen Minuten repariert. Ausserdem sind bei Dischma «zwei Abweisungen» in Wahrheit zwei **Delay**-Meldungen plus ein Failure; ein Delay ist keine Ablehnung. Und die Adresse ist nicht «unverändert»: beim Fehlversuch war es `hotel@dischma.ch`, heute `hotel@hotelconcordia.ch`.
 
 **⚠️ Falscher Alarm bei der Breitensuche — für die nächste Session festgehalten:** Ich habe zuerst nach «Betrieb steht auf `rechnung_mail`, Rechnung offen, nie versendet» gesucht und 16 Fälle über gut CHF 1'500 gefunden (Grischa 182.70, Kulm 118.90, Löwen, Conditorei Fischer …). **Alles Fehlalarm.** Seit v0.50.0 fixiert die Reinigung ihre eigene `zahlungsart` und übersteuert `betriebe.rechnungsstellung`; die vermeintlichen Fälle sind **Tresen-Rechnungen**, die Daniel vor Ort übergibt und die nie per Mail rausgehen. Wer über `betriebe.rechnungsstellung` allein auswertet, erzeugt diese Phantome zuverlässig — **die effektive Art steht in `reinigungen.zahlungsart`, der Betrieb ist nur der Fallback** (`resolveZahlungsart`). Mit korrektem Filter bleibt seit dem Echtbetrieb des Mailversands (17.07.2026) **kein einziger** unversendeter Fall über 14 Tage.
 
