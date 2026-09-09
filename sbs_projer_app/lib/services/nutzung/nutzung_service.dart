@@ -71,10 +71,14 @@ class NutzungBeobachter extends NavigatorObserver {
     _melde(route.settings.name);
   }
 
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    _melde(newRoute?.settings.name);
-  }
+  // didReplace wird bewusst NICHT gezählt. `pushReplacement` gibt es an drei
+  // Stellen, und alle drei sind ein Wechsel innerhalb eines Vorgangs, kein
+  // neuer Einstieg: Betriebsauswahl → Reinigungsformular, Event-Formular →
+  // Event, Rechnung erzeugen → Rechnung.
+  //
+  // Am 09.09.2026 hat das die erste Messung verzerrt: `/reinigungen/neu`
+  // stand mit 15 Aufrufen da, tatsächlich waren es 7 Reinigungen — die Route
+  // bedient Auswahl UND Formular, jeder Vorgang zählte doppelt.
 
   void _melde(String? name) {
     final z = _zaehler;
