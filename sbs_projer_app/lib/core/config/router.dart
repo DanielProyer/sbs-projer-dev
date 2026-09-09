@@ -82,11 +82,16 @@ import 'package:sbs_projer_app/presentation/screens/spesen/spesen_scanner_screen
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_zuweisungen_screen.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
     show kSteuerJahrAb;
+import 'package:sbs_projer_app/presentation/screens/auswertungen/nutzung_screen.dart';
+import 'package:sbs_projer_app/services/nutzung/nutzung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 final router = GoRouter(
   initialLocation: '/',
   refreshListenable: SupabaseService.authNotifier,
+  // Zählt, welche Route geöffnet wird (Punkt 5 der App-Analyse). Der
+  // Beobachter sieht das Routen-Muster, nie eine konkrete Datensatz-ID.
+  observers: [NutzungBeobachter()],
   redirect: (context, state) {
     final isLoggedIn = SupabaseService.isAuthenticated;
     final isLoginPage = state.matchedLocation == '/login';
@@ -117,6 +122,12 @@ final router = GoRouter(
     GoRoute(
       path: '/auswertungen/arbeitstage',
       builder: (context, state) => const ArbeitstagAuswertungScreen(),
+    ),
+
+    // Nutzungsmessung: welcher Bereich wird tatsächlich geöffnet
+    GoRoute(
+      path: '/auswertungen/nutzung',
+      builder: (context, state) => const NutzungScreen(),
     ),
 
     // Aufgaben (anstehende Arbeiten chronologisch)

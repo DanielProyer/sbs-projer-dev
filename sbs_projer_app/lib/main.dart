@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -6,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/app.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auth_service.dart';
+import 'package:sbs_projer_app/services/nutzung/nutzung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
 import 'package:sbs_projer_app/services/connectivity/connectivity_service.dart';
@@ -50,6 +53,12 @@ Future<void> main() async {
         SyncService.syncAll();
       }
     }
+  }
+
+  // Nutzungsmessung (Punkt 5 der App-Analyse): holt Liegengebliebenes
+  // aus dem letzten Lauf und schickt es weg. Darf die App nie aufhalten.
+  if (SupabaseService.isAuthenticated) {
+    unawaited(nutzungMessungStarten());
   }
 
   runApp(

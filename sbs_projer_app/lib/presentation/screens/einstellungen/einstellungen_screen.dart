@@ -512,6 +512,19 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             ),
           ),
 
+          // Nutzungsmessung (Punkt 5 der App-Analyse)
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: const Icon(Icons.query_stats, color: AppColors.primary),
+              title: const Text('Nutzung der App',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Welcher Bereich wird wie oft geöffnet'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/auswertungen/nutzung'),
+            ),
+          ),
+
           // Speicher aufräumen
           Card(
             margin: const EdgeInsets.only(bottom: 12),
