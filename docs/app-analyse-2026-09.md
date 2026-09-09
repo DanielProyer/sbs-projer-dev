@@ -145,9 +145,11 @@ Dazu, ohne eigene Nummer: eine Spesen-Liste hinter dem Zähler; ein Name für Fo
 - **Nichts entfernen, was verrechnet wird.** Bergkundenpauschalen bleiben Logik; sie verlieren nur den Menüplatz.
 - **Kein Redesign der Optik.** Das Material-3-Grün ist in Ordnung; das Problem sind Wege und Dichte, nicht Farben.
 
-## 5. Zuerst messen: ein Nutzungszähler
+## 5. Zuerst messen: ein Nutzungszähler ✅ (läuft seit v0.99.14)
 
 Bevor irgendetwas fliegt, sollte eine Zahl da sein: **Welche Route wird wie oft geöffnet?** Ein Zähler im Router (Route → Aufrufe, lokal gespeichert, vier Wochen), dann eine Liste. Das sind 30 Zeilen Code und macht aus «ich glaube, Anlagen braucht niemand» eine Tatsache. Alles in A6 und B2 wird damit entscheidbar statt Geschmackssache.
+
+**Umgesetzt am 09.09.2026 (v0.99.14).** Ein `NavigatorObserver` zählt das Routen-Muster — `/betriebe/:id`, nie die konkrete Adresse, es landen also keine Datensätze in der Messung. Getrennt nach Handy und PC (Grenze 600 px), gepuffert und gebündelt gesendet; was im Funkloch anfällt, geht beim nächsten Mal mit und behält Tag und Gerät von damals. Auswertung unter **Einstellungen → Nutzung der App**, mit Kopiere-Knopf. Migration 190.
 
 ## 6. Reihenfolge, wenn alles gilt
 
