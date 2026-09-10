@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
 
 void main() {
+  _buchungsTests();
   _versandvermerkTests();
 
   group('heinekenAufgabe', () {
@@ -147,6 +148,30 @@ void main() {
 ///
 /// Die App kann nicht wissen, ob eine Mail rausging. Sie kann aber sagen:
 /// Hier stimmt etwas nicht, sieh im Postausgang nach.
+void _buchungsTests() {
+  group('Waechter fuer fehlende Ertragsbuchungen', () {
+    test('stumm, solange nichts fehlt', () {
+      expect(fehlendeBuchungenAufgabe(0), isNull);
+    });
+
+    test('meldet Einzahl und Mehrzahl', () {
+      expect(fehlendeBuchungenAufgabe(1)!.titel,
+          '1 Reinigung ohne Ertragsbuchung');
+      expect(fehlendeBuchungenAufgabe(2)!.titel,
+          '2 Reinigungen ohne Ertragsbuchung');
+    });
+
+    test('dringend und mit Weg zu den Forderungen', () {
+      // Ohne Ertragsbuchung fehlt der Umsatz in der Erfolgsrechnung — das
+      // faellt sonst erst beim Abschluss auf.
+      final a = fehlendeBuchungenAufgabe(2)!;
+      expect(a.dringend, isTrue);
+      expect(a.route, '/rechnungen');
+      expect(a.key, 'fehlende_buchungen');
+    });
+  });
+}
+
 void _versandvermerkTests() {
   group('Versandvermerk-Wächter', () {
     test('ohne Verdachtsfälle stumm', () {

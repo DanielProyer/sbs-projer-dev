@@ -108,6 +108,23 @@ Aufgabe? saisondatenAufgabe(int anzahl) => anzahl <= 0
         route: '/touren',
       );
 
+/// Reinigungen, deren Ertragsbuchung fehlt.
+///
+/// Die Buchung ist der letzte Schritt der Abschlusskette und damit das erste
+/// Opfer, wenn die Verbindung abbricht. Bis zum 10.09.2026 fiel das nur auf,
+/// wenn zufaellig auch eine Rechnung fehlte — der Weg zum Nachbuchen hing an
+/// jener anderen Warnung.
+Aufgabe? fehlendeBuchungenAufgabe(int anzahl) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'fehlende_buchungen',
+        titel: anzahl == 1
+            ? '1 Reinigung ohne Ertragsbuchung'
+            : '$anzahl Reinigungen ohne Ertragsbuchung',
+        dringend: true,
+        route: '/rechnungen',
+      );
+
 /// Rechnungen, die per Mail hätten gehen sollen und trotzdem auf «offen»
 /// stehen.
 ///

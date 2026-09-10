@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
+import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
@@ -99,7 +100,17 @@ final aufgabenProvider = FutureProvider<AufgabenStand>((ref) async {
     debugPrint('[Aufgaben] Saisondaten-Detektor: $e');
   }
 
-  // e) Versandvermerk — Mail-Rechnungen, die auf «offen» stehen geblieben
+  // e) Fehlende Ertragsbuchungen — dieselbe Quelle wie die Warnung in den
+  //    Forderungen, damit beide nie auseinanderlaufen.
+  try {
+    final offen = await ref.watch(fehlendeBuchungenProvider.future);
+    final a = fehlendeBuchungenAufgabe(offen.where((e) => !e.gesperrt).length);
+    if (a != null) detektoren.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Buchungs-Detektor: $e');
+  }
+
+  // f) Versandvermerk — Mail-Rechnungen, die auf «offen» stehen geblieben
   //    sind. Erst ab dem Folgetag: am Tag selbst kann der Versand noch
   //    ausstehen (Funkloch, Nachversand), das wäre nur Rauschen.
   try {

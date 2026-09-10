@@ -136,6 +136,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       final erg = await BuchungNachholService.nachholen();
       ref.invalidate(buchungenStreamProvider);
       ref.invalidate(reinigungenOhneRechnungProvider);
+      ref.invalidate(fehlendeBuchungenProvider);
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -231,6 +232,59 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                 ),
               ),
               const Icon(Icons.chevron_right, color: AppColors.error, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Zweite Frühwarnung: Reinigungen, denen die ERTRAGSBUCHUNG fehlt.
+  ///
+  /// Bis zum 10.09.2026 hing das Nachbuchen ausschliesslich am Dialog der
+  /// Warnung darüber — fehlte nur die Buchung und nicht die Rechnung, gab es
+  /// gar keinen Weg dorthin. Genau so blieben Signina (07.09.) und Mountain
+  /// Plaza (09.09.) tagelang liegen: der automatische Nachlauf schwieg, und
+  /// von Hand war es nicht erreichbar.
+  ///
+  /// Stumm, solange nichts fehlt — nur so fällt der Ernstfall auf.
+  Widget _warnungOhneBuchung() {
+    final async = ref.watch(fehlendeBuchungenProvider);
+    final offen = async.valueOrNull;
+    if (offen == null || offen.isEmpty) return const SizedBox.shrink();
+
+    final summe = offen.fold<double>(0, (s, e) => s + e.brutto);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: InkWell(
+        onTap: _buchungenNachholen,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withAlpha(25),
+            border: Border.all(color: AppColors.warning.withAlpha(90)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.account_balance_wallet_outlined,
+                  color: AppColors.warning, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  offen.length == 1
+                      ? '1 Reinigung ohne Ertragsbuchung · '
+                            '${summe.toStringAsFixed(2)} CHF · tippen zum Nachbuchen'
+                      : '${offen.length} Reinigungen ohne Ertragsbuchung · '
+                            '${summe.toStringAsFixed(2)} CHF · tippen zum Nachbuchen',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.warning),
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.warning, size: 20),
             ],
           ),
         ),
@@ -408,6 +462,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       body: Column(
         children: [
           _warnungOhneRechnung(),
+          _warnungOhneBuchung(),
           // ── Abschnitt 1: Offene Forderungen + Debitoren/Abschreibungen ──
           // (Wunsch Daniel 07.08.2026: offene Rechnungen ganz nach oben,
           //  klar getrennt vom Rechnungs-Archiv darunter.)
