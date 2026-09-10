@@ -1046,8 +1046,42 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
               ).timeout(const Duration(seconds: 20));
               nachgeholt = erg.gebucht;
               if (nachgeholt > 0) ref.invalidate(reinigungenOhneRechnungProvider);
+              // Scheitert das Nachbuchen, war das bis zum 10.09.2026 nur im
+              // Debug-Protokoll zu sehen. Zwei Ertragsbuchungen (Signina
+              // 07.09., Mountain Plaza 09.09.) blieben deshalb tagelang
+              // liegen, obwohl der Nachlauf bei jedem Abschluss lief — und
+              // niemand konnte wissen, warum.
+              if (erg.fehler.isNotEmpty && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.error,
+                    content: Text(
+                      'NACHBUCHEN FEHLGESCHLAGEN (${erg.fehler.length}): '
+                      '${erg.fehler.first}\n'
+                      'Über Buchhaltung → Forderungen erneut versuchen.',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    duration: const Duration(seconds: 12),
+                  ),
+                );
+              }
             } catch (e) {
               debugPrint('[Nachbuchung] Fehler: $e');
+              // Auch der Abbruch selbst (Timeout, Verbindung weg) gehört
+              // gemeldet — sonst bleibt offen, ob überhaupt etwas lief.
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.warning,
+                    content: Text(
+                      'Nachbuchen älterer Reinigungen abgebrochen: $e\n'
+                      'Die eigene Buchung ist gespeichert.',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    duration: const Duration(seconds: 10),
+                  ),
+                );
+              }
             }
           }
         } else {

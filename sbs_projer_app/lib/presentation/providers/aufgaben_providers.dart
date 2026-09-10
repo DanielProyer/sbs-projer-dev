@@ -99,6 +99,42 @@ final aufgabenProvider = FutureProvider<AufgabenStand>((ref) async {
     debugPrint('[Aufgaben] Saisondaten-Detektor: $e');
   }
 
+  // e) Versandvermerk — Mail-Rechnungen, die auf «offen» stehen geblieben
+  //    sind. Erst ab dem Folgetag: am Tag selbst kann der Versand noch
+  //    ausstehen (Funkloch, Nachversand), das wäre nur Rauschen.
+  try {
+    final grenze = heute.subtract(const Duration(days: 1));
+    final rows = await client
+        .from('rechnungen')
+        .select('id, betrieb_id, created_at')
+        .eq('zahlungsstatus', 'offen')
+        .neq('rechnungstyp', 'heineken_monat')
+        .lt('created_at', grenze.toIso8601String())
+        .gte('created_at',
+            heute.subtract(const Duration(days: 60)).toIso8601String())
+        .limit(500);
+
+    // Nur solche, deren Reinigung wirklich per Mail abgerechnet wird —
+    // «Tresen» und «bar» stehen zu Recht auf offen.
+    var verdaechtig = 0;
+    for (final r in rows) {
+      final betriebId = r['betrieb_id']?.toString();
+      if (betriebId == null) continue;
+      final rein = await client
+          .from('reinigungen')
+          .select('id')
+          .eq('betrieb_id', betriebId)
+          .eq('zahlungsart', 'rechnung_mail')
+          .eq('datum', (r['created_at'] as String).split('T').first)
+          .limit(1);
+      if (rein.isNotEmpty) verdaechtig++;
+    }
+    final a = versandvermerkAufgabe(verdaechtig);
+    if (a != null) detektoren.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Versandvermerk-Detektor: $e');
+  }
+
   final offene = sortiereAufgaben(detektoren
       .where((a) => !snoozeAktiv(snoozes[a.key], heute))
       .toList());

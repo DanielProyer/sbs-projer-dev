@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
 
 void main() {
+  _versandvermerkTests();
+
   group('heinekenAufgabe', () {
     // heute 05.08.2026 -> Vormonat Juli 2026
     final heute = DateTime(2026, 8, 5);
@@ -132,6 +134,39 @@ void main() {
       ];
       final s = sortiereAufgaben(l);
       expect(s.map((a) => a.key).toList(), ['b', 'a', 'c']);
+    });
+  });
+}
+
+/// Versandvermerk-Wächter — nachgerüstet am 10.09.2026.
+///
+/// Am 07.09. ging die Rechnung an Signina per Mail raus, der Vermerk in der
+/// App kam nicht mehr durch: Sie stand danach auf «offen», obwohl sie beim
+/// Kunden lag. Aufgefallen ist das nur, weil Daniel den Postausgang mit der
+/// App verglichen hat — und die Gefahr war, sie ein zweites Mal zu senden.
+///
+/// Die App kann nicht wissen, ob eine Mail rausging. Sie kann aber sagen:
+/// Hier stimmt etwas nicht, sieh im Postausgang nach.
+void _versandvermerkTests() {
+  group('Versandvermerk-Wächter', () {
+    test('ohne Verdachtsfälle stumm', () {
+      expect(versandvermerkAufgabe(0), isNull);
+    });
+
+    test('meldet Einzahl und Mehrzahl richtig', () {
+      expect(versandvermerkAufgabe(1)!.titel,
+          '1 Mail-Rechnung ohne Versandvermerk — Postausgang prüfen');
+      expect(versandvermerkAufgabe(3)!.titel,
+          '3 Mail-Rechnungen ohne Versandvermerk — Postausgang prüfen');
+    });
+
+    test('führt zu den Forderungen und ist dringend', () {
+      // Dringend, weil beide möglichen Ursachen Geld kosten: entweder ist die
+      // Rechnung nie beim Kunden angekommen, oder sie geht doppelt raus.
+      final a = versandvermerkAufgabe(2)!;
+      expect(a.route, '/rechnungen');
+      expect(a.dringend, isTrue);
+      expect(a.key, 'versandvermerk');
     });
   });
 }

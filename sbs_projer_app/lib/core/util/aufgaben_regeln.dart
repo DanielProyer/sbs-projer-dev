@@ -108,6 +108,28 @@ Aufgabe? saisondatenAufgabe(int anzahl) => anzahl <= 0
         route: '/touren',
       );
 
+/// Rechnungen, die per Mail hätten gehen sollen und trotzdem auf «offen»
+/// stehen.
+///
+/// Am 07.09.2026 ging die Rechnung an Signina raus, der Vermerk kam nicht
+/// mehr durch — die Rechnung lag beim Kunden und galt in der App als
+/// unversendet. Aufgefallen ist das nur, weil Daniel den Postausgang mit der
+/// App verglich; die Gefahr war, sie ein zweites Mal zu schicken.
+///
+/// Die App weiss nicht, ob eine Mail rausging. Sie kann aber die
+/// Widersprüchlichkeit melden — beide möglichen Ursachen kosten Geld: Die
+/// Rechnung ist nie angekommen, oder sie geht doppelt raus.
+Aufgabe? versandvermerkAufgabe(int anzahl) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'versandvermerk',
+        titel: anzahl == 1
+            ? '1 Mail-Rechnung ohne Versandvermerk — Postausgang prüfen'
+            : '$anzahl Mail-Rechnungen ohne Versandvermerk — Postausgang prüfen',
+        dringend: true,
+        route: '/rechnungen',
+      );
+
 /// Snooze gilt bis EINSCHLIESSLICH snooze_bis.
 bool snoozeAktiv(DateTime? snoozeBis, DateTime heute) {
   if (snoozeBis == null) return false;
