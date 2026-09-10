@@ -64,7 +64,8 @@ class ReinigungenOhneRechnung {
             .eq('user_id', userId)
             .eq('status', 'abgeschlossen')
             .gte('datum', stichtag.toIso8601String().split('T').first)
-            .neq('quelle', 'excel_import')
+            // Excel-Altfälle werden unten in Dart aussortiert, nicht hier
+            // (siehe Kommentar dort).
             .order('datum', ascending: false)
             .order('id')
             .range(seite * pageSize, (seite + 1) * pageSize - 1),
@@ -72,6 +73,12 @@ class ReinigungenOhneRechnung {
       rows.addAll(teil);
       if (teil.length < pageSize) break;
     }
+    // Excel-Altfälle raus — bewusst hier und nicht in der Abfrage: Dort stand
+    // bis zum 10.09.2026 `.neq('quelle', 'excel_import')`, was alles
+    // ausschloss. `quelle` ist bei jeder in der App erfassten Reinigung NULL,
+    // und `NULL <> 'x'` ergibt in SQL nicht «wahr», sondern «unbekannt» —
+    // diese Warnung war dadurch blind.
+    rows.removeWhere((r) => r['quelle'] == 'excel_import');
     if (rows.isEmpty) return [];
 
     // Verrechnete Reinigungen GEZIELT nachschlagen, in Blöcken. Ein select()

@@ -26,7 +26,17 @@ void main() {
         .listSync(recursive: true)
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart'))) {
-      final inhalt = datei.readAsStringSync();
+      // Kommentare vor der Analyse entfernen: Ein Semikolon in einem
+      // erklärenden Kommentar mitten in der Query beendete den Block sonst zu
+      // früh, und ein vorhandenes `.range()` dahinter blieb ungesehen —
+      // falscher Alarm am 10.09.2026.
+      final inhalt = datei
+          .readAsLinesSync()
+          .map((z) {
+            final i = z.indexOf('//');
+            return i == -1 ? z : z.substring(0, i);
+          })
+          .join('\n');
       for (final treffer in tabellen.allMatches(inhalt)) {
         // Query-Block bis zum abschliessenden Semikolon betrachten.
         final rest = inhalt.substring(treffer.start);

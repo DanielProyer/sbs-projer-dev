@@ -124,7 +124,8 @@ class BuchungNachholService {
             .eq('user_id', userId)
             .eq('status', 'abgeschlossen')
             .gte('datum', _tag(grenze))
-            .neq('quelle', 'excel_import')
+            // Excel-Altfälle werden unten in Dart aussortiert, nicht hier
+            // (siehe Kommentar dort).
             .order('datum', ascending: false)
             .order('id')
             .range(seite * pageSize, (seite + 1) * pageSize - 1),
@@ -166,6 +167,16 @@ class BuchungNachholService {
 
     final treffer = <FehlendeBuchung>[];
     for (final row in rows) {
+      // Aus dem Excel übernommene Altfälle sind bereits verbucht.
+      //
+      // Bewusst hier und nicht in der Abfrage: Dort stand bis zum 10.09.2026
+      // `.neq('quelle', 'excel_import')`, was alles ausschloss. `quelle` ist
+      // bei jeder in der App erfassten Reinigung NULL, und in SQL ergibt
+      // `NULL <> 'x'` nicht «wahr», sondern «unbekannt». Diese Suche lieferte
+      // seit ihrer Einführung (04.09.2026) ausnahmslos eine leere Liste —
+      // die Ertragsbuchungen von Signina (07.09.) und Mountain Plaza
+      // (09.09.) blieben liegen, ohne dass jemand den Grund sah.
+      if (row['quelle'] == 'excel_import') continue;
       final r = ReinigungMapper.fromDto(Reinigung.fromJson(row));
       final sid = r.serverId;
       if (sid == null || hatBuchung.contains(sid)) continue;
