@@ -101,6 +101,13 @@ async function downloadFromStorage(bucket: string, path: string): Promise<Uint8A
  * ein zweiter Klick hätte sie erneut verschickt. Vorfall Hugos Davos,
  * 27.08.2026, Rechnung 2026-08-1382 (Mail war raus, Status blieb "offen").
  *
+ * v16 (11.09.2026): Der serverseitige Vermerk allein genügte nicht. Bricht der
+ * Client die Verbindung ab, während diese Function noch läuft — Handy
+ * weggesteckt, Tab eingefroren —, beendet die Laufzeit den Request mitten
+ * darin. Der Gmail-Aufruf ist dann durch, dieser Vermerk nicht. Genau so
+ * traf es Signina (07.09.) sowie Stadtcafé und Sonne Seehotel (11.09.).
+ * Deshalb hängt der Aufruf jetzt zusätzlich an `EdgeRuntime.waitUntil`.
+ *
  * REGELN:
  * - `versendet_am` wird immer auf heute gesetzt (ein Neuversand aktualisiert
  *   es bewusst).
@@ -382,7 +389,24 @@ Deno.serve(async (req: Request) => {
     let versandVermerkt = false;
     const istMahnung = typeof pdfPath === "string" && pdfPath.startsWith("mahnung_");
     if (markiereVersandt === true && rechnungId && !istMahnung) {
-      versandVermerkt = await markiereRechnungVersandt(rechnungId, userId);
+      const vermerk = markiereRechnungVersandt(rechnungId, userId);
+
+      // waitUntil hält die Function am Leben, auch wenn der Client die
+      // Verbindung in diesem Moment kappt.
+      //
+      // WARUM (11.09.2026): Steckt Daniel das Handy direkt nach dem
+      // Abschliessen weg, friert der Tab ein und der Request bricht ab. Der
+      // Gmail-Aufruf oben war dann schon durch — die Mail liegt beim Kunden —,
+      // aber dieses `await` kam nicht mehr zum Zug: Die Rechnung blieb auf
+      // "offen", obwohl sie versendet war. Am 11.09. traf das Stadtcafé und
+      // Sonne Seehotel, am 07.09. Signina. Gefährlich ist dabei nicht der
+      // falsche Status, sondern was daraus folgt: ein zweiter Versand an
+      // denselben Kunden.
+      const rt = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } })
+        .EdgeRuntime;
+      rt?.waitUntil?.(vermerk);
+
+      versandVermerkt = await vermerk;
     }
 
     return new Response(
