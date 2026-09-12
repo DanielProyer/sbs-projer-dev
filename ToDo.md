@@ -1,12 +1,24 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 08.09. spätabends
+## 📌 SESSION-ÜBERGABE 11.09.2026 (abends)
 
 **Stand:** **v0.99.18 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1382 Tests grün** · Git sauber.
 
 **✅ Ursache der häufigen Fehlermeldungen gefunden (11.09.):** Steckt Daniel das Handy direkt nach dem Abschliessen weg, friert der Tab ein und der Request bricht ab. Der Gmail-Aufruf in der Function ist dann schon durch — die Mail liegt beim Kunden —, aber der Vermerk danach kam nicht mehr: Die Laufzeit beendet den Request mitten drin. Ergebnis: Rechnung versendet, Status «offen», **Gefahr Doppelversand**. Belegt: Hugos 27.08., Signina 07.09., Stadtcafé + Sonne Seehotel 11.09. Behoben mit `EdgeRuntime.waitUntil` (Function v22, deployed 11.09.). Die drei betroffenen Rechnungen wurden nach Gmail-Abgleich korrigiert.
 
 **Nicht die Ursache** (geprüft): die Meldungen selbst gibt es seit 14.07., lange Abschlussketten schon am 27.08. (217 Sek.), und die Nutzungsmessung vom 09.09. kam nach den ersten Fällen.
+
+### ▶ Für den Start der nächsten Session
+
+**1. Beobachten, ob Function v22 hält.** Der Test ist einfach: Nach ein paar Arbeitstagen prüfen, ob noch Mail-Rechnungen auf «offen» stehen bleiben. Die App meldet es seit v0.99.16 selbst (Aufgaben-Glocke «*N* Mail-Rechnungen ohne Versandvermerk»). Kommt die Meldung nie, ist der Fall erledigt.
+
+**2. Klicktest Formular-Schutz** (steht seit 08.09. offen): Formular öffnen → nichts ändern → zurück (darf **nicht** fragen); Feld ändern → zurück (**muss** fragen); je einmal «Weiter bearbeiten» und «Verwerfen». Besonders bei Reinigung und Störung.
+
+**3. Nutzungsmessung läuft** — erste Zahlen unter Einstellungen → Nutzung der App. Nach 2–3 Wochen auswerten, dann sind **A6** (Ballast aus dem Hauptmenü) und **B2** (Einsätze zusammenführen) entscheidbar statt Geschmackssache. Auffällig bisher: die **Tourenplanung wurde an keinem der drei Arbeitstage geöffnet**.
+
+**4. Nächster Vorschlag aus der Analyse:** A1–A3 («Heute» statt Menü, Zähler die etwas bedeuten, «Reinigung beginnen» aus Tourenplan/Betriebsseite) und A8 («Erledigt» auf den Detailseiten). Alles in `docs/app-analyse-2026-09.md`.
+
+**5. Unverändert offen aus dem Buchhaltungs-Umfeld:** AXA-Zahlung, GKB Zins-/Kapitalausweis 2025 für die Steuererklärung (Frist **30.09.**), und die eine Lohnsumme an alle fünf Sozialversicherer melden (siehe Memory [[lohnsumme_fuenf_stellen]]).
 
 ⚠️ **Buchhaltung offen (10.09.2026):** Zwei Ertragsbuchungen fehlen — **Signina 07.09. (107.00)** und **Mountain Plaza 09.09. (145.95)**, zusammen 252.95. Beide über **Buchhaltung → Forderungen** nachbuchen; sie stehen dort in der Liste. Beide Reinigungen haben `anzahl_haehne_anderer_standort = 1` — auffällig, aber kein Beweis (21 von 23 solchen Reinigungen sind gebucht). Beide Ausfälle waren nachweislich Verbindungsabbrüche.
 
