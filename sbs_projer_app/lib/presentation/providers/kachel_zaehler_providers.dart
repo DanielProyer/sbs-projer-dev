@@ -81,6 +81,8 @@ final offeneEigenauftraegeCountProvider = Provider<int>((ref) {
 // tour_providers.dart liefert `FaelligkeitsStatus.eroeffnungFaellig` für
 // Anlagen, deren saisonale Wiedereröffnung ansteht, und das fliesst über
 // `faelligeAnlagenProvider` in `reinigungenDieseWocheProvider` oben bereits
-// mit ein. Absichtlich kein `anstehendeEroeffnungenCountProvider` hier —
-// siehe Bericht zu diesem Task, Rückfrage an Daniel nötig, ob ein separater
-// Zähler gewünscht ist und woraus er sich speisen soll.
+// mit ein.
+//
+// Entschieden am 13.09.2026: Die Eröffnungen-Kachel bekommt KEINEN Zähler.
+// Ein zweiter Zähler zählte dieselbe anstehende Arbeit ein zweites Mal — die
+// Kachel behält Symbol und Namen, wie Betriebe, Kontakte und Spesen auch.
