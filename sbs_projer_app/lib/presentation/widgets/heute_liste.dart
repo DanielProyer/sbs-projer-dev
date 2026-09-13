@@ -201,16 +201,21 @@ class _StoppZeile extends StatelessWidget {
                 ],
               ),
             ),
+            // Mindestens 48x48 als Tippfläche: Die ganze Zeile ist tippbar
+            // und öffnet den Betrieb — ein danebengegangener Tipp auf den
+            // Pfeil landet also auf der falschen Aktion. Daniel bedient das
+            // Handy einhändig im Keller, oft mit nassen Händen.
             GestureDetector(
               key: Key('heute_start_${eintrag.id}'),
               behavior: HitTestBehavior.opaque,
               onTap: onStart,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: const SizedBox(
+                width: 48,
+                height: 48,
                 child: Icon(
                   Icons.play_arrow,
                   color: AppColors.primary,
-                  size: 22,
+                  size: 26,
                 ),
               ),
             ),
