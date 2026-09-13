@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/providers/heute_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 const _wochentage = [
@@ -19,6 +20,9 @@ class HeuteListeInhalt extends StatelessWidget {
   final void Function(TourEintrag) onOeffnen;
   final VoidCallback onTourenplan;
   final DateTime? heute;
+  // Vorgabewert 0 zwingend: sonst würde der Parameter verpflichtend und alle
+  // bestehenden Tests in heute_liste_test.dart bräuchen ihn nachgetragen.
+  final double monatsUmsatzCHF;
 
   const HeuteListeInhalt({
     super.key,
@@ -29,6 +33,7 @@ class HeuteListeInhalt extends StatelessWidget {
     required this.onOeffnen,
     required this.onTourenplan,
     this.heute,
+    this.monatsUmsatzCHF = 0,
   });
 
   @override
@@ -60,6 +65,21 @@ class HeuteListeInhalt extends StatelessWidget {
                     '$erledigt von $gesamt',
                     style: const TextStyle(
                       fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+                // Gerettet aus der alten _TagesUebersicht (vor Task 10 hier
+                // ersetzt): der Monatsumsatz braucht weiterhin einen Platz
+                // auf der Startseite, nur eben in dieser Kopfzeile statt in
+                // der eigenen Karte.
+                if (monatsUmsatzCHF > 0) ...[
+                  const Spacer(),
+                  Text(
+                    '${monatsUmsatzCHF.toStringAsFixed(0)} CHF / Monat',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -239,6 +259,7 @@ class HeuteListe extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final offen = ref.watch(heuteOffeneStoppsProvider);
     final zaehler = ref.watch(heuteZaehlerProvider);
+    final monatsUmsatzCHF = ref.watch(tagesUebersichtProvider).monatsUmsatzCHF;
 
     return offen.when(
       loading: () => const SizedBox.shrink(),
@@ -247,6 +268,7 @@ class HeuteListe extends ConsumerWidget {
         stopps: stopps,
         erledigt: zaehler?.erledigt ?? 0,
         gesamt: zaehler?.gesamt ?? 0,
+        monatsUmsatzCHF: monatsUmsatzCHF,
         onStart: (e) => _starte(context, e),
         onOeffnen: (e) {
           if (e.betriebId != null) context.push('/betriebe/${e.betriebId}');

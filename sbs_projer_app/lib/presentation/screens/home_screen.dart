@@ -11,7 +11,6 @@ import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
@@ -20,6 +19,7 @@ import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dar
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
+import 'package:sbs_projer_app/presentation/widgets/heute_liste.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 
@@ -63,7 +63,7 @@ class HomeScreen extends StatelessWidget {
           // Arbeitstag direkt auf dem Startbildschirm erfassen (Beginn mit
           // GPS-Position, abends Ende + km) — Daniel 29.07.2026.
           const ArbeitstagKarte(),
-          const _TagesUebersicht(),
+          const HeuteListe(),
           const SizedBox(height: 8),
           const _KachelGrid(),
           const SizedBox(height: 16),
@@ -72,9 +72,9 @@ class HomeScreen extends StatelessWidget {
       ),
       // Diktieren als frei schwebender Knopf statt fester Leiste: Daniel
       // braucht ihn vor allem im Auto (einhändig, sofort da) — ein FAB
-      // liegt IMMER über dem Inhalt, ohne den gerade knapp ans Pixel-9-
-      // Display angepassten Startbildschirm (kein Scrollen mehr nötig,
-      // 31.07.2026) durch zusätzliche Leisten wieder zu sprengen.
+      // liegt IMMER über dem Inhalt, ohne den seit Task 10 (13.09.2026)
+      // bewusst scrollenden Startbildschirm durch zusätzliche Leisten
+      // zusätzlich zu verkleinern.
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => zeigeDiktatSheet(context),
         icon: const Icon(Icons.mic),
@@ -106,9 +106,14 @@ class _KachelGrid extends ConsumerWidget {
             .length +
         ref.watch(montagenProvider).where((m) => montageOffen(m.status)).length;
 
-    // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: alle 10 Kacheln
-    // sollen zusammen mit Arbeitstag + Übersicht ohne Scrollen aufs Pixel 9
-    // passen (Daniel 31.07.2026).
+    // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: ursprünglich
+    // sollten alle 10 Kacheln zusammen mit Arbeitstag + Übersicht ohne
+    // Scrollen aufs Pixel 9 passen (Daniel 31.07.2026). Diese Regel ist
+    // überholt — seit Task 10 (13.09.2026) zeigt die Startseite zusätzlich
+    // die Heute-Liste mit dem vollständigen Tagesplan, der je nach
+    // Stopp-Zahl beliebig lang wird; die Seite scrollt jetzt bewusst. Das
+    // knappe Kachel-Layout bleibt trotzdem so, weil es unabhängig davon
+    // gut lesbar ist.
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -333,150 +338,6 @@ class _SyncIndicator extends ConsumerWidget {
       isOnline ? Icons.cloud_done : Icons.cloud_off,
       color: isOnline ? AppColors.online : AppColors.offline,
       size: 20,
-    );
-  }
-}
-
-const _wochentage = [
-  'Montag',
-  'Dienstag',
-  'Mittwoch',
-  'Donnerstag',
-  'Freitag',
-  'Samstag',
-  'Sonntag',
-];
-
-class _TagesUebersicht extends ConsumerWidget {
-  const _TagesUebersicht();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final today = DateTime.now();
-    final data = ref.watch(tagesUebersichtProvider);
-    final hR = data.reinigungen;
-    final hS = data.stoerungen;
-    final hM = data.montagen;
-    final hE = data.eigenauftraege;
-    final hER = data.eroeffnungen;
-    final hBP = data.bergkundenpauschalen;
-    final total = data.total;
-    final totalCHF = data.totalCHF;
-
-    // Kurzer Wochentag + enge Abstände: die Übersicht soll zusammen mit der
-    // Arbeitstag-Karte und allen Kacheln aufs Pixel 9 passen, ohne zu
-    // scrollen (Daniel 31.07.2026). Tagesumsatz wandert als Chip in dieselbe
-    // Zeile wie die Einsatz-Chips.
-    final datumStr =
-        '${_wochentage[today.weekday - 1].substring(0, 2)}, ${today.day.toString().padLeft(2, '0')}.${today.month.toString().padLeft(2, '0')}.${today.year}';
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.today, color: AppColors.primary, size: 18),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    datumStr,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                if (data.monatsUmsatzCHF > 0)
-                  Text(
-                    '${data.monatsUmsatzCHF.toStringAsFixed(0)} CHF / Monat',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            if (total == 0)
-              Text(
-                'Keine Einsätze heute',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  if (hR.isNotEmpty)
-                    _CountChip(
-                      '${hR.length} Reinigung${hR.length > 1 ? 'en' : ''}',
-                      AppColors.success,
-                    ),
-                  if (hS.isNotEmpty)
-                    _CountChip(
-                      '${hS.length} Störung${hS.length > 1 ? 'en' : ''}',
-                      AppColors.warning,
-                    ),
-                  if (hM.isNotEmpty)
-                    _CountChip(
-                      '${hM.length} Montage${hM.length > 1 ? 'n' : ''}',
-                      AppColors.info,
-                    ),
-                  if (hE.isNotEmpty)
-                    _CountChip(
-                      '${hE.length} Eigenauftr${hE.length > 1 ? 'äge' : 'ag'}',
-                      AppColors.textSecondary,
-                    ),
-                  if (hER.isNotEmpty)
-                    _CountChip(
-                      '${hER.length} Eröffnung${hER.length > 1 ? 'en' : ''}',
-                      AppColors.primary,
-                    ),
-                  if (hBP.isNotEmpty)
-                    _CountChip(
-                      '${hBP.length} Bergkunde${hBP.length > 1 ? 'n' : ''}',
-                      Colors.brown,
-                    ),
-                  if (totalCHF > 0)
-                    _CountChip(
-                      '${totalCHF.toStringAsFixed(0)} CHF',
-                      AppColors.primary,
-                    ),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CountChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  const _CountChip(this.label, this.color);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
-      ),
     );
   }
 }

@@ -133,6 +133,33 @@ void main() {
     expect(find.byType(OutlinedButton), findsNothing);
   });
 
+  testWidgets('Monatsumsatz erscheint in der Kopfzeile', (tester) async {
+    await tester.pumpWidget(rahmen(HeuteListeInhalt(
+      stopps: [stopp('Calanda')],
+      erledigt: 0,
+      gesamt: 1,
+      monatsUmsatzCHF: 12345,
+      onStart: (_) {},
+      onOeffnen: (_) {},
+      onTourenplan: () {},
+    )));
+
+    expect(find.textContaining('12345 CHF / Monat'), findsOneWidget);
+  });
+
+  testWidgets('ohne Monatsumsatz steht nichts in der Kopfzeile', (tester) async {
+    await tester.pumpWidget(rahmen(HeuteListeInhalt(
+      stopps: [stopp('Calanda')],
+      erledigt: 0,
+      gesamt: 1,
+      onStart: (_) {},
+      onOeffnen: (_) {},
+      onTourenplan: () {},
+    )));
+
+    expect(find.textContaining('CHF / Monat'), findsNothing);
+  });
+
   testWidgets('Liste hat keinen eigenen Scrollbereich', (tester) async {
     final viele = [for (var i = 1; i <= 13; i++) stopp('Betrieb $i')];
     await tester.pumpWidget(rahmen(HeuteListeInhalt(
