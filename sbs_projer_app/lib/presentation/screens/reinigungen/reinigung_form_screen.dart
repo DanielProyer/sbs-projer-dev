@@ -303,11 +303,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             if (!_isEdit &&
                 _selectedAnlageIds.isEmpty &&
                 widget.anlageIds.isNotEmpty) {
-              final gueltigeIds = anlagen
-                  .map((a) => a.serverId ?? a.routeId)
-                  .toSet();
+              // Beide Kennungen zulassen: Der Tourenplan schreibt `routeId`
+              // in seine Besuchs-Blöcke, gespeichert und ausgewählt wird
+              // aber `serverId ?? routeId`. Im Web sind beide identisch
+              // (`routeId => serverId!`), nativ ist `routeId` die Isar-Id —
+              // dort liefe ein Abgleich nur gegen `serverId` ins Leere, und
+              // der Besuch käme ohne Vorauswahl an.
+              final gueltigeIds = {
+                for (final a in anlagen) ...[
+                  if (a.serverId != null) a.serverId!,
+                  a.routeId,
+                ],
+              };
               _selectedAnlageIds = widget.anlageIds
                   .where(gueltigeIds.contains)
+                  .map((id) {
+                    final a = anlagen.firstWhere(
+                      (x) => x.serverId == id || x.routeId == id,
+                    );
+                    return a.serverId ?? a.routeId;
+                  })
                   .toSet();
             }
             // Bei neuer Reinigung ohne (gültige) Vorauswahl: alle Anlagen
