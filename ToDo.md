@@ -1,8 +1,50 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 11.09.2026 (abends)
+## 📌 SESSION-ÜBERGABE 13.09.2026
 
-**Stand:** **v0.99.18 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1382 Tests grün** · Git sauber.
+**Stand:** **v0.100.0 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1414 Tests grün** · Git sauber.
+
+### ✅ A1–A3 aus der App-Analyse umgesetzt (v0.100.0, 13.09.2026)
+
+**Die Startseite zeigt jetzt den heutigen Tagesplan** statt eines Menüs mit
+Jahreszahlen. Offene Stopps mit Betrieb, Ort, Anlagenzahl und Servicezeit;
+erledigte verschwinden, der Zähler in der Kopfzeile sagt «3 von 10». Ungekürzt
+— morgens steht der ganze offene Tag da (Entscheid Daniel). Fehlt ein Plan,
+steht dort «Kein Tagesplan für heute» mit dem Knopf «Plan erstellen».
+
+**Die Kachelzähler zeigen offene Arbeit:** Reinigungen «N diese Woche»,
+Störungen «N offen», Montagen «N geplant», Eigenaufträge «N offen». Betriebe,
+Kontakte, Spesen und Eröffnungen haben gar keine Zahl mehr — eine Zahl auf
+einer Kachel heisst ab jetzt: hier wartet Arbeit.
+
+**Der Einsatz startet dort, wo man steht:** Start-Pfeil je Zeile in der
+Heute-Liste, Menüpunkt im Tourenplan-Block, Knopf auf der Betriebsseite. Aus
+fünf Schritten wird einer, bei gebündelten Betrieben mit allen Anlagen
+vorbelegt (`/reinigungen/neu?betriebId=…&anlageIds=a,b,c`). Gilt für
+Reinigung, Störung und Montage.
+
+⚠️ **Klicktest Daniel offen** — bitte am Handy prüfen:
+1. Morgens: Stehen alle offenen Stopps da?
+2. Nach einer Reinigung: Verschwindet der Stopp, zählt die Kopfzeile hoch?
+3. Blue Cinema (drei Anlagen): Bleibt der Stopp stehen, solange nicht alle drei
+   erfasst sind? Startet der Pfeil das Formular mit allen dreien?
+4. Reagiert der Start-Pfeil überhaupt? (CanvasKit — im Browser geprüft, aber
+   nie auf dem echten Gerät.)
+
+**Was beim Bauen auffiel** (alles am Code widerlegt, nicht angenommen): Die
+Einsatz-Ids im Tagesplan werden aus `routeId` gebildet, nicht aus `serverId` —
+nativ hätte sonst nie ein Stopp als erledigt gegolten. `Eroeffnungsreinigung`
+hat gar kein Status-Feld, deshalb bekommt die Kachel bewusst keinen Zähler
+(die anstehende Arbeit zählt über `eroeffnungFaellig` schon bei Reinigungen
+mit). Und `maxLines`/`ellipsis` allein hätte den längeren Kachel-Text nicht
+gebändigt — ohne `Flexible` lief er auf dem Pixel 9 um 33 px über.
+
+Spec: `docs/superpowers/specs/2026-09-13-startseite-heute-a1-a3-design.md`
+Plan: `docs/superpowers/plans/2026-09-13-startseite-heute-a1-a3.md`
+
+---
+
+## 📌 Übergabe 11.09.2026 (abends)
 
 **✅ Ursache der häufigen Fehlermeldungen gefunden (11.09.):** Steckt Daniel das Handy direkt nach dem Abschliessen weg, friert der Tab ein und der Request bricht ab. Der Gmail-Aufruf in der Function ist dann schon durch — die Mail liegt beim Kunden —, aber der Vermerk danach kam nicht mehr: Die Laufzeit beendet den Request mitten drin. Ergebnis: Rechnung versendet, Status «offen», **Gefahr Doppelversand**. Belegt: Hugos 27.08., Signina 07.09., Stadtcafé + Sonne Seehotel 11.09. Behoben mit `EdgeRuntime.waitUntil` (Function v22, deployed 11.09.). Die drei betroffenen Rechnungen wurden nach Gmail-Abgleich korrigiert.
 
@@ -14,9 +56,9 @@
 
 **2. Klicktest Formular-Schutz** (steht seit 08.09. offen): Formular öffnen → nichts ändern → zurück (darf **nicht** fragen); Feld ändern → zurück (**muss** fragen); je einmal «Weiter bearbeiten» und «Verwerfen». Besonders bei Reinigung und Störung.
 
-**3. Nutzungsmessung läuft** — erste Zahlen unter Einstellungen → Nutzung der App. Nach 2–3 Wochen auswerten, dann sind **A6** (Ballast aus dem Hauptmenü) und **B2** (Einsätze zusammenführen) entscheidbar statt Geschmackssache. Auffällig bisher: die **Tourenplanung wurde an keinem der drei Arbeitstage geöffnet**.
+**3. Nutzungsmessung läuft** — erste Zahlen unter Einstellungen → Nutzung der App. Nach 2–3 Wochen auswerten, dann sind **A6** (Ballast aus dem Hauptmenü) und **B2** (Einsätze zusammenführen) entscheidbar statt Geschmackssache. ~~Auffällig bisher: die Tourenplanung wurde an keinem der drei Arbeitstage geöffnet.~~ **Widerlegt am 13.09.:** `/touren` steht bei 7 Aufrufen (4 Handy, 3 PC), zuletzt am 13.09.; und in `tagesplaene` liegt für **jeden** Arbeitstag ein Plan mit 8–13 Einträgen. Die Aussage stammte aus zwei Tagen Messung. Spitzenreiter ist `/reinigungen/neu` — die Route zählt allerdings rund doppelt, weil sie Betriebsauswahl **und** Formular bedient.
 
-**4. Nächster Vorschlag aus der Analyse:** A1–A3 («Heute» statt Menü, Zähler die etwas bedeuten, «Reinigung beginnen» aus Tourenplan/Betriebsseite) und A8 («Erledigt» auf den Detailseiten). Alles in `docs/app-analyse-2026-09.md`.
+**4. Nächster Vorschlag aus der Analyse:** ~~A1–A3~~ **erledigt in v0.100.0 (13.09.)**. Als Nächstes **A8** («Erledigt» auf den Detailseiten von Störung und Montage, dazu führt der Tourenplan-Tap auf den Einsatz statt auf die Anlage) und **A5** (Breite am PC auf 720 px begrenzen). Alles in `docs/app-analyse-2026-09.md`.
 
 **5. Unverändert offen aus dem Buchhaltungs-Umfeld:** AXA-Zahlung, GKB Zins-/Kapitalausweis 2025 für die Steuererklärung (Frist **30.09.**), und die eine Lohnsumme an alle fünf Sozialversicherer melden (siehe Memory [[lohnsumme_fuenf_stellen]]).
 

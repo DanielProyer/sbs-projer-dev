@@ -94,11 +94,11 @@ Ein unabhängiger Prüfer hat die Analyse nach dem Schreiben auf Lücken abgeklo
 
 ### A — klein, sofort, täglich spürbar (je ½ bis 1 Tag)
 
-**A1 · «Heute» statt Menü.** Startseite = Arbeitstag-Karte + der Tagesplan von heute (dieselbe Zeitachse wie im Tourenplan, nur der heutige Tag) + fällige Aufgaben. Die Kacheln rutschen darunter. Morgens sieht Daniel, wohin er fährt, ohne zu tippen.
+**A1 · «Heute» statt Menü.** ✅ **Erledigt in v0.100.0 (13.09.2026).** Startseite = Arbeitstag-Karte + der Tagesplan von heute + fällige Aufgaben. Die Kacheln rutschen darunter. Morgens sieht Daniel, wohin er fährt, ohne zu tippen. **Umgesetzt ohne Zeitachse:** Die Liste zeigt Position, Betrieb, Ort, Anlagenzahl und Servicezeit — eine Uhrzeit nur bei gesetztem Termin-Anker. Der gespeicherte Tagesplan trägt in `ankerZeit` und `dauerMinuten` fast überall `null`; Ankunftszeiten entstehen erst in `berechneZeitplanMitIst()`, und die auf die Startseite zu heben hiesse, die Fahrzeit-Kaskade ein zweites Mal zu rechnen.
 
-**A2 · Zähler, die etwas bedeuten.** Reinigungen → «fällig diese Woche»; Störungen → «offen»; Montagen → «geplant»; Eigenaufträge → «offen»; Rechnungen → «überfällig»; Betriebe, Kontakte, Spesen → kein Zähler. Eine Zahl auf einer Kachel soll heissen: hier wartet etwas.
+**A2 · Zähler, die etwas bedeuten.** ✅ **Erledigt in v0.100.0 (13.09.2026).** Reinigungen → «diese Woche»; Störungen → «offen»; Montagen → «geplant»; Eigenaufträge → «offen»; Betriebe, Kontakte, Spesen → kein Zähler. Eine Zahl auf einer Kachel heisst: hier wartet etwas. **Zwei Abweichungen vom Vorschlag:** Eröffnungen bekommen keinen Zähler — `EroeffnungsreinigungLocal` hat kein Status-Feld, der Typ ist ein nachträglich erfasster Beleg, und die anstehende Arbeit zählt über `eroeffnungFaellig` schon bei den Reinigungen mit. Rechnungen stehen nicht im Kachel-Gitter, sondern unter «Weitere» — dort bleibt der Zähler vorerst, wie er ist.
 
-**A3 · «Reinigung beginnen» dort, wo man steht.** Im Tourenplan-Block und auf der Betriebsseite, mit Betrieb und Anlage vorbelegt. Aus fünf Schritten wird einer. Gleiches für Störung im Tourenplan-Block.
+**A3 · «Reinigung beginnen» dort, wo man steht.** ✅ **Erledigt in v0.100.0 (13.09.2026).** Drei Einstiege — Start-Pfeil in der Heute-Liste, Menüpunkt im Tourenplan-Block, Knopf auf der Betriebsseite — für alle drei Einsatzarten. Aus fünf Schritten wird einer. **Billiger als gedacht:** Die Route `/reinigungen/neu?betriebId=…&anlageId=…` gab es bereits, sie wurde nur von der Betriebsauswahl selbst genutzt; neu ist `anlageIds=a,b,c` für gebündelte Besuche, damit Blue Cinema mit allen drei Anlagen startet statt mit einer.
 
 **A4 · Diktat für Reinigung und Spesen.** «Alpenblick gereinigt, zwei Hähne, Wasser gewechselt» und «Tanken 84.50 Coop Chur» — dann ist das Mikrofon der eine Erfassungsweg für alles, was draussen passiert. Die Auswertung (`parse-einsatz`) kennt die Betriebe schon.
 
