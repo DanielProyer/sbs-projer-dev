@@ -1858,6 +1858,56 @@ class _BlockSheet extends ConsumerWidget {
                   ],
                 ),
               ),
+              // ─── Einsatz direkt starten (häufigster Vorgang, deshalb an
+              // erster Stelle): Sheet schliessen, dann ins Formular — sonst
+              // bliebe das Sheet über dem Formular liegen (gleiches Muster
+              // wie bei den übrigen Aktionen unten). `heigenie`-Einträge
+              // laufen technisch über die Montage-Route (siehe
+              // `_navigateToDetail` oben), deshalb hier wie `montage`
+              // behandelt.
+              if (eintrag.typ == TourEintragTyp.reinigung &&
+                  eintrag.betriebId != null)
+                _SheetAktion(
+                  icon: Icons.play_arrow,
+                  text: 'Reinigung beginnen',
+                  onTap: () {
+                    final ids = eintrag.anlageIds.isNotEmpty
+                        ? eintrag.anlageIds
+                        : [if (eintrag.anlageId != null) eintrag.anlageId!];
+                    Navigator.pop(context);
+                    context.push(
+                      '/reinigungen/neu?betriebId=${eintrag.betriebId}'
+                      '&anlageIds=${ids.join(',')}',
+                    );
+                  },
+                ),
+              if (eintrag.typ == TourEintragTyp.stoerung &&
+                  eintrag.betriebId != null)
+                _SheetAktion(
+                  icon: Icons.play_arrow,
+                  text: 'Störung erfassen',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push(
+                      '/stoerungen/neu?betriebId=${eintrag.betriebId}'
+                      '${eintrag.anlageId != null ? '&anlageId=${eintrag.anlageId}' : ''}',
+                    );
+                  },
+                ),
+              if ((eintrag.typ == TourEintragTyp.montage ||
+                      eintrag.typ == TourEintragTyp.heigenie) &&
+                  eintrag.betriebId != null)
+                _SheetAktion(
+                  icon: Icons.play_arrow,
+                  text: 'Montage erfassen',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push(
+                      '/montagen/neu?betriebId=${eintrag.betriebId}'
+                      '${eintrag.anlageId != null ? '&anlageId=${eintrag.anlageId}' : ''}',
+                    );
+                  },
+                ),
               if (betrieb != null)
                 _SheetAktion(
                   icon: Icons.storefront_outlined,

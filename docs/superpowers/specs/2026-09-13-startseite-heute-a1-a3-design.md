@@ -132,7 +132,7 @@ der Fehlertyp, den weder `flutter analyze` noch die Tests fangen.
 | Störungen | Jahrestotal | `N offen` | `stoerungOffen` |
 | Montagen | Jahrestotal | `N geplant` | `montageOffen` |
 | Eigenaufträge | Jahrestotal | `N offen` | offener Status |
-| Eröffnungen | Jahrestotal | `N anstehend` | anstehende Eröffnungen |
+| Eröffnungen | Jahrestotal | — | entfällt (siehe unten) |
 | Kontakte | 119 | — | entfällt |
 | Spesen | 243 | — | entfällt |
 | Aufgaben | offene | unverändert | — |
@@ -140,6 +140,15 @@ der Fehlertyp, den weder `flutter analyze` noch die Tests fangen.
 
 Kacheln ohne Zahl behalten Symbol und Namen. Eine Zahl auf einer Kachel heisst
 ab dann: hier wartet Arbeit.
+
+**Nachtrag 13.09.2026 — Eröffnungen ohne Zähler.** Der Entwurf sah «N
+anstehend» vor. Bei der Umsetzung zeigte sich: `EroeffnungsreinigungLocal` hat
+gar kein Status-Feld. Anders als Störung, Montage und Eigenauftrag ist das
+kein Auftrag mit Lebenszyklus, sondern ein nachträglich erfasster Beleg — es
+gibt keinen Zustand «anstehend», der sich ablesen liesse. Die anstehende
+Arbeit steckt stattdessen in `FaelligkeitsStatus.eroeffnungFaellig` und fliesst
+damit bereits in den Reinigungs- und den Tourenplan-Zähler ein. Ein eigener
+Zähler zählte sie ein zweites Mal.
 
 ### 3. Direktstart (Router + drei Einstiege)
 

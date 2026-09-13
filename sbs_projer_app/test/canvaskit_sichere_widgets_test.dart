@@ -48,4 +48,50 @@ void main() {
           'event_detail_screen.dart.',
     );
   });
+
+  // Vorfall 10.09.2026: Ein Wächter dieser Art schlug auf sein eigenes
+  // Zitat im `reason`-Text an — die verbotenen Namen stehen ja auch in
+  // dieser Test-Datei. Deshalb liest dieser Test ausschliesslich
+  // `lib/presentation/widgets/heute_liste.dart`, nie seine eigene Datei
+  // (`text` unten kommt von `datei.readAsStringSync()`, nicht von
+  // `File(Platform.script...)` o.ä.). In `heute_liste.dart` selbst kommt
+  // "ListTile" nur unparenthesiert in einem Kommentar vor (Begründung fürs
+  // InkWell-Muster) — die geprüften Strings tragen bewusst die öffnende
+  // Klammer/den Wortstamm, damit ein Prosa-Erwähnen des Namens keinen
+  // Treffer auslöst.
+  test('Heute-Liste ohne CanvasKit-tote Widgets', () {
+    final datei = File('lib/presentation/widgets/heute_liste.dart');
+    expect(datei.existsSync(), isTrue,
+        reason: 'heute_liste.dart fehlt — Pfad im Waechter anpassen');
+    // Kommentare ausblenden, bevor gesucht wird: In der Heute-Liste steht
+    // erklärt, warum dort kein ListTile und kein FilledButton verwendet wird
+    // — diese Erklärung darf den Wächter nicht auslösen. Genau dieser Fehler
+    // hat am 10.09.2026 zwei andere Wächter-Tests blind bzw. laut gemacht
+    // (null_filter_waechter_test.dart, offenes_datumsfenster_test.dart).
+    final text = datei
+        .readAsLinesSync()
+        .map((z) {
+          final kommentar = z.indexOf('//');
+          return kommentar == -1 ? z : z.substring(0, kommentar);
+        })
+        .join('\n');
+
+    for (final verboten in [
+      'ListTile(',
+      'FilledButton',
+      'OutlinedButton',
+      'ExpansionTile(',
+    ]) {
+      expect(
+        text.contains(verboten),
+        isFalse,
+        reason:
+            '$verboten in der Heute-Liste. Die Liste steht auf der '
+            'meistgenutzten Seite der App; rendert der Start-Pfeil auf '
+            'CanvasKit nicht, merkt es niemand bis zum naechsten '
+            'Arbeitstag. GestureDetector + Container + Row verwenden '
+            '(CLAUDE.md, drei bestaetigte Vorfaelle).',
+      );
+    }
+  });
 }

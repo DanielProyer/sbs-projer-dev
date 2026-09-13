@@ -206,7 +206,6 @@ final reinigungenDieseWoche = ref.watch(reinigungenDieseWocheProvider);
 final offeneStoerungen = ref.watch(offeneStoerungenCountProvider);
 final geplanteMontagen = ref.watch(geplanteMontagenCountProvider);
 final offeneEigenauftraege = ref.watch(offeneEigenauftraegeCountProvider);
-final anstehendeEroeffnungen = ref.watch(anstehendeEroeffnungenCountProvider);
 ```
 
 Import ergänzen:
@@ -258,13 +257,15 @@ _DashboardTile(
 _DashboardTile(
   icon: Icons.cleaning_services_outlined,
   label: 'Eröffnungen',
-  count: anstehendeEroeffnungen > 0 ? '$anstehendeEroeffnungen anstehend' : null,
+  count: null,
   color: AppColors.primary,
   onTap: () => context.push('/eroeffnungsreinigungen'),
 ),
 ```
 
 Kontakte und Spesen ebenfalls auf `count: null`. Aufgaben und Tourenplanung bleiben unverändert.
+
+**Eröffnungen ohne Zähler** (entschieden 13.09.2026 während Task 1): `EroeffnungsreinigungLocal` hat kein Status-Feld — der Typ ist ein nachträglich erfasster Beleg, kein Auftrag mit Lebenszyklus. Die anstehende Arbeit steckt in `FaelligkeitsStatus.eroeffnungFaellig` und zählt bereits beim Reinigungs- und Tourenplan-Zähler mit. Es gibt deshalb keinen `anstehendeEroeffnungenCountProvider`; ihn hier zu erwarten wäre ein Kompilierfehler.
 
 - [ ] **Schritt 3: Ungenutzte Provider-Importe entfernen**
 

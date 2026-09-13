@@ -47,13 +47,15 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 
 class ReinigungFormScreen extends ConsumerStatefulWidget {
   final String? reinigungId; // null = neu
-  final String? anlageId; // für neue Reinigung
+  final String? anlageId; // für neue Reinigung (erste Anlage)
+  final List<String> anlageIds; // für neue Reinigung (gebündelter Besuch)
   final String? betriebId; // für neue Reinigung
 
   const ReinigungFormScreen({
     super.key,
     this.reinigungId,
     this.anlageId,
+    this.anlageIds = const [],
     this.betriebId,
   });
 
@@ -293,7 +295,38 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
           setState(() {
             _anlagenDesBetrieb = anlagen;
             _anlagenLoaded = true;
-            // Bei neuer Reinigung: alle Anlagen vorausgewählt
+            // Bei neuer Reinigung mit gebündeltem Besuch (Tourenplan/
+            // Betriebsseite, anlageIds aus der Route): nur die IDs
+            // übernehmen, die tatsächlich zu diesem Betrieb gehören — eine
+            // nicht (mehr) passende ID aus der URL soll ignoriert werden,
+            // statt eine Geister-Auswahl zu erzeugen.
+            if (!_isEdit &&
+                _selectedAnlageIds.isEmpty &&
+                widget.anlageIds.isNotEmpty) {
+              // Beide Kennungen zulassen: Der Tourenplan schreibt `routeId`
+              // in seine Besuchs-Blöcke, gespeichert und ausgewählt wird
+              // aber `serverId ?? routeId`. Im Web sind beide identisch
+              // (`routeId => serverId!`), nativ ist `routeId` die Isar-Id —
+              // dort liefe ein Abgleich nur gegen `serverId` ins Leere, und
+              // der Besuch käme ohne Vorauswahl an.
+              final gueltigeIds = {
+                for (final a in anlagen) ...[
+                  if (a.serverId != null) a.serverId!,
+                  a.routeId,
+                ],
+              };
+              _selectedAnlageIds = widget.anlageIds
+                  .where(gueltigeIds.contains)
+                  .map((id) {
+                    final a = anlagen.firstWhere(
+                      (x) => x.serverId == id || x.routeId == id,
+                    );
+                    return a.serverId ?? a.routeId;
+                  })
+                  .toSet();
+            }
+            // Bei neuer Reinigung ohne (gültige) Vorauswahl: alle Anlagen
+            // vorausgewählt
             if (!_isEdit && _selectedAnlageIds.isEmpty) {
               _selectedAnlageIds = anlagen
                   .map((a) => a.serverId ?? a.routeId)
