@@ -111,4 +111,24 @@ void main() {
       expect(zaehler.gesamt, 3);
     });
   });
+
+  group('ID-Schema (Task 8)', () {
+    // Die Ids im Tagesplan sind aus der `routeId` gebildet, nicht aus
+    // `serverId` (tour_providers.dart: 's_${s.routeId}', 'm_${m.routeId}').
+    // Dieser Test haelt die Annahme fest, auf die sich heute_providers.dart
+    // verlaesst: eine Stoerung, deren TourEintrag-Id nach genau diesem Schema
+    // gebildet wurde, muss erkannt werden, wenn ihre routeId in den
+    // erledigten Einsatz-Ids liegt. Faellt der Test spaeter aus, hat sich das
+    // Id-Schema in tour_providers geaendert, ohne dass die Ableitung hier
+    // nachgezogen wurde.
+    test('Stoerung mit routeId-basierter Id gilt als erledigt', () {
+      const routeId = 'route-42';
+      final offen = offeneStopps(
+        plan: [stoerung('s_$routeId')],
+        gereinigteAnlageIds: const {},
+        erledigteEinsatzIds: const {'s_$routeId'},
+      );
+      expect(offen, isEmpty);
+    });
+  });
 }
