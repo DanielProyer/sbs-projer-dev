@@ -15,7 +15,18 @@ TourEintrag stopp(String name, {String? ort, List<String> anlagen = const ['a1']
       beschreibung: '',
     );
 
-Widget rahmen(Widget kind) => MaterialApp(home: Scaffold(body: kind));
+// Bildet den echten Einbettungskontext nach: `home_screen.dart` legt diese
+// Karte in ein ListView (unbegrenzte Höhe je Kachel), nicht in ein nacktes
+// Scaffold mit Bildschirmhöhe. Nur so prüft der 13-Stopps-Test dieselbe
+// Constraint-Situation wie die Startseite.
+Widget rahmen(Widget kind) => MaterialApp(
+      home: Scaffold(
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          children: [kind],
+        ),
+      ),
+    );
 
 void main() {
   testWidgets('zeigt Betrieb und Ort je Stopp', (tester) async {
@@ -120,5 +131,30 @@ void main() {
     expect(find.byType(ListTile), findsNothing);
     expect(find.byType(FilledButton), findsNothing);
     expect(find.byType(OutlinedButton), findsNothing);
+  });
+
+  testWidgets('Liste hat keinen eigenen Scrollbereich', (tester) async {
+    final viele = [for (var i = 1; i <= 13; i++) stopp('Betrieb $i')];
+    await tester.pumpWidget(rahmen(HeuteListeInhalt(
+      stopps: viele,
+      erledigt: 0,
+      gesamt: 13,
+      onStart: (_) {},
+      onOeffnen: (_) {},
+      onTourenplan: () {},
+    )));
+
+    expect(
+      find.descendant(
+        of: find.byType(HeuteListeInhalt),
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsNothing,
+      reason:
+          'Entscheid Daniel 13.09.2026: morgens sollen alle offenen Stopps '
+          'sichtbar sein. Ein eigener Scrollbereich in der Karte waere die '
+          'verworfene Kuerzung mit Scrollbalken - und faengt auf dem Handy '
+          'die Wischgeste der Startseite ab.',
+    );
   });
 }

@@ -78,30 +78,20 @@ class HeuteListeInhalt extends StatelessWidget {
                 ),
               )
             else
-              // ConstrainedBox+SingleChildScrollView statt einer nackten
-              // Column-Liste: Die Startseite bettet diese Karte in ein
-              // ListView (unbegrenzte Höhe je Kachel) ein, der Widget-Test
-              // dagegen direkt in ein Scaffold (begrenzte Höhe) — an einem
-              // vollen Tag mit über zehn Stopps lief die Column in Letzterem
-              // über (RenderFlex-Overflow). Die feste Maximalhöhe hält in
-              // beiden Fällen, ohne Kürzung: alle Stopps bleiben im Baum,
-              // überzählige scrollen innerhalb der Karte.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 320),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < stopps.length; i++)
-                        _StoppZeile(
-                          eintrag: stopps[i],
-                          position: i + 1,
-                          onStart: () => onStart(stopps[i]),
-                          onOeffnen: () => onOeffnen(stopps[i]),
-                        ),
-                    ],
-                  ),
+              // Kein eigener Scrollbereich: Entscheid Daniel 13.09.2026,
+              // morgens sollen alle offenen Stopps sichtbar sein — Kürzen
+              // oder Verstecken hinter einem zweiten Scrollbalken kommt
+              // nicht infrage, das würde auf dem Handy zudem die Wischgeste
+              // der scrollenden Startseite abfangen. Die Karte darf beliebig
+              // hoch werden, weil sie in deren `ListView` liegt (unbegrenzte
+              // Höhe je Kachel) — die Seite scrollt einfach weiter.
+              for (var i = 0; i < stopps.length; i++)
+                _StoppZeile(
+                  eintrag: stopps[i],
+                  position: i + 1,
+                  onStart: () => onStart(stopps[i]),
+                  onOeffnen: () => onOeffnen(stopps[i]),
                 ),
-              ),
             if (gesamt > 0)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
