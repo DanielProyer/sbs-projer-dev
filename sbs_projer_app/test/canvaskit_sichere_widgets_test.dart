@@ -63,9 +63,25 @@ void main() {
     final datei = File('lib/presentation/widgets/heute_liste.dart');
     expect(datei.existsSync(), isTrue,
         reason: 'heute_liste.dart fehlt — Pfad im Waechter anpassen');
-    final text = datei.readAsStringSync();
+    // Kommentare ausblenden, bevor gesucht wird: In der Heute-Liste steht
+    // erklärt, warum dort kein ListTile und kein FilledButton verwendet wird
+    // — diese Erklärung darf den Wächter nicht auslösen. Genau dieser Fehler
+    // hat am 10.09.2026 zwei andere Wächter-Tests blind bzw. laut gemacht
+    // (null_filter_waechter_test.dart, offenes_datumsfenster_test.dart).
+    final text = datei
+        .readAsLinesSync()
+        .map((z) {
+          final kommentar = z.indexOf('//');
+          return kommentar == -1 ? z : z.substring(0, kommentar);
+        })
+        .join('\n');
 
-    for (final verboten in ['ListTile(', 'FilledButton', 'OutlinedButton', 'ExpansionTile(']) {
+    for (final verboten in [
+      'ListTile(',
+      'FilledButton',
+      'OutlinedButton',
+      'ExpansionTile(',
+    ]) {
       expect(
         text.contains(verboten),
         isFalse,
