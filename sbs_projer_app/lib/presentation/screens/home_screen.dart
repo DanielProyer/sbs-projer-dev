@@ -117,14 +117,14 @@ class _KachelGrid extends ConsumerWidget {
       mainAxisSpacing: 6,
       childAspectRatio: 2.1,
       children: [
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.store,
           label: 'Betriebe',
           count: null,
           color: AppColors.primary,
           onTap: () => context.push('/betriebe'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.cleaning_services,
           label: 'Reinigungen',
           count: reinigungenDieseWoche > 0
@@ -133,21 +133,21 @@ class _KachelGrid extends ConsumerWidget {
           color: AppColors.success,
           onTap: () => context.push('/reinigungen'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.warning_amber,
           label: 'Störungen',
           count: offeneStoerungen > 0 ? '$offeneStoerungen offen' : null,
           color: AppColors.warning,
           onTap: () => context.push('/stoerungen'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.build,
           label: 'Montagen',
           count: geplanteMontagen > 0 ? '$geplanteMontagen geplant' : null,
           color: AppColors.info,
           onTap: () => context.push('/montagen'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.build_circle_outlined,
           label: 'Eigenaufträge',
           count: offeneEigenauftraege > 0
@@ -156,14 +156,14 @@ class _KachelGrid extends ConsumerWidget {
           color: const Color(0xFF7C3AED),
           onTap: () => context.push('/eigenauftraege'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.cleaning_services_outlined,
           label: 'Eröffnungen',
           count: null,
           color: AppColors.primary,
           onTap: () => context.push('/eroeffnungsreinigungen'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.contacts,
           label: 'Kontakte',
           count: null,
@@ -173,21 +173,21 @@ class _KachelGrid extends ConsumerWidget {
         // Events sind seit v0.58.0 unten in der Liste (oberhalb Buchhaltung);
         // an ihrer Stelle die neuen Aufgaben (anstehende Arbeiten) — Daniel
         // 31.07.2026.
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.task_alt,
           label: 'Aufgaben',
           count: aufgabenCount > 0 ? '$aufgabenCount' : null,
           color: Colors.deepOrange,
           onTap: () => context.push('/aufgaben'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.route,
           label: 'Tourenplanung',
           count: faelligeCount > 0 ? '$faelligeCount fällig' : null,
           color: AppColors.primary,
           onTap: () => context.push('/touren'),
         ),
-        _DashboardTile(
+        DashboardTile(
           icon: Icons.receipt_long,
           label: 'Spesen',
           count: null,
@@ -481,14 +481,15 @@ class _CountChip extends StatelessWidget {
   }
 }
 
-class _DashboardTile extends StatelessWidget {
+class DashboardTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? count;
   final Color color;
   final VoidCallback onTap;
 
-  const _DashboardTile({
+  const DashboardTile({
+    super.key,
     required this.icon,
     required this.label,
     this.count,
