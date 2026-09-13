@@ -86,6 +86,21 @@ import 'package:sbs_projer_app/presentation/screens/auswertungen/nutzung_screen.
 import 'package:sbs_projer_app/services/nutzung/nutzung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+/// Liest die Anlagen-Auswahl aus den Query-Parametern einer Formular-Route.
+///
+/// `anlageIds=a,b,c` ist der Weg für gebündelte Besuche (ein Betrieb, mehrere
+/// Anlagen am selben Tag); das ältere `anlageId=a` bleibt gültig, damit die
+/// Betriebsauswahl und bestehende Links unverändert funktionieren.
+List<String> anlageIdsAusQuery(Map<String, String> query) {
+  final mehrere = query['anlageIds'];
+  if (mehrere != null && mehrere.isNotEmpty) {
+    return mehrere.split(',').where((s) => s.isNotEmpty).toList();
+  }
+  final einzeln = query['anlageId'];
+  if (einzeln != null && einzeln.isNotEmpty) return [einzeln];
+  return const [];
+}
+
 final router = GoRouter(
   initialLocation: '/',
   refreshListenable: SupabaseService.authNotifier,
@@ -247,12 +262,16 @@ final router = GoRouter(
     GoRoute(
       path: '/reinigungen/neu',
       builder: (context, state) {
-        final anlageId = state.uri.queryParameters['anlageId'];
         final betriebId = state.uri.queryParameters['betriebId'];
         if (betriebId == null) {
           return const ReinigungBetriebAuswahlScreen();
         }
-        return ReinigungFormScreen(anlageId: anlageId, betriebId: betriebId);
+        final anlageIds = anlageIdsAusQuery(state.uri.queryParameters);
+        return ReinigungFormScreen(
+          betriebId: betriebId,
+          anlageId: anlageIds.isNotEmpty ? anlageIds.first : null,
+          anlageIds: anlageIds,
+        );
       },
     ),
     GoRoute(

@@ -47,13 +47,15 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 
 class ReinigungFormScreen extends ConsumerStatefulWidget {
   final String? reinigungId; // null = neu
-  final String? anlageId; // für neue Reinigung
+  final String? anlageId; // für neue Reinigung (erste Anlage)
+  final List<String> anlageIds; // für neue Reinigung (gebündelter Besuch)
   final String? betriebId; // für neue Reinigung
 
   const ReinigungFormScreen({
     super.key,
     this.reinigungId,
     this.anlageId,
+    this.anlageIds = const [],
     this.betriebId,
   });
 
@@ -293,7 +295,23 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
           setState(() {
             _anlagenDesBetrieb = anlagen;
             _anlagenLoaded = true;
-            // Bei neuer Reinigung: alle Anlagen vorausgewählt
+            // Bei neuer Reinigung mit gebündeltem Besuch (Tourenplan/
+            // Betriebsseite, anlageIds aus der Route): nur die IDs
+            // übernehmen, die tatsächlich zu diesem Betrieb gehören — eine
+            // nicht (mehr) passende ID aus der URL soll ignoriert werden,
+            // statt eine Geister-Auswahl zu erzeugen.
+            if (!_isEdit &&
+                _selectedAnlageIds.isEmpty &&
+                widget.anlageIds.isNotEmpty) {
+              final gueltigeIds = anlagen
+                  .map((a) => a.serverId ?? a.routeId)
+                  .toSet();
+              _selectedAnlageIds = widget.anlageIds
+                  .where(gueltigeIds.contains)
+                  .toSet();
+            }
+            // Bei neuer Reinigung ohne (gültige) Vorauswahl: alle Anlagen
+            // vorausgewählt
             if (!_isEdit && _selectedAnlageIds.isEmpty) {
               _selectedAnlageIds = anlagen
                   .map((a) => a.serverId ?? a.routeId)
