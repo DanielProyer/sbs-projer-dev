@@ -8,18 +8,14 @@ import 'package:sbs_projer_app/core/util/sync_meldung.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
-import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/kachel_zaehler_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
@@ -94,20 +90,13 @@ class _KachelGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final betriebCount = ref.watch(betriebCountProvider);
-    // Werkstatt-/Reinigungs-Kacheln zeigen die Anzahl des AKTUELLEN JAHRES
-    // (nicht die Gesamt-Historie) — analog Montage.
-    final reinigungCount = ref.watch(reinigungCountAktuellesJahrProvider);
-    final stoerungCount = ref.watch(stoerungCountAktuellesJahrProvider);
     final faelligeCount = ref.watch(faelligeAnlagenCountProvider);
-    final eigenauftragCount = ref.watch(eigenauftragCountAktuellesJahrProvider);
-    final eroeffnungsreinigungCount = ref.watch(
-      eroeffnungsreinigungCountAktuellesJahrProvider,
-    );
-    final montageJahrCount = ref.watch(montageCountAktuellesJahrProvider);
-    final kontaktCount = ref.watch(kontakteProvider).valueOrNull?.length ?? 0;
-    final spesenCount =
-        ref.watch(spesenBelegeCountAktuellesJahrProvider).valueOrNull ?? 0;
+    // Kachel-Zähler zeigen offene Arbeit statt Jahrestotale (A2) — siehe
+    // kachel_zaehler_providers.dart.
+    final reinigungenDieseWoche = ref.watch(reinigungenDieseWocheProvider);
+    final offeneStoerungen = ref.watch(offeneStoerungenCountProvider);
+    final geplanteMontagen = ref.watch(geplanteMontagenCountProvider);
+    final offeneEigenauftraege = ref.watch(offeneEigenauftraegeCountProvider);
     // Aufgaben-Zähler: eigene offene + offene Störungen + geplante Montagen.
     final aufgabenCount =
         (ref.watch(offeneEigeneAufgabenProvider).valueOrNull?.length ?? 0) +
@@ -131,51 +120,53 @@ class _KachelGrid extends ConsumerWidget {
         _DashboardTile(
           icon: Icons.store,
           label: 'Betriebe',
-          count: betriebCount > 0 ? '$betriebCount' : null,
+          count: null,
           color: AppColors.primary,
           onTap: () => context.push('/betriebe'),
         ),
         _DashboardTile(
           icon: Icons.cleaning_services,
           label: 'Reinigungen',
-          count: reinigungCount > 0 ? '$reinigungCount' : null,
+          count: reinigungenDieseWoche > 0
+              ? '$reinigungenDieseWoche diese Woche'
+              : null,
           color: AppColors.success,
           onTap: () => context.push('/reinigungen'),
         ),
         _DashboardTile(
           icon: Icons.warning_amber,
           label: 'Störungen',
-          count: stoerungCount > 0 ? '$stoerungCount' : null,
+          count: offeneStoerungen > 0 ? '$offeneStoerungen offen' : null,
           color: AppColors.warning,
           onTap: () => context.push('/stoerungen'),
         ),
         _DashboardTile(
           icon: Icons.build,
           label: 'Montagen',
-          count: montageJahrCount > 0 ? '$montageJahrCount' : null,
+          count: geplanteMontagen > 0 ? '$geplanteMontagen geplant' : null,
           color: AppColors.info,
           onTap: () => context.push('/montagen'),
         ),
         _DashboardTile(
           icon: Icons.build_circle_outlined,
           label: 'Eigenaufträge',
-          count: eigenauftragCount > 0 ? '$eigenauftragCount' : null,
+          count: offeneEigenauftraege > 0
+              ? '$offeneEigenauftraege offen'
+              : null,
           color: const Color(0xFF7C3AED),
           onTap: () => context.push('/eigenauftraege'),
         ),
         _DashboardTile(
           icon: Icons.cleaning_services_outlined,
           label: 'Eröffnungen',
-          count: eroeffnungsreinigungCount > 0
-              ? '$eroeffnungsreinigungCount'
-              : null,
+          count: null,
           color: AppColors.primary,
           onTap: () => context.push('/eroeffnungsreinigungen'),
         ),
         _DashboardTile(
           icon: Icons.contacts,
           label: 'Kontakte',
-          count: kontaktCount > 0 ? '$kontaktCount' : null,
+          count: null,
           color: Colors.teal,
           onTap: () => context.push('/kontakte'),
         ),
@@ -199,7 +190,7 @@ class _KachelGrid extends ConsumerWidget {
         _DashboardTile(
           icon: Icons.receipt_long,
           label: 'Spesen',
-          count: spesenCount > 0 ? '$spesenCount' : null,
+          count: null,
           color: Colors.brown,
           onTap: () => context.push('/spesen'),
         ),
@@ -534,21 +525,35 @@ class _DashboardTile extends StatelessWidget {
                   ),
                   if (count != null) ...[
                     const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withAlpha(25),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        count!,
-                        style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
+                    // Flexible ist hier zwingend, nicht nur Kosmetik: ohne
+                    // sie bekommt der Container im Row keinerlei Breiten-
+                    // grenze und maxLines/overflow am Text greifen nie — das
+                    // Ergebnis ist ein RenderFlex-Overflow, kein Ellipsis
+                    // (mit einer Probe verifiziert, 13.09.2026). Die neuen
+                    // Zähler-Texte ("12 diese Woche") sind deutlich länger
+                    // als die alten reinen Zahlen und laufen bei 360 px
+                    // (Pixel 9, 2 Spalten) sonst über die Kachel hinaus —
+                    // Schriftgrösse bleibt 11 px (Lesbarkeits-Untergrenze),
+                    // stattdessen kürzt hier die Ellipse.
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withAlpha(25),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          count!,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
