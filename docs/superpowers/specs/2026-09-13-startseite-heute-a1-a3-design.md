@@ -58,12 +58,16 @@ rechnen. Morgens im Auto ist sie ausserdem mehr Information, als die
 Entscheidung braucht. Fahrzeiten bleiben dem Tourenplan vorbehalten, der einen
 Tipp entfernt ist.
 
-**Nur offene Stopps, davon die nächsten drei ausgeschrieben.** Erledigte
-verschwinden aus der Liste; dass es sie gab, sagt der Zähler «3 von 10». Was
-hinter den ersten drei liegt, steht als «… und 4 weitere» darunter und führt
-in den Tourenplan. Damit bricht die Regel vom 31.07.2026, dass die Startseite
-ohne Scrollen aufs Pixel 9 passen muss — bewusst und von Daniel entschieden:
-Die Kacheln rutschen unter die Liste und sind mit einem Wisch erreichbar.
+**Alle offenen Stopps, ungekürzt.** Erledigte verschwinden aus der Liste; dass
+es sie gab, sagt der Zähler «3 von 10». Die Liste wird im Lauf des Tages
+kürzer — morgens steht der ganze Tag da, nachmittags nur noch der Rest. Eine
+Kürzung auf die nächsten drei war zwischenzeitlich im Entwurf und wurde
+verworfen (Daniel, 13.09.): *«Am Morgen will ich alle offenen Stopps sehen.»*
+Genau dann ist die Liste am längsten und am nützlichsten.
+
+Damit bricht die Regel vom 31.07.2026, dass die Startseite ohne Scrollen aufs
+Pixel 9 passen muss — bewusst entschieden: Die Kacheln rutschen unter die
+Liste und sind mit einem Wisch erreichbar.
 
 **Keine Uhrzeit je Stopp.** Der gespeicherte Tagesplan trägt in `ankerZeit`
 fast überall `null` und in `dauerMinuten` ebenfalls — die Uhrzeiten im
@@ -103,9 +107,8 @@ Aufbau:
 - **Je offener Stopp eine Zeile:** Position · Betrieb · Ort, darunter
   Anlagenzahl und Servicezeit; rechts der Start-Pfeil. Bei einem Stopp mit
   Termin-Anker steht dessen Uhrzeit statt der Position.
-- **Ab dem vierten offenen Stopp gekürzt:** «… und 4 weitere» führt in den
-  Tourenplan. Morgens bleibt die Liste damit überschaubar, ohne dass etwas
-  verloren geht.
+- **Fusszeile:** «Im Tourenplan öffnen» — für Reihenfolge, Fahrzeiten und
+  alles, was die Liste bewusst nicht zeigt.
 - **Tippen auf die Zeile** öffnet den Betrieb, **Tippen auf den Pfeil**
   startet den Einsatz.
 
@@ -165,8 +168,9 @@ Für Störung und Montage gilt dasselbe Muster mit ihren eigenen Routen.
 
 ## Tests
 
-- `HeuteListe`: offene/erledigte Ableitung je Einsatzart, Kürzung ab dem
-  vierten Stopp, Leerzustand ohne Plan, Bündel mit mehreren Anlagen.
+- `HeuteListe`: offene/erledigte Ableitung je Einsatzart, Leerzustand ohne
+  Plan, Bündel mit mehreren Anlagen, und ein Plan mit 13 Stopps (der grösste
+  gemessene Tag) — alle 13 müssen in der Liste stehen, keine Kürzung.
 - Router: `anlageIds` mit einer, mehreren und ohne Anlage; `anlageId` weiterhin
   gültig.
 - Zähler: je Kachel eine Prüfung, dass die neue Zahl die handlungsrelevante
