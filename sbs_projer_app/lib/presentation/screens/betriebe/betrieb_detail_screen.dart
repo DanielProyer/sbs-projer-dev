@@ -1274,6 +1274,10 @@ class _ReinigungenSectionState extends State<_ReinigungenSection> {
                     const Text('Reinigungen',
                         style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(width: 6),
+                    Text('${reinigungen.length}',
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13)),
                     const Spacer(),
                     // Kein anlageIds hier: auf der Betriebsseite ist noch nicht
                     // entschieden, welche Anlagen gemeint sind — das Formular
@@ -1288,9 +1292,6 @@ class _ReinigungenSectionState extends State<_ReinigungenSection> {
                           '/reinigungen/neu?betriebId=${betrieb.serverId}',
                         ),
                       ),
-                    Text('${reinigungen.length}',
-                        style: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 13)),
                   ],
                 ),
                 if (display.isNotEmpty) ...[
