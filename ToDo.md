@@ -23,6 +23,33 @@ fünf Schritten wird einer, bei gebündelten Betrieben mit allen Anlagen
 vorbelegt (`/reinigungen/neu?betriebId=…&anlageIds=a,b,c`). Gilt für
 Reinigung, Störung und Montage.
 
+### 🔴 Gefunden am 13.09.: `arbeitsbeginn` trägt zwei Bedeutungen
+
+**Ein Feld, zwei Sachen.** `tagesplaene.arbeitsbeginn` hält sowohl den
+**hypothetischen Beginn für die Planung** (gesetzt in der `_ArbeitstagZeile`
+des Tourenplans, damit die Zeitachse rechnen kann) als auch den
+**tatsächlichen Arbeitsbeginn** (gesetzt durch «Jetzt starten» auf der
+Startseite, mit km-Stand und GPS). Die App unterscheidet sie nicht:
+
+```dart
+// arbeitstag_karte.dart:487
+final beginnErfasst = gespeichert?.arbeitsbeginn != null;
+```
+
+**Folge:** Steht ein Planwert drin, zeigt die Arbeitstag-Karte «ab HH:mm» und
+den Knopf «Neu starten» statt «Jetzt starten» — der Tag sieht aus, als liefe
+er schon. Konkret beim Montagsplan 14.09., der seit dem 11.09. abends einen
+Planwert 06:47 ohne km-Start trägt. Kein Blocker (Drücken überschreibt sauber
+mit Ist-Zeit, km und GPS), aber irreführend, und die Tages-km bleiben falsch,
+wenn niemand drückt.
+
+**Fix:** Eigenes Feld `plan_beginn` (Migration 191), `arbeitsbeginn` bleibt der
+Ist-Wert. Die Zeitachse rechnet mit `plan_beginn ?? arbeitsbeginn ?? 06:00`,
+die Arbeitstag-Karte liest nur noch `arbeitsbeginn`. Die Planungszeile im
+Tourenplan schreibt nach `plan_beginn`. Bestehende Werte: Zeilen mit
+`km_start IS NULL` sind Planwerte und wandern nach `plan_beginn` — die mit
+km-Start sind echte Arbeitsbeginne und bleiben.
+
 ⚠️ **Klicktest Daniel offen** — bitte am Handy prüfen:
 1. Morgens: Stehen alle offenen Stopps da?
 2. Nach einer Reinigung: Verschwindet der Stopp, zählt die Kopfzeile hoch?
