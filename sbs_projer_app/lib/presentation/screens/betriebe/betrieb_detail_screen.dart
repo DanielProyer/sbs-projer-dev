@@ -1275,6 +1275,19 @@ class _ReinigungenSectionState extends State<_ReinigungenSection> {
                         style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 14)),
                     const Spacer(),
+                    // Kein anlageIds hier: auf der Betriebsseite ist noch nicht
+                    // entschieden, welche Anlagen gemeint sind — das Formular
+                    // zeigt sie zur Auswahl (bei einer neuen Reinigung sind dort
+                    // ohnehin alle Anlagen des Betriebs vorausgewählt). Der
+                    // Tourenplan-Block kennt die Bündelung dagegen schon.
+                    if (!SupabaseService.isGuest)
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Neue Reinigung'),
+                        onPressed: () => context.push(
+                          '/reinigungen/neu?betriebId=${betrieb.serverId}',
+                        ),
+                      ),
                     Text('${reinigungen.length}',
                         style: const TextStyle(
                             color: AppColors.textSecondary, fontSize: 13)),
