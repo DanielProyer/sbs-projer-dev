@@ -144,7 +144,7 @@ void main() {
       onTourenplan: () {},
     )));
 
-    expect(find.textContaining('12345 CHF / Monat'), findsOneWidget);
+    expect(find.textContaining("12'345 CHF / Monat"), findsOneWidget);
   });
 
   testWidgets('ohne Monatsumsatz steht nichts in der Kopfzeile', (tester) async {
@@ -177,7 +177,7 @@ void main() {
     )));
 
     expect(find.textContaining('775 CHF heute'), findsOneWidget);
-    expect(find.textContaining('8316 CHF / Monat'), findsOneWidget);
+    expect(find.textContaining("8'316 CHF / Monat"), findsOneWidget);
   });
 
   testWidgets('Vorjahreswert steht unter dem Monatsumsatz', (tester) async {
@@ -193,7 +193,30 @@ void main() {
       onTourenplan: () {},
     )));
 
-    expect(find.text('Vorjahr 4102'), findsOneWidget);
+    expect(find.text("Vorjahr 4'102"), findsOneWidget);
+  });
+
+  testWidgets('Jahresumsatz und sein Vorjahr stehen darunter', (tester) async {
+    await tester.pumpWidget(rahmen(HeuteListeInhalt(
+      stopps: [stopp('Calanda')],
+      erledigt: 3,
+      gesamt: 4,
+      tagesUmsatzCHF: 775.15,
+      monatsUmsatzCHF: 8316,
+      vorjahrUmsatzCHF: 4102.40,
+      jahrUmsatzCHF: 105084.25,
+      vorjahrJahrUmsatzCHF: 103266.07,
+      onStart: (_) {},
+      onOeffnen: (_) {},
+      onTourenplan: () {},
+    )));
+
+    // Schweizer Tausender-Apostroph, keine Rappen — sechsstellige Zahlen sind
+    // sonst in einer 11-px-Zeile nicht lesbar.
+    expect(find.text("105'084 CHF / Jahr"), findsOneWidget);
+    expect(find.text("Vorjahr 103'266"), findsOneWidget);
+    // Beide Vorjahres-Zeilen nebeneinander: die zum Monat und die zum Jahr.
+    expect(find.textContaining('Vorjahr '), findsNWidgets(2));
   });
 
   testWidgets('ohne Vorjahreswert bleibt die Zeile weg', (tester) async {
@@ -223,6 +246,8 @@ void main() {
       tagesUmsatzCHF: 1234.55,
       monatsUmsatzCHF: 18316,
       vorjahrUmsatzCHF: 16204,
+      jahrUmsatzCHF: 195084.25,
+      vorjahrJahrUmsatzCHF: 183266.07,
       onStart: (_) {},
       onOeffnen: (_) {},
       onTourenplan: () {},
@@ -244,7 +269,7 @@ void main() {
     )));
 
     expect(find.textContaining('CHF heute'), findsNothing);
-    expect(find.textContaining('8316 CHF / Monat'), findsOneWidget);
+    expect(find.textContaining("8'316 CHF / Monat"), findsOneWidget);
   });
 
   testWidgets('Liste hat keinen eigenen Scrollbereich', (tester) async {

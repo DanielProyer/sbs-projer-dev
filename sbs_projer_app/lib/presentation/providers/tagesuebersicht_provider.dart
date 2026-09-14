@@ -28,6 +28,12 @@ class TagesUebersichtData {
   /// Monat gegen einen ganzen stellt.
   final double vorjahrUmsatzCHF;
 
+  /// Umsatz seit dem 1. Januar bis heute.
+  final double jahrUmsatzCHF;
+
+  /// Derselbe Zeitraum im Vorjahr: 1. Januar bis zum gleichen Kalendertag.
+  final double vorjahrJahrUmsatzCHF;
+
   const TagesUebersichtData({
     required this.reinigungen,
     required this.stoerungen,
@@ -38,6 +44,8 @@ class TagesUebersichtData {
     required this.totalCHF,
     required this.monatsUmsatzCHF,
     this.vorjahrUmsatzCHF = 0,
+    this.jahrUmsatzCHF = 0,
+    this.vorjahrJahrUmsatzCHF = 0,
   });
 
   int get total =>
@@ -96,6 +104,47 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
   bool isVorjahrBisHeute(DateTime d) =>
       d.year == today.year - 1 && d.month == today.month && d.day <= today.day;
 
+  // Jahr bis heute und dasselbe Fenster im Vorjahr — gleiche Logik wie beim
+  // Monat: Ein ganzes Vorjahr gegen ein laufendes zu stellen, misst nichts.
+  final stichtagVorjahr = DateTime(today.year - 1, today.month, today.day);
+  bool isJahrBisHeute(DateTime d) =>
+      d.year == today.year && !d.isAfter(todayDate);
+  bool isVorjahrJahrBisHeute(DateTime d) =>
+      d.year == today.year - 1 && !d.isAfter(stichtagVorjahr);
+
+  double summiere(bool Function(DateTime) imFenster) =>
+      ref.watch(reinigungenProvider).where((r) => imFenster(r.datum)).fold(
+            0.0,
+            (s, r) => s + (r.preisBrutto ?? 0),
+          ) +
+      ref.watch(stoerungenProvider).where((s) => imFenster(s.datum)).fold(
+            0.0,
+            (s, r) => s + (r.preisNetto ?? 0),
+          ) +
+      ref.watch(montagenProvider).where((m) => imFenster(m.datum)).fold(
+            0.0,
+            (s, r) => s + (r.kostenArbeit ?? 0),
+          ) +
+      ref.watch(eigenauftraegeProvider).where((e) => imFenster(e.datum)).fold(
+            0.0,
+            (s, r) => s + (r.pauschale ?? 0),
+          ) +
+      ref
+          .watch(eroeffnungsreinigungenProvider)
+          .where((e) => imFenster(e.datum))
+          .fold(0.0, (s, r) => s + (r.preis ?? 0)) +
+      ref
+          .watch(bergkundenpauschaleProvider)
+          .where((b) => imFenster(b.datum))
+          .fold(0.0, (s, b) => s + b.betrag) +
+      ref
+          .watch(pikettDiensteProvider)
+          .where((p) => imFenster(p.datumStart))
+          .fold(0.0, (s, p) => s + (p.pauschaleGesamt ?? p.pauschale ?? 0));
+
+  final jahrUmsatzCHF = summiere(isJahrBisHeute);
+  final vorjahrJahrUmsatzCHF = summiere(isVorjahrJahrBisHeute);
+
   final vR = ref.watch(reinigungenProvider).where((r) => isVorjahrBisHeute(r.datum));
   final vS = ref.watch(stoerungenProvider).where((s) => isVorjahrBisHeute(s.datum));
   final vM = ref.watch(montagenProvider).where((m) => isVorjahrBisHeute(m.datum));
@@ -129,5 +178,7 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
     totalCHF: totalCHF,
     monatsUmsatzCHF: monatsUmsatzCHF,
     vorjahrUmsatzCHF: vorjahrUmsatzCHF,
+    jahrUmsatzCHF: jahrUmsatzCHF,
+    vorjahrJahrUmsatzCHF: vorjahrJahrUmsatzCHF,
   );
 });
