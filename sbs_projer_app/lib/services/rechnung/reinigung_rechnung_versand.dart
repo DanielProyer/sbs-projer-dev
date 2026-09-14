@@ -220,6 +220,10 @@ class ReinigungRechnungVersand {
               'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
           'rechnungId': rechnung.id,
           'userId': SupabaseService.dataUserId,
+          // Die Function setzt den Vermerk selbst, damit er einen
+          // Verbindungsabbruch überlebt. Immer `true` — die Mail geht an
+          // Daniel selbst, der Vermerk hält den Postversand fest.
+          'markiereVersandt': true,
           if (r.protokollFotoPfad != null)
             'protokollFotoPfad': r.protokollFotoPfad,
         },

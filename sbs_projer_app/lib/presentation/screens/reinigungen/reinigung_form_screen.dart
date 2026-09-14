@@ -885,6 +885,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                         'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
                     'rechnungId': rechnung.id,
                     'userId': SupabaseService.dataUserId,
+                    // Die Function vermerkt den Versand selbst, solange sie
+                    // noch läuft. Ohne dieses Flag überspringt sie das, und
+                    // der Vermerk hängt allein an der Antwort unten — kommt
+                    // die nicht an, liegt die Rechnung beim Kunden und steht
+                    // in der App auf «offen». Genau das passierte am
+                    // 14.09.2026 zweimal (Blue Cinema 14:03, Alpina Resort
+                    // 16:08): Die Function war fertig und meldete 200, das
+                    // Handy bekam es nicht mehr mit. Der Serverfix dafür
+                    // existiert seit v15/v16, wurde hier aber nie
+                    // eingeschaltet.
+                    'markiereVersandt': MailConfig.istScharf('reinigung'),
                     if (r.protokollFotoPfad != null)
                       'protokollFotoPfad': r.protokollFotoPfad,
                   },
@@ -961,6 +972,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                         'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
                     'rechnungId': rechnung.id,
                     'userId': SupabaseService.dataUserId,
+                    // Wie beim Mail-Versand oben: Die Function setzt den
+                    // Vermerk selbst, damit er einen Verbindungsabbruch
+                    // überlebt. Hier immer `true` — die Mail geht an Daniel
+                    // selbst, der Vermerk hält den Postversand fest.
+                    'markiereVersandt': true,
                     if (r.protokollFotoPfad != null)
                       'protokollFotoPfad': r.protokollFotoPfad,
                   },
