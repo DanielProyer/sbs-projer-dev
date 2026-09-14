@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 14.09.2026
 
-**Stand:** **v0.100.2 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1418 Tests grün** · Git sauber.
+**Stand:** **v0.100.3 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1420 Tests grün** · Git sauber.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
@@ -47,6 +47,11 @@ A3 trägt. **Zwei Nachbesserungen aus dem Feld:**
   Chip, beim Umbau kam nur der Monatsumsatz mit. Steht jetzt grün über dem
   Monatswert. Dabei fiel auf, dass die Kopfzeile auf 360 px um 164 px überlief —
   beide Hälften sind jetzt flexibel, ein Test hält die Breite fest.
+- **Umsatz-Block fertig** (v0.100.3): Tages- und Monatsumsatz rechtsbündig am
+  Kartenrand, darunter klein der **Vorjahreswert**. Der misst bewusst denselben
+  Zeitraum — gleicher Monat, aber nur bis zum heutigen Tag. Sonst stünde der
+  halbe laufende Monat gegen einen vollen: September 2025 lief auf 10'219.66
+  hinaus, bis zum 14. waren es erst 3'425.67.
 - **Offen:** Die Reinigungen-Kachel schneidet ab («90 diese Woc…»). Kürzerer
   Text nötig, etwa «90 fällig» oder nur die Zahl.
 
