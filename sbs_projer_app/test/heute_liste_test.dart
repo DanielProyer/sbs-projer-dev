@@ -180,6 +180,36 @@ void main() {
     expect(find.textContaining('8316 CHF / Monat'), findsOneWidget);
   });
 
+  testWidgets('Vorjahreswert steht unter dem Monatsumsatz', (tester) async {
+    await tester.pumpWidget(rahmen(HeuteListeInhalt(
+      stopps: [stopp('Calanda')],
+      erledigt: 3,
+      gesamt: 4,
+      tagesUmsatzCHF: 775.15,
+      monatsUmsatzCHF: 8316,
+      vorjahrUmsatzCHF: 4102.40,
+      onStart: (_) {},
+      onOeffnen: (_) {},
+      onTourenplan: () {},
+    )));
+
+    expect(find.text('Vorjahr 4102'), findsOneWidget);
+  });
+
+  testWidgets('ohne Vorjahreswert bleibt die Zeile weg', (tester) async {
+    await tester.pumpWidget(rahmen(HeuteListeInhalt(
+      stopps: [stopp('Calanda')],
+      erledigt: 3,
+      gesamt: 4,
+      monatsUmsatzCHF: 8316,
+      onStart: (_) {},
+      onOeffnen: (_) {},
+      onTourenplan: () {},
+    )));
+
+    expect(find.textContaining('Vorjahr'), findsNothing);
+  });
+
   testWidgets('Kopfzeile passt auf 360 px (Pixel 9)', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1.0;
@@ -192,6 +222,7 @@ void main() {
       gesamt: 13,
       tagesUmsatzCHF: 1234.55,
       monatsUmsatzCHF: 18316,
+      vorjahrUmsatzCHF: 16204,
       onStart: (_) {},
       onOeffnen: (_) {},
       onTourenplan: () {},

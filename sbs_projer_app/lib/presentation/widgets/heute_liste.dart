@@ -31,6 +31,10 @@ class HeuteListeInhalt extends StatelessWidget {
   /// Monatsumsatz mitgenommen worden.
   final double tagesUmsatzCHF;
 
+  /// Umsatz im selben Zeitraum des Vorjahres (gleicher Monat bis zum heutigen
+  /// Tag) — als Einordnung unter dem Monatswert.
+  final double vorjahrUmsatzCHF;
+
   const HeuteListeInhalt({
     super.key,
     required this.stopps,
@@ -42,6 +46,7 @@ class HeuteListeInhalt extends StatelessWidget {
     this.heute,
     this.monatsUmsatzCHF = 0,
     this.tagesUmsatzCHF = 0,
+    this.vorjahrUmsatzCHF = 0,
   });
 
   @override
@@ -68,7 +73,11 @@ class HeuteListeInhalt extends StatelessWidget {
                 // Ein Text ohne Flexible bekommt in einer Row unbeschränkte
                 // Breite — dann greift auch `ellipsis` nicht. Derselbe Fall
                 // wie bei den Kachelzählern am 13.09.2026.
-                Flexible(
+                // `Expanded`, nicht `Flexible`: Die linke Hälfte füllt den
+                // freien Platz und drückt die Umsatzzahlen an den rechten
+                // Kartenrand (Daniel 14.09.2026). Mit `Flexible` klebten sie
+                // direkt hinter dem Fortschritt.
+                Expanded(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -133,6 +142,23 @@ class HeuteListeInhalt extends StatelessWidget {
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textSecondary,
+                            ),
+                          ),
+                        // Vorjahr als Einordnung darunter. Es ist derselbe
+                        // Zeitraum — gleicher Monat, aber nur bis zum
+                        // heutigen Tag —, sonst stünde der halbe laufende
+                        // Monat gegen einen vollen und zeigte jeden Monat
+                        // einen Rückstand, den es nicht gibt.
+                        if (vorjahrUmsatzCHF > 0)
+                          Text(
+                            'Vorjahr ${vorjahrUmsatzCHF.toStringAsFixed(0)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.75,
+                              ),
                             ),
                           ),
                       ],
@@ -334,6 +360,7 @@ class HeuteListe extends ConsumerWidget {
         gesamt: zaehler?.gesamt ?? 0,
         monatsUmsatzCHF: monatsUmsatzCHF,
         tagesUmsatzCHF: tagesUmsatzCHF,
+        vorjahrUmsatzCHF: uebersicht.vorjahrUmsatzCHF,
         onStart: (e) => _starte(context, e),
         onOeffnen: (e) {
           if (e.betriebId != null) context.push('/betriebe/${e.betriebId}');

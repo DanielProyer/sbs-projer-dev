@@ -23,6 +23,11 @@ class TagesUebersichtData {
   final double totalCHF;
   final double monatsUmsatzCHF;
 
+  /// Umsatz im selben Monat des Vorjahres, aber nur bis zum heutigen Tag —
+  /// damit der Vergleich denselben Zeitraum misst und nicht einen halben
+  /// Monat gegen einen ganzen stellt.
+  final double vorjahrUmsatzCHF;
+
   const TagesUebersichtData({
     required this.reinigungen,
     required this.stoerungen,
@@ -32,6 +37,7 @@ class TagesUebersichtData {
     required this.bergkundenpauschalen,
     required this.totalCHF,
     required this.monatsUmsatzCHF,
+    this.vorjahrUmsatzCHF = 0,
   });
 
   int get total =>
@@ -81,6 +87,38 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
       mBP.fold(0.0, (s, b) => s + b.betrag) +
       mP.fold(0.0, (s, p) => s + (p.pauschaleGesamt ?? p.pauschale ?? 0));
 
+  // Vorjahres-Vergleich: derselbe Monat, aber nur bis zum HEUTIGEN Tag.
+  //
+  // WARUM nicht der ganze Vorjahresmonat: Am 14. eines Monats stünde der halbe
+  // laufende Monat gegen einen vollen — der Vergleich zeigte jeden Monat bis
+  // kurz vor Schluss einen Rückstand, den es nicht gibt. September 2025 lief
+  // auf 10'219.66 hinaus, bis zum 14. waren es aber erst 3'425.67.
+  bool isVorjahrBisHeute(DateTime d) =>
+      d.year == today.year - 1 && d.month == today.month && d.day <= today.day;
+
+  final vR = ref.watch(reinigungenProvider).where((r) => isVorjahrBisHeute(r.datum));
+  final vS = ref.watch(stoerungenProvider).where((s) => isVorjahrBisHeute(s.datum));
+  final vM = ref.watch(montagenProvider).where((m) => isVorjahrBisHeute(m.datum));
+  final vE = ref.watch(eigenauftraegeProvider).where((e) => isVorjahrBisHeute(e.datum));
+  final vER = ref
+      .watch(eroeffnungsreinigungenProvider)
+      .where((e) => isVorjahrBisHeute(e.datum));
+  final vBP = ref
+      .watch(bergkundenpauschaleProvider)
+      .where((b) => isVorjahrBisHeute(b.datum));
+  final vP = ref
+      .watch(pikettDiensteProvider)
+      .where((p) => isVorjahrBisHeute(p.datumStart));
+
+  final vorjahrUmsatzCHF =
+      vR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
+      vS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
+      vM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
+      vE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +
+      vER.fold(0.0, (s, r) => s + (r.preis ?? 0)) +
+      vBP.fold(0.0, (s, b) => s + b.betrag) +
+      vP.fold(0.0, (s, p) => s + (p.pauschaleGesamt ?? p.pauschale ?? 0));
+
   return TagesUebersichtData(
     reinigungen: hR,
     stoerungen: hS,
@@ -90,5 +128,6 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
     bergkundenpauschalen: hBP,
     totalCHF: totalCHF,
     monatsUmsatzCHF: monatsUmsatzCHF,
+    vorjahrUmsatzCHF: vorjahrUmsatzCHF,
   );
 });
