@@ -1,8 +1,54 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 13.09.2026
+## 📌 SESSION-ÜBERGABE 14.09.2026
 
-**Stand:** **v0.100.0 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1414 Tests grün** · Git sauber.
+**Stand:** **v0.100.2 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1418 Tests grün** · Git sauber.
+
+### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
+
+**Zweimal an einem Tag:** Blue Cinema (14:03, CHF 256.20) und Alpina Resort
+(16:08, CHF 74.60) — beide Male meldete die App «MAIL-VERSAND FEHLGESCHLAGEN:
+Failed to fetch», beide Mails waren nachweislich draussen (Gmail-messageIds
+`1a09fcd12ffa1609` und `1a0a03f725660d0d` im Function-Log, HTTP 200 nach
+2350 ms), beide Rechnungen standen auf «offen». Status beider korrigiert, der
+Grund steht in ihren Notizen.
+
+**Die Ursache war nicht die Function, sondern ihr Aufrufer.** `send-rechnung-mail`
+vermerkt den Versand seit v15/v16 selbst und überlebt dank
+`EdgeRuntime.waitUntil` einen Verbindungsabbruch — aber nur, wenn der Aufrufer
+`markiereVersandt` mitschickt:
+
+```js
+if (markiereVersandt === true && rechnungId && !istMahnung) { … }
+```
+
+Der Abschluss im Reinigungsformular (`reinigung_form_screen.dart:872` und die
+Post-Variante daneben) tat das **nie** und setzte den Status stattdessen selbst,
+nachdem die Antwort da war. Genau den Weg sollte der Serverfix ablösen. Er lag
+drei Tage bereit, ohne je eingeschaltet zu sein — deshalb half er am 11.09.
+nicht. Dasselbe fehlte im Post-Zweig von `reinigung_rechnung_versand.dart`.
+
+**Wächter dagegen:** `test/versandvermerk_waechter_test.dart` — jeder Aufruf mit
+`rechnungId` muss das Flag mitschicken (Mahnungen ausgenommen, die Function
+überspringt sie selbst). Blendet Kommentare aus; die Gegenprobe schlägt genau
+auf Zeile 872 an.
+
+**Vollcheck danach:** keine Mail-Rechnung ohne Versandvermerk seit dem 15.08.,
+keine abgeschlossene Reinigung ohne Ertragsbuchung seit dem 01.08. Die fehlende
+Buchung für Alpina Resort hat der Nachlauf der App um 17:09 selbst nachgeholt —
+die Kette funktioniert.
+
+### ✅ Erster Praxistag der Heute-Liste (14.09.)
+
+Sieben Stopps, «5 von 7» auf dem Handy, erledigte verschwanden wie vorgesehen;
+Blue Cinema mit drei gebündelten Anlagen ergab eine Reinigung über 256.20 —
+A3 trägt. **Zwei Nachbesserungen aus dem Feld:**
+- **Tagesumsatz war weg** (v0.100.2): Die alte Tagesübersicht zeigte ihn als
+  Chip, beim Umbau kam nur der Monatsumsatz mit. Steht jetzt grün über dem
+  Monatswert. Dabei fiel auf, dass die Kopfzeile auf 360 px um 164 px überlief —
+  beide Hälften sind jetzt flexibel, ein Test hält die Breite fest.
+- **Offen:** Die Reinigungen-Kachel schneidet ab («90 diese Woc…»). Kürzerer
+  Text nötig, etwa «90 fällig» oder nur die Zahl.
 
 ### ✅ A1–A3 aus der App-Analyse umgesetzt (v0.100.0, 13.09.2026)
 
