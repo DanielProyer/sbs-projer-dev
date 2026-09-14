@@ -24,6 +24,13 @@ class HeuteListeInhalt extends StatelessWidget {
   // bestehenden Tests in heute_liste_test.dart bräuchen ihn nachgetragen.
   final double monatsUmsatzCHF;
 
+  /// Umsatz des heutigen Tages über alle Einsatzarten — dieselbe Zahl, die
+  /// die alte Tagesübersicht als Chip zeigte (Daniel 14.09.2026: «was mir in
+  /// der App noch fehlt ist ein Überblick über den Tagesumsatz wie wir ihn
+  /// vorher hatten»). Beim Umbau auf die Heute-Liste war nur der
+  /// Monatsumsatz mitgenommen worden.
+  final double tagesUmsatzCHF;
+
   const HeuteListeInhalt({
     super.key,
     required this.stopps,
@@ -34,6 +41,7 @@ class HeuteListeInhalt extends StatelessWidget {
     required this.onTourenplan,
     this.heute,
     this.monatsUmsatzCHF = 0,
+    this.tagesUmsatzCHF = 0,
   });
 
   @override
@@ -55,32 +63,79 @@ class HeuteListeInhalt extends StatelessWidget {
               children: [
                 const Icon(Icons.today, color: AppColors.primary, size: 18),
                 const SizedBox(width: 6),
-                Text(
-                  datumStr,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                ),
-                if (gesamt > 0) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    '$erledigt von $gesamt',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                // Beide Hälften flexibel: Auf 360 px (Pixel 9) liefen Datum,
+                // Fortschritt und der zweizeilige Umsatzblock um 164 px über.
+                // Ein Text ohne Flexible bekommt in einer Row unbeschränkte
+                // Breite — dann greift auch `ellipsis` nicht. Derselbe Fall
+                // wie bei den Kachelzählern am 13.09.2026.
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          datumStr,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      if (gesamt > 0) ...[
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '$erledigt von $gesamt',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
+                ),
                 // Gerettet aus der alten _TagesUebersicht (vor Task 10 hier
-                // ersetzt): der Monatsumsatz braucht weiterhin einen Platz
-                // auf der Startseite, nur eben in dieser Kopfzeile statt in
-                // der eigenen Karte.
-                if (monatsUmsatzCHF > 0) ...[
-                  const Spacer(),
-                  Text(
-                    '${monatsUmsatzCHF.toStringAsFixed(0)} CHF / Monat',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                // ersetzt): Tages- und Monatsumsatz brauchen weiterhin einen
+                // Platz auf der Startseite, nur eben in dieser Kopfzeile
+                // statt in der eigenen Karte. Der Tagesumsatz steht oben und
+                // in der Akzentfarbe — er ist die Zahl, die Daniel abends
+                // sucht; der Monatsumsatz ist der Zusammenhang dazu.
+                if (tagesUmsatzCHF > 0 || monatsUmsatzCHF > 0) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (tagesUmsatzCHF > 0)
+                          Text(
+                            '${tagesUmsatzCHF.toStringAsFixed(0)} CHF heute',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        if (monatsUmsatzCHF > 0)
+                          Text(
+                            '${monatsUmsatzCHF.toStringAsFixed(0)} CHF / Monat',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -264,7 +319,11 @@ class HeuteListe extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final offen = ref.watch(heuteOffeneStoppsProvider);
     final zaehler = ref.watch(heuteZaehlerProvider);
-    final monatsUmsatzCHF = ref.watch(tagesUebersichtProvider).monatsUmsatzCHF;
+    final uebersicht = ref.watch(tagesUebersichtProvider);
+    final monatsUmsatzCHF = uebersicht.monatsUmsatzCHF;
+    // `totalCHF` zählt alle heute erfassten Einsatzarten zusammen, nicht nur
+    // die Reinigungen aus dem Tagesplan — genau wie in der alten Karte.
+    final tagesUmsatzCHF = uebersicht.totalCHF;
 
     return offen.when(
       loading: () => const SizedBox.shrink(),
@@ -274,6 +333,7 @@ class HeuteListe extends ConsumerWidget {
         erledigt: zaehler?.erledigt ?? 0,
         gesamt: zaehler?.gesamt ?? 0,
         monatsUmsatzCHF: monatsUmsatzCHF,
+        tagesUmsatzCHF: tagesUmsatzCHF,
         onStart: (e) => _starte(context, e),
         onOeffnen: (e) {
           if (e.betriebId != null) context.push('/betriebe/${e.betriebId}');
