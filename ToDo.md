@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 14.09.2026
 
-**Stand:** **v0.100.4 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1421 Tests grün** · Git sauber.
+**Stand:** **v0.100.5 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1421 Tests grün** · Git sauber.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
@@ -51,6 +51,12 @@ A3 trägt. **Zwei Nachbesserungen aus dem Feld:**
   Kartenrand — Tagesumsatz (grün), Monat + Vorjahr, Jahr + Vorjahr. Beträge mit
   Schweizer Tausender-Apostroph und ohne Rappen; die Jahreswerte sind
   sechsstellig und wären in einer 11-px-Zeile sonst unlesbar.
+  Seit v0.100.5 steht das Vorjahr **in derselben Zeile** wie sein Bezugswert
+  (Variante C, Entscheid Daniel): drei Zeilen statt fünf, ganz am rechten
+  Kartenrand. Die Ausrichtung war vorher falsch — `Expanded` links und
+  `Flexible` rechts teilten sich den Platz je zur Hälfte, die Zahlen standen
+  in der Mitte. Jetzt `spaceBetween` mit `flex: 0` links (das Datum wird nie
+  gekürzt) und `flex: 1` rechts.
   **Beide Vergleichswerte messen denselben Zeitraum** wie der Wert darüber —
   gleicher Monat bzw. ab 1. Januar, jeweils nur bis zum heutigen Kalendertag.
   Sonst stünde der halbe laufende Monat gegen einen vollen: September 2025 lief
