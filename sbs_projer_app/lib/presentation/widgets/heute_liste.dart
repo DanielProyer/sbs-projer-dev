@@ -19,12 +19,45 @@ const _wochentage = [
 /// Kopfzeile nicht — genau wird es in der Buchhaltung.
 String _ganz(double v) => chf(v).split('.').first;
 
-/// Stil der beiden Vorjahres-Zeilen: bewusst leiser als die Werte darüber,
-/// sie sind Einordnung und nicht die Hauptzahl.
+/// Stil der Vorjahres-Angabe: bewusst leiser als der Wert davor, sie ist
+/// Einordnung und nicht die Hauptzahl.
 final _vergleichStil = TextStyle(
   fontSize: 11,
   color: AppColors.textSecondary.withValues(alpha: 0.75),
 );
+
+const _wertStil = TextStyle(
+  fontSize: 11,
+  fontWeight: FontWeight.w600,
+  color: AppColors.textSecondary,
+);
+
+/// Eine Umsatzzeile: der Wert, dahinter in Grau der Vergleich zum Vorjahr.
+///
+/// `Text.rich` statt zwei Texten nebeneinander, damit beide zusammen
+/// umbrechen bzw. gekürzt werden und die Zeile rechtsbündig bleibt.
+class _UmsatzZeile extends StatelessWidget {
+  final String wert;
+  final String? vorjahr;
+
+  const _UmsatzZeile({required this.wert, this.vorjahr});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: wert, style: _wertStil),
+          if (vorjahr != null)
+            TextSpan(text: '  ·  Vj $vorjahr', style: _vergleichStil),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.right,
+    );
+  }
+}
 
 /// Darstellung ohne Datenanbindung — so ist sie ohne Supabase testbar.
 class HeuteListeInhalt extends StatelessWidget {
@@ -88,17 +121,22 @@ class HeuteListeInhalt extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              // `spaceBetween` schiebt die Umsatzzahlen an den rechten
+              // Kartenrand, ohne dass eine Hälfte den Platz der anderen
+              // frisst: Beide Seiten nehmen nur ihre natürliche Breite, die
+              // Lücke dazwischen wächst. Mit `Expanded` links standen die
+              // Zahlen in der Mitte, mit `flex: 0` rechts liefen sie über.
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Icon(Icons.today, color: AppColors.primary, size: 18),
                 const SizedBox(width: 6),
-                // Links `Expanded`, rechts `Flexible`: Die linke Hälfte füllt
-                // den freien Platz und drückt die Umsatzzahlen an den rechten
-                // Kartenrand. Ohne diese Aufteilung lief die Kopfzeile auf
-                // 360 px (Pixel 9) um 164 px über — ein Text ohne Flexible
-                // bekommt in einer Row unbeschränkte Breite, dann greift auch
-                // `ellipsis` nicht. Derselbe Fall wie bei den Kachelzählern
-                // am 13.09.2026.
-                Expanded(
+                // Links `flex: 0` — Datum und Fortschritt bekommen ihre
+                // natürliche Breite und werden nie gekürzt. Sie sind in der
+                // Länge begrenzt («Mo, 14.09.» plus höchstens «13 von 13»),
+                // ein Überlauf droht von dieser Seite nicht. Mit einem
+                // Flex-Anteil stand dort «Mo, 14…».
+                Flexible(
+                  flex: 0,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -140,6 +178,10 @@ class HeuteListeInhalt extends StatelessWidget {
                     monatsUmsatzCHF > 0 ||
                     jahrUmsatzCHF > 0) ...[
                   const SizedBox(width: 8),
+                  // Rechts `flex: 1` — der Block nimmt den verbleibenden
+                  // Platz, richtet seinen Text rechtsbündig darin aus und
+                  // kürzt notfalls. Wird es eng, verliert lieber die
+                  // Vergleichszahl ein paar Stellen als das Datum.
                   Flexible(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -156,49 +198,27 @@ class HeuteListeInhalt extends StatelessWidget {
                               color: AppColors.primary,
                             ),
                           ),
+                        // Vorjahr steht in derselben Zeile wie sein
+                        // Bezugswert (Daniel 14.09.) — aus fünf Zeilen werden
+                        // drei, und die Zuordnung ergibt sich nicht mehr nur
+                        // aus der Reihenfolge. Beide Vergleichswerte messen
+                        // denselben Zeitraum wie der Wert davor: gleicher
+                        // Monat bzw. ab 1. Januar, jeweils nur bis zum
+                        // heutigen Kalendertag. Sonst stünde ein halber Monat
+                        // gegen einen vollen.
                         if (monatsUmsatzCHF > 0)
-                          Text(
-                            '${_ganz(monatsUmsatzCHF)} CHF / Monat',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        // Vorjahr als Einordnung darunter. Es ist derselbe
-                        // Zeitraum — gleicher Monat, aber nur bis zum
-                        // heutigen Tag —, sonst stünde der halbe laufende
-                        // Monat gegen einen vollen und zeigte jeden Monat
-                        // einen Rückstand, den es nicht gibt.
-                        if (vorjahrUmsatzCHF > 0)
-                          Text(
-                            'Vorjahr ${_ganz(vorjahrUmsatzCHF)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _vergleichStil,
+                          _UmsatzZeile(
+                            wert: '${_ganz(monatsUmsatzCHF)} / Monat',
+                            vorjahr: vorjahrUmsatzCHF > 0
+                                ? _ganz(vorjahrUmsatzCHF)
+                                : null,
                           ),
                         if (jahrUmsatzCHF > 0)
-                          Text(
-                            '${_ganz(jahrUmsatzCHF)} CHF / Jahr',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        // Jahr des Vorjahres ebenfalls nur bis zum heutigen
-                        // Kalendertag — sonst stünde ein Dreivierteljahr
-                        // gegen ein volles.
-                        if (vorjahrJahrUmsatzCHF > 0)
-                          Text(
-                            'Vorjahr ${_ganz(vorjahrJahrUmsatzCHF)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _vergleichStil,
+                          _UmsatzZeile(
+                            wert: '${_ganz(jahrUmsatzCHF)} / Jahr',
+                            vorjahr: vorjahrJahrUmsatzCHF > 0
+                                ? _ganz(vorjahrJahrUmsatzCHF)
+                                : null,
                           ),
                       ],
                     ),

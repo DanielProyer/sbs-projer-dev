@@ -144,7 +144,7 @@ void main() {
       onTourenplan: () {},
     )));
 
-    expect(find.textContaining("12'345 CHF / Monat"), findsOneWidget);
+    expect(find.textContaining("12'345 / Monat", findRichText: true), findsOneWidget);
   });
 
   testWidgets('ohne Monatsumsatz steht nichts in der Kopfzeile', (tester) async {
@@ -157,7 +157,7 @@ void main() {
       onTourenplan: () {},
     )));
 
-    expect(find.textContaining('CHF / Monat'), findsNothing);
+    expect(find.textContaining("/ Monat", findRichText: true), findsNothing);
   });
 
   // Der Tagesumsatz stand in der alten Tagesuebersicht und ging beim Umbau
@@ -177,7 +177,7 @@ void main() {
     )));
 
     expect(find.textContaining('775 CHF heute'), findsOneWidget);
-    expect(find.textContaining("8'316 CHF / Monat"), findsOneWidget);
+    expect(find.textContaining("8'316 / Monat", findRichText: true), findsOneWidget);
   });
 
   testWidgets('Vorjahreswert steht unter dem Monatsumsatz', (tester) async {
@@ -193,7 +193,7 @@ void main() {
       onTourenplan: () {},
     )));
 
-    expect(find.text("Vorjahr 4'102"), findsOneWidget);
+    expect(find.textContaining("Vj 4'102", findRichText: true), findsOneWidget);
   });
 
   testWidgets('Jahresumsatz und sein Vorjahr stehen darunter', (tester) async {
@@ -213,10 +213,10 @@ void main() {
 
     // Schweizer Tausender-Apostroph, keine Rappen — sechsstellige Zahlen sind
     // sonst in einer 11-px-Zeile nicht lesbar.
-    expect(find.text("105'084 CHF / Jahr"), findsOneWidget);
-    expect(find.text("Vorjahr 103'266"), findsOneWidget);
-    // Beide Vorjahres-Zeilen nebeneinander: die zum Monat und die zum Jahr.
-    expect(find.textContaining('Vorjahr '), findsNWidgets(2));
+    expect(find.textContaining("105'084 / Jahr", findRichText: true), findsOneWidget);
+    expect(find.textContaining("Vj 103'266", findRichText: true), findsOneWidget);
+    // Beide Vergleichswerte: einer in der Monats-, einer in der Jahreszeile.
+    expect(find.textContaining("Vj ", findRichText: true), findsNWidgets(2));
   });
 
   testWidgets('ohne Vorjahreswert bleibt die Zeile weg', (tester) async {
@@ -230,7 +230,7 @@ void main() {
       onTourenplan: () {},
     )));
 
-    expect(find.textContaining('Vorjahr'), findsNothing);
+    expect(find.textContaining("Vj ", findRichText: true), findsNothing);
   });
 
   testWidgets('Kopfzeile passt auf 360 px (Pixel 9)', (tester) async {
@@ -269,7 +269,7 @@ void main() {
     )));
 
     expect(find.textContaining('CHF heute'), findsNothing);
-    expect(find.textContaining("8'316 CHF / Monat"), findsOneWidget);
+    expect(find.textContaining("8'316 / Monat", findRichText: true), findsOneWidget);
   });
 
   testWidgets('Liste hat keinen eigenen Scrollbereich', (tester) async {
