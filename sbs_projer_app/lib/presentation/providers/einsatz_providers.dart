@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
@@ -64,4 +65,31 @@ final einsaetzeProvider = FutureProvider.family<List<Einsatz>, int>((
       if (imJahr(t.datum)) einsatzAusTermin(t, betrieb: betriebe[t.betriebId]),
   ]..sort((a, b) => b.datum.compareTo(a.datum));
   return liste;
+});
+
+/// Anstehende Einsätze für die Aufgabenliste (B6): Störungen, Montagen,
+/// Eigenaufträge und offene Termine mit Stufe offen/geplant/inArbeit — aus
+/// den Speicher-Providern über die B2-Adapter, ohne Jahresgrenze und ohne
+/// Buchungsabfrage (für Offenes belanglos). Saison-Termine laufen in der
+/// Aufgabenliste als eigene Quelle und fehlen hier; Reinigungen («offen» =
+/// Entwurf), Saison-Belege und Pikett sind nie Aufgaben.
+final anstehendeEinsaetzeProvider = Provider<List<Einsatz>>((ref) {
+  final betriebe = ref.watch(betriebLookupProvider);
+  const anstehend = {
+    EinsatzStatus.offen,
+    EinsatzStatus.geplant,
+    EinsatzStatus.inArbeit,
+  };
+  final termine = ref.watch(offeneTermineProvider).valueOrNull ?? const [];
+  return [
+    for (final s in ref.watch(stoerungenProvider))
+      einsatzAusStoerung(s, betrieb: betriebe[s.betriebId]),
+    for (final m in ref.watch(montagenProvider))
+      einsatzAusMontage(m, betrieb: betriebe[m.betriebId]),
+    for (final e in ref.watch(eigenauftraegeProvider))
+      einsatzAusEigenauftrag(e, betrieb: betriebe[e.betriebId]),
+    for (final t in termine)
+      if (t.typ != 'eroeffnungsreinigung' && t.typ != 'endreinigung')
+        einsatzAusTermin(t, betrieb: betriebe[t.betriebId]),
+  ].where((e) => anstehend.contains(e.status)).toList();
 });
