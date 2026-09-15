@@ -124,7 +124,7 @@ Ein unabhängiger Prüfer hat die Analyse nach dem Schreiben auf Lücken abgeklo
 
 **B5 · Tourenplan entlasten.** Titelleiste auf zwei Knöpfe (Heute, Aktualisieren) plus Überlauf-Menü; Wochen-Navigator und Tages-Chips zu einer Zeile; die Zeitachse bekommt den Platz.
 
-**B6 · Ein Aufgaben-Begriff.** Glocke und Kachel speisen sich aus derselben Quelle; Erinnerungen und offene Einsätze stehen in einer Liste, nach Fälligkeit sortiert. Was heute «bewusst getrennt» ist, war für die Glocke richtig gedacht und für die Kachel falsch.
+**B6 · Ein Aufgaben-Begriff.** ✅ **v0.106.0 (15.09.2026)** — genau so: eine Liste (`aufgabenListeProvider`), fünf Oberflächen, ein Filter «jetzt fällig» für Glocke/Karte/Kachel/Sheet. Schwelle für Einsätze: erst heute oder überfällig (die geplante Montage von Donnerstag steht im Tagesplan, nicht in der Glocke). Mit derselben Auslieferung sind die sechs alten Listen-Screens weg (B2-Zyklus). Ursprünglicher Text: Glocke und Kachel speisen sich aus derselben Quelle; Erinnerungen und offene Einsätze stehen in einer Liste, nach Fälligkeit sortiert. Was «bewusst getrennt» war, war für die Glocke richtig gedacht und für die Kachel falsch.
 
 **B7 · Ein «Arbeit beenden»-Widget für alle Typen** plus ein Wächter-Test, der `FilledButton` in kritischen Aktionen abbricht. Die Regel aus CLAUDE.md wird damit erzwungen statt erinnert.
 

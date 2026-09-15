@@ -2,7 +2,32 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.105.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1513 Tests grün** · Git sauber.
+**Stand:** **v0.106.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1550 Tests grün** · Git sauber.
+
+### ✅ B6 — ein Aufgaben-Begriff (v0.106.0, 15.09.)
+
+Spec `docs/superpowers/specs/2026-09-15-aufgaben-begriff-b6-design.md`, Plan
+`docs/superpowers/plans/2026-09-15-aufgaben-begriff-b6.md` (neun Aufgaben,
+subagent-getrieben). **Eine Liste, ein Filter:** `aufgabenListeProvider`
+(`lib/core/util/aufgabe.dart` baut sie rein aus Detektoren, eigenen Aufgaben,
+anstehenden Einsätzen über die B2-Adapter, Saison-Vorschlägen/-Terminen und
+Änderungsvorschlägen). Glocke, Startkarte, Kachel, Sheet und Screen lesen
+dieselbe Liste; Glocke/Karte/Kachel/Sheet zeigen `jetztFaellig` (Einsätze erst
+heute/überfällig — Schwelle 1), der Screen alles. Eine Zeile `AufgabeZeile`,
+eine Aktionsklasse `AufgabenAktionen` (Einplanen-Ablauf unverändert
+umgezogen). Weg: `aufgabenProvider`, `AufgabenStand`,
+`offeneEigeneAufgabenProvider`, Handrechnung des Kachelzählers, `ListTile`
+im Sheet. Wächter `test/aufgaben_eine_quelle_waechter_test.dart`.
+
+- **Alte Listen sind weg** (B2-Zyklus): sechs `*_list_screen.dart` und ihre
+  Routen gelöscht; `alte_listen_ablauf_test.dart` ist seit 0.106.0 scharf und
+  grün. Ratsche `status_vergleiche_ratsche_test.dart`: **20** (23 → 20).
+- **Klicktest Daniel:** Glocke zeigt die Störung von gestern **und** die
+  MWST-Erinnerung in einer Liste · Kachelzähler = Glocken-Badge · Einplanen
+  aus dem Sheet legt den Einsatz in den Tagesplan · «Alle (N)» im Sheet öffnet
+  den Screen · alte Kachel-Routen (`/reinigungen` …) führen über die
+  404-Weiche auf die Startseite.
+- Offen aus der Analyse: A6 (Nutzungsdaten), B1 (Navigationsleiste), B3/B4.
 
 ### ✅ B2 — ein Einsätze-Screen für alle Typen (v0.105.0, 15.09.)
 
