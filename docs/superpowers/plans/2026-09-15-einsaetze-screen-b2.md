@@ -4,7 +4,7 @@
 
 **Ziel:** Ein Screen `/einsaetze` zeigt Reinigungen, Störungen, Montagen, Eigenaufträge, Saison-Belege, Termine und Pikett in einer Liste mit **einem** abgeleiteten Status — ohne Datenbankänderung.
 
-**Architektur:** Der Status ist eine reine Funktion je Typ aus vorhandenen Feldern (`core/util/einsatz_status.dart`). Eine Sicht `Einsatz` übersetzt jedes lokale Modell in dieselbe Form (`core/util/einsatz.dart`). Ein Provider vereinigt die vorhandenen Quellen zu `List<Einsatz>`; der Screen filtert und zeigt, die Detailseiten bleiben. Eine neue Abfrage liefert je Jahr die Beleg-Ids mit Ertragsbuchung — daraus folgt «verrechnet» für Reinigungen. Zwei Wächter halten den Zustand: eine Ratsche über die verstreuten Statusvergleiche und ein Ablaufdatum für die sechs alten Listen.
+**Architektur:** Der Status ist eine reine Funktion je Typ aus vorhandenen Feldern (`core/util/einsatz_lage.dart`). Eine Sicht `Einsatz` übersetzt jedes lokale Modell in dieselbe Form (`core/util/einsatz.dart`). Ein Provider vereinigt die vorhandenen Quellen zu `List<Einsatz>`; der Screen filtert und zeigt, die Detailseiten bleiben. Eine neue Abfrage liefert je Jahr die Beleg-Ids mit Ertragsbuchung — daraus folgt «verrechnet» für Reinigungen. Zwei Wächter halten den Zustand: eine Ratsche über die verstreuten Statusvergleiche und ein Ablaufdatum für die sechs alten Listen.
 
 **Tech-Stack:** Flutter · Riverpod · GoRouter · Supabase · `flutter_test`
 
@@ -18,7 +18,7 @@
 
 | Datei | Zuständigkeit | Neu/Ändern |
 |---|---|---|
-| `lib/core/util/einsatz_status.dart` | Enums `EinsatzStatus`, `EinsatzKennzeichen`; sieben Ableitungsfunktionen | **Neu** |
+| `lib/core/util/einsatz_lage.dart` | Enums `EinsatzStatus`, `EinsatzKennzeichen`; sieben Ableitungsfunktionen (nicht `einsatz_status.dart` — dort lebt `einsatzStatusNachSpeichern`, Fall Sartons) | **Neu** |
 | `lib/core/util/einsatz.dart` | Sicht `Einsatz`, `EinsatzTyp`, sieben `einsatzAus…`-Adapter, `EinsatzFilter`, `filtereEinsaetze` | **Neu** |
 | `lib/data/repositories/buchung_repository.dart` | `belegIdsMitBuchung({ab, bis})` | Ändern |
 | `lib/presentation/providers/einsatz_providers.dart` | `belegIdsMitBuchungProvider(jahr)`, `einsaetzeProvider(jahr)` | **Neu** |
@@ -26,7 +26,7 @@
 | `lib/presentation/screens/einsaetze/einsaetze_screen.dart` | `EinsaetzeInhalt` (reine Darstellung) + `EinsaetzeScreen` (angebunden), «+»-Sheet | **Neu** |
 | `lib/core/config/router.dart` | Route `/einsaetze`, Helfer `einsatzTypAusQuery` | Ändern |
 | `lib/presentation/screens/home_screen.dart:139-169,261` | Kacheln und Pikett-Eintrag führen auf `/einsaetze?typ=…` | Ändern |
-| `test/einsatz_status_test.dart` | Ableitung tabellengetrieben | **Neu** |
+| `test/einsatz_lage_test.dart` | Ableitung tabellengetrieben | **Neu** |
 | `test/einsatz_test.dart` | Adapter, Filter | **Neu** |
 | `test/einsatz_providers_test.dart` | Vereinigung mit überschriebenen Quellen | **Neu** |
 | `test/einsatz_zeile_test.dart` | Zeile mit echter Schrift auf 360 px | **Neu** |
@@ -45,17 +45,17 @@
 ### Task 1: Der abgeleitete Status
 
 **Files:**
-- Create: `lib/core/util/einsatz_status.dart`
-- Test: `test/einsatz_status_test.dart`
+- Create: `lib/core/util/einsatz_lage.dart`
+- Test: `test/einsatz_lage_test.dart`
 
 Hintergrund: Sechs Typen, vier Status-Vokabulare. Die Datenbank kennt praktisch nur «fertig» (je Tabelle ein Wert); «geplant» und «in Arbeit» ergeben sich aus `geplant_am`, `arbeit_von`/`arbeit_bis` und `termine`. «Verrechnet» ist bei Reinigungen `abgerechnet` **oder** Ertragsbuchung vorhanden — `abgerechnet` allein heisst nur «in einer Heineken-Monatsrechnung». Alle Eingaben sind Primitive, kein Modell: So laufen die Tests ohne Isar, und die Regel bleibt für die v2 lesbar.
 
 - [ ] **Step 1: Den fehlschlagenden Test schreiben**
 
 ```dart
-// test/einsatz_status_test.dart
+// test/einsatz_lage_test.dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 
 void main() {
   const keines = EinsatzKennzeichen.keines;
@@ -231,13 +231,13 @@ void main() {
 
 - [ ] **Step 2: Test laufen lassen, Fehlschlag prüfen**
 
-Run: `flutter test test/einsatz_status_test.dart`
-Erwartet: FEHLER — `Target of URI doesn't exist: einsatz_status.dart`
+Run: `flutter test test/einsatz_lage_test.dart`
+Erwartet: FEHLER — `Target of URI doesn't exist: einsatz_lage.dart`
 
 - [ ] **Step 3: Umsetzung**
 
 ```dart
-// lib/core/util/einsatz_status.dart
+// lib/core/util/einsatz_lage.dart
 
 /// Ein Status für alle Einsatztypen (B2).
 ///
@@ -388,13 +388,13 @@ String einsatzKennzeichenLabel(EinsatzKennzeichen k) => switch (k) {
 
 - [ ] **Step 4: Test laufen lassen, Erfolg prüfen**
 
-Run: `flutter test test/einsatz_status_test.dart`
+Run: `flutter test test/einsatz_lage_test.dart`
 Erwartet: BESTANDEN, 28 Tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lib/core/util/einsatz_status.dart test/einsatz_status_test.dart
+git add lib/core/util/einsatz_lage.dart test/einsatz_lage_test.dart
 git commit -m "feat: ein abgeleiteter Status fuer alle Einsatztypen (B2)"
 ```
 
@@ -416,7 +416,7 @@ Felder der lokalen Modelle (geprüft 15.09.2026): `ReinigungLocal` (`serverId`, 
 // test/einsatz_test.dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -641,7 +641,7 @@ Geprüft 15.09.2026: Im VM-Testlauf gelten die **nativen** Isar-Klassen (`dart.l
 ```dart
 // lib/core/util/einsatz.dart
 import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart';
@@ -1075,7 +1075,7 @@ Vorhandene Quellen (geprüft): `reinigungenByJahrProvider(jahr)` (`FutureProvide
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
@@ -1195,7 +1195,7 @@ import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 /// Beleg-Ids mit Ertragsbuchung im Kalenderjahr — eine Anfrage je Jahr,
 /// gecacht, solange der Screen offen ist. Grundlage für «verrechnet» bei
-/// Reinigungen (siehe `einsatz_status.dart`).
+/// Reinigungen (siehe `einsatz_lage.dart`).
 final belegIdsMitBuchungProvider = FutureProvider.family<Set<String>, int>((ref, jahr) {
   return BuchungRepository.belegIdsMitBuchung(
     ab: DateTime(jahr, 1, 1),
@@ -1275,7 +1275,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz_zeile.dart';
 
 Einsatz einsatz({
@@ -1393,7 +1393,7 @@ import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 
 const _wochentage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -1595,7 +1595,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/presentation/screens/einsaetze/einsaetze_screen.dart';
 
 Einsatz e(EinsatzTyp typ, String name, {EinsatzStatus status = EinsatzStatus.erledigt, String ort = 'Chur'}) =>
@@ -1737,7 +1737,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
-import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/einsatz_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
@@ -2185,7 +2185,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Ratsche: Die verstreuten Statusvergleiche dürfen nur weniger werden.
 ///
 /// WARUM: Sechs Einsatztypen tragen vier Status-Vokabulare. Seit B2 gibt es
-/// eine Ableitung (`einsatz_status.dart`), aber rund 37 Stellen vergleichen
+/// eine Ableitung (`einsatz_lage.dart`), aber rund 37 Stellen vergleichen
 /// noch direkt (`status == 'behoben'`). Sie alle auf einmal umzubauen wäre
 /// eine Grossaktion mit Risiko; sie einfach zu lassen hiesse, dass neue
 /// dazukommen. Diese Ratsche schreibt den Stand fest — jeder, der eine
@@ -2207,6 +2207,9 @@ void main() {
       r"nachbearbeitung_noetig|erledigt|vorgeschlagen|abgesagt)'",
     );
     const ausgenommen = {
+      'lib/core/util/einsatz_lage.dart',
+      // Alt: `einsatzStatusNachSpeichern` (Fall Sartons, v0.76.0) — bleibt,
+      // bis die Formulare auf die Lage umgestellt sind.
       'lib/core/util/einsatz_status.dart',
       'lib/core/util/tour_filter.dart',
     };
@@ -2233,7 +2236,7 @@ void main() {
       reason:
           'Es gibt ${treffer.length} direkte Statusvergleiche, erlaubt sind '
           '$erlaubt. Neue Vergleiche gehoeren nicht in den Code — die Stufe '
-          'liefert einsatz_status.dart. Wer eine Datei anfasst, stellt deren '
+          'liefert einsatz_lage.dart. Wer eine Datei anfasst, stellt deren '
           'Vergleiche um und senkt den Wert hier.\n${treffer.join('\n')}',
     );
   });
@@ -2335,7 +2338,7 @@ Was sich ohne Login nicht prüfen lässt und Daniel nach dem Deploy prüft: die 
 - `ToDo.md`: B2 als erledigt mit dem Ratschen-Startwert; Hinweis, dass die alten Listen mit v0.106.0 fallen (der Wächter erinnert).
 - `docs/app-analyse-2026-09.md`: B2 ✅ mit den zwei Abweichungen (fünf Stufen; Aufgaben-Screen bleibt für B6).
 - Memory `app_analyse_2026_09.md`: Stand nachziehen.
-- **Übergabe an die Heineken-Session** (Memory `projektuebergreifend_absprechen`): `einsatz_status.dart` ist die Spezifikation des Einsatz-Modells (C1) — dort nicht nachbauen, sondern übernehmen.
+- **Übergabe an die Heineken-Session** (Memory `projektuebergreifend_absprechen`): `einsatz_lage.dart` ist die Spezifikation des Einsatz-Modells (C1) — dort nicht nachbauen, sondern übernehmen.
 
 ---
 
@@ -2343,4 +2346,4 @@ Was sich ohne Login nicht prüfen lässt und Daniel nach dem Deploy prüft: die 
 
 - [ ] Klicktest Daniel (siehe Task 9, Schritt 2).
 - [ ] Beim nächsten Deploy nach v0.105.0: die sechs alten Listen samt Routen und Tests entfernen — spätestens, wenn `alte_listen_ablauf_test.dart` anschlägt.
-- [ ] Bei jeder Datei aus der Ratschen-Liste, die ohnehin angefasst wird: Vergleiche auf `einsatz_status.dart` umstellen, Wert senken.
+- [ ] Bei jeder Datei aus der Ratschen-Liste, die ohnehin angefasst wird: Vergleiche auf `einsatz_lage.dart` umstellen, Wert senken.
