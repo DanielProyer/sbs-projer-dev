@@ -114,6 +114,11 @@ Kennzeichen: Reinigung `storniert`, Montage `abgebrochen`, Termin `abgesagt` →
 **abgebrochen**; Störung und Eigenauftrag `nicht_behebbar` → **nicht
 behebbar**. Beide bleiben sichtbar, statt in «erledigt» zu verschwinden.
 
+`eroeffnungsreinigungStatus` gilt für beide Belegarten der Tabelle
+`eroeffnungsreinigungen` — `art` ist `eroeffnung` (136) oder `endreinigung`
+(25). In der Zeile heisst der Typ entsprechend «Eröffnungsreinigung» oder
+«Endreinigung»; die Ableitung ist dieselbe.
+
 **Vorrang:** Treffen mehrere Stufen zu, gilt die höchste — `abgerechnet` auf
 einer Störung `in_bearbeitung` zeigt «verrechnet». Ein Kennzeichen ändert die
 Stufe nicht, es steht daneben.
@@ -134,7 +139,7 @@ class Einsatz {
   final String? regionId;
   final DateTime datum;
   final String? zeit;            // nur bei geplanten Terminen (HH:mm)
-  final String? beschreibung;    // Störung/Montage: was diktiert oder erfasst wurde
+  final String? beschreibung;    // Störung: problemBeschreibung · Montage: beschreibung
   final EinsatzStatus status;
   final EinsatzKennzeichen kennzeichen;
   final double? betragCHF;       // null bei geplanten und bei Terminen
@@ -189,8 +194,10 @@ Route `/einsaetze`, optional `?typ=reinigung` (Vorwahl im Typ-Filter).
 
 **Zeile** (Variante B), aus `InkWell` + `Container` + `Row`, kein `ListTile`:
 - links Typ-Symbol; Mitte: Betrieb fett, darunter «Typ · Ort · Wochentag
-  Datum», bei geplanten Terminen mit Uhrzeit, bei Störung und Montage mit der
-  Beschreibung; rechts Status-Badge und Betrag (leer bei geplant und Termin).
+  Datum», bei geplanten Störungen und Montagen mit der geplanten Uhrzeit
+  (`geplantZeit`; Termine tragen keine Uhrzeit), bei Störung und Montage mit
+  dem Beschreibungstext; rechts Status-Badge und Betrag (leer bei geplant und
+  Termin).
 - Tipp öffnet die bestehende Detailseite des Typs (`/reinigungen/:id` usw.);
   Termine öffnen den Betrieb.
 
