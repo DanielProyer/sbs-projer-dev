@@ -110,7 +110,7 @@ Ein unabhängiger Prüfer hat die Analyse nach dem Schreiben auf Lücken abgeklo
 
 **A8 · «Erledigt» auf den Detailseiten von Störung und Montage.** ✅ **Erledigt in v0.102.0 (15.09.2026)** — setzt Endzeit und Status, mit Sicherheitsabfrage. Die Tourenplan-Navigation blieb unverändert: Bei Störung und Montage führte sie schon auf den Einsatz, bei Reinigungen ist die Anlagen-Seite richtig, weil die Reinigung dort erst entsteht — und seit A3 liegt daneben der Start-Pfeil. Dazu führt der Tourenplan-Tap auf den Einsatz statt auf die Anlage. Aus vier Sprüngen werden zwei.
 
-**A9 · Ein Betrieb-Wähler für alle Formulare.** Das Vollbild aus der Reinigung, mit Suche nach Name, Ort und Betriebsnummer. Sieben Kopien werden eine — und «Chur» findet überall.
+**A9 · Ein Betrieb-Wähler für alle Formulare.** ✅ **Erledigt in v0.104.0 (15.09.2026)** — als gemeinsame Suchregel `betriebPasst()`, nicht als gemeinsame Oberfläche: Alle Formulare nutzen ohnehin dasselbe `Autocomplete`, unterschiedlich war nur die Filterregel. Es waren sechs Betriebssuchen, nicht sieben — drei vermutete Fundstellen sind Material-Autocompletes. Das Vollbild aus der Reinigung, mit Suche nach Name, Ort und Betriebsnummer. Sieben Kopien werden eine — und «Chur» findet überall.
 
 ### B — mittel (2 bis 4 Tage): Struktur, die bleibt
 

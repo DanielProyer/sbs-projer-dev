@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.103.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1437 Tests grün** · Git sauber.
+**Stand:** **v0.104.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1445 Tests grün** · Git sauber.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
@@ -37,6 +37,24 @@ auf Zeile 872 an.
 keine abgeschlossene Reinigung ohne Ertragsbuchung seit dem 01.08. Die fehlende
 Buchung für Alpina Resort hat der Nachlauf der App um 17:09 selbst nachgeholt —
 die Kette funktioniert.
+
+### ✅ A9 — eine Suchregel für alle Betriebs-Auswahlfelder (v0.104.0)
+
+«Chur» findet jetzt überall Betriebe, auch in Eigenauftrag und
+Eröffnungsreinigung, wo die Suche nur den Namen kannte. Die Betriebsnummer
+ebenso — die war vorher nur in Störung und Reinigung durchsuchbar. Entschieden
+wird überall in `betriebPasst()` (`core/util/betrieb_suche.dart`), getestet
+mit 8 Fällen.
+
+**Zwei Korrekturen zur Analyse**, beim Bauen aufgefallen:
+- Es waren **sechs** Betriebssuchen, nicht sieben. Drei der vermuteten
+  Fundstellen sind Material-Autocompletes (Lager mit `dboNr`) und haben mit
+  Betrieben nichts zu tun.
+- **Kein UI-Umbau nötig.** Die Analyse schlug vor, das Vollbild aus der
+  Reinigung überall einzusetzen — tatsächlich nutzen alle Formulare längst
+  dasselbe `Autocomplete`, unterschiedlich war nur die Filterregel. Damit war
+  A9 eine reine Funktion plus sechs Aufrufstellen statt eines
+  Oberflächen-Umbaus.
 
 ### ✅ A4 — Diktat erkennt Reinigungen (v0.103.0, `parse-einsatz` v9)
 
