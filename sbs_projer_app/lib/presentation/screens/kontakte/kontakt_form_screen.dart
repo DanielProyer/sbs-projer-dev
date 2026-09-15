@@ -189,7 +189,12 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
         if (textEditingValue.text.isEmpty) return filtered.take(20);
         final query = textEditingValue.text.toLowerCase();
         return filtered.where(
-          (b) => betriebPasst(name: b.name, ort: b.ort, suche: query),
+          (b) => betriebPasst(
+            name: b.name,
+            ort: b.ort,
+            betriebNr: b.betriebNr,
+            suche: query,
+          ),
         );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {

@@ -1813,7 +1813,12 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
         if (textEditingValue.text.isEmpty) return betriebe.take(20);
         final query = textEditingValue.text.toLowerCase();
         return betriebe.where(
-          (b) => betriebPasst(name: b.name, ort: b.ort, suche: query),
+          (b) => betriebPasst(
+            name: b.name,
+            ort: b.ort,
+            betriebNr: b.betriebNr,
+            suche: query,
+          ),
         );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
