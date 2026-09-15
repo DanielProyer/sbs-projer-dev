@@ -28,8 +28,10 @@ void main() {
         // Argumentblock grob abgrenzen: bis zur schliessenden Klammer auf
         // gleicher Tiefe reicht hier ein Fenster von 600 Zeichen — die
         // dense-Angabe steht als benannter Parameter immer weit vorne.
-        final fenster =
-            text.substring(start, (start + 600).clamp(0, text.length));
+        final fenster = text.substring(
+          start,
+          (start + 600).clamp(0, text.length),
+        );
         if (RegExp(r'dense:\s*true').hasMatch(fenster)) {
           verstoesse.add(f.path);
           break;
@@ -63,10 +65,14 @@ void main() {
     for (final pfad in [
       'lib/presentation/widgets/heute_liste.dart',
       'lib/presentation/widgets/einsatz_zeile.dart',
+      'lib/presentation/widgets/aufgabe_zeile.dart',
     ]) {
       final datei = File(pfad);
-      expect(datei.existsSync(), isTrue,
-          reason: '$pfad fehlt — Pfad im Waechter anpassen');
+      expect(
+        datei.existsSync(),
+        isTrue,
+        reason: '$pfad fehlt — Pfad im Waechter anpassen',
+      );
       // Kommentare ausblenden, bevor gesucht wird: In diesen Dateien steht
       // erklärt, warum dort kein ListTile und kein FilledButton verwendet
       // wird — diese Erklärung darf den Wächter nicht auslösen. Genau dieser
