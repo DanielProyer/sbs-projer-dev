@@ -98,23 +98,24 @@ enum EinsatzKennzeichen { keines, abgebrochen, nichtBehebbar }
 
 Je Typ eine reine Funktion mit **primitiven Eingaben** — kein Modell, damit
 die Tests ohne Isar und Supabase auskommen und die Regel für die v2 lesbar
-bleibt:
+bleibt. Jede liefert eine `EinsatzLage` — Stufe und Kennzeichen zusammen, deshalb
+«Lage» und nicht «Status»:
 
 | Funktion | Eingaben | offen | geplant | in Arbeit | erledigt | verrechnet |
 |---|---|---|---|---|---|---|
-| `reinigungStatus` | `status`, `abgerechnet`, `hatBuchung` | — | — | `offen` | `abgeschlossen` | `abgerechnet` **oder** `hatBuchung` |
-| `stoerungStatus` | `status`, `geplantAm`, `arbeitVon`, `arbeitBis`, `abgerechnet` | `offen` ohne Termin | `offen` mit `geplantAm` | `in_bearbeitung`, oder `arbeitVon` ohne `arbeitBis` | `behoben`, `nicht_behebbar` | `abgerechnet` |
-| `montageStatus` | `status`, `arbeitVon`, `arbeitBis`, `abgerechnet` | — | `geplant` | `in_bearbeitung`, oder `arbeitVon` ohne `arbeitBis` | `abgeschlossen` | `abgerechnet` |
-| `eigenauftragStatus` | `status`, `abgerechnet` | — | — | `nachbearbeitung_noetig` | `behoben`, `nicht_behebbar` | `abgerechnet` |
-| `eroeffnungsreinigungStatus` | `abgerechnet` | — | — | — | immer | `abgerechnet` |
-| `terminStatus` | `status` | `vorgeschlagen` | `geplant` | — | `erledigt` | — |
-| `pikettStatus` | `istAktiv`, `abgerechnet` | — | — | `istAktiv` | sonst | `abgerechnet` |
+| `reinigungLage` | `status`, `abgerechnet`, `hatBuchung` | — | — | `offen` | `abgeschlossen` | `abgerechnet` **oder** `hatBuchung` |
+| `stoerungLage` | `status`, `geplantAm`, `arbeitVon`, `arbeitBis`, `abgerechnet` | `offen` ohne Termin | `offen` mit `geplantAm` | `in_bearbeitung`, oder `arbeitVon` ohne `arbeitBis` | `behoben`, `nicht_behebbar` | `abgerechnet` |
+| `montageLage` | `status`, `arbeitVon`, `arbeitBis`, `abgerechnet` | — | `geplant` | `in_bearbeitung`, oder `arbeitVon` ohne `arbeitBis` | `abgeschlossen` | `abgerechnet` |
+| `eigenauftragLage` | `status`, `abgerechnet` | — | — | `nachbearbeitung_noetig` | `behoben`, `nicht_behebbar` | `abgerechnet` |
+| `saisonreinigungLage` | `abgerechnet` | — | — | — | immer | `abgerechnet` |
+| `terminLage` | `status` | `vorgeschlagen` | `geplant` | — | `erledigt` | — |
+| `pikettLage` | `istAktiv`, `abgerechnet` | — | — | `istAktiv` | sonst | `abgerechnet` |
 
 Kennzeichen: Reinigung `storniert`, Montage `abgebrochen`, Termin `abgesagt` →
 **abgebrochen**; Störung und Eigenauftrag `nicht_behebbar` → **nicht
 behebbar**. Beide bleiben sichtbar, statt in «erledigt» zu verschwinden.
 
-`eroeffnungsreinigungStatus` gilt für beide Belegarten der Tabelle
+`saisonreinigungLage` gilt für beide Belegarten der Tabelle
 `eroeffnungsreinigungen` — `art` ist `eroeffnung` (136) oder `endreinigung`
 (25). In der Zeile heisst der Typ entsprechend «Eröffnungsreinigung» oder
 «Endreinigung»; die Ableitung ist dieselbe.
@@ -194,10 +195,9 @@ Route `/einsaetze`, optional `?typ=reinigung` (Vorwahl im Typ-Filter).
 
 **Zeile** (Variante B), aus `InkWell` + `Container` + `Row`, kein `ListTile`:
 - links Typ-Symbol; Mitte: Betrieb fett, darunter «Typ · Ort · Wochentag
-  Datum», bei geplanten Störungen und Montagen mit der geplanten Uhrzeit
-  (`geplantZeit`; Termine tragen keine Uhrzeit), bei Störung und Montage mit
-  dem Beschreibungstext; rechts Status-Badge und Betrag (leer bei geplant und
-  Termin).
+  Datum», bei Geplantem mit Uhrzeit (Störung/Montage `geplantZeit`, Termin
+  `uhrzeitVon`), bei Störung und Montage mit dem Beschreibungstext; rechts
+  Status-Badge und Betrag (leer bei geplant und Termin).
 - Tipp öffnet die bestehende Detailseite des Typs (`/reinigungen/:id` usw.);
   Termine öffnen den Betrieb.
 
