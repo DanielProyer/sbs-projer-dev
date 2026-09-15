@@ -100,7 +100,7 @@ Ein unabhängiger Prüfer hat die Analyse nach dem Schreiben auf Lücken abgeklo
 
 **A3 · «Reinigung beginnen» dort, wo man steht.** ✅ **Erledigt in v0.100.0 (13.09.2026).** Drei Einstiege — Start-Pfeil in der Heute-Liste, Menüpunkt im Tourenplan-Block, Knopf auf der Betriebsseite — für alle drei Einsatzarten. Aus fünf Schritten wird einer. **Billiger als gedacht:** Die Route `/reinigungen/neu?betriebId=…&anlageId=…` gab es bereits, sie wurde nur von der Betriebsauswahl selbst genutzt; neu ist `anlageIds=a,b,c` für gebündelte Besuche, damit Blue Cinema mit allen drei Anlagen startet statt mit einer.
 
-**A4 · Diktat für Reinigung und Spesen.** «Alpenblick gereinigt, zwei Hähne, Wasser gewechselt» und «Tanken 84.50 Coop Chur» — dann ist das Mikrofon der eine Erfassungsweg für alles, was draussen passiert. Die Auswertung (`parse-einsatz`) kennt die Betriebe schon.
+**A4 · Diktat für Reinigung und Spesen.** ✅ **Teilweise erledigt in v0.103.0 (15.09.2026)** — Reinigung ja, Spesen bewusst nicht: ohne Belegbild kein Vorsteuerabzug, und der Scanner braucht das Foto ohnehin. Das Diktat legt die Reinigung nicht an, sondern öffnet das Formular vorbelegt — an einer abgeschlossenen Reinigung hängen Rechnung, Buchung und Kundenmail. «Alpenblick gereinigt, zwei Hähne, Wasser gewechselt» und «Tanken 84.50 Coop Chur» — dann ist das Mikrofon der eine Erfassungsweg für alles, was draussen passiert. Die Auswertung (`parse-einsatz`) kennt die Betriebe schon.
 
 **A5 · Breite begrenzen am PC.** ✅ **Erledigt in v0.102.0 (15.09.2026)** — `InhaltsBreite` zentral im `MaterialApp.builder` statt in jedem Screen, damit auch Dialoge und Sheets begrenzt sind. Inhalt auf 720 px zentrieren — eine Zeile pro Screen (`ConstrainedBox` im Scaffold-Body). Die leeren Kästen verschwinden.
 

@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.102.0 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **191** · **1436 Tests grün** · Git sauber.
+**Stand:** **v0.103.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1437 Tests grün** · Git sauber.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
@@ -37,6 +37,34 @@ auf Zeile 872 an.
 keine abgeschlossene Reinigung ohne Ertragsbuchung seit dem 01.08. Die fehlende
 Buchung für Alpina Resort hat der Nachlauf der App um 17:09 selbst nachgeholt —
 die Kette funktioniert.
+
+### ✅ A4 — Diktat erkennt Reinigungen (v0.103.0, `parse-einsatz` v9)
+
+«Alpenblick gereinigt, zwei Hähne» oder «Bin durch beim Rössli in Chur» öffnet
+das **Reinigungsformular mit vorausgewähltem Betrieb**; das Diktierte steht als
+Hinweis daneben, damit die Details beim Ausfüllen nicht verloren gehen.
+
+**Bewusst ohne Speichern** (Entscheid Daniel): Eine abgeschlossene Reinigung
+zieht Rechnung, Ertragsbuchung und Mail an den Kunden nach sich — das darf
+nicht an einer Spracherkennung hängen. Den Abschluss macht Daniel im Formular.
+**Spesen bleiben aussen vor**: Ohne Belegbild gäbe es keinen Vorsteuerabzug,
+und der Scanner braucht das Foto ohnehin — die Kamera ist so schnell gezückt
+wie das Mikrofon.
+
+Der Weg ins Formular existierte schon (A3 hat die Route mit `betriebId`
+gebaut), deshalb waren es zwei Stunden statt einem Tag. `parse-einsatz` v9
+kennt die Art `reinigung` und grenzt sie ausdrücklich gegen Eröffnungs- und
+Endreinigung ab (nur bei genannter Saison gelten die beiden).
+
+Wächter `test/diktat_reinigung_waechter_test.dart` schlägt an, sobald im
+Reinigungs-Zweig ein Repository-Aufruf oder ein `await` auftaucht — die
+naheliegende Nachlässigkeit, weil jeder andere Diktat-Zweig genau so aussieht.
+Gegenprobe läuft.
+
+⚠️ **Offen: Klicktest.** Ob die Spracherkennung «gereinigt» zuverlässig von
+«Eröffnungsreinigung» trennt, liess sich nicht prüfen — `parse-einsatz`
+verlangt einen JWT. Einmal am Handy probieren; wird die Art falsch erkannt,
+lässt sie sich im Bestätigungsschritt umstellen und der Prompt nachschärfen.
 
 ### ✅ A8, A5 und die Zeiten-Trennung (v0.102.0, 15.09.2026)
 
