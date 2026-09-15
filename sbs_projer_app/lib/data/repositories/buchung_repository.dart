@@ -134,6 +134,45 @@ class BuchungRepository {
     return rows.map((r) => Buchung.fromJson(r)).toList();
   }
 
+  /// Alle Beleg-Ids, zu denen im Zeitraum eine nicht stornierte
+  /// Ertragsbuchung existiert (`beleg_typ = 'rechnung'`, siehe
+  /// `reinigung_buchung_service.dart`).
+  ///
+  /// WARUM eine Sammelabfrage: Der Einsätze-Screen (B2) leitet «verrechnet»
+  /// bei Reinigungen aus der Ertragsbuchung ab. `getByBeleg` je Zeile wären
+  /// rund tausend Anfragen pro Jahr; hier ist es eine. Seitenweise geladen,
+  /// weil PostgREST bei 1000 Zeilen deckelt (CLAUDE.md), mit `id` als
+  /// eindeutigem Sortierschlüssel.
+  static Future<Set<String>> belegIdsMitBuchung({
+    required DateTime ab,
+    required DateTime bis,
+  }) async {
+    final abStr = ab.toIso8601String().split('T').first;
+    final bisStr = bis.toIso8601String().split('T').first;
+    final ids = <String>{};
+    const seite = 1000;
+    var von = 0;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('buchungen')
+          .select('beleg_id')
+          .eq('user_id', _userId)
+          .eq('beleg_typ', 'rechnung')
+          .eq('ist_storniert', false)
+          .gte('datum', abStr)
+          .lte('datum', bisStr)
+          .not('beleg_id', 'is', null)
+          .order('id')
+          .range(von, von + seite - 1);
+      for (final r in rows) {
+        ids.add(r['beleg_id'] as String);
+      }
+      if (rows.length < seite) break;
+      von += seite;
+    }
+    return ids;
+  }
+
   static Future<int> count() async {
     final res = await SupabaseService.client
         .from('buchungen')
