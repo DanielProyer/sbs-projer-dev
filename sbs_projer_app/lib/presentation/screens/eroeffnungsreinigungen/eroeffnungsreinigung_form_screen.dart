@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/eroeffnungsreinigung_repository.dart';
@@ -243,7 +244,12 @@ class _EroeffnungsreinigungFormScreenState
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) return betriebe;
         final query = textEditingValue.text.toLowerCase();
-        return betriebe.where((b) => b.name.toLowerCase().contains(query));
+        return betriebe.where((b) => betriebPasst(
+              name: b.name,
+              ort: b.ort,
+              betriebNr: b.betriebNr,
+              suche: query,
+            ));
       },
       fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
         return TextFormField(

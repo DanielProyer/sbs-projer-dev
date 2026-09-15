@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
 import 'package:sbs_projer_app/core/util/arbeitszeit_vorschlag.dart';
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
@@ -1812,9 +1813,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
         if (textEditingValue.text.isEmpty) return betriebe.take(20);
         final query = textEditingValue.text.toLowerCase();
         return betriebe.where(
-          (b) =>
-              b.name.toLowerCase().contains(query) ||
-              (b.ort?.toLowerCase().contains(query) ?? false),
+          (b) => betriebPasst(name: b.name, ort: b.ort, suche: query),
         );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {

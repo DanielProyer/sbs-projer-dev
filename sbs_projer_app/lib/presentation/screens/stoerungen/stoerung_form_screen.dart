@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
@@ -1201,10 +1202,12 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
         }
         final query = textEditingValue.text.toLowerCase();
         return betriebe.where(
-          (b) =>
-              b.name.toLowerCase().contains(query) ||
-              (b.ort?.toLowerCase().contains(query) ?? false) ||
-              (b.betriebNr?.toLowerCase().contains(query) ?? false),
+          (b) => betriebPasst(
+            name: b.name,
+            ort: b.ort,
+            betriebNr: b.betriebNr,
+            suche: query,
+          ),
         );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {

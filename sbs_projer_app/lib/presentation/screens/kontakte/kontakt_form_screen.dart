@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/kontakt.dart';
@@ -188,9 +189,7 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
         if (textEditingValue.text.isEmpty) return filtered.take(20);
         final query = textEditingValue.text.toLowerCase();
         return filtered.where(
-          (b) =>
-              b.name.toLowerCase().contains(query) ||
-              (b.ort?.toLowerCase().contains(query) ?? false),
+          (b) => betriebPasst(name: b.name, ort: b.ort, suche: query),
         );
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {

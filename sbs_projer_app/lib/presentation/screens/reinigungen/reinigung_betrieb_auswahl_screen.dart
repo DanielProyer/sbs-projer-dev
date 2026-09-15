@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_status.dart';
+import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 
 /// Betriebsauswahl-Screen für neue Reinigungen.
@@ -29,12 +30,14 @@ class _ReinigungBetriebAuswahlScreenState
 
     final filtered = _searchQuery.isEmpty
         ? betriebe
-        : betriebe.where((b) {
-            final query = _searchQuery.toLowerCase();
-            return b.name.toLowerCase().contains(query) ||
-                (b.ort?.toLowerCase().contains(query) ?? false) ||
-                (b.betriebNr?.toLowerCase().contains(query) ?? false);
-          }).toList();
+        : betriebe
+              .where((b) => betriebPasst(
+                    name: b.name,
+                    ort: b.ort,
+                    betriebNr: b.betriebNr,
+                    suche: _searchQuery,
+                  ))
+              .toList();
 
     return Scaffold(
       appBar: AppBar(
