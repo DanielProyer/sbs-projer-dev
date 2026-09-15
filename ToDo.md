@@ -62,7 +62,23 @@ zeigen dorthin; Störungs-Zusatzfilter nur bei genau «Störung».
   Meldung. **Prüfen:** Reinigungen an Barzahler und Jahresrechnungs-Kunden
   haben keine Einzelrechnung — ergibt `belegIdsMitBuchung` dort
   «verrechnet» (Ertragsbuchung beim Abschluss vorhanden) oder bleibt es
-  «erledigt»? Ein SQL gegen `buchungen.beleg_id` je `zahlungsart` klärt es.
+  «erledigt»? — **Geprüft 15.09. abends: greift.** 2026 abgeschlossen:
+  barzahlung 50/52, jahresrechnung 2/2, rechnung_mail 54/54, rechnung_post
+  2/2, rechnung_tresen 89/94, ohne Zahlungsart 730/757 mit Buchung
+  (`beleg_id` = Reinigung). Heineken-Session informiert. Zwei Nebenbefunde:
+  1. **16 Heineken-Reinigungen Jan–Apr 2026 (CHF 1'939.40) ohne
+     `abgerechnet`-Flag** — real abgerechnet (Sammelposten «Gratisreinigungen
+     + Valora» der Monatsrechnungen deckt sich rappengenau: Jan 724.27 vs
+     App 724.30, Apr 94.05, Mai 369.70), aber die Jan–Mär-Rechnungen kamen
+     am 14.07. per Historik-Import (Totale, keine Service-Verknüpfung) und
+     die April-Rechnung setzte das Flag nicht. In `/einsaetze` stehen sie
+     deshalb auf «erledigt» statt «verrechnet». **Fix: `UPDATE reinigungen SET
+     abgerechnet = true` für genau diese 16** (Heineken-Betrieb, Jan–Apr
+     2026, abgeschlossen, nicht abgerechnet) — auf Daniels OK.
+  2. **Napoli Stories 31.07.2026, Tresen, CHF 94.05: keine Rechnung, keine
+     Buchung.** Einzige echte Ertragslücke 2026 ausserhalb der
+     Nullpreis-Reinigungen (9 Kulanzfälle Jun–Sep, korrekt ohne Buchung).
+     Daniel: Tresenrechnung nachholen oder Kulanz vermerken (Preis 0).
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
