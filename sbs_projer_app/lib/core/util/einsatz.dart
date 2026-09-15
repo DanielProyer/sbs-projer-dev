@@ -46,6 +46,11 @@ class Einsatz {
   final String? regionId;
   final DateTime datum;
 
+  /// Geplanter Tag (Störung/Montage). Für die Aufgaben-Fälligkeit (B6):
+  /// `geplantAm ?? datum` — ein geplanter Einsatz ist am Plantag fällig,
+  /// nicht am Meldetag.
+  final DateTime? geplantAm;
+
   /// Nur bei Geplantem: Störung/Montage `geplantZeit`, Termin `uhrzeitVon`.
   final String? zeit;
   final String? beschreibung;
@@ -71,6 +76,7 @@ class Einsatz {
     required this.betriebNr,
     required this.regionId,
     required this.datum,
+    this.geplantAm,
     required this.status,
     required this.kennzeichen,
     this.zeit,
@@ -150,6 +156,7 @@ Einsatz einsatzAusStoerung(StoerungLocal s, {required BetriebLocal? betrieb}) {
     betriebNr: betrieb?.betriebNr,
     regionId: betrieb?.regionId,
     datum: s.datum,
+    geplantAm: s.geplantAm,
     zeit: l.status == EinsatzStatus.geplant ? s.geplantZeit : null,
     beschreibung: s.problemBeschreibung,
     status: l.status,
@@ -178,6 +185,7 @@ Einsatz einsatzAusMontage(MontageLocal m, {required BetriebLocal? betrieb}) {
     betriebNr: betrieb?.betriebNr,
     regionId: betrieb?.regionId,
     datum: m.datum,
+    geplantAm: m.geplantAm,
     zeit: l.status == EinsatzStatus.geplant ? m.geplantZeit : null,
     beschreibung: m.beschreibung,
     status: l.status,

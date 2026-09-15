@@ -39,6 +39,7 @@ void main() {
       expect(e.betragCHF, 177.30);
       expect(e.status, EinsatzStatus.verrechnet);
       expect(e.detailRoute, '/reinigungen/${r.routeId}');
+      expect(e.geplantAm, isNull);
     });
 
     test('ohne Betrieb bleibt der Name ein Platzhalter statt zu werfen', () {
@@ -93,6 +94,24 @@ void main() {
         ..preisNetto = 94.05;
       expect(einsatzAusStoerung(s, betrieb: betrieb()).betragCHF, 94.05);
     });
+
+    test(
+      'geplantAm wird uebernommen, auch wenn die Stufe nicht geplant ist',
+      () {
+        final s = StoerungLocal()
+          ..serverId = 's3'
+          ..userId = 'u'
+          ..betriebId = 'b1'
+          ..datum = DateTime(2026, 9, 10)
+          ..geplantAm = DateTime(2026, 9, 17)
+          ..arbeitVon = '09:00'
+          ..status = 'offen'
+          ..problemBeschreibung = 'x';
+        final e = einsatzAusStoerung(s, betrieb: betrieb());
+        expect(e.status, EinsatzStatus.inArbeit);
+        expect(e.geplantAm, DateTime(2026, 9, 17));
+      },
+    );
   });
 
   group('einsatzAusMontage', () {
@@ -111,6 +130,20 @@ void main() {
       expect(e.beschreibung, 'neue Anlage');
       expect(e.betragCHF, 250);
       expect(e.status, EinsatzStatus.erledigt);
+    });
+
+    test('nimmt geplantAm mit', () {
+      final m = MontageLocal()
+        ..serverId = 'm2'
+        ..userId = 'u'
+        ..betriebId = 'b1'
+        ..montageTyp = 'neuanlage'
+        ..beschreibung = 'x'
+        ..datum = DateTime(2026, 9, 10)
+        ..geplantAm = DateTime(2026, 9, 20)
+        ..status = 'geplant';
+      final e = einsatzAusMontage(m, betrieb: betrieb());
+      expect(e.geplantAm, DateTime(2026, 9, 20));
     });
   });
 
