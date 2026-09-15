@@ -114,6 +114,9 @@ class _KachelGrid extends ConsumerWidget {
     // Stopp-Zahl beliebig lang wird; die Seite scrollt jetzt bewusst. Das
     // knappe Kachel-Layout bleibt trotzdem so, weil es unabhängig davon
     // gut lesbar ist.
+    // Seit v0.105.0 (B2) führen die Einsatz-Kacheln auf den gemeinsamen
+    // Einsätze-Screen mit vorgewähltem Typ. Die alten Listen bleiben bis
+    // v0.106.0 unter ihren Routen erreichbar (test/alte_listen_ablauf_test.dart).
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -136,21 +139,21 @@ class _KachelGrid extends ConsumerWidget {
               ? '$reinigungenDieseWoche diese Woche'
               : null,
           color: AppColors.success,
-          onTap: () => context.push('/reinigungen'),
+          onTap: () => context.push('/einsaetze?typ=reinigung'),
         ),
         DashboardTile(
           icon: Icons.warning_amber,
           label: 'Störungen',
           count: offeneStoerungen > 0 ? '$offeneStoerungen offen' : null,
           color: AppColors.warning,
-          onTap: () => context.push('/stoerungen'),
+          onTap: () => context.push('/einsaetze?typ=stoerung'),
         ),
         DashboardTile(
           icon: Icons.build,
           label: 'Montagen',
           count: geplanteMontagen > 0 ? '$geplanteMontagen geplant' : null,
           color: AppColors.info,
-          onTap: () => context.push('/montagen'),
+          onTap: () => context.push('/einsaetze?typ=montage'),
         ),
         DashboardTile(
           icon: Icons.build_circle_outlined,
@@ -159,14 +162,14 @@ class _KachelGrid extends ConsumerWidget {
               ? '$offeneEigenauftraege offen'
               : null,
           color: const Color(0xFF7C3AED),
-          onTap: () => context.push('/eigenauftraege'),
+          onTap: () => context.push('/einsaetze?typ=eigenauftrag'),
         ),
         DashboardTile(
           icon: Icons.cleaning_services_outlined,
           label: 'Eröffnungen',
           count: null,
           color: AppColors.primary,
-          onTap: () => context.push('/eroeffnungsreinigungen'),
+          onTap: () => context.push('/einsaetze?typ=saisonreinigung'),
         ),
         DashboardTile(
           icon: Icons.contacts,
@@ -258,7 +261,7 @@ class _WeitereSection extends ConsumerWidget {
         _MenuListTile(
           icon: Icons.nightlight_round,
           label: 'Pikett-Dienste',
-          onTap: () => context.push('/pikett'),
+          onTap: () => context.push('/einsaetze?typ=pikett'),
         ),
         _MenuListTile(
           icon: Icons.propane_tank_outlined,

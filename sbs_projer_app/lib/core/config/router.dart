@@ -11,6 +11,8 @@ import 'package:sbs_projer_app/presentation/screens/anlagen/anlagen_list_screen.
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/bierleitung_form_screen.dart';
+import 'package:sbs_projer_app/core/util/einsatz.dart';
+import 'package:sbs_projer_app/presentation/screens/einsaetze/einsaetze_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigungen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_form_screen.dart';
@@ -99,6 +101,16 @@ List<String> anlageIdsAusQuery(Map<String, String> query) {
   final einzeln = query['anlageId'];
   if (einzeln != null && einzeln.isNotEmpty) return [einzeln];
   return const [];
+}
+
+/// `?typ=stoerung` auf dem Einsätze-Screen. Unbekannt oder fehlend heisst
+/// «alle Typen» — ein Tippfehler in einem Link darf die Liste nicht leeren.
+EinsatzTyp? einsatzTypAusQuery(String? wert) {
+  if (wert == null || wert.isEmpty) return null;
+  for (final t in EinsatzTyp.values) {
+    if (t.name == wert) return t;
+  }
+  return null;
 }
 
 final router = GoRouter(
@@ -252,6 +264,14 @@ final router = GoRouter(
           bierleitungId: bierleitungId,
         );
       },
+    ),
+
+    // Einsätze (B2) — eine Liste für alle Typen.
+    GoRoute(
+      path: '/einsaetze',
+      builder: (context, state) => EinsaetzeScreen(
+        vorgewaehlterTyp: einsatzTypAusQuery(state.uri.queryParameters['typ']),
+      ),
     ),
 
     // Reinigungen
