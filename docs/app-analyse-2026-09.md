@@ -102,13 +102,13 @@ Ein unabhängiger Prüfer hat die Analyse nach dem Schreiben auf Lücken abgeklo
 
 **A4 · Diktat für Reinigung und Spesen.** «Alpenblick gereinigt, zwei Hähne, Wasser gewechselt» und «Tanken 84.50 Coop Chur» — dann ist das Mikrofon der eine Erfassungsweg für alles, was draussen passiert. Die Auswertung (`parse-einsatz`) kennt die Betriebe schon.
 
-**A5 · Breite begrenzen am PC.** Inhalt auf 720 px zentrieren — eine Zeile pro Screen (`ConstrainedBox` im Scaffold-Body). Die leeren Kästen verschwinden.
+**A5 · Breite begrenzen am PC.** ✅ **Erledigt in v0.102.0 (15.09.2026)** — `InhaltsBreite` zentral im `MaterialApp.builder` statt in jedem Screen, damit auch Dialoge und Sheets begrenzt sind. Inhalt auf 720 px zentrieren — eine Zeile pro Screen (`ConstrainedBox` im Scaffold-Body). Die leeren Kästen verschwinden.
 
 **A6 · Ballast aus dem Hauptmenü.** Events und Bergkundenpauschalen unter «Mehr»; Anlagen nur noch über Betrieb (die Liste bleibt als Suchwerkzeug erreichbar); Auswertung Arbeitstage in die Buchhaltung. Nichts wird gelöscht, nur der Menüplatz wird frei.
 
 **A7 · «Änderungen verwerfen?» in allen 19 Formularen.** ✅ **Erledigt in v0.99.12 (08.09.2026).** Ein gemeinsames Formular-Gerüst mit `PopScope` — einmal gebaut, überall gleich. Ein halber Tag, und die grösste Datenverlust-Falle der App ist zu.
 
-**A8 · «Erledigt» auf den Detailseiten von Störung und Montage.** Dazu führt der Tourenplan-Tap auf den Einsatz statt auf die Anlage. Aus vier Sprüngen werden zwei.
+**A8 · «Erledigt» auf den Detailseiten von Störung und Montage.** ✅ **Erledigt in v0.102.0 (15.09.2026)** — setzt Endzeit und Status, mit Sicherheitsabfrage. Die Tourenplan-Navigation blieb unverändert: Bei Störung und Montage führte sie schon auf den Einsatz, bei Reinigungen ist die Anlagen-Seite richtig, weil die Reinigung dort erst entsteht — und seit A3 liegt daneben der Start-Pfeil. Dazu führt der Tourenplan-Tap auf den Einsatz statt auf die Anlage. Aus vier Sprüngen werden zwei.
 
 **A9 · Ein Betrieb-Wähler für alle Formulare.** Das Vollbild aus der Reinigung, mit Suche nach Name, Ort und Betriebsnummer. Sieben Kopien werden eine — und «Chur» findet überall.
 

@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.101.0 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1422 Tests grün** · Git sauber.
+**Stand:** **v0.102.0 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **191** · **1436 Tests grün** · Git sauber.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
@@ -37,6 +37,33 @@ auf Zeile 872 an.
 keine abgeschlossene Reinigung ohne Ertragsbuchung seit dem 01.08. Die fehlende
 Buchung für Alpina Resort hat der Nachlauf der App um 17:09 selbst nachgeholt —
 die Kette funktioniert.
+
+### ✅ A8, A5 und die Zeiten-Trennung (v0.102.0, 15.09.2026)
+
+**A8 — «Erledigt» auf den Detailseiten** von Störung und Montage. Setzt
+Endzeit **und** Status (Entscheid Daniel: sonst fehlt die Arbeitszeit im
+Rapport und man muss doch ins Formular), mit Sicherheitsabfrage davor. Nur
+sichtbar bei offenem Einsatz, nicht für Gäste. Nutzt das erprobte
+`ArbeitBeendenKnopf`-Widget, kein Material-Knopf. Aus vier Sprüngen werden
+zwei. ⚠️ **Im Browser nie gesehen** — die Detailseiten liegen hinter dem
+Login; und der Bestätigungsdialog ist nicht automatisiert geprüft, weil die
+Detailseiten an statischen Repository-Methoden ohne Einspeisepunkt hängen.
+Getestet sind die ausgelagerte Regel `zeigeErledigtKnopf()` und das
+Knopf-Widget selbst.
+
+**A5 — Breite am PC auf 720 px.** `InhaltsBreite` hängt zentral im
+`MaterialApp.builder`, nicht in 101 Screens einzeln — damit gilt die Grenze
+auch für Dialoge und Sheets, die am PC ebenso zu breit wurden. Die App steht
+dort jetzt als zentrierte Spalte, Titelleiste inbegriffen. Auf dem Pixel 9
+wirkungslos. Drei Tests halten die Breiten fest (1400 px → 720, 360 px → 360,
+genau 720 → 720).
+
+**Plan- und Ist-Arbeitsbeginn getrennt (Migration 191).** `plan_beginn` für
+die Zeitachse, `arbeitsbeginn` bleibt der Ist-Wert von «Jetzt starten». Die
+Zeitachse rechnet mit Ist vor Plan, die Arbeitstag-Karte liest nur den Ist.
+Bestandsdaten nach km-Start getrennt: 27 echte Arbeitsbeginne blieben, genau
+eine Zeile wanderte (16.09., 06:15). Wächter
+`test/plan_ist_beginn_waechter_test.dart` hält beides auseinander.
 
 ### ✅ 15.09.: Versandvermerk-Fix wirkt, Buchen wird empfangsfest (v0.100.6)
 
@@ -193,7 +220,7 @@ Plan: `docs/superpowers/plans/2026-09-13-startseite-heute-a1-a3.md`
 
 **3. Nutzungsmessung läuft** — erste Zahlen unter Einstellungen → Nutzung der App. Nach 2–3 Wochen auswerten, dann sind **A6** (Ballast aus dem Hauptmenü) und **B2** (Einsätze zusammenführen) entscheidbar statt Geschmackssache. ~~Auffällig bisher: die Tourenplanung wurde an keinem der drei Arbeitstage geöffnet.~~ **Widerlegt am 13.09.:** `/touren` steht bei 7 Aufrufen (4 Handy, 3 PC), zuletzt am 13.09.; und in `tagesplaene` liegt für **jeden** Arbeitstag ein Plan mit 8–13 Einträgen. Die Aussage stammte aus zwei Tagen Messung. Spitzenreiter ist `/reinigungen/neu` — die Route zählt allerdings rund doppelt, weil sie Betriebsauswahl **und** Formular bedient.
 
-**4. Nächster Vorschlag aus der Analyse:** ~~A1–A3~~ **erledigt in v0.100.0 (13.09.)**. Als Nächstes **A8** («Erledigt» auf den Detailseiten von Störung und Montage, dazu führt der Tourenplan-Tap auf den Einsatz statt auf die Anlage) und **A5** (Breite am PC auf 720 px begrenzen). Alles in `docs/app-analyse-2026-09.md`.
+**4. Nächster Vorschlag aus der Analyse:** ~~A1–A3~~ (v0.100.0), ~~A8~~ und ~~A5~~ (v0.102.0, 15.09.) sind erledigt. Offen bleiben **A4** (Diktat für Reinigung und Spesen), **A6** (Ballast aus dem Hauptmenü — erst mit mehr Nutzungsdaten entscheidbar), **A9** (ein Betrieb-Wähler für alle Formulare) sowie die ganze Stufe B. Alles in `docs/app-analyse-2026-09.md`.
 
 **5. Unverändert offen aus dem Buchhaltungs-Umfeld:** AXA-Zahlung, GKB Zins-/Kapitalausweis 2025 für die Steuererklärung (Frist **30.09.**), und die eine Lohnsumme an alle fünf Sozialversicherer melden (siehe Memory [[lohnsumme_fuenf_stellen]]).
 
