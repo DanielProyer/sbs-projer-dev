@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/aufgabe.dart';
-import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgabe_zeile.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_aktionen.dart';
@@ -131,31 +130,3 @@ class AufgabenScreen extends ConsumerWidget {
     );
   }
 }
-
-// --- bis Task 7 (B6): wird noch von home_screen.dart gebraucht ---
-/// Offene EIGENE Aufgaben — ALLE, auch mit Fälligkeitsdatum in der Zukunft.
-/// Bewusst nicht `aufgabenProvider`: der filtert für die Erinnerungs-Glocke
-/// auf «jetzt sichtbar» — ein Planungs-Screen braucht auch das, was erst
-/// nächste Woche ansteht (Daniel 31.07.2026).
-final offeneEigeneAufgabenProvider =
-    FutureProvider<List<({String id, String titel, DateTime? faellig})>>((
-      ref,
-    ) async {
-      final zeilen = await AufgabenRepository.alleZeilen();
-      final offene = [
-        for (final z in zeilen)
-          if (z['typ'] == 'eigene' && z['erledigt_am'] == null)
-            (
-              id: z['id'] as String,
-              titel: (z['titel'] ?? '?') as String,
-              faellig: DateTime.tryParse(z['faellig_am'] as String? ?? ''),
-            ),
-      ];
-      offene.sort((a, b) {
-        if (a.faellig == null && b.faellig == null) return 0;
-        if (a.faellig == null) return 1;
-        if (b.faellig == null) return -1;
-        return a.faellig!.compareTo(b.faellig!);
-      });
-      return offene;
-    });

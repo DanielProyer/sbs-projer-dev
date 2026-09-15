@@ -5,7 +5,9 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 
 class MwstAbrechnungScreen extends ConsumerStatefulWidget {
@@ -97,9 +99,10 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
                       Builder(builder: (btnContext) {
                         // Aufgaben-Marker: MWST-Erinnerung für dieses Quartal erledigen.
                         final key = 'mwst:$_jahr-Q$_quartal';
-                        final stand = ref.watch(aufgabenProvider).valueOrNull;
-                        final offen =
-                            stand?.offene.any((a) => a.key == key) ?? false;
+                        final liste =
+                            ref.watch(aufgabenListeProvider).valueOrNull ??
+                                const <AufgabenEintrag>[];
+                        final offen = liste.any((a) => a.key == key);
                         return Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
@@ -121,7 +124,8 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
                                 messenger.showSnackBar(
                                     SnackBar(content: Text('Fehler: $e')));
                               }
-                              ref.invalidate(aufgabenProvider);
+                              ref.invalidate(aufgabenZeilenProvider);
+                              ref.invalidate(aufgabenListeProvider);
                             },
                           ),
                         );

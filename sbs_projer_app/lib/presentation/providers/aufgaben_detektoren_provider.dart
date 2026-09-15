@@ -36,7 +36,8 @@ final aufgabenZeilenProvider = FutureProvider<List<Map<String, dynamic>>>((
 
 /// Die sechs Detektoren (Heineken-Rechnung, MWST, Mahnlauf, Saisondaten,
 /// fehlende Buchungen, Versandvermerk) — unverändert aus dem früheren
-/// `aufgabenProvider` (B6). Ohne Snooze: den wendet `baueAufgabenListe` an.
+/// einzelnen Aufgaben-Provider (B6). Ohne Snooze: den wendet
+/// `baueAufgabenListe` an.
 /// Jeder Detektor ist einzeln abgesichert; einer, der fällt, leert nicht die
 /// Liste.
 final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {

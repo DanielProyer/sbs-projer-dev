@@ -14,7 +14,7 @@ class AufgabenGlocke extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final badge = ref.watch(aufgabenProvider).valueOrNull?.badge ?? 0;
+    final badge = ref.watch(aufgabenBadgeProvider);
     return Stack(
       textDirection: TextDirection.ltr,
       children: [

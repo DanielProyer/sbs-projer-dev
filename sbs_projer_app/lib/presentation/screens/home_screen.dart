@@ -8,14 +8,11 @@ import 'package:sbs_projer_app/core/util/sync_meldung.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
-import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kachel_zaehler_providers.dart';
-import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
@@ -97,14 +94,8 @@ class _KachelGrid extends ConsumerWidget {
     final offeneStoerungen = ref.watch(offeneStoerungenCountProvider);
     final geplanteMontagen = ref.watch(geplanteMontagenCountProvider);
     final offeneEigenauftraege = ref.watch(offeneEigenauftraegeCountProvider);
-    // Aufgaben-Zähler: eigene offene + offene Störungen + geplante Montagen.
-    final aufgabenCount =
-        (ref.watch(offeneEigeneAufgabenProvider).valueOrNull?.length ?? 0) +
-        ref
-            .watch(stoerungenProvider)
-            .where((s) => stoerungOffen(s.status))
-            .length +
-        ref.watch(montagenProvider).where((m) => montageOffen(m.status)).length;
+    // Kachelzähler = Glocken-Badge — dieselbe Quelle (B6).
+    final aufgabenCount = ref.watch(aufgabenBadgeProvider);
 
     // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: ursprünglich
     // sollten alle 10 Kacheln zusammen mit Arbeitstag + Übersicht ohne
@@ -489,18 +480,11 @@ class _AufgabenKarte extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stand = ref.watch(aufgabenProvider).valueOrNull;
-    if (stand == null || stand.badge == 0) return const SizedBox.shrink();
-    final titel = [
-      ...stand.offene.map((a) => a.titel),
-      ...stand.eigene.map((e) => e.aufgabe.titel),
-    ].take(3).toList();
-    final dringend =
-        stand.offene.any((a) => a.dringend) ||
-        stand.eigene.any((e) => e.aufgabe.dringend);
-    final label = stand.badge == 1
-        ? '1 Aufgabe offen'
-        : '${stand.badge} Aufgaben offen';
+    final jetzt = ref.watch(aufgabenJetztProvider);
+    if (jetzt.isEmpty) return const SizedBox.shrink();
+    final titel = jetzt.map((a) => a.titel).take(3).toList();
+    final dringend = jetzt.any((a) => a.dringend);
+    final label = jetzt.length == 1 ? '1 Aufgabe offen' : '${jetzt.length} Aufgaben offen';
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       color: dringend

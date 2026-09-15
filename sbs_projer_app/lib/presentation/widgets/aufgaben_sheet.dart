@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
-import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
-import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
+import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgabe_zeile.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgaben_aktionen.dart';
 
 bool _sheetOffen = false;
 
@@ -23,181 +23,94 @@ void zeigeAufgabenSheet(BuildContext context) {
   ).whenComplete(() => _sheetOffen = false);
 }
 
+/// Das Sheet zeigt den Ausschnitt «jetzt fällig» der einen Liste (B6) —
+/// dieselben Zeilen und Aktionen wie der Screen.
 class _AufgabenSheet extends ConsumerWidget {
   const _AufgabenSheet();
 
-  Future<void> _aktion(WidgetRef ref, Future<void> Function() f,
-      BuildContext context) async {
-    try {
-      await f();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
-      }
-    } finally {
-      ref.invalidate(aufgabenProvider);
-    }
-  }
-
-  Widget _zeile(BuildContext context, WidgetRef ref, Aufgabe a,
-      {String? eigeneId}) {
-    final farbe = a.dringend ? AppColors.error : AppColors.warning;
-    return ListTile(
-      dense: true,
-      leading: Icon(Icons.circle, size: 12, color: farbe),
-      title: Text(a.titel, style: const TextStyle(fontSize: 14)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (a.route != null)
-            IconButton(
-              icon: const Icon(Icons.arrow_forward, size: 18),
-              tooltip: 'Dorthin',
-              onPressed: () {
-                Navigator.pop(context);
-                router.push(a.route!);
-              },
-            ),
-          PopupMenuButton<int>(
-            icon: const Icon(Icons.snooze, size: 18),
-            tooltip: 'Später erinnern',
-            onSelected: (tage) => _aktion(
-                ref, () => AufgabenRepository.snooze(a.key, tage), context),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 1, child: Text('1 Tag')),
-              PopupMenuItem(value: 3, child: Text('3 Tage')),
-              PopupMenuItem(value: 7, child: Text('7 Tage')),
-            ],
-          ),
-          if (a.manuellErledigbar)
-            IconButton(
-              icon: const Icon(Icons.check_circle_outline, size: 20),
-              tooltip: 'Erledigt',
-              onPressed: () => _aktion(ref, () async {
-                if (eigeneId != null) {
-                  await AufgabenRepository.eigeneErledigen(eigeneId);
-                } else {
-                  await AufgabenRepository.markerSetzen(a.key);
-                }
-              }, context),
-            ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stand = ref.watch(aufgabenProvider);
+    final liste = ref.watch(aufgabenListeProvider);
+    final heute = DateTime.now();
+    final aktionen = AufgabenAktionen(ref);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-        child: stand.when(
+        child: liste.when(
           loading: () => const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator())),
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
+          ),
           error: (e, _) => Padding(
-              padding: const EdgeInsets.all(24), child: Text('Fehler: $e')),
-          data: (s) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8),
-                    child: Text('Aufgaben',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Neue Aufgabe'),
-                    onPressed: () => _neueAufgabeDialog(context, ref),
-                  ),
-                ],
-              ),
-              if (s.badge == 0)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('Alles erledigt 🎉'),
-                ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
+            padding: const EdgeInsets.all(24),
+            child: Text('Fehler: $e'),
+          ),
+          data: (alle) {
+            final jetzt = alle.where((a) => jetztFaellig(a, heute)).toList();
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    ...s.offene.map((a) => _zeile(context, ref, a)),
-                    ...s.eigene.map(
-                        (e) => _zeile(context, ref, e.aufgabe, eigeneId: e.id)),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Text(
+                        'Aufgaben',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Neue Aufgabe'),
+                      onPressed: () => neueAufgabeDialog(context, ref),
+                    ),
+                    TextButton(
+                      key: const Key('aufgaben_alle'),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        router.push('/aufgaben');
+                      },
+                      child: Text(
+                        alle.length > jetzt.length
+                            ? 'Alle (${alle.length})'
+                            : 'Alle',
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
+                if (jetzt.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('Alles erledigt 🎉'),
+                  ),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final a in jetzt)
+                        AufgabeZeile(
+                          eintrag: a,
+                          heute: heute,
+                          onDorthin: () =>
+                              aktionen.dorthin(context, a, imSheet: true),
+                          onSnooze: (t) => aktionen.snooze(context, a, t),
+                          onErledigt: () => aktionen.erledigt(context, a),
+                          onEinplanen: () => aktionen.einplanen(context, a),
+                          onBestaetigen: () => aktionen.bestaetigen(context, a),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
-  }
-
-  Future<void> _neueAufgabeDialog(BuildContext context, WidgetRef ref) async {
-    final titelCtrl = TextEditingController();
-    DateTime? faellig;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Neue Aufgabe'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titelCtrl,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Titel *'),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(faellig == null
-                        ? 'Ohne Fälligkeitsdatum'
-                        : 'Fällig: ${faellig!.day.toString().padLeft(2, '0')}.${faellig!.month.toString().padLeft(2, '0')}.${faellig!.year}'),
-                  ),
-                  TextButton(
-                    child: const Text('Datum'),
-                    onPressed: () async {
-                      final d = await showDatePicker(
-                        context: ctx,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 730)),
-                        initialDate: DateTime.now(),
-                      );
-                      if (d != null) setDialogState(() => faellig = d);
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Abbrechen')),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Speichern')),
-          ],
-        ),
-      ),
-    );
-    if (ok == true && titelCtrl.text.trim().isNotEmpty && context.mounted) {
-      await _aktion(
-          ref,
-          () =>
-              AufgabenRepository.eigeneAnlegen(titelCtrl.text.trim(), faellig),
-          context);
-    }
   }
 }
