@@ -2,7 +2,36 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.104.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1445 Tests grün** · Git sauber.
+**Stand:** **v0.105.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1513 Tests grün** · Git sauber.
+
+### ✅ B2 — ein Einsätze-Screen für alle Typen (v0.105.0, 15.09.)
+
+Spec `docs/superpowers/specs/2026-09-15-einsaetze-screen-b2-design.md`, Plan
+`docs/superpowers/plans/2026-09-15-einsaetze-screen-b2.md` (neun Aufgaben,
+subagent-getrieben, 68 neue Tests). **Keine Migration:** Der einheitliche
+Status wird aus den vorhandenen Feldern abgeleitet (`einsatz_lage.dart`, fünf
+Stufen offen → geplant → in Arbeit → erledigt → verrechnet, Kennzeichen
+abgebrochen / nicht behebbar). «Verrechnet» bei Reinigungen = `abgerechnet`
+**oder** Ertragsbuchung (`BuchungRepository.belegIdsMitBuchung`, eine Abfrage
+je Jahr). Route `/einsaetze?typ=…`, die sechs Kacheln und der Pikett-Eintrag
+zeigen dorthin; Störungs-Zusatzfilter nur bei genau «Störung».
+
+- **Ratsche** `test/status_vergleiche_ratsche_test.dart`: Startwert **23**
+  direkte Statusvergleiche (Plan schätzte ~37). Nur senken. Enthält eine
+  Bank-Bewegung (`kontoauszug_pdf_service.dart:381`, `status == 'offen'`) —
+  bewusst mitgezählt, nicht als Einsatz-Aufräumen verbuchen.
+- **Ablauf** `test/alte_listen_ablauf_test.dart`: die sechs alten Listenrouten
+  (`/reinigungen`, `/stoerungen`, `/montagen`, `/eigenauftraege`,
+  `/eroeffnungsreinigungen`, `/pikett`) **müssen mit v0.106.0 weg** — Screens,
+  Routen, Tests. Der Wächter schlägt beim Versionsbump an.
+- Namenskollision beachtet: `einsatz_status.dart` (`einsatzStatusNachSpeichern`,
+  Fall Sartons) bleibt; die neue Ableitung heisst `einsatz_lage.dart`.
+- **Klicktest Daniel:** Kachel öffnet den Screen mit vorgewähltem Typ · Tipp
+  öffnet die richtige Detailseite · eine Tresen-Reinigung von heute zeigt
+  «verrechnet», eine geplante Störung «geplant» · «+» ohne Typ öffnet das
+  Auswahl-Sheet.
+- **Übergabe an die Heineken-Session (v2):** `einsatz_lage.dart` ist die
+  Spezifikation des Einsatz-Modells (C1) — übernehmen, nicht nachbauen.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
