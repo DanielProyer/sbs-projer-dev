@@ -30,7 +30,7 @@ zeigen dorthin; Störungs-Zusatzfilter nur bei genau «Störung».
   öffnet die richtige Detailseite · eine Tresen-Reinigung von heute zeigt
   «verrechnet», eine geplante Störung «geplant» · «+» ohne Typ öffnet das
   Auswahl-Sheet.
-- **Übergabe an die Heineken-Session (v2):** `einsatz_lage.dart` ist die
+- ✅ **Übergabe an die Heineken-Session (v2), 15.09. abends gesendet:** `einsatz_lage.dart` ist die
   Spezifikation des Einsatz-Modells (C1) — übernehmen, nicht nachbauen.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
