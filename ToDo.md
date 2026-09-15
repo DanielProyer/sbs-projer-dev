@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.100.6 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1421 Tests grün** · Git sauber.
+**Stand:** **v0.101.0 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1422 Tests grün** · Git sauber.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
@@ -98,8 +98,19 @@ A3 trägt. **Zwei Nachbesserungen aus dem Feld:**
   Sonst stünde der halbe laufende Monat gegen einen vollen: September 2025 lief
   auf 10'219.66 hinaus, bis zum 14. waren es erst 3'425.67. Beim Jahr liegen
   2026 und 2025 nah beieinander (Reinigungen bis 14.09.: 95'084 gegen 95'266).
-- **Offen:** Die Reinigungen-Kachel schneidet ab («90 diese Woc…»). Kürzerer
-  Text nötig, etwa «90 fällig» oder nur die Zahl.
+- ✅ **Kachel-Abschnitt behoben (v0.101.0)** — und es war nicht der Zählertext.
+  Im Browser zeigte sich: Label und Chip teilten sich eine Zeile und damit die
+  halbe Kachelbreite, weshalb sogar **«Reinigungen» zu «Reinigung…» wurde,
+  wenn im Chip nur «87» stand**. Kürzen allein hätte den Namen nie gerettet.
+  Jetzt steht der Zähler oben neben dem Symbol, der Name darunter über die
+  ganze Breite — damit passt auch der volle Text «87 diese Woche».
+  **Dazu ein Werkzeug-Fund:** `test/kachel_text_test.dart` lädt jetzt Roboto.
+  Ohne echte Schrift misst der Test-Runner mit einer breiteren Ersatzschrift
+  und hielt «Reinigungen» für gekürzt, obwohl es im Browser vollständig stand
+  — dieselbe Diskrepanz hatte am 13.09. einen Fehlalarm über 42 px erzeugt.
+  Der neue Test prüft `didExceedMaxLines` statt nur auf Überlauf: **Ein
+  gekürzter Text löst keinen Overflow aus** und blieb deshalb unbemerkt. Wer
+  künftig Layout-Tests schreibt, sollte die Schrift genauso laden.
 
 ### ✅ A1–A3 aus der App-Analyse umgesetzt (v0.100.0, 13.09.2026)
 
