@@ -1,8 +1,8 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 14.09.2026
+## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.100.5 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1421 Tests grün** · Git sauber.
+**Stand:** **v0.100.6 live** · Edge Function `send-rechnung-mail` **v22** · Migrationen bis **190** · **1421 Tests grün** · Git sauber.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
@@ -37,6 +37,42 @@ auf Zeile 872 an.
 keine abgeschlossene Reinigung ohne Ertragsbuchung seit dem 01.08. Die fehlende
 Buchung für Alpina Resort hat der Nachlauf der App um 17:09 selbst nachgeholt —
 die Kette funktioniert.
+
+### ✅ 15.09.: Versandvermerk-Fix wirkt, Buchen wird empfangsfest (v0.100.6)
+
+**Der Fix vom 14.09. ist im Feld bestätigt.** Das Function-Log zeigt erstmals
+die entscheidende Zeile:
+
+```
+Email sent successfully, messageId: 1a0a3c645e34271b
+Versand vermerkt: rechnungId=4e800f86-…, versendet_am=2026-09-15
+```
+
+Der Server setzt den Vermerk jetzt selbst, während er noch läuft — Calanda
+stand sofort korrekt auf «gesendet», trotz wackligem Netz in Lenzerheide.
+
+**Neuer Befund desselben Tages: das Buchen hing an Stammdaten.** Zweimal
+scheiterte in Lenzerheide erst die Buchung, dann der Nachlauf — beide Male mit
+«Failed to fetch», einmal auf `buchungen` (Duplikat-Check), einmal auf
+`buchungs_vorlagen`. Der Reinigungsabschluss lud vor **jeder** Buchung alle 47
+Vorlagen vom Server, nur um daraus eine einzige zu nehmen (Geschäftsfall 1 bzw.
+1.1). Die jüngste dieser Vorlagen stammt vom 10.06.2026, und das Repository hat
+keine schreibende Methode — die App kann sie gar nicht ändern.
+
+Seit v0.100.6 werden sie einmal geladen und für die Sitzung gehalten; fällt das
+Netz aus, greift der letzte bekannte Stand statt eines Fehlers. Die
+Vorlagen-Liste in der Buchhaltung lädt weiterhin frisch.
+
+⚠️ **Kein Test dafür** — der Cache liesse sich nur mit einem einspeisbaren
+Supabase-Client prüfen, den die App nicht hat. Verifikation im Feld: Kommt in
+Lenzerheide keine `buchungs_vorlagen`-Meldung mehr, wirkt er.
+
+**Nicht behoben:** Der Duplikat-Check vor dem Buchen muss frisch bleiben, sonst
+drohen Doppelbuchungen. Bei ganz weggebrochenem Netz bricht die Kette also
+weiterhin ab und der Nachlauf holt sie später — was am 15.09. auch funktioniert
+hat: Alle fünf Reinigungen des Tages sind gebucht, Tgantieni holte der Nachlauf
+unterwegs nach. Die saubere Lösung wäre eine Warteschlange für offline erfasste
+Vorgänge; eigenes Vorhaben, steht noch auf keiner Liste.
 
 ### ✅ Erster Praxistag der Heute-Liste (14.09.)
 
