@@ -32,6 +32,12 @@ zeigen dorthin; Störungs-Zusatzfilter nur bei genau «Störung».
   Auswahl-Sheet.
 - ✅ **Übergabe an die Heineken-Session (v2), 15.09. abends gesendet:** `einsatz_lage.dart` ist die
   Spezifikation des Einsatz-Modells (C1) — übernehmen, nicht nachbauen.
+  **Bestätigt** (Heineken-Session, 15.09.): im dortigen TODO als C1-Vorgabe;
+  keine Änderung an Statuswerten/CHECKs der gemeinsamen Tabellen ohne
+  Meldung. **Prüfen:** Reinigungen an Barzahler und Jahresrechnungs-Kunden
+  haben keine Einzelrechnung — ergibt `belegIdsMitBuchung` dort
+  «verrechnet» (Ertragsbuchung beim Abschluss vorhanden) oder bleibt es
+  «erledigt»? Ein SQL gegen `buchungen.beleg_id` je `zahlungsart` klärt es.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
