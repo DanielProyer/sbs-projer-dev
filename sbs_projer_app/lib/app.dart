@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_glocke.dart';
+import 'package:sbs_projer_app/presentation/widgets/inhalts_breite.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auto_sync.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -152,8 +153,12 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: AppTheme.light,
       routerConfig: router,
-      builder: (context, child) =>
-          AufgabenGlocke(child: child ?? const SizedBox.shrink()),
+      // Reihenfolge: Die Glocke liegt AUSSERHALB der Breitenbegrenzung, damit
+      // sie am PC in der Fensterecke bleibt und nicht an der Spaltenkante
+      // klebt.
+      builder: (context, child) => AufgabenGlocke(
+        child: InhaltsBreite(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

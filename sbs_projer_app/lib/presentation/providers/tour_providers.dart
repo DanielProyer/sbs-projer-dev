@@ -1486,7 +1486,17 @@ TourEintrag tourEintragFromJson(Map<String, dynamic> j) {
 /// kompilierfähig durchgereicht.
 typedef GespeicherterTagesplan = ({
   List<TourEintrag> eintraege,
+  /// Der TATSÄCHLICHE Arbeitsbeginn — gesetzt von «Jetzt starten» auf der
+  /// Startseite, immer zusammen mit km-Stand und GPS. Ist er `null`, hat der
+  /// Arbeitstag noch nicht begonnen.
   String? arbeitsbeginn,
+  /// Der HYPOTHETISCHE Beginn für die Planung (Migration 191) — gesetzt in
+  /// der Planungszeile des Tourenplans, damit die Zeitachse rechnen kann.
+  ///
+  /// Beide standen bis zum 15.09.2026 in derselben Spalte. Die Arbeitstag-
+  /// Karte konnte sie nicht auseinanderhalten und zeigte bei einem reinen
+  /// Planwert «ab 06:47» samt Knopf «Neu starten», als liefe der Tag schon.
+  String? planBeginn,
   String? arbeitsende,
   int? kmStand,
   int? kmStart,
@@ -1519,6 +1529,7 @@ final gespeicherterTagesplanProvider =
         return (
           eintraege: eintraege,
           arbeitsbeginn: row['arbeitsbeginn'] as String?,
+          planBeginn: row['plan_beginn'] as String?,
           arbeitsende: row['arbeitsende'] as String?,
           kmStand: row['km_stand'] as int?,
           kmStart: row['km_start'] as int?,
@@ -1763,6 +1774,11 @@ Future<void> arbeitstagFelderSpeichern(
   required String? arbeitsende,
   required int? kmStand,
   required int? kmStart,
+  // Der hypothetische Beginn für die Zeitachse (Migration 191). Nur wenn
+  // übergeben wird er geschrieben — die Arbeitstag-Knöpfe auf der Startseite
+  // dürfen ihn nicht anfassen, sie melden den Ist-Wert.
+  String? planBeginn,
+  bool planBeginnSchreiben = false,
   // Start-/End-Position (GPS beim «Arbeitsbeginn»- bzw. «Feierabend»-Knopf).
   // Nur wenn übergeben werden sie geschrieben — sie werden nie gelöscht,
   // nur überschrieben.
@@ -1785,6 +1801,7 @@ Future<void> arbeitstagFelderSpeichern(
         'arbeitsende': arbeitsende,
         'km_stand': kmStand,
         'km_start': kmStart,
+        if (planBeginnSchreiben) 'plan_beginn': planBeginn,
         if (startPosition != null) 'start_lat': startPosition.lat,
         if (startPosition != null) 'start_lng': startPosition.lng,
         if (endPosition != null) 'end_lat': endPosition.lat,

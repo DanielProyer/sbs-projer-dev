@@ -152,7 +152,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           if (gespeichert != null) {
             final aktuell = ref.read(arbeitstagProvider(tag));
             ref.read(arbeitstagProvider(tag).notifier).state = (
-              beginn: gespeichert.arbeitsbeginn ?? aktuell.beginn,
+              // Ist vor Plan vor Standard — siehe Zeitachse weiter unten.
+              beginn:
+                  gespeichert.arbeitsbeginn ??
+                  gespeichert.planBeginn ??
+                  aktuell.beginn,
               ende: gespeichert.arbeitsende,
               km: gespeichert.kmStand,
               kmStart: gespeichert.kmStart,
@@ -1482,10 +1486,15 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     // gemessenen Ereignis — sonst erschiene der 06:00-Standard bis zur
     // ersten Reinigung als riesige «gemessene Anfahrt» (heute wie an
     // vergangenen Tagen).
-    final erfassterBeginn = ref
-        .watch(gespeicherterTagesplanProvider(widget.datum))
-        .valueOrNull
-        ?.arbeitsbeginn;
+    // Für die Zeitachse zählt zuerst der tatsächliche Beginn — ab wann
+    // gearbeitet wurde, ist genauer als jede Planung. Fehlt er (der Tag hat
+    // noch nicht begonnen), rechnet sie mit dem geplanten Beginn, und erst
+    // danach mit dem ersten gemessenen Ereignis bzw. dem 06:00-Standard.
+    // Beide Werte standen bis Migration 191 in derselben Spalte.
+    final gespeicherterTag =
+        ref.watch(gespeicherterTagesplanProvider(widget.datum)).valueOrNull;
+    final erfassterBeginn =
+        gespeicherterTag?.arbeitsbeginn ?? gespeicherterTag?.planBeginn;
     final ersterIstStart = istZeiten.isEmpty
         ? null
         : istZeiten.values.map((z) => z.von).reduce((a, b) => a < b ? a : b);
@@ -2287,12 +2296,16 @@ class _ArbeitstagZeile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final at = ref.watch(arbeitstagProvider(datum));
-    // In der DB erfasster Beginn — `at.beginn` trägt sonst den
-    // 06:00-Standard und würde einen nie erfassten Start vortäuschen.
+    // Diese Zeile plant — sie zeigt und schreibt den PLAN-Beginn, nicht den
+    // tatsächlichen (Migration 191). Der Ist-Wert gehört der Arbeitstag-Karte
+    // auf der Startseite und wird nur von «Jetzt starten» gesetzt; hier ihn
+    // zu überschreiben liess den Tag als bereits begonnen erscheinen.
+    // `at.beginn` trägt sonst den 06:00-Standard und würde einen nie
+    // erfassten Wert vortäuschen.
     final erfassterBeginn = ref
         .watch(gespeicherterTagesplanProvider(datum))
         .valueOrNull
-        ?.arbeitsbeginn;
+        ?.planBeginn;
 
     Future<void> speichern(Arbeitstag neu, {required String? beginnDb}) async {
       // Jeder Ausgang meldet sich (Daniel 11.08.2026): Fehler landeten hier
@@ -2315,10 +2328,21 @@ class _ArbeitstagZeile extends ConsumerWidget {
         return;
       }
       try {
+        // `arbeitsbeginn: null` ist hier kein Löschen: Der Ist-Wert wird von
+        // dieser Zeile nie geschrieben. Das Update setzt ihn allerdings
+        // wörtlich auf null — deshalb den vorhandenen Wert durchreichen,
+        // sonst verlöre ein bereits gestarteter Tag beim Planen seinen
+        // echten Beginn.
+        final istBeginn = ref
+            .read(gespeicherterTagesplanProvider(datum))
+            .valueOrNull
+            ?.arbeitsbeginn;
         await arbeitstagFelderSpeichern(
           datum,
           ref.read(tagesplanProvider),
-          arbeitsbeginn: beginnDb,
+          arbeitsbeginn: istBeginn,
+          planBeginn: beginnDb,
+          planBeginnSchreiben: true,
           arbeitsende: neu.ende,
           kmStand: neu.km,
           kmStart: neu.kmStart,
