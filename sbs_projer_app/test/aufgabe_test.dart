@@ -301,7 +301,11 @@ void main() {
           (e) => e.einsatz!.typ == EinsatzTyp.eigenauftrag,
         );
         expect(ea.einplanbar, isFalse);
-        expect(ea.untertitel, 'nicht geplant');
+        expect(
+          ea.untertitel,
+          'Chur',
+          reason: 'ohne Planungstext steht der Ort in der zweiten Zeile',
+        );
       },
     );
 

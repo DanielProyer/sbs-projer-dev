@@ -219,10 +219,7 @@ List<AufgabenEintrag> baueAufgabenListe({
 
   for (final e in anstehend) {
     final faellig = einsatzFaelligkeit(e);
-    final plan =
-        e.typ == EinsatzTyp.stoerung ||
-            e.typ == EinsatzTyp.montage ||
-            e.typ == EinsatzTyp.eigenauftrag
+    final plan = e.typ == EinsatzTyp.stoerung || e.typ == EinsatzTyp.montage
         ? planungsText(geplantAm: e.geplantAm, geplantZeit: e.zeit)
         : null;
     final untertitel = [
