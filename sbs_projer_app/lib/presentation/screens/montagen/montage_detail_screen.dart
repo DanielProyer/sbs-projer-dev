@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/pdf/heineken_rapport_service.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
@@ -55,6 +57,9 @@ class _MontageDetailContent extends ConsumerStatefulWidget {
 class _MontageDetailContentState
     extends ConsumerState<_MontageDetailContent> {
   final Map<String, String> _materialNames = {};
+
+  /// Blockiert den «Erledigt»-Knopf, solange der Speichervorgang läuft.
+  bool _erledigtLaeuft = false;
 
   MontageLocal get montage => widget.montage;
 
@@ -122,6 +127,25 @@ class _MontageDetailContentState
             ],
           ),
           const SizedBox(height: 16),
+
+          // «Erledigt» — Vorschlag A8: von der Detailseite direkt
+          // abschliessbar, statt über Stift → Formular → «Arbeit beenden».
+          // Nur solange offen und nur für Personen, die schreiben dürfen.
+          if (zeigeErledigtKnopf(
+            offen: montageOffen(montage.status),
+            istGast: SupabaseService.isGuest,
+          ))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ArbeitBeendenKnopf(
+                  onTap: _erledigt,
+                  laeuft: _erledigtLaeuft,
+                  label: 'Erledigt',
+                ),
+              ),
+            ),
 
           // Betrieb & Anlage (nur wenn vorhanden)
           if (montage.betriebId != null)
@@ -273,6 +297,70 @@ class _MontageDetailContentState
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  String _formatTime(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// «Erledigt»-Knopf: tut exakt dasselbe wie «Arbeit beenden» im Formular
+  /// (Entscheid Daniel 15.09.2026) — setzt Endzeit UND Status, nicht nur den
+  /// Status. Sonst fehlt die Arbeitszeit später im Rapport und man landet
+  /// doch wieder im Formular. `dauerStunden` bleibt bewusst unangetastet
+  /// (Abrechnungsfeld, wie beim «Arbeit beenden»-Knopf im Formular).
+  Future<void> _erledigt() async {
+    final bestaetigt = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Erledigt'),
+        content: const Text(
+          'Einsatz als erledigt markieren? Die Endzeit wird auf jetzt gesetzt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => ctx.pop(true),
+            child: const Text('Erledigt'),
+          ),
+        ],
+      ),
+    );
+    if (bestaetigt != true || !mounted) return;
+
+    setState(() => _erledigtLaeuft = true);
+    final zeitStr = _formatTime(TimeOfDay.now());
+    try {
+      await MontageRepository.arbeitszeitSetzen(
+        id: montage.routeId,
+        von: montage.arbeitVon,
+        bis: zeitStr,
+      );
+      await MontageRepository.statusSetzen(
+          id: montage.routeId, status: 'abgeschlossen');
+      if (mounted) {
+        setState(() => montage.status = 'abgeschlossen');
+      }
+      ref.invalidate(montagenStreamProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Arbeit beendet ($zeitStr) — Rapport ergänzen '
+                'und speichern nicht vergessen.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Nicht gespeichert: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _erledigtLaeuft = false);
+    }
   }
 
   Future<void> _showRapportPdf() async {

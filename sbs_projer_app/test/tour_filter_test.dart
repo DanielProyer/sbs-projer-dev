@@ -111,4 +111,58 @@ void main() {
       }
     });
   });
+
+  // A8 (15.09.2026): Sichtbarkeitsregel fuer den «Erledigt»-Knopf auf den
+  // Detailseiten von Stoerung und Montage. Als reine Funktion ausgelagert,
+  // weil die Detailseiten selbst (FutureBuilder + statische Repository-
+  // Aufrufe ohne Dependency Injection) sich nicht ohne echte Datenbank
+  // rendern lassen.
+  group('zeigeErledigtKnopf', () {
+    test('erscheint bei offenem Einsatz fuer eine schreibberechtigte Person',
+        () {
+      expect(zeigeErledigtKnopf(offen: true, istGast: false), isTrue);
+    });
+
+    test('fehlt, sobald der Einsatz erledigt ist', () {
+      expect(zeigeErledigtKnopf(offen: false, istGast: false), isFalse);
+    });
+
+    test('fehlt fuer Gaeste, auch wenn der Einsatz offen ist', () {
+      expect(zeigeErledigtKnopf(offen: true, istGast: true), isFalse);
+    });
+
+    test('fehlt fuer Gaeste bei bereits erledigtem Einsatz', () {
+      expect(zeigeErledigtKnopf(offen: false, istGast: true), isFalse);
+    });
+
+    test('deckt beide Einsatzarten ueber stoerungOffen/montageOffen ab', () {
+      expect(
+        zeigeErledigtKnopf(offen: stoerungOffen('offen'), istGast: false),
+        isTrue,
+      );
+      expect(
+        zeigeErledigtKnopf(
+            offen: stoerungOffen('in_bearbeitung'), istGast: false),
+        isTrue,
+      );
+      expect(
+        zeigeErledigtKnopf(offen: stoerungOffen('behoben'), istGast: false),
+        isFalse,
+      );
+      expect(
+        zeigeErledigtKnopf(offen: montageOffen('geplant'), istGast: false),
+        isTrue,
+      );
+      expect(
+        zeigeErledigtKnopf(
+            offen: montageOffen('in_bearbeitung'), istGast: false),
+        isTrue,
+      );
+      expect(
+        zeigeErledigtKnopf(
+            offen: montageOffen('abgeschlossen'), istGast: false),
+        isFalse,
+      );
+    });
+  });
 }

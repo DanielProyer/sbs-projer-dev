@@ -13,6 +13,16 @@ bool stoerungOffen(String status) =>
 bool montageOffen(String status) =>
     status == 'geplant' || status == 'in_bearbeitung';
 
+/// Ob der «Erledigt»-Knopf auf der Detailseite (Störung/Montage) erscheint.
+///
+/// Reine Funktion statt Inline-Bedingung im Widget-Baum (A8, 15.09.2026) —
+/// damit die Sichtbarkeitsregel ohne Provider-Aufbau testbar ist. Gilt für
+/// beide Einsatzarten gleich: nur solange offen ([stoerungOffen] bzw.
+/// [montageOffen]) und nur für Personen, die auch schreiben dürfen — Gäste
+/// sehen die Aktion nicht.
+bool zeigeErledigtKnopf({required bool offen, required bool istGast}) =>
+    offen && !istGast;
+
 /// Wie dringend eine Anlage zur Reinigung ansteht.
 ///
 /// Die Reihenfolge ist die Sortierreihenfolge im Tourenplan — dringend zuerst,

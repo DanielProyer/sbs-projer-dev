@@ -18,10 +18,17 @@ class ArbeitBeendenKnopf extends StatelessWidget {
   /// Blockiert den Knopf, solange ein Speichervorgang läuft.
   final bool laeuft;
 
+  /// Beschriftung. Default «Beenden» (Formulare) — die Detailseiten
+  /// (A8, 15.09.2026) nutzen denselben sicheren Knopf mit «Erledigt», weil
+  /// dort kein laufendes Zeit-Band, sondern ein direkter Abschluss gemeint
+  /// ist.
+  final String label;
+
   const ArbeitBeendenKnopf({
     super.key,
     required this.onTap,
     required this.laeuft,
+    this.label = 'Beenden',
   });
 
   @override
@@ -35,14 +42,14 @@ class ArbeitBeendenKnopf extends StatelessWidget {
           color: AppColors.success,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.stop_circle_outlined, color: Colors.white, size: 18),
-            SizedBox(width: 6),
+            const Icon(Icons.stop_circle_outlined, color: Colors.white, size: 18),
+            const SizedBox(width: 6),
             Text(
-              'Beenden',
-              style: TextStyle(
+              label,
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
