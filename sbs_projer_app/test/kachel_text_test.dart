@@ -1,3 +1,5 @@
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/presentation/screens/home_screen.dart';
@@ -15,6 +17,22 @@ import 'package:sbs_projer_app/presentation/screens/home_screen.dart';
 // Zähler-Container verschwindet) — genau das Muster, das am 10.09.2026 zwei
 // Wächter-Tests wirkungslos gemacht hat.
 void main() {
+  // Mit der echten Schrift messen, nicht mit der Ersatzschrift des
+  // Test-Runners.
+  //
+  // WARUM: Ohne geladene Schrift rendert Flutter im Test eine Ersatzschrift,
+  // die deutlich breiter baut als Roboto. Ein Layout-Test misst dann etwas
+  // anderes als das Gerät zeigt — am 13.09.2026 meldete ein 360-px-Test
+  // 42 px Überlauf, den es auf dem Pixel 9 nicht gab, und am 15.09.2026
+  // hielt er «Reinigungen» für gekürzt, während im Browser alles stand.
+  // Solche Fehlalarme sind gefährlicher als kein Test: Man gewöhnt sich an,
+  // sie wegzudrücken. Roboto liegt ohnehin im Repo (für die PDFs).
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final daten = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    await (FontLoader('Roboto')..addFont(Future.value(daten))).load();
+  });
+
   Future<void> pumpGrid(WidgetTester tester, List<Widget> kacheln) async {
     // Pixel 9 (logische Breite 360px) — dieselbe Referenzgrösse, mit der
     // das Kachel-Raster im Kommentar von _KachelGrid begründet wird.
@@ -65,6 +83,44 @@ void main() {
       ]);
 
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  // Kein Überlauf heisst noch nicht lesbar: Am 15.09.2026 stand auf dem
+  // Pixel 9 «87 diese Woc…» — die Ellipsis fing den Überlauf ab, und genau
+  // deshalb schlug der Test oben nicht an. `didExceedMaxLines` prüft, was
+  // wirklich zählt: ob der Text vollständig dargestellt wird.
+  testWidgets(
+    'DashboardTile bei 360px: der echte Zähler-Text wird nicht gekürzt',
+    (tester) async {
+      await pumpGrid(tester, [
+        DashboardTile(
+          icon: Icons.cleaning_services,
+          label: 'Reinigungen',
+          count: '87 diese Woche',
+          color: Colors.green,
+          onTap: () {},
+        ),
+        DashboardTile(
+          icon: Icons.warning_amber,
+          label: 'Störungen',
+          count: '12 offen',
+          color: Colors.orange,
+          onTap: () {},
+        ),
+      ]);
+
+      for (final text in ['87 diese Woche', '12 offen', 'Reinigungen', 'Störungen']) {
+        final absatz = tester.renderObject<RenderParagraph>(find.text(text));
+        expect(
+          absatz.didExceedMaxLines,
+          isFalse,
+          reason:
+              '«$text» wird auf 360 px gekuerzt dargestellt. Kuerzeren Text '
+              'waehlen — die Schrift zu verkleinern ist keine Option, 11 px '
+              'ist die Untergrenze fuer Lesbarkeit im Keller.',
+        );
+      }
     },
   );
 

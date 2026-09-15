@@ -371,20 +371,20 @@ class DashboardTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 20),
+              // Zähler oben neben dem Symbol, Name darunter über die ganze
+              // Kachelbreite.
+              //
+              // WARUM: Solange beide in einer Zeile standen, teilten sie sich
+              // die halbe Kachelbreite — und «Reinigungen» wurde zu
+              // «Reinigung…» gekürzt, selbst wenn im Chip nur «87» stand
+              // (im Browser geprüft, 15.09.2026). Der Zählertext war also gar
+              // nicht die Ursache; kürzen allein hätte den Namen nicht
+              // gerettet. Oben ist neben dem 20-px-Symbol reichlich Platz.
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                  Icon(icon, color: color, size: 20),
                   if (count != null) ...[
                     const SizedBox(width: 4),
                     // Flexible ist hier zwingend, nicht nur Kosmetik: ohne
@@ -421,6 +421,15 @@ class DashboardTile extends StatelessWidget {
                     ),
                   ],
                 ],
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
