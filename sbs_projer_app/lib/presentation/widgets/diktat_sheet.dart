@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -40,6 +41,7 @@ Future<void> zeigeDiktatSheet(BuildContext context) {
 enum _View { diktieren, einsatz, neuerBetrieb }
 
 const _artOptionen = [
+  'reinigung',
   'stoerung',
   'montage',
   'eroeffnungsreinigung',
@@ -48,6 +50,7 @@ const _artOptionen = [
 ];
 
 String _artLabel(String art) => switch (art) {
+  'reinigung' => 'Reinigung',
   'stoerung' => 'Störung',
   'montage' => 'Montage',
   'eroeffnungsreinigung' => 'Eröffnungsreinigung',
@@ -57,6 +60,7 @@ String _artLabel(String art) => switch (art) {
 };
 
 IconData _artIcon(String art) => switch (art) {
+  'reinigung' => Icons.cleaning_services,
   'stoerung' => Icons.warning_amber,
   'montage' => Icons.build,
   'eroeffnungsreinigung' => Icons.cleaning_services_outlined,
@@ -273,11 +277,38 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
       _art != 'eroeffnungsreinigung' && _art != 'endreinigung';
 
   Future<void> _einsatzSpeichern() async {
-    if ((_art == 'eroeffnungsreinigung' || _art == 'endreinigung') &&
+    if ((_art == 'eroeffnungsreinigung' ||
+            _art == 'endreinigung' ||
+            _art == 'reinigung') &&
         _betriebId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bitte zuerst einen Betrieb wählen.')),
       );
+      return;
+    }
+
+    // Reinigung ist der einzige Fall, der NICHTS speichert (A4, Entscheid
+    // Daniel 15.09.2026): Das Diktat öffnet nur das Reinigungsformular mit
+    // vorausgewähltem Betrieb. Eine abgeschlossene Reinigung zieht Rechnung,
+    // Ertragsbuchung und Mail an den Kunden nach sich — das darf nicht an
+    // einer Spracherkennung hängen. Was diktiert wurde, wandert als Notiz
+    // mit, damit beim Ausfüllen nichts verloren geht.
+    if (_art == 'reinigung') {
+      final beschreibung = _beschreibungCtrl.text.trim();
+      // Router und Messenger VOR dem Schliessen greifen — danach gehört der
+      // Kontext dieses Sheets keinem Navigator mehr.
+      final router = GoRouter.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pop();
+      router.push('/reinigungen/neu?betriebId=$_betriebId');
+      if (beschreibung.isNotEmpty) {
+        messenger.showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 6),
+            content: Text('Diktiert: $beschreibung'),
+          ),
+        );
+      }
       return;
     }
     setState(() => _loading = true);

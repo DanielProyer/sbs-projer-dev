@@ -133,14 +133,21 @@ REGEL — DAUER ("geplant_dauer_min"):
 - Nur setzen, wenn explizit genannt: "zwei Stunden" → 120, "eine halbe Stunde" → 30, "45 Minuten" → 45.
 - Nicht genannt → null. NICHT aus der Art des Einsatzes schätzen.
 
-REGEL — ART ("art", genau einer dieser 6 Werte):
+REGEL — ART ("art", genau einer dieser 7 Werte):
 - "stoerung": Defekt, Reparatur, Ausfall — Formulierungen wie "geht nicht", "tropft", "kein Druck", "kaputt", "defekt", "funktioniert nicht", "Schaden"
 - "montage": neue Anlage, Umbau, Demontage, Rebranding, Neuanschluss, Installation einer Zapfanlage
+- "reinigung": die normale Bierleitungsreinigung, das Tagesgeschäft — "gereinigt", "Reinigung gemacht", "Leitungen gereinigt", "Service gemacht", "durch bei X". Das ist die häufigste Art überhaupt. Sie hat NICHTS mit Saison zu tun: Nur wenn ausdrücklich von Saisonbeginn/-öffnung bzw. Saisonende/-schluss die Rede ist, gelten die beiden Arten darunter.
 - "eroeffnungsreinigung": Reinigung zum Saisonbeginn/Saisonöffnung
 - "endreinigung": Reinigung zum Saisonende/Saisonschluss
 - "neuer_betrieb": Daniel will einen neuen Kunden/Betrieb anlegen — Auslöser wie "neuer Betrieb", "neuen Kunden erfassen", "Betrieb anlegen", "neu aufnehmen". Siehe eigener Regelblock unten.
 - "aufgabe": alles andere, das keiner der obigen Kategorien eindeutig zuzuordnen ist (Default/Fallback)
 - Erkenne die Art an den tatsächlich genannten Wörtern, nicht durch Vermutung.
+
+REGEL — REINIGUNG (nur bei "art": "reinigung"):
+- Die App legt bei dieser Art NICHTS an, sondern öffnet damit das Reinigungsformular mit vorausgewähltem Betrieb. Eine abgeschlossene Reinigung löst Rechnung, Ertragsbuchung und Mail an den Kunden aus — das darf nie an einer Spracherkennung hängen (Entscheid 15.09.2026).
+- Entscheidend ist deshalb allein "betrieb_id": Ohne eindeutigen Betrieb kann die App das Formular nicht sinnvoll öffnen. Bist du unsicher, gib Kandidaten und eine "rueckfrage" zurück, statt zu raten.
+- "geplant_am", "geplant_zeit" und "geplant_dauer_min" bleiben bei dieser Art null. Reinigungen werden über den Tourenplan nach Fälligkeit geplant, nicht per Diktat terminiert; genannte Zeitangaben gehören in "beschreibung".
+- Details wie Hahnzahl oder erledigte Arbeitsschritte ("zwei Hähne", "Wasser gewechselt") NICHT strukturiert erfassen — die Hähne rechnet die App aus den hinterlegten Bierleitungen, und die Checkliste füllt Daniel im Formular. Solche Angaben gehören unverändert in "beschreibung", damit sie beim Ausfüllen nicht verloren gehen.
 
 REGEL — NEUER BETRIEB (nur bei "art": "neuer_betrieb"):
 - "betrieb_neu_name": Name und Ort im Text trennen. "Restaurant Adler in Chur" → Name "Restaurant Adler", Ort "Chur". Ist kein Ort erkennbar, bleibt "betrieb_neu_ort" null und der ganze Rest gilt als Name.
@@ -177,6 +184,12 @@ BEISPIELE (nur zur Veranschaulichung, nicht wörtlich übernehmen):
 2. "Nächsten Dienstag Montage im Rössli, neue Anlage, zwei Stunden"
    → art="montage", geplant_am=nächster Dienstag ab heute, geplant_zeit=null,
      geplant_dauer_min=120, betrieb_name_erkannt="Rössli", beschreibung="neue Anlage"
+2b. "Alpenblick gereinigt, zwei Hähne, Wasser gewechselt"
+   → art="reinigung", betrieb_name_erkannt="Alpenblick", geplant_am=null,
+     geplant_zeit=null, geplant_dauer_min=null,
+     beschreibung="zwei Hähne, Wasser gewechselt"
+2c. "Bin durch beim Rössli in Chur"
+   → art="reinigung", betrieb_name_erkannt="Rössli", beschreibung=null oder leer
 3. "Am 15. August Eröffnungsreinigung Berggasthaus Arflina"
    → art="eroeffnungsreinigung", geplant_am="<Jahr>-08-15" (nächstes Vorkommen ab heute),
      geplant_zeit=null, geplant_dauer_min=null, betrieb_name_erkannt="Berggasthaus Arflina",
