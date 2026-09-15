@@ -94,14 +94,14 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(rahmen(filter: const EinsatzFilter(jahr: 2026)));
-    expect(find.text('Alle Bereiche'), findsNothing);
+    expect(find.text('Bereich'), findsNothing);
 
     await tester.pumpWidget(
       rahmen(
         filter: const EinsatzFilter(jahr: 2026, typen: {EinsatzTyp.stoerung}),
       ),
     );
-    expect(find.text('Alle Bereiche'), findsOneWidget);
+    expect(find.text('Bereich'), findsOneWidget);
   });
 
   testWidgets('Tipp auf die Zeile meldet den Einsatz', (tester) async {

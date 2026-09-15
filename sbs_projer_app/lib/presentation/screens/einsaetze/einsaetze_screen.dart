@@ -88,7 +88,7 @@ class EinsaetzeInhalt extends StatelessWidget {
               children: [
                 Expanded(
                   child: AppFilterMultiDropdown<EinsatzTyp>(
-                    label: 'Alle Typen',
+                    label: 'Typen',
                     isExpanded: true,
                     options: [
                       for (final t in EinsatzTyp.values)
@@ -101,7 +101,7 @@ class EinsaetzeInhalt extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: AppFilterMultiDropdown<EinsatzStatus>(
-                    label: 'Alle Status',
+                    label: 'Status',
                     isExpanded: true,
                     options: [
                       for (final s in EinsatzStatus.values)
@@ -123,7 +123,7 @@ class EinsaetzeInhalt extends StatelessWidget {
                 children: [
                   Expanded(
                     child: AppFilterDropdown<String>(
-                      hint: 'Alle Typen',
+                      hint: 'Anlage',
                       isExpanded: true,
                       value: filter.anlageTyp,
                       options: [
@@ -136,14 +136,14 @@ class EinsaetzeInhalt extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: AppFilterDropdown<String>(
-                      hint: 'Alle Arten',
+                      hint: 'Art',
                       isExpanded: true,
                       nullable: false,
                       value: filter.kmFilter,
                       options: const [
                         ('ohne', 'Störung'),
                         ('mit', 'Kilometerabrechnung'),
-                        ('alle', 'Alle Arten'),
+                        ('alle', 'Alle'),
                       ],
                       onChanged: (v) =>
                           onFilter(filter.copyWith(kmFilter: v ?? 'alle')),
@@ -152,7 +152,7 @@ class EinsaetzeInhalt extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: AppFilterDropdown<int>(
-                      hint: 'Alle Bereiche',
+                      hint: 'Bereich',
                       isExpanded: true,
                       value: filter.bereich,
                       options: const [
