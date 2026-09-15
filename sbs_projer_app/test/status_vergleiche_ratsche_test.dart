@@ -19,7 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('Statusvergleiche werden nicht mehr', () {
     // Startwert 23 nach Umsetzung von B2 (15.09.2026). Nur senken.
-    const erlaubt = 23;
+    // 15.09.2026: 23 -> 20, drei Vergleiche lagen in den alten Listen (B6).
+    const erlaubt = 20;
 
     final muster = RegExp(
       r"(?<![A-Za-z_])status\s*==\s*'(offen|geplant|in_bearbeitung|behoben|"

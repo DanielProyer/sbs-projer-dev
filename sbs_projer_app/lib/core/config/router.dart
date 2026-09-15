@@ -13,11 +13,9 @@ import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_form_screen.d
 import 'package:sbs_projer_app/presentation/screens/anlagen/bierleitung_form_screen.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
 import 'package:sbs_projer_app/presentation/screens/einsaetze/einsaetze_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigungen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_betrieb_auswahl_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerungen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnungen_list_screen.dart';
@@ -27,16 +25,12 @@ import 'package:sbs_projer_app/presentation/screens/materialien/material_detail_
 import 'package:sbs_projer_app/presentation/screens/materialien/material_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/material_bestellung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/material_bestellungen_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/montagen/montagen_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/montagen/montage_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/montagen/montage_form_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/pikett/pikett_dienste_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/pikett/pikett_dienst_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/pikett/pikett_dienst_form_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/eigenauftraege/eigenauftrag_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eigenauftraege/eigenauftrag_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eigenauftraege/eigenauftrag_form_screen.dart';
-import 'package:sbs_projer_app/presentation/screens/eroeffnungsreinigungen/eroeffnungsreinigung_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eroeffnungsreinigungen/eroeffnungsreinigung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eroeffnungsreinigungen/eroeffnungsreinigung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnungen_list_screen.dart';
@@ -276,10 +270,6 @@ final router = GoRouter(
 
     // Reinigungen
     GoRoute(
-      path: '/reinigungen',
-      builder: (context, state) => const ReinigungenListScreen(),
-    ),
-    GoRoute(
       path: '/reinigungen/neu',
       builder: (context, state) {
         final betriebId = state.uri.queryParameters['betriebId'];
@@ -311,10 +301,6 @@ final router = GoRouter(
 
     // Störungen
     GoRoute(
-      path: '/stoerungen',
-      builder: (context, state) => const StoerungenListScreen(),
-    ),
-    GoRoute(
       path: '/stoerungen/neu',
       builder: (context, state) {
         final anlageId = state.uri.queryParameters['anlageId'];
@@ -338,10 +324,6 @@ final router = GoRouter(
     ),
 
     // Montagen
-    GoRoute(
-      path: '/montagen',
-      builder: (context, state) => const MontagenListScreen(),
-    ),
     GoRoute(
       path: '/montagen/neu',
       builder: (context, state) {
@@ -367,10 +349,6 @@ final router = GoRouter(
 
     // Pikett
     GoRoute(
-      path: '/pikett',
-      builder: (context, state) => const PikettDiensteListScreen(),
-    ),
-    GoRoute(
       path: '/pikett/neu',
       builder: (context, state) => const PikettDienstFormScreen(),
     ),
@@ -390,10 +368,6 @@ final router = GoRouter(
     ),
 
     // Eigenaufträge
-    GoRoute(
-      path: '/eigenauftraege',
-      builder: (context, state) => const EigenauftragListScreen(),
-    ),
     GoRoute(
       path: '/eigenauftraege/neu',
       redirect: (context, state) =>
@@ -421,10 +395,6 @@ final router = GoRouter(
     ),
 
     // Eröffnungsreinigungen
-    GoRoute(
-      path: '/eroeffnungsreinigungen',
-      builder: (context, state) => const EroeffnungsreinigungListScreen(),
-    ),
     GoRoute(
       path: '/eroeffnungsreinigungen/neu',
       redirect: (context, state) =>
