@@ -4,22 +4,39 @@
 library;
 
 const _monate = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
-  'August', 'September', 'Oktober', 'November', 'Dezember',
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
 ];
 
 class Aufgabe {
-  final String key;          // deterministisch: 'heineken:2026-07', 'mwst:2026-Q2', 'mahnlauf', 'saisondaten', 'eigene:<uuid>'
+  final String
+  key; // deterministisch: 'heineken:2026-07', 'mwst:2026-Q2', 'mahnlauf', 'saisondaten', 'eigene:<uuid>'
   final String titel;
-  final bool dringend;       // rot statt orange
-  final String? route;       // «Dorthin»-Ziel
+  final bool dringend; // rot statt orange
+  final String? route; // «Dorthin»-Ziel
   final bool manuellErledigbar; // Haken zeigen (mwst + eigene)
+
+  /// Ein Stapel ohne Stichtag (Bank-Prüfliste, offene Eingangsrechnungen,
+  /// fehlende Buchungen). Steht im Büro und im Aufgaben-Screen, aber nicht
+  /// in der Glocke — dort gehört nur hin, was eine Frist hat (B3).
+  final bool istVorrat;
   const Aufgabe({
     required this.key,
     required this.titel,
     this.dringend = false,
     this.route,
     this.manuellErledigbar = false,
+    this.istVorrat = false,
   });
 }
 
@@ -72,16 +89,20 @@ List<Aufgabe> mwstAufgaben({
         3 => DateTime(jahr, 11, 30),
         _ => DateTime(jahr + 1, 2, 28),
       };
-      final tageBisFrist =
-          frist.difference(DateTime(heute.year, heute.month, heute.day)).inDays;
-      ergebnis.add(Aufgabe(
-        key: key,
-        titel: 'MWST Q$quartal $jahr abrechnen (Frist '
-            '${frist.day.toString().padLeft(2, '0')}.${frist.month.toString().padLeft(2, '0')}.${frist.year})',
-        dringend: tageBisFrist <= 14,
-        route: '/buchhaltung/mwst',
-        manuellErledigbar: true,
-      ));
+      final tageBisFrist = frist
+          .difference(DateTime(heute.year, heute.month, heute.day))
+          .inDays;
+      ergebnis.add(
+        Aufgabe(
+          key: key,
+          titel:
+              'MWST Q$quartal $jahr abrechnen (Frist '
+              '${frist.day.toString().padLeft(2, '0')}.${frist.month.toString().padLeft(2, '0')}.${frist.year})',
+          dringend: tageBisFrist <= 14,
+          route: '/buchhaltung/mwst',
+          manuellErledigbar: true,
+        ),
+      );
     }
     quartal -= 1;
     if (quartal == 0) {

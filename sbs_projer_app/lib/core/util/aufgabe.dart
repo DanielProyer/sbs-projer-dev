@@ -78,6 +78,9 @@ class AufgabenEintrag {
   /// Nur Detektoren: Haken zeigen (heute nur MWST).
   final bool manuellErledigbar;
 
+  /// Siehe `Aufgabe.istVorrat` — ein Stapel ohne Stichtag (B3).
+  final bool istVorrat;
+
   const AufgabenEintrag({
     required this.quelle,
     required this.key,
@@ -91,6 +94,7 @@ class AufgabenEintrag {
     this.terminId,
     this.saison,
     this.manuellErledigbar = false,
+    this.istVorrat = false,
   });
 
   bool get erledigbar =>
@@ -122,15 +126,33 @@ DateTime einsatzFaelligkeit(Einsatz e) => e.geplantAm ?? e.datum;
 /// eigene Aufgaben ab Fälligkeit −7 Tage (bestehende Regel); Einsätze,
 /// Saison-Vorschläge und Termine erst am Tag selbst oder überfällig —
 /// die geplante Montage von Donnerstag steht im Tagesplan, nicht in der
-/// Glocke (Daniel 15.09.2026, Schwelle 1).
-bool jetztFaellig(AufgabenEintrag a, DateTime heute) => switch (a.quelle) {
-  AufgabenQuelle.detektor || AufgabenQuelle.aenderungsVorschlag => true,
-  AufgabenQuelle.eigene => eigeneSichtbar(a.faellig, heute),
-  AufgabenQuelle.einsatz ||
-  AufgabenQuelle.saisonVorschlag ||
-  AufgabenQuelle.termin =>
-    a.faellig != null && !_tag(a.faellig!).isAfter(_tag(heute)),
-};
+/// Glocke (Daniel 15.09.2026, Schwelle 1). Vorräte sind nie jetzt fällig
+/// (B3).
+bool jetztFaellig(AufgabenEintrag a, DateTime heute) {
+  // Ein Vorrat wächst und schrumpft ohne Stichtag — er gehört in den
+  // Aufgaben-Screen und ins Büro, nicht in die Glocke (B3).
+  if (a.istVorrat) return false;
+  return switch (a.quelle) {
+    AufgabenQuelle.detektor || AufgabenQuelle.aenderungsVorschlag => true,
+    AufgabenQuelle.eigene => eigeneSichtbar(a.faellig, heute),
+    AufgabenQuelle.einsatz ||
+    AufgabenQuelle.saisonVorschlag ||
+    AufgabenQuelle.termin =>
+      a.faellig != null && !_tag(a.faellig!).isAfter(_tag(heute)),
+  };
+}
+
+/// Wohin die Büro-Startseite schaut. Die Zugehörigkeit folgt aus dem Ziel,
+/// nicht aus einem zweiten Pflegefeld: Ein neuer Detektor, der in die
+/// Buchhaltung führt, erscheint dort von selbst; Saisondaten (`/touren`)
+/// fällt heraus, ohne dass jemand daran denken muss.
+const _bueroPraefixe = ['/buchhaltung', '/rechnungen', '/heineken'];
+
+bool istBueroAufgabe(AufgabenEintrag a) {
+  final r = a.route;
+  if (r == null) return false;
+  return _bueroPraefixe.any((p) => r == p || r.startsWith('$p/'));
+}
 
 const _wochentage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -183,6 +205,7 @@ List<AufgabenEintrag> baueAufgabenListe({
         dringend: a.dringend,
         route: a.route,
         manuellErledigbar: a.manuellErledigbar,
+        istVorrat: a.istVorrat,
       ),
     );
   }

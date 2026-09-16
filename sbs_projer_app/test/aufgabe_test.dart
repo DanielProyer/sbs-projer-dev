@@ -403,4 +403,100 @@ void main() {
       },
     );
   });
+
+  group('istVorrat', () {
+    AufgabenEintrag vorrat({DateTime? faellig}) => AufgabenEintrag(
+      quelle: AufgabenQuelle.detektor,
+      key: 'bank_pruefliste',
+      titel: '23 Bank-Buchungen prüfen',
+      faellig: faellig,
+      route: '/buchhaltung/camt-pruefliste',
+      istVorrat: true,
+    );
+
+    test('ein Vorrat ist nie jetzt faellig — auch nicht mit Datum heute', () {
+      expect(jetztFaellig(vorrat(), heute), isFalse);
+      expect(jetztFaellig(vorrat(faellig: heute), heute), isFalse);
+    });
+
+    test('ohne das Kennzeichen bleibt ein Detektor jetzt faellig', () {
+      final frist = AufgabenEintrag(
+        quelle: AufgabenQuelle.detektor,
+        key: 'mwst:2026-Q3',
+        titel: 'MWST Q3',
+        faellig: heute,
+        route: '/buchhaltung/mwst',
+      );
+      expect(frist.istVorrat, isFalse, reason: 'Vorgabe ist Frist');
+      expect(jetztFaellig(frist, heute), isTrue);
+    });
+
+    test('baueAufgabenListe reicht das Kennzeichen vom Detektor durch', () {
+      final liste = baueAufgabenListe(
+        detektoren: [
+          const Aufgabe(
+            key: 'bank_pruefliste',
+            titel: '23 Bank-Buchungen prüfen',
+            route: '/buchhaltung/camt-pruefliste',
+            istVorrat: true,
+          ),
+          const Aufgabe(
+            key: 'mahnlauf',
+            titel: 'Mahnlauf',
+            route: '/buchhaltung/mahnwesen',
+          ),
+        ],
+        aufgabenZeilen: const [],
+        anstehend: const [],
+        saisonVorschlaege: const [],
+        saisonTermine: const [],
+        aenderungsVorschlaege: 0,
+        heute: heute,
+      );
+      expect(
+        liste.firstWhere((e) => e.key == 'bank_pruefliste').istVorrat,
+        isTrue,
+      );
+      expect(liste.firstWhere((e) => e.key == 'mahnlauf').istVorrat, isFalse);
+      // Der Vorrat steht in der Liste, aber nicht im Ausschnitt «jetzt».
+      expect(liste, hasLength(2));
+      expect(liste.where((e) => jetztFaellig(e, heute)), hasLength(1));
+    });
+  });
+
+  group('istBueroAufgabe', () {
+    AufgabenEintrag mitRoute(String? route) => AufgabenEintrag(
+      quelle: AufgabenQuelle.detektor,
+      key: 'k',
+      titel: 't',
+      route: route,
+    );
+
+    test('Buchhaltung, Rechnungen und Heineken gehoeren ins Buero', () {
+      for (final r in [
+        '/buchhaltung',
+        '/buchhaltung/mwst',
+        '/buchhaltung/camt-pruefliste',
+        '/rechnungen',
+        '/heineken',
+      ]) {
+        expect(istBueroAufgabe(mitRoute(r)), isTrue, reason: r);
+      }
+    });
+
+    test('Werkstatt und Ziellose nicht', () {
+      for (final r in ['/touren', '/betriebe/abc', '/einsaetze', '/aufgaben']) {
+        expect(istBueroAufgabe(mitRoute(r)), isFalse, reason: r);
+      }
+      expect(
+        istBueroAufgabe(mitRoute(null)),
+        isFalse,
+        reason: 'eine eigene Aufgabe ohne Ziel ist keine Buero-Zeile',
+      );
+    });
+
+    test('ein Praefix darf keinen anderen Namen kapern', () {
+      expect(istBueroAufgabe(mitRoute('/rechnungen-alt')), isFalse);
+    });
+  });
 }
