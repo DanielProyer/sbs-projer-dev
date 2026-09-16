@@ -56,7 +56,9 @@ const double kNavigationHoehe = 56;
 
 `aktivesZiel`: `/` exakt → heute; Präfix `/einsaetze` → einsaetze; Präfix `/betriebe` → betriebe; Präfix `/touren` → tour. Zusätzlich zeigen die Detailseiten der Einsatztypen auf **Einsätze**: `/reinigungen`, `/stoerungen`, `/montagen`, `/eigenauftraege`, `/eroeffnungsreinigungen`, `/pikett`. Alles andere → `null` (kein Ziel hervorgehoben; die Leiste bleibt sichtbar).
 
-`zeigtNavigation`: `false` für `/login`, für jeden Pfad, der auf `/neu` oder `/bearbeiten` endet, und für eine kurze Liste von Formularen mit abweichendem Pfad (`kFormularPfade`, direkt daneben). Sonst `true`. Ein Wächter-Test vergleicht die Liste gegen `router.dart`, damit ein neues Formular nicht stillschweigend eine Leiste bekommt.
+`zeigtNavigation`: `false` für `/login`, für jeden Pfad, der auf `/neu` oder `/bearbeiten` endet, und für `kFormularPfade` — die Formulare mit abweichendem Pfad, am Code belegt (16.09.2026): `/betriebe/:id/rechnungsadresse` und `/einstellungen/preise/:id` (beides `*FormScreen`), dazu die mehrstufigen Vorgänge `/spesen` (Scanner, eigene `bottomNavigationBar`), `/buchhaltung/camt-import`, `/buchhaltung/eingangsrechnungen/upload`, `/materialien/bestellen` und das Vollflächen-Werkzeug `/events/:id/lageplan`. Sonst `true`.
+
+Ein Wächter-Test liest `router.dart` und prüft: **jede** Route, deren Builder ein `*FormScreen` erzeugt, wird von `zeigtNavigation` ausgeschlossen. Damit fängt er ein neues Formular automatisch — dieselbe Konvention, an der schon der Datenverlust-Schutz aus A7 hängt (`test/formular_schutz_waechter_test.dart` prüft `*_form_screen.dart`).
 
 ### 3.2 `lib/presentation/widgets/haupt_navigation.dart` — die Leiste
 
@@ -85,7 +87,9 @@ builder: (context, child) => AufgabenGlocke(
 
 ### 3.4 Glocke und Freiraum
 
-Die Glocke rückt von `bottom: 96` auf `bottom: 152` (`aufgaben_glocke.dart`), damit sie nicht auf der Leiste sitzt. Die drei Screens mit fixierter Unterleiste bekommen `kNavigationHoehe` als zusätzliches unteres Polster: Tourenplan-Tagesplan, Spesen-Liste, Forderungen. Alle anderen scrollen und brauchen nichts.
+Die Glocke rückt von `bottom: 96` auf `bottom: 152` (`aufgaben_glocke.dart`), damit sie nicht auf der Leiste sitzt — sie liegt als `Stack`-Geschwister über allem und misst vom Fensterboden.
+
+**Kein Screen braucht ein Polster.** Die Leiste steht in einer `Column` unter dem Inhalt, nicht in einem `Stack` darüber: Der Screen bekommt damit von vornherein weniger Höhe, und alles darin — auch schwebende Aktionsknöpfe — sitzt korrekt über der Leiste. Der einzige Screen mit eigener fixierter Unterleiste ist der Spesen-Scanner (`/spesen`, `bottomNavigationBar`); er steht in `kFormularPfade` und bekommt gar keine Leiste, statt zwei übereinander zu tragen.
 
 ### 3.5 Startseite
 
