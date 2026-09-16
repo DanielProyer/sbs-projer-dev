@@ -70,6 +70,7 @@ void main() {
       'lib/presentation/widgets/haupt_navigation.dart',
       'lib/presentation/widgets/buero_offen_block.dart',
       'lib/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart',
+      'lib/presentation/screens/buchhaltung/monatsabschluss_screen.dart',
     ]) {
       final datei = File(pfad);
       expect(

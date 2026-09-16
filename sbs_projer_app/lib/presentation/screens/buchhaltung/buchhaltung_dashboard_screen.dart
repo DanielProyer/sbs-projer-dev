@@ -243,6 +243,12 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/mwst'),
           ),
           _NavTile(
+            icon: Icons.event_available,
+            title: 'Monatsabschluss',
+            subtitle: 'Zehn Punkte je Monat: Einsätze, Heineken, Bank, Lohn',
+            onTap: () => context.push('/buchhaltung/monatsabschluss'),
+          ),
+          _NavTile(
             icon: Icons.fact_check,
             title: 'Abschlussprüfung',
             subtitle: 'Jahres-Check: Bank, MWST, Debitoren, Steuern',
