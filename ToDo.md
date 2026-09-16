@@ -2,7 +2,40 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.106.2 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1559 Tests grün** · Git sauber.
+**Stand:** **v0.107.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1580 Tests grün** · Git sauber.
+
+### ✅ B1 — untere Navigationsleiste (v0.107.0, 16.09.)
+
+Spec `docs/superpowers/specs/2026-09-16-navigationsleiste-b1-design.md`, Plan
+`docs/superpowers/plans/2026-09-16-navigationsleiste-b1.md` (sechs Aufgaben,
+subagent-getrieben). Vier Ziele **Heute · Einsätze · Betriebe · Tour**, von
+jedem Screen aus, ausser in Formularen.
+
+**Die Nutzungsmessung hat den Vorschlag korrigiert.** Die Analyse wollte
+«Büro» als viertes Ziel; `route_nutzung` (09.–16.09., acht Tage) zeigt:
+Buchhaltung 11 Aufrufe und Rechnungen 9 — **alle vom PC, keiner vom Handy**.
+Der Tourenplan dagegen neunmal unterwegs. Also Tour statt Büro; Buchhaltung
+bleibt über «Weitere».
+
+- `lib/core/util/navigation_ziele.dart`: `aktivesZiel` und `zeigtNavigation`
+  als reine Funktionen. Die Leiste steht in einer `Column` unter dem Inhalt
+  (nicht im `Stack`), deshalb sitzen auch schwebende Knöpfe von selbst
+  richtig; die Glocke rückte auf `bottom: 152`.
+- **Sieben doppelte Kacheln weg** (Reinigungen, Störungen, Montagen,
+  Eigenaufträge, Eröffnungen, Betriebe, Tourenplanung) — sie führten
+  dorthin, wo jetzt die Leiste hinführt. Es bleiben Kontakte, Aufgaben,
+  Spesen; «Weitere» unverändert.
+- **Wächter** `test/formular_ohne_navigation_waechter_test.dart`: liest
+  `router.dart` und prüft jede der 97 Routen — keine `*FormScreen`-Route
+  trägt die Leiste. `/spesen` ist der Scanner (eigene Unterleiste) und steht
+  deshalb in `kFormularPfade`.
+- **Klicktest Daniel:** aus einer Eingangsrechnung mit einem Tipp zurück auf
+  Heute · Einsätze und Tour von überall · im Reinigungsformular keine Leiste ·
+  Glocke sitzt über der Leiste · Browser-Zurück wie erwartet · Startseite
+  zeigt drei Kacheln.
+- **In zwei Wochen nachsehen:** Wird `/touren` über die Leiste häufiger
+  geöffnet? Bleibt `/buchhaltung` am Handy bei null? Das entscheidet, ob die
+  vier Ziele stimmen — und ist die Grundlage für A6 (Ballast im Hauptmenü).
 
 ### 🟠 Nachlauf im Funkloch (16.09., 10:22, Sartons) — v0.106.1
 
