@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lohn_repository.dart';
@@ -54,13 +55,21 @@ final monatsPruefungProvider = FutureProvider.autoDispose
             einsatzAusMontage(mo, betrieb: betriebe[mo.betriebId]),
       ];
 
-      // Berg-Tage aus den Reinigungen des Monats: ein Besuch = Betrieb + Tag.
+      // Berg-Tage aus den Reinigungen des Monats: ein Besuch = Betrieb + Tag
+      // (180 CHF je Besuch, nicht je Anlage).
+      //
+      // Über die abgeleitete Lage statt über `status == 'abgeschlossen'`:
+      // Der rohe Vergleich ist genau das, was die Ratsche
+      // (`test/status_vergleiche_ratsche_test.dart`) abbauen soll — und
+      // `erledigt`/`verrechnet` sagt dasselbe, nur in der Sprache von B2.
+      const fertig = {EinsatzStatus.erledigt, EinsatzStatus.verrechnet};
       final bergTage = <String>{
-        for (final r in reinigungen)
-          if (imMonat(r.datum) &&
-              r.status == 'abgeschlossen' &&
-              (betriebe[r.betriebId]?.istBergkunde ?? false))
-            _tagSchluessel(r.betriebId, r.datum),
+        for (final e in einsaetze)
+          if (e.typ == EinsatzTyp.reinigung &&
+              fertig.contains(e.status) &&
+              e.betriebId != null &&
+              (betriebe[e.betriebId]?.istBergkunde ?? false))
+            _tagSchluessel(e.betriebId!, e.datum),
       };
 
       final client = SupabaseService.client;
