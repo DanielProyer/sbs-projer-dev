@@ -1,0 +1,168 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/util/einsatz.dart';
+import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
+import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/monats_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/monats_regeln.dart';
+
+Einsatz einsatz({
+  EinsatzTyp typ = EinsatzTyp.reinigung,
+  EinsatzStatus status = EinsatzStatus.verrechnet,
+  double? betrag = 94.05,
+  int tag = 12,
+  String name = 'Calanda',
+}) => Einsatz(
+  typ: typ,
+  typLabel: einsatzTypLabel(typ),
+  routeId: '$name-$tag',
+  betriebId: 'b1',
+  betriebName: name,
+  betriebOrt: 'Chur',
+  betriebNr: null,
+  regionId: null,
+  datum: DateTime(2026, 8, tag),
+  status: status,
+  kennzeichen: EinsatzKennzeichen.keines,
+  betragCHF: betrag,
+);
+
+MonatsKontext kontext({
+  List<Einsatz> einsaetze = const [],
+  int mailRechnungenOffen = 0,
+  String? heinekenStatus = 'freigegeben',
+  Set<String> bergTage = const {},
+  Set<String> pauschalenTage = const {},
+  List<({DateTime von, DateTime bis})>? camtDeckung,
+  int offenePrueflisteImMonat = 0,
+  Set<int> lohnMonate = const {8},
+  int monat = 8,
+  DateTime? heute,
+}) => MonatsKontext(
+  jahr: 2026,
+  monat: monat,
+  heute: heute ?? DateTime(2026, 9, 16),
+  einsaetze: einsaetze,
+  mailRechnungenOffen: mailRechnungenOffen,
+  heinekenStatus: heinekenStatus,
+  bergTage: bergTage,
+  pauschalenTage: pauschalenTage,
+  camtDeckung:
+      camtDeckung ?? [(von: DateTime(2026, 8, 1), bis: DateTime(2026, 8, 31))],
+  offenePrueflisteImMonat: offenePrueflisteImMonat,
+  lohnMonate: lohnMonate,
+);
+
+Pruefbefund lauf(String regelId, MonatsKontext k) =>
+    alleMonatsRegeln().firstWhere((r) => r.id == regelId).pruefe(k);
+
+void main() {
+  group('reinigungen_offen', () {
+    test('alles abgeschlossen ist gruen', () {
+      final b = lauf('reinigungen_offen', kontext(einsaetze: [einsatz()]));
+      expect(b.status, PruefStatus.gruen);
+    });
+    test('eine offene Reinigung ist rot und nennt die Zahl', () {
+      final b = lauf(
+        'reinigungen_offen',
+        kontext(
+          einsaetze: [
+            einsatz(),
+            einsatz(status: EinsatzStatus.inArbeit, tag: 14, name: 'Roessli'),
+          ],
+        ),
+      );
+      expect(b.status, PruefStatus.rot);
+      expect(b.ist, contains('1'));
+      expect(b.aktionRoute, '/einsaetze?typ=reinigung');
+    });
+    test('Stoerungen zaehlen hier nicht mit', () {
+      final b = lauf(
+        'reinigungen_offen',
+        kontext(
+          einsaetze: [
+            einsatz(typ: EinsatzTyp.stoerung, status: EinsatzStatus.offen),
+          ],
+        ),
+      );
+      expect(b.status, PruefStatus.gruen);
+    });
+  });
+
+  group('einsaetze_offen', () {
+    test('erledigte Stoerungen und Montagen sind gruen', () {
+      final b = lauf(
+        'einsaetze_offen',
+        kontext(
+          einsaetze: [
+            einsatz(typ: EinsatzTyp.stoerung, status: EinsatzStatus.erledigt),
+            einsatz(typ: EinsatzTyp.montage, status: EinsatzStatus.verrechnet),
+          ],
+        ),
+      );
+      expect(b.status, PruefStatus.gruen);
+    });
+    test('offene oder geplante sind rot', () {
+      for (final s in [
+        EinsatzStatus.offen,
+        EinsatzStatus.geplant,
+        EinsatzStatus.inArbeit,
+      ]) {
+        final b = lauf(
+          'einsaetze_offen',
+          kontext(
+            einsaetze: [einsatz(typ: EinsatzTyp.stoerung, status: s)],
+          ),
+        );
+        expect(b.status, PruefStatus.rot, reason: '$s');
+      }
+    });
+  });
+
+  group('ertragsbuchungen', () {
+    test('verrechnete Reinigungen sind gruen', () {
+      final b = lauf('ertragsbuchungen', kontext(einsaetze: [einsatz()]));
+      expect(b.status, PruefStatus.gruen);
+    });
+    test('abgeschlossen ohne Buchung ist rot', () {
+      final b = lauf(
+        'ertragsbuchungen',
+        kontext(einsaetze: [einsatz(status: EinsatzStatus.erledigt)]),
+      );
+      expect(b.status, PruefStatus.rot);
+      expect(b.ist, contains('1'));
+      expect(b.aktionRoute, '/rechnungen');
+    });
+    test('Kulanz zaehlt nicht — sie traegt keinen Betrag', () {
+      final b = lauf(
+        'ertragsbuchungen',
+        kontext(
+          einsaetze: [einsatz(status: EinsatzStatus.erledigt, betrag: null)],
+        ),
+      );
+      expect(b.status, PruefStatus.gruen);
+    });
+    test('Stoerungen zaehlen hier nicht', () {
+      final b = lauf(
+        'ertragsbuchungen',
+        kontext(
+          einsaetze: [
+            einsatz(typ: EinsatzTyp.stoerung, status: EinsatzStatus.erledigt),
+          ],
+        ),
+      );
+      expect(b.status, PruefStatus.gruen);
+    });
+  });
+
+  group('versandvermerk', () {
+    test('keine offene Mail-Rechnung ist gruen', () {
+      expect(lauf('versandvermerk', kontext()).status, PruefStatus.gruen);
+    });
+    test('offene Mail-Rechnungen sind rot', () {
+      final b = lauf('versandvermerk', kontext(mailRechnungenOffen: 2));
+      expect(b.status, PruefStatus.rot);
+      expect(b.ist, contains('2'));
+      expect(b.aktionRoute, '/rechnungen');
+    });
+  });
+}
