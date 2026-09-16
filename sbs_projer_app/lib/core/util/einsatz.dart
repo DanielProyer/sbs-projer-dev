@@ -124,7 +124,8 @@ Einsatz einsatzAusReinigung(
   );
   return Einsatz(
     typ: EinsatzTyp.reinigung,
-    typLabel: 'Reinigung',
+    // Kulanz: geschenkt — kein Betrag, aber sichtbar als solche.
+    typLabel: r.istKulanz ? 'Reinigung (Kulanz)' : 'Reinigung',
     routeId: r.routeId,
     betriebId: r.betriebId,
     betriebName: betrieb?.name ?? _unbekannt,
@@ -134,7 +135,7 @@ Einsatz einsatzAusReinigung(
     datum: r.datum,
     status: l.status,
     kennzeichen: l.kennzeichen,
-    betragCHF: _betragWennErledigt(l, r.preisBrutto),
+    betragCHF: r.istKulanz ? null : _betragWennErledigt(l, r.preisBrutto),
   );
 }
 

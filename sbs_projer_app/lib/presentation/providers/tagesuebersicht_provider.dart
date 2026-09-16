@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sbs_projer_app/core/util/reinigung_betrag.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
@@ -68,7 +69,7 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
   final hER = ref.watch(eroeffnungsreinigungenProvider).where((e) => isToday(e.datum)).toList();
   final hBP = ref.watch(bergkundenpauschaleProvider).where((b) => isToday(b.datum)).toList();
 
-  final totalCHF = hR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
+  final totalCHF = hR.fold(0.0, (s, r) => s + reinigungBetrag(r)) +
       hS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
       hM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
       hE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +
@@ -87,7 +88,7 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
   final mP = ref.watch(pikettDiensteProvider).where((p) => isThisMonth(p.datumStart));
 
   final monatsUmsatzCHF =
-      mR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
+      mR.fold(0.0, (s, r) => s + reinigungBetrag(r)) +
       mS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
       mM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
       mE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +
@@ -115,7 +116,7 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
   double summiere(bool Function(DateTime) imFenster) =>
       ref.watch(reinigungenProvider).where((r) => imFenster(r.datum)).fold(
             0.0,
-            (s, r) => s + (r.preisBrutto ?? 0),
+            (s, r) => s + reinigungBetrag(r),
           ) +
       ref.watch(stoerungenProvider).where((s) => imFenster(s.datum)).fold(
             0.0,
@@ -160,7 +161,7 @@ final tagesUebersichtProvider = Provider<TagesUebersichtData>((ref) {
       .where((p) => isVorjahrBisHeute(p.datumStart));
 
   final vorjahrUmsatzCHF =
-      vR.fold(0.0, (s, r) => s + (r.preisBrutto ?? 0)) +
+      vR.fold(0.0, (s, r) => s + reinigungBetrag(r)) +
       vS.fold(0.0, (s, r) => s + (r.preisNetto ?? 0)) +
       vM.fold(0.0, (s, r) => s + (r.kostenArbeit ?? 0)) +
       vE.fold(0.0, (s, r) => s + (r.pauschale ?? 0)) +

@@ -55,6 +55,24 @@ void main() {
     });
   });
 
+  group('einsatzAusReinigung Kulanz', () {
+    test('Kulanz zeigt keinen Betrag und heisst so', () {
+      final r = ReinigungLocal()
+        ..serverId = 'r9'
+        ..userId = 'u'
+        ..anlageId = 'a1'
+        ..betriebId = 'b1'
+        ..datum = DateTime(2026, 7, 31)
+        ..preisBrutto = 94.05
+        ..istKulanz = true
+        ..status = 'abgeschlossen';
+      final e = einsatzAusReinigung(r, betrieb: betrieb(), hatBuchung: false);
+      expect(e.betragCHF, isNull);
+      expect(e.typLabel, 'Reinigung (Kulanz)');
+      expect(e.status, EinsatzStatus.erledigt);
+    });
+  });
+
   group('einsatzAusStoerung', () {
     test(
       'nimmt problemBeschreibung, geplante Zeit und die Zusatzfilter-Felder mit',
