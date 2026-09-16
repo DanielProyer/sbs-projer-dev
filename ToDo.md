@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.107.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1580 Tests grün** · Git sauber.
+**Stand:** **v0.107.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1580 Tests grün** · Git sauber.
 
 ### ✅ B1 — untere Navigationsleiste (v0.107.0, 16.09.)
 
@@ -24,7 +24,10 @@ bleibt über «Weitere».
 - **Sieben doppelte Kacheln weg** (Reinigungen, Störungen, Montagen,
   Eigenaufträge, Eröffnungen, Betriebe, Tourenplanung) — sie führten
   dorthin, wo jetzt die Leiste hinführt. Es bleiben Kontakte, Aufgaben,
-  Spesen; «Weitere» unverändert.
+  Spesen — und seit v0.107.1 **Material** (Daniel 16.09.: «brauche ich
+  manchmal auch während dem Arbeitstag»; der Zähler «N niedrig» ist einer der
+  wenigen handlungsrelevanten). Material ist dafür aus «Weitere» raus, sonst
+  stünde es doppelt. Vier Kacheln füllen ausserdem beide Gitterzeilen.
 - **Wächter** `test/formular_ohne_navigation_waechter_test.dart`: liest
   `router.dart` und prüft jede der 97 Routen — keine `*FormScreen`-Route
   trägt die Leiste. `/spesen` ist der Scanner (eigene Unterleiste) und steht

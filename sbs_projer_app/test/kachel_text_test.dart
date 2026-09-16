@@ -176,7 +176,12 @@ void main() {
       expect(quelle.contains(weg), isFalse,
           reason: '$weg doppelt die Navigationsleiste (B1)');
     }
-    for (final bleibt in ["label: 'Aufgaben'", "label: 'Spesen'", "label: 'Kontakte'"]) {
+    for (final bleibt in [
+      "label: 'Aufgaben'",
+      "label: 'Spesen'",
+      "label: 'Kontakte'",
+      "label: 'Material'",
+    ]) {
       expect(quelle.contains(bleibt), isTrue, reason: bleibt);
     }
   });

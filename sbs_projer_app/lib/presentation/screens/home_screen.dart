@@ -87,6 +87,7 @@ class _KachelGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Kachelzähler = Glocken-Badge — dieselbe Quelle (B6).
     final aufgabenCount = ref.watch(aufgabenBadgeProvider);
+    final niedrigCount = ref.watch(niedrigCountProvider);
 
     // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: ursprünglich
     // sollten alle 10 Kacheln zusammen mit Arbeitstag + Übersicht ohne
@@ -131,6 +132,16 @@ class _KachelGrid extends ConsumerWidget {
           color: Colors.brown,
           onTap: () => context.push('/spesen'),
         ),
+        // Material braucht Daniel auch unterwegs (16.09.2026) — und «N
+        // niedrig» ist einer der wenigen Kachelzähler, die eine Handlung
+        // verlangen. Stand bis v0.107.0 in «Weitere», dort jetzt entfernt.
+        DashboardTile(
+          icon: Icons.inventory_2,
+          label: 'Material',
+          count: niedrigCount > 0 ? '$niedrigCount niedrig' : null,
+          color: Colors.blueGrey,
+          onTap: () => context.push('/materialien'),
+        ),
       ],
     );
   }
@@ -142,7 +153,6 @@ class _WeitereSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final buchungenCount = ref.watch(buchungenCountProvider);
-    final niedrigCount = ref.watch(niedrigCountProvider);
     final eventCount =
         ref
             .watch(eventsProvider)
@@ -180,12 +190,6 @@ class _WeitereSection extends ConsumerWidget {
           icon: Icons.query_stats,
           label: 'Auswertung Arbeitstage',
           onTap: () => context.push('/auswertungen/arbeitstage'),
-        ),
-        _MenuListTile(
-          icon: Icons.inventory_2,
-          label: 'Material',
-          count: niedrigCount > 0 ? '$niedrigCount niedrig' : null,
-          onTap: () => context.push('/materialien'),
         ),
         _MenuListTile(
           icon: Icons.nightlight_round,
