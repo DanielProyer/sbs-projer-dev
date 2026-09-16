@@ -67,6 +67,7 @@ void main() {
       'lib/presentation/widgets/einsatz_zeile.dart',
       'lib/presentation/widgets/aufgabe_zeile.dart',
       'lib/presentation/widgets/aufgaben_sheet.dart',
+      'lib/presentation/widgets/haupt_navigation.dart',
     ]) {
       final datei = File(pfad);
       expect(
