@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_abgleich_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgaben_aktionen.dart';
+import 'package:sbs_projer_app/presentation/widgets/buero_offen_block.dart';
 
 class BuchhaltungDashboardScreen extends ConsumerWidget {
   const BuchhaltungDashboardScreen({super.key});
@@ -21,12 +25,14 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
 
     // Wochen-Erinnerung: letzte erfasste camt-Periode
     final letzteCamtPeriode = ref.watch(letzteCamtPeriodeProvider).valueOrNull;
-    final camtErinnerung = letzteCamtPeriode == null ||
+    final camtErinnerung =
+        letzteCamtPeriode == null ||
         DateTime.now().difference(letzteCamtPeriode).inDays > 7;
 
     // Buchungen aktueller Monat
-    final buchungenMonat = buchungen.where((b) =>
-        b.geschaeftsjahr == now.year && b.monat == now.month).toList();
+    final buchungenMonat = buchungen
+        .where((b) => b.geschaeftsjahr == now.year && b.monat == now.month)
+        .toList();
 
     // Umsatz aktueller Monat aus Erfolgsrechnung
     double umsatzMonat = 0;
@@ -56,6 +62,26 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // «Was ist offen?» — der Büro-Ausschnitt der einen Aufgabenliste
+          // (B3). Fristen und Vorräte zusammen, ganz oben: Die Seite
+          // beantwortet damit zuerst die Frage, mit der man sie öffnet.
+          Builder(
+            builder: (_) {
+              final liste =
+                  ref.watch(aufgabenListeProvider).valueOrNull ?? const [];
+              final aktionen = AufgabenAktionen(ref);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: BueroOffenBlock(
+                  eintraege: liste.where(istBueroAufgabe).toList(),
+                  heute: DateTime.now(),
+                  onDorthin: (a) => aktionen.dorthin(context, a),
+                  onSnooze: (a, t) => aktionen.snooze(context, a, t),
+                  onErledigt: (a) => aktionen.erledigt(context, a),
+                ),
+              );
+            },
+          ),
           // Wochen-Erinnerung: neuen camt-Auszug hochladen
           if (camtErinnerung)
             Container(
@@ -71,9 +97,11 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
                   const Icon(Icons.upload_file, color: AppColors.warning),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(letzteCamtPeriode == null
-                        ? 'Noch kein Bankauszug erfasst — camt-Datei hochladen'
-                        : 'Letzter Auszug bis ${_fmt(letzteCamtPeriode)} — neuen camt-Auszug hochladen'),
+                    child: Text(
+                      letzteCamtPeriode == null
+                          ? 'Noch kein Bankauszug erfasst — camt-Datei hochladen'
+                          : 'Letzter Auszug bis ${_fmt(letzteCamtPeriode)} — neuen camt-Auszug hochladen',
+                    ),
                   ),
                   TextButton(
                     onPressed: () => context.push('/buchhaltung/camt-import'),
@@ -135,12 +163,53 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          // Navigation
+          // Navigation — zwei Gruppen statt einer Sammelliste (B3): die 13
+          // Ziele lagen sonst auf einer Ebene, Kontenplan neben
+          // Bankauszug-Import (Befund 4, App-Analyse 09/2026).
           Text(
-            'Bereiche',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            'Laufend',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          _NavTile(
+            icon: Icons.account_balance,
+            title: 'Bankauszug Import',
+            subtitle: 'Import, Prüfliste, Regeln & Dateien',
+            onTap: () => context.push('/buchhaltung/camt-import'),
+          ),
+          _NavTile(
+            icon: Icons.mark_email_read,
+            title: 'Eingangsrechnungen',
+            subtitle: 'Lieferantenrechnungen erfassen & buchen',
+            onTap: () => context.push('/buchhaltung/eingangsrechnungen'),
+          ),
+          _NavTile(
+            icon: Icons.receipt_long,
+            title: 'Forderungen',
+            subtitle: 'Rechnungen, Mahnwesen & Debitoren',
+            onTap: () => context.push('/rechnungen'),
+          ),
+          _NavTile(
+            icon: Icons.receipt_long_outlined,
+            title: 'Heineken Rechnungen',
+            subtitle: 'Heineken-Monatsrechnungen erstellen',
+            onTap: () => context.push('/heineken'),
+          ),
+          _NavTile(
+            icon: Icons.payments,
+            title: 'Lohnbuchhaltung',
+            subtitle: 'Lohnlauf, Abzüge & Lohnausweis',
+            onTap: () => context.push('/buchhaltung/lohn'),
+          ),
+
+          const SizedBox(height: 16),
+          Text(
+            'Abschluss & Berichte',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           _NavTile(
@@ -186,36 +255,6 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             onTap: () => context.push('/buchhaltung/steuern'),
           ),
           _NavTile(
-            icon: Icons.receipt_long,
-            title: 'Forderungen',
-            subtitle: 'Rechnungen, Mahnwesen & Debitoren',
-            onTap: () => context.push('/rechnungen'),
-          ),
-          _NavTile(
-            icon: Icons.mark_email_read,
-            title: 'Eingangsrechnungen',
-            subtitle: 'Lieferantenrechnungen erfassen & buchen',
-            onTap: () => context.push('/buchhaltung/eingangsrechnungen'),
-          ),
-          _NavTile(
-            icon: Icons.account_balance,
-            title: 'Bankauszug Import',
-            subtitle: 'Import, Prüfliste, Regeln & Dateien',
-            onTap: () => context.push('/buchhaltung/camt-import'),
-          ),
-          _NavTile(
-            icon: Icons.payments,
-            title: 'Lohnbuchhaltung',
-            subtitle: 'Lohnlauf, Abzüge & Lohnausweis',
-            onTap: () => context.push('/buchhaltung/lohn'),
-          ),
-          _NavTile(
-            icon: Icons.receipt_long_outlined,
-            title: 'Heineken Rechnungen',
-            subtitle: 'Heineken-Monatsrechnungen erstellen',
-            onTap: () => context.push('/heineken'),
-          ),
-          _NavTile(
             icon: Icons.calendar_month,
             title: 'Jahresrechnungen',
             subtitle: 'Sammelrechnungen pro Betrieb erstellen',
@@ -227,9 +266,9 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
           // Letzte Buchungen
           Text(
             'Letzte Buchungen',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           if (buchungen.isEmpty)
@@ -245,78 +284,124 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
               ),
             )
           else
-            ...(List.of(buchungen)
-              ..sort((a, b) {
-                final cmp = b.datum.compareTo(a.datum);
-                if (cmp != 0) return cmp;
-                final catA = a.createdAt ?? a.datum;
-                final catB = b.createdAt ?? b.datum;
-                return catB.compareTo(catA);
-              })).take(5).map((b) => Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: b.istStorniert
-                          ? AppColors.error.withAlpha(25)
-                          : AppColors.primary.withAlpha(25),
-                      radius: 18,
-                      child: Icon(
-                        b.istStorniert ? Icons.cancel : Icons.swap_horiz,
-                        size: 18,
-                        color: b.istStorniert ? AppColors.error : AppColors.primary,
+            ...(List.of(buchungen)..sort((a, b) {
+                  final cmp = b.datum.compareTo(a.datum);
+                  if (cmp != 0) return cmp;
+                  final catA = a.createdAt ?? a.datum;
+                  final catB = b.createdAt ?? b.datum;
+                  return catB.compareTo(catA);
+                }))
+                .take(5)
+                .map(
+                  (b) => Card(
+                    // CanvasKit: InkWell + Container + Row statt ListTile
+                    // (CLAUDE.md, gleiche Begründung wie bei _NavTile).
+                    child: InkWell(
+                      onTap: () =>
+                          context.push('/buchhaltung/buchungen/${b.id}'),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: b.istStorniert
+                                    ? AppColors.error.withAlpha(25)
+                                    : AppColors.primary.withAlpha(25),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                b.istStorniert
+                                    ? Icons.cancel
+                                    : Icons.swap_horiz,
+                                size: 18,
+                                color: b.istStorniert
+                                    ? AppColors.error
+                                    : AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    b.beschreibung,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                      decoration: b.istStorniert
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    '${_formatDateTime(b)} · ${b.sollKonto} → ${b.habenKonto}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${b.betragBrutto.toStringAsFixed(2)} CHF',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: b.istStorniert ? AppColors.error : null,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    title: Text(
-                      b.beschreibung,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                        decoration: b.istStorniert
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      '${_formatDateTime(b)} · ${b.sollKonto} → ${b.habenKonto}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    trailing: Text(
-                      '${b.betragBrutto.toStringAsFixed(2)} CHF',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: b.istStorniert ? AppColors.error : null,
-                      ),
-                    ),
-                    onTap: () => context.push('/buchhaltung/buchungen/${b.id}'),
                   ),
-                )),
+                ),
         ],
       ),
     );
   }
 
-  static double _d(dynamic v) =>
-      double.tryParse(v?.toString() ?? '') ?? 0;
+  static double _d(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
 
   static String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
   static String _monatName(int m) {
     const namen = [
-      '', 'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez',
+      '',
+      'Jan',
+      'Feb',
+      'Mär',
+      'Apr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Dez',
     ];
     return namen[m];
   }
 
   static String _formatDateTime(Buchung b) {
     final d = b.datum;
-    final date = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+    final date =
+        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
     final c = b.createdAt;
     if (c != null) {
-      final time = '${c.hour.toString().padLeft(2, '0')}:${c.minute.toString().padLeft(2, '0')}';
+      final time =
+          '${c.hour.toString().padLeft(2, '0')}:${c.minute.toString().padLeft(2, '0')}';
       return '$date $time';
     }
     return date;
@@ -358,43 +443,10 @@ class _KennzahlCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _NavTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _NavTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primary.withAlpha(25),
-          child: Icon(icon, color: AppColors.primary, size: 20),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-        trailing: const Icon(Icons.chevron_right, size: 20),
-        onTap: onTap,
       ),
     );
   }
@@ -429,12 +481,20 @@ class _BankWaechterCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(ok ? Icons.verified : Icons.warning_amber,
-                  size: 18, color: farbe),
+              Icon(
+                ok ? Icons.verified : Icons.warning_amber,
+                size: 18,
+                color: farbe,
+              ),
               const SizedBox(width: 8),
-              Text('Bank-Wächter',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 13, color: farbe)),
+              Text(
+                'Bank-Wächter',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: farbe,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -445,14 +505,20 @@ class _BankWaechterCard extends StatelessWidget {
               style: const TextStyle(fontSize: 12.5),
             ),
           if (s.verbindlichkeiten.isEmpty && s.schluss != null)
-            const Text('✓ Keine Verbindlichkeit im Soll.',
-                style: TextStyle(fontSize: 12.5)),
+            const Text(
+              '✓ Keine Verbindlichkeit im Soll.',
+              style: TextStyle(fontSize: 12.5),
+            ),
           for (final w in s.verbindlichkeiten)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text('⚠ $w',
-                  style: const TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w600)),
+              child: Text(
+                '⚠ $w',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           // Weiter zur vollen Abschlussprüfung (14 Regeln) fürs laufende Jahr.
           // Mindesthöhe 44 px — einhändig am Handy ist eine 20-px-Zeile nicht
@@ -465,16 +531,84 @@ class _BankWaechterCard extends StatelessWidget {
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 44),
               alignment: Alignment.centerRight,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: const Text('Details →',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: const Text(
+                'Details →',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Ein Ziel der Büro-Startseite.
+///
+/// CanvasKit: `InkWell` + `Container` + `Row` statt `ListTile` — es sind 13
+/// Navigationsziele, und Material-Komfort-Widgets haben auf dem produktiven
+/// CanvasKit-Web dreimal nicht gerendert oder nicht reagiert (CLAUDE.md).
+/// Das Aussehen bleibt: Kreis-Symbol, Titel, Untertitel, Pfeil.
+///
+/// Steht bewusst als letzte Klasse in der Datei: Der Gruppen-Wächter
+/// (`buchhaltung_gruppen_waechter_test.dart`) teilt die Datei am Text
+/// `_NavTile(`, das auch im eigenen Konstruktor dieser Klasse auftaucht —
+/// stünde danach noch eine Klasse mit einem `context.push(...)`, würde der
+/// Wächter dessen Ziel-Route fälschlich als 14. Navigationsziel zählen.
+class _NavTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _NavTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(25),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(subtitle, style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 20),
+            ],
+          ),
+        ),
       ),
     );
   }
