@@ -2,7 +2,35 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.108.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1602 Tests grün** · Git sauber.
+**Stand:** **v0.109.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1647 Tests grün** · Git sauber.
+
+### ✅ B4 — Monatsabschluss als geführte Checkliste (v0.109.0, 16.09.)
+
+Spec `docs/superpowers/specs/2026-09-16-monatsabschluss-b4-design.md`, Plan
+`docs/superpowers/plans/2026-09-16-monatsabschluss-b4.md` (sieben Aufgaben,
+subagent-getrieben). `/buchhaltung/monatsabschluss`, Vorgabe **Vormonat**,
+Jahr/Monat wählbar. **Zehn Regeln in vier Gruppen**, Ampel mit Ist/Soll,
+Hinweis und Sprungziel — gleiche Bauart wie die Jahresprüfung, eigene
+Dateien (`monats_regeln.dart`, `monats_pruef_service.dart`).
+
+- **Einsätze:** alle Reinigungen abgeschlossen · Störungen und Montagen
+  erledigt · **jede Reinigung hat ihre Ertragsbuchung** (der Fall vom
+  03./04.09.) · Mail-Rechnungen mit Versandvermerk.
+- **Heineken:** Monatsrechnung erstellt → versendet → freigegeben ·
+  Bergkundenpauschalen (pro Betrieb **und Tag**, 180 CHF je Besuch).
+- **Bank:** Auszug deckt den Monat (Tag für Tag — mehrere Auszüge dürfen
+  gemeinsam decken) und Prüfliste leer. **Lohn:** Lohnlauf gemacht.
+- **Kein Monats-Status in der DB** — eine Kontrolle, kein Ritual. Der
+  laufende Monat meldet bei Heineken, Lohn und Bank «Monat läuft noch»
+  (gelb) statt rot.
+- **Detektor** auf der Büro-Startseite: «Monatsabschluss August: N Punkte
+  offen», als Vorrat (nicht in der Glocke).
+- **Klicktest Daniel:** Vormonat vorgewählt · jede rote Zeile führt ans
+  richtige Ziel · der Detektor zeigt dieselbe Zahl wie der Screen · ein
+  Monat ohne Bergkunden meldet dort grün.
+- **Probe aufs Exempel:** Die Heineken-Rechnung für August fehlt (siehe
+  oben) — der Monatsabschluss für August sollte genau das als roten Punkt
+  zeigen.
 
 ### ✅ B3 — Büro-Startseite zeigt, was offen ist (v0.108.0, 16.09.)
 
