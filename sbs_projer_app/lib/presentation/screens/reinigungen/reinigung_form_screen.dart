@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -1101,12 +1102,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
               // liegen, obwohl der Nachlauf bei jedem Abschluss lief — und
               // niemand konnte wissen, warum.
               if (erg.fehler.isNotEmpty && mounted) {
+                // Die Details (mit Server-URL) gehören ins Protokoll, nicht
+                // auf den Handybildschirm (16.09.2026: bildschirmfüllende
+                // URL im Funkloch am Berghaus Sartons).
+                debugPrint('[Nachbuchung] ${erg.fehler.join(' | ')}');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: AppColors.error,
                     content: Text(
                       'NACHBUCHEN FEHLGESCHLAGEN (${erg.fehler.length}): '
-                      '${erg.fehler.first}\n'
+                      '${kurzeFehlermeldung(erg.fehler.first)}\n'
                       'Über Buchhaltung → Forderungen erneut versuchen.',
                       style: const TextStyle(color: Colors.white),
                     ),
@@ -1123,7 +1128,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                   SnackBar(
                     backgroundColor: AppColors.warning,
                     content: Text(
-                      'Nachbuchen älterer Reinigungen abgebrochen: $e\n'
+                      'Nachbuchen älterer Reinigungen abgebrochen '
+                      '(${kurzeFehlermeldung(e)}).\n'
                       'Die eigene Buchung ist gespeichert.',
                       style: const TextStyle(color: Colors.white),
                     ),

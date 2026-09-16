@@ -1,4 +1,5 @@
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/data/mappers/reinigung_mapper.dart';
 import 'package:sbs_projer_app/data/models/reinigung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
@@ -90,8 +91,8 @@ class ReinigungenOhneRechnung {
         .whereType<String>()
         .toList();
     final verrechnet = <String>{};
-    for (var i = 0; i < ids.length; i += 200) {
-      final teil = ids.sublist(i, (i + 200).clamp(0, ids.length));
+    for (var i = 0; i < ids.length; i += kInFilterBlock) {
+      final teil = ids.sublist(i, (i + kInFilterBlock).clamp(0, ids.length));
       final pos = List<Map<String, dynamic>>.from(
         await client
             .from('rechnungs_positionen')
@@ -110,8 +111,8 @@ class ReinigungenOhneRechnung {
     // kann sich seither geändert haben). Debitor (1100) erwartet eine Rechnung.
     final kasseGebucht = <String>{};
     final hatBuchung = <String>{};
-    for (var i = 0; i < ids.length; i += 200) {
-      final teil = ids.sublist(i, (i + 200).clamp(0, ids.length));
+    for (var i = 0; i < ids.length; i += kInFilterBlock) {
+      final teil = ids.sublist(i, (i + kInFilterBlock).clamp(0, ids.length));
       final bu = List<Map<String, dynamic>>.from(
         await client
             .from('buchungen')

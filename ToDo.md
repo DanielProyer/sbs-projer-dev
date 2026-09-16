@@ -2,7 +2,20 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.106.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1550 Tests grün** · Git sauber.
+**Stand:** **v0.106.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1555 Tests grün** · Git sauber.
+
+### 🟠 Nachlauf im Funkloch (16.09., 10:22, Sartons) — v0.106.1
+
+Daniels Screenshot: orange Snackbar «Nachbuchen älterer Reinigungen
+abgebrochen» mit bildschirmfüllender Supabase-URL (`buchungen?beleg_id=in.(…)`,
+~70 UUIDs). Ursache: «Failed to fetch» auf dem Handynetz am Berghaus — der
+optionale 14-Tage-Nachlauf nach dem Abschluss, nicht die eigene Buchung.
+**Geprüft:** alle Reinigungen 15./16.09. sind gebucht (Sartons 74.60,
+Rechnung 2026-09-1446 Tresen offen = korrekt); Sarain 16.09. = Heineken,
+braucht keine. **Fix v0.106.1:** Id-Blöcke 200 → 50 (`kInFilterBlock` in
+`core/util/anfrage_bloecke.dart`, Wächter `test/in_filter_block_test.dart`)
+und `kurzeFehlermeldung()` — die Snackbar sagt jetzt «keine Verbindung» /
+«Zeitüberschreitung», die URL geht ins Protokoll.
 
 ### ✅ B6 — ein Aufgaben-Begriff (v0.106.0, 15.09.)
 

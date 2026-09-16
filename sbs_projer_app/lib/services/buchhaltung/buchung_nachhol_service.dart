@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -145,8 +146,8 @@ class BuchungNachholService {
     // createFromReinigung (`getByBeleg`). Ein bewusst stornierter Ertrag darf
     // nicht automatisch wieder auferstehen.
     final hatBuchung = <String>{};
-    for (var i = 0; i < ids.length; i += 200) {
-      final teil = ids.sublist(i, (i + 200).clamp(0, ids.length));
+    for (var i = 0; i < ids.length; i += kInFilterBlock) {
+      final teil = ids.sublist(i, (i + kInFilterBlock).clamp(0, ids.length));
       final bu = List<Map<String, dynamic>>.from(
         await client
             .from('buchungen')
