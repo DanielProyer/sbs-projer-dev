@@ -165,4 +165,97 @@ void main() {
       expect(b.aktionRoute, '/rechnungen');
     });
   });
+
+  group('heineken_rechnung', () {
+    test('Rechnung vorhanden ist gruen', () {
+      expect(
+        lauf('heineken_rechnung', kontext(heinekenStatus: 'offen')).status,
+        PruefStatus.gruen,
+      );
+    });
+    test('keine Rechnung ist rot', () {
+      final b = lauf('heineken_rechnung', kontext(heinekenStatus: null));
+      expect(b.status, PruefStatus.rot);
+      expect(b.aktionRoute, '/heineken');
+    });
+    test('im laufenden Monat nur gelb', () {
+      final b = lauf(
+        'heineken_rechnung',
+        kontext(monat: 9, heinekenStatus: null, heute: DateTime(2026, 9, 16)),
+      );
+      expect(b.status, PruefStatus.gelb);
+      expect(b.hinweis, contains('läuft noch'));
+    });
+  });
+
+  group('heineken_gesendet', () {
+    test('gesendet und spaeter sind gruen', () {
+      for (final s in ['gesendet', 'freigegeben', 'bezahlt']) {
+        expect(
+          lauf('heineken_gesendet', kontext(heinekenStatus: s)).status,
+          PruefStatus.gruen,
+          reason: s,
+        );
+      }
+    });
+    test('offen ist gelb', () {
+      expect(
+        lauf('heineken_gesendet', kontext(heinekenStatus: 'offen')).status,
+        PruefStatus.gelb,
+      );
+    });
+    test('ohne Rechnung gelb, ohne doppelten Alarm', () {
+      final b = lauf('heineken_gesendet', kontext(heinekenStatus: null));
+      expect(b.status, PruefStatus.gelb);
+      expect(b.hinweis, contains('Rechnung'));
+    });
+  });
+
+  group('heineken_freigegeben', () {
+    test('freigegeben und bezahlt sind gruen', () {
+      for (final s in ['freigegeben', 'bezahlt']) {
+        expect(
+          lauf('heineken_freigegeben', kontext(heinekenStatus: s)).status,
+          PruefStatus.gruen,
+          reason: s,
+        );
+      }
+    });
+    test('gesendet ist gelb — Ertrag noch nicht gebucht', () {
+      final b = lauf(
+        'heineken_freigegeben',
+        kontext(heinekenStatus: 'gesendet'),
+      );
+      expect(b.status, PruefStatus.gelb);
+      expect(b.hinweis, contains('Ertrag'));
+    });
+  });
+
+  group('bergkundenpauschalen', () {
+    test('keine Bergkunden im Monat ist gruen', () {
+      expect(lauf('bergkundenpauschalen', kontext()).status, PruefStatus.gruen);
+    });
+    test('jeder Berg-Tag hat seine Pauschale', () {
+      final b = lauf(
+        'bergkundenpauschalen',
+        kontext(
+          bergTage: const {'b9|2026-08-12', 'b9|2026-08-20'},
+          pauschalenTage: const {'b9|2026-08-12', 'b9|2026-08-20'},
+        ),
+      );
+      expect(b.status, PruefStatus.gruen);
+    });
+    test('fehlende Pauschale ist gelb und nennt die Zahl', () {
+      final b = lauf(
+        'bergkundenpauschalen',
+        kontext(
+          bergTage: const {'b9|2026-08-12', 'b9|2026-08-20'},
+          pauschalenTage: const {'b9|2026-08-12'},
+        ),
+      );
+      expect(b.status, PruefStatus.gelb);
+      expect(b.ist, contains('1'));
+      expect(b.aktionRoute, '/bergkundenpauschalen');
+    });
+  });
 }

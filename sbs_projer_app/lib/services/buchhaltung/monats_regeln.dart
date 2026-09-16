@@ -140,10 +140,145 @@ class VersandvermerkRegel extends MonatsRegel {
   }
 }
 
+// ---------------------------------------------------------------- Heineken
+
+/// Die Stufen der Heineken-Monatsrechnung (CLAUDE.md):
+/// `offen → gesendet → freigegeben → bezahlt`. «Mindestens Stufe X» heisst:
+/// Der aktuelle Status liegt an oder hinter dieser Stelle.
+const _heinekenStufen = ['offen', 'gesendet', 'freigegeben', 'bezahlt'];
+
+bool _mindestens(String? status, String stufe) {
+  if (status == null) return false;
+  final ist = _heinekenStufen.indexOf(status);
+  final soll = _heinekenStufen.indexOf(stufe);
+  return ist >= 0 && soll >= 0 && ist >= soll;
+}
+
+class HeinekenRechnungRegel extends MonatsRegel {
+  @override
+  String get id => 'heineken_rechnung';
+  @override
+  String get gruppe => 'Heineken';
+  @override
+  String get titel => 'Monatsrechnung erstellt';
+
+  @override
+  Pruefbefund pruefe(MonatsKontext k) {
+    if (k.heinekenStatus != null) {
+      return befund(PruefStatus.gruen, ist: 'erstellt');
+    }
+    return laeuftNoch(k, route: '/heineken') ??
+        befund(
+          PruefStatus.rot,
+          ist: 'fehlt',
+          soll: 'erstellt',
+          hinweis: 'Ohne Rechnung kein Ertrag für ${k.monatName}.',
+          route: '/heineken',
+        );
+  }
+}
+
+class HeinekenGesendetRegel extends MonatsRegel {
+  @override
+  String get id => 'heineken_gesendet';
+  @override
+  String get gruppe => 'Heineken';
+  @override
+  String get titel => 'Monatsrechnung versendet';
+
+  @override
+  Pruefbefund pruefe(MonatsKontext k) {
+    if (_mindestens(k.heinekenStatus, 'gesendet')) {
+      return befund(PruefStatus.gruen, ist: 'versendet');
+    }
+    if (k.heinekenStatus == null) {
+      // Kein zweiter roter Alarm — die Regel darüber sagt es schon.
+      return befund(
+        PruefStatus.gelb,
+        ist: 'keine Rechnung',
+        hinweis: 'Rechnung zuerst erstellen.',
+        route: '/heineken',
+      );
+    }
+    return befund(
+      PruefStatus.gelb,
+      ist: k.heinekenStatus!,
+      soll: 'gesendet',
+      hinweis: 'Rechnung liegt bereit, ist aber noch nicht raus.',
+      route: '/heineken',
+    );
+  }
+}
+
+class HeinekenFreigegebenRegel extends MonatsRegel {
+  @override
+  String get id => 'heineken_freigegeben';
+  @override
+  String get gruppe => 'Heineken';
+  @override
+  String get titel => 'Monatsrechnung freigegeben';
+
+  @override
+  Pruefbefund pruefe(MonatsKontext k) {
+    if (_mindestens(k.heinekenStatus, 'freigegeben')) {
+      return befund(PruefStatus.gruen, ist: 'freigegeben');
+    }
+    if (k.heinekenStatus == null) {
+      return befund(
+        PruefStatus.gelb,
+        ist: 'keine Rechnung',
+        hinweis: 'Rechnung zuerst erstellen.',
+        route: '/heineken',
+      );
+    }
+    return befund(
+      PruefStatus.gelb,
+      ist: k.heinekenStatus!,
+      soll: 'freigegeben',
+      hinweis: 'Erst die Freigabe bucht Debitoren und Ertrag.',
+      route: '/heineken',
+    );
+  }
+}
+
+class BergkundenpauschalenRegel extends MonatsRegel {
+  @override
+  String get id => 'bergkundenpauschalen';
+  @override
+  String get gruppe => 'Heineken';
+  @override
+  String get titel => 'Bergkundenpauschalen erfasst';
+
+  @override
+  Pruefbefund pruefe(MonatsKontext k) {
+    // Pro Betrieb und Tag eine Pauschale (180 CHF je Besuch), nicht je
+    // Anlage — deshalb Tagesschlüssel statt Reinigungen.
+    final fehlen = k.bergTage.difference(k.pauschalenTage);
+    if (fehlen.isEmpty) {
+      return befund(
+        PruefStatus.gruen,
+        ist: k.bergTage.isEmpty ? 'keine Bergkunden' : 'alle erfasst',
+      );
+    }
+    return laeuftNoch(k, route: '/bergkundenpauschalen') ??
+        befund(
+          PruefStatus.gelb,
+          ist: '${fehlen.length} fehlen',
+          soll: '${k.bergTage.length} Besuche',
+          hinweis: 'Ein Besuch bei einem Bergkunden ohne Pauschale.',
+          route: '/bergkundenpauschalen',
+        );
+  }
+}
+
 /// Die Regeln des Monatsabschlusses, in Anzeigereihenfolge (B4).
 List<MonatsRegel> alleMonatsRegeln() => [
   ReinigungenOffenRegel(),
   EinsaetzeOffenRegel(),
   ErtragsbuchungenRegel(),
   VersandvermerkRegel(),
+  HeinekenRechnungRegel(),
+  HeinekenGesendetRegel(),
+  HeinekenFreigegebenRegel(),
+  BergkundenpauschalenRegel(),
 ];
