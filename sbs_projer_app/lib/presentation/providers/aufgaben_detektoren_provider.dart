@@ -5,8 +5,11 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/monats_pruef_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/monats_pruef_service.dart';
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -180,6 +183,19 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     if (a != null) detektoren.add(a);
   } catch (e) {
     debugPrint('[Aufgaben] Eingangsrechnungs-Detektor: $e');
+  }
+
+  // i) Monatsabschluss des Vormonats — die Zahl der nicht-grünen Regeln.
+  //    Ein Vorrat: gehört ins Büro, nicht in die Glocke (B4).
+  try {
+    final m = vormonat(heute);
+    final befunde = await ref.watch(monatsPruefungProvider(m).future);
+    final offen =
+        befunde.where((b) => b.status != PruefStatus.gruen).length;
+    final a = monatsabschlussAufgabe(offen, monatsName(m.monat));
+    if (a != null) detektoren.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Monatsabschluss-Detektor: $e');
   }
 
   return detektoren;

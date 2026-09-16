@@ -205,6 +205,21 @@ Aufgabe? eingangsrechnungenAufgabe(int anzahl) => anzahl <= 0
         istVorrat: true,
       );
 
+/// Punkte, die der Monatsabschluss des Vormonats offen lässt.
+///
+/// Ein Stapel, kein Termin (B3): Er steht auf der Büro-Startseite, nicht in
+/// der Glocke. Gezählt werden alle nicht-grünen Regeln — gelb heisst beim
+/// Monatsabschluss «noch offen».
+Aufgabe? monatsabschlussAufgabe(int anzahl, String monatName) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'monatsabschluss',
+        titel: 'Monatsabschluss $monatName: $anzahl '
+            '${anzahl == 1 ? 'Punkt' : 'Punkte'} offen',
+        route: '/buchhaltung/monatsabschluss',
+        istVorrat: true,
+      );
+
 /// Snooze gilt bis EINSCHLIESSLICH snooze_bis.
 bool snoozeAktiv(DateTime? snoozeBis, DateTime heute) {
   if (snoozeBis == null) return false;

@@ -260,6 +260,24 @@ void main() {
       expect(saisondatenAufgabe(3)!.istVorrat, isFalse);
     });
   });
+
+  group('monatsabschlussAufgabe', () {
+    test('nichts offen ergibt nichts', () {
+      expect(monatsabschlussAufgabe(0, 'August'), isNull);
+    });
+    test('Titel nennt Monat und Zahl', () {
+      expect(monatsabschlussAufgabe(1, 'August')!.titel,
+          'Monatsabschluss August: 1 Punkt offen');
+      expect(monatsabschlussAufgabe(3, 'August')!.titel,
+          'Monatsabschluss August: 3 Punkte offen');
+    });
+    test('ist ein Vorrat und zeigt auf den Screen', () {
+      final a = monatsabschlussAufgabe(3, 'August')!;
+      expect(a.istVorrat, isTrue);
+      expect(a.route, '/buchhaltung/monatsabschluss');
+      expect(a.key, 'monatsabschluss');
+    });
+  });
 }
 
 /// Versandvermerk-Wächter — nachgerüstet am 10.09.2026.
