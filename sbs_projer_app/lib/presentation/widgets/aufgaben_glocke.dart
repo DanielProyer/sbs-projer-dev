@@ -24,8 +24,9 @@ class AufgabenGlocke extends ConsumerWidget {
             left: 12,
             // Hoch genug, damit die Glocke keine unteren Aktionsleisten
             // überdeckt (Vorfall 26.07.2026: sie lag über dem Buchen-Knopf
-            // im Spesen-Scanner).
-            bottom: 96,
+            // im Spesen-Scanner) — und seit B1 (v0.107.0) zusätzlich über
+            // der Navigationsleiste, die 56 px plus SafeArea belegt.
+            bottom: 152,
             child: Directionality(
               textDirection: TextDirection.ltr,
               child: GestureDetector(

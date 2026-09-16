@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/navigation_ziele.dart';
 
@@ -65,6 +66,32 @@ class HauptNavigation extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Angebunden: beobachtet den Router, entscheidet über Sichtbarkeit und
+/// aktives Ziel und navigiert.
+///
+/// `router.routeInformationProvider` ist ein `Listenable` und meldet jeden
+/// Routenwechsel — `GoRouterState.of(context)` gibt es hier oben nicht.
+/// `go` statt `push`: Der Stapel wird ersetzt, damit die Browser-Zurück-
+/// Geste eine Seite zurückführt statt durch einen wachsenden Stapel.
+class HauptNavigationLeiste extends StatelessWidget {
+  const HauptNavigationLeiste({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: router.routeInformationProvider,
+      builder: (context, _) {
+        final pfad = router.routeInformationProvider.value.uri.path;
+        if (!zeigtNavigation(pfad)) return const SizedBox.shrink();
+        return HauptNavigation(
+          aktiv: aktivesZiel(pfad),
+          onZiel: (z) => router.go(navPfad(z)),
+        );
+      },
     );
   }
 }
