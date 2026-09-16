@@ -2,7 +2,38 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.107.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1580 Tests grün** · Git sauber.
+**Stand:** **v0.108.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1602 Tests grün** · Git sauber.
+
+### ✅ B3 — Büro-Startseite zeigt, was offen ist (v0.108.0, 16.09.)
+
+Spec `docs/superpowers/specs/2026-09-16-buero-startseite-b3-design.md`, Plan
+`docs/superpowers/plans/2026-09-16-buero-startseite-b3.md` (sechs Aufgaben,
+subagent-getrieben). Die Buchhaltungs-Startseite beginnt mit «Was ist
+offen?» — dem Büro-Ausschnitt der **einen** Aufgabenliste aus B6, keine
+zweite Liste.
+
+**Neue Unterscheidung: Frist oder Vorrat** (`istVorrat` auf `Aufgabe`).
+Eine Frist hat einen Stichtag und bleibt in der Glocke (MwSt, Heineken,
+Mahnlauf, Saisondaten). Ein Vorrat ist ein Stapel ohne Stichtag und steht
+nur im Büro und im Aufgaben-Screen. **Aus der Glocke verschwunden:**
+fehlende Ertragsbuchungen und Versandvermerke — sie sind Stapel, keine
+Termine, und stehen jetzt dort, wo sie abgearbeitet werden.
+
+- **Zwei neue Detektoren:** Bank-Prüfliste (`camtPrueflisteProvider`) und
+  offene Eingangsrechnungen (Status vor `zahlung_vorgemerkt`), beide Vorrat.
+- `istBueroAufgabe` leitet die Zugehörigkeit aus der **Route** ab
+  (`/buchhaltung`, `/rechnungen`, `/heineken`) — ein neuer Detektor, der in
+  die Buchhaltung führt, erscheint dort von selbst.
+- **13 Ziele in zwei Gruppen:** Laufend (Bankauszug, Eingangsrechnungen,
+  Forderungen, Heineken, Lohn) · Abschluss & Berichte (der Rest). Wächter
+  `test/buchhaltung_gruppen_waechter_test.dart` hält jedes Ziel in genau
+  einer Gruppe.
+- **Zwei `ListTile` weg:** `_NavTile` (13 Navigationsziele) und die
+  Buchungsvorschau sind auf `InkWell` + `Container` + `Row` umgebaut.
+- **Klicktest Daniel:** Büro-Startseite zeigt oben, was offen ist ·
+  Bank-Prüfliste und offene Eingangsrechnungen dort, **nicht** in der Glocke ·
+  MwSt und Heineken weiterhin in beiden · Snooze auf einer Büro-Zeile wirkt
+  auch in der Glocke · alle 13 Ziele antippbar.
 
 ### ✅ B1 — untere Navigationsleiste (v0.107.0, 16.09.)
 
