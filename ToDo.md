@@ -85,9 +85,12 @@ zeigen dorthin; Störungs-Zusatzfilter nur bei genau «Störung».
      App 724.30, Apr 94.05, Mai 369.70), aber die Jan–Mär-Rechnungen kamen
      am 14.07. per Historik-Import (Totale, keine Service-Verknüpfung) und
      die April-Rechnung setzte das Flag nicht. In `/einsaetze` stehen sie
-     deshalb auf «erledigt» statt «verrechnet». **Fix: `UPDATE reinigungen SET
-     abgerechnet = true` für genau diese 16** (Heineken-Betrieb, Jan–Apr
-     2026, abgeschlossen, nicht abgerechnet) — auf Daniels OK.
+     deshalb auf «erledigt» statt «verrechnet». ✅ **Erledigt 16.09.**
+     (Daniels OK): Flag für genau diese 16 gesetzt, Summe 1'939.40
+     kontrolliert. Offen bleiben nur noch vier Heineken-Reinigungen aus
+     Aug/Sep (Sarain 03.08. + 16.09., Alpine Inn 27.08., Peperoncini
+     03.09.) — deren Monatsrechnungen stehen aus.
+     ⚠️ **Die August-Monatsrechnung Heineken fehlt noch.**
   2. ✅ **Napoli Stories 31.07.2026 — geklärt (Daniel 16.09.):** Kulanz,
      Neueröffnung mit verschmutzten Leitungen vom Vorbetreiber; Aufwand als
      Montage 31.07. (CHF 160) über Heineken verrechnet. Die Reinigung trug
