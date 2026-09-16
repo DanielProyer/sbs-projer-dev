@@ -271,6 +271,79 @@ class BergkundenpauschalenRegel extends MonatsRegel {
   }
 }
 
+// ------------------------------------------------------------- Bank & Lohn
+
+class BankAbgedecktRegel extends MonatsRegel {
+  @override
+  String get id => 'bank_abgedeckt';
+  @override
+  String get gruppe => 'Bank';
+  @override
+  String get titel => 'Bankauszug importiert und geprüft';
+
+  @override
+  Pruefbefund pruefe(MonatsKontext k) {
+    // Deckung Tag für Tag: Mehrere Auszüge dürfen den Monat gemeinsam
+    // abdecken — Daniel zieht sie nicht immer monatsweise.
+    var tag = k.von;
+    final luecken = <DateTime>[];
+    while (!tag.isAfter(k.bis)) {
+      final gedeckt = k.camtDeckung.any(
+        (d) => !tag.isBefore(d.von) && !tag.isAfter(d.bis),
+      );
+      if (!gedeckt) luecken.add(tag);
+      tag = tag.add(const Duration(days: 1));
+    }
+
+    if (luecken.isNotEmpty) {
+      return laeuftNoch(k, route: '/buchhaltung/camt-import') ??
+          befund(
+            PruefStatus.gelb,
+            ist: '${luecken.length} Tage ohne Auszug',
+            soll: 'ganzer Monat',
+            hinweis: 'Bankauszug für ${k.monatName} importieren.',
+            route: '/buchhaltung/camt-import',
+          );
+    }
+
+    if (k.offenePrueflisteImMonat > 0) {
+      return befund(
+        PruefStatus.gelb,
+        ist: '${k.offenePrueflisteImMonat} offen',
+        soll: 'Prüfliste leer',
+        hinweis: 'Buchungen aus diesem Monat warten auf die Zuordnung.',
+        route: '/buchhaltung/camt-pruefliste',
+      );
+    }
+
+    return befund(PruefStatus.gruen, ist: 'importiert, Prüfliste leer');
+  }
+}
+
+class LohnlaufRegel extends MonatsRegel {
+  @override
+  String get id => 'lohnlauf';
+  @override
+  String get gruppe => 'Lohn';
+  @override
+  String get titel => 'Lohnlauf gemacht';
+
+  @override
+  Pruefbefund pruefe(MonatsKontext k) {
+    if (k.lohnMonate.contains(k.monat)) {
+      return befund(PruefStatus.gruen, ist: 'abgerechnet');
+    }
+    return laeuftNoch(k, route: '/buchhaltung/lohn') ??
+        befund(
+          PruefStatus.gelb,
+          ist: 'fehlt',
+          soll: 'abgerechnet',
+          hinweis: 'Keine Lohnabrechnung für ${k.monatName}.',
+          route: '/buchhaltung/lohn',
+        );
+  }
+}
+
 /// Die Regeln des Monatsabschlusses, in Anzeigereihenfolge (B4).
 List<MonatsRegel> alleMonatsRegeln() => [
   ReinigungenOffenRegel(),
@@ -281,4 +354,6 @@ List<MonatsRegel> alleMonatsRegeln() => [
   HeinekenGesendetRegel(),
   HeinekenFreigegebenRegel(),
   BergkundenpauschalenRegel(),
+  BankAbgedecktRegel(),
+  LohnlaufRegel(),
 ];

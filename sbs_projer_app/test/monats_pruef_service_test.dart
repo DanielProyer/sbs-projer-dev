@@ -54,4 +54,30 @@ void main() {
     // wenn alle zehn Regeln stehen — so bleibt kein roter Commit zurueck.
     expect(pruefeMonat(leer()), hasLength(alleMonatsRegeln().length));
   });
+
+  test('alle zehn Regeln laufen und kommen genau einmal vor', () {
+    final befunde = pruefeMonat(leer());
+    expect(befunde, hasLength(10));
+    expect(befunde.map((b) => b.regelId).toSet(), hasLength(10));
+    expect(alleMonatsRegeln(), hasLength(10));
+  });
+
+  test('sortiert rot vor gelb vor gruen', () {
+    final reihenfolge = pruefeMonat(leer()).map((b) => b.status.index).toList();
+    final sortiert = [...reihenfolge]..sort();
+    expect(reihenfolge, orderedEquals(sortiert));
+  });
+
+  test('jede Regel traegt Gruppe und Titel, vier Gruppen', () {
+    for (final b in pruefeMonat(leer())) {
+      expect(b.gruppe, isNotEmpty, reason: b.regelId);
+      expect(b.titel, isNotEmpty, reason: b.regelId);
+    }
+    expect(pruefeMonat(leer()).map((b) => b.gruppe).toSet(), {
+      'Einsätze',
+      'Heineken',
+      'Bank',
+      'Lohn',
+    });
+  });
 }

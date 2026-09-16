@@ -258,4 +258,74 @@ void main() {
       expect(b.aktionRoute, '/bergkundenpauschalen');
     });
   });
+
+  group('bank_abgedeckt', () {
+    test('Datei deckt den Monat, Pruefliste leer — gruen', () {
+      expect(lauf('bank_abgedeckt', kontext()).status, PruefStatus.gruen);
+    });
+    test('keine Datei ist gelb', () {
+      final b = lauf('bank_abgedeckt', kontext(camtDeckung: const []));
+      expect(b.status, PruefStatus.gelb);
+      expect(b.aktionRoute, '/buchhaltung/camt-import');
+    });
+    test('Datei deckt nur einen Teil ist gelb', () {
+      final b = lauf(
+        'bank_abgedeckt',
+        kontext(
+          camtDeckung: [
+            (von: DateTime(2026, 8, 1), bis: DateTime(2026, 8, 20)),
+          ],
+        ),
+      );
+      expect(b.status, PruefStatus.gelb);
+    });
+    test('mehrere Dateien duerfen den Monat gemeinsam decken', () {
+      final b = lauf(
+        'bank_abgedeckt',
+        kontext(
+          camtDeckung: [
+            (von: DateTime(2026, 7, 25), bis: DateTime(2026, 8, 15)),
+            (von: DateTime(2026, 8, 16), bis: DateTime(2026, 9, 5)),
+          ],
+        ),
+      );
+      expect(b.status, PruefStatus.gruen);
+    });
+    test('offene Prueflisten-Eintraege sind gelb', () {
+      final b = lauf('bank_abgedeckt', kontext(offenePrueflisteImMonat: 4));
+      expect(b.status, PruefStatus.gelb);
+      expect(b.ist, contains('4'));
+      expect(b.aktionRoute, '/buchhaltung/camt-pruefliste');
+    });
+    test('im laufenden Monat nur gelb, ohne Vorwurf', () {
+      final b = lauf(
+        'bank_abgedeckt',
+        kontext(monat: 9, camtDeckung: const [], heute: DateTime(2026, 9, 16)),
+      );
+      expect(b.status, PruefStatus.gelb);
+      expect(b.hinweis, contains('läuft noch'));
+    });
+  });
+
+  group('lohnlauf', () {
+    test('Abrechnung vorhanden ist gruen', () {
+      expect(
+        lauf('lohnlauf', kontext(lohnMonate: const {8})).status,
+        PruefStatus.gruen,
+      );
+    });
+    test('fehlende Abrechnung ist gelb', () {
+      final b = lauf('lohnlauf', kontext(lohnMonate: const {7}));
+      expect(b.status, PruefStatus.gelb);
+      expect(b.aktionRoute, '/buchhaltung/lohn');
+    });
+    test('im laufenden Monat nur gelb mit Hinweis', () {
+      final b = lauf(
+        'lohnlauf',
+        kontext(monat: 9, lohnMonate: const {}, heute: DateTime(2026, 9, 16)),
+      );
+      expect(b.status, PruefStatus.gelb);
+      expect(b.hinweis, contains('läuft noch'));
+    });
+  });
 }
