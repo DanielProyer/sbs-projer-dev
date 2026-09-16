@@ -9,10 +9,8 @@ import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/kachel_zaehler_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
@@ -87,13 +85,6 @@ class _KachelGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final faelligeCount = ref.watch(faelligeAnlagenCountProvider);
-    // Kachel-Zähler zeigen offene Arbeit statt Jahrestotale (A2) — siehe
-    // kachel_zaehler_providers.dart.
-    final reinigungenDieseWoche = ref.watch(reinigungenDieseWocheProvider);
-    final offeneStoerungen = ref.watch(offeneStoerungenCountProvider);
-    final geplanteMontagen = ref.watch(geplanteMontagenCountProvider);
-    final offeneEigenauftraege = ref.watch(offeneEigenauftraegeCountProvider);
     // Kachelzähler = Glocken-Badge — dieselbe Quelle (B6).
     final aufgabenCount = ref.watch(aufgabenBadgeProvider);
 
@@ -105,9 +96,9 @@ class _KachelGrid extends ConsumerWidget {
     // Stopp-Zahl beliebig lang wird; die Seite scrollt jetzt bewusst. Das
     // knappe Kachel-Layout bleibt trotzdem so, weil es unabhängig davon
     // gut lesbar ist.
-    // Seit v0.105.0 (B2) führen die Einsatz-Kacheln auf den gemeinsamen
-    // Einsätze-Screen mit vorgewähltem Typ. Die alten Listen bleiben bis
-    // v0.106.0 unter ihren Routen erreichbar (test/alte_listen_ablauf_test.dart).
+    // Seit v0.107.0 (B1) führt die untere Navigationsleiste zu Heute,
+    // Einsätzen, Betrieben und Tour. Hier stehen nur noch die Ziele, die
+    // sie nicht abdeckt — und «Weitere» darunter den Rest.
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -116,52 +107,6 @@ class _KachelGrid extends ConsumerWidget {
       mainAxisSpacing: 6,
       childAspectRatio: 2.1,
       children: [
-        DashboardTile(
-          icon: Icons.store,
-          label: 'Betriebe',
-          count: null,
-          color: AppColors.primary,
-          onTap: () => context.push('/betriebe'),
-        ),
-        DashboardTile(
-          icon: Icons.cleaning_services,
-          label: 'Reinigungen',
-          count: reinigungenDieseWoche > 0
-              ? '$reinigungenDieseWoche diese Woche'
-              : null,
-          color: AppColors.success,
-          onTap: () => context.push('/einsaetze?typ=reinigung'),
-        ),
-        DashboardTile(
-          icon: Icons.warning_amber,
-          label: 'Störungen',
-          count: offeneStoerungen > 0 ? '$offeneStoerungen offen' : null,
-          color: AppColors.warning,
-          onTap: () => context.push('/einsaetze?typ=stoerung'),
-        ),
-        DashboardTile(
-          icon: Icons.build,
-          label: 'Montagen',
-          count: geplanteMontagen > 0 ? '$geplanteMontagen geplant' : null,
-          color: AppColors.info,
-          onTap: () => context.push('/einsaetze?typ=montage'),
-        ),
-        DashboardTile(
-          icon: Icons.build_circle_outlined,
-          label: 'Eigenaufträge',
-          count: offeneEigenauftraege > 0
-              ? '$offeneEigenauftraege offen'
-              : null,
-          color: const Color(0xFF7C3AED),
-          onTap: () => context.push('/einsaetze?typ=eigenauftrag'),
-        ),
-        DashboardTile(
-          icon: Icons.cleaning_services_outlined,
-          label: 'Eröffnungen',
-          count: null,
-          color: AppColors.primary,
-          onTap: () => context.push('/einsaetze?typ=saisonreinigung'),
-        ),
         DashboardTile(
           icon: Icons.contacts,
           label: 'Kontakte',
@@ -178,13 +123,6 @@ class _KachelGrid extends ConsumerWidget {
           count: aufgabenCount > 0 ? '$aufgabenCount' : null,
           color: Colors.deepOrange,
           onTap: () => context.push('/aufgaben'),
-        ),
-        DashboardTile(
-          icon: Icons.route,
-          label: 'Tourenplanung',
-          count: faelligeCount > 0 ? '$faelligeCount fällig' : null,
-          color: AppColors.primary,
-          onTap: () => context.push('/touren'),
         ),
         DashboardTile(
           icon: Icons.receipt_long,

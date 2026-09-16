@@ -1,16 +1,10 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
-
 // ─── Zähler für die Startseiten-Kacheln (A2) ───
 //
-// Die zehn Kacheln der Startseite zeigten bisher Jahrestotale (Betriebe 443,
-// Reinigungen 933, ...) — keine dieser Zahlen verlangt eine Handlung. Diese
-// Datei liefert stattdessen Zähler für offene Arbeit. Das Umstellen der
-// Kacheln selbst ist ein separater Schritt (Task 2) — hier stehen nur die
-// Provider.
+// Ursprünglich (A2) lieferte diese Datei Zähler für offene Arbeit statt
+// Jahrestotalen (Betriebe 443, Reinigungen 933, ...) für alle zehn Kacheln
+// der Startseite. Seit v0.107.0 (B1) führt die Navigationsleiste zu sieben
+// dieser Ziele direkt — ihre Zähler-Provider sind mit den Kacheln entfernt.
+// `kommenderSonntag` bleibt: reine Datumslogik, unabhängig von den Kacheln.
 
 /// Der Sonntag, der die Woche von [tag] abschliesst. Fällt [tag] selbst auf
 /// einen Sonntag, ist es dieser Tag — nicht der Sonntag darauf.
@@ -19,51 +13,6 @@ DateTime kommenderSonntag(DateTime tag) {
   final bisSonntag = DateTime.sunday - ohneZeit.weekday; // Mo=1 … So=7
   return ohneZeit.add(Duration(days: bisSonntag));
 }
-
-/// Anlagen, die bis zum Ende dieser Woche fällig werden.
-///
-/// Obermenge des Tourenplan-Zählers (`faelligeAnlagenCountProvider`, der auf
-/// heute steht) — «heute fällig» ist in «diese Woche fällig» enthalten. Das
-/// ist kein Widerspruch, sondern eine Eingrenzung: der Wochenzähler ist immer
-/// grösser oder gleich dem Tageszähler.
-final reinigungenDieseWocheProvider = Provider<int>((ref) {
-  final sonntag = kommenderSonntag(DateTime.now());
-  return ref.watch(faelligeAnlagenProvider(sonntag)).length;
-});
-
-/// Störungen, die noch zu erledigen sind (Status 'offen' oder
-/// 'in_bearbeitung' — siehe `stoerungOffen` in `tour_filter.dart`, der
-/// zentralen Definition, die auch der Tourenplan verwendet).
-final offeneStoerungenCountProvider = Provider<int>((ref) {
-  return ref
-      .watch(stoerungenProvider)
-      .where((s) => stoerungOffen(s.status))
-      .length;
-});
-
-/// Montagen, die noch zu erledigen sind (Status 'geplant' oder
-/// 'in_bearbeitung' — siehe `montageOffen` in `tour_filter.dart`).
-final geplanteMontagenCountProvider = Provider<int>((ref) {
-  return ref
-      .watch(montagenProvider)
-      .where((m) => montageOffen(m.status))
-      .length;
-});
-
-/// Eigenaufträge, die noch nicht auf `behoben` stehen.
-///
-/// Geprüft am Code (13.09.2026): `EigenauftragLocal.status` kennt drei Werte
-/// — 'behoben', 'nicht_behebbar', 'nachbearbeitung_noetig' (Dropdown in
-/// `eigenauftrag_form_screen.dart`) — nicht nur den einen, wie die App-Analyse
-/// vom 08.09.2026 (Befund 3) nahelegte. Für die Zählung ändert das nichts:
-/// 'behoben' ist der einzige Abschluss-Status (auch das grüne Häkchen in
-/// `eigenauftrag_list_screen.dart` hängt nur daran) — alles andere ist offen.
-final offeneEigenauftraegeCountProvider = Provider<int>((ref) {
-  return ref
-      .watch(eigenauftraegeProvider)
-      .where((e) => e.status != 'behoben')
-      .length;
-});
 
 // ─── Eröffnungsreinigungen: bewusst ausgelassen ───
 //
@@ -79,10 +28,12 @@ final offeneEigenauftraegeCountProvider = Provider<int>((ref) {
 //
 // Das fachliche Gegenstück existiert bereits: `getFaelligkeit()` in
 // tour_providers.dart liefert `FaelligkeitsStatus.eroeffnungFaellig` für
-// Anlagen, deren saisonale Wiedereröffnung ansteht, und das fliesst über
-// `faelligeAnlagenProvider` in `reinigungenDieseWocheProvider` oben bereits
-// mit ein.
+// Anlagen, deren saisonale Wiedereröffnung ansteht.
 //
 // Entschieden am 13.09.2026: Die Eröffnungen-Kachel bekommt KEINEN Zähler.
 // Ein zweiter Zähler zählte dieselbe anstehende Arbeit ein zweites Mal — die
 // Kachel behält Symbol und Namen, wie Betriebe, Kontakte und Spesen auch.
+//
+// Seit v0.107.0 (B1): die Eröffnungen-Kachel selbst ist von der Startseite
+// verschwunden (führt jetzt über die Navigationsleiste zu Einsätze), dieser
+// Entscheid bleibt als Begründung stehen, falls sie einmal zurückkommt.

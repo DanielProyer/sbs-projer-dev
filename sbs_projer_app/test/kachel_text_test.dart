@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -157,4 +159,25 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('die Startseite zeigt nur noch die drei Kacheln ohne Leisten-Ziel',
+      (tester) async {
+    final quelle =
+        File('lib/presentation/screens/home_screen.dart').readAsStringSync();
+    for (final weg in [
+      "label: 'Reinigungen'",
+      "label: 'Störungen'",
+      "label: 'Montagen'",
+      "label: 'Eigenaufträge'",
+      "label: 'Eröffnungen'",
+      "label: 'Betriebe'",
+      "label: 'Tourenplanung'",
+    ]) {
+      expect(quelle.contains(weg), isFalse,
+          reason: '$weg doppelt die Navigationsleiste (B1)');
+    }
+    for (final bleibt in ["label: 'Aufgaben'", "label: 'Spesen'", "label: 'Kontakte'"]) {
+      expect(quelle.contains(bleibt), isTrue, reason: bleibt);
+    }
+  });
 }
