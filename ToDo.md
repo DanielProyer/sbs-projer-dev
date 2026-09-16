@@ -2,7 +2,7 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.106.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **191** · **1555 Tests grün** · Git sauber.
+**Stand:** **v0.106.2 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1559 Tests grün** · Git sauber.
 
 ### 🟠 Nachlauf im Funkloch (16.09., 10:22, Sartons) — v0.106.1
 
@@ -88,10 +88,16 @@ zeigen dorthin; Störungs-Zusatzfilter nur bei genau «Störung».
      deshalb auf «erledigt» statt «verrechnet». **Fix: `UPDATE reinigungen SET
      abgerechnet = true` für genau diese 16** (Heineken-Betrieb, Jan–Apr
      2026, abgeschlossen, nicht abgerechnet) — auf Daniels OK.
-  2. **Napoli Stories 31.07.2026, Tresen, CHF 94.05: keine Rechnung, keine
-     Buchung.** Einzige echte Ertragslücke 2026 ausserhalb der
-     Nullpreis-Reinigungen (9 Kulanzfälle Jun–Sep, korrekt ohne Buchung).
-     Daniel: Tresenrechnung nachholen oder Kulanz vermerken (Preis 0).
+  2. ✅ **Napoli Stories 31.07.2026 — geklärt (Daniel 16.09.):** Kulanz,
+     Neueröffnung mit verschmutzten Leitungen vom Vorbetreiber; Aufwand als
+     Montage 31.07. (CHF 160) über Heineken verrechnet. Die Reinigung trug
+     `ist_kulanz`, aber der Preis-Trigger rechnete trotzdem 94.05 — **Fehler
+     im Trigger**, nicht in den Daten. **Migration 192 (angewendet, Heineken
+     OK):** Kulanz → alle Preisfelder 0; Trigger feuert neu auch bei
+     `ist_kulanz`. Fünf Kulanzfälle 2026 stehen auf 0 (vorher 4 × Listenpreis
+     = CHF 337.30 zu viel im Umsatz). App v0.106.2: `reinigungBetrag()` hält
+     Kulanz aus Tages-/Monats-/Jahresumsatz, `/einsaetze` zeigt «Reinigung
+     (Kulanz)» ohne Betrag. Notiz an der Reinigung gesetzt.
 
 ### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
