@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
@@ -156,6 +158,28 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     if (a != null) detektoren.add(a);
   } catch (e) {
     debugPrint('[Aufgaben] Versandvermerk-Detektor: $e');
+  }
+
+  // g) Bank-Prüfliste — camt-Buchungen, die der Import nicht zuordnen
+  //    konnte. Derselbe Provider wie der Prüflisten-Screen, damit beide nie
+  //    auseinanderlaufen.
+  try {
+    final offen = await ref.watch(camtPrueflisteProvider.future);
+    final a = bankPrueflisteAufgabe(offen.length);
+    if (a != null) detektoren.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Bank-Prüfliste-Detektor: $e');
+  }
+
+  // h) Eingangsrechnungen, die noch nicht zur Zahlung vorgemerkt sind.
+  try {
+    final alle = await ref.watch(eingangsrechnungenProvider.future);
+    const offeneStati = {'erkannt', 'bestaetigt', 'gebucht'};
+    final anzahl = alle.where((e) => offeneStati.contains(e.status)).length;
+    final a = eingangsrechnungenAufgabe(anzahl);
+    if (a != null) detektoren.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Eingangsrechnungs-Detektor: $e');
   }
 
   return detektoren;
