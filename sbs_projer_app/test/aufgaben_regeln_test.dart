@@ -9,25 +9,58 @@ void main() {
     // heute 05.08.2026 -> Vormonat Juli 2026
     final heute = DateTime(2026, 8, 5);
     test('keine Rechnung -> Stufe erstellen', () {
-      final a = heinekenAufgabe(heute: heute, rechnungExistiert: false, rechnungOffen: false);
+      final a = heinekenAufgabe(
+        heute: heute,
+        rechnungExistiert: false,
+        rechnungOffen: false,
+      );
       expect(a, isNotNull);
       expect(a!.key, 'heineken:2026-07');
       expect(a.titel, contains('erstellen'));
       expect(a.titel, contains('Juli'));
     });
     test('Rechnung offen -> Stufe versenden', () {
-      final a = heinekenAufgabe(heute: heute, rechnungExistiert: true, rechnungOffen: true);
+      final a = heinekenAufgabe(
+        heute: heute,
+        rechnungExistiert: true,
+        rechnungOffen: true,
+      );
       expect(a!.titel, contains('versenden'));
     });
     test('Rechnung gesendet -> erledigt (null)', () {
-      expect(heinekenAufgabe(heute: heute, rechnungExistiert: true, rechnungOffen: false), isNull);
+      expect(
+        heinekenAufgabe(
+          heute: heute,
+          rechnungExistiert: true,
+          rechnungOffen: false,
+        ),
+        isNull,
+      );
     });
     test('Färbung: bis 10. orange, danach rot', () {
-      expect(heinekenAufgabe(heute: DateTime(2026, 8, 10), rechnungExistiert: false, rechnungOffen: false)!.dringend, isFalse);
-      expect(heinekenAufgabe(heute: DateTime(2026, 8, 11), rechnungExistiert: false, rechnungOffen: false)!.dringend, isTrue);
+      expect(
+        heinekenAufgabe(
+          heute: DateTime(2026, 8, 10),
+          rechnungExistiert: false,
+          rechnungOffen: false,
+        )!.dringend,
+        isFalse,
+      );
+      expect(
+        heinekenAufgabe(
+          heute: DateTime(2026, 8, 11),
+          rechnungExistiert: false,
+          rechnungOffen: false,
+        )!.dringend,
+        isTrue,
+      );
     });
     test('Jahreswechsel: Januar erinnert an Dezember', () {
-      final a = heinekenAufgabe(heute: DateTime(2027, 1, 2), rechnungExistiert: false, rechnungOffen: false);
+      final a = heinekenAufgabe(
+        heute: DateTime(2027, 1, 2),
+        rechnungExistiert: false,
+        rechnungOffen: false,
+      );
       expect(a!.key, 'heineken:2026-12');
       expect(a.titel, contains('Dezember'));
     });
@@ -35,33 +68,61 @@ void main() {
 
   group('mwstAufgaben', () {
     test('Q2 vorbei -> Aufgabe ab 01.07., Frist 31.08.', () {
-      final a = mwstAufgaben(heute: DateTime(2026, 7, 22), markerKeys: const {}).first;
+      final a = mwstAufgaben(
+        heute: DateTime(2026, 7, 22),
+        markerKeys: const {},
+      ).first;
       expect(a.key, 'mwst:2026-Q2');
       expect(a.titel, contains('Q2'));
       expect(a.dringend, isFalse); // 31.08. ist > 14 Tage entfernt
     });
     test('14 Tage vor Frist -> dringend', () {
-      expect(mwstAufgaben(heute: DateTime(2026, 8, 18), markerKeys: const {}).first.dringend, isTrue);
+      expect(
+        mwstAufgaben(
+          heute: DateTime(2026, 8, 18),
+          markerKeys: const {},
+        ).first.dringend,
+        isTrue,
+      );
     });
     test('nach Frist -> weiterhin sichtbar und dringend', () {
-      expect(mwstAufgaben(heute: DateTime(2026, 9, 15), markerKeys: const {}).first.dringend, isTrue);
+      expect(
+        mwstAufgaben(
+          heute: DateTime(2026, 9, 15),
+          markerKeys: const {},
+        ).first.dringend,
+        isTrue,
+      );
     });
     test('Marker unterdrückt einzelnes Quartal', () {
-      final keys = mwstAufgaben(heute: DateTime(2026, 7, 22), markerKeys: const {'mwst:2026-Q2'})
-          .map((a) => a.key)
-          .toList();
+      final keys = mwstAufgaben(
+        heute: DateTime(2026, 7, 22),
+        markerKeys: const {'mwst:2026-Q2'},
+      ).map((a) => a.key).toList();
       expect(keys, isNot(contains('mwst:2026-Q2')));
     });
     test('Q4: Frist 28.02. im Folgejahr, key mit altem Jahr', () {
-      final a = mwstAufgaben(heute: DateTime(2027, 1, 10), markerKeys: const {}).first;
+      final a = mwstAufgaben(
+        heute: DateTime(2027, 1, 10),
+        markerKeys: const {},
+      ).first;
       expect(a.key, 'mwst:2026-Q4');
     });
-    test('Liste: mehrere unmarkierte Quartale gehen nicht verloren (Beispiel)', () {
-      final keys = mwstAufgaben(heute: DateTime(2026, 7, 22), markerKeys: const {})
-          .map((a) => a.key)
-          .toList();
-      expect(keys, ['mwst:2026-Q2', 'mwst:2026-Q1', 'mwst:2025-Q4', 'mwst:2025-Q3']);
-    });
+    test(
+      'Liste: mehrere unmarkierte Quartale gehen nicht verloren (Beispiel)',
+      () {
+        final keys = mwstAufgaben(
+          heute: DateTime(2026, 7, 22),
+          markerKeys: const {},
+        ).map((a) => a.key).toList();
+        expect(keys, [
+          'mwst:2026-Q2',
+          'mwst:2026-Q1',
+          'mwst:2025-Q4',
+          'mwst:2025-Q3',
+        ]);
+      },
+    );
     test('Liste: mit Marker für Q1 und ältere -> nur Q2', () {
       final keys = mwstAufgaben(
         heute: DateTime(2026, 7, 22),
@@ -70,9 +131,10 @@ void main() {
       expect(keys, ['mwst:2026-Q2']);
     });
     test('Ablösung: Q1 unmarkiert bleibt auch nach Q2-Ende in der Liste', () {
-      final keys = mwstAufgaben(heute: DateTime(2026, 10, 5), markerKeys: const {})
-          .map((a) => a.key)
-          .toList();
+      final keys = mwstAufgaben(
+        heute: DateTime(2026, 10, 5),
+        markerKeys: const {},
+      ).map((a) => a.key).toList();
       expect(keys, contains('mwst:2026-Q1'));
       expect(keys, contains('mwst:2026-Q3'));
     });
@@ -89,15 +151,24 @@ void main() {
       expect(aufgaben, isEmpty);
     });
     test('April -> erstes Element ist Q1', () {
-      final a = mwstAufgaben(heute: DateTime(2026, 4, 15), markerKeys: const {}).first;
+      final a = mwstAufgaben(
+        heute: DateTime(2026, 4, 15),
+        markerKeys: const {},
+      ).first;
       expect(a.key, 'mwst:2026-Q1');
     });
     test('Oktober -> erstes Element ist Q3', () {
-      final a = mwstAufgaben(heute: DateTime(2026, 10, 15), markerKeys: const {}).first;
+      final a = mwstAufgaben(
+        heute: DateTime(2026, 10, 15),
+        markerKeys: const {},
+      ).first;
       expect(a.key, 'mwst:2026-Q3');
     });
     test('Schaltjahr Q4: heute 10.01.2028 -> Q4/2027, Frist 28.02.2028', () {
-      final a = mwstAufgaben(heute: DateTime(2028, 1, 10), markerKeys: const {}).first;
+      final a = mwstAufgaben(
+        heute: DateTime(2028, 1, 10),
+        markerKeys: const {},
+      ).first;
       expect(a.key, 'mwst:2027-Q4');
       expect(a.titel, contains('28.02.2028'));
     });
@@ -121,11 +192,17 @@ void main() {
     });
     test('eigeneSichtbar: ohne Datum sofort, mit Datum ab Fällig-7', () {
       expect(eigeneSichtbar(null, heute), isTrue);
-      expect(eigeneSichtbar(DateTime(2026, 7, 29), heute), isTrue);  // genau 7 Tage
+      expect(
+        eigeneSichtbar(DateTime(2026, 7, 29), heute),
+        isTrue,
+      ); // genau 7 Tage
       expect(eigeneSichtbar(DateTime(2026, 7, 30), heute), isFalse); // 8 Tage
     });
     test('eigeneSichtbar: Zeitanteil von faelligAm wird ignoriert', () {
-      expect(eigeneSichtbar(DateTime(2026, 7, 29, 23, 30), DateTime(2026, 7, 22)), isTrue);
+      expect(
+        eigeneSichtbar(DateTime(2026, 7, 29, 23, 30), DateTime(2026, 7, 22)),
+        isTrue,
+      );
     });
     test('sortiereAufgaben: dringend zuerst, dann Rest stabil', () {
       final l = [
@@ -135,6 +212,52 @@ void main() {
       ];
       final s = sortiereAufgaben(l);
       expect(s.map((a) => a.key).toList(), ['b', 'a', 'c']);
+    });
+  });
+
+  group('bankPrueflisteAufgabe', () {
+    test('leere Pruefliste ergibt nichts', () {
+      expect(bankPrueflisteAufgabe(0), isNull);
+    });
+    test('Einzahl und Mehrzahl', () {
+      expect(bankPrueflisteAufgabe(1)!.titel, '1 Bank-Buchung prüfen');
+      expect(bankPrueflisteAufgabe(23)!.titel, '23 Bank-Buchungen prüfen');
+    });
+    test('ist ein Vorrat und zeigt auf die Pruefliste', () {
+      final a = bankPrueflisteAufgabe(5)!;
+      expect(a.istVorrat, isTrue);
+      expect(a.route, '/buchhaltung/camt-pruefliste');
+      expect(a.key, 'bank_pruefliste');
+      expect(a.dringend, isFalse, reason: 'ein Stapel ist nicht dringend');
+    });
+  });
+
+  group('eingangsrechnungenAufgabe', () {
+    test('nichts offen ergibt nichts', () {
+      expect(eingangsrechnungenAufgabe(0), isNull);
+    });
+    test('Einzahl und Mehrzahl', () {
+      expect(eingangsrechnungenAufgabe(1)!.titel, '1 Eingangsrechnung offen');
+      expect(eingangsrechnungenAufgabe(7)!.titel, '7 Eingangsrechnungen offen');
+    });
+    test('ist ein Vorrat und zeigt auf die Eingangsrechnungen', () {
+      final a = eingangsrechnungenAufgabe(3)!;
+      expect(a.istVorrat, isTrue);
+      expect(a.route, '/buchhaltung/eingangsrechnungen');
+      expect(a.key, 'eingangsrechnungen_offen');
+    });
+  });
+
+  group('bestehende Stapel sind Vorraete (B3)', () {
+    test('fehlende Buchungen und Versandvermerke', () {
+      expect(fehlendeBuchungenAufgabe(2)!.istVorrat, isTrue);
+      expect(versandvermerkAufgabe(2)!.istVorrat, isTrue);
+      // dringend bleibt: im Buero und im Aufgaben-Screen weiterhin rot.
+      expect(fehlendeBuchungenAufgabe(2)!.dringend, isTrue);
+    });
+    test('Fristen bleiben Fristen', () {
+      expect(mahnlaufAufgabe(3)!.istVorrat, isFalse);
+      expect(saisondatenAufgabe(3)!.istVorrat, isFalse);
     });
   });
 }
@@ -155,10 +278,14 @@ void _buchungsTests() {
     });
 
     test('meldet Einzahl und Mehrzahl', () {
-      expect(fehlendeBuchungenAufgabe(1)!.titel,
-          '1 Reinigung ohne Ertragsbuchung');
-      expect(fehlendeBuchungenAufgabe(2)!.titel,
-          '2 Reinigungen ohne Ertragsbuchung');
+      expect(
+        fehlendeBuchungenAufgabe(1)!.titel,
+        '1 Reinigung ohne Ertragsbuchung',
+      );
+      expect(
+        fehlendeBuchungenAufgabe(2)!.titel,
+        '2 Reinigungen ohne Ertragsbuchung',
+      );
     });
 
     test('dringend und mit Weg zu den Forderungen', () {
@@ -179,10 +306,14 @@ void _versandvermerkTests() {
     });
 
     test('meldet Einzahl und Mehrzahl richtig', () {
-      expect(versandvermerkAufgabe(1)!.titel,
-          '1 Mail-Rechnung ohne Versandvermerk — Postausgang prüfen');
-      expect(versandvermerkAufgabe(3)!.titel,
-          '3 Mail-Rechnungen ohne Versandvermerk — Postausgang prüfen');
+      expect(
+        versandvermerkAufgabe(1)!.titel,
+        '1 Mail-Rechnung ohne Versandvermerk — Postausgang prüfen',
+      );
+      expect(
+        versandvermerkAufgabe(3)!.titel,
+        '3 Mail-Rechnungen ohne Versandvermerk — Postausgang prüfen',
+      );
     });
 
     test('führt zu den Forderungen und ist dringend', () {

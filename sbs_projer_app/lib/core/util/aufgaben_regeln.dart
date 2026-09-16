@@ -135,6 +135,9 @@ Aufgabe? saisondatenAufgabe(int anzahl) => anzahl <= 0
 /// Opfer, wenn die Verbindung abbricht. Bis zum 10.09.2026 fiel das nur auf,
 /// wenn zufaellig auch eine Rechnung fehlte — der Weg zum Nachbuchen hing an
 /// jener anderen Warnung.
+///
+/// Seit B3 ein Vorrat: Der Stapel gehört ins Büro und in den
+/// Aufgaben-Screen, nicht in die Glocke.
 Aufgabe? fehlendeBuchungenAufgabe(int anzahl) => anzahl <= 0
     ? null
     : Aufgabe(
@@ -144,6 +147,7 @@ Aufgabe? fehlendeBuchungenAufgabe(int anzahl) => anzahl <= 0
             : '$anzahl Reinigungen ohne Ertragsbuchung',
         dringend: true,
         route: '/rechnungen',
+        istVorrat: true,
       );
 
 /// Rechnungen, die per Mail hätten gehen sollen und trotzdem auf «offen»
@@ -157,6 +161,9 @@ Aufgabe? fehlendeBuchungenAufgabe(int anzahl) => anzahl <= 0
 /// Die App weiss nicht, ob eine Mail rausging. Sie kann aber die
 /// Widersprüchlichkeit melden — beide möglichen Ursachen kosten Geld: Die
 /// Rechnung ist nie angekommen, oder sie geht doppelt raus.
+///
+/// Seit B3 ein Vorrat: Der Stapel gehört ins Büro und in den
+/// Aufgaben-Screen, nicht in die Glocke.
 Aufgabe? versandvermerkAufgabe(int anzahl) => anzahl <= 0
     ? null
     : Aufgabe(
@@ -166,6 +173,36 @@ Aufgabe? versandvermerkAufgabe(int anzahl) => anzahl <= 0
             : '$anzahl Mail-Rechnungen ohne Versandvermerk — Postausgang prüfen',
         dringend: true,
         route: '/rechnungen',
+        istVorrat: true,
+      );
+
+/// Bank-Buchungen, die der camt-Import nicht selbst zuordnen konnte.
+///
+/// Ein Stapel, kein Termin: Er wächst mit jedem Auszug und schrumpft beim
+/// Durchgehen. Deshalb Vorrat — in der Glocke am Berg wäre er nur Rauschen
+/// (B3).
+Aufgabe? bankPrueflisteAufgabe(int anzahl) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'bank_pruefliste',
+        titel: anzahl == 1
+            ? '1 Bank-Buchung prüfen'
+            : '$anzahl Bank-Buchungen prüfen',
+        route: '/buchhaltung/camt-pruefliste',
+        istVorrat: true,
+      );
+
+/// Eingangsrechnungen, die erfasst, aber noch nicht zur Zahlung vorgemerkt
+/// sind — alles vor `zahlung_vorgemerkt`. Ebenfalls ein Stapel (B3).
+Aufgabe? eingangsrechnungenAufgabe(int anzahl) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'eingangsrechnungen_offen',
+        titel: anzahl == 1
+            ? '1 Eingangsrechnung offen'
+            : '$anzahl Eingangsrechnungen offen',
+        route: '/buchhaltung/eingangsrechnungen',
+        istVorrat: true,
       );
 
 /// Snooze gilt bis EINSCHLIESSLICH snooze_bis.
