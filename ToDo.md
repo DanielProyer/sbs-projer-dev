@@ -4,6 +4,33 @@
 
 **Stand:** **v0.110.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1669 Tests grün** · Git sauber.
 
+### ✅ Migration 192b nachgereicht — und eine Lücke in der Ablage (17.09.)
+
+`Datenbank/migrations/192b_kulanz_trigger_spalte.sql` fehlte: Sie war am
+16.09. direkt über `apply_migration` eingespielt worden, ohne Datei. Inhalt
+jetzt im Wortlaut aus `supabase_migrations.schema_migrations`
+(version 20260916094547), **gegengeprüft an `pg_get_triggerdef()`** — der
+Trigger auf der DB trägt `ist_kulanz` tatsächlich in der Spaltenliste.
+Nicht neu angewendet, nur abgelegt; erneutes Ausführen wäre gefahrlos
+(DROP IF EXISTS, UPDATE idempotent).
+
+⚠️ **Beim Abgleich gefunden: rund ein Dutzend weitere Server-Migrationen
+ohne lokale Datei.** Von 101 protokollierten meldete der erste Vergleich 15 —
+die Gegenprobe zeigte, dass drei davon lokal unter anderem Namen liegen
+(`create_tagesplaene` → `085_tagesplaene.sql`,
+`search_path_fixieren_trigger_funktionen` → `178_…`, `141_material_abgeholt_v2`
+als Korrektur zu `141_…`). Echte Lücken bleiben u. a.:
+
+- **Schema-Änderungen** (hätten eine Datei verdient): `betriebe_service_hinweis`,
+  `events_e4_event_aufwand`, `betrieb_loesch_hindernisse`
+- **Einmal-Operationen** (Datei bringt wenig): `camt_dateien_storage_policies`,
+  `rls_auf_wartungs_snapshots`, `rls_snapshot_landi`, `snapshot_camt_abgleich_…`,
+  `buckets_material_fotos_raster_pdfs_privat`, diverse Drops
+
+Nicht dringend — die Datenbank ist korrekt, nur die Ablage unvollständig. Wer
+es aufräumt, holt den Wortlaut aus `schema_migrations.statements` und prüft
+ihn am Ist-Zustand gegen, wie hier bei 192b.
+
 ### ✅ Adresse und Mail aus den Betriebsdaten holen (v0.110.0, 17.09.)
 
 Im Rechnungsadress-Formular steht unter «Adresse» ein Knopf, der **Strasse,
