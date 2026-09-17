@@ -65,6 +65,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
   DateTime? _schliessungsdatum;
   bool _istBergkunde = false;
   bool _istSaisonbetrieb = false;
+  bool _naechsteReinigungKulanz = false;
   String _rechnungsstellung = 'rechnung_mail';
   String? _regionId;
 
@@ -149,6 +150,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
       _agNummerController.text = betrieb.agNummer ?? '';
       _zugangController.text = betrieb.zugangNotizen ?? '';
       _serviceHinweisController.text = betrieb.serviceHinweis ?? '';
+      _naechsteReinigungKulanz = betrieb.naechsteReinigungKulanz;
       _notizenController.text = betrieb.notizen ?? '';
       _servicezeitMorgenAbCtrl.text = betrieb.servicezeitMorgenAb ?? '';
       _servicezeitMorgenBisCtrl.text = betrieb.servicezeitMorgenBis ?? '';
@@ -534,6 +536,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
       betrieb.agNummer = _emptyToNull(_agNummerController.text);
       betrieb.zugangNotizen = _emptyToNull(_zugangController.text);
       betrieb.serviceHinweis = _emptyToNull(_serviceHinweisController.text);
+      betrieb.naechsteReinigungKulanz = _naechsteReinigungKulanz;
       betrieb.notizen = _emptyToNull(_notizenController.text);
       betrieb.status = _status;
       betrieb.schliessungsgrund = _status == 'geschlossen'
@@ -1598,13 +1601,60 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
               TextFormField(
                 controller: _serviceHinweisController,
                 decoration: const InputDecoration(
-                  labelText: 'Service-Hinweis (erscheint beim Reinigungs-Abschluss)',
-                  helperText: 'z.B. «Nächste Reinigung GRATIS — Kulanz». Nach dem Einlösen hier wieder löschen.',
+                  labelText:
+                      'Service-Hinweis (erscheint beim Reinigungs-Abschluss)',
+                  helperText:
+                      'z. B. «Hintereingang benutzen». Für eine Gratis-Reinigung '
+                      'den Schalter unten nehmen — der stellt den Preis auch ein.',
                   prefixIcon: Icon(Icons.campaign),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 2,
                 textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              // Einmaliger Merker: waehlt den Kulanz-Schalter im
+              // Reinigungs-Formular vor. Bewusst ein eigenes Feld und nicht
+              // der Freitext oben — «Hintereingang benutzen» waere dort ein
+              // ebenso gueltiger Inhalt, aus dem auf Kulanz zu schliessen
+              // hiesse raten. Siehe Migration 193.
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _naechsteReinigungKulanz
+                      ? AppColors.warning.withAlpha(25)
+                      : AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _naechsteReinigungKulanz
+                        ? AppColors.warning.withAlpha(100)
+                        : AppColors.divider,
+                  ),
+                ),
+                child: SwitchListTile(
+                  title: const Text(
+                    'Nächste Reinigung auf Kulanz',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Der Kulanz-Schalter ist dann beim Erfassen schon gesetzt. '
+                    'Nach der Kulanz-Reinigung fällt der Merker von selbst weg.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  secondary: const Icon(
+                    Icons.volunteer_activism,
+                    color: AppColors.warning,
+                  ),
+                  value: _naechsteReinigungKulanz,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) {
+                    markiereGeaendert();
+                    setState(() => _naechsteReinigungKulanz = v);
+                  },
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(

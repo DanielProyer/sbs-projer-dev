@@ -21,6 +21,9 @@ class BetriebLocal {
   String? website;
   String? zugangNotizen;
   String? serviceHinweis;
+
+  /// Einmaliger Merker: waehlt den Kulanz-Schalter im Reinigungs-Formular vor.
+  bool naechsteReinigungKulanz = false;
   String? betriebNr;
   String? weNummer;
   String? agNummer;

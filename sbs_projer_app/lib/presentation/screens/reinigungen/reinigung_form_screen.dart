@@ -284,6 +284,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             _betrieb = betrieb;
             _rechnungsstellung = betrieb.rechnungsstellung;
             if (!_isEdit) _istBergkunde = betrieb.istBergkunde;
+            // Kulanz-Vorwahl: Steht der Merker am Betrieb, ist der Schalter
+            // von Anfang an gesetzt — man muss aktiv widersprechen statt
+            // aktiv daran zu denken. Ein blosser Hinweis reichte nicht: Beim
+            // Chleina Pub stand er ab 07.08.2026 am Betrieb und wurde beim
+            // Abschluss auch angezeigt, am 27.08. wurde trotzdem regulaer
+            // verrechnet. Nur bei NEUEN Reinigungen — eine bestehende traegt
+            // ihre eigene Entscheidung.
+            if (!_isEdit && betrieb.naechsteReinigungKulanz) {
+              _istKulanz = true;
+              _istHeinekenMonteur = false;
+            }
           });
         }
       } catch (e) {
@@ -790,6 +801,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
               ),
             );
           }
+        }
+      }
+
+      // Kulanz eingelöst → Merker am Betrieb loeschen. Er ist EINMALIG: Beim
+      // Chleina Pub blieb der blosse Hinweis 40 Tage stehen, nachdem der Fall
+      // laengst anders geloest war. Ein stehender Merker wuerde die naechste
+      // Reinigung ungefragt verschenken.
+      //
+      // Scheitert das Loeschen (Funkloch), bleibt der Merker stehen und die
+      // naechste Reinigung ist wieder vorgewaehlt — sichtbar im Formular, also
+      // korrigierbar. Deshalb nur ins Debug-Protokoll, ohne die Kette zu
+      // stoppen.
+      if (abschliessen &&
+          _istKulanz &&
+          (_betrieb?.naechsteReinigungKulanz ?? false)) {
+        try {
+          _betrieb!.naechsteReinigungKulanz = false;
+          await BetriebRepository.save(_betrieb!);
+        } catch (e) {
+          debugPrint('[Kulanz-Merker] Zuruecksetzen fehlgeschlagen: $e');
         }
       }
 

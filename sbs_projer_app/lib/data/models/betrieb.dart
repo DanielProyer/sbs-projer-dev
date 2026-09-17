@@ -15,6 +15,11 @@ class Betrieb {
   /// Prominenter Hinweis beim Reinigungs-Abschluss (z.B. «Nächste Reinigung
   /// GRATIS — Kulanz»). Leer/NULL = kein Hinweis.
   final String? serviceHinweis;
+
+  /// Einmaliger Merker: waehlt den Kulanz-Schalter im Reinigungs-Formular
+  /// vor. Die App setzt ihn nach einer abgeschlossenen Kulanz-Reinigung
+  /// zurueck — ein Dauer-Gratiskunde gehoert in Preisliste/Zahlungsart.
+  final bool naechsteReinigungKulanz;
   final String? betriebNr;
   final String? weNummer;
   final String? agNummer;
@@ -77,6 +82,7 @@ class Betrieb {
     this.website,
     this.zugangNotizen,
     this.serviceHinweis,
+    this.naechsteReinigungKulanz = false,
     this.betriebNr,
     this.weNummer,
     this.agNummer,
@@ -137,6 +143,7 @@ class Betrieb {
       website: json['website'],
       zugangNotizen: json['zugang_notizen'],
       serviceHinweis: json['service_hinweis'],
+      naechsteReinigungKulanz: json['naechste_reinigung_kulanz'] ?? false,
       betriebNr: json['heineken_nr'],
       weNummer: json['we_nummer'],
       agNummer: json['ag_nummer'],
@@ -250,6 +257,7 @@ class Betrieb {
       'website': website,
       'zugang_notizen': zugangNotizen,
       'service_hinweis': serviceHinweis,
+      'naechste_reinigung_kulanz': naechsteReinigungKulanz,
       'heineken_nr': betriebNr,
       'we_nummer': weNummer,
       'ag_nummer': agNummer,

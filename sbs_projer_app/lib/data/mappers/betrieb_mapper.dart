@@ -18,6 +18,7 @@ class BetriebMapper {
     local.website = dto.website;
     local.zugangNotizen = dto.zugangNotizen;
     local.serviceHinweis = dto.serviceHinweis;
+    local.naechsteReinigungKulanz = dto.naechsteReinigungKulanz;
     local.betriebNr = dto.betriebNr;
     local.weNummer = dto.weNummer;
     local.agNummer = dto.agNummer;
@@ -82,6 +83,7 @@ class BetriebMapper {
       'website': local.website,
       'zugang_notizen': local.zugangNotizen,
       'service_hinweis': local.serviceHinweis,
+      'naechste_reinigung_kulanz': local.naechsteReinigungKulanz,
       'heineken_nr': local.betriebNr,
       'we_nummer': local.weNummer,
       'ag_nummer': local.agNummer,
