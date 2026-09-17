@@ -6,6 +6,9 @@ import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
+import 'package:sbs_projer_app/core/util/adresse_aus_betrieb.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class BetriebRechnungsadresseFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -29,6 +32,61 @@ class _BetriebRechnungsadresseFormScreenState
   bool _isLoading = false;
   BetriebRechnungsadresseLocal? _existing;
   String _betriebName = '';
+  BetriebLocal? _betrieb;
+
+  /// Holt Strasse, Nr., PLZ, Ort und Mail aus dem Betrieb ins Formular.
+  ///
+  /// Firma und Objekt bleiben aussen vor: `firma` ist die
+  /// Rechnungsempfängerin (oft eine Betreiber-GmbH) und trug von 75 erfassten
+  /// Adressen genau einmal den Betriebsnamen; `objekt` belegt das Formular
+  /// ohnehin selbst vor. Beides zu füllen würde den Namen doppelt auf die
+  /// Rechnung setzen — `adressZeilen()` schreibt firma und objekt
+  /// untereinander.
+  void _ausBetriebUebernehmen() {
+    final b = _betrieb;
+    if (b == null) return;
+
+    final quelle = (
+      strasse: b.strasse ?? '',
+      nr: b.nr ?? '',
+      plz: b.plz ?? '',
+      ort: b.ort ?? '',
+      email: b.email ?? '',
+    );
+    final u = uebernehmen(
+      formular: (
+        strasse: _strasseController.text,
+        nr: _nrController.text,
+        plz: _plzController.text,
+        ort: _ortController.text,
+        email: _emailController.text,
+      ),
+      betrieb: quelle,
+    );
+
+    setState(() {
+      _strasseController.text = u.werte.strasse;
+      _nrController.text = u.werte.nr;
+      _plzController.text = u.werte.plz;
+      _ortController.text = u.werte.ort;
+      _emailController.text = u.werte.email;
+    });
+    if (u.geaendert.isNotEmpty) markiereGeaendert();
+
+    final hatDaten = [
+      quelle.strasse,
+      quelle.nr,
+      quelle.plz,
+      quelle.ort,
+      quelle.email,
+    ].any((f) => f.trim().isNotEmpty);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(uebernahmeMeldung(u, betriebHatDaten: hatDaten)),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
 
   late final _firmaController = TextEditingController();
   late final _objektController = TextEditingController();
@@ -59,6 +117,7 @@ class _BetriebRechnungsadresseFormScreenState
     final betrieb = await BetriebRepository.getById(widget.betriebId);
     if (betrieb != null && mounted) {
       setState(() {
+        _betrieb = betrieb;
         _betriebName = betrieb.name;
         // Vorbelegung nur, solange nichts erfasst ist — eine abweichende
         // Objektbezeichnung (z. B. «Spiga Steinbock Chur») bleibt erhalten.
@@ -76,8 +135,9 @@ class _BetriebRechnungsadresseFormScreenState
 
   /// Prüfe ob bereits eine Rechnungsadresse existiert (für neuen Eintrag)
   Future<void> _loadExisting() async {
-    final existing =
-        await BetriebRechnungsadresseRepository.getByBetrieb(widget.betriebId);
+    final existing = await BetriebRechnungsadresseRepository.getByBetrieb(
+      widget.betriebId,
+    );
     if (existing != null && mounted) {
       setState(() {
         _existing = existing;
@@ -102,8 +162,9 @@ class _BetriebRechnungsadresseFormScreenState
   }
 
   Future<void> _loadAdresse() async {
-    final adresse =
-        await BetriebRechnungsadresseRepository.getById(widget.adresseId!);
+    final adresse = await BetriebRechnungsadresseRepository.getById(
+      widget.adresseId!,
+    );
     if (adresse == null || !mounted) return;
 
     setState(() {
@@ -156,9 +217,9 @@ class _BetriebRechnungsadresseFormScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -214,9 +275,7 @@ class _BetriebRechnungsadresseFormScreenState
       geaendert: geaendert,
       was: 'Die Rechnungsadresse',
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Rechnungsadresse'),
-        ),
+        appBar: AppBar(title: const Text('Rechnungsadresse')),
         body: Form(
           key: _formKey,
           // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
@@ -279,10 +338,29 @@ class _BetriebRechnungsadresseFormScreenState
               const SizedBox(height: 16),
 
               // === Adresse ===
-              Text('Adresse',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      )),
+              Text(
+                'Adresse',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              // Holt Strasse, Nr., PLZ, Ort und Mail aus dem Betrieb — Firma
+              // und Objekt bleiben unangetastet, die stammen nicht von dort
+              // (siehe adresse_aus_betrieb.dart).
+              //
+              // Eigene Zeile statt neben der Überschrift: Dort lief sie auf
+              // 360 px bei 130 % Systemschrift um 44 px über — derselbe Fall
+              // wie im Dialog am 08.09.2026.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TapKnopf(
+                  text: 'Adresse und Mail aus den Betriebsdaten',
+                  icon: Icons.download,
+                  primaer: false,
+                  onTap: _betrieb == null ? null : _ausBetriebUebernehmen,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _postfachController,
@@ -310,9 +388,9 @@ class _BetriebRechnungsadresseFormScreenState
                       // Postfach ersetzt die Strasse — dann ist sie nicht nötig.
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) &&
-                                  _postfachController.text.trim().isEmpty
-                              ? 'Strasse oder Postfach ist erforderlich'
-                              : null,
+                              _postfachController.text.trim().isEmpty
+                          ? 'Strasse oder Postfach ist erforderlich'
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 12),
