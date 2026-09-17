@@ -72,3 +72,29 @@ VersandMeldung versandMeldung(VersandStand stand, Object fehler) {
 String kettenFehlerMeldung(Object fehler) =>
     'Rechnung/Mail abgebrochen (${kurzeFehlermeldung(fehler)}) — '
     'im Rechnungs-Detail prüfen, bevor du erneut sendest.';
+
+/// Meldung, wenn die Ertragsbuchung nach dem Abschluss nicht durchkam.
+///
+/// WARUM der Weg genau benannt wird: v0.109.1 schickte Daniel «ins
+/// Reinigungs-Detail nachbuchen» — dort gibt es das nicht. Am 17.09.2026,
+/// 15:51 (Cafe Bar, Rechnung 2026-09-1456) stand die Rechnung, die Buchung
+/// fehlte, und die Meldung zeigte ins Leere.
+///
+/// Der Knopf sitzt als Warnkarte oben in der Rechnungsliste («… CHF · tippen
+/// zum Nachbuchen»). Der automatische Nachlauf ist KEIN Ersatz: Er hängt an
+/// `if (buchungVerbucht)` und läuft erst beim nächsten Abschluss, dessen
+/// eigene Buchung durchgeht — im Funkloch also gar nicht.
+String buchungFehlerMeldung(Object fehler) =>
+    'BUCHUNG FEHLGESCHLAGEN (${kurzeFehlermeldung(fehler)}) — '
+    'in der Rechnungsliste oben «tippen zum Nachbuchen».';
+
+/// Meldung, wenn das HeiGenie-Protokoll nicht rausging.
+///
+/// WARUM hier kein Weg steht: Es gibt keinen. Die HeiGenie-Mail hängt allein
+/// am Abschluss-Formular, kein Screen kann sie erneut senden, und ohne
+/// Rechnung gibt es auch keinen Versandvermerk, bei dem sich nachfragen
+/// liesse. Einen Weg zu nennen, den es nicht gibt, kostet Daniel eine
+/// Suche und am Ende das Vertrauen in die Meldung.
+String heigenieFehlerMeldung(Object fehler) =>
+    'HeiGenie-Protokoll NICHT gemailt (${kurzeFehlermeldung(fehler)}) — '
+    'die App kann es nicht nachholen, bitte Beat direkt schreiben.';

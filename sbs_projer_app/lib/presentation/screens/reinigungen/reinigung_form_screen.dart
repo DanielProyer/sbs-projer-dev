@@ -783,8 +783,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
               SnackBar(
                 backgroundColor: AppColors.error,
                 content: Text(
-                  'HeiGenie-Mail fehlgeschlagen (${kurzeFehlermeldung(e)}) — '
-                  'im Reinigungs-Detail nachholen.',
+                  heigenieFehlerMeldung(e),
                   style: const TextStyle(color: Colors.white),
                 ),
                 duration: const Duration(seconds: 8),
@@ -1092,8 +1091,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 SnackBar(
                   backgroundColor: AppColors.error,
                   content: Text(
-                    'BUCHUNG FEHLGESCHLAGEN (${kurzeFehlermeldung(e)}) — '
-                    'im Reinigungs-Detail nachbuchen.',
+                    buchungFehlerMeldung(e),
                     style: const TextStyle(color: Colors.white),
                   ),
                   duration: const Duration(seconds: 10),

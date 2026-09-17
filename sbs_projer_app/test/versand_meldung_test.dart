@@ -76,4 +76,34 @@ void main() {
       );
     });
   });
+
+  group('buchungFehlerMeldung', () {
+    test('nennt die Rechnungsliste, nicht das Reinigungs-Detail', () {
+      final t = buchungFehlerMeldung(netzfehler);
+      expect(t, contains('keine Verbindung'));
+      expect(t, contains('Rechnungsliste'));
+      expect(t, contains('tippen zum Nachbuchen'));
+      expect(
+        t,
+        isNot(contains('Reinigungs-Detail')),
+        reason: 'dort gibt es kein Nachbuchen — der Fehler von v0.109.1',
+      );
+    });
+  });
+
+  group('heigenieFehlerMeldung', () {
+    test('erfindet keinen Nachhol-Weg', () {
+      final t = heigenieFehlerMeldung(netzfehler);
+      expect(t, contains('NICHT gemailt'));
+      expect(t, contains('keine Verbindung'));
+      expect(t, contains('Beat'));
+      for (final erfunden in ['Reinigungs-Detail', 'Rechnungs-Detail']) {
+        expect(
+          t,
+          isNot(contains(erfunden)),
+          reason: 'die HeiGenie-Mail laesst sich nirgends erneut senden',
+        );
+      }
+    });
+  });
 }
