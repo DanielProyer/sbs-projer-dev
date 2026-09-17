@@ -2,7 +2,34 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.110.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1669 Tests grün** · Git sauber.
+**Stand:** **v0.111.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1676 Tests grün** · Git sauber.
+
+### ✅ Kulanz-Vorwahl statt blossem Hinweis (v0.111.0, Migration 193, 17.09.)
+
+Neues Feld **«Nächste Reinigung auf Kulanz»** im Betriebsformular. Steht es,
+ist der Kulanz-Schalter beim Erfassen der Reinigung **schon gesetzt** — man
+muss aktiv widersprechen statt aktiv daran zu denken.
+
+**Warum ein eigenes Feld und nicht der `service_hinweis`:** Der ist generisch
+— «Hintereingang benutzen» wäre ein ebenso gültiger Inhalt. Aus dem Freitext
+auf Kulanz zu schliessen hiesse raten, und ein Stichwort-Treffer würde bei
+«letzte Reinigung war Kulanz, diesmal normal» falsch auslösen. Beide Fälle
+stehen als Test in `kulanz_vorwahl_test.dart`.
+
+**Der Merker ist einmalig.** Nach einer abgeschlossenen Kulanz-Reinigung
+löscht ihn die App. Genau das fehlte dem Hinweis beim Chleina Pub, der 40
+Tage stehen blieb, nachdem der Fall längst anders gelöst war. Scheitert das
+Löschen im Funkloch, bleibt er stehen und die nächste Reinigung ist wieder
+vorgewählt — sichtbar im Formular, also korrigierbar; die Abschlusskette wird
+dafür nicht angehalten.
+
+Ein **Dauer-Gratiskunde** gehört weiterhin in Preisliste/Zahlungsart, nicht
+hierher. Der Hilfetext am Service-Hinweis nannte Kulanz als Beispiel — der
+zeigt jetzt auf den Schalter.
+
+**Klicktest Daniel:** Bei einem Betrieb den Schalter setzen, dort eine neue
+Reinigung erfassen — steht Kulanz schon an? Und ist der Schalter am Betrieb
+nach dem Abschluss wieder aus?
 
 ### ✅ Chleina Pub: Doppelzahlung gegen offene Rechnung verrechnet (17.09.)
 
