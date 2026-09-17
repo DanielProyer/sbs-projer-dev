@@ -2,8 +2,36 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.109.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1655 Tests grün** · Git sauber.
+**Stand:** **v0.109.2 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1657 Tests grün** · Git sauber.
 
+### ✅ Zwei Wegweiser zeigten ins Leere (v0.109.2, 17.09.)
+
+**Nachtrag zu v0.109.1 — mein Fehler, im Feld aufgefallen.** Beim Aufräumen
+der Meldungen habe ich zwei Wege hingeschrieben, ohne sie zu prüfen.
+
+- **«BUCHUNG FEHLGESCHLAGEN — im Reinigungs-Detail nachbuchen»:** Dort gibt es
+  kein Nachbuchen. Der Knopf sitzt als **Warnkarte oben in der Rechnungsliste**
+  («… CHF · tippen zum Nachbuchen»). Aufgefallen 17.09., 15:51 (**Cafe Bar**,
+  Rechnung 2026-09-1456): Rechnung stand, Ertragsbuchung fehlte wirklich — nur
+  der genannte Weg existierte nicht. Die anderen sieben Abschlüsse des Tages
+  waren alle gebucht.
+- **«HeiGenie-Mail fehlgeschlagen — im Reinigungs-Detail nachholen»:** Die
+  HeiGenie-Mail hängt **allein am Abschluss-Formular**. Kein Screen kann sie
+  erneut senden, und ohne Rechnung gibt es auch keinen Versandvermerk zum
+  Nachfragen. Die Meldung nennt jetzt keinen Weg, sondern sagt, dass es keinen
+  gibt («bitte Beat direkt schreiben»).
+
+⚠️ **Der automatische Nachlauf ist kein Ersatz:** `BuchungNachholService`
+steht hinter `if (buchungVerbucht)` — er läuft erst beim nächsten Abschluss,
+dessen **eigene** Buchung durchgeht. Genau im Funkloch also nicht.
+
+**Lehre:** Eine Fehlermeldung, die einen Weg nennt, muss diesen Weg belegen.
+Ein Wächter-Test kann das nicht prüfen — der Blick in den Ziel-Screen schon.
+Gegengeprüft: Die Versandmeldungen aus v0.109.1 zeigen **richtig** («Rechnung
+erneut senden» im Rechnungs-Detail gibt es).
+
+**Klicktest Daniel:** Cafe Bar über die Warnkarte in der Rechnungsliste
+nachbuchen — geht das mit einem Tipp?
 ### ✅ Die Meldung log — Versandmeldung fragt jetzt nach (v0.109.1, 17.09.)
 
 **Vorfall 17.09., 11:32, Löwen Maienfeld** (Rechnung 2026-09-1452, CHF 74.60):
