@@ -2,7 +2,43 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.109.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1647 Tests grün** · Git sauber.
+**Stand:** **v0.109.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1655 Tests grün** · Git sauber.
+
+### ✅ Die Meldung log — Versandmeldung fragt jetzt nach (v0.109.1, 17.09.)
+
+**Vorfall 17.09., 11:32, Löwen Maienfeld** (Rechnung 2026-09-1452, CHF 74.60):
+Die App meldete rot «MAIL-VERSAND FEHLGESCHLAGEN: ClientException: Failed to
+fetch, uri=…», **während die Mail längst beim Kunden lag**. Geprüft: Status
+`gesendet`, `versendet_am` 17.09. — gesetzt von der Function, die den Vermerk
+seit v15 selbst schreibt und ihn seit v16 an `EdgeRuntime.waitUntil` hängt.
+«Failed to fetch» war der Weg **zurück**, nicht der Weg hin.
+
+Gefährlich war nicht die Bildschirm füllende URL, sondern die Aufforderung zum
+Nachholen: Ein zweiter Versand hätte dem Kunden dieselbe Rechnung geschickt —
+genau der Schaden, gegen den der Serverfix vom 11.09. gebaut wurde. Die App
+machte ihn durch die Hintertür wieder auf.
+
+Neu wird im `catch` **nachgefragt** (`RechnungRepository.istVersandVermerkt`,
+Meldungen in `core/util/versand_meldung.dart`):
+
+- Vermerk steht → **gelb**, «Antwort nicht angekommen (keine Verbindung) — die
+  Rechnung ist laut Server versendet. Nicht erneut senden.»
+- kein Vermerk → **rot**, «Mail NICHT versendet — im Rechnungs-Detail nachholen.»
+- Nachfrage kam auch nicht durch → **gelb**, «Versand unklar — erst prüfen, dann
+  erst erneut senden.»
+
+Die Kettenmeldung (Rechnung + PDF + Mail) fordert nur noch zum **Prüfen** auf:
+ob die Rechnung überhaupt entstanden ist, weiss dort niemand.
+
+**Neuer Wächter `test/rohe_ausnahme_ratsche_test.dart`:** Rohe Ausnahmen in
+Snackbars sind im Rechnungs-/Mailpfad **verboten** und dürfen im übrigen `lib`
+nur noch weniger werden. **Bestand 163** — wer eine Stelle anfasst, zieht die
+Zahl herunter. `kurzeFehlermeldung()` aus v0.106.1 hatte diese fünf Stellen nie
+erreicht.
+
+**Klicktest Daniel:** Beim nächsten Abschluss im Funkloch — steht statt der
+roten URL eine gelbe Meldung mit «laut Server versendet»? Und wenn wirklich
+nichts rausging, eine rote mit «nachholen»?
 
 ### ✅ B4 — Monatsabschluss als geführte Checkliste (v0.109.0, 16.09.)
 
