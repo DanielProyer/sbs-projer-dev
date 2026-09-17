@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -8,12 +9,18 @@ class RechnungRepository {
   static String get _userId => SupabaseService.currentUser!.id;
 
   /// Holt ALLE Zeilen seitenweise (PostgREST deckelt sonst bei 1000).
-  static Future<List<Map<String, dynamic>>> _pagedByUser({String? col, String? val}) async {
+  static Future<List<Map<String, dynamic>>> _pagedByUser({
+    String? col,
+    String? val,
+  }) async {
     final all = <Map<String, dynamic>>[];
     const pageSize = 1000;
     int from = 0;
     while (true) {
-      var q = SupabaseService.client.from('rechnungen').select().eq('user_id', _userId);
+      var q = SupabaseService.client
+          .from('rechnungen')
+          .select()
+          .eq('user_id', _userId);
       if (col != null) q = q.eq(col, val!);
       final rows = await q
           .order('created_at', ascending: false)
@@ -45,6 +52,34 @@ class RechnungRepository {
     return Rechnung.fromJson(rows.first);
   }
 
+  /// Fragt den Server, ob der Versandvermerk steht.
+  /// `true` = versendet, `false` = kein Vermerk, `null` = die Nachfrage kam
+  /// selbst nicht durch.
+  ///
+  /// WARUM: Die Mail-Function setzt `versendet_am` seit v15 selbst, direkt
+  /// nach dem erfolgreichen Gmail-Aufruf. Bricht unterwegs die Verbindung ab,
+  /// fängt die App eine Ausnahme — obwohl die Mail beim Kunden liegt. Steht
+  /// der Vermerk, ist sie raus; das weiss nur der Server, also wird er
+  /// gefragt. Siehe `versand_meldung.dart`.
+  ///
+  /// Wirft NIE: Diese Nachfrage läuft in einem catch-Block, in dem schon
+  /// etwas schiefging. Eine zweite Ausnahme hülfe niemandem.
+  static Future<bool?> istVersandVermerkt(String id) async {
+    try {
+      final rows = await SupabaseService.client
+          .from('rechnungen')
+          .select('versendet_am')
+          .eq('id', id)
+          .eq('user_id', _userId)
+          .limit(1);
+      if (rows.isEmpty) return false;
+      return rows.first['versendet_am'] != null;
+    } catch (e) {
+      debugPrint('[Versandstand] Nachfrage fehlgeschlagen: $e');
+      return null;
+    }
+  }
+
   static Future<List<Rechnung>> getByBetrieb(String betriebId) async {
     final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
     return rows.map((r) => Rechnung.fromJson(r)).toList();
@@ -60,8 +95,11 @@ class RechnungRepository {
     int from = 0;
     while (true) {
       final rows = await SupabaseService.client
-          .from('rechnungen').select('id').eq('user_id', _userId)
-          .order('id').range(from, from + pageSize - 1);
+          .from('rechnungen')
+          .select('id')
+          .eq('user_id', _userId)
+          .order('id')
+          .range(from, from + pageSize - 1);
       total += rows.length;
       if (rows.length < pageSize) break;
       from += pageSize;
@@ -75,9 +113,12 @@ class RechnungRepository {
     int from = 0;
     while (true) {
       final rows = await SupabaseService.client
-          .from('rechnungen').select('id').eq('user_id', _userId)
+          .from('rechnungen')
+          .select('id')
+          .eq('user_id', _userId)
           .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")')
-          .order('id').range(from, from + pageSize - 1);
+          .order('id')
+          .range(from, from + pageSize - 1);
       total += rows.length;
       if (rows.length < pageSize) break;
       from += pageSize;
@@ -92,7 +133,8 @@ class RechnungRepository {
     int from = 0;
     while (true) {
       final rows = await SupabaseService.client
-          .from('rechnungen').select()
+          .from('rechnungen')
+          .select()
           .eq('user_id', _userId)
           .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")')
           .order('rechnungsdatum')
@@ -114,7 +156,7 @@ class RechnungRepository {
     json.remove('id');
     // Eigene Referenz vom Aufrufer wird respektiert und nicht überschrieben.
     final eigeneRef = json['qr_referenz'] != null;
-    for (var suffix = 0;; suffix++) {
+    for (var suffix = 0; ; suffix++) {
       if (!eigeneRef) {
         json['qr_referenz'] = qrReferenzAusNummer(
           json['rechnungstyp'] as String?,
@@ -131,14 +173,16 @@ class RechnungRepository {
       } on PostgrestException catch (e) {
         final istDuplikat = e.code == '23505';
         // Referenz-Kollision (eigene Vergabe) → mit anderem Suffix erneut.
-        final refKonflikt = istDuplikat &&
+        final refKonflikt =
+            istDuplikat &&
             (e.message.contains('qr_referenz') ||
                 (e.details?.toString().contains('qr_referenz') ?? false));
         // rechnungsnummer wird per DB-Trigger aus einer Sequenz vergeben. Hinkt
         // die Sequenz hinter bereits vergebenen Nummern her, kollidiert der
         // Insert — ein Neuversuch erzeugt die nächste Sequenznummer und heilt
         // die Lücke selbst.
-        final nummerKonflikt = istDuplikat &&
+        final nummerKonflikt =
+            istDuplikat &&
             (e.message.contains('rechnungsnummer') ||
                 (e.details?.toString().contains('rechnungsnummer') ?? false));
         if (((!eigeneRef && refKonflikt) || nummerKonflikt) && suffix < 50) {
@@ -151,16 +195,10 @@ class RechnungRepository {
 
   /// Aktualisiert einzelne Felder einer Rechnung.
   static Future<void> update(String id, Map<String, dynamic> fields) async {
-    await SupabaseService.client
-        .from('rechnungen')
-        .update(fields)
-        .eq('id', id);
+    await SupabaseService.client.from('rechnungen').update(fields).eq('id', id);
   }
 
   static Future<void> delete(String id) async {
-    await SupabaseService.client
-        .from('rechnungen')
-        .delete()
-        .eq('id', id);
+    await SupabaseService.client.from('rechnungen').delete().eq('id', id);
   }
 }

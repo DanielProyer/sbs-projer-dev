@@ -29,6 +29,7 @@ import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
+import 'package:sbs_projer_app/core/util/versand_meldung.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
@@ -782,7 +783,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
               SnackBar(
                 backgroundColor: AppColors.error,
                 content: Text(
-                  'HeiGenie-Mail fehlgeschlagen: $e',
+                  'HeiGenie-Mail fehlgeschlagen (${kurzeFehlermeldung(e)}) — '
+                  'im Reinigungs-Detail nachholen.',
                   style: const TextStyle(color: Colors.white),
                 ),
                 duration: const Duration(seconds: 8),
@@ -818,14 +820,17 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             // auch nicht stillschweigend fehlen — deshalb hier gemeldet.
             if (rechnung != null &&
                 !await RechnungPdfStorage.existiert(rechnung.id)) {
-              debugPrint('[Rechnung-PDF] fehlt nach dem Erstellen: ${rechnung.id}');
+              debugPrint(
+                '[Rechnung-PDF] fehlt nach dem Erstellen: ${rechnung.id}',
+              );
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: AppColors.warning,
                     content: Text(
                       RechnungNachholPlan.pdfFehltMeldung(
-                          'Rechnung ${rechnung.rechnungsnummer} erstellt.'),
+                        'Rechnung ${rechnung.rechnungsnummer} erstellt.',
+                      ),
                       style: const TextStyle(color: Colors.white),
                     ),
                     duration: const Duration(seconds: 10),
@@ -936,15 +941,25 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 }
               } catch (e) {
                 debugPrint('[ServiceMail] Fehler: $e');
+                // Nicht behaupten, sondern nachfragen — der Vermerk steht auf
+                // dem Server, auch wenn die Antwort nie ankam.
+                final meldung = versandMeldung(
+                  versandStandAus(
+                    await RechnungRepository.istVersandVermerkt(rechnung.id),
+                  ),
+                  e,
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      backgroundColor: AppColors.error,
+                      backgroundColor: meldung.istFehler
+                          ? AppColors.error
+                          : AppColors.warning,
                       content: Text(
-                        'MAIL-VERSAND FEHLGESCHLAGEN: $e',
+                        meldung.text,
                         style: const TextStyle(color: Colors.white),
                       ),
-                      duration: const Duration(seconds: 8),
+                      duration: const Duration(seconds: 10),
                     ),
                   );
                 }
@@ -999,15 +1014,25 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 }
               } catch (e) {
                 debugPrint('[Post-Mail] Fehler: $e');
+                // Wie beim Mailversand: der Server weiss es besser als die
+                // gefangene Ausnahme.
+                final meldung = versandMeldung(
+                  versandStandAus(
+                    await RechnungRepository.istVersandVermerkt(rechnung.id),
+                  ),
+                  e,
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      backgroundColor: AppColors.error,
+                      backgroundColor: meldung.istFehler
+                          ? AppColors.error
+                          : AppColors.warning,
                       content: Text(
-                        'POST-MAIL FEHLGESCHLAGEN: $e',
+                        meldung.text,
                         style: const TextStyle(color: Colors.white),
                       ),
-                      duration: const Duration(seconds: 8),
+                      duration: const Duration(seconds: 10),
                     ),
                   );
                 }
@@ -1038,9 +1063,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 SnackBar(
                   backgroundColor: AppColors.error,
                   content: Text(
-                    'RECHNUNG/MAIL FEHLGESCHLAGEN: $e\n'
-                    'Reinigung ist abgeschlossen. Rechnung/Mail über das '
-                    'Rechnungs-Menü im Detail nachholen.',
+                    'Reinigung ist abgeschlossen. ${kettenFehlerMeldung(e)}',
                     style: const TextStyle(color: Colors.white),
                   ),
                   duration: const Duration(seconds: 12),
@@ -1069,7 +1092,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 SnackBar(
                   backgroundColor: AppColors.error,
                   content: Text(
-                    'BUCHUNG FEHLGESCHLAGEN: $e',
+                    'BUCHUNG FEHLGESCHLAGEN (${kurzeFehlermeldung(e)}) — '
+                    'im Reinigungs-Detail nachbuchen.',
                     style: const TextStyle(color: Colors.white),
                   ),
                   duration: const Duration(seconds: 10),
@@ -1095,7 +1119,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 ab: DateTime.now().subtract(const Duration(days: 14)),
               ).timeout(const Duration(seconds: 20));
               nachgeholt = erg.gebucht;
-              if (nachgeholt > 0) ref.invalidate(reinigungenOhneRechnungProvider);
+              if (nachgeholt > 0) {
+                ref.invalidate(reinigungenOhneRechnungProvider);
+              }
               // Scheitert das Nachbuchen, war das bis zum 10.09.2026 nur im
               // Debug-Protokoll zu sehen. Zwei Ertragsbuchungen (Signina
               // 07.09., Mountain Plaza 09.09.) blieben deshalb tagelang
@@ -1223,9 +1249,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -1326,20 +1352,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                     decoration: BoxDecoration(
                       color: AppColors.warning.withAlpha(30),
                       borderRadius: BorderRadius.circular(8),
-                      border:
-                          Border.all(color: AppColors.warning.withAlpha(120)),
+                      border: Border.all(
+                        color: AppColors.warning.withAlpha(120),
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.campaign,
-                            color: AppColors.warning, size: 20),
+                        const Icon(
+                          Icons.campaign,
+                          color: AppColors.warning,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             betrieb!.serviceHinweis!.trim(),
                             style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -1486,7 +1518,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             SnackBar(
               backgroundColor: AppColors.error,
               content: Text(
-                'Rechnungs-E-Mail konnte nicht gespeichert werden: $e\n'
+                'Rechnungs-E-Mail konnte nicht gespeichert werden '
+                '(${kurzeFehlermeldung(e)}).\n'
                 'Bitte in der Rechnungsadresse nachtragen.',
                 style: const TextStyle(color: Colors.white),
               ),
@@ -1518,7 +1551,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     });
     await _save(abschliessen: true);
   }
-
 
   String? _emptyToNull(String text) {
     final trimmed = text.trim();

@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/versand_meldung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -65,20 +67,20 @@ class _ReinigungDetailContent extends ConsumerWidget {
         title: Text('Reinigung ${_formatDate(reinigung.datum)}'),
         actions: [
           if (!SupabaseService.isGuest) ...[
-              if (reinigung.status == 'abgeschlossen' &&
-                  !reinigung.istKulanz &&
-                  !reinigung.istHeinekenMonteur)
-                IconButton(
-                  icon: const Icon(Icons.receipt_long),
-                  tooltip: 'Rechnung erstellen & senden',
-                  onPressed: () => _rechnungErstellenUndSenden(context, ref),
-                ),
+            if (reinigung.status == 'abgeschlossen' &&
+                !reinigung.istKulanz &&
+                !reinigung.istHeinekenMonteur)
               IconButton(
-                icon: const Icon(Icons.edit),
-                tooltip: 'Bearbeiten',
-                onPressed: () =>
-                    context.push('/reinigungen/${reinigung.routeId}/bearbeiten'),
+                icon: const Icon(Icons.receipt_long),
+                tooltip: 'Rechnung erstellen & senden',
+                onPressed: () => _rechnungErstellenUndSenden(context, ref),
               ),
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Bearbeiten',
+              onPressed: () =>
+                  context.push('/reinigungen/${reinigung.routeId}/bearbeiten'),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Löschen',
@@ -112,9 +114,13 @@ class _ReinigungDetailContent extends ConsumerWidget {
               icon: Icons.draw,
               children: [
                 if (reinigung.unterschriftTechniker != null) ...[
-                  const Text('Techniker',
-                      style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 13)),
+                  const Text(
+                    'Techniker',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Container(
                     width: double.infinity,
@@ -140,7 +146,9 @@ class _ReinigungDetailContent extends ConsumerWidget {
                         ? 'Kunde: ${reinigung.unterschriftKundeName}'
                         : 'Kunde',
                     style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13),
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Container(
@@ -183,8 +191,11 @@ class _ReinigungDetailContent extends ConsumerWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
                   Text(
                     'Noch nicht synchronisiert',
@@ -276,16 +287,17 @@ class _ReinigungDetailContent extends ConsumerWidget {
     if (confirmed == true && context.mounted) {
       try {
         // Buchhaltung aufräumen (Rechnung + Buchungen) falls vorhanden
-        if (reinigung.serverId != null &&
-            reinigung.status == 'abgeschlossen') {
+        if (reinigung.serverId != null && reinigung.status == 'abgeschlossen') {
           await ReinigungKorrekturService.cleanupBuchhaltung(
-              reinigung.serverId!);
+            reinigung.serverId!,
+          );
         }
 
         // Bergkundenpauschale löschen falls vorhanden
         if (reinigung.serverId != null && reinigung.istBergkunde) {
           await BergkundenpauschaleRepository.deleteByReinigungId(
-              reinigung.serverId!);
+            reinigung.serverId!,
+          );
           ref.invalidate(bergkundenpauschaleStreamProvider);
         }
 
@@ -300,7 +312,9 @@ class _ReinigungDetailContent extends ConsumerWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Löschen fehlgeschlagen: $e')),
+            SnackBar(
+              content: Text('Löschen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+            ),
           );
         }
       }
@@ -312,29 +326,40 @@ class _ReinigungDetailContent extends ConsumerWidget {
   /// abgeschlossene Reinigungen, bei denen der automatische Versand beim
   /// Abschluss fehlschlug.
   Future<void> _rechnungErstellenUndSenden(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final betrieb = await BetriebRepository.getByServerId(reinigung.betriebId);
     if (!context.mounted) return;
     if (betrieb == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Betrieb nicht gefunden.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Betrieb nicht gefunden.')));
       return;
     }
 
-    final rs = resolveZahlungsart(reinigung.zahlungsart, betrieb.rechnungsstellung);
+    final rs = resolveZahlungsart(
+      reinigung.zahlungsart,
+      betrieb.rechnungsstellung,
+    );
     // Tresen erstellt die Rechnung (mit EZS) OHNE Versand — der Kunde bekommt
     // sie vor Ort. Nur echte Nicht-Rechnungs-Arten (Barzahlung/Heineken/
     // Jahresrechnung) abweisen, für die hier keine Kundenrechnung entsteht.
     // Bis v0.49.0 brach Tresen hier ab → Tresen-Rechnungen liessen sich gar
     // nicht von Hand nacherstellen (Grund, warum die 38 nur per Sonder-Tool
     // gerettet werden konnten).
-    const rechnungsArten = {'rechnung_post', 'rechnung_mail', 'rechnung_tresen'};
+    const rechnungsArten = {
+      'rechnung_post',
+      'rechnung_mail',
+      'rechnung_tresen',
+    };
     if (!rechnungsArten.contains(rs)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                'Verrechnungsart „$rs" — hier wird keine Kundenrechnung erstellt.')),
+          content: Text(
+            'Verrechnungsart „$rs" — hier wird keine Kundenrechnung erstellt.',
+          ),
+        ),
       );
       return;
     }
@@ -344,26 +369,31 @@ class _ReinigungDetailContent extends ConsumerWidget {
     String? vorhandeneId;
     if (reinigung.serverId != null) {
       vorhandeneId = await RechnungsPositionRepository.getRechnungIdByServiceId(
-          reinigung.serverId!);
+        reinigung.serverId!,
+      );
     }
     if (!context.mounted) return;
 
-    final ziel =
-        rs == 'rechnung_post' ? MailConfig.testEmpfaenger : 'die Kundenadresse';
+    final ziel = rs == 'rechnung_post'
+        ? MailConfig.testEmpfaenger
+        : 'die Kundenadresse';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-            istTresen ? 'Rechnung / EZS erstellen' : 'Rechnung erstellen & senden'),
+          istTresen
+              ? 'Rechnung / EZS erstellen'
+              : 'Rechnung erstellen & senden',
+        ),
         content: Text(
           istTresen
               ? (vorhandeneId != null
-                  ? 'Für diese Reinigung existiert bereits eine Rechnung.'
-                  : 'Rechnung mit Einzahlungsschein erstellen? Kein Versand — '
-                      'Übergabe am Tresen.')
+                    ? 'Für diese Reinigung existiert bereits eine Rechnung.'
+                    : 'Rechnung mit Einzahlungsschein erstellen? Kein Versand — '
+                          'Übergabe am Tresen.')
               : (vorhandeneId != null
-                  ? 'Für diese Reinigung existiert bereits eine Rechnung. Erneut an $ziel senden?'
-                  : 'Rechnung erstellen und an $ziel senden (Rechnung + Reinigungsprotokoll)?'),
+                    ? 'Für diese Reinigung existiert bereits eine Rechnung. Erneut an $ziel senden?'
+                    : 'Rechnung erstellen und an $ziel senden (Rechnung + Reinigungsprotokoll)?'),
         ),
         actions: [
           TextButton(
@@ -387,8 +417,10 @@ class _ReinigungDetailContent extends ConsumerWidget {
     );
 
     try {
-      final erg =
-          await ReinigungRechnungVersand.erstelleUndSende(reinigung, betrieb);
+      final erg = await ReinigungRechnungVersand.erstelleUndSende(
+        reinigung,
+        betrieb,
+      );
       // Automatische Buchung nachziehen (idempotent — Duplikat-Check via Beleg).
       try {
         await ReinigungBuchungService.createFromReinigung(reinigung, betrieb);
@@ -398,7 +430,10 @@ class _ReinigungDetailContent extends ConsumerWidget {
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
       if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // Fortschritt schliessen
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop(); // Fortschritt schliessen
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: erg.keineKundenadresse ? AppColors.warning : null,
@@ -408,12 +443,17 @@ class _ReinigungDetailContent extends ConsumerWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // Fortschritt schliessen
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop(); // Fortschritt schliessen
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: AppColors.error,
-          content: Text('RECHNUNG/MAIL FEHLGESCHLAGEN: $e',
-              style: const TextStyle(color: Colors.white)),
+          content: Text(
+            kettenFehlerMeldung(e),
+            style: const TextStyle(color: Colors.white),
+          ),
           duration: const Duration(seconds: 12),
         ),
       );
@@ -430,8 +470,9 @@ class _ProtokollFotoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPdf = ProtokollFotoStorage.isPdf(fotoPfad);
     // Foto-Protokolle liegen als PDF + JPG vor → das JPG als Voransicht nutzen.
-    final bildPfad =
-        isPdf ? ProtokollFotoStorage.jpgPathFromPdf(fotoPfad) : fotoPfad;
+    final bildPfad = isPdf
+        ? ProtokollFotoStorage.jpgPathFromPdf(fotoPfad)
+        : fotoPfad;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -442,19 +483,30 @@ class _ProtokollFotoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.description,
-                    size: 18, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.description,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
-                const Text('Protokoll',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const Text(
+                  'Protokoll',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
                 const Spacer(),
-                const Text('Tippen zum Vergrössern',
-                    style: TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary)),
+                const Text(
+                  'Tippen zum Vergrössern',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 const SizedBox(width: 4),
-                const Icon(Icons.zoom_in,
-                    size: 16, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.zoom_in,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -508,19 +560,26 @@ class _ProtokollFotoCard extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.picture_as_pdf,
-                    size: 36, color: AppColors.error),
+                const Icon(
+                  Icons.picture_as_pdf,
+                  size: 36,
+                  color: AppColors.error,
+                ),
                 const SizedBox(height: 8),
                 if (snapshot.hasData)
                   FilledButton.icon(
-                    onPressed: () => launchUrl(Uri.parse(snapshot.data!),
-                        mode: LaunchMode.externalApplication),
+                    onPressed: () => launchUrl(
+                      Uri.parse(snapshot.data!),
+                      mode: LaunchMode.externalApplication,
+                    ),
                     icon: const Icon(Icons.open_in_new, size: 16),
                     label: const Text('Protokoll öffnen'),
                   )
                 else
-                  const Text('Vorschau nicht verfügbar',
-                      style: TextStyle(color: AppColors.textSecondary)),
+                  const Text(
+                    'Vorschau nicht verfügbar',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
               ],
             ),
           ),
@@ -547,8 +606,10 @@ class _ProtokollFotoCard extends StatelessWidget {
                 url,
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const Center(
-                  child: Text('Foto konnte nicht geladen werden',
-                      style: TextStyle(color: Colors.white70)),
+                  child: Text(
+                    'Foto konnte nicht geladen werden',
+                    style: TextStyle(color: Colors.white70),
+                  ),
                 ),
               ),
             ),
@@ -568,49 +629,81 @@ class _ChecklisteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final notizen = reinigung.checklisteNotizenJson != null
-        ? Map<String, String>.from(
-            jsonDecode(reinigung.checklisteNotizenJson!))
+        ? Map<String, String>.from(jsonDecode(reinigung.checklisteNotizenJson!))
         : <String, String>{};
 
     final items = [
-      ('Begleitkühlung kontrolliert', reinigung.begleitkuehlungKontrolliert,
-          'begleitkuehlung_kontrolliert'),
-      ('Installation allgemein kontrolliert',
-          reinigung.installationAllgemeinKontrolliert,
-          'installation_allgemein_kontrolliert'),
-      ('Aligal-Anschlüsse kontrolliert',
-          reinigung.aligalAnschluesseKontrolliert,
-          'aligal_anschluesse_kontrolliert'),
-      ('Durchlaufkühler ausgeblasen', reinigung.durchlaufkuehlerAusgeblasen,
-          'durchlaufkuehler_ausgeblasen'),
-      ('Wasserstand kontrolliert', reinigung.wasserstandKontrolliert,
-          'wasserstand_kontrolliert'),
-      ('Wasser gewechselt', reinigung.wasserGewechselt,
-          'wasser_gewechselt'),
-      ('Leitung mit Wasser vorgespült', reinigung.leitungWasserVorgespuelt,
-          'leitung_wasser_vorgespuelt'),
-      ('Leitungsreinigung mit Reinigungsmittel',
-          reinigung.leitungsreinigungReinigungsmittel,
-          'leitungsreinigung_reinigungsmittel'),
-      ('Förderdruck kontrolliert', reinigung.foerderdruckKontrolliert,
-          'foerderdruck_kontrolliert'),
-      ('Zapfhahn zerlegt & gereinigt', reinigung.zapfhahnZerlegtGereinigt,
-          'zapfhahn_zerlegt_gereinigt'),
-      ('Zapfkopf zerlegt & gereinigt', reinigung.zapfkopfZerlegtGereinigt,
-          'zapfkopf_zerlegt_gereinigt'),
-      ('Servicekarte ausgefüllt', reinigung.servicekarteAusgefuellt,
-          'servicekarte_ausgefuellt'),
+      (
+        'Begleitkühlung kontrolliert',
+        reinigung.begleitkuehlungKontrolliert,
+        'begleitkuehlung_kontrolliert',
+      ),
+      (
+        'Installation allgemein kontrolliert',
+        reinigung.installationAllgemeinKontrolliert,
+        'installation_allgemein_kontrolliert',
+      ),
+      (
+        'Aligal-Anschlüsse kontrolliert',
+        reinigung.aligalAnschluesseKontrolliert,
+        'aligal_anschluesse_kontrolliert',
+      ),
+      (
+        'Durchlaufkühler ausgeblasen',
+        reinigung.durchlaufkuehlerAusgeblasen,
+        'durchlaufkuehler_ausgeblasen',
+      ),
+      (
+        'Wasserstand kontrolliert',
+        reinigung.wasserstandKontrolliert,
+        'wasserstand_kontrolliert',
+      ),
+      ('Wasser gewechselt', reinigung.wasserGewechselt, 'wasser_gewechselt'),
+      (
+        'Leitung mit Wasser vorgespült',
+        reinigung.leitungWasserVorgespuelt,
+        'leitung_wasser_vorgespuelt',
+      ),
+      (
+        'Leitungsreinigung mit Reinigungsmittel',
+        reinigung.leitungsreinigungReinigungsmittel,
+        'leitungsreinigung_reinigungsmittel',
+      ),
+      (
+        'Förderdruck kontrolliert',
+        reinigung.foerderdruckKontrolliert,
+        'foerderdruck_kontrolliert',
+      ),
+      (
+        'Zapfhahn zerlegt & gereinigt',
+        reinigung.zapfhahnZerlegtGereinigt,
+        'zapfhahn_zerlegt_gereinigt',
+      ),
+      (
+        'Zapfkopf zerlegt & gereinigt',
+        reinigung.zapfkopfZerlegtGereinigt,
+        'zapfkopf_zerlegt_gereinigt',
+      ),
+      (
+        'Servicekarte ausgefüllt',
+        reinigung.servicekarteAusgefuellt,
+        'servicekarte_ausgefuellt',
+      ),
     ];
 
     final anlagenItems = [
-      ('Durchlaufkühler', reinigung.hatDurchlaufkuehler,
-          'hat_durchlaufkuehler'),
+      (
+        'Durchlaufkühler',
+        reinigung.hatDurchlaufkuehler,
+        'hat_durchlaufkuehler',
+      ),
       ('Buffetanstich', reinigung.hatBuffetanstich, 'hat_buffetanstich'),
       ('Kühlkeller', reinigung.hatKuehlkeller, 'hat_kuehlkeller'),
       ('Fasskühler', reinigung.hatFasskuehler, 'hat_fasskuehler'),
     ];
 
-    final checkedCount = items.where((i) => i.$2).length +
+    final checkedCount =
+        items.where((i) => i.$2).length +
         anlagenItems.where((i) => i.$2).length;
 
     return Card(
@@ -622,8 +715,11 @@ class _ChecklisteCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.checklist,
-                    size: 18, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.checklist,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Checkliste ($checkedCount/${items.length + anlagenItems.length})',
@@ -634,16 +730,18 @@ class _ChecklisteCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 _ProgressIndicator(
-                    value: checkedCount /
-                        (items.length + anlagenItems.length)),
+                  value: checkedCount / (items.length + anlagenItems.length),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            ...items.map((item) => _CheckItem(
-                  label: item.$1,
-                  checked: item.$2,
-                  note: notizen[item.$3],
-                )),
+            ...items.map(
+              (item) => _CheckItem(
+                label: item.$1,
+                checked: item.$2,
+                note: notizen[item.$3],
+              ),
+            ),
             if (anlagenItems.any((i) => i.$2)) ...[
               const Divider(),
               const Text(
@@ -657,11 +755,13 @@ class _ChecklisteCard extends StatelessWidget {
               const SizedBox(height: 4),
               ...anlagenItems
                   .where((i) => i.$2)
-                  .map((item) => _CheckItem(
-                        label: item.$1,
-                        checked: item.$2,
-                        note: notizen[item.$3],
-                      )),
+                  .map(
+                    (item) => _CheckItem(
+                      label: item.$1,
+                      checked: item.$2,
+                      note: notizen[item.$3],
+                    ),
+                  ),
             ],
           ],
         ),
@@ -680,8 +780,8 @@ class _ProgressIndicator extends StatelessWidget {
     final color = value >= 1.0
         ? AppColors.success
         : value >= 0.5
-            ? AppColors.warning
-            : AppColors.inaktiv;
+        ? AppColors.warning
+        : AppColors.inaktiv;
 
     return SizedBox(
       width: 40,
@@ -701,8 +801,7 @@ class _CheckItem extends StatelessWidget {
   final bool checked;
   final String? note;
 
-  const _CheckItem(
-      {required this.label, required this.checked, this.note});
+  const _CheckItem({required this.label, required this.checked, this.note});
 
   @override
   Widget build(BuildContext context) {
@@ -774,27 +873,35 @@ class _ZeiterfassungCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.schedule,
-                    size: 18, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.schedule,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
-                const Text('Zeiterfassung',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const Text(
+                  'Zeiterfassung',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withAlpha(20),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     _ReinigungDetailContent._serviceArtLabel(
-                        reinigung.serviceArt ?? 'standardservice'),
+                      reinigung.serviceArt ?? 'standardservice',
+                    ),
                     style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ],
@@ -803,19 +910,29 @@ class _ZeiterfassungCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(child: _CompactInfo('Datum', _fmtDatum(reinigung.datum))),
+                Expanded(
+                  child: _CompactInfo('Datum', _fmtDatum(reinigung.datum)),
+                ),
                 if (start != null)
                   Expanded(
-                      child: _CompactInfo(
-                          'Start', _ReinigungDetailContent._kurzZeit(start))),
+                    child: _CompactInfo(
+                      'Start',
+                      _ReinigungDetailContent._kurzZeit(start),
+                    ),
+                  ),
                 if (ende != null)
                   Expanded(
-                      child: _CompactInfo(
-                          'Ende', _ReinigungDetailContent._kurzZeit(ende))),
+                    child: _CompactInfo(
+                      'Ende',
+                      _ReinigungDetailContent._kurzZeit(ende),
+                    ),
+                  ),
                 if (dauer != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(10),
@@ -823,13 +940,20 @@ class _ZeiterfassungCard extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        Text('$dauer',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w700)),
-                        const Text('Minuten',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary)),
+                        Text(
+                          '$dauer',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Text(
+                          'Minuten',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -858,28 +982,31 @@ class _PreisCard extends StatelessWidget {
   }
 
   static String _rechnungsstellungLabel(String v) => switch (v) {
-        'rechnung_mail' => 'Per E-Mail',
-        'rechnung_post' => 'Per Post',
-        'rechnung_tresen' => 'Rechnung Tresen',
-        'barzahlung' => 'Barzahlung',
-        'jahresrechnung' => 'Jahresrechnung',
-        'heineken' => 'Via Heineken',
-        _ => v,
-      };
+    'rechnung_mail' => 'Per E-Mail',
+    'rechnung_post' => 'Per Post',
+    'rechnung_tresen' => 'Rechnung Tresen',
+    'barzahlung' => 'Barzahlung',
+    'jahresrechnung' => 'Jahresrechnung',
+    'heineken' => 'Via Heineken',
+    _ => v,
+  };
 
   Widget _preisZeile(String label, double betrag) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary)),
-            Text('${betrag.toStringAsFixed(2)} CHF',
-                style: const TextStyle(fontSize: 14)),
-          ],
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
-      );
+        Text(
+          '${betrag.toStringAsFixed(2)} CHF',
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -906,16 +1033,22 @@ class _PreisCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.payments,
-                    size: 18, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.payments,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
-                const Text('Preis',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const Text(
+                  'Preis',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: artColor.withAlpha(25),
                     borderRadius: BorderRadius.circular(20),
@@ -923,11 +1056,14 @@ class _PreisCard extends StatelessWidget {
                   ),
                   child: FutureBuilder<String>(
                     future: _ladeVerrechnungsart(),
-                    builder: (context, snap) => Text(snap.data ?? '…',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: artColor)),
+                    builder: (context, snap) => Text(
+                      snap.data ?? '…',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: artColor,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -942,13 +1078,16 @@ class _PreisCard extends StatelessWidget {
               _preisZeile('Netto', reinigung.preisNetto!),
             if (mwst != null)
               _preisZeile(
-                  'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? '8.1'}%)',
-                  mwst),
+                'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? '8.1'}%)',
+                mwst,
+              ),
             if (brutto != null) ...[
               const SizedBox(height: 6),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: (kulanz ? AppColors.warning : AppColors.primary)
                       .withAlpha(20),
@@ -957,18 +1096,22 @@ class _PreisCard extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(kulanz ? 'Total (Kulanz)' : 'Total',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
-                    Text('${brutto.toStringAsFixed(2)} CHF',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                          color:
-                              kulanz ? AppColors.warning : AppColors.primary,
-                          decoration:
-                              kulanz ? TextDecoration.lineThrough : null,
-                        )),
+                    Text(
+                      kulanz ? 'Total (Kulanz)' : 'Total',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      '${brutto.toStringAsFixed(2)} CHF',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: kulanz ? AppColors.warning : AppColors.primary,
+                        decoration: kulanz ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -976,11 +1119,14 @@ class _PreisCard extends StatelessWidget {
             if (kulanz && brutto != null)
               const Padding(
                 padding: EdgeInsets.only(top: 6),
-                child: Text('Kulanz — wird dem Kunden nicht verrechnet.',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        fontStyle: FontStyle.italic)),
+                child: Text(
+                  'Kulanz — wird dem Kunden nicht verrechnet.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
               ),
           ],
         ),
@@ -1046,10 +1192,7 @@ class _CompactInfo extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-          ),
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: 2),
         Text(value, style: const TextStyle(fontSize: 14)),
@@ -1087,12 +1230,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
