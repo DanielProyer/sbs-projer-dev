@@ -4,28 +4,41 @@
 
 **Stand:** **v0.110.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1669 Tests grün** · Git sauber.
 
-### 🔴 Chleina Pub: Die Gratis-Reinigung ist nie eingelöst worden (17.09.)
+### ✅ Chleina Pub: Doppelzahlung gegen offene Rechnung verrechnet (17.09.)
 
-Beim Ablegen von `166b_betriebe_service_hinweis.sql` aufgefallen — der
-Hinweis steht seit 07.08. unverändert am Betrieb:
+**Ausgangslage:** Die Kundin (Nicole Ott-Ruf) zahlte die April-Rechnung
+zweimal. Der Überschuss von 74.60 wurde am 30.04. als **ausserordentlicher
+Ertrag** vereinnahmt (`1020/8000`, ohne MwSt, Beleg ZV20260430/181627), mit
+dem Vermerk «Ausgleich per Kulanz — nächster Service gratis». Der kam nie:
+Am 27.08. wurde regulär verrechnet (Rechnung **2026-08-1386**, offen).
 
-> «Nächste Reinigung GRATIS (Kulanz) — Kundin hat die April-Rechnung
-> doppelt bezahlt (74.60 am 30.04.2026).»
+**Gebucht am 17.09.2026** (Entscheid Daniel):
 
-**Am 27.08. gab es eine Reinigung — aber nicht als Kulanz.** `ist_kulanz`
-false, 74.60 verrechnet, Rechnung **2026-08-1386** am Tresen übergeben und
-bis heute **offen**. Die Kundin hat also im April doppelt bezahlt, die
-versprochene Gratis-Reinigung nicht bekommen und stattdessen eine weitere
-Rechnung erhalten.
+| | |
+|---|---|
+| Soll | **8000** Ausserordentlicher Ertrag 74.60 |
+| Haben | **1100** Debitoren 74.60 |
+| MwSt | keine — die April-Buchung lief ohne |
 
-**Zur Entscheidung Daniel:** Die offene 74.60 gegen die Doppelzahlung
-verrechnen (Rechnung abschreiben oder als bezahlt führen) — oder die nächste
-Reinigung tatsächlich auf Kulanz setzen und die offene Rechnung normal
-einziehen. Ich habe nichts angefasst.
+Dazu Rechnung 2026-08-1386 auf **bezahlt**, Kulanz-Hinweis am Betrieb
+**entfernt**.
 
-**Nebenfrage:** Der Hinweis soll beim Abschluss «prominent» erscheinen —
-am 27.08. hat er nicht gewirkt. Zeigt der Reinigungs-Abschluss ihn
-tatsächlich, und auffällig genug? Wäre einen Blick wert.
+**Bewusst im September gegengebucht statt die April-Buchung zu stornieren:**
+Q2/2026 ist bei der MwSt eingereicht. Da die April-Buchung ohne MwSt lief,
+ändert sich an der eingereichten Abrechnung nichts. Nebeneffekt: Der Betrag
+steht jetzt korrekt auf 3400 mit 8.1 % statt auf 8000 ohne MwSt — die
+Kulanz-Variante hätte Entgelt für eine steuerbare Leistung unversteuert
+gelassen.
+
+**Gegenprobe:** 0 offene Rechnungen beim Chleina Pub, Konto 8000 für diesen
+Betrieb auf **0.00**, genau **eine** Ausgleichsbuchung (kein Doppel).
+
+**Zur Frage, warum der Hinweis am 27.08. nicht wirkte:** Er *wurde* gezeigt.
+Der gelbe Kasten mit Megafon steht seit v0.73.0 (08.08.) zuoberst im
+Abschluss-Dialog, 19 Tage vor der Reinigung. Kein Code-Fehler — beim
+Durchklicken übersehen. Falls das öfter vorkommt, wäre ein Schritt weiter
+zu denken (z. B. Kulanz vorwählen statt nur hinweisen) — aber das ist ein
+Entscheid, kein Bug.
 
 ### ✅ Migration 192b nachgereicht — und eine Lücke in der Ablage (17.09.)
 
