@@ -37,8 +37,8 @@ Knopf, die Adresse fehlt schlicht. Bei Gelegenheit erfragen.
 Zeile auf 360 px bei 130 % Systemschrift um **44 px** über — derselbe Fall wie
 im Dialog am 08.09.2026. `adresse_knopf_layout_test.dart` hält das bis 170 %.
 
-**Klicktest Daniel:** Betrieb → Rechnungsadresse → Knopf tippen. Kommen
-Strasse, PLZ, Ort und Mail? Und meldet ein zweiter Tipp «nichts geändert»?
+✅ **Klicktest Daniel erledigt (17.09. abends):** Knopf im Rechnungsadress-
+Formular getippt, Adresse und Mail kommen aus dem Betrieb.
 
 ### ✅ Zwei Wegweiser zeigten ins Leere (v0.109.2, 17.09.)
 
