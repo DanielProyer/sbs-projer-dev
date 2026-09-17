@@ -30,8 +30,13 @@ Ein Wächter-Test kann das nicht prüfen — der Blick in den Ziel-Screen schon.
 Gegengeprüft: Die Versandmeldungen aus v0.109.1 zeigen **richtig** («Rechnung
 erneut senden» im Rechnungs-Detail gibt es).
 
-**Klicktest Daniel:** Cafe Bar über die Warnkarte in der Rechnungsliste
-nachbuchen — geht das mit einem Tipp?
+✅ **Klicktest Daniel erledigt (17.09. abends):** Cafe Bar über die Warnkarte in
+der Rechnungsliste nachgebucht. Gegengeprüft: 1100 an 3400 (MwSt 2200),
+69.00 + 5.60 = 74.60, genau **eine** Buchung, nicht storniert. Damit acht
+Reinigungen, acht Erträge — kein Rückstand in den letzten zwei Wochen.
+Peperoncini 1313 und Sarain stehen bewusst ohne eigene Buchung da
+(Zahlungsart `heineken` → Monatsrechnung, `brauchtErtragsbuchung()` = false).
+
 ### ✅ Die Meldung log — Versandmeldung fragt jetzt nach (v0.109.1, 17.09.)
 
 **Vorfall 17.09., 11:32, Löwen Maienfeld** (Rechnung 2026-09-1452, CHF 74.60):
