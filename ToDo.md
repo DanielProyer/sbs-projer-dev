@@ -4,6 +4,29 @@
 
 **Stand:** **v0.110.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1669 Tests grün** · Git sauber.
 
+### 🔴 Chleina Pub: Die Gratis-Reinigung ist nie eingelöst worden (17.09.)
+
+Beim Ablegen von `166b_betriebe_service_hinweis.sql` aufgefallen — der
+Hinweis steht seit 07.08. unverändert am Betrieb:
+
+> «Nächste Reinigung GRATIS (Kulanz) — Kundin hat die April-Rechnung
+> doppelt bezahlt (74.60 am 30.04.2026).»
+
+**Am 27.08. gab es eine Reinigung — aber nicht als Kulanz.** `ist_kulanz`
+false, 74.60 verrechnet, Rechnung **2026-08-1386** am Tresen übergeben und
+bis heute **offen**. Die Kundin hat also im April doppelt bezahlt, die
+versprochene Gratis-Reinigung nicht bekommen und stattdessen eine weitere
+Rechnung erhalten.
+
+**Zur Entscheidung Daniel:** Die offene 74.60 gegen die Doppelzahlung
+verrechnen (Rechnung abschreiben oder als bezahlt führen) — oder die nächste
+Reinigung tatsächlich auf Kulanz setzen und die offene Rechnung normal
+einziehen. Ich habe nichts angefasst.
+
+**Nebenfrage:** Der Hinweis soll beim Abschluss «prominent» erscheinen —
+am 27.08. hat er nicht gewirkt. Zeigt der Reinigungs-Abschluss ihn
+tatsächlich, und auffällig genug? Wäre einen Blick wert.
+
 ### ✅ Migration 192b nachgereicht — und eine Lücke in der Ablage (17.09.)
 
 `Datenbank/migrations/192b_kulanz_trigger_spalte.sql` fehlte: Sie war am
@@ -14,22 +37,25 @@ Trigger auf der DB trägt `ist_kulanz` tatsächlich in der Spaltenliste.
 Nicht neu angewendet, nur abgelegt; erneutes Ausführen wäre gefahrlos
 (DROP IF EXISTS, UPDATE idempotent).
 
-⚠️ **Beim Abgleich gefunden: rund ein Dutzend weitere Server-Migrationen
-ohne lokale Datei.** Von 101 protokollierten meldete der erste Vergleich 15 —
-die Gegenprobe zeigte, dass drei davon lokal unter anderem Namen liegen
-(`create_tagesplaene` → `085_tagesplaene.sql`,
-`search_path_fixieren_trigger_funktionen` → `178_…`, `141_material_abgeholt_v2`
-als Korrektur zu `141_…`). Echte Lücken bleiben u. a.:
+✅ **Nachtrag 17.09. abends — meine Zahl war zu hoch.** Von den drei
+gemeldeten «Schema-Lücken» waren **zwei keine**: `events_e4_event_aufwand`
+liegt als `123_events_e4.sql`, `betrieb_loesch_hindernisse` als
+`126_betrieb_loesch_check.sql` — beide **wortgleich**. Mein Namensvergleich
+fand sie nicht, weil Dateiname und Migrationsname auseinandergehen.
 
-- **Schema-Änderungen** (hätten eine Datei verdient): `betriebe_service_hinweis`,
-  `events_e4_event_aufwand`, `betrieb_loesch_hindernisse`
-- **Einmal-Operationen** (Datei bringt wenig): `camt_dateien_storage_policies`,
-  `rls_auf_wartungs_snapshots`, `rls_snapshot_landi`, `snapshot_camt_abgleich_…`,
-  `buckets_material_fotos_raster_pdfs_privat`, diverse Drops
+Echte Lücke war eine: **`betriebe_service_hinweis`**, jetzt abgelegt als
+`166b_betriebe_service_hinweis.sql` (zwischen 166 und 167 einsortiert).
+Mit Warnung im Kopf: Der `ALTER TABLE` ist harmlos, das `UPDATE` dagegen
+setzt einen Einmal-Hinweis auf einen konkreten Betrieb — bei einem
+Neuaufbau nur den ALTER TABLE übernehmen.
 
-Nicht dringend — die Datenbank ist korrekt, nur die Ablage unvollständig. Wer
-es aufräumt, holt den Wortlaut aus `schema_migrations.statements` und prüft
-ihn am Ist-Zustand gegen, wie hier bei 192b.
+Der Rest sind Einmal-Operationen (Storage-Policies, RLS-Nachzieher,
+Snapshots, Drops), bei denen eine Datei wenig bringt.
+
+**Rezept, falls doch:** Wortlaut aus `schema_migrations.statements` holen und
+am Ist-Zustand gegenprüfen (bei 192b via `pg_get_triggerdef()`), statt aus dem
+Gedächtnis zu rekonstruieren. Und Namen vergleichen heisst **hineinschauen** —
+zwei der drei gemeldeten Lücken waren nur anders benannte Dateien.
 
 ### ✅ Adresse und Mail aus den Betriebsdaten holen (v0.110.0, 17.09.)
 
