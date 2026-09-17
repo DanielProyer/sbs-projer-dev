@@ -2,7 +2,43 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.109.2 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1657 Tests grün** · Git sauber.
+**Stand:** **v0.110.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **192** · **1669 Tests grün** · Git sauber.
+
+### ✅ Adresse und Mail aus den Betriebsdaten holen (v0.110.0, 17.09.)
+
+Im Rechnungsadress-Formular steht unter «Adresse» ein Knopf, der **Strasse,
+Nr., PLZ, Ort und E-Mail** aus dem Betrieb übernimmt. Bisher Abtipparbeit.
+
+**Warum es sich lohnt (gemessen):** Von 229 aktiven eigenen Kunden haben nur
+**74** eine Rechnungsadresse — und bei **37 davon, der Hälfte**, ist sie eine
+reine Abschrift der Betriebsdaten.
+
+**Zuschnitt kam aus den Daten, nicht aus der Annahme:** `firma` bleibt
+unangetastet — sie ist die Rechnungsempfängerin (oft eine Betreiber-GmbH) und
+trug von 75 Adressen genau **einmal** den Betriebsnamen. `objekt` ist bei 73
+von 75 der Betriebsname und wird ohnehin vorbelegt. Beide zu füllen hätte den
+Namen **doppelt** auf die Rechnung gesetzt (`adressZeilen()` schreibt firma und
+objekt untereinander, der QR-Name verbindet sie).
+
+**Zwei Sicherungen:** Ein leeres Betriebsfeld überschreibt **nie** (der Betrieb
+kennt oft nur PLZ und Ort, die Rechnungsadresse die volle Strasse). Und die
+Meldung sagt immer, was passiert ist — auch wenn nichts passiert ist —,
+benennt überschriebene Felder und weist darauf hin, dass «Zurück» es verwirft.
+
+**Kein Fallback im Mailversand** (Entscheid Daniel): Fehlt die Rechnungsmail,
+bleibt die gelbe Warnung, statt still an die allgemeine Betriebsmail zu senden.
+Von 70 Mail-Kunden haben ohnehin 68 die Mail gepflegt.
+
+⚠️ **Zwei Mail-Kunden ohne jede Mail:** **Pizzeria Badus** (Sedrun) und
+**Tijuana** (Davos) — weder Rechnungs- noch Betriebsmail. Dort hilft kein
+Knopf, die Adresse fehlt schlicht. Bei Gelegenheit erfragen.
+
+**Der Knopf steht UNTER der Überschrift, nicht daneben:** Daneben lief die
+Zeile auf 360 px bei 130 % Systemschrift um **44 px** über — derselbe Fall wie
+im Dialog am 08.09.2026. `adresse_knopf_layout_test.dart` hält das bis 170 %.
+
+**Klicktest Daniel:** Betrieb → Rechnungsadresse → Knopf tippen. Kommen
+Strasse, PLZ, Ort und Mail? Und meldet ein zweiter Tipp «nichts geändert»?
 
 ### ✅ Zwei Wegweiser zeigten ins Leere (v0.109.2, 17.09.)
 
