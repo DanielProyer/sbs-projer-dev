@@ -2,7 +2,47 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.111.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1676 Tests grün** · Git sauber.
+**Stand:** **v0.112.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1678 Tests grün** · Git sauber.
+
+### ✅ A6 — Hauptmenü nach den Nutzungszahlen (v0.112.0, 18.09.)
+
+**A6 war zu drei Vierteln schon passiert:** Events, Bergkundenpauschalen und
+Anlagen stehen seit B1/B3 unter «Weitere», die Anlagen-Liste bleibt als
+Suchwerkzeug erreichbar. Zwei Dinge fehlten.
+
+1. **«Auswertung Arbeitstage» → Buchhaltung**, neben die Umsatz-Auswertung,
+   mit der sie gelesen wird. Route unverändert.
+2. **Kontakte raus aus dem Kachel-Raster.** In 10 Tagen **null** Aufrufe,
+   während Material (8), Spesen (6) und Aufgaben (2) ihren Platz verdienen.
+   Jetzt zuoberst in «Weitere» — von dort braucht man sie am ehesten
+   unterwegs. Nichts gelöscht, nur der Daumenplatz frei.
+
+**Die Zahlen (09.–18.09., ~450 Aufrufe)** machten A6 entscheidbar:
+
+| Oben | | Unten | |
+|---|---|---|---|
+| `/reinigungen/neu` | **83** (nur Handy) | Pikett, Dokumente, Kontakte | **0** |
+| Startseite | 80 | Anlagen-Liste, Bergkunden, Eröffnungen | je **1** |
+| Betriebs-Detail | 51 | Events | **2** |
+| Tourenplan | 28 | Auswertung Arbeitstage | **4** |
+| Betriebs-Liste | 23 | Heineken | **5** |
+
+⚠️ **Zehn Tage sind kurz.** Heineken ist monatlich, Bergkundenpauschalen
+auch, Dokumente wurden Anfang September intensiv genutzt. Eine 0 heisst
+«nicht täglich», nicht «wertlos» — deshalb wird bei A6 auch nichts gelöscht.
+
+**Nebenbefund:** Der Tourenplan wird mit 28 Aufrufen an 8 Tagen **doch**
+genutzt. Die Messung vom 11.09. («an keinem Arbeitstag geöffnet») ist
+überholt — B5 (Tourenplan entlasten) lohnt sich also.
+
+**Neuer Wächter `test/menue_ziele_test.dart`:** Jedes literale
+Navigationsziel in `lib/presentation` muss eine Route im Router haben.
+Gestern zeigten zwei Fehlermeldungen ins Leere; für Meldungstexte kann das
+kein Test prüfen, für Navigationsziele schon. Gegenprobe gemacht, Bestand
+sauber.
+
+**Klicktest Daniel:** Startseite am Handy — stören drei Kacheln statt vier?
+Und findest du die Arbeitstage-Auswertung in der Buchhaltung?
 
 ### ✅ Kulanz-Vorwahl statt blossem Hinweis (v0.111.0, Migration 193, 17.09.)
 
