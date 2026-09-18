@@ -26,6 +26,9 @@ void main() {
     '/buchhaltung/buchungen',
     '/buchhaltung/berichte',
     '/buchhaltung/auswertung',
+    // Aus dem Hauptmenue hierher (A6, v0.112.0) — neben die Umsatz-
+    // Auswertung, mit der sie gelesen wird.
+    '/auswertungen/arbeitstage',
     '/buchhaltung/mwst',
     '/buchhaltung/monatsabschluss',
     '/buchhaltung/audit',
@@ -51,7 +54,7 @@ void main() {
       final treffer = RegExp(r"context\.push\('([^']+)'\)").firstMatch(block);
       if (treffer != null) ziele.add(treffer.group(1)!);
     }
-    expect(ziele, hasLength(14), reason: 'gefunden: $ziele');
+    expect(ziele, hasLength(15), reason: 'gefunden: $ziele');
 
     final beide = laufend.toSet().intersection(abschluss.toSet());
     expect(beide, isEmpty, reason: 'in beiden Gruppen: $beide');

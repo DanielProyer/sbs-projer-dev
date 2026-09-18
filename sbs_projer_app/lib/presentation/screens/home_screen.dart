@@ -108,13 +108,12 @@ class _KachelGrid extends ConsumerWidget {
       mainAxisSpacing: 6,
       childAspectRatio: 2.1,
       children: [
-        DashboardTile(
-          icon: Icons.contacts,
-          label: 'Kontakte',
-          count: null,
-          color: Colors.teal,
-          onTap: () => context.push('/kontakte'),
-        ),
+        // Kontakte standen bis v0.112.0 (A6) hier. Der Nutzungszähler zeigte
+        // vom 09.–18.09.2026 **null** Aufrufe, während Material (8), Spesen
+        // (6) und Aufgaben (2) ihren Platz verdienten. Sie sind jetzt
+        // zuoberst in «Weitere» — erreichbar, aber nicht auf einem der vier
+        // Plätze, die man am Handy mit dem Daumen trifft.
+        //
         // Events sind seit v0.58.0 unten in der Liste (oberhalb Buchhaltung);
         // an ihrer Stelle die neuen Aufgaben (anstehende Arbeiten) — Daniel
         // 31.07.2026.
@@ -163,7 +162,15 @@ class _WeitereSection extends ConsumerWidget {
 
     return Column(
       children: [
-        // Events zuoberst (aus dem Kachel-Raster hierher verschoben — Daniel
+        // Kontakte zuoberst: von den Einträgen hier braucht man sie am
+        // ehesten unterwegs (Telefonnummer eines Wirts). Aus dem Kachel-
+        // Raster hierher — siehe Begründung dort (A6, v0.112.0).
+        _MenuListTile(
+          icon: Icons.contacts,
+          label: 'Kontakte',
+          onTap: () => context.push('/kontakte'),
+        ),
+        // Events (aus dem Kachel-Raster hierher verschoben — Daniel
         // 31.07.2026; die Kachel gehört jetzt den Aufgaben).
         _MenuListTile(
           icon: Icons.festival,
@@ -186,11 +193,10 @@ class _WeitereSection extends ConsumerWidget {
             label: 'Dokumente',
             onTap: () => context.push('/dokumente'),
           ),
-        _MenuListTile(
-          icon: Icons.query_stats,
-          label: 'Auswertung Arbeitstage',
-          onTap: () => context.push('/auswertungen/arbeitstage'),
-        ),
+        // «Auswertung Arbeitstage» steht seit v0.112.0 (A6) in der
+        // Buchhaltung, gleich neben der Umsatz-Auswertung — dort wird sie
+        // gesucht, nicht auf der Werkstatt-Startseite. Die Route bleibt
+        // unverändert.
         _MenuListTile(
           icon: Icons.nightlight_round,
           label: 'Pikett-Dienste',
@@ -263,11 +269,7 @@ class _SyncIndicator extends ConsumerWidget {
     if (hatFehler) {
       return Tooltip(
         message: 'Letzter Sync unvollständig — «Sync erzwingen» für Details',
-        child: Icon(
-          Icons.cloud_off,
-          color: AppColors.offline,
-          size: 20,
-        ),
+        child: Icon(Icons.cloud_off, color: AppColors.offline, size: 20),
       );
     }
     return Icon(
@@ -426,7 +428,9 @@ class _AufgabenKarte extends ConsumerWidget {
     if (jetzt.isEmpty) return const SizedBox.shrink();
     final titel = jetzt.map((a) => a.titel).take(3).toList();
     final dringend = jetzt.any((a) => a.dringend);
-    final label = jetzt.length == 1 ? '1 Aufgabe offen' : '${jetzt.length} Aufgaben offen';
+    final label = jetzt.length == 1
+        ? '1 Aufgabe offen'
+        : '${jetzt.length} Aufgaben offen';
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       color: dringend

@@ -236,6 +236,15 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
             subtitle: 'Umsatz & Arbeiten nach Jahr/Monat',
             onTap: () => context.push('/buchhaltung/auswertung'),
           ),
+          // Aus dem Hauptmenü hierher (A6, v0.112.0): Die Arbeitstage-
+          // Auswertung gehört neben die Umsatz-Auswertung, nicht auf die
+          // Werkstatt-Startseite.
+          _NavTile(
+            icon: Icons.query_stats,
+            title: 'Auswertung Arbeitstage',
+            subtitle: 'Arbeitszeit, Fahrten und Einsätze pro Tag',
+            onTap: () => context.push('/auswertungen/arbeitstage'),
+          ),
           _NavTile(
             icon: Icons.account_balance,
             title: 'MwSt-Abrechnung',
