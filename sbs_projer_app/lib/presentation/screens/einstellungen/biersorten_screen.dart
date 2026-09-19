@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/biersorte.dart';
 import 'package:sbs_projer_app/data/repositories/biersorte_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/biersorte_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class BiersortenScreen extends ConsumerStatefulWidget {
   const BiersortenScreen({super.key});
@@ -81,17 +82,22 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
                 initialValue: kategorie,
                 decoration: const InputDecoration(labelText: 'Kategorie'),
                 items: _kategorien
-                    .map((k) => DropdownMenuItem(
-                          value: k,
-                          child: Row(
-                            children: [
-                              Icon(kategorieIcon(k),
-                                  size: 18, color: kategorieColor(k)),
-                              const SizedBox(width: 8),
-                              Text(kategorieLabelKurz(k)),
-                            ],
-                          ),
-                        ))
+                    .map(
+                      (k) => DropdownMenuItem(
+                        value: k,
+                        child: Row(
+                          children: [
+                            Icon(
+                              kategorieIcon(k),
+                              size: 18,
+                              color: kategorieColor(k),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(kategorieLabelKurz(k)),
+                          ],
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) {
                   if (v != null) setDialogState(() => kategorie = v);
@@ -129,9 +135,9 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -146,14 +152,20 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Text(biersorte.name,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w600)),
+              child: Text(
+                biersorte.name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Kategorie wählen',
-                  style: TextStyle(color: AppColors.textSecondary)),
+              child: Text(
+                'Kategorie wählen',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
             const SizedBox(height: 8),
             ..._kategorien.map((k) {
@@ -181,9 +193,9 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
       ref.invalidate(biersortenProvider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -194,16 +206,17 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Biersorte löschen'),
         content: Text(
-            '«${biersorte.name}» wirklich löschen?\n\nUnbekannte Biersorten werden bei der Reinigung automatisch als «Fremd» gezählt.'),
+          '«${biersorte.name}» wirklich löschen?\n\nUnbekannte Biersorten werden bei der Reinigung automatisch als «Fremd» gezählt.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -215,15 +228,15 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
       await BiersorteRepository.delete(biersorte.id);
       ref.invalidate(biersortenProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${biersorte.name} gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('${biersorte.name} gelöscht')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -248,11 +261,16 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.local_drink,
-                      size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.local_drink,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Keine Biersorten vorhanden.',
-                      style: TextStyle(color: AppColors.textSecondary)),
+                  const Text(
+                    'Keine Biersorten vorhanden.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: _addBiersorte,
@@ -270,7 +288,9 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
           final grouped = <String, List<Biersorte>>{};
           for (final k in _kategorien) {
             final list = biersorten.where((b) => b.kategorie == k).toList()
-              ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+              ..sort(
+                (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+              );
             grouped[k] = list;
           }
 
@@ -285,15 +305,20 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline,
-                          size: 18, color: AppColors.info.withValues(alpha: 0.7)),
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: AppColors.info.withValues(alpha: 0.7),
+                      ),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
                           'Die Kategorie bestimmt den Reinigungspreis pro Hahn. '
                           'Unbekannte Biersorten werden als «Fremd» gezählt.',
                           style: TextStyle(
-                              fontSize: 13, color: AppColors.textSecondary),
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ],
@@ -350,30 +375,39 @@ class _KategorieCard extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.08),
-              border: Border(
-                left: BorderSide(color: color, width: 4),
-              ),
+              border: Border(left: BorderSide(color: color, width: 4)),
             ),
             child: ListTile(
               dense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 0,
+              ),
               leading: Icon(icon, color: color, size: 22),
-              title: Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14)),
+              title: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
               trailing: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text('${biersorten.length}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: color)),
+                child: Text(
+                  '${biersorten.length}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: color,
+                  ),
+                ),
               ),
             ),
           ),
@@ -381,36 +415,42 @@ class _KategorieCard extends StatelessWidget {
           ...biersorten.map((b) {
             final count = leitungenCounts[b.name] ?? 0;
             return Dismissible(
-                key: ValueKey(b.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  color: AppColors.error,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
+              key: ValueKey(b.id),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                color: AppColors.error,
+                padding: const EdgeInsets.only(right: 20),
+                child: const Icon(Icons.delete, color: Colors.white),
+              ),
+              confirmDismiss: (_) async {
+                onDelete(b);
+                return false; // Dialog übernimmt
+              },
+              child: ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 0,
                 ),
-                confirmDismiss: (_) async {
-                  onDelete(b);
-                  return false; // Dialog übernimmt
-                },
-                child: ListTile(
-                  dense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                  title: Text(b.name, style: const TextStyle(fontSize: 15)),
-                  subtitle: count > 0
-                      ? Text('$count ${count == 1 ? 'Leitung' : 'Leitungen'}',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary))
-                      : null,
-                  trailing: IconButton(
-                    icon: const Icon(Icons.swap_horiz, size: 20),
-                    tooltip: 'Kategorie ändern',
-                    color: AppColors.textSecondary,
-                    onPressed: () => onChangeKategorie(b),
-                  ),
+                title: Text(b.name, style: const TextStyle(fontSize: 15)),
+                subtitle: count > 0
+                    ? Text(
+                        '$count ${count == 1 ? 'Leitung' : 'Leitungen'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      )
+                    : null,
+                trailing: IconButton(
+                  icon: const Icon(Icons.swap_horiz, size: 20),
+                  tooltip: 'Kategorie ändern',
+                  color: AppColors.textSecondary,
+                  onPressed: () => onChangeKategorie(b),
                 ),
-              );
+              ),
+            );
           }),
         ],
       ),

@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class EigenauftragDetailScreen extends ConsumerWidget {
   final String eigenauftragId;
@@ -58,9 +59,11 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
   }
 
   Future<void> _loadMaterialNames() async {
-    final ids = [ea.material1Id, ea.material2Id, ea.material3Id]
-        .whereType<String>()
-        .toSet();
+    final ids = [
+      ea.material1Id,
+      ea.material2Id,
+      ea.material3Id,
+    ].whereType<String>().toSet();
     if (ids.isEmpty) return;
     for (final id in ids) {
       try {
@@ -131,15 +134,21 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
                     children: [
                       const SizedBox(
                         width: 130,
-                        child: Text('Total',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14)),
+                        child: Text(
+                          'Total',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                       Expanded(
                         child: Text(
                           '${ea.pauschale!.toStringAsFixed(2)} CHF',
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -168,11 +177,16 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
-                  Text('Noch nicht synchronisiert',
-                      style: TextStyle(color: AppColors.warning)),
+                  Text(
+                    'Noch nicht synchronisiert',
+                    style: TextStyle(color: AppColors.warning),
+                  ),
                 ],
               ),
             ),
@@ -217,8 +231,7 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
       String kunde = '';
       String ort = '';
       if (ea.betriebId != null) {
-        final betrieb =
-            await BetriebRepository.getByServerId(ea.betriebId!);
+        final betrieb = await BetriebRepository.getByServerId(ea.betriebId!);
         if (betrieb != null) {
           kunde = betrieb.name;
           ort = '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim();
@@ -257,9 +270,9 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
       }
     }
   }
@@ -277,11 +290,7 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -295,7 +304,8 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Löschen nur mit Internetverbindung möglich')),
+              content: Text('Löschen nur mit Internetverbindung möglich'),
+            ),
           );
         }
       }
@@ -320,8 +330,7 @@ class _BetriebCard extends StatelessWidget {
             subtitle: const Text('Betrieb'),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () async {
-              final betrieb =
-                  await BetriebRepository.getByServerId(betriebId);
+              final betrieb = await BetriebRepository.getByServerId(betriebId);
               if (betrieb != null && context.mounted) {
                 context.push('/betriebe/${betrieb.routeId}');
               }
@@ -360,7 +369,10 @@ class _StatusRow extends StatelessWidget {
           child: Text(
             eigenauftrag.status,
             style: TextStyle(
-                color: color, fontWeight: FontWeight.w600, fontSize: 12),
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
           ),
         ),
       ],
@@ -393,9 +405,13 @@ class _SectionCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -427,13 +443,15 @@ class _InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 130,
-            child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 14)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

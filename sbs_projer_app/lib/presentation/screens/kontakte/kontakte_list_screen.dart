@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/repositories/anruf_log_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class KontakteListScreen extends ConsumerStatefulWidget {
   final String? kategorie;
@@ -63,9 +64,10 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
   }
 
   Future<void> _loeschen(KontaktLocal kontakt) async {
-    final name = [kontakt.vorname, kontakt.nachname]
-        .where((s) => s != null && s.isNotEmpty)
-        .join(' ');
+    final name = [
+      kontakt.vorname,
+      kontakt.nachname,
+    ].where((s) => s != null && s.isNotEmpty).join(' ');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -76,10 +78,10 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -96,21 +98,23 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
       );
       ref.invalidate(kontakteProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$name gelöscht')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
 
   List<KontaktLocal> _filterAndSearch(
-      List<KontaktLocal> alle, Map<String, String> betriebNamen) {
+    List<KontaktLocal> alle,
+    Map<String, String> betriebNamen,
+  ) {
     var result = alle;
 
     // Kategorie-Filter
@@ -130,8 +134,7 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
         final name = '${k.vorname} ${k.nachname ?? ''}'.toLowerCase();
         final tel = (k.telefon ?? '').toLowerCase();
         final mail = (k.email ?? '').toLowerCase();
-        final betrieb =
-            (betriebNamen[k.betriebId] ?? '').toLowerCase();
+        final betrieb = (betriebNamen[k.betriebId] ?? '').toLowerCase();
         return name.contains(q) ||
             tel.contains(q) ||
             mail.contains(q) ||
@@ -162,15 +165,17 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
     final kontakteAsync = ref.watch(kontakteProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_appBarTitle()),
-      ),
+      appBar: AppBar(title: Text(_appBarTitle())),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           final params = <String, String>{};
-          if (_filterKategorie != 'alle') params['kategorie'] = _filterKategorie;
+          if (_filterKategorie != 'alle') {
+            params['kategorie'] = _filterKategorie;
+          }
           if (widget.betriebId != null) params['betriebId'] = widget.betriebId!;
-          final query = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+          final query = params.entries
+              .map((e) => '${e.key}=${e.value}')
+              .join('&');
           context.push('/kontakte/neu${query.isNotEmpty ? '?$query' : ''}');
         },
         child: const Icon(Icons.add),
@@ -204,19 +209,23 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
 
               // Kategorie-Filter (nur wenn kein betriebId-Filter)
               if (widget.betriebId == null)
-                AppFilterBar(items: [
-                  AppFilterDropdown<String>(
-                    hint: 'Alle Kategorien',
-                    value: _filterKategorie == 'alle' ? null : _filterKategorie,
-                    options: const [
-                      ('betrieb', 'Betrieb'),
-                      ('heineken', 'Heineken'),
-                      ('event', 'Event'),
-                    ],
-                    onChanged: (v) =>
-                        setState(() => _filterKategorie = v ?? 'alle'),
-                  ),
-                ]),
+                AppFilterBar(
+                  items: [
+                    AppFilterDropdown<String>(
+                      hint: 'Alle Kategorien',
+                      value: _filterKategorie == 'alle'
+                          ? null
+                          : _filterKategorie,
+                      options: const [
+                        ('betrieb', 'Betrieb'),
+                        ('heineken', 'Heineken'),
+                        ('event', 'Event'),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _filterKategorie = v ?? 'alle'),
+                    ),
+                  ],
+                ),
 
               // Liste
               Expanded(
@@ -225,12 +234,18 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.contacts,
-                                size: 64,
-                                color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                            Icon(
+                              Icons.contacts,
+                              size: 64,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
                             const SizedBox(height: 16),
-                            const Text('Keine Kontakte gefunden.',
-                                style: TextStyle(color: AppColors.textSecondary)),
+                            const Text(
+                              'Keine Kontakte gefunden.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
                           ],
                         ),
                       )
@@ -240,7 +255,8 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
                         itemBuilder: (ctx, i) {
                           final k = kontakte[i];
                           // Kategorie-Header einfügen
-                          final showHeader = i == 0 ||
+                          final showHeader =
+                              i == 0 ||
                               kontakte[i - 1].kategorie != k.kategorie;
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +283,8 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
                                   final id = k.serverId ?? k.id.toString();
                                   context.push('/kontakte/$id/bearbeiten');
                                 },
-                                onCall: k.telefon != null && k.telefon!.isNotEmpty
+                                onCall:
+                                    k.telefon != null && k.telefon!.isNotEmpty
                                     ? () => _anrufen(k)
                                     : null,
                                 onDelete: () => _loeschen(k),
@@ -292,7 +309,6 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
   };
 }
 
-
 class _KontaktCard extends StatelessWidget {
   final KontaktLocal kontakt;
   final String? betriebName;
@@ -310,9 +326,10 @@ class _KontaktCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = [kontakt.vorname, kontakt.nachname]
-        .where((s) => s != null && s.isNotEmpty)
-        .join(' ');
+    final name = [
+      kontakt.vorname,
+      kontakt.nachname,
+    ].where((s) => s != null && s.isNotEmpty).join(' ');
     final hasBetrieb = betriebName != null && betriebName!.isNotEmpty;
 
     return Dismissible(
@@ -332,20 +349,33 @@ class _KontaktCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 4),
         child: ListTile(
           dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 2,
+          ),
           title: Row(
             children: [
               Flexible(
-                child: Text(hasBetrieb ? betriebName! : name,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis),
+                child: Text(
+                  hasBetrieb ? betriebName! : name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const SizedBox(width: 6),
               if (kontakt.rolle != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
-                    color: _kategorieColor(kontakt.kategorie).withValues(alpha: 0.12),
+                    color: _kategorieColor(
+                      kontakt.kategorie,
+                    ).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -371,20 +401,33 @@ class _KontaktCard extends StatelessWidget {
                 children: [
                   if (hasBetrieb)
                     Flexible(
-                      child: Text(name,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   if (kontakt.istDuAnrede) ...[
                     if (hasBetrieb) const SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.textSecondary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(3),
                       ),
-                      child: const Text('Du',
-                          style: TextStyle(fontSize: 9, color: AppColors.textSecondary)),
+                      child: const Text(
+                        'Du',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ),
                   ],
                 ],
@@ -392,21 +435,33 @@ class _KontaktCard extends StatelessWidget {
               if (kontakt.telefon != null && kontakt.telefon!.isNotEmpty)
                 Row(
                   children: [
-                    const Icon(Icons.phone, size: 12, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.phone,
+                      size: 12,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
-                    Text(kontakt.telefon!,
-                        style: const TextStyle(fontSize: 12)),
+                    Text(
+                      kontakt.telefon!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
               if (kontakt.email != null && kontakt.email!.isNotEmpty)
                 Row(
                   children: [
-                    const Icon(Icons.email, size: 12, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.email,
+                      size: 12,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Flexible(
-                      child: Text(kontakt.email!,
-                          style: const TextStyle(fontSize: 12),
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        kontakt.email!,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -442,4 +497,3 @@ class _KontaktCard extends StatelessWidget {
     _ => AppColors.textSecondary,
   };
 }
-

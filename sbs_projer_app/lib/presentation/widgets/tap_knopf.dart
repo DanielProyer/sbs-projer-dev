@@ -14,6 +14,16 @@ class TapKnopf extends StatelessWidget {
   final IconData? icon;
   final bool laeuft;
 
+  /// Rote Bestätigung einer unumkehrbaren Aktion (Löschen, Verwerfen).
+  ///
+  /// WARUM eigens ausgewiesen: Am 20.06.2026 blieb genau so ein
+  /// Bestätigen-Knopf auf CanvasKit unsichtbar (camt-Import). Bei einem
+  /// Speichern-Knopf merkt man das sofort; bei einer Löschbestätigung steht
+  /// man vor einem Dialog, der sich scheinbar nicht bedienen lässt.
+  /// `gefahr: true` färbt rot UND hält die Bauart, die zuverlässig rendert —
+  /// `test/gefahr_knopf_waechter_test.dart` hält die Regel fest.
+  final bool gefahr;
+
   const TapKnopf({
     super.key,
     required this.text,
@@ -21,14 +31,19 @@ class TapKnopf extends StatelessWidget {
     this.primaer = true,
     this.icon,
     this.laeuft = false,
+    this.gefahr = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final farbe = primaer
+    final farbe = gefahr
+        ? AppColors.error
+        : primaer
         ? Theme.of(context).colorScheme.primary
         : Colors.white;
-    final textFarbe = primaer ? Colors.white : AppColors.textPrimary;
+    final textFarbe = (gefahr || primaer)
+        ? Colors.white
+        : AppColors.textPrimary;
     final aktiv = onTap != null && !laeuft;
     return Semantics(
       button: true,
@@ -44,7 +59,9 @@ class TapKnopf extends StatelessWidget {
             decoration: BoxDecoration(
               color: aktiv ? farbe : Colors.grey.shade400,
               borderRadius: BorderRadius.circular(8),
-              border: primaer ? null : Border.all(color: Colors.grey.shade400),
+              border: (primaer || gefahr)
+                  ? null
+                  : Border.all(color: Colors.grey.shade400),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

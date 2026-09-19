@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/services/pdf/heineken_rapport_service.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/pikett_dienst_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class PikettDienstDetailScreen extends ConsumerWidget {
   final String pikettId;
@@ -80,7 +81,10 @@ class _PikettDetailContent extends ConsumerWidget {
               child: Wrap(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.info.withAlpha(25),
                       borderRadius: BorderRadius.circular(20),
@@ -112,8 +116,14 @@ class _PikettDetailContent extends ConsumerWidget {
             icon: Icons.schedule,
             children: [
               _InfoRow('Kalenderwoche', 'KW ${_kw(pikett.datumStart)}'),
-              _InfoRow('Freitag', '${_formatDate(pikett.datumStart)}, 17:00 – 22:00'),
-              _InfoRow('Samstag', '${_formatDate(pikett.datumEnde)}, 08:00 – 22:00'),
+              _InfoRow(
+                'Freitag',
+                '${_formatDate(pikett.datumStart)}, 17:00 – 22:00',
+              ),
+              _InfoRow(
+                'Samstag',
+                '${_formatDate(pikett.datumEnde)}, 08:00 – 22:00',
+              ),
             ],
           ),
 
@@ -122,12 +132,18 @@ class _PikettDetailContent extends ConsumerWidget {
             title: 'Vergütung',
             icon: Icons.attach_money,
             children: [
-              _InfoRow('Pauschale', '${(pikett.pauschale ?? 80).toStringAsFixed(2)} CHF'),
+              _InfoRow(
+                'Pauschale',
+                '${(pikett.pauschale ?? 80).toStringAsFixed(2)} CHF',
+              ),
               if (pikett.anzahlFeiertage > 0)
                 _InfoRow('Feiertage', '${pikett.anzahlFeiertage}'),
-              if (pikett.feiertagZuschlag != null && pikett.feiertagZuschlag! > 0)
-                _InfoRow('Feiertag-Zuschlag',
-                    '${pikett.feiertagZuschlag!.toStringAsFixed(2)} CHF'),
+              if (pikett.feiertagZuschlag != null &&
+                  pikett.feiertagZuschlag! > 0)
+                _InfoRow(
+                  'Feiertag-Zuschlag',
+                  '${pikett.feiertagZuschlag!.toStringAsFixed(2)} CHF',
+                ),
               if (pikett.pauschaleGesamt != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -165,9 +181,14 @@ class _PikettDetailContent extends ConsumerWidget {
               icon: Icons.receipt_long,
               children: [
                 if (pikett.abrechnungsMonat != null)
-                  _InfoRow('Abrechnungsmonat',
-                      '${pikett.abrechnungsMonat!.month.toString().padLeft(2, '0')}/${pikett.abrechnungsMonat!.year}'),
-                _InfoRow('Status', pikett.abgerechnet ? 'Abgerechnet' : 'Offen'),
+                  _InfoRow(
+                    'Abrechnungsmonat',
+                    '${pikett.abrechnungsMonat!.month.toString().padLeft(2, '0')}/${pikett.abrechnungsMonat!.year}',
+                  ),
+                _InfoRow(
+                  'Status',
+                  pikett.abgerechnet ? 'Abgerechnet' : 'Offen',
+                ),
               ],
             ),
 
@@ -183,8 +204,11 @@ class _PikettDetailContent extends ConsumerWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
                   Text(
                     'Noch nicht synchronisiert',
@@ -232,9 +256,9 @@ class _PikettDetailContent extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
       }
     }
   }
@@ -252,11 +276,7 @@ class _PikettDetailContent extends ConsumerWidget {
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Loeschen'),
-          ),
+          TapKnopf(text: 'Loeschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -270,8 +290,8 @@ class _PikettDetailContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content:
-                    Text('Loeschen nur mit Internetverbindung moeglich')),
+              content: Text('Loeschen nur mit Internetverbindung moeglich'),
+            ),
           );
         }
       }
@@ -359,12 +379,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

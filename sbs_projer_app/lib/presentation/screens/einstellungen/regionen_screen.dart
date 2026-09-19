@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Regionen verwalten (Stammdaten). Heute pro Nutzer; siehe
 /// [RegionRepository.createName] zur Franchise-Zukunft (geteilter Katalog).
@@ -23,8 +24,7 @@ class _RegionenScreenState extends ConsumerState<RegionenScreen> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _addRegion() async {
@@ -40,7 +40,10 @@ class _RegionenScreenState extends ConsumerState<RegionenScreen> {
   }
 
   Future<void> _renameRegion(RegionLocal region) async {
-    final name = await _nameDialog(titel: 'Region umbenennen', start: region.name);
+    final name = await _nameDialog(
+      titel: 'Region umbenennen',
+      start: region.name,
+    );
     if (name == null || name == region.name) return;
     try {
       await RegionRepository.renameRegion(region.serverId!, name);
@@ -59,8 +62,9 @@ class _RegionenScreenState extends ConsumerState<RegionenScreen> {
         builder: (ctx) => AlertDialog(
           title: const Text('Region nicht löschbar'),
           content: Text(
-              '«${region.name}» hat noch $betriebCount ${betriebCount == 1 ? 'zugeordneten Betrieb' : 'zugeordnete Betriebe'}.\n\n'
-              'Ordne diese Betriebe zuerst einer anderen Region zu, dann kann die Region gelöscht werden.'),
+            '«${region.name}» hat noch $betriebCount ${betriebCount == 1 ? 'zugeordneten Betrieb' : 'zugeordnete Betriebe'}.\n\n'
+            'Ordne diese Betriebe zuerst einer anderen Region zu, dann kann die Region gelöscht werden.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -81,10 +85,10 @@ class _RegionenScreenState extends ConsumerState<RegionenScreen> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -162,12 +166,16 @@ class _RegionenScreenState extends ConsumerState<RegionenScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.map_outlined,
-                      size: 64,
-                      color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.map_outlined,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Keine Regionen vorhanden.',
-                      style: TextStyle(color: AppColors.textSecondary)),
+                  const Text(
+                    'Keine Regionen vorhanden.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                   if (_kannBearbeiten) ...[
                     const SizedBox(height: 16),
                     FilledButton.icon(
@@ -189,9 +197,11 @@ class _RegionenScreenState extends ConsumerState<RegionenScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info_outline,
-                            size: 18,
-                            color: AppColors.info.withValues(alpha: 0.7)),
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: AppColors.info.withValues(alpha: 0.7),
+                        ),
                         const SizedBox(width: 10),
                         const Expanded(
                           child: Text(
@@ -199,7 +209,9 @@ class _RegionenScreenState extends ConsumerState<RegionenScreen> {
                             'Karte. Eine Region lässt sich nur löschen, wenn ihr '
                             'kein Betrieb zugeordnet ist.',
                             style: TextStyle(
-                                fontSize: 13, color: AppColors.textSecondary),
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
                       ],
@@ -248,8 +260,10 @@ class _RegionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: const Icon(Icons.map, color: AppColors.primary),
-      title: Text(region.name,
-          style: const TextStyle(fontWeight: FontWeight.w600)),
+      title: Text(
+        region.name,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
       subtitle: Text(
         betriebCount == 0
             ? 'Keine Betriebe'

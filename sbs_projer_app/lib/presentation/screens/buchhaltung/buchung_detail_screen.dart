@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/beleg_upload_widget.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_reversal_service.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class BuchungDetailScreen extends ConsumerStatefulWidget {
   final String buchungId;
@@ -31,7 +32,12 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
 
   Future<void> _load() async {
     final b = await BuchungRepository.getById(widget.buchungId);
-    if (mounted) setState(() { _buchung = b; _loading = false; });
+    if (mounted) {
+      setState(() {
+        _buchung = b;
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -95,9 +101,15 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _DetailRow('Betrag Netto', '${b.betragNetto.toStringAsFixed(2)} CHF'),
+                  _DetailRow(
+                    'Betrag Netto',
+                    '${b.betragNetto.toStringAsFixed(2)} CHF',
+                  ),
                   if (b.mwstSatz > 0) ...[
-                    _DetailRow('MwSt (${b.mwstSatz.toStringAsFixed(1)}%)', '${b.mwstBetrag.toStringAsFixed(2)} CHF'),
+                    _DetailRow(
+                      'MwSt (${b.mwstSatz.toStringAsFixed(1)}%)',
+                      '${b.mwstBetrag.toStringAsFixed(2)} CHF',
+                    ),
                   ],
                   const Divider(),
                   _DetailRow(
@@ -121,8 +133,8 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
                   Text(
                     'Konten',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   _DetailRow('Soll', b.sollKonto.toString()),
@@ -145,8 +157,8 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
                   Text(
                     'Details',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   _DetailRow('Datum', _formatDate(b.datum)),
@@ -159,10 +171,8 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
                     _DetailRow('Belegordner', b.belegordner!),
                   if (b.belegTyp != null) _DetailRow('Beleg-Typ', b.belegTyp!),
                   _DetailRow('Geschäftsjahr', b.geschaeftsjahr.toString()),
-                  if (b.monat != null)
-                    _DetailRow('Monat', b.monat.toString()),
-                  if (b.quartal != null)
-                    _DetailRow('Quartal', 'Q${b.quartal}'),
+                  if (b.monat != null) _DetailRow('Monat', b.monat.toString()),
+                  if (b.quartal != null) _DetailRow('Quartal', 'Q${b.quartal}'),
                   if (b.notizen != null && b.notizen!.isNotEmpty)
                     _DetailRow('Notizen', b.notizen!),
                 ],
@@ -210,10 +220,10 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Stornieren'),
+          TapKnopf(
+            text: 'Stornieren',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -228,16 +238,16 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
         ref.invalidate(buchungenStreamProvider);
         ref.invalidate(eingangsrechnungenProvider);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Buchung storniert')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Buchung storniert')));
           _load(); // Reload
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
         }
       }
     }
@@ -265,10 +275,7 @@ class _DetailRow extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
           Expanded(

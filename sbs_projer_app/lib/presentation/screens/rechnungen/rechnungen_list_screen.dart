@@ -11,48 +11,81 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart'
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
-import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart' show betriebNameMapProvider;
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
+    show betriebNameMapProvider;
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 const _monatNamen = [
-  '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+  '',
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
 ];
 
 String _statusLabel(String status) {
   switch (status) {
-    case 'offen': return 'Offen';
-    case 'bezahlt': return 'Bezahlt';
-    case 'erinnert': return 'Erinnert';
-    case 'mahnung_1': return 'Mahnung 1';
-    case 'mahnung_2': return 'Mahnung 2';
-    case 'abgeschrieben': return 'Abgeschrieben';
-    case 'mahnfaellig': return 'Mahnfällig';
-    default: return status;
+    case 'offen':
+      return 'Offen';
+    case 'bezahlt':
+      return 'Bezahlt';
+    case 'erinnert':
+      return 'Erinnert';
+    case 'mahnung_1':
+      return 'Mahnung 1';
+    case 'mahnung_2':
+      return 'Mahnung 2';
+    case 'abgeschrieben':
+      return 'Abgeschrieben';
+    case 'mahnfaellig':
+      return 'Mahnfällig';
+    default:
+      return status;
   }
 }
 
 Color _statusColor(String status) {
   switch (status) {
-    case 'offen': return AppColors.warning;
-    case 'bezahlt': return AppColors.success;
-    case 'erinnert': return const Color(0xFFE65100);
-    case 'mahnung_1': return AppColors.error;
-    case 'mahnung_2': return const Color(0xFF8B0000);
-    case 'abgeschrieben': return AppColors.inaktiv;
-    default: return AppColors.textSecondary;
+    case 'offen':
+      return AppColors.warning;
+    case 'bezahlt':
+      return AppColors.success;
+    case 'erinnert':
+      return const Color(0xFFE65100);
+    case 'mahnung_1':
+      return AppColors.error;
+    case 'mahnung_2':
+      return const Color(0xFF8B0000);
+    case 'abgeschrieben':
+      return AppColors.inaktiv;
+    default:
+      return AppColors.textSecondary;
   }
 }
 
 String? _naechsterStatus(String current) {
   switch (current) {
-    case 'offen': return 'erinnert';
-    case 'erinnert': return 'mahnung_1';
-    case 'mahnung_1': return 'mahnung_2';
-    case 'mahnung_2': return 'abgeschrieben';
-    default: return null;
+    case 'offen':
+      return 'erinnert';
+    case 'erinnert':
+      return 'mahnung_1';
+    case 'mahnung_1':
+      return 'mahnung_2';
+    case 'mahnung_2':
+      return 'abgeschrieben';
+    default:
+      return null;
   }
 }
 
@@ -69,7 +102,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   String _statusFilter = 'alle';
   int _selectedYear = DateTime.now().year; // 0 = Alle Jahre
   int _selectedMonth = 0; // 0 = Alle Monate
-
 
   /// Bucht fehlende Ertragsbuchungen nach (04.09.2026: zwei Reinigungen
   /// blieben unverbucht, weil die Abschluss-Kette im Browser abbrach).
@@ -218,17 +250,21 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: AppColors.error, size: 20),
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.error,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${offen.length} abgeschlossene Reinigungen ohne Rechnung · '
                   '${summe.toStringAsFixed(2)} CHF',
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.error),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error,
+                  ),
                 ),
               ),
               const Icon(Icons.chevron_right, color: AppColors.error, size: 20),
@@ -267,8 +303,11 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.account_balance_wallet_outlined,
-                  color: AppColors.warning, size: 20),
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                color: AppColors.warning,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -278,13 +317,17 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                       : '${offen.length} Reinigungen ohne Ertragsbuchung · '
                             '${summe.toStringAsFixed(2)} CHF · tippen zum Nachbuchen',
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.warning),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.warning,
+                  ),
                 ),
               ),
-              const Icon(Icons.chevron_right,
-                  color: AppColors.warning, size: 20),
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.warning,
+                size: 20,
+              ),
             ],
           ),
         ),
@@ -295,7 +338,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   /// Kopf-Karte «Offene Forderungen» — immer sichtbar, zuoberst (Wunsch
   /// Daniel 07.08.2026). Antippen filtert die Liste auf «Offen».
   Widget _offeneSummaryCard(
-      List<Rechnung> offene, double offenSumme, int ueberfaellige) {
+    List<Rechnung> offene,
+    double offenSumme,
+    int ueberfaellige,
+  ) {
     return Card(
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
@@ -345,8 +391,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               ),
               if (ueberfaellige > 0)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.error.withAlpha(25),
                     borderRadius: BorderRadius.circular(8),
@@ -412,8 +460,8 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         final query = _searchQuery.toLowerCase();
         final betriebName =
             (r.betriebId != null ? betriebNames[r.betriebId] : null)
-                    ?.toLowerCase() ??
-                '';
+                ?.toLowerCase() ??
+            '';
         return betriebName.contains(query) ||
             (r.rechnungsnummer?.toLowerCase().contains(query) ?? false);
       }
@@ -425,7 +473,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     for (final r in filtered) {
       final m = r.rechnungsdatum.month;
       final d = DateTime(
-          r.rechnungsdatum.year, r.rechnungsdatum.month, r.rechnungsdatum.day);
+        r.rechnungsdatum.year,
+        r.rechnungsdatum.month,
+        r.rechnungsdatum.day,
+      );
       if (groups.isEmpty ||
           groups.last.monat != m ||
           groups.last.jahr != r.rechnungsdatum.year) {
@@ -438,15 +489,17 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       g.tage.last.eintraege.add(r);
     }
 
-    final jahrSumme =
-        filtered.fold(0.0, (sum, r) => sum + r.betragBrutto);
+    final jahrSumme = filtered.fold(0.0, (sum, r) => sum + r.betragBrutto);
 
     // Summary für offene Rechnungen
     final offene = rechnungen.where(
-        (r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben');
+      (r) =>
+          r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben',
+    );
     final offenSumme = offene.fold(0.0, (sum, r) => sum + r.betragBrutto);
-    final ueberfaellige = offene.where(
-        (r) => r.faelligkeitsdatum.isBefore(DateTime.now())).length;
+    final ueberfaellige = offene
+        .where((r) => r.faelligkeitsdatum.isBefore(DateTime.now()))
+        .length;
 
     // Erzeugt, aber nie versendet (Versand fehlgeschlagen) — über alle Jahre.
     final nichtVersendetCount = rechnungen.where(rechnungNichtVersendet).length;
@@ -456,8 +509,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         // Version des GELADENEN Bundles — nicht die des Servers. Am 15.07. war
         // stundenlang nicht feststellbar, welcher Code im Browser läuft; das
         // hat mehrere Fehldiagnosen verursacht. Ab jetzt steht es da.
-        title: Text('Forderungen  ·  v$kAppVersion',
-            style: const TextStyle(fontSize: 18)),
+        title: Text(
+          'Forderungen  ·  v$kAppVersion',
+          style: const TextStyle(fontSize: 18),
+        ),
       ),
       body: Column(
         children: [
@@ -468,8 +523,11 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           //  klar getrennt vom Rechnungs-Archiv darunter.)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: _offeneSummaryCard(offene.toList(), offenSumme,
-                ueberfaellige),
+            child: _offeneSummaryCard(
+              offene.toList(),
+              offenSumme,
+              ueberfaellige,
+            ),
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -522,7 +580,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                     'nicht_versendet',
                     nichtVersendetCount > 0
                         ? 'Nicht versendet ($nichtVersendetCount)'
-                        : 'Nicht versendet'
+                        : 'Nicht versendet',
                   ),
                   const ('offen', 'Offen'),
                   const ('erinnert', 'Erinnert'),
@@ -571,18 +629,26 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.mark_email_unread,
-                          color: AppColors.error, size: 20),
+                      const Icon(
+                        Icons.mark_email_unread,
+                        color: AppColors.error,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           '$nichtVersendetCount Rechnung(en) erstellt, aber nicht versendet — antippen zum Anzeigen.',
                           style: const TextStyle(
-                              color: AppColors.error, fontSize: 13),
+                            color: AppColors.error,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                      const Icon(Icons.chevron_right,
-                          color: AppColors.error, size: 20),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.error,
+                        size: 20,
+                      ),
                     ],
                   ),
                 ),
@@ -597,9 +663,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                 jahrSumme > 0
                     ? '${filtered.length} – ${jahrSumme.toStringAsFixed(2)} CHF'
                     : '${filtered.length} Rechnungen',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
             ),
           ),
@@ -625,8 +691,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                         aktionLabel: _statusFilter == 'mahnfaellig'
                             ? ForderungService.empfohleneAktion(entry)
                             : null,
-                        onTap: () =>
-                            context.push('/rechnungen/${entry.id}'),
+                        onTap: () => context.push('/rechnungen/${entry.id}'),
                         onStatusChange: () => _showStatusDialog(entry),
                       );
                     },
@@ -642,8 +707,14 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     if (naechster == null) return;
 
     // Für Mahnwesen-Eskalation (erinnert, mahnung_1, mahnung_2)
-    if (naechster == 'erinnert' || naechster == 'mahnung_1' || naechster == 'mahnung_2') {
-      final stufe = naechster == 'erinnert' ? 0 : naechster == 'mahnung_1' ? 1 : 2;
+    if (naechster == 'erinnert' ||
+        naechster == 'mahnung_1' ||
+        naechster == 'mahnung_2') {
+      final stufe = naechster == 'erinnert'
+          ? 0
+          : naechster == 'mahnung_1'
+          ? 1
+          : 2;
       final titel = MahnwesenService.titelFuerStufe(stufe);
       final hatEmail = rechnung.versandart == 'rechnung_mail';
       bool? mailSenden = false;
@@ -667,7 +738,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                     value: mail,
                     onChanged: (v) => setDialogState(() => mail = v ?? false),
                     title: Text(
-                      hatEmail ? 'Per E-Mail senden' : 'Per E-Mail senden (keine E-Mail)',
+                      hatEmail
+                          ? 'Per E-Mail senden'
+                          : 'Per E-Mail senden (keine E-Mail)',
                       style: TextStyle(
                         fontSize: 14,
                         color: hatEmail ? null : AppColors.textSecondary,
@@ -707,16 +780,18 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         ref.invalidate(rechnungenStreamProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(
-              '$titel für ${rechnung.rechnungsnummer} erstellt${mailSenden == true ? ' & versendet' : ''}',
-            )),
+            SnackBar(
+              content: Text(
+                '$titel für ${rechnung.rechnungsnummer} erstellt${mailSenden == true ? ' & versendet' : ''}',
+              ),
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
         }
       }
       return;
@@ -737,10 +812,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Abbrechen'),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Abschreiben'),
+            TapKnopf(
+              text: 'Abschreiben',
+              gefahr: true,
+              onTap: () => Navigator.pop(ctx, true),
             ),
           ],
         ),
@@ -751,14 +826,16 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         ref.invalidate(rechnungenStreamProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${rechnung.rechnungsnummer} abgeschrieben')),
+            SnackBar(
+              content: Text('${rechnung.rechnungsnummer} abgeschrieben'),
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
         }
       }
       return;
@@ -794,16 +871,18 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         ref.invalidate(rechnungenStreamProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(
-              '${rechnung.rechnungsnummer}: ${_statusLabel(naechster)}',
-            )),
+            SnackBar(
+              content: Text(
+                '${rechnung.rechnungsnummer}: ${_statusLabel(naechster)}',
+              ),
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
         }
       }
     }
@@ -838,12 +917,11 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   }
 
   Widget _buildMonatsHeader(BuildContext context, _MonatsGruppe gruppe) {
-    final count =
-        gruppe.tage.fold(0, (sum, t) => sum + t.eintraege.length);
+    final count = gruppe.tage.fold(0, (sum, t) => sum + t.eintraege.length);
     final summe = gruppe.tage.fold(
-        0.0,
-        (sum, t) =>
-            sum + t.eintraege.fold(0.0, (s, r) => s + r.betragBrutto));
+      0.0,
+      (sum, t) => sum + t.eintraege.fold(0.0, (s, r) => s + r.betragBrutto),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Row(
@@ -852,23 +930,26 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
             child: Text(
               '${_monatNamen[gruppe.monat]} ${gruppe.jahr}',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
-          Text('$count St.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textSecondary)),
+          Text(
+            '$count St.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
           if (summe > 0) ...[
             const SizedBox(width: 8),
-            Text('${summe.toStringAsFixed(2)} CHF',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    )),
+            Text(
+              '${summe.toStringAsFixed(2)} CHF',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ],
       ),
@@ -877,8 +958,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
 
   Widget _buildTagesHeader(BuildContext context, _TagesGruppe gruppe) {
     final count = gruppe.eintraege.length;
-    final summe =
-        gruppe.eintraege.fold(0.0, (sum, r) => sum + r.betragBrutto);
+    final summe = gruppe.eintraege.fold(0.0, (sum, r) => sum + r.betragBrutto);
     final tag =
         '${gruppe.datum.day.toString().padLeft(2, '0')}.${gruppe.datum.month.toString().padLeft(2, '0')}';
     const wt = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -887,24 +967,30 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Text('${wt[gruppe.datum.weekday - 1]} $tag',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    )),
+            child: Text(
+              '${wt[gruppe.datum.weekday - 1]} $tag',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
-          Text('$count St.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+          Text(
+            '$count St.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
           if (summe > 0) ...[
             const SizedBox(width: 6),
-            Text('${summe.toStringAsFixed(2)} CHF',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                    )),
+            Text(
+              '${summe.toStringAsFixed(2)} CHF',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+              ),
+            ),
           ],
         ],
       ),
@@ -916,25 +1002,28 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long,
-              size: 64, color: AppColors.textSecondary.withAlpha(100)),
+          Icon(
+            Icons.receipt_long,
+            size: 64,
+            color: AppColors.textSecondary.withAlpha(100),
+          ),
           const SizedBox(height: 16),
           Text(
             _searchQuery.isNotEmpty
                 ? 'Keine Ergebnisse'
                 : 'Noch keine Rechnungen',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             _searchQuery.isNotEmpty
                 ? 'Versuche einen anderen Suchbegriff'
                 : 'Rechnungen werden automatisch bei Reinigungsabschluss erstellt',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -979,8 +1068,9 @@ class _RechnungListItem extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor:
-              (nichtVersendet ? AppColors.error : color).withAlpha(25),
+          backgroundColor: (nichtVersendet ? AppColors.error : color).withAlpha(
+            25,
+          ),
           child: Icon(
             nichtVersendet ? Icons.mark_email_unread : Icons.receipt_long,
             color: nichtVersendet ? AppColors.error : color,
@@ -1001,9 +1091,10 @@ class _RechnungListItem extends StatelessWidget {
                 child: Text(
                   '⚠ Nicht versendet',
                   style: TextStyle(
-                      color: AppColors.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600),
+                    color: AppColors.error,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
           ],
@@ -1035,11 +1126,16 @@ class _RechnungListItem extends StatelessWidget {
 
   IconData _statusUpIcon(String status) {
     switch (status) {
-      case 'offen': return Icons.notifications;
-      case 'erinnert': return Icons.warning_amber;
-      case 'mahnung_1': return Icons.gavel;
-      case 'mahnung_2': return Icons.block;
-      default: return Icons.arrow_forward;
+      case 'offen':
+        return Icons.notifications;
+      case 'erinnert':
+        return Icons.warning_amber;
+      case 'mahnung_1':
+        return Icons.gavel;
+      case 'mahnung_2':
+        return Icons.block;
+      default:
+        return Icons.arrow_forward;
     }
   }
 
@@ -1057,11 +1153,16 @@ class _RechnungListItem extends StatelessWidget {
 
   String _aktionText(String aktion) {
     switch (aktion) {
-      case 'erinnerung_faellig': return 'Erinnerung fällig';
-      case 'mahnung_1_faellig': return 'Mahnung 1 fällig';
-      case 'mahnung_2_faellig': return 'Mahnung 2 fällig';
-      case 'eskalation': return 'Eskalation';
-      default: return aktion;
+      case 'erinnerung_faellig':
+        return 'Erinnerung fällig';
+      case 'mahnung_1_faellig':
+        return 'Mahnung 1 fällig';
+      case 'mahnung_2_faellig':
+        return 'Mahnung 2 fällig';
+      case 'eskalation':
+        return 'Eskalation';
+      default:
+        return aktion;
     }
   }
 

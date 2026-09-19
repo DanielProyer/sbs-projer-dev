@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/core/util/google_kontakte.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auth_service.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class EinstellungenScreen extends ConsumerStatefulWidget {
   const EinstellungenScreen({super.key});
@@ -55,8 +56,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
       ),
     );
     if (result != null) {
-      await PreisRepository.updateFields(
-          preisId, {'heineken_po_nummer': result});
+      await PreisRepository.updateFields(preisId, {
+        'heineken_po_nummer': result,
+      });
       ref.invalidate(aktuellePreiseProvider);
     }
   }
@@ -107,10 +109,10 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -120,13 +122,18 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     setState(() => _waisenLaden = true);
     try {
       final anzahl = await BuchungsBelegRepository.loescheVerwaiste(
-          liste.map((w) => w.storagePfad).toList());
+        liste.map((w) => w.storagePfad).toList(),
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$anzahl Dateien gelöscht (${formatiereGroesse(bytes)} '
-            'freigegeben)'),
-        backgroundColor: AppColors.success,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$anzahl Dateien gelöscht (${formatiereGroesse(bytes)} '
+            'freigegeben)',
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
       await _ladeWaisen();
     } catch (e) {
       if (!mounted) return;
@@ -141,8 +148,12 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
   /// Projekt-Muster, vgl. material_bestellungen_screen.dart) — deshalb
   /// GestureDetector-Pill. Genau das war der Grund, warum die Karte hier
   /// ohne Knöpfe erschien (Daniel 28.07.2026).
-  Widget _tapButton(String label, VoidCallback? onTap, bool primaer,
-      {Color? farbe}) {
+  Widget _tapButton(
+    String label,
+    VoidCallback? onTap,
+    bool primaer, {
+    Color? farbe,
+  }) {
     final grund = farbe ?? (primaer ? AppColors.primary : Colors.grey.shade600);
     return GestureDetector(
       onTap: onTap,
@@ -153,11 +164,14 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           color: onTap == null ? Colors.grey.shade300 : grund,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(label,
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 13)),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
       ),
     );
   }
@@ -175,8 +189,10 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Fehler: $_waisenFehler',
-                style: const TextStyle(color: AppColors.error)),
+            Text(
+              'Fehler: $_waisenFehler',
+              style: const TextStyle(color: AppColors.error),
+            ),
             const SizedBox(height: 8),
             _tapButton('Nochmal versuchen', _ladeWaisen, false),
           ],
@@ -211,8 +227,10 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${liste.length} Dateien ohne Buchung · '
-            '${formatiereGroesse(bytes)}'),
+        Text(
+          '${liste.length} Dateien ohne Buchung · '
+          '${formatiereGroesse(bytes)}',
+        ),
         const SizedBox(height: 4),
         Text(
           'Älteste vom ${DateFormat('dd.MM.yyyy').format(aeltest)}. '
@@ -224,8 +242,7 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           children: [
             _tapButton('Aktualisieren', _ladeWaisen, false),
             const SizedBox(width: 8),
-            _tapButton('Löschen', _loescheWaisen, true,
-                farbe: AppColors.error),
+            _tapButton('Löschen', _loescheWaisen, true, farbe: AppColors.error),
           ],
         ),
       ],
@@ -239,12 +256,16 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.check_circle,
-                  color: AppColors.success, size: 18),
+              const Icon(
+                Icons.check_circle,
+                color: AppColors.success,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                    'Verbunden${status.email != null ? ' · ${status.email}' : ''}'),
+                  'Verbunden${status.email != null ? ' · ${status.email}' : ''}',
+                ),
               ),
             ],
           ),
@@ -254,33 +275,42 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 4),
-          Builder(builder: (_) {
-            final last = status.lastSyncAt?.toLocal();
-            if (last == null) {
-              return const Text(
-                'Noch nicht abgeglichen — läuft automatisch beim nächsten Öffnen.',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              );
-            }
-            final veraltet = DateTime.now().difference(last).inDays >= 2;
-            final farbe =
-                veraltet ? AppColors.warning : AppColors.textSecondary;
-            return Row(
-              children: [
-                Icon(veraltet ? Icons.warning_amber : Icons.sync,
-                    size: 14, color: farbe),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'Zuletzt abgeglichen: '
-                    '${DateFormat('dd.MM.yyyy, HH:mm').format(last)}'
-                    '${veraltet ? ' — Verbindung prüfen' : ''}',
-                    style: TextStyle(fontSize: 12, color: farbe),
+          Builder(
+            builder: (_) {
+              final last = status.lastSyncAt?.toLocal();
+              if (last == null) {
+                return const Text(
+                  'Noch nicht abgeglichen — läuft automatisch beim nächsten Öffnen.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
                   ),
-                ),
-              ],
-            );
-          }),
+                );
+              }
+              final veraltet = DateTime.now().difference(last).inDays >= 2;
+              final farbe = veraltet
+                  ? AppColors.warning
+                  : AppColors.textSecondary;
+              return Row(
+                children: [
+                  Icon(
+                    veraltet ? Icons.warning_amber : Icons.sync,
+                    size: 14,
+                    color: farbe,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Zuletzt abgeglichen: '
+                      '${DateFormat('dd.MM.yyyy, HH:mm').format(last)}'
+                      '${veraltet ? ' — Verbindung prüfen' : ''}',
+                      style: TextStyle(fontSize: 12, color: farbe),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
@@ -294,10 +324,13 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                 );
                 try {
                   final r = await GoogleCalendarSyncService.reconcile();
-                  messenger.showSnackBar(SnackBar(
-                    content: Text(
-                        'Abgeglichen: ${r['pushed'] ?? 0} gesendet, ${r['deleted'] ?? 0} entfernt'),
-                  ));
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Abgeglichen: ${r['pushed'] ?? 0} gesendet, ${r['deleted'] ?? 0} entfernt',
+                      ),
+                    ),
+                  );
                 } catch (e) {
                   messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
                 }
@@ -354,9 +387,14 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final r = await GoogleContactsService.syncJetzt();
-      messenger.showSnackBar(SnackBar(
-          content: Text('Sync ok: ${r.info} '
-              '(${r.created} neu, ${r.updated} geändert, ${r.deleted} gelöscht)')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Sync ok: ${r.info} '
+            '(${r.created} neu, ${r.updated} geändert, ${r.deleted} gelöscht)',
+          ),
+        ),
+      );
     } catch (e) {
       // Google-Rohmeldungen sind unbrauchbar — übersetzt anzeigen, samt
       // Knopf zur Seite, die das Problem behebt.
@@ -408,7 +446,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
         const SizedBox(height: 4),
         Text(
           kontakteSyncStatusText(
-              status.contactsLastSyncAt, status.contactsLastSyncInfo),
+            status.contactsLastSyncAt,
+            status.contactsLastSyncInfo,
+          ),
           style: TextStyle(
             fontSize: 12,
             color: (status.contactsLastSyncInfo ?? '').startsWith('Fehler')
@@ -424,7 +464,8 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                 ? const SizedBox(
                     height: 16,
                     width: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.sync, size: 18),
             label: const Text('Jetzt syncen'),
             onPressed: _isKontakteSyncing ? null : _kontakteSyncJetzt,
@@ -449,8 +490,10 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: ExpansionTile(
               leading: const Icon(Icons.store, color: AppColors.primary),
-              title: const Text('Geschäft',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              title: const Text(
+                'Geschäft',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: const Text('Firma, Geschäftsführer, Kontakt, MWST/UID'),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               children: [
@@ -471,19 +514,25 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: ExpansionTile(
               leading: const Icon(Icons.event, color: AppColors.primary),
-              title: const Text('Google Kalender',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              title: const Text(
+                'Google Kalender',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: const Text('Verbindung für Termine & Erinnerungen'),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               children: [
-                ref.watch(googleCalendarStatusProvider).when(
+                ref
+                    .watch(googleCalendarStatusProvider)
+                    .when(
                       data: (status) => _buildGoogleKalender(status),
                       loading: () => const Padding(
                         padding: EdgeInsets.all(12),
                         child: Center(child: CircularProgressIndicator()),
                       ),
-                      error: (e, _) => Text('Fehler: $e',
-                          style: const TextStyle(color: AppColors.error)),
+                      error: (e, _) => Text(
+                        'Fehler: $e',
+                        style: const TextStyle(color: AppColors.error),
+                      ),
                     ),
               ],
             ),
@@ -494,19 +543,25 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: ExpansionTile(
               leading: const Icon(Icons.contacts, color: AppColors.primary),
-              title: const Text('Google Kontakte',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              title: const Text(
+                'Google Kontakte',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: const Text('Adressbuch-Sync für Anrufer-Erkennung'),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               children: [
-                ref.watch(googleCalendarStatusProvider).when(
+                ref
+                    .watch(googleCalendarStatusProvider)
+                    .when(
                       data: (status) => _buildGoogleKontakte(status),
                       loading: () => const Padding(
                         padding: EdgeInsets.all(12),
                         child: Center(child: CircularProgressIndicator()),
                       ),
-                      error: (e, _) => Text('Fehler: $e',
-                          style: const TextStyle(color: AppColors.error)),
+                      error: (e, _) => Text(
+                        'Fehler: $e',
+                        style: const TextStyle(color: AppColors.error),
+                      ),
                     ),
               ],
             ),
@@ -517,8 +572,10 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: const Icon(Icons.query_stats, color: AppColors.primary),
-              title: const Text('Nutzung der App',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              title: const Text(
+                'Nutzung der App',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: const Text('Welcher Bereich wird wie oft geöffnet'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/auswertungen/nutzung'),
@@ -529,10 +586,14 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           Card(
             margin: const EdgeInsets.only(bottom: 12),
             child: ExpansionTile(
-              leading: const Icon(Icons.cleaning_services,
-                  color: AppColors.primary),
-              title: const Text('Speicher aufräumen',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              leading: const Icon(
+                Icons.cleaning_services,
+                color: AppColors.primary,
+              ),
+              title: const Text(
+                'Speicher aufräumen',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: const Text('Beleg-Dateien ohne Buchung finden'),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               onExpansionChanged: (offen) {
@@ -547,8 +608,10 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: const Icon(Icons.payments, color: AppColors.primary),
-              title: const Text('Lohn-Einstellungen',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              title: const Text(
+                'Lohn-Einstellungen',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: const Text('Sozialversicherungssätze & BVG pro Jahr'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/buchhaltung/lohn/einstellungen'),
@@ -561,8 +624,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           // Preis-abhängige Sektionen
           aktuellePreise.when(
             loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator())),
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
             error: (e, _) => Text('Fehler: $e'),
             data: (preis) {
               if (preis == null) {
@@ -588,15 +652,17 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                   Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
-                      leading: const Icon(Icons.local_drink,
-                          color: AppColors.primary),
-                      title: const Text('Biersorten',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle:
-                          const Text('Eigen/Fremd/Orion/Wein Zuordnung'),
+                      leading: const Icon(
+                        Icons.local_drink,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Biersorten',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text('Eigen/Fremd/Orion/Wein Zuordnung'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () =>
-                          context.push('/einstellungen/biersorten'),
+                      onTap: () => context.push('/einstellungen/biersorten'),
                     ),
                   ),
 
@@ -605,10 +671,13 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       leading: const Icon(Icons.map, color: AppColors.primary),
-                      title: const Text('Regionen',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      title: const Text(
+                        'Regionen',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       subtitle: const Text(
-                          'Gebiete für Filter, Touren und Karte'),
+                        'Gebiete für Filter, Touren und Karte',
+                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/einstellungen/regionen'),
                     ),
@@ -629,13 +698,21 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                       ListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.assignment_ind,
-                            size: 20, color: AppColors.primary),
-                        title: const Text('Kontakt-Zuweisungen',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 14)),
+                        leading: const Icon(
+                          Icons.assignment_ind,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
+                        title: const Text(
+                          'Kontakt-Zuweisungen',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
                         subtitle: const Text(
-                            'Monatsrechnung, Raster, Heigenie, Material'),
+                          'Monatsrechnung, Raster, Heigenie, Material',
+                        ),
                         trailing: const Icon(Icons.chevron_right, size: 20),
                         onTap: () => context.push('/heineken/zuweisungen'),
                       ),
@@ -644,16 +721,18 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
 
                   // Aktuelle Preise Header
                   ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 4),
-                    leading: const Icon(Icons.check_circle,
-                        color: AppColors.success),
-                    title: const Text('Aktuelle Preise',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    leading: const Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                    ),
+                    title: const Text(
+                      'Aktuelle Preise',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     subtitle: Text(
                       'Gültig ab ${DateFormat('dd.MM.yyyy').format(preis.gueltigAb)}',
-                      style:
-                          const TextStyle(color: AppColors.textSecondary),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -663,31 +742,55 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                     title: 'Reinigungspreise',
                     icon: Icons.cleaning_services,
                     children: [
-                      _InfoRow('Bier',
-                          '${preis.grundtarifReinigungBier.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Orion',
-                          '${preis.grundtarifReinigungOrion.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Heigenie',
-                          '${preis.grundtarifHeigenie.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Fremd',
-                          '${preis.grundtarifReinigungFremd.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Wein',
-                          '${preis.grundtarifWein.toStringAsFixed(2)} CHF'),
+                      _InfoRow(
+                        'Bier',
+                        '${preis.grundtarifReinigungBier.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Orion',
+                        '${preis.grundtarifReinigungOrion.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Heigenie',
+                        '${preis.grundtarifHeigenie.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Fremd',
+                        '${preis.grundtarifReinigungFremd.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Wein',
+                        '${preis.grundtarifWein.toStringAsFixed(2)} CHF',
+                      ),
                       const Divider(height: 16),
-                      const Text('Zusatz pro Hahn',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13)),
+                      const Text(
+                        'Zusatz pro Hahn',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      _InfoRow('Eigen',
-                          '${preis.zusatzHahnEigen.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Orion',
-                          '${preis.zusatzHahnOrion.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Fremd',
-                          '${preis.zusatzHahnFremd.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Wein',
-                          '${preis.zusatzHahnWein.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Anderer Standort',
-                          '${preis.zusatzHahnAndererStandort.toStringAsFixed(2)} CHF'),
+                      _InfoRow(
+                        'Eigen',
+                        '${preis.zusatzHahnEigen.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Orion',
+                        '${preis.zusatzHahnOrion.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Fremd',
+                        '${preis.zusatzHahnFremd.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Wein',
+                        '${preis.zusatzHahnWein.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Anderer Standort',
+                        '${preis.zusatzHahnAndererStandort.toStringAsFixed(2)} CHF',
+                      ),
                     ],
                   ),
 
@@ -698,34 +801,47 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                     children: [
                       _TwoColRow('Bereich', 'Normal', 'Bergkunde'),
                       _TwoColRow(
-                          '1',
-                          preis.stoerung1Normal.toStringAsFixed(2),
-                          preis.stoerung1Bergkunde.toStringAsFixed(2)),
+                        '1',
+                        preis.stoerung1Normal.toStringAsFixed(2),
+                        preis.stoerung1Bergkunde.toStringAsFixed(2),
+                      ),
                       _TwoColRow(
-                          '2',
-                          preis.stoerung2Normal.toStringAsFixed(2),
-                          preis.stoerung2Bergkunde.toStringAsFixed(2)),
+                        '2',
+                        preis.stoerung2Normal.toStringAsFixed(2),
+                        preis.stoerung2Bergkunde.toStringAsFixed(2),
+                      ),
                       _TwoColRow(
-                          '3',
-                          preis.stoerung3Normal.toStringAsFixed(2),
-                          preis.stoerung3Bergkunde.toStringAsFixed(2)),
+                        '3',
+                        preis.stoerung3Normal.toStringAsFixed(2),
+                        preis.stoerung3Bergkunde.toStringAsFixed(2),
+                      ),
                       _TwoColRow(
-                          '4',
-                          preis.stoerung4Normal.toStringAsFixed(2),
-                          preis.stoerung4Bergkunde.toStringAsFixed(2)),
+                        '4',
+                        preis.stoerung4Normal.toStringAsFixed(2),
+                        preis.stoerung4Bergkunde.toStringAsFixed(2),
+                      ),
                       _TwoColRow(
-                          '5',
-                          preis.stoerung5Normal.toStringAsFixed(2),
-                          preis.stoerung5Bergkunde.toStringAsFixed(2)),
+                        '5',
+                        preis.stoerung5Normal.toStringAsFixed(2),
+                        preis.stoerung5Bergkunde.toStringAsFixed(2),
+                      ),
                       const Divider(height: 16),
-                      _InfoRow('Anfahrt-Pauschale',
-                          '${preis.stoerungAnfahrtPauschale.toStringAsFixed(2)} CHF'),
-                      _InfoRow('km-Grenze',
-                          '${preis.stoerungAnfahrtKmGrenze} km'),
-                      _InfoRow('km-Satz',
-                          '${preis.stoerungAnfahrtKmSatz.toStringAsFixed(3)} CHF'),
-                      _InfoRow('Wochenende-Zuschlag',
-                          '${preis.stoerungWochenendeZuschlag.toStringAsFixed(2)} CHF'),
+                      _InfoRow(
+                        'Anfahrt-Pauschale',
+                        '${preis.stoerungAnfahrtPauschale.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'km-Grenze',
+                        '${preis.stoerungAnfahrtKmGrenze} km',
+                      ),
+                      _InfoRow(
+                        'km-Satz',
+                        '${preis.stoerungAnfahrtKmSatz.toStringAsFixed(3)} CHF',
+                      ),
+                      _InfoRow(
+                        'Wochenende-Zuschlag',
+                        '${preis.stoerungWochenendeZuschlag.toStringAsFixed(2)} CHF',
+                      ),
                     ],
                   ),
 
@@ -734,20 +850,34 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                     title: 'Weitere Preise',
                     icon: Icons.attach_money,
                     children: [
-                      _InfoRow('Eigenauftrag-Pauschale',
-                          '${preis.eigenauftragPauschale.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Montage-Stundensatz',
-                          '${preis.montageStundensatz.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Pikett-Pauschale',
-                          '${preis.pikettPauschale.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Pikett Feiertag-Zuschlag',
-                          '${preis.pikettFeiertagZuschlag.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Eröffnung Normal',
-                          '${preis.eroeffnungPreisNormal.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Eröffnung Bergkunde',
-                          '${preis.eroeffnungPreisBergkunde.toStringAsFixed(2)} CHF'),
-                      _InfoRow('Bergkunden-Zuschlag',
-                          '${preis.bergkundenZuschlag.toStringAsFixed(2)} CHF'),
+                      _InfoRow(
+                        'Eigenauftrag-Pauschale',
+                        '${preis.eigenauftragPauschale.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Montage-Stundensatz',
+                        '${preis.montageStundensatz.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Pikett-Pauschale',
+                        '${preis.pikettPauschale.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Pikett Feiertag-Zuschlag',
+                        '${preis.pikettFeiertagZuschlag.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Eröffnung Normal',
+                        '${preis.eroeffnungPreisNormal.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Eröffnung Bergkunde',
+                        '${preis.eroeffnungPreisBergkunde.toStringAsFixed(2)} CHF',
+                      ),
+                      _InfoRow(
+                        'Bergkunden-Zuschlag',
+                        '${preis.bergkundenZuschlag.toStringAsFixed(2)} CHF',
+                      ),
                     ],
                   ),
 
@@ -791,11 +921,12 @@ class _SectionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
         leading: Icon(icon, color: AppColors.primary),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         initiallyExpanded: false,
-        childrenPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        childrenPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
         children: children,
       ),
     );
@@ -816,8 +947,7 @@ class _InfoRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: AppColors.textSecondary)),
-          Text(value,
-              style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -839,8 +969,7 @@ class _EditableInfoRow extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(color: AppColors.textSecondary)),
           const Spacer(),
-          Text(value,
-              style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onEdit,
@@ -866,18 +995,27 @@ class _TwoColRow extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-              width: 80,
-              child: Text(label,
-                  style: const TextStyle(color: AppColors.textSecondary))),
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
           Expanded(
-              child: Text(col1,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.w500))),
+            child: Text(
+              col1,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
-              child: Text(col2,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.w500))),
+            child: Text(
+              col2,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );

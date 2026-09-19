@@ -136,8 +136,14 @@ unbemerkt, weil jede Nachbesserung im unsichtbaren Bereich landete).
 
 **Regeln:**
 - Kritische Aktionen und Listenzeilen aus `GestureDetector`/`InkWell` +
-  `Container` + `Row`/`Column` bauen (Vorbilder: `ArbeitBeendenKnopf`,
-  `_StandCard`). `flutter analyze` und Tests fangen das NICHT.
+  `Container` + `Row`/`Column` bauen (Vorbilder: `TapKnopf`,
+  `ArbeitBeendenKnopf`, `_StandCard`). `flutter analyze` fängt das NICHT.
+- **Unumkehrbare Bestätigungen** (Löschen, Stornieren, Verwerfen) laufen über
+  `TapKnopf(text: …, gefahr: true, onTap: …)` — nie über einen Material-Button
+  in Rot. `test/gefahr_knopf_waechter_test.dart` bricht ab (seit v0.114.0, 26
+  Stellen umgestellt). Bei einem Speichern-Knopf merkt man den Ausfall sofort;
+  bei einer Löschbestätigung steht man vor einem Dialog, der sich scheinbar
+  nicht bedienen lässt.
 - `ExpansionTile` mit `dense: true` ist verboten —
   `test/canvaskit_sichere_widgets_test.dart` bricht ab.
 - Meldet der Nutzer «sehe X nicht», obwohl der Code X rendert: **zuerst

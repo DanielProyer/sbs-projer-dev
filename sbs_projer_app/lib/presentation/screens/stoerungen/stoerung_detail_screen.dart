@@ -13,15 +13,21 @@ import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 // === Anlagentyp-Helpers (shared zwischen Content + StatusRow) ===
 String _anlageTypLetter(String? typ) {
   switch (typ) {
-    case 'david': return 'D';
-    case 'heigenie': return 'H';
-    case 'konventionell': return 'K';
-    case 'orion': return 'O';
-    default: return 'S';
+    case 'david':
+      return 'D';
+    case 'heigenie':
+      return 'H';
+    case 'konventionell':
+      return 'K';
+    case 'orion':
+      return 'O';
+    default:
+      return 'S';
   }
 }
 
@@ -33,21 +39,31 @@ String _kurzZeit(String zeit) {
 
 Color _anlageTypColor(String? typ) {
   switch (typ) {
-    case 'david': return AppColors.info;
-    case 'heigenie': return AppColors.primary;
-    case 'konventionell': return AppColors.textSecondary;
-    case 'orion': return Colors.amber;
-    default: return AppColors.textSecondary;
+    case 'david':
+      return AppColors.info;
+    case 'heigenie':
+      return AppColors.primary;
+    case 'konventionell':
+      return AppColors.textSecondary;
+    case 'orion':
+      return Colors.amber;
+    default:
+      return AppColors.textSecondary;
   }
 }
 
 String _anlageTypLabel(String typ) {
   switch (typ) {
-    case 'david': return 'David';
-    case 'heigenie': return 'Heigenie';
-    case 'konventionell': return 'Konventionell';
-    case 'orion': return 'Orion';
-    default: return typ;
+    case 'david':
+      return 'David';
+    case 'heigenie':
+      return 'Heigenie';
+    case 'konventionell':
+      return 'Konventionell';
+    case 'orion':
+      return 'Orion';
+    default:
+      return typ;
   }
 }
 
@@ -130,9 +146,11 @@ class _StoerungDetailContentState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(stoerung.istKilometerabrechnung
-            ? 'Kilometerabrechnung ${_formatDate(stoerung.datum)}'
-            : 'Störung ${_formatDate(stoerung.datum)}'),
+        title: Text(
+          stoerung.istKilometerabrechnung
+              ? 'Kilometerabrechnung ${_formatDate(stoerung.datum)}'
+              : 'Störung ${_formatDate(stoerung.datum)}',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
@@ -190,7 +208,8 @@ class _StoerungDetailContentState
             icon: Icons.schedule,
             children: [
               _InfoRow('Datum', _formatDate(stoerung.datum)),
-              if (stoerung.referenzNr != null && !stoerung.istKilometerabrechnung)
+              if (stoerung.referenzNr != null &&
+                  !stoerung.istKilometerabrechnung)
                 _InfoRow('Störungsnummer', stoerung.referenzNr!),
               if (stoerung.uhrzeitStart != null)
                 _InfoRow('Störungseingang', _kurzZeit(stoerung.uhrzeitStart!)),
@@ -199,23 +218,49 @@ class _StoerungDetailContentState
 
           // Störungsdetails / Beschreibung
           _SectionCard(
-            title: stoerung.istKilometerabrechnung ? 'Beschreibung' : 'Störungsdetails',
-            icon: stoerung.istKilometerabrechnung ? Icons.directions_car : Icons.build,
+            title: stoerung.istKilometerabrechnung
+                ? 'Beschreibung'
+                : 'Störungsdetails',
+            icon: stoerung.istKilometerabrechnung
+                ? Icons.directions_car
+                : Icons.build,
             children: [
-              if (!stoerung.istKilometerabrechnung && stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty)
-                _InfoRow('Bereiche', stoerung.stoerungBereiche!.map(_bereichLabel).join(', ')),
-              if (!stoerung.istKilometerabrechnung && stoerung.anlageTyp != null)
+              if (!stoerung.istKilometerabrechnung &&
+                  stoerung.stoerungBereiche != null &&
+                  stoerung.stoerungBereiche!.isNotEmpty)
+                _InfoRow(
+                  'Bereiche',
+                  stoerung.stoerungBereiche!.map(_bereichLabel).join(', '),
+                ),
+              if (!stoerung.istKilometerabrechnung &&
+                  stoerung.anlageTyp != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
                       const SizedBox(
                         width: 130,
-                        child: Text('Anlagetyp', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        child: Text(
+                          'Anlagetyp',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                      Text(_anlageTypLetter(stoerung.anlageTyp), style: TextStyle(color: _anlageTypColor(stoerung.anlageTyp), fontWeight: FontWeight.w700, fontSize: 14)),
+                      Text(
+                        _anlageTypLetter(stoerung.anlageTyp),
+                        style: TextStyle(
+                          color: _anlageTypColor(stoerung.anlageTyp),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Text(_anlageTypLabel(stoerung.anlageTyp!), style: const TextStyle(fontSize: 14)),
+                      Text(
+                        _anlageTypLabel(stoerung.anlageTyp!),
+                        style: const TextStyle(fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -230,20 +275,27 @@ class _StoerungDetailContentState
               icon: Icons.attach_money,
               children: [
                 if (stoerung.preisBasis != null)
-                  _InfoRow('Grundtarif',
-                      '${stoerung.preisBasis!.toStringAsFixed(2)} CHF'),
-                if (stoerung.preisAnfahrt != null &&
-                    stoerung.preisAnfahrt! > 0)
-                  _InfoRow('Anfahrt',
-                      '${stoerung.preisAnfahrt!.toStringAsFixed(2)} CHF'),
+                  _InfoRow(
+                    'Grundtarif',
+                    '${stoerung.preisBasis!.toStringAsFixed(2)} CHF',
+                  ),
+                if (stoerung.preisAnfahrt != null && stoerung.preisAnfahrt! > 0)
+                  _InfoRow(
+                    'Anfahrt',
+                    '${stoerung.preisAnfahrt!.toStringAsFixed(2)} CHF',
+                  ),
                 if (stoerung.preisWochenende != null &&
                     stoerung.preisWochenende! > 0)
-                  _InfoRow('Wochenende',
-                      '${stoerung.preisWochenende!.toStringAsFixed(2)} CHF'),
+                  _InfoRow(
+                    'Wochenende',
+                    '${stoerung.preisWochenende!.toStringAsFixed(2)} CHF',
+                  ),
                 if (stoerung.komplexitaetZuschlag != null &&
                     stoerung.komplexitaetZuschlag! > 0)
-                  _InfoRow('Zuschlag',
-                      '${stoerung.komplexitaetZuschlag!.toStringAsFixed(2)} CHF'),
+                  _InfoRow(
+                    'Zuschlag',
+                    '${stoerung.komplexitaetZuschlag!.toStringAsFixed(2)} CHF',
+                  ),
                 if (stoerung.preisNetto != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -283,12 +335,9 @@ class _StoerungDetailContentState
               title: 'Zusatzinformationen',
               icon: Icons.info_outline,
               children: [
-                if (stoerung.istPikettEinsatz)
-                  _InfoRow('Pikett-Einsatz', 'Ja'),
-                if (stoerung.istBergkunde)
-                  _InfoRow('Bergkunde', 'Ja'),
-                if (stoerung.istWochenende)
-                  _InfoRow('Wochenende', 'Ja'),
+                if (stoerung.istPikettEinsatz) _InfoRow('Pikett-Einsatz', 'Ja'),
+                if (stoerung.istBergkunde) _InfoRow('Bergkunde', 'Ja'),
+                if (stoerung.istWochenende) _InfoRow('Wochenende', 'Ja'),
                 if (stoerung.anfahrtKm > 0)
                   _InfoRow('Anfahrt', '${stoerung.anfahrtKm} km'),
               ],
@@ -322,8 +371,11 @@ class _StoerungDetailContentState
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
                   Text(
                     'Noch nicht synchronisiert',
@@ -435,7 +487,9 @@ class _StoerungDetailContentState
         bis: zeitStr,
       );
       await StoerungRepository.statusSetzen(
-          id: stoerung.routeId, status: 'behoben');
+        id: stoerung.routeId,
+        status: 'behoben',
+      );
       if (mounted) {
         setState(() => stoerung.status = 'behoben');
       }
@@ -443,16 +497,18 @@ class _StoerungDetailContentState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Arbeit beendet ($zeitStr) — Rapport ergänzen '
-                'und speichern nicht vergessen.'),
+            content: Text(
+              'Arbeit beendet ($zeitStr) — Rapport ergänzen '
+              'und speichern nicht vergessen.',
+            ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Nicht gespeichert: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Nicht gespeichert: $e')));
       }
     } finally {
       if (mounted) setState(() => _erledigtLaeuft = false);
@@ -471,8 +527,9 @@ class _StoerungDetailContentState
       String kunde = '';
       String ort = '';
       if (stoerung.betriebId != null) {
-        final betrieb =
-            await BetriebRepository.getByServerId(stoerung.betriebId!);
+        final betrieb = await BetriebRepository.getByServerId(
+          stoerung.betriebId!,
+        );
         if (betrieb != null) {
           kunde = betrieb.name;
           ort = '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim();
@@ -482,12 +539,17 @@ class _StoerungDetailContentState
       // Material-Namen sammeln
       final materialien = <(String, double)>[];
       final ids = [
-        stoerung.material1Id, stoerung.material2Id, stoerung.material3Id,
-        stoerung.material4Id, stoerung.material5Id,
+        stoerung.material1Id,
+        stoerung.material2Id,
+        stoerung.material3Id,
+        stoerung.material4Id,
+        stoerung.material5Id,
       ];
       final mengen = [
-        stoerung.material1Menge, stoerung.material2Menge,
-        stoerung.material3Menge, stoerung.material4Menge,
+        stoerung.material1Menge,
+        stoerung.material2Menge,
+        stoerung.material3Menge,
+        stoerung.material4Menge,
         stoerung.material5Menge,
       ];
       for (int i = 0; i < 5; i++) {
@@ -521,15 +583,16 @@ class _StoerungDetailContentState
         Navigator.of(context).pop();
         await Printing.layoutPdf(
           onLayout: (_) => pdfBytes,
-          name: 'Rapport_Stoerung_${stoerung.referenzNr ?? _formatDate(stoerung.datum)}',
+          name:
+              'Rapport_Stoerung_${stoerung.referenzNr ?? _formatDate(stoerung.datum)}',
         );
       }
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
       }
     }
   }
@@ -547,11 +610,7 @@ class _StoerungDetailContentState
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -564,7 +623,9 @@ class _StoerungDetailContentState
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Löschen nur mit Internetverbindung möglich')),
+            const SnackBar(
+              content: Text('Löschen nur mit Internetverbindung möglich'),
+            ),
           );
         }
       }
@@ -582,12 +643,14 @@ class _BetriebAnlageCard extends StatelessWidget {
     return FutureBuilder<List<String?>>(
       future: Future.wait([
         stoerung.betriebId != null
-            ? BetriebRepository.getByServerId(stoerung.betriebId!)
-                .then((b) => b?.name)
+            ? BetriebRepository.getByServerId(
+                stoerung.betriebId!,
+              ).then((b) => b?.name)
             : Future.value(null),
         stoerung.anlageId != null
-            ? AnlageRepository.getByServerId(stoerung.anlageId!)
-                .then((a) => a?.bezeichnung ?? a?.typAnlage)
+            ? AnlageRepository.getByServerId(
+                stoerung.anlageId!,
+              ).then((a) => a?.bezeichnung ?? a?.typAnlage)
             : Future.value(null),
       ]),
       builder: (context, snapshot) {
@@ -602,28 +665,32 @@ class _BetriebAnlageCard extends StatelessWidget {
                 leading: const Icon(Icons.store, color: AppColors.primary),
                 title: Text(betriebName ?? 'Laden...'),
                 subtitle: const Text('Betrieb'),
-                trailing:
-                    const Icon(Icons.chevron_right, size: 20),
-                onTap: stoerung.betriebId != null ? () async {
-                  final betrieb = await BetriebRepository.getByServerId(
-                      stoerung.betriebId!);
-                  if (betrieb != null && context.mounted) {
-                    context.push('/betriebe/${betrieb.routeId}');
-                  }
-                } : null,
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: stoerung.betriebId != null
+                    ? () async {
+                        final betrieb = await BetriebRepository.getByServerId(
+                          stoerung.betriebId!,
+                        );
+                        if (betrieb != null && context.mounted) {
+                          context.push('/betriebe/${betrieb.routeId}');
+                        }
+                      }
+                    : null,
               ),
               if (stoerung.anlageId != null) ...[
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.precision_manufacturing,
-                      color: AppColors.info),
+                  leading: const Icon(
+                    Icons.precision_manufacturing,
+                    color: AppColors.info,
+                  ),
                   title: Text(anlageName ?? 'Laden...'),
                   subtitle: const Text('Anlage'),
-                  trailing:
-                      const Icon(Icons.chevron_right, size: 20),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
                   onTap: () async {
                     final anlage = await AnlageRepository.getByServerId(
-                        stoerung.anlageId!);
+                      stoerung.anlageId!,
+                    );
                     if (anlage != null && context.mounted) {
                       context.push('/anlagen/${anlage.routeId}');
                     }
@@ -660,7 +727,9 @@ class _StatusRow extends StatelessWidget {
             label: _anlageTypLabel(stoerung.anlageTyp!),
             color: _anlageTypColor(stoerung.anlageTyp),
           ),
-        if (!stoerung.istKilometerabrechnung && stoerung.stoerungBereiche != null && stoerung.stoerungBereiche!.isNotEmpty)
+        if (!stoerung.istKilometerabrechnung &&
+            stoerung.stoerungBereiche != null &&
+            stoerung.stoerungBereiche!.isNotEmpty)
           _StatusChip(
             label: 'Bereich ${stoerung.stoerungBereiche!.join(', ')}',
             color: AppColors.info,
@@ -793,12 +862,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

@@ -24,6 +24,7 @@ import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart
 import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class ReinigungDetailScreen extends ConsumerWidget {
   final String reinigungId;
@@ -275,11 +276,7 @@ class _ReinigungDetailContent extends ConsumerWidget {
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );

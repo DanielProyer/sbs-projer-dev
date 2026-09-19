@@ -31,6 +31,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:printing/printing.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class BetriebDetailScreen extends ConsumerWidget {
   final String betriebId;
@@ -91,7 +92,8 @@ class _BetriebDetailContent extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.edit),
               tooltip: 'Bearbeiten',
-              onPressed: () => context.push('/betriebe/${betrieb.routeId}/bearbeiten'),
+              onPressed: () =>
+                  context.push('/betriebe/${betrieb.routeId}/bearbeiten'),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -116,7 +118,10 @@ class _BetriebDetailContent extends ConsumerWidget {
               if (betrieb.strasse != null)
                 _InfoRow('Strasse', '${betrieb.strasse} ${betrieb.nr ?? ''}'),
               if (betrieb.plz != null || betrieb.ort != null)
-                _InfoRow('Ort', '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim()),
+                _InfoRow(
+                  'Ort',
+                  '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim(),
+                ),
             ],
           ),
 
@@ -126,13 +131,27 @@ class _BetriebDetailContent extends ConsumerWidget {
             icon: Icons.contact_phone,
             children: [
               if (betrieb.telefon != null)
-                _LinkRow('Telefon', betrieb.telefon!, Uri.parse('tel:${betrieb.telefon!.replaceAll(' ', '')}')),
+                _LinkRow(
+                  'Telefon',
+                  betrieb.telefon!,
+                  Uri.parse('tel:${betrieb.telefon!.replaceAll(' ', '')}'),
+                ),
               if (betrieb.email != null)
-                _LinkRow('E-Mail', betrieb.email!, Uri.parse('mailto:${betrieb.email!}')),
+                _LinkRow(
+                  'E-Mail',
+                  betrieb.email!,
+                  Uri.parse('mailto:${betrieb.email!}'),
+                ),
               if (betrieb.website != null)
-                _LinkRow('Website', betrieb.website!, Uri.parse(
-                  betrieb.website!.startsWith('http') ? betrieb.website! : 'https://${betrieb.website!}',
-                )),
+                _LinkRow(
+                  'Website',
+                  betrieb.website!,
+                  Uri.parse(
+                    betrieb.website!.startsWith('http')
+                        ? betrieb.website!
+                        : 'https://${betrieb.website!}',
+                  ),
+                ),
             ],
           ),
 
@@ -143,28 +162,46 @@ class _BetriebDetailContent extends ConsumerWidget {
             children: [
               _InfoRow('Status', betrieb.status),
               if (betrieb.status == 'geschlossen') ...[
-                _InfoRow('Schliessungsgrund',
-                    _schliessungsgrundLabel(betrieb.schliessungsgrund)),
+                _InfoRow(
+                  'Schliessungsgrund',
+                  _schliessungsgrundLabel(betrieb.schliessungsgrund),
+                ),
                 if (betrieb.schliessungsdatum != null)
-                  _InfoRow('Schliessungsdatum',
-                      _formatDate(betrieb.schliessungsdatum!)),
+                  _InfoRow(
+                    'Schliessungsdatum',
+                    _formatDate(betrieb.schliessungsdatum!),
+                  ),
               ],
-              _InfoRow('Zapfsysteme', betrieb.zapfsysteme.isEmpty ? '–' : betrieb.zapfsysteme.join(', ')),
+              _InfoRow(
+                'Zapfsysteme',
+                betrieb.zapfsysteme.isEmpty
+                    ? '–'
+                    : betrieb.zapfsysteme.join(', '),
+              ),
               _InfoRow('Mein Kunde', betrieb.istMeinKunde ? 'Ja' : 'Nein'),
               _InfoRow('Bergkunde', betrieb.istBergkunde ? 'Ja' : 'Nein'),
-              _InfoRow('Saisonbetrieb', betrieb.istSaisonbetrieb ? 'Ja' : 'Nein'),
+              _InfoRow(
+                'Saisonbetrieb',
+                betrieb.istSaisonbetrieb ? 'Ja' : 'Nein',
+              ),
               if (betrieb.istMeinKunde)
-                _InfoRow('Rechnungsstellung', _rechnungsstellungLabel(betrieb.rechnungsstellung)),
+                _InfoRow(
+                  'Rechnungsstellung',
+                  _rechnungsstellungLabel(betrieb.rechnungsstellung),
+                ),
               if (betrieb.regionId != null)
                 FutureBuilder(
                   future: RegionRepository.getByServerId(betrieb.regionId!),
-                  builder: (context, snap) => _InfoRow('Region', snap.data?.name ?? '–'),
+                  builder: (context, snap) =>
+                      _InfoRow('Region', snap.data?.name ?? '–'),
                 ),
             ],
           ),
 
           // Nummern (nur wenn mindestens eine gesetzt)
-          if (betrieb.betriebNr != null || betrieb.weNummer != null || betrieb.agNummer != null)
+          if (betrieb.betriebNr != null ||
+              betrieb.weNummer != null ||
+              betrieb.agNummer != null)
             _SectionCard(
               title: 'Nummern',
               icon: Icons.tag,
@@ -184,10 +221,18 @@ class _BetriebDetailContent extends ConsumerWidget {
               title: 'Saison',
               icon: Icons.calendar_month,
               children: [
-                if (betrieb.winterSaisonAktiv && betrieb.winterStartDatum != null)
-                  _InfoRow('Winter', '${_formatDate(betrieb.winterStartDatum!)} – ${betrieb.winterEndeDatum != null ? _formatDate(betrieb.winterEndeDatum!) : '?'}'),
-                if (betrieb.sommerSaisonAktiv && betrieb.sommerStartDatum != null)
-                  _InfoRow('Sommer', '${_formatDate(betrieb.sommerStartDatum!)} – ${betrieb.sommerEndeDatum != null ? _formatDate(betrieb.sommerEndeDatum!) : '?'}'),
+                if (betrieb.winterSaisonAktiv &&
+                    betrieb.winterStartDatum != null)
+                  _InfoRow(
+                    'Winter',
+                    '${_formatDate(betrieb.winterStartDatum!)} – ${betrieb.winterEndeDatum != null ? _formatDate(betrieb.winterEndeDatum!) : '?'}',
+                  ),
+                if (betrieb.sommerSaisonAktiv &&
+                    betrieb.sommerStartDatum != null)
+                  _InfoRow(
+                    'Sommer',
+                    '${_formatDate(betrieb.sommerStartDatum!)} – ${betrieb.sommerEndeDatum != null ? _formatDate(betrieb.sommerEndeDatum!) : '?'}',
+                  ),
               ],
             ),
 
@@ -200,16 +245,21 @@ class _BetriebDetailContent extends ConsumerWidget {
               icon: Icons.event_busy,
               children: [
                 if (betrieb.ruhetage.isNotEmpty)
-                  _InfoRow('Ruhetage', betrieb.ruhetage.contains('keine')
-                      ? 'Keine'
-                      : betrieb.ruhetage.join(', ')),
+                  _InfoRow(
+                    'Ruhetage',
+                    betrieb.ruhetage.contains('keine')
+                        ? 'Keine'
+                        : betrieb.ruhetage.join(', '),
+                  ),
                 if (betrieb.keineBetriebsferien)
                   const _InfoRow('Betriebsferien', 'Keine'),
                 if (!betrieb.keineBetriebsferien)
                   for (final (i, slot) in ferienSlots(betrieb).indexed)
                     if (slot.start != null)
-                      _InfoRow('Ferien ${i + 1}',
-                          '${_formatDate(slot.start!)} – ${slot.ende != null ? _formatDate(slot.ende!) : '?'}'),
+                      _InfoRow(
+                        'Ferien ${i + 1}',
+                        '${_formatDate(slot.start!)} – ${slot.ende != null ? _formatDate(slot.ende!) : '?'}',
+                      ),
               ],
             ),
 
@@ -226,7 +276,8 @@ class _BetriebDetailContent extends ConsumerWidget {
           // sobald der andere gefüllt ist (Regel Daniel 29.07.2026). Fehlte
           // die Zeile ganz, war das nicht von «noch nicht erfasst» zu
           // unterscheiden.
-          if (betrieb.servicezeitMorgenAb != null || betrieb.servicezeitNachmittagAb != null)
+          if (betrieb.servicezeitMorgenAb != null ||
+              betrieb.servicezeitNachmittagAb != null)
             _SectionCard(
               title: 'Servicezeiten',
               icon: Icons.schedule,
@@ -258,13 +309,19 @@ class _BetriebDetailContent extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.campaign, color: AppColors.warning, size: 20),
+                  const Icon(
+                    Icons.campaign,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       betrieb.serviceHinweis!.trim(),
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -287,24 +344,20 @@ class _BetriebDetailContent extends ConsumerWidget {
             ),
 
           // Kontaktpersonen
-          if (betrieb.serverId != null)
-            _KontakteSection(betrieb: betrieb),
+          if (betrieb.serverId != null) _KontakteSection(betrieb: betrieb),
 
           // Rechnungsadresse
           if (betrieb.serverId != null)
             _RechnungsadresseSection(betrieb: betrieb),
 
           // Anlagen
-          if (betrieb.serverId != null)
-            _AnlagenSection(betrieb: betrieb),
+          if (betrieb.serverId != null) _AnlagenSection(betrieb: betrieb),
 
           // Reinigungen
-          if (betrieb.serverId != null)
-            _ReinigungenSection(betrieb: betrieb),
+          if (betrieb.serverId != null) _ReinigungenSection(betrieb: betrieb),
 
           // Störungen
-          if (betrieb.serverId != null)
-            _StoerungenSection(betrieb: betrieb),
+          if (betrieb.serverId != null) _StoerungenSection(betrieb: betrieb),
 
           // Eigenaufträge
           if (betrieb.serverId != null)
@@ -322,8 +375,11 @@ class _BetriebDetailContent extends ConsumerWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
                   Text(
                     'Noch nicht synchronisiert',
@@ -355,8 +411,13 @@ class _BetriebDetailContent extends ConsumerWidget {
   List<Widget> _buildOeffnungszeiten(BetriebLocal b) {
     const tage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     const tageLabel = {
-      'Mo': 'Montag', 'Di': 'Dienstag', 'Mi': 'Mittwoch',
-      'Do': 'Donnerstag', 'Fr': 'Freitag', 'Sa': 'Samstag', 'So': 'Sonntag',
+      'Mo': 'Montag',
+      'Di': 'Dienstag',
+      'Mi': 'Mittwoch',
+      'Do': 'Donnerstag',
+      'Fr': 'Freitag',
+      'Sa': 'Samstag',
+      'So': 'Sonntag',
     };
     final ruhetage = b.ruhetage;
     try {
@@ -384,32 +445,47 @@ class _BetriebDetailContent extends ConsumerWidget {
   }
 
   String? _routeUrl(BetriebLocal betrieb) => googleMapsRouteUrl(
-        latitude: betrieb.latitude,
-        longitude: betrieb.longitude,
-        adresse: [betrieb.strasse, betrieb.nr, betrieb.plz, betrieb.ort]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(' '),
-      );
+    latitude: betrieb.latitude,
+    longitude: betrieb.longitude,
+    adresse: [
+      betrieb.strasse,
+      betrieb.nr,
+      betrieb.plz,
+      betrieb.ort,
+    ].where((s) => s != null && s.isNotEmpty).join(' '),
+  );
 
   String _schliessungsgrundLabel(String? value) {
     switch (value) {
-      case 'umnutzung': return 'Umnutzung';
-      case 'abbruch': return 'Abbruch';
-      case 'konkurs': return 'Konkurs';
-      case 'sonstiges': return 'Sonstiges';
-      default: return '–';
+      case 'umnutzung':
+        return 'Umnutzung';
+      case 'abbruch':
+        return 'Abbruch';
+      case 'konkurs':
+        return 'Konkurs';
+      case 'sonstiges':
+        return 'Sonstiges';
+      default:
+        return '–';
     }
   }
 
   String _rechnungsstellungLabel(String value) {
     switch (value) {
-      case 'rechnung_mail': return 'Per E-Mail';
-      case 'rechnung_post': return 'Per Post';
-      case 'rechnung_tresen': return 'Rechnung Tresen';
-      case 'barzahlung': return 'Barzahlung';
-      case 'jahresrechnung': return 'Jahresrechnung';
-      case 'heineken': return 'Via Heineken';
-      default: return value;
+      case 'rechnung_mail':
+        return 'Per E-Mail';
+      case 'rechnung_post':
+        return 'Per Post';
+      case 'rechnung_tresen':
+        return 'Rechnung Tresen';
+      case 'barzahlung':
+        return 'Barzahlung';
+      case 'jahresrechnung':
+        return 'Jahresrechnung';
+      case 'heineken':
+        return 'Via Heineken';
+      default:
+        return value;
     }
   }
 
@@ -418,25 +494,33 @@ class _BetriebDetailContent extends ConsumerWidget {
   Future<void> _zeigeKontoauszug(BuildContext context, WidgetRef ref) async {
     final serverId = betrieb.serverId;
     if (serverId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Betrieb noch nicht synchronisiert — kein Auszug möglich.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Betrieb noch nicht synchronisiert — kein Auszug möglich.',
+          ),
+        ),
+      );
       return;
     }
     try {
       final rechnungen = await RechnungRepository.getByBetrieb(serverId);
       if (rechnungen.isEmpty) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Keine Rechnungen für diesen Betrieb.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Keine Rechnungen für diesen Betrieb.'),
+            ),
+          );
         }
         return;
       }
-      final raLocal =
-          await BetriebRechnungsadresseRepository.getByBetrieb(serverId);
+      final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
+        serverId,
+      );
       final ra = raLocal == null
           ? null
-          : BetriebRechnungsadresseMapper.toDto(raLocal,
-              betriebId: serverId);
+          : BetriebRechnungsadresseMapper.toDto(raLocal, betriebId: serverId);
       final g = ref.read(geschaeftProvider).valueOrNull;
       final bytes = await KontoauszugPdfService.generate(
         betrieb: betrieb,
@@ -454,8 +538,9 @@ class _BetriebDetailContent extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Kontoauszug-Fehler: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Kontoauszug-Fehler: $e')));
       }
     }
   }
@@ -475,11 +560,7 @@ class _BetriebDetailContent extends ConsumerWidget {
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -492,13 +573,20 @@ class _BetriebDetailContent extends ConsumerWidget {
       } on BetriebLoeschException catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message), duration: const Duration(seconds: 6)),
+            SnackBar(
+              content: Text(e.message),
+              duration: const Duration(seconds: 6),
+            ),
           );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Löschen fehlgeschlagen — bitte Internetverbindung prüfen')),
+            const SnackBar(
+              content: Text(
+                'Löschen fehlgeschlagen — bitte Internetverbindung prüfen',
+              ),
+            ),
           );
         }
       }
@@ -527,8 +615,11 @@ class _KontakteSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.people,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.people,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Kontakte (${kontakte.length})',
@@ -549,10 +640,12 @@ class _KontakteSection extends StatelessWidget {
                 ),
                 if (kontakte.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  ...kontakte.map((k) => _KontaktRow(
-                        kontakt: k,
-                        betriebRouteId: betrieb.routeId,
-                      )),
+                  ...kontakte.map(
+                    (k) => _KontaktRow(
+                      kontakt: k,
+                      betriebRouteId: betrieb.routeId,
+                    ),
+                  ),
                 ],
                 if (kontakte.isEmpty) ...[
                   const SizedBox(height: 8),
@@ -627,7 +720,9 @@ class _KontaktRow extends StatelessWidget {
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.aktiv.withAlpha(25),
                             borderRadius: BorderRadius.circular(4),
@@ -664,8 +759,11 @@ class _KontaktRow extends StatelessWidget {
                 tooltip: 'Löschen',
                 onPressed: () => _confirmDelete(context, name),
               ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -683,10 +781,10 @@ class _KontaktRow extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -701,15 +799,15 @@ class _KontaktRow extends StatelessWidget {
           onFehler: (f) => zeigeGoogleFehler(messenger, f),
         );
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kontakt gelöscht')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Kontakt gelöscht')));
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
         }
       }
     }
@@ -724,8 +822,9 @@ class _RechnungsadresseSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<BetriebRechnungsadresseLocal>>(
-      stream:
-          BetriebRechnungsadresseRepository.watchByBetrieb(betrieb.serverId!),
+      stream: BetriebRechnungsadresseRepository.watchByBetrieb(
+        betrieb.serverId!,
+      ),
       builder: (context, snapshot) {
         final adressen = snapshot.data ?? [];
         final adresse = adressen.isNotEmpty ? adressen.first : null;
@@ -739,8 +838,11 @@ class _RechnungsadresseSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.receipt_long,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.receipt_long,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     const Text(
                       'Rechnungsadresse',
@@ -752,9 +854,12 @@ class _RechnungsadresseSection extends StatelessWidget {
                     const Spacer(),
                     TextButton.icon(
                       icon: Icon(
-                          adresse != null ? Icons.edit : Icons.add, size: 18),
+                        adresse != null ? Icons.edit : Icons.add,
+                        size: 18,
+                      ),
                       label: Text(
-                          adresse != null ? 'Bearbeiten' : 'Hinzufügen'),
+                        adresse != null ? 'Bearbeiten' : 'Hinzufügen',
+                      ),
                       onPressed: () => context.push(
                         '/betriebe/${betrieb.routeId}/rechnungsadresse',
                       ),
@@ -769,7 +874,9 @@ class _RechnungsadresseSection extends StatelessWidget {
                     Text(
                       adresse.firma!,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w500, fontSize: 14),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
                     ),
                   Text(
                     adressZeilen(
@@ -829,8 +936,11 @@ class _AnlagenSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.precision_manufacturing,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.precision_manufacturing,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Anlagen (${anlagen.length})',
@@ -895,8 +1005,11 @@ class _StoerungenSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.warning_amber,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.warning_amber,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Störungen (${stoerungen.length})',
@@ -998,7 +1111,8 @@ class _StoerungRow extends StatelessWidget {
                   ),
                   Text(
                     [
-                      if (stoerung.referenzNr != null) 'HN-${stoerung.referenzNr}',
+                      if (stoerung.referenzNr != null)
+                        'HN-${stoerung.referenzNr}',
                       _formatDate(stoerung.datum),
                       stoerung.status,
                     ].join(' · '),
@@ -1010,8 +1124,11 @@ class _StoerungRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -1042,8 +1159,11 @@ class _EigenauftraegeSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.build_circle_outlined,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.build_circle_outlined,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Eigenaufträge (${eigenauftraege.length})',
@@ -1065,7 +1185,9 @@ class _EigenauftraegeSection extends StatelessWidget {
                 ),
                 if (sorted.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  ...sorted.take(5).map((e) => _EigenauftragRow(eigenauftrag: e)),
+                  ...sorted
+                      .take(5)
+                      .map((e) => _EigenauftragRow(eigenauftrag: e)),
                   if (sorted.length > 5)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -1129,8 +1251,11 @@ class _EigenauftragRow extends StatelessWidget {
                 color: statusColor.withAlpha(25),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.build_circle_outlined,
-                  size: 16, color: statusColor),
+              child: Icon(
+                Icons.build_circle_outlined,
+                size: 16,
+                color: statusColor,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1159,15 +1284,17 @@ class _EigenauftragRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
     );
   }
 }
-
 
 class _AnlageRow extends StatelessWidget {
   final AnlageLocal anlage;
@@ -1203,8 +1330,11 @@ class _AnlageRow extends StatelessWidget {
                 color: _statusColor.withAlpha(25),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.precision_manufacturing,
-                  size: 16, color: _statusColor),
+              child: Icon(
+                Icons.precision_manufacturing,
+                size: 16,
+                color: _statusColor,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1228,8 +1358,11 @@ class _AnlageRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -1268,16 +1401,27 @@ class _ReinigungenSectionState extends State<_ReinigungenSection> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.cleaning_services,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.cleaning_services,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
-                    const Text('Reinigungen',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    const Text(
+                      'Reinigungen',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    Text('${reinigungen.length}',
-                        style: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 13)),
+                    Text(
+                      '${reinigungen.length}',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
                     const Spacer(),
                     // Kein anlageIds hier: auf der Betriebsseite ist noch nicht
                     // entschieden, welche Anlagen gemeint sind — das Formular
@@ -1296,45 +1440,49 @@ class _ReinigungenSectionState extends State<_ReinigungenSection> {
                 ),
                 if (display.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  ...display.map((r) => InkWell(
-                        onTap: () =>
-                            context.push('/reinigungen/${r.routeId}'),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            children: [
-                              Icon(
-                                r.status == 'abgeschlossen'
-                                    ? Icons.check_circle
-                                    : Icons.hourglass_top,
-                                size: 18,
-                                color: r.status == 'abgeschlossen'
-                                    ? AppColors.success
-                                    : AppColors.warning,
+                  ...display.map(
+                    (r) => InkWell(
+                      onTap: () => context.push('/reinigungen/${r.routeId}'),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Icon(
+                              r.status == 'abgeschlossen'
+                                  ? Icons.check_circle
+                                  : Icons.hourglass_top,
+                              size: 18,
+                              color: r.status == 'abgeschlossen'
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}',
+                                style: const TextStyle(fontSize: 14),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}',
-                                  style: const TextStyle(fontSize: 14),
+                            ),
+                            if (r.preisBrutto != null)
+                              Text(
+                                '${r.preisBrutto!.toStringAsFixed(2)} CHF',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
                                 ),
                               ),
-                              if (r.preisBrutto != null)
-                                Text(
-                                  '${r.preisBrutto!.toStringAsFixed(2)} CHF',
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.chevron_right,
-                                  size: 18, color: AppColors.textSecondary),
-                            ],
-                          ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: AppColors.textSecondary,
+                            ),
+                          ],
                         ),
-                      )),
+                      ),
+                    ),
+                  ),
                   if (reinigungen.length > 5)
                     InkWell(
                       onTap: () => setState(() => _expanded = !_expanded),
@@ -1394,14 +1542,19 @@ class _StatusRow extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _StatusChip(
-          label: betrieb.status,
-          color: _statusColor(betrieb.status),
-        ),
+        _StatusChip(label: betrieb.status, color: _statusColor(betrieb.status)),
         if (betrieb.istBergkunde)
-          _StatusChip(label: 'Bergkunde', color: AppColors.info, icon: Icons.terrain),
+          _StatusChip(
+            label: 'Bergkunde',
+            color: AppColors.info,
+            icon: Icons.terrain,
+          ),
         if (betrieb.istSaisonbetrieb)
-          _StatusChip(label: 'Saisonbetrieb', color: AppColors.saisonpause, icon: Icons.calendar_month),
+          _StatusChip(
+            label: 'Saisonbetrieb',
+            color: AppColors.saisonpause,
+            icon: Icons.calendar_month,
+          ),
       ],
     );
   }
@@ -1524,12 +1677,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

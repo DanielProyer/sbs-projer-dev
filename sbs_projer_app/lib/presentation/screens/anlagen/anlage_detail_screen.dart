@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_steckbrief_sheet.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class AnlageDetailScreen extends ConsumerWidget {
   final String anlageId;
@@ -80,7 +81,8 @@ class _AnlageDetailContent extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.edit),
               tooltip: 'Bearbeiten',
-              onPressed: () => context.push('/anlagen/${anlage.routeId}/bearbeiten'),
+              onPressed: () =>
+                  context.push('/anlagen/${anlage.routeId}/bearbeiten'),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -131,8 +133,10 @@ class _AnlageDetailContent extends ConsumerWidget {
               _InfoRow('Backpython', anlage.backpython ? 'Ja' : 'Nein'),
               _InfoRow('Booster', anlage.booster ? 'Ja' : 'Nein'),
               _InfoRow('Eissäule', anlage.eissaeule ? 'Ja' : 'Nein'),
-              if (anlage.gasTyp1 != null) _InfoRow('Gas Typ 1', anlage.gasTyp1!),
-              if (anlage.gasTyp2 != null) _InfoRow('Gas Typ 2', anlage.gasTyp2!),
+              if (anlage.gasTyp1 != null)
+                _InfoRow('Gas Typ 1', anlage.gasTyp1!),
+              if (anlage.gasTyp2 != null)
+                _InfoRow('Gas Typ 2', anlage.gasTyp2!),
               if (anlage.hauptdruckBar != null)
                 _InfoRow('Hauptdruck', '${anlage.hauptdruckBar} bar'),
               _InfoRow('Niederdruck', anlage.hatNiederdruck ? 'Ja' : 'Nein'),
@@ -146,26 +150,31 @@ class _AnlageDetailContent extends ConsumerWidget {
             children: [
               _InfoRow('Rhythmus', anlage.reinigungRhythmus),
               if (anlage.letzteReinigung != null)
-                _InfoRow('Letzte Reinigung', _formatDate(anlage.letzteReinigung!)),
+                _InfoRow(
+                  'Letzte Reinigung',
+                  _formatDate(anlage.letzteReinigung!),
+                ),
               if (anlage.naechsteReinigung != null)
-                _InfoRow('Nächste Reinigung', _formatDate(anlage.naechsteReinigung!)),
+                _InfoRow(
+                  'Nächste Reinigung',
+                  _formatDate(anlage.naechsteReinigung!),
+                ),
               if (anlage.letzterWasserwechsel != null)
-                _InfoRow('Letzter Wasserwechsel',
-                    _formatDate(anlage.letzterWasserwechsel!)),
+                _InfoRow(
+                  'Letzter Wasserwechsel',
+                  _formatDate(anlage.letzterWasserwechsel!),
+                ),
             ],
           ),
 
           // Bierleitungen
-          if (anlage.serverId != null)
-            _BierleitungenSection(anlage: anlage),
+          if (anlage.serverId != null) _BierleitungenSection(anlage: anlage),
 
           // Reinigungen
-          if (anlage.serverId != null)
-            _ReinigungenSection(anlage: anlage),
+          if (anlage.serverId != null) _ReinigungenSection(anlage: anlage),
 
           // Störungen
-          if (anlage.serverId != null)
-            _StoerungenSection(anlage: anlage),
+          if (anlage.serverId != null) _StoerungenSection(anlage: anlage),
 
           // Notizen
           if (anlage.notizen != null)
@@ -201,8 +210,11 @@ class _AnlageDetailContent extends ConsumerWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
                   Text(
                     'Noch nicht synchronisiert',
@@ -227,8 +239,9 @@ class _AnlageDetailContent extends ConsumerWidget {
   Future<Uint8List> _buildSteckbrief(AnlageLocal anlage) async {
     final sid = anlage.serverId;
     final betrieb = await BetriebRepository.getByServerId(anlage.betriebId);
-    final bierleitungen =
-        sid == null ? <BierleitungLocal>[] : await BierleitungRepository.getByAnlage(sid);
+    final bierleitungen = sid == null
+        ? <BierleitungLocal>[]
+        : await BierleitungRepository.getByAnlage(sid);
     final fotoBytes = <Uint8List>[];
     if (sid != null) {
       final fotos = await AnlageFotoRepository.getByAnlage(sid);
@@ -238,7 +251,9 @@ class _AnlageDetailContent extends ConsumerWidget {
               .from('anlagen-fotos')
               .download(f.fotoUrl);
           fotoBytes.add(bytes);
-        } catch (_) {/* Foto fehlt -> überspringen */}
+        } catch (_) {
+          /* Foto fehlt -> überspringen */
+        }
       }
     }
     return AnlagePdfService.steckbrief(
@@ -249,30 +264,42 @@ class _AnlageDetailContent extends ConsumerWidget {
     );
   }
 
-  Future<void> _steckbriefOeffnen(BuildContext context, AnlageLocal anlage) async {
+  Future<void> _steckbriefOeffnen(
+    BuildContext context,
+    AnlageLocal anlage,
+  ) async {
     try {
       final betrieb = await BetriebRepository.getByServerId(anlage.betriebId);
       final pdf = await _buildSteckbrief(anlage);
       await Printing.layoutPdf(
         onLayout: (_) => pdf,
-        name: anlageSteckbriefDateiname(betrieb?.name ?? '', anlage.bezeichnung ?? ''),
+        name: anlageSteckbriefDateiname(
+          betrieb?.name ?? '',
+          anlage.bezeichnung ?? '',
+        ),
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
       }
     }
   }
 
-  Future<void> _steckbriefAnRsl(BuildContext context, AnlageLocal anlage) async {
+  Future<void> _steckbriefAnRsl(
+    BuildContext context,
+    AnlageLocal anlage,
+  ) async {
     try {
       final betrieb = await BetriebRepository.getByServerId(anlage.betriebId);
       final rsl = await KontaktRepository.getHeinekenZuweisung('rsl');
       final pdf = await _buildSteckbrief(anlage);
       if (!context.mounted) return;
       final betriebName = betrieb?.name ?? '';
-      final bez = anlage.bezeichnung ?? (anlage.typAnlage.isEmpty ? 'Anlage' : anlage.typAnlage);
+      final bez =
+          anlage.bezeichnung ??
+          (anlage.typAnlage.isEmpty ? 'Anlage' : anlage.typAnlage);
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -287,8 +314,9 @@ class _AnlageDetailContent extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
       }
     }
   }
@@ -315,11 +343,7 @@ class _AnlageDetailContent extends ConsumerWidget {
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -332,7 +356,9 @@ class _AnlageDetailContent extends ConsumerWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Löschen nur mit Internetverbindung möglich')),
+            const SnackBar(
+              content: Text('Löschen nur mit Internetverbindung möglich'),
+            ),
           );
         }
       }
@@ -452,13 +478,18 @@ class _FotosSectionState extends State<_FotosSection> {
       setState(() => _uploadingSlot = fotoNummer);
 
       final bytes = await xFile.readAsBytes();
-      await AnlageFotoRepository.upload(widget.anlageId, fotoNummer, bytes, null);
+      await AnlageFotoRepository.upload(
+        widget.anlageId,
+        fotoNummer,
+        bytes,
+        null,
+      );
       await _loadFotos();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload fehlgeschlagen: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload fehlgeschlagen: $e')));
       }
     } finally {
       if (mounted) setState(() => _uploadingSlot = null);
@@ -476,11 +507,7 @@ class _FotosSectionState extends State<_FotosSection> {
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -492,9 +519,9 @@ class _FotosSectionState extends State<_FotosSection> {
       await _loadFotos();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Löschen fehlgeschlagen: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Löschen fehlgeschlagen: $e')));
       }
     }
   }
@@ -522,7 +549,11 @@ class _FotosSectionState extends State<_FotosSection> {
                 fit: BoxFit.contain,
                 errorBuilder: (_, e, s) => const Padding(
                   padding: EdgeInsets.all(32),
-                  child: Icon(Icons.broken_image, size: 48, color: AppColors.textSecondary),
+                  child: Icon(
+                    Icons.broken_image,
+                    size: 48,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ),
@@ -545,11 +576,18 @@ class _FotosSectionState extends State<_FotosSection> {
           children: [
             Row(
               children: [
-                const Icon(Icons.photo_camera, size: 18, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.photo_camera,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Fotos ($fotoCount/4)',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
@@ -643,13 +681,19 @@ class _FotosSectionState extends State<_FotosSection> {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.divider, style: BorderStyle.solid),
+          border: Border.all(
+            color: AppColors.divider,
+            style: BorderStyle.solid,
+          ),
         ),
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_photo_alternate_outlined,
-                size: 24, color: AppColors.textSecondary),
+            Icon(
+              Icons.add_photo_alternate_outlined,
+              size: 24,
+              color: AppColors.textSecondary,
+            ),
             SizedBox(height: 4),
             Text(
               'Hinzufügen',
@@ -686,8 +730,11 @@ class _ReinigungenSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.cleaning_services,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.cleaning_services,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Reinigungen (${reinigungen.length})',
@@ -773,8 +820,11 @@ class _ReinigungRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -806,8 +856,11 @@ class _StoerungenSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.warning_amber,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.warning_amber,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Störungen (${stoerungen.length})',
@@ -913,8 +966,11 @@ class _StoerungRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -954,8 +1010,11 @@ class _BierleitungenSectionState extends State<_BierleitungenSection> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.local_drink,
-                        size: 18, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.local_drink,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Bierleitungen (${leitungen.length})',
@@ -977,11 +1036,13 @@ class _BierleitungenSectionState extends State<_BierleitungenSection> {
                 ),
                 if (leitungen.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  ...leitungen.map((l) => _BierleitungRow(
-                        leitung: l,
-                        anlageRouteId: widget.anlage.routeId,
-                        onDeleted: _refresh,
-                      )),
+                  ...leitungen.map(
+                    (l) => _BierleitungRow(
+                      leitung: l,
+                      anlageRouteId: widget.anlage.routeId,
+                      onDeleted: _refresh,
+                    ),
+                  ),
                 ],
                 if (leitungen.isEmpty) ...[
                   const SizedBox(height: 8),
@@ -1065,7 +1126,9 @@ class _BierleitungRow extends StatelessWidget {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.textSecondary.withAlpha(25),
                               borderRadius: BorderRadius.circular(4),
@@ -1082,7 +1145,8 @@ class _BierleitungRow extends StatelessWidget {
                         ],
                       ],
                     ),
-                    if (leitung.hahnTyp != null || leitung.niederdruckBar != null)
+                    if (leitung.hahnTyp != null ||
+                        leitung.niederdruckBar != null)
                       Text(
                         [
                           if (leitung.hahnTyp != null) leitung.hahnTyp!,
@@ -1100,8 +1164,11 @@ class _BierleitungRow extends StatelessWidget {
               if (leitung.hatFobStop)
                 const Tooltip(
                   message: 'FOB-Stop',
-                  child: Icon(Icons.stop_circle_outlined,
-                      size: 16, color: AppColors.info),
+                  child: Icon(
+                    Icons.stop_circle_outlined,
+                    size: 16,
+                    color: AppColors.info,
+                  ),
                 ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
@@ -1289,12 +1356,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

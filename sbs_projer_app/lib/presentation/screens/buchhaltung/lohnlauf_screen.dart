@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/presentation/providers/lohn_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/pdf/lohnausweis_pdf_service.dart';
 import 'package:printing/printing.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class LohnlaufScreen extends ConsumerStatefulWidget {
   const LohnlaufScreen({super.key});
@@ -52,9 +53,13 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('$_jahr',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    Text(
+                      '$_jahr',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const Icon(Icons.arrow_drop_down),
                   ],
                 ),
@@ -65,7 +70,9 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
       ),
       floatingActionButton: einstAsync.valueOrNull != null
           ? FloatingActionButton.extended(
-              onPressed: _buching ? null : () => _neuerLohnlauf(einstAsync.value!),
+              onPressed: _buching
+                  ? null
+                  : () => _neuerLohnlauf(einstAsync.value!),
               icon: const Icon(Icons.add),
               label: const Text('Neuer Lohnlauf'),
             )
@@ -118,7 +125,9 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
   }
 
   Widget _buildContent(
-      LohnEinstellungen einst, List<LohnAbrechnung> abrechnungen) {
+    LohnEinstellungen einst,
+    List<LohnAbrechnung> abrechnungen,
+  ) {
     double totalBrutto = 0;
     double totalNetto = 0;
     for (final a in abrechnungen) {
@@ -141,14 +150,20 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Brutto $_jahr',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary)),
-                          Text('${totalBrutto.toStringAsFixed(2)} CHF',
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700)),
+                          Text(
+                            'Brutto $_jahr',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${totalBrutto.toStringAsFixed(2)} CHF',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -156,25 +171,27 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Netto $_jahr',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary)),
-                          Text('${totalNetto.toStringAsFixed(2)} CHF',
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700)),
+                          Text(
+                            'Netto $_jahr',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${totalNetto.toStringAsFixed(2)} CHF',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
                 const Divider(),
-                Row(
-                  children: [
-                    Text('${abrechnungen.length} Auszahlungen'),
-                  ],
-                ),
+                Row(children: [Text('${abrechnungen.length} Auszahlungen')]),
               ],
             ),
           ),
@@ -194,11 +211,12 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
           ),
 
         // Abrechnungen-Liste
-        Text('Auszahlungen $_jahr',
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          'Auszahlungen $_jahr',
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 8),
 
         if (abrechnungen.isEmpty)
@@ -214,60 +232,67 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
             ),
           )
         else
-          ...abrechnungen.map((abr) => Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.success.withAlpha(25),
-                    radius: 18,
-                    child: Icon(Icons.payments, size: 18,
-                        color: AppColors.success),
+          ...abrechnungen.map(
+            (abr) => Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.success.withAlpha(25),
+                  radius: 18,
+                  child: Icon(
+                    Icons.payments,
+                    size: 18,
+                    color: AppColors.success,
                   ),
-                  title: Text(
-                    '${abr.bruttolohn.toStringAsFixed(2)} CHF brutto',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    '${abr.datumFormatiert}  ·  Netto: ${abr.nettolohn.toStringAsFixed(2)} CHF',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (v) {
-                      if (v == 'detail') {
-                        _showDetail(abr);
-                      } else if (v == 'loeschen') {
-                        _loeschen(abr);
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(
-                          value: 'detail',
-                          child: Text('Detail anzeigen')),
-                      const PopupMenuItem(
-                          value: 'loeschen',
-                          child: Text('Stornieren',
-                              style: TextStyle(color: AppColors.error))),
-                    ],
-                  ),
-                  onTap: () => _showDetail(abr),
                 ),
-              )),
+                title: Text(
+                  '${abr.bruttolohn.toStringAsFixed(2)} CHF brutto',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  '${abr.datumFormatiert}  ·  Netto: ${abr.nettolohn.toStringAsFixed(2)} CHF',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (v) {
+                    if (v == 'detail') {
+                      _showDetail(abr);
+                    } else if (v == 'loeschen') {
+                      _loeschen(abr);
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'detail',
+                      child: Text('Detail anzeigen'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'loeschen',
+                      child: Text(
+                        'Stornieren',
+                        style: TextStyle(color: AppColors.error),
+                      ),
+                    ),
+                  ],
+                ),
+                onTap: () => _showDetail(abr),
+              ),
+            ),
+          ),
       ],
     );
   }
 
   void _neuerLohnlauf(LohnEinstellungen einst) {
     final bruttolohnCtrl = TextEditingController(
-      text: ref
-              .read(lohnAbrechnungenProvider(_jahr))
-              .valueOrNull
-              ?.isNotEmpty ==
-          true
+      text:
+          ref.read(lohnAbrechnungenProvider(_jahr)).valueOrNull?.isNotEmpty ==
+              true
           ? ref
-              .read(lohnAbrechnungenProvider(_jahr))
-              .value!
-              .first
-              .bruttolohn
-              .toStringAsFixed(2)
+                .read(lohnAbrechnungenProvider(_jahr))
+                .value!
+                .first
+                .bruttolohn
+                .toStringAsFixed(2)
           : '',
     );
     DateTime selectedDatum = DateTime.now();
@@ -297,16 +322,14 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'Lohn vom ${abr.datumFormatiert} gebucht')),
+          SnackBar(content: Text('Lohn vom ${abr.datumFormatiert} gebucht')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     } finally {
       if (mounted) setState(() => _buching = false);
@@ -319,18 +342,19 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Lohnlauf stornieren?'),
         content: Text(
-            'Lohnlauf vom ${abr.datumFormatiert} '
-            '(${abr.bruttolohn.toStringAsFixed(2)} CHF) und alle '
-            'zugehörigen Buchungen werden gelöscht.'),
+          'Lohnlauf vom ${abr.datumFormatiert} '
+          '(${abr.bruttolohn.toStringAsFixed(2)} CHF) und alle '
+          'zugehörigen Buchungen werden gelöscht.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Stornieren'),
+          TapKnopf(
+            text: 'Stornieren',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -345,14 +369,16 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lohnlauf vom ${abr.datumFormatiert} storniert')),
+          SnackBar(
+            content: Text('Lohnlauf vom ${abr.datumFormatiert} storniert'),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -372,20 +398,23 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
             children: [
               Text(
                 'Lohnabrechnung ${abr.datumFormatiert}',
-                style: Theme.of(ctx)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const Divider(),
               _detailRow('Bruttolohn', abr.bruttolohn),
               const SizedBox(height: 8),
-              Text('AN-Abzüge',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: AppColors.error)),
-              if (abr.ahvIvEoAn > 0) _detailRow('  AHV/IV/EO AN', -abr.ahvIvEoAn),
+              Text(
+                'AN-Abzüge',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.error,
+                ),
+              ),
+              if (abr.ahvIvEoAn > 0)
+                _detailRow('  AHV/IV/EO AN', -abr.ahvIvEoAn),
               if (abr.alvAn > 0) _detailRow('  ALV AN', -abr.alvAn),
               if (abr.nbuAn > 0) _detailRow('  NBU AN', -abr.nbuAn),
               if (abr.bvgAn > 0) _detailRow('  BVG AN', -abr.bvgAn),
@@ -393,12 +422,16 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
               const Divider(),
               _detailRow('Nettolohn', abr.nettolohn, bold: true),
               const SizedBox(height: 12),
-              Text('AG-Beiträge',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: AppColors.info)),
-              if (abr.ahvIvEoAg > 0) _detailRow('  AHV/IV/EO AG', abr.ahvIvEoAg),
+              Text(
+                'AG-Beiträge',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.info,
+                ),
+              ),
+              if (abr.ahvIvEoAg > 0)
+                _detailRow('  AHV/IV/EO AG', abr.ahvIvEoAg),
               if (abr.alvAg > 0) _detailRow('  ALV AG', abr.alvAg),
               if (abr.buAg > 0) _detailRow('  BU/UVG AG', abr.buAg),
               if (abr.fakAg > 0) _detailRow('  FAK AG', abr.fakAg),
@@ -406,9 +439,11 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
               if (abr.ktgAg > 0) _detailRow('  KTG AG', abr.ktgAg),
               const Divider(),
               _detailRow('Total AG-Beiträge', abr.totalAgBeitraege),
-              _detailRow('Lohnkosten total',
-                  abr.bruttolohn + abr.totalAgBeitraege,
-                  bold: true),
+              _detailRow(
+                'Lohnkosten total',
+                abr.bruttolohn + abr.totalAgBeitraege,
+                bold: true,
+              ),
             ],
           ),
         ),
@@ -419,16 +454,15 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
   Future<void> _generateLohnausweis(LohnEinstellungen einst) async {
     try {
       final totale = await LohnRepository.jahresTotale(_jahr);
-      final pdf =
-          await LohnausweisPdfService.generate(einst, totale, _jahr);
+      final pdf = await LohnausweisPdfService.generate(einst, totale, _jahr);
       if (mounted) {
         await Printing.layoutPdf(onLayout: (_) => pdf);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -439,11 +473,13 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-              )),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            ),
+          ),
           Text(
             '${betrag >= 0 ? '' : '–'} ${betrag.abs().toStringAsFixed(2)} CHF',
             style: TextStyle(
@@ -535,11 +571,12 @@ class _LohnlaufFormSheetState extends State<_LohnlaufFormSheet> {
         child: ListView(
           controller: scrollCtrl,
           children: [
-            Text('Neuer Lohnlauf',
-                style: Theme.of(ctx)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Neuer Lohnlauf',
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 16),
 
             // Datum
@@ -566,8 +603,9 @@ class _LohnlaufFormSheetState extends State<_LohnlaufFormSheet> {
                 isDense: true,
                 prefixText: 'CHF ',
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               autofocus: true,
             ),
 
@@ -576,13 +614,19 @@ class _LohnlaufFormSheetState extends State<_LohnlaufFormSheet> {
               const Divider(),
               _LohnlaufScreenState._detailRow('Bruttolohn', _abr!.bruttolohn),
               const SizedBox(height: 8),
-              Text('AN-Abzüge',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: AppColors.error)),
+              Text(
+                'AN-Abzüge',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.error,
+                ),
+              ),
               if (_abr!.ahvIvEoAn > 0)
-                _LohnlaufScreenState._detailRow('  AHV/IV/EO', -_abr!.ahvIvEoAn),
+                _LohnlaufScreenState._detailRow(
+                  '  AHV/IV/EO',
+                  -_abr!.ahvIvEoAn,
+                ),
               if (_abr!.alvAn > 0)
                 _LohnlaufScreenState._detailRow('  ALV', -_abr!.alvAn),
               if (_abr!.nbuAn > 0)
@@ -592,16 +636,25 @@ class _LohnlaufFormSheetState extends State<_LohnlaufFormSheet> {
               if (_abr!.ktgAn > 0)
                 _LohnlaufScreenState._detailRow('  KTG', -_abr!.ktgAn),
               const Divider(),
-              _LohnlaufScreenState._detailRow('Nettolohn', _abr!.nettolohn,
-                  bold: true),
+              _LohnlaufScreenState._detailRow(
+                'Nettolohn',
+                _abr!.nettolohn,
+                bold: true,
+              ),
               const SizedBox(height: 16),
-              Text('AG-Beiträge (zusätzlich)',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: AppColors.info)),
+              Text(
+                'AG-Beiträge (zusätzlich)',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.info,
+                ),
+              ),
               if (_abr!.ahvIvEoAg > 0)
-                _LohnlaufScreenState._detailRow('  AHV/IV/EO AG', _abr!.ahvIvEoAg),
+                _LohnlaufScreenState._detailRow(
+                  '  AHV/IV/EO AG',
+                  _abr!.ahvIvEoAg,
+                ),
               if (_abr!.alvAg > 0)
                 _LohnlaufScreenState._detailRow('  ALV AG', _abr!.alvAg),
               if (_abr!.buAg > 0)
@@ -614,14 +667,13 @@ class _LohnlaufFormSheetState extends State<_LohnlaufFormSheet> {
                 _LohnlaufScreenState._detailRow('  KTG AG', _abr!.ktgAg),
               const Divider(),
               _LohnlaufScreenState._detailRow(
-                  'Lohnkosten total',
-                  _abr!.bruttolohn + _abr!.totalAgBeitraege,
-                  bold: true),
+                'Lohnkosten total',
+                _abr!.bruttolohn + _abr!.totalAgBeitraege,
+                bold: true,
+              ),
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: widget.buching
-                    ? null
-                    : () => widget.onBuchen(_abr!),
+                onPressed: widget.buching ? null : () => widget.onBuchen(_abr!),
                 icon: const Icon(Icons.check),
                 label: const Text('Lohnlauf buchen'),
               ),
@@ -630,8 +682,10 @@ class _LohnlaufFormSheetState extends State<_LohnlaufFormSheet> {
             if (_abr == null && widget.bruttolohnCtrl.text.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: Text('Bitte gültigen Bruttolohn eingeben.',
-                    style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'Bitte gültigen Bruttolohn eingeben.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
           ],
         ),

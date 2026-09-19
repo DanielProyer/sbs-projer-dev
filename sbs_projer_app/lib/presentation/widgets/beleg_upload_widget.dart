@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/buchungs_beleg.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchungs_beleg_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Wiederverwendbares Widget zum Anzeigen und Hochladen von Belegen.
 class BelegUploadWidget extends ConsumerStatefulWidget {
@@ -36,9 +37,9 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
               children: [
                 Text(
                   'Belege',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
                 if (_uploading)
@@ -102,11 +103,15 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
                   );
                 }
                 return Column(
-                  children: belege.map((b) => _BelegTile(
-                    beleg: b,
-                    onDelete: () => _deleteBeleg(b),
-                    onTap: () => _openBeleg(b),
-                  )).toList(),
+                  children: belege
+                      .map(
+                        (b) => _BelegTile(
+                          beleg: b,
+                          onDelete: () => _deleteBeleg(b),
+                          onTap: () => _openBeleg(b),
+                        ),
+                      )
+                      .toList(),
                 );
               },
             ),
@@ -157,16 +162,16 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
         );
         ref.invalidate(buchungsBelegeProvider(widget.buchungId));
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Beleg hochgeladen')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Beleg hochgeladen')));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Upload: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler beim Upload: $e')));
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -184,10 +189,10 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -198,15 +203,15 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
         await BuchungsBelegRepository.delete(beleg.id, beleg.storagePfad);
         ref.invalidate(buchungsBelegeProvider(widget.buchungId));
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Beleg gelöscht')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Beleg gelöscht')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
         }
       }
     }
@@ -225,9 +230,9 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -246,12 +251,8 @@ class _BelegTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = beleg.dateityp == 'pdf'
-        ? Icons.picture_as_pdf
-        : Icons.image;
-    final color = beleg.dateityp == 'pdf'
-        ? AppColors.error
-        : AppColors.info;
+    final icon = beleg.dateityp == 'pdf' ? Icons.picture_as_pdf : Icons.image;
+    final color = beleg.dateityp == 'pdf' ? AppColors.error : AppColors.info;
 
     return ListTile(
       dense: true,

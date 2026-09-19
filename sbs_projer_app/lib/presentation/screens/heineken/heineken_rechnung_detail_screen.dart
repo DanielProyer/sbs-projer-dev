@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart'
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class HeinekenRechnungDetailScreen extends ConsumerStatefulWidget {
   final String rechnungId;
@@ -73,9 +74,9 @@ class _HeinekenRechnungDetailScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF nicht verfügbar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF nicht verfügbar: $e')));
       }
     }
   }
@@ -92,10 +93,11 @@ class _HeinekenRechnungDetailScreenState
         builder: (ctx) => AlertDialog(
           title: const Text('Gesperrt — Original-PDF'),
           content: const Text(
-              'Für Monate vor April 2026 liegt das versendete Original-PDF '
-              'mit den Heineken-Formularen im Speicher (Import 07.08.2026). '
-              'Neu-Generieren würde es durch eine Fassung ohne Formulare '
-              'ersetzen und ist deshalb gesperrt.'),
+            'Für Monate vor April 2026 liegt das versendete Original-PDF '
+            'mit den Heineken-Formularen im Speicher (Import 07.08.2026). '
+            'Neu-Generieren würde es durch eine Fassung ohne Formulare '
+            'ersetzen und ist deshalb gesperrt.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -110,9 +112,9 @@ class _HeinekenRechnungDetailScreenState
     try {
       await HeinekenRechnungService.regenerierePdf(_rechnung!);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF neu generiert')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF neu generiert')));
       }
       _load();
     } catch (e) {
@@ -130,37 +132,46 @@ class _HeinekenRechnungDetailScreenState
     if (_rechnung == null) return;
     setState(() => _loading = true);
     try {
-      final kontakt =
-          await KontaktRepository.getHeinekenZuweisung('monatsrechnung');
-      final empfaenger =
-          MailConfig.empfaenger(kontakt?.email, bereich: 'heineken');
-      debugPrint('[Heineken-Mail] Kontakt: ${kontakt?.email}, Empfänger: $empfaenger');
+      final kontakt = await KontaktRepository.getHeinekenZuweisung(
+        'monatsrechnung',
+      );
+      final empfaenger = MailConfig.empfaenger(
+        kontakt?.email,
+        bereich: 'heineken',
+      );
+      debugPrint(
+        '[Heineken-Mail] Kontakt: ${kontakt?.email}, Empfänger: $empfaenger',
+      );
       final monatLabel = _monatFormat.format(_rechnung!.heinekenMonat!);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Heineken-Mail → $empfaenger (Kontakt: ${kontakt?.email ?? "KEIN KONTAKT"})'),
+            content: Text(
+              'Heineken-Mail → $empfaenger (Kontakt: ${kontakt?.email ?? "KEIN KONTAKT"})',
+            ),
             duration: const Duration(seconds: 6),
           ),
         );
       }
 
-      await SupabaseService.client.functions.invoke('send-rechnung-mail',
-          body: {
-            'to': empfaenger,
-            'subject': 'Monatsrechnung $monatLabel SBS Projer GmbH',
-            'bodyText':
-                'Hallo${kontakt?.vorname != null ? ' ${kontakt!.vorname}' : ''}\n\n'
-                'Im Anhang sende ich Dir die Monatsrechnung für den $monatLabel.\n\n'
-                'Gruass Dani',
-            'rechnungId': _rechnung!.id,
-            'userId': SupabaseService.dataUserId,
-            // Versandvermerk serverseitig (ab Function v15) — greift auch,
-            // wenn die Antwort dieses Aufrufs verloren geht. Siehe
-            // reinigung_rechnung_versand.dart, Vorfall Hugos 27.08.2026.
-            'markiereVersandt': true,
-          });
+      await SupabaseService.client.functions.invoke(
+        'send-rechnung-mail',
+        body: {
+          'to': empfaenger,
+          'subject': 'Monatsrechnung $monatLabel SBS Projer GmbH',
+          'bodyText':
+              'Hallo${kontakt?.vorname != null ? ' ${kontakt!.vorname}' : ''}\n\n'
+              'Im Anhang sende ich Dir die Monatsrechnung für den $monatLabel.\n\n'
+              'Gruass Dani',
+          'rechnungId': _rechnung!.id,
+          'userId': SupabaseService.dataUserId,
+          // Versandvermerk serverseitig (ab Function v15) — greift auch,
+          // wenn die Antwort dieses Aufrufs verloren geht. Siehe
+          // reinigung_rechnung_versand.dart, Vorfall Hugos 27.08.2026.
+          'markiereVersandt': true,
+        },
+      );
 
       // Bleibt als Rückfall neben dem serverseitigen Vermerk; beide idempotent.
       await RechnungRepository.update(widget.rechnungId, {
@@ -172,9 +183,9 @@ class _HeinekenRechnungDetailScreenState
       _load();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mail versendet')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Mail versendet')));
       }
     } catch (e) {
       setState(() => _loading = false);
@@ -182,8 +193,10 @@ class _HeinekenRechnungDetailScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: AppColors.error,
-            content: Text('Mail-Versand fehlgeschlagen: $e',
-                style: const TextStyle(color: Colors.white)),
+            content: Text(
+              'Mail-Versand fehlgeschlagen: $e',
+              style: const TextStyle(color: Colors.white),
+            ),
             duration: const Duration(seconds: 8),
           ),
         );
@@ -195,26 +208,31 @@ class _HeinekenRechnungDetailScreenState
     await RechnungRepository.update(widget.rechnungId, {
       'zahlungsstatus': newStatus,
       if (newStatus == 'bezahlt')
-        'zahlung_eingegangen_am':
-            DateTime.now().toIso8601String().split('T').first,
+        'zahlung_eingegangen_am': DateTime.now()
+            .toIso8601String()
+            .split('T')
+            .first,
     });
 
     // Buchung (Debitoren/Ertrag) beim Wechsel auf 'freigegeben' erstellen
     if (newStatus == 'freigegeben' && _rechnung != null) {
       try {
-        final buchung =
-            await HeinekenBuchungService.createFromRechnung(_rechnung!);
+        final buchung = await HeinekenBuchungService.createFromRechnung(
+          _rechnung!,
+        );
         if (buchung != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Buchung erstellt (Debitoren/Ertrag)')),
+            const SnackBar(
+              content: Text('Buchung erstellt (Debitoren/Ertrag)'),
+            ),
           );
         }
         ref.invalidate(buchungenStreamProvider);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Buchung fehlgeschlagen: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Buchung fehlgeschlagen: $e')));
         }
       }
     }
@@ -225,8 +243,9 @@ class _HeinekenRechnungDetailScreenState
         final aktuell = await RechnungRepository.getById(widget.rechnungId);
         if (aktuell != null) {
           final buchung = await HeinekenBuchungService.createZahlungseingang(
-              aktuell,
-              datum: aktuell.zahlungEingegangenAm);
+            aktuell,
+            datum: aktuell.zahlungEingegangenAm,
+          );
           if (buchung != null && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Zahlungseingang gebucht')),
@@ -237,7 +256,9 @@ class _HeinekenRechnungDetailScreenState
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Zahlungseingang-Buchung fehlgeschlagen: $e')),
+            SnackBar(
+              content: Text('Zahlungseingang-Buchung fehlgeschlagen: $e'),
+            ),
           );
         }
       }
@@ -253,16 +274,17 @@ class _HeinekenRechnungDetailScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Rechnung löschen?'),
         content: const Text(
-            'Die Heineken-Rechnung wird unwiderruflich gelöscht.'),
+          'Die Heineken-Rechnung wird unwiderruflich gelöscht.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child:
-                const Text('Löschen', style: TextStyle(color: AppColors.error)),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -272,14 +294,14 @@ class _HeinekenRechnungDetailScreenState
       if (_rechnung != null) {
         try {
           await HeinekenRechnungService.resetAbrechnung(
-              _rechnung!.rechnungsdatum);
+            _rechnung!.rechnungsdatum,
+          );
         } catch (_) {}
       }
 
       // Zugehörige Buchungen löschen
       try {
-        final buchungen =
-            await BuchungRepository.getByBeleg(widget.rechnungId);
+        final buchungen = await BuchungRepository.getByBeleg(widget.rechnungId);
         for (final b in buchungen) {
           await BuchungRepository.delete(b.id);
         }
@@ -312,9 +334,7 @@ class _HeinekenRechnungDetailScreenState
     }
 
     final monat = r.heinekenMonat;
-    final monatsName = monat != null
-        ? _monatFormat.format(monat)
-        : 'Unbekannt';
+    final monatsName = monat != null ? _monatFormat.format(monat) : 'Unbekannt';
 
     return Scaffold(
       appBar: AppBar(
@@ -340,15 +360,19 @@ class _HeinekenRechnungDetailScreenState
               // Status-Flow: offen → gesendet → freigegeben → bezahlt
               if (r.zahlungsstatus == 'gesendet') ...[
                 const PopupMenuItem(
-                    value: 'freigegeben',
-                    child: Text('Als freigegeben markieren')),
+                  value: 'freigegeben',
+                  child: Text('Als freigegeben markieren'),
+                ),
                 const PopupMenuItem(
-                    value: 'offen', child: Text('Auf offen zurücksetzen')),
+                  value: 'offen',
+                  child: Text('Auf offen zurücksetzen'),
+                ),
               ],
               if (r.zahlungsstatus == 'freigegeben')
                 const PopupMenuItem(
-                    value: 'gesendet',
-                    child: Text('Auf gesendet zurücksetzen')),
+                  value: 'gesendet',
+                  child: Text('Auf gesendet zurücksetzen'),
+                ),
               PopupMenuItem(
                 value: 'pdf_neu',
                 child: darfHeinekenPdfNeuGenerieren(r.heinekenMonat)
@@ -365,7 +389,10 @@ class _HeinekenRechnungDetailScreenState
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',
-                child: Text('Löschen', style: TextStyle(color: AppColors.error)),
+                child: Text(
+                  'Löschen',
+                  style: TextStyle(color: AppColors.error),
+                ),
               ),
             ],
           ),
@@ -388,14 +415,18 @@ class _HeinekenRechnungDetailScreenState
                   Text(
                     'Rechnungsperiode $monatsName',
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _InfoRow('Datum', _dateFormat.format(r.rechnungsdatum)),
                   _InfoRow('RG Nr.', r.rechnungsnummer ?? '-'),
                   _InfoRow('PO Nummer', r.heinekenPoNummer ?? '-'),
-                  _InfoRow('Fällig bis',
-                      _dateFormat.format(r.faelligkeitsdatum)),
+                  _InfoRow(
+                    'Fällig bis',
+                    _dateFormat.format(r.faelligkeitsdatum),
+                  ),
                   _InfoRow('Status', _statusLabel(r.zahlungsstatus)),
                 ],
               ),
@@ -406,28 +437,30 @@ class _HeinekenRechnungDetailScreenState
           // Positionen (Kategorien)
           Text(
             'Positionen',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          ..._positionen.map((p) => Card(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(p.beschreibung)),
-                      Text(
-                        '${p.betragNetto.toStringAsFixed(2)} CHF',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
+          ..._positionen.map(
+            (p) => Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-              )),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(p.beschreibung)),
+                    Text(
+                      '${p.betragNetto.toStringAsFixed(2)} CHF',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
 
           const SizedBox(height: 8),
           const Divider(),
@@ -458,9 +491,11 @@ class _HeinekenRechnungDetailScreenState
             child: FilledButton.icon(
               onPressed: r.zahlungsstatus == 'offen' ? _sendMail : null,
               icon: const Icon(Icons.send),
-              label: Text(r.zahlungsstatus == 'offen'
-                  ? 'Mail an Heineken senden'
-                  : 'Mail versendet${r.versendetAm != null ? " am ${_dateFormat.format(r.versendetAm!)}" : ""}'),
+              label: Text(
+                r.zahlungsstatus == 'offen'
+                    ? 'Mail an Heineken senden'
+                    : 'Mail versendet${r.versendetAm != null ? " am ${_dateFormat.format(r.versendetAm!)}" : ""}',
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -471,10 +506,12 @@ class _HeinekenRechnungDetailScreenState
                   ? () => _updateStatus('freigegeben')
                   : null,
               icon: const Icon(Icons.task_alt),
-              label: Text(r.zahlungsstatus == 'freigegeben' ||
-                      r.zahlungsstatus == 'bezahlt'
-                  ? 'Freigegeben'
-                  : 'Als freigegeben markieren'),
+              label: Text(
+                r.zahlungsstatus == 'freigegeben' ||
+                        r.zahlungsstatus == 'bezahlt'
+                    ? 'Freigegeben'
+                    : 'Als freigegeben markieren',
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -484,9 +521,11 @@ class _HeinekenRechnungDetailScreenState
               // Bezahlt wird ausschliesslich über den camt-Bankabgleich gesetzt.
               onPressed: null,
               icon: const Icon(Icons.check_circle),
-              label: Text(r.zahlungsstatus == 'bezahlt'
-                  ? 'Bezahlt'
-                  : 'Zahlung über Bankabgleich'),
+              label: Text(
+                r.zahlungsstatus == 'bezahlt'
+                    ? 'Bezahlt'
+                    : 'Zahlung über Bankabgleich',
+              ),
             ),
           ),
         ],
@@ -496,15 +535,24 @@ class _HeinekenRechnungDetailScreenState
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'offen': return 'Offen';
-      case 'gesendet': return 'Gesendet';
-      case 'freigegeben': return 'Freigegeben';
-      case 'bezahlt': return 'Bezahlt';
-      case 'erinnert': return 'Erinnert';
-      case 'mahnung_1': return 'Mahnung 1';
-      case 'mahnung_2': return 'Mahnung 2';
-      case 'abgeschrieben': return 'Abgeschrieben';
-      default: return status;
+      case 'offen':
+        return 'Offen';
+      case 'gesendet':
+        return 'Gesendet';
+      case 'freigegeben':
+        return 'Freigegeben';
+      case 'bezahlt':
+        return 'Bezahlt';
+      case 'erinnert':
+        return 'Erinnert';
+      case 'mahnung_1':
+        return 'Mahnung 1';
+      case 'mahnung_2':
+        return 'Mahnung 2';
+      case 'abgeschrieben':
+        return 'Abgeschrieben';
+      default:
+        return status;
     }
   }
 }
@@ -571,8 +619,10 @@ class _StatusBanner extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 12),
-          Text(text,
-              style: TextStyle(color: color, fontWeight: FontWeight.w500)),
+          Text(
+            text,
+            style: TextStyle(color: color, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
@@ -592,8 +642,10 @@ class _InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: Text(label,
-                style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           Expanded(child: Text(value)),
         ],

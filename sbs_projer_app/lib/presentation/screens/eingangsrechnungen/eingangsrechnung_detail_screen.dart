@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_buchun
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_reversal_service.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/konto_vorschlag.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/kreditor_lern_service.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -224,10 +225,10 @@ class _EingangsrechnungDetailScreenState
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Verwerfen'),
+          TapKnopf(
+            text: 'Verwerfen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -268,10 +269,10 @@ class _EingangsrechnungDetailScreenState
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Rückgängig'),
+          TapKnopf(
+            text: 'Rückgängig',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -313,7 +314,9 @@ class _EingangsrechnungDetailScreenState
   /// befüllt hat (kein Überschreiben). So greift z.B. die Busse-Automatik
   /// (Aufwand 6280, kein Vorsteuerabzug) automatisch bei der Kategorie 'busse'.
   void _onKategorieChanged(
-      String? v, List<EingangsrechnungKategorie> kategorien) {
+    String? v,
+    List<EingangsrechnungKategorie> kategorien,
+  ) {
     final mwstRelevant = _mwstPflichtig && _parseMwst(_mwstCtrl.text) > 0;
     final vor = schlageKontoVor(
       kategorie: v,
@@ -392,22 +395,19 @@ class _EingangsrechnungDetailScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _ladeFehler != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_ladeFehler!, textAlign: TextAlign.center),
-                  ),
-                )
-              : _buildForm(context),
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(_ladeFehler!, textAlign: TextAlign.center),
+              ),
+            )
+          : _buildForm(context),
     );
   }
 
   Widget _buildForm(BuildContext context) {
     final e = _rechnung!;
-    final konten = ref
-        .watch(kontenProvider)
-        .where((k) => k.istAktiv)
-        .toList()
+    final konten = ref.watch(kontenProvider).where((k) => k.istAktiv).toList()
       ..sort((a, b) => a.kontonummer.compareTo(b.kontonummer));
 
     final niedrigeKonfidenz = e.konfidenz != null && e.konfidenz! < 0.85;
@@ -460,9 +460,14 @@ class _EingangsrechnungDetailScreenState
             DropdownButtonFormField<String>(
               initialValue: _referenzTyp,
               items: const [
-                DropdownMenuItem(value: 'QRR', child: Text('QRR (QR-Referenz)')),
                 DropdownMenuItem(
-                    value: 'SCOR', child: Text('SCOR (Creditor Reference)')),
+                  value: 'QRR',
+                  child: Text('QRR (QR-Referenz)'),
+                ),
+                DropdownMenuItem(
+                  value: 'SCOR',
+                  child: Text('SCOR (Creditor Reference)'),
+                ),
                 DropdownMenuItem(value: 'NON', child: Text('NON (keine)')),
               ],
               onChanged: (v) => setState(() => _referenzTyp = v ?? 'NON'),
@@ -472,8 +477,9 @@ class _EingangsrechnungDetailScreenState
             _label('Betrag (brutto, CHF)'),
             TextField(
               controller: _betragCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
               ],
@@ -499,34 +505,41 @@ class _EingangsrechnungDetailScreenState
             const SizedBox(height: 16),
 
             _label('Kategorie'),
-            Consumer(builder: (context, ref, _) {
-              final kat =
-                  ref.watch(eingangsrechnungKategorienProvider).valueOrNull ??
-                      [];
-              // Guard gegen Flutter-Assertion: ein unbekannter/inaktiver Code
-              // darf nicht als initialValue gesetzt werden, wenn er nicht in
-              // den Items ist. Ist der gespeicherte Code unbekannt, zeigen wir
-              // ihn als zusätzlichen (vorangestellten) Eintrag, damit er nicht
-              // still verschwindet.
-              final codes = kat.map((k) => k.code).toSet();
-              final unbekannt =
-                  _kategorie != null && !codes.contains(_kategorie);
-              return DropdownButtonFormField<String>(
-                initialValue: _kategorie,
-                isExpanded: true,
-                items: [
-                  if (unbekannt)
-                    DropdownMenuItem(
-                        value: _kategorie, child: Text(_kategorie!)),
-                  for (final k in kat)
-                    DropdownMenuItem(
-                        value: k.code, child: Text(k.bezeichnung)),
-                ],
-                onChanged: (v) => _onKategorieChanged(v, kat),
-                decoration:
-                    const InputDecoration(hintText: 'Kategorie wählen'),
-              );
-            }),
+            Consumer(
+              builder: (context, ref, _) {
+                final kat =
+                    ref.watch(eingangsrechnungKategorienProvider).valueOrNull ??
+                    [];
+                // Guard gegen Flutter-Assertion: ein unbekannter/inaktiver Code
+                // darf nicht als initialValue gesetzt werden, wenn er nicht in
+                // den Items ist. Ist der gespeicherte Code unbekannt, zeigen wir
+                // ihn als zusätzlichen (vorangestellten) Eintrag, damit er nicht
+                // still verschwindet.
+                final codes = kat.map((k) => k.code).toSet();
+                final unbekannt =
+                    _kategorie != null && !codes.contains(_kategorie);
+                return DropdownButtonFormField<String>(
+                  initialValue: _kategorie,
+                  isExpanded: true,
+                  items: [
+                    if (unbekannt)
+                      DropdownMenuItem(
+                        value: _kategorie,
+                        child: Text(_kategorie!),
+                      ),
+                    for (final k in kat)
+                      DropdownMenuItem(
+                        value: k.code,
+                        child: Text(k.bezeichnung),
+                      ),
+                  ],
+                  onChanged: (v) => _onKategorieChanged(v, kat),
+                  decoration: const InputDecoration(
+                    hintText: 'Kategorie wählen',
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 16),
 
             _label('Aufwandskonto (Pflicht zum Buchen)'),
@@ -675,8 +688,7 @@ class _EingangsrechnungDetailScreenState
         Expanded(
           child: TextField(
             controller: _mwstCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
@@ -737,8 +749,11 @@ class _EingangsrechnungDetailScreenState
             if (_faelligkeit != null)
               GestureDetector(
                 onTap: () => setState(() => _faelligkeit = null),
-                child: Icon(Icons.clear,
-                    size: 18, color: AppColors.textSecondary),
+                child: Icon(
+                  Icons.clear,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
               ),
           ],
         ),
@@ -752,13 +767,15 @@ class _EingangsrechnungDetailScreenState
       isExpanded: true,
       hint: const Text('Konto wählen …'),
       items: konten
-          .map((k) => DropdownMenuItem<int>(
-                value: k.kontonummer,
-                child: Text(
-                  '${k.kontonummer} ${k.bezeichnung}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ))
+          .map(
+            (k) => DropdownMenuItem<int>(
+              value: k.kontonummer,
+              child: Text(
+                '${k.kontonummer} ${k.bezeichnung}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
           .toList(),
       onChanged: (v) => setState(() => _aufwandskonto = v),
     );
@@ -777,10 +794,7 @@ class _EingangsrechnungDetailScreenState
           value: 1171,
           child: Text('1171 Vorsteuer übr. Betriebsaufwand'),
         ),
-        DropdownMenuItem<int?>(
-          value: null,
-          child: Text('Kein Vorsteuerabzug'),
-        ),
+        DropdownMenuItem<int?>(value: null, child: Text('Kein Vorsteuerabzug')),
       ],
       onChanged: (v) => setState(() => _vorsteuerKonto = v),
     );

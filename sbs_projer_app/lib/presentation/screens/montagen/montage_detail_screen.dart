@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class MontageDetailScreen extends ConsumerWidget {
   final String montageId;
@@ -54,8 +55,7 @@ class _MontageDetailContent extends ConsumerStatefulWidget {
       _MontageDetailContentState();
 }
 
-class _MontageDetailContentState
-    extends ConsumerState<_MontageDetailContent> {
+class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
   final Map<String, String> _materialNames = {};
 
   /// Blockiert den «Erledigt»-Knopf, solange der Speichervorgang läuft.
@@ -71,8 +71,11 @@ class _MontageDetailContentState
 
   Future<void> _loadMaterialNames() async {
     final ids = [
-      montage.material1Id, montage.material2Id, montage.material3Id,
-      montage.material4Id, montage.material5Id,
+      montage.material1Id,
+      montage.material2Id,
+      montage.material3Id,
+      montage.material4Id,
+      montage.material5Id,
     ].whereType<String>().toSet();
     if (ids.isEmpty) return;
 
@@ -148,8 +151,7 @@ class _MontageDetailContentState
             ),
 
           // Betrieb & Anlage (nur wenn vorhanden)
-          if (montage.betriebId != null)
-            _BetriebAnlageCard(montage: montage),
+          if (montage.betriebId != null) _BetriebAnlageCard(montage: montage),
 
           // Datum & Aufwand
           _SectionCard(
@@ -158,7 +160,10 @@ class _MontageDetailContentState
             children: [
               _InfoRow('Datum', _formatDate(montage.datum)),
               if (montage.dauerStunden != null)
-                _InfoRow('Stunden', '${montage.dauerStunden!.toStringAsFixed(2)} h'),
+                _InfoRow(
+                  'Stunden',
+                  '${montage.dauerStunden!.toStringAsFixed(2)} h',
+                ),
             ],
           ),
 
@@ -166,9 +171,7 @@ class _MontageDetailContentState
           _SectionCard(
             title: 'Beschreibung',
             icon: Icons.description,
-            children: [
-              _InfoRow('', montage.beschreibung),
-            ],
+            children: [_InfoRow('', montage.beschreibung)],
           ),
 
           // Kosten
@@ -178,11 +181,15 @@ class _MontageDetailContentState
               icon: Icons.attach_money,
               children: [
                 if (montage.stundensatz != null)
-                  _InfoRow('Stundensatz',
-                      '${montage.stundensatz!.toStringAsFixed(2)} CHF/h'),
+                  _InfoRow(
+                    'Stundensatz',
+                    '${montage.stundensatz!.toStringAsFixed(2)} CHF/h',
+                  ),
                 if (montage.dauerStunden != null)
-                  _InfoRow('Stunden',
-                      '${montage.dauerStunden!.toStringAsFixed(2)} h'),
+                  _InfoRow(
+                    'Stunden',
+                    '${montage.dauerStunden!.toStringAsFixed(2)} h',
+                  ),
                 if (montage.kostenArbeit != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -218,8 +225,12 @@ class _MontageDetailContentState
           // Material / Anlass-Tage
           if (_hasMaterial)
             _SectionCard(
-              title: montage.montageTyp == 'anlass' ? 'Tage & Spesen' : 'Material',
-              icon: montage.montageTyp == 'anlass' ? Icons.event_note : Icons.inventory_2,
+              title: montage.montageTyp == 'anlass'
+                  ? 'Tage & Spesen'
+                  : 'Material',
+              icon: montage.montageTyp == 'anlass'
+                  ? Icons.event_note
+                  : Icons.inventory_2,
               children: _buildMaterialRows(),
             ),
 
@@ -243,8 +254,11 @@ class _MontageDetailContentState
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
                   Text(
                     'Noch nicht synchronisiert',
@@ -264,19 +278,27 @@ class _MontageDetailContentState
       montage.stundensatz != null || montage.kostenArbeit != null;
 
   bool get _hasMaterial =>
-      montage.material1Id != null || montage.material2Id != null ||
-      montage.material3Id != null || montage.material4Id != null ||
+      montage.material1Id != null ||
+      montage.material2Id != null ||
+      montage.material3Id != null ||
+      montage.material4Id != null ||
       montage.material5Id != null;
 
   List<Widget> _buildMaterialRows() {
     final rows = <Widget>[];
     final ids = [
-      montage.material1Id, montage.material2Id, montage.material3Id,
-      montage.material4Id, montage.material5Id,
+      montage.material1Id,
+      montage.material2Id,
+      montage.material3Id,
+      montage.material4Id,
+      montage.material5Id,
     ];
     final mengen = [
-      montage.material1Menge, montage.material2Menge, montage.material3Menge,
-      montage.material4Menge, montage.material5Menge,
+      montage.material1Menge,
+      montage.material2Menge,
+      montage.material3Menge,
+      montage.material4Menge,
+      montage.material5Menge,
     ];
     final isAnlass = montage.montageTyp == 'anlass';
     for (int i = 0; i < 5; i++) {
@@ -339,7 +361,9 @@ class _MontageDetailContentState
         bis: zeitStr,
       );
       await MontageRepository.statusSetzen(
-          id: montage.routeId, status: 'abgeschlossen');
+        id: montage.routeId,
+        status: 'abgeschlossen',
+      );
       if (mounted) {
         setState(() => montage.status = 'abgeschlossen');
       }
@@ -347,16 +371,18 @@ class _MontageDetailContentState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Arbeit beendet ($zeitStr) — Rapport ergänzen '
-                'und speichern nicht vergessen.'),
+            content: Text(
+              'Arbeit beendet ($zeitStr) — Rapport ergänzen '
+              'und speichern nicht vergessen.',
+            ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Nicht gespeichert: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Nicht gespeichert: $e')));
       }
     } finally {
       if (mounted) setState(() => _erledigtLaeuft = false);
@@ -374,8 +400,9 @@ class _MontageDetailContentState
       String kunde = '';
       String ort = '';
       if (montage.betriebId != null) {
-        final betrieb =
-            await BetriebRepository.getByServerId(montage.betriebId!);
+        final betrieb = await BetriebRepository.getByServerId(
+          montage.betriebId!,
+        );
         if (betrieb != null) {
           kunde = betrieb.name;
           ort = '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim();
@@ -384,12 +411,17 @@ class _MontageDetailContentState
 
       final materialien = <(String, double)>[];
       final ids = [
-        montage.material1Id, montage.material2Id, montage.material3Id,
-        montage.material4Id, montage.material5Id,
+        montage.material1Id,
+        montage.material2Id,
+        montage.material3Id,
+        montage.material4Id,
+        montage.material5Id,
       ];
       final mengen = [
-        montage.material1Menge, montage.material2Menge,
-        montage.material3Menge, montage.material4Menge,
+        montage.material1Menge,
+        montage.material2Menge,
+        montage.material3Menge,
+        montage.material4Menge,
         montage.material5Menge,
       ];
       for (int i = 0; i < 5; i++) {
@@ -422,9 +454,9 @@ class _MontageDetailContentState
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
       }
     }
   }
@@ -442,11 +474,7 @@ class _MontageDetailContentState
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Loeschen'),
-          ),
+          TapKnopf(text: 'Loeschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -460,8 +488,8 @@ class _MontageDetailContentState
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content:
-                    Text('Loeschen nur mit Internetverbindung moeglich')),
+              content: Text('Loeschen nur mit Internetverbindung moeglich'),
+            ),
           );
         }
       }
@@ -486,10 +514,16 @@ String _montageTypLabel(String typ) {
     case 'aufwandsentschaedigung':
       return 'Aufwandsentsch.';
     // Legacy
-    case 'neu_installation': case 'montage': return 'Neumontage';
-    case 'umbau': case 'erweiterung': return 'Abänderung';
-    case 'abbau': return 'Demontage';
-    case 'anlass_mitarbeit': return 'Anlass';
+    case 'neu_installation':
+    case 'montage':
+      return 'Neumontage';
+    case 'umbau':
+    case 'erweiterung':
+      return 'Abänderung';
+    case 'abbau':
+      return 'Demontage';
+    case 'anlass_mitarbeit':
+      return 'Anlass';
     default:
       return typ;
   }
@@ -497,15 +531,21 @@ String _montageTypLabel(String typ) {
 
 IconData _montageTypIcon(String typ) {
   switch (typ) {
-    case 'neumontage': case 'neu_installation': case 'montage':
+    case 'neumontage':
+    case 'neu_installation':
+    case 'montage':
       return Icons.add_circle_outline;
-    case 'demontage': case 'abbau':
+    case 'demontage':
+    case 'abbau':
       return Icons.remove_circle_outline;
-    case 'abaenderung': case 'umbau': case 'erweiterung':
+    case 'abaenderung':
+    case 'umbau':
+    case 'erweiterung':
       return Icons.tune;
     case 'heigenie_service':
       return Icons.cleaning_services;
-    case 'anlass': case 'anlass_mitarbeit':
+    case 'anlass':
+    case 'anlass_mitarbeit':
       return Icons.celebration;
     case 'spesen':
       return Icons.receipt_long;
@@ -518,15 +558,21 @@ IconData _montageTypIcon(String typ) {
 
 Color _montageTypColor(String typ) {
   switch (typ) {
-    case 'neumontage': case 'neu_installation': case 'montage':
+    case 'neumontage':
+    case 'neu_installation':
+    case 'montage':
       return const Color(0xFF16A34A); // Grün
-    case 'demontage': case 'abbau':
+    case 'demontage':
+    case 'abbau':
       return const Color(0xFFDC2626); // Rot
-    case 'abaenderung': case 'umbau': case 'erweiterung':
+    case 'abaenderung':
+    case 'umbau':
+    case 'erweiterung':
       return const Color(0xFF2563EB); // Blau
     case 'heigenie_service':
       return const Color(0xFF0D9488); // Teal
-    case 'anlass': case 'anlass_mitarbeit':
+    case 'anlass':
+    case 'anlass_mitarbeit':
       return const Color(0xFF7C3AED); // Violett
     case 'spesen':
       return const Color(0xFFD97706); // Amber
@@ -546,11 +592,13 @@ class _BetriebAnlageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return FutureBuilder<List<String?>>(
       future: Future.wait([
-        BetriebRepository.getByServerId(montage.betriebId!)
-            .then((b) => b?.name),
+        BetriebRepository.getByServerId(
+          montage.betriebId!,
+        ).then((b) => b?.name),
         if (montage.anlageId != null)
-          AnlageRepository.getByServerId(montage.anlageId!)
-              .then((a) => a?.bezeichnung ?? a?.typAnlage)
+          AnlageRepository.getByServerId(
+            montage.anlageId!,
+          ).then((a) => a?.bezeichnung ?? a?.typAnlage)
         else
           Future.value(null),
       ]),
@@ -571,7 +619,8 @@ class _BetriebAnlageCard extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right, size: 20),
                 onTap: () async {
                   final betrieb = await BetriebRepository.getByServerId(
-                      montage.betriebId!);
+                    montage.betriebId!,
+                  );
                   if (betrieb != null && context.mounted) {
                     context.push('/betriebe/${betrieb.routeId}');
                   }
@@ -580,14 +629,17 @@ class _BetriebAnlageCard extends StatelessWidget {
               if (montage.anlageId != null) ...[
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.precision_manufacturing,
-                      color: AppColors.info),
+                  leading: const Icon(
+                    Icons.precision_manufacturing,
+                    color: AppColors.info,
+                  ),
                   title: Text(anlageName ?? 'Laden...'),
                   subtitle: const Text('Anlage'),
                   trailing: const Icon(Icons.chevron_right, size: 20),
                   onTap: () async {
                     final anlage = await AnlageRepository.getByServerId(
-                        montage.anlageId!);
+                      montage.anlageId!,
+                    );
                     if (anlage != null && context.mounted) {
                       context.push('/anlagen/${anlage.routeId}');
                     }
@@ -714,12 +766,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

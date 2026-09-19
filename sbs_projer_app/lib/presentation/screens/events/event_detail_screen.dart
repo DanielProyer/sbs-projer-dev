@@ -49,6 +49,7 @@ import 'package:sbs_projer_app/presentation/screens/montagen/montage_form_screen
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/pdf/event_abschluss_pdf_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
 /// Einsätze | Dokumente. Der FAB wechselt je nach aktivem Tab (E2/E3).
@@ -327,10 +328,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -714,10 +715,10 @@ class _KontakteTab extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Entfernen'),
+          TapKnopf(
+            text: 'Entfernen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -1039,10 +1040,10 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -1169,18 +1170,22 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                 // Nur Nebeninfo auf der Karte — ein Ladefehler/leerer
                 // Zwischenstand blockiert die Standanzeige nicht.
                 final geraete =
-                    ref.watch(eventGeraeteProvider(event.serverId!)).valueOrNull ??
-                        <EventGeraetLocal>[];
+                    ref
+                        .watch(eventGeraeteProvider(event.serverId!))
+                        .valueOrNull ??
+                    <EventGeraetLocal>[];
                 // Inbetriebnahme-Status je Stand für die Marker-Farbe
                 // (Feldfeedback Churerfest 14.08.2026) — dieselben
                 // eventStandAnlagenProvider-Instanzen wie in der Liste,
                 // Riverpod cached sie familienweise.
-                final standStatus = <String, ({bool komplett, bool hatHollandbuffet})>{};
+                final standStatus =
+                    <String, ({bool komplett, bool hatHollandbuffet})>{};
                 for (final s in staende) {
                   final sid = s.serverId;
                   if (sid == null) continue;
                   final anlagen =
-                      ref.watch(eventStandAnlagenProvider(sid)).valueOrNull ?? [];
+                      ref.watch(eventStandAnlagenProvider(sid)).valueOrNull ??
+                      [];
                   final fortschritt = inbetriebnahmeFortschritt(
                     anlagen
                         .map((a) => (anzahl: a.anzahl, inBetrieb: a.inBetrieb))
@@ -1188,7 +1193,9 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
                   );
                   standStatus[sid] = (
                     komplett: fortschritt.komplett,
-                    hatHollandbuffet: anlagen.any((a) => a.typ == 'hollandbuffet'),
+                    hatHollandbuffet: anlagen.any(
+                      (a) => a.typ == 'hollandbuffet',
+                    ),
                   );
                 }
                 return EventStaendeMap(
@@ -1393,10 +1400,10 @@ class _StandCardState extends ConsumerState<_StandCard> {
     // nennt den Stand, nicht die Leitung (Spec Anstiche & Leitungen 14.08.).
     final geraete =
         ref.watch(eventGeraeteProvider(stand.eventId)).valueOrNull ??
-            <EventGeraetLocal>[];
+        <EventGeraetLocal>[];
     final alleLeitungen =
         ref.watch(eventLeitungenProvider(stand.eventId)).valueOrNull ??
-            <EventLeitungLocal>[];
+        <EventLeitungLocal>[];
     final leitungsHinweise = stand.serverId == null
         ? const <String>[]
         : leitungsHinweiseFuerStand(
@@ -1832,10 +1839,10 @@ class _EinsaetzeTab extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -2036,10 +2043,10 @@ class _ZeitTab extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -2192,10 +2199,10 @@ class _DokumenteTab extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),

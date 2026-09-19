@@ -9,12 +9,15 @@ import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart
 import 'package:sbs_projer_app/data/repositories/eroeffnungsreinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 class EroeffnungsreinigungDetailScreen extends ConsumerWidget {
   final String eroeffnungsreinigungId;
 
-  const EroeffnungsreinigungDetailScreen(
-      {super.key, required this.eroeffnungsreinigungId});
+  const EroeffnungsreinigungDetailScreen({
+    super.key,
+    required this.eroeffnungsreinigungId,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +34,8 @@ class EroeffnungsreinigungDetailScreen extends ConsumerWidget {
           return Scaffold(
             appBar: AppBar(title: const Text('Nicht gefunden')),
             body: const Center(
-                child: Text('Eröffnungsreinigung nicht gefunden')),
+              child: Text('Eröffnungsreinigung nicht gefunden'),
+            ),
           );
         }
         return _DetailContent(item: er);
@@ -60,7 +64,8 @@ class _DetailContent extends ConsumerWidget {
               icon: const Icon(Icons.edit),
               tooltip: 'Bearbeiten',
               onPressed: () => context.push(
-                  '/eroeffnungsreinigungen/${item.routeId}/bearbeiten'),
+                '/eroeffnungsreinigungen/${item.routeId}/bearbeiten',
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -78,25 +83,28 @@ class _DetailContent extends ConsumerWidget {
             Wrap(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.warning.withAlpha(25),
                     borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: AppColors.warning.withAlpha(50)),
+                    border: Border.all(color: AppColors.warning.withAlpha(50)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.terrain,
-                          size: 14, color: AppColors.warning),
+                      Icon(Icons.terrain, size: 14, color: AppColors.warning),
                       const SizedBox(width: 4),
-                      Text('Bergkunde',
-                          style: TextStyle(
-                              color: AppColors.warning,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12)),
+                      Text(
+                        'Bergkunde',
+                        style: TextStyle(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -112,7 +120,12 @@ class _DetailContent extends ConsumerWidget {
             title: 'Details',
             icon: Icons.cleaning_services_outlined,
             children: [
-              _InfoRow('Art', item.art == 'endreinigung' ? 'Endreinigung' : 'Eröffnungsreinigung'),
+              _InfoRow(
+                'Art',
+                item.art == 'endreinigung'
+                    ? 'Endreinigung'
+                    : 'Eröffnungsreinigung',
+              ),
               _InfoRow('Störungsnummer', item.stoerungsnummer),
               _InfoRow('Datum', _formatDate(item.datum)),
               if (item.preis != null)
@@ -132,11 +145,16 @@ class _DetailContent extends ConsumerWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      color: AppColors.warning, size: 20),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
-                  Text('Noch nicht synchronisiert',
-                      style: TextStyle(color: AppColors.warning)),
+                  Text(
+                    'Noch nicht synchronisiert',
+                    style: TextStyle(color: AppColors.warning),
+                  ),
                 ],
               ),
             ),
@@ -162,8 +180,7 @@ class _DetailContent extends ConsumerWidget {
       String kunde = '';
       String ort = '';
       if (item.betriebId != null) {
-        final betrieb =
-            await BetriebRepository.getByServerId(item.betriebId!);
+        final betrieb = await BetriebRepository.getByServerId(item.betriebId!);
         if (betrieb != null) {
           kunde = betrieb.name;
           ort = '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim();
@@ -190,9 +207,9 @@ class _DetailContent extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
       }
     }
   }
@@ -210,11 +227,7 @@ class _DetailContent extends ConsumerWidget {
             onPressed: () => ctx.pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -228,8 +241,8 @@ class _DetailContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content:
-                    Text('Löschen nur mit Internetverbindung möglich')),
+              content: Text('Löschen nur mit Internetverbindung möglich'),
+            ),
           );
         }
       }
@@ -244,8 +257,7 @@ class _BetriebCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String?>(
-      future:
-          BetriebRepository.getByServerId(betriebId).then((b) => b?.name),
+      future: BetriebRepository.getByServerId(betriebId).then((b) => b?.name),
       builder: (context, snapshot) {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -255,8 +267,7 @@ class _BetriebCard extends StatelessWidget {
             subtitle: const Text('Betrieb'),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () async {
-              final betrieb =
-                  await BetriebRepository.getByServerId(betriebId);
+              final betrieb = await BetriebRepository.getByServerId(betriebId);
               if (betrieb != null && context.mounted) {
                 context.push('/betriebe/${betrieb.routeId}');
               }
@@ -293,9 +304,13 @@ class _SectionCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -321,13 +336,15 @@ class _InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 130,
-            child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 14)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
