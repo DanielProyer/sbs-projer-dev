@@ -2,7 +2,44 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.112.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1678 Tests grün** · Git sauber.
+**Stand:** **v0.113.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1689 Tests grün** · Git sauber.
+
+### ✅ B5 — Wochenleiste in einer Zeile, und die KW war falsch (v0.113.0, 19.09.)
+
+Der Tourenplan trug **zwei Zeilen** über der Zeitachse: Wochen-Navigator und
+Tages-Chips, zusammen **~130 px**. Auf 360 px fast ein Fünftel der Fläche, um
+die es auf dem Screen geht. Jetzt **eine Zeile mit 70 px** — gemessen und als
+Test festgehalten, damit der Gewinn nicht zurückwächst.
+
+- Die Woche steht im Titel: **«KW 38 · Sep 2026»**. Bewusst **ohne**
+  Tagesspanne — die Tage stehen in den Chips darunter, und mit Spanne wurde
+  der Titel abgeschnitten, sobald rechts drei Knöpfe stehen (in der
+  Sichtprüfung aufgefallen, nicht im Test).
+- Die Chips teilen sich den Platz über `Expanded`. Mit den alten festen 52 px
+  kämen sechs Chips plus zwei Pfeile auf 408 px — auf 360 wäre der
+  Wochenwechsel unerreichbar geworden.
+- **Neu: Knopf «Zur heutigen Woche»**, sichtbar nur ausserhalb der laufenden
+  Woche. Wer vorausgeblättert hatte, kam bisher nur über die Pfeile zurück.
+
+🔴 **Befund: Die Kalenderwoche war seit jeher falsch.** Die alte Rechnung
+zählte ab dem 1. Januar statt nach ISO 8601 und wich an **991 von 1094
+geprüften Tagen** ab — durchgehend eine Woche zu viel. Heute (19.09.2026)
+zeigte die App **KW 39 statt KW 38**. Wer sich mit jemandem über eine
+Kalenderwoche verständigt hat, redete aneinander vorbei.
+
+⚠️ **Und eine Falle, die beim ersten Testlauf auffiel:** Die neue Funktion
+rechnet **in UTC**. Auf lokalen Daten verliert `difference().inDays` über den
+Sommerzeit-Wechsel eine Stunde und damit einen ganzen Tag — vom 1. Januar zum
+17. September wären das 258 statt 259 Tage und KW 37 statt 38. Der Fehler
+zeigt sich **nur im Sommerhalbjahr**.
+
+`WochenLeiste` liegt als eigenes Widget in `touren/widgets/` (der Screen hat
+2674 Zeilen) und ist einzeln testbar: **12 Tests** — ISO-Wochen über zwei
+Jahreswechsel, Titel, 360 px, 130 % Systemschrift, leere Zählerliste, Höhe.
+
+**Klicktest Daniel:** Stimmt die KW jetzt mit deinem Kalender überein? Und:
+Ein paar Wochen vorblättern — erscheint der Heute-Knopf und bringt er dich
+zurück?
 
 ### ✅ A6 — Hauptmenü nach den Nutzungszahlen (v0.112.0, 18.09.)
 
