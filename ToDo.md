@@ -2,7 +2,37 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.114.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1694 Tests grün** · Git sauber.
+**Stand:** **v0.115.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1694 Tests grün** · Git sauber.
+
+### ✅ Keine rohen Ausnahmen mehr auf dem Bildschirm (v0.115.0, 19.09.)
+
+Die Ratsche vom 17.09. ist **eingelöst**: **163 Stellen in 73 Dateien**
+zeigten die gefangene Ausnahme im Klartext. Jetzt laufen alle über
+`kurzeFehlermeldung()` — «keine Verbindung» statt PostgREST-URL mit siebzig
+UUIDs. Die Rohfassung steht weiterhin im `debugPrint`.
+
+Der Test ist damit **von der Ratsche zum Verbot** geworden: harte Null statt
+«darf nur sinken». Gegenprobe gemacht — eine zurückgedrehte Stelle lässt ihn
+fallen.
+
+**Warum nicht stumpf ersetzt:** Nicht jedes `$e` ist eine Ausnahme. In einem
+`map((e) => …)` wäre `kurzeFehlermeldung(e)` Unsinn — und der Compiler winkt
+es durch, weil die Funktion `Object` nimmt. Das Werkzeug ersetzte nur
+Fundstellen, deren Variable nachweislich Parameter eines umgebenden `catch`
+ist. **Drei Stellen wurden korrekt übersprungen**: dort ist `fehler` eine
+**Liste** gesammelter Meldungen (camt-Import, Abgleich-Vorschau), keine
+Ausnahme.
+
+⚠️ **Zweite Werkzeug-Panne des Tages, korrigiert:** Sieben `if` ohne Klammern
+legte `dart format` frei. Mein Werkzeug dafür setzte die Klammer **hinter**
+den Rumpf statt darum — `flutter analyze` meldet die Zeile des *Rumpfes*,
+nicht die des `if`. Zurückgenommen, die sieben von Hand gesetzt. **Lehre:**
+Bei weniger als zehn Stellen ist Handarbeit schneller als ein Werkzeug, das
+man erst debuggen muss.
+
+**Kein Klicktest nötig** — die Darstellung dieser Meldungen wurde am 17.09.
+auf 360 px geprüft, hier änderte sich nur der Text. Fällt dir im Betrieb
+eine Meldung auf, die zu wenig sagt: melden, dann schärfen wir sie.
 
 ### ✅ B7 — Löschbestätigungen CanvasKit-sicher, mit Wächter (v0.114.0, 19.09.)
 
