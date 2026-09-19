@@ -33,10 +33,11 @@
 
 ## Schritte
 
-- [ ] 1 Migration 194 schreiben, anwenden, Funktion in einer Transaktion probebuchen und zurückrollen
-- [ ] 2 Logik + Tests (Kategorie, Grenze, Auswahl, Summen je Satz, Ausschlüsse)
-- [ ] 3 DTOs, Repository, Provider
-- [ ] 4 Screen: Vorschau, Freigabe-Dialog, Lauf-Karte mit Rücknahme (`TapKnopf gefahr`)
-- [ ] 5 Router, Prüfregel-Route, MWST-Screen Ziff. 235
-- [ ] 6 `AbschreibungService` + Mahnwesen auf `mwst_betrag`
-- [ ] 7 analyze, Tests, Browser-Check, v0.116.0 deployen, Doku/ToDo/Memory
+- [x] 1 Migration 194 schreiben, anwenden, Funktion in einer Transaktion probebuchen und zurückrollen
+- [x] 2 Logik + Tests (Kategorie, Grenze, Auswahl, Summen je Satz, Ausschlüsse)
+- [x] 3 DTOs, Repository, Provider
+- [x] 4 Screen: Vorschau, Freigabe-Dialog, Lauf-Karte mit Rücknahme (`TapKnopf gefahr`)
+- [x] 5 Router, Prüfregel-Route, MWST-Screen Ziff. 235
+- [x] 6 `AbschreibungService` + Mahnwesen auf `mwst_betrag`
+- [x] 7a analyze (56, Basis), 1712 Tests grün, Doku/ToDo/Memory
+- [ ] 7b Browser-Check (Login Daniel nötig) → Deploy v0.116.0

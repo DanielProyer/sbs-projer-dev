@@ -51,6 +51,12 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.116.0** — Buchhaltung → Abschlussprüfung, Jahr 2026: führt die rote Zeile
+  «Offene Rechnungen älter als 5 Jahre» auf den Schritt «Jahrgang abschreiben»?
+  Zeigt die Vorschau 160 Rechnungen, 15'374.70, MWST 1'099.82? **Nicht buchen**
+  — das ist für Januar 2027 (oder buchen und gleich «Lauf zurücknehmen», das
+  ist der Rückweg-Test). MwSt-Abrechnung Q3/2026: steht dort «Entgeltsminderung
+  (Ziff. 235) 2'076.00» und «Rückholung 7.7 % (Zeile 302) 159.90»?
 - **v0.115.0** — kein Test nötig, nur Meldungstexte.
 - **v0.114.0** — irgendwo etwas löschen: ist der rote Knopf da und reagiert er?
 - **v0.113.0** — stimmt die Kalenderwoche jetzt mit deinem Kalender? Ein paar Wochen
@@ -67,16 +73,8 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 🔨 Bauen, wenn wieder Zeit ist
 
-Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet. Eines drängt sanft:
-
-- **«Jahrgang abschreiben» als App-Schritt** (Entscheid Daniel 19.09.2026, **vor
-  Januar 2027**): Vorschau mit Aufteilung Tresen / gestellt / nie gestellt,
-  Freigabe, Buchungen je Rechnung mit der tatsächlich abgelieferten MWST aus
-  `rechnungen.mwst_betrag` — **nicht** der Satz des Buchungstages, den der
-  bestehende `AbschreibungService` nimmt und der für 2020 542.69 statt 516.43
-  ergäbe —, Status `abgeschrieben`, Snapshot, Ziff.-235-Merker. Erster Einsatz:
-  Jahrgänge 2020 + 2021 per 31.12.2026 (160 Rg, 15'374.70, MWST 1'099.82).
-  Konzept: `docs/buchhaltung/abschreibungen-jahrgaenge.md`. Aufwand ein Tag.
+Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
+«Jahrgang abschreiben» seit v0.116.0 gebaut. Was bleibt:
 
 - **Ausbau Aufgaben:** Aufgaben ↔ Kalender/Tourenplan verknüpfen; echte
   Zeiterfassung für Störung/Montage statt Schätzung (braucht Entscheid Daniel).
@@ -106,8 +104,20 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
   29'147 im Journal — Abrechnung nach vereinbarten Entgelten, die Steuer auf die
   offenen Rechnungen wurde abgeliefert. Satz der Leistung (7.7 % bis 2023),
   Zeile 302 im Formular existiert noch.
-- **Ablauf Januar 2027:** Abschreibung datiert 31.12.2026 → Delkredere 5 % →
-  Q4/2026 Ziff. 235 14'274.88 netto, Zeile 302 → 1'099.82 → Abschlussprüfung grün.
+- **Ablauf Januar 2027:** Buchhaltung → Abschlussprüfung 2026 → rote Zeile
+  «Offene Rechnungen älter als 5 Jahre» → **«Jahrgänge 2020, 2021 abschreiben»**
+  (ein Klick, eine Transaktion, datiert 31.12.2026; seit v0.116.0) → Delkredere
+  5 % → Q4/2026 Ziff. 235 14'274.88 netto, Zeile 302 → 1'099.82 (steht dann in
+  der MwSt-Abrechnung Q4/2026) → Abschlussprüfung grün. Rückweg: «Lauf
+  zurücknehmen» im selben Screen.
+- **Offener Entscheid — `versendet_am` aus dem Excel nachtragen?** Die Vorschau
+  teilt in Tresen / gestellt / nie gestellt; «gestellt» liest sie aus
+  `rechnungen.versendet_am`. Für Excel-Altbestände ist das Feld leer, obwohl das
+  Excel (`rechnung_gestellt`) für 516 Rechnungen ein Stelldatum kennt (114 davon
+  noch offen: 2020 30, 2021 32, 2022 45, 2023 7). Ohne Nachtrag zeigt die App
+  für 2020+2021 «0 gestellt / 115 nie gestellt», richtig wären ~62 / ~53.
+  Fürs Buchen ist das egal (gleiche Buchung), für die Bewertung nicht.
+  Vorschlag: Migration 195 (Datei liegt bereit, **nicht angewendet**).
 
 ### 🔭 Beobachten
 
@@ -119,6 +129,34 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–19.09.2026)
+
+### ✅ «Jahrgang abschreiben» — der Abschluss-Schritt (v0.116.0, Migration 194, 19.09.)
+
+**Was:** Aus der Abschlussprüfung heraus (rote Zeile «Offene Rechnungen älter
+als 5 Jahre») ein Screen `/buchhaltung/abschreibung?jahr=`: Vorschau der
+verjährten Kundenrechnungen (Grenze Jahr − 5; Jahrgänge, Aufteilung Tresen /
+gestellt / nie gestellt, Summen netto + MWST je Satz mit Formularzeile 302/303),
+Ausschlüsse mit Grund (Zahlung vermerkt, Summe unstimmig), Freigabe-Dialog,
+danach eine Lauf-Karte mit «Lauf zurücknehmen» (rot, `TapKnopf gefahr`). Die
+MwSt-Abrechnung zeigt im betroffenen Quartal «Entgeltsminderung (Ziff. 235)»
+und die Rückholung je Satz — für Q3/2026 schon jetzt die 2019er (2'076.00 →
+159.90), weil der 2019er-Lauf nachgetragen ist.
+
+**Wie gebucht wird:** in der Datenbank, in EINER Transaktion
+(`abschreibung_jahrgang_buchen`): je Rechnung `3805 an 1100` netto und
+`2200 an 1100` MWST aus `rechnungen.mwst_betrag`, Status `abgeschrieben`,
+Position mit Status vorher und beiden Buchungs-IDs. Die Funktion prüft jede
+Rechnung nochmals (offen, Kundenrechnung, alt genug, keine Zahlung, Summen
+stimmig) und weist sonst alles ab — halb abgeschriebene Jahrgänge gibt es
+nicht. Probelauf am 19.09. in einer zurückgerollten Transaktion: 160 Rg,
+netto 14'274.88, MWST 1'099.82, brutto 15'374.70; Doppelbuchung abgewiesen;
+Rücknahme stellt 160 wieder auf offen und löscht 320 Buchungen.
+
+**Nebenbei:** `AbschreibungService`/Mahnwesen nehmen die MWST jetzt aus der
+Rechnung statt vom Satz des Buchungstages. Tests: `jahrgang_abschreibung_test`
+(12), `jahrgang_abschreiben_layout_test` (360 px bis 170 % Schrift).
+
+**Klicktest Daniel:** siehe oben unter Klicktests (v0.116.0).
 
 ### ✅ Keine rohen Ausnahmen mehr auf dem Bildschirm (v0.115.0, 19.09.)
 

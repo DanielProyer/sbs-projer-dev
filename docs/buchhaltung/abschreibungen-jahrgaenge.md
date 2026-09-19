@@ -113,7 +113,7 @@ dieselbe Periode.
 |---|---|
 | **Jetzt** | Nichts buchen. Liste ist bekannt (76 Rg). Bis Jahresende beobachten, ob doch eine Zahlung eintrifft (unwahrscheinlich). |
 | **Q3/2026-Abrechnung** (bis 30.11.2026) | **Ziff. 235: 2'076.00 netto, Zeile 302 (7.7 %) → 159.90** — die 2019er-Rückholung, Buchung `JA2025_A_MWST` liegt bereits vor. |
-| **Januar 2027**, vor der Q4/2026-Abrechnung | Jahrgänge **2020 und 2021** abschreiben, **datiert 31.12.2026**: 160 × (`3805 an 1100` netto + `2200 an 1100` MWST) = 15'374.70 brutto. Delkredere auf 5 % nachführen. Snapshot für Rollback. |
+| **Januar 2027**, vor der Q4/2026-Abrechnung | Jahrgänge **2020 und 2021** abschreiben, **datiert 31.12.2026**: 160 × (`3805 an 1100` netto + `2200 an 1100` MWST) = 15'374.70 brutto — **per App-Schritt «Jahrgang abschreiben»** (Abschlussprüfung 2026 → rote Zeile; seit v0.116.0, Abschnitt 5). Delkredere auf 5 % nachführen. Snapshot = Lauf-Tabellen. |
 | **Q4/2026-Abrechnung** (bis 28.02.2027) | **Ziff. 235: 14'274.88 netto, Zeile 302 (7.7 %) → 1'099.82.** Aufwand und Rückholung fallen so ins selbe Jahr — kein Periodenversatz wie bei 2019. |
 | **Abschlussprüfung 2026** | Regel «Offene Rechnungen älter als 5 Jahre» ist danach grün — Regel und Politik stimmen seit dem 19.09.2026 überein. |
 
@@ -142,16 +142,38 @@ Recht und hätte die Regel 2026 rot gelassen. Jetzt: 2020 + 2021 zusammen im
 Abschluss 2026 (160 Rg, 15'374.70, MWST 1'099.82). Regel und Politik stimmen
 überein; an der Prüfregel ändert sich nichts.
 
-**Werkzeug: App-Schritt oder SQL? — Entschieden 19.09.2026: App-Schritt.**
-2019 lief per SQL mit Snapshot. Die App hat einen `AbschreibungService`, der
-aber (1) den Satz des Buchungstages nimmt (für Jahrgänge falsch), (2) den
-Rechnungsstatus nicht setzt und (3) nur Pauschalbeträge kennt. Umfang:
-**«Jahrgang abschreiben» als geführter Schritt** aus der Abschlussprüfung
-heraus — Vorschau (Liste, Tresen / gestellt / nie gestellt, Summe netto + MWST
-je Satz), Freigabe, Buchungen je Rechnung aus `rechnungen.mwst_betrag`, Status,
-Snapshot-Tabelle, und der Ziff.-235-Wert als Merker an der MWST-Abrechnung des
-Quartals. Einmal gebaut, jedes Jahr ein Klick statt 30 Minuten SQL mit
-Fehlerrisiko. Aufwand: ein Tag mit Tests. **Zu bauen vor Januar 2027.**
+**Werkzeug: App-Schritt oder SQL? — Entschieden 19.09.2026: App-Schritt.
+Gebaut am selben Tag (v0.116.0, Migration 194).**
+2019 lief per SQL mit Snapshot. Der alte `AbschreibungService` nahm den Satz
+des Buchungstages (für Jahrgänge falsch) und setzte keinen Status; er nimmt
+jetzt die MWST der Rechnung. Der Schritt selbst:
+
+- **Einstieg:** Buchhaltung → Abschlussprüfung → rote Zeile «Offene Rechnungen
+  älter als 5 Jahre» → Screen «Jahrgang abschreiben» (`/buchhaltung/abschreibung?jahr=`).
+- **Vorschau:** Grenze Jahr − 5, je Jahrgang die Aufteilung Tresen / gestellt /
+  nie gestellt, Summen netto und MWST je Satz mit Formularzeile (302/303),
+  Ausschlüsse mit Grund (Zahlung vermerkt, Summe unstimmig), Liste aufklappbar.
+- **Buchen:** ein Klick, eine Datenbank-Transaktion (`abschreibung_jahrgang_buchen`):
+  je Rechnung `3805 an 1100` netto + `2200 an 1100` MWST aus `mwst_betrag`,
+  Status `abgeschrieben`, Position in `abschreibung_positionen` mit Status
+  vorher und beiden Buchungs-IDs, Lauf in `abschreibung_laeufe` mit Summen und
+  MWST-Quartal. Die Funktion prüft jede Rechnung selbst nochmals; ein zweiter
+  Lauf fürs selbe Jahr wird abgewiesen.
+- **Rückweg:** «Lauf zurücknehmen» im selben Screen (`abschreibung_lauf_zuruecknehmen`):
+  Buchungen weg, Status vorher — verweigert, sobald eine der Buchungen
+  storniert wurde.
+- **MWST-Abrechnung:** zeigt im Quartal des Laufs «Entgeltsminderung (Ziff. 235)»
+  und die Rückholung je Satz. Der 2019er-Lauf ist nachgetragen (Q3/2026:
+  2'076.00 → 159.90), aber nicht per App zurücknehmbar.
+
+Probelauf 19.09.2026 in einer zurückgerollten Transaktion: 160 Rg, netto
+14'274.88, MWST 1'099.82, brutto 15'374.70 — exakt die Zahlen aus Abschnitt 4.
+
+*Schönheitsfehler, offen:* «gestellt» liest die App aus `versendet_am`, das
+beim Excel-Import leer blieb. Für 2020+2021 zeigt sie deshalb 45 Tresen /
+0 gestellt / 115 nie gestellt statt ~45 / ~62 / ~53. Migration 195 (Datei
+bereit, nicht angewendet) trüge das Excel-Stelldatum für 516 Rechnungen nach —
+Entscheid Daniel.
 
 ---
 
@@ -193,11 +215,19 @@ und 2025 nachversenden (~216 Rg, ~23'800 CHF), zusätzlich 2023 (~71 Rg,
 
 ## 7. Rollback
 
-Wie 2019: Buchungen mit `notizen LIKE 'Jahresabschluss JJJJ Schritt A%'`
-löschen, Rechnungsstatus aus der Snapshot-Tabelle `snapshot_jahresabschluss_JJJJ`
-zurücksetzen, Delkredere-Buchung stornieren. Die MWST-Deklaration ist nach dem
-Einreichen nur über eine Korrekturabrechnung rückgängig zu machen — deshalb
-erst buchen, dann prüfen, dann deklarieren.
+**Ab 2026 (App-Lauf):** im Screen «Jahrgang abschreiben» → «Lauf zurücknehmen».
+Das löscht beide Buchungen je Rechnung und setzt den Status aus
+`abschreibung_positionen.status_vorher` zurück; der Lauf bleibt als
+`zurueckgenommen` stehen. Per SQL dasselbe: `SELECT abschreibung_lauf_zuruecknehmen('<lauf-id>')`
+als angemeldeter Nutzer. Delkredere-Buchung separat stornieren.
+
+**2019 (SQL-Lauf, Abschluss 2025):** Buchungen mit `notizen LIKE 'Jahresabschluss
+2025 Schritt A%'` löschen, Rechnungsstatus aus `snapshot_jahresabschluss_2025`
+zurücksetzen, `JA2025_A_MWST` stornieren — der nachgetragene Lauf ist in der
+App bewusst nicht zurücknehmbar (`ruecknahme_moeglich = false`).
+
+Die MWST-Deklaration ist nach dem Einreichen nur über eine Korrekturabrechnung
+rückgängig zu machen — deshalb erst buchen, dann prüfen, dann deklarieren.
 
 ---
 
