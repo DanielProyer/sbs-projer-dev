@@ -1,7 +1,7 @@
 # Abschreibung offener Rechnungen — jahrgangsweise, mit MWST-Rückholung
 
 **Stand:** 19.09.2026 · Grundlage: Datenbank vom selben Tag, ESTV-Abrechnungen Q4/2020, Q4/2022, Q2/2026, `docs/buchhaltung/jahresabschluss-2025.md`
-**Politik (Entscheid Daniel, 02.09.2026):** Jahrgang 2019 im Abschluss 2025, 2020 im Abschluss 2026, 2021 im 2027 usw.
+**Politik (Entscheid Daniel, 02.09.2026, präzisiert 19.09.2026):** Ein Jahrgang wird im Abschluss des Jahres abgeschrieben, in dem er verjährt — fünf Jahre nach der Leistung. Also 2019 im Abschluss 2025 (erledigt), **2020 und 2021 im Abschluss 2026**, 2022 im 2027, 2023 im 2028, 2024 im 2029, 2025 im 2030. Nie gestellte Rechnungen werden **nicht nachversendet** (Entscheid 19.09.2026); sie laufen in derselben Reihe mit.
 
 ---
 
@@ -113,45 +113,45 @@ dieselbe Periode.
 |---|---|
 | **Jetzt** | Nichts buchen. Liste ist bekannt (76 Rg). Bis Jahresende beobachten, ob doch eine Zahlung eintrifft (unwahrscheinlich). |
 | **Q3/2026-Abrechnung** (bis 30.11.2026) | **Ziff. 235: 2'076.00 netto, Zeile 302 (7.7 %) → 159.90** — die 2019er-Rückholung, Buchung `JA2025_A_MWST` liegt bereits vor. |
-| **Januar 2027**, vor der Q4/2026-Abrechnung | Jahrgang 2020 abschreiben, **datiert 31.12.2026**: 76 × (`3805 an 1100` netto + `2200 an 1100` MWST). Delkredere auf 5 % nachführen. Snapshot für Rollback. |
-| **Q4/2026-Abrechnung** (bis 28.02.2027) | **Ziff. 235: 6'699.87 netto, Zeile 302 (7.7 %) → 516.43.** Aufwand und Rückholung fallen so ins selbe Jahr — kein Periodenversatz wie bei 2019. |
-| **Abschlussprüfung 2026** | Regel «Offene Rechnungen älter als 5 Jahre» muss grün sein — siehe Abschnitt 5 zur Regelgrenze. |
+| **Januar 2027**, vor der Q4/2026-Abrechnung | Jahrgänge **2020 und 2021** abschreiben, **datiert 31.12.2026**: 160 × (`3805 an 1100` netto + `2200 an 1100` MWST) = 15'374.70 brutto. Delkredere auf 5 % nachführen. Snapshot für Rollback. |
+| **Q4/2026-Abrechnung** (bis 28.02.2027) | **Ziff. 235: 14'274.88 netto, Zeile 302 (7.7 %) → 1'099.82.** Aufwand und Rückholung fallen so ins selbe Jahr — kein Periodenversatz wie bei 2019. |
+| **Abschlussprüfung 2026** | Regel «Offene Rechnungen älter als 5 Jahre» ist danach grün — Regel und Politik stimmen seit dem 19.09.2026 überein. |
 
 Für die Folgejahre identisch mit verschobenem Jahrgang:
 
 | Abschluss | Jahrgang | Rg | brutto | MWST (Satz) |
 |---|---|---|---|---|
-| 2026 | 2020 | 76 | 7'216.30 | 516.43 (7.7 %) |
-| 2027 | 2021 | 84 | 8'158.40 | 583.39 (7.7 %) |
-| 2028 | 2022 | 188 | 18'217.50 | 1'302.76 (7.7 %) |
-| 2029 | 2023 | 154 | 17'217.85 | 1'228.85 (7.7 %) |
-| 2030 | 2024 | 228 | 25'221.40 | 1'918.40 (8.1 %) |
-| 2031 | 2025 | 289* | 30'327.10 | 2'266.10 (8.1 %) |
+| 2026 | 2020 + 2021 | 160 | 15'374.70 | 1'099.82 (7.7 %) |
+| 2027 | 2022 | 188 | 18'217.50 | 1'302.76 (7.7 %) |
+| 2028 | 2023 | 154 | 17'217.85 | 1'228.85 (7.7 %) |
+| 2029 | 2024 | 228 | 25'221.40 | 1'918.40 (8.1 %) |
+| 2030 | 2025 | 289* | 30'327.10 | 2'266.10 (8.1 %) |
 
 *\* 2025 enthält 35 App-Rechnungen vom Dezember 2025 im normalen Zahlungslauf — kein Altbestand.*
-*Stand 19.09.2026; die Zahlen sinken, wo bis dahin bezahlt oder nachfakturiert wird (Abschnitt 6).*
+*Stand 19.09.2026; die Zahlen sinken, wo bis dahin doch noch bezahlt wird.*
 
 ---
 
 ## 5. Zwei Regelfragen, die Daniel entscheidet
 
-**Politik «minus 6» oder «minus 5»?** Die Abschlussprüfung meldet Rechnungen
-als verjährt, sobald sie fünf Jahre vor dem Stichtag liegen. Per 31.12.2026
-sind das die Jahrgänge 2020 **und** 2021 (bis 30.12.2021). Die Politik
-«2021 erst im Abschluss 2027» ist konservativer als das Recht — die Regel bliebe
-2026 rot. Entweder Regel auf die Politik abstimmen (Grenze sechs Jahre) oder
-Politik auf die Regel (2020 + 2021 im Abschluss 2026: 160 Rg, 15'374.70,
-MWST 1'099.82).
+**Politik «minus 6» oder «minus 5»? — Entschieden 19.09.2026: minus 5.** Die
+Abschlussprüfung meldet Rechnungen als verjährt, sobald sie fünf Jahre vor dem
+Stichtag liegen; per 31.12.2026 sind das die Jahrgänge 2020 **und** 2021. Die
+ursprüngliche Lesart «2021 erst im Abschluss 2027» war konservativer als das
+Recht und hätte die Regel 2026 rot gelassen. Jetzt: 2020 + 2021 zusammen im
+Abschluss 2026 (160 Rg, 15'374.70, MWST 1'099.82). Regel und Politik stimmen
+überein; an der Prüfregel ändert sich nichts.
 
-**Werkzeug: App-Schritt oder SQL?** 2019 lief per SQL mit Snapshot. Die App
-hat einen `AbschreibungService`, der aber (1) den Satz des Buchungstages nimmt
-(für Jahrgänge falsch), (2) den Rechnungsstatus nicht setzt und (3) nur
-Pauschalbeträge kennt. Vorschlag: **«Jahrgang abschreiben» als geführter
-Schritt** aus der Abschlussprüfung heraus — Vorschau (Liste, Tresen / gestellt
-/ nie gestellt, Summe netto + MWST je Satz), Freigabe, Buchungen je Rechnung
-aus `rechnungen.mwst_betrag`, Status, Snapshot-Tabelle, und der Ziff.-235-Wert
-als Merker an der MWST-Abrechnung des Quartals. Einmal gebaut, jedes Jahr ein
-Klick statt 30 Minuten SQL mit Fehlerrisiko. Aufwand: ein Tag mit Tests.
+**Werkzeug: App-Schritt oder SQL? — Entschieden 19.09.2026: App-Schritt.**
+2019 lief per SQL mit Snapshot. Die App hat einen `AbschreibungService`, der
+aber (1) den Satz des Buchungstages nimmt (für Jahrgänge falsch), (2) den
+Rechnungsstatus nicht setzt und (3) nur Pauschalbeträge kennt. Umfang:
+**«Jahrgang abschreiben» als geführter Schritt** aus der Abschlussprüfung
+heraus — Vorschau (Liste, Tresen / gestellt / nie gestellt, Summe netto + MWST
+je Satz), Freigabe, Buchungen je Rechnung aus `rechnungen.mwst_betrag`, Status,
+Snapshot-Tabelle, und der Ziff.-235-Wert als Merker an der MWST-Abrechnung des
+Quartals. Einmal gebaut, jedes Jahr ein Klick statt 30 Minuten SQL mit
+Fehlerrisiko. Aufwand: ein Tag mit Tests. **Zu bauen vor Januar 2027.**
 
 ---
 
@@ -181,21 +181,13 @@ die MWST darauf ist deklariert. Beim Nachversand entsteht keine neue Steuer —
 die Rechnung existiert bereits, sie wird nur zugestellt. Zum Satz der Leistung
 (2023: 7.7 %, ab 2024: 8.1 %) — die Rechnungen tragen ihn schon.
 
-Optionen, nach Jahrgang abgestuft — **Entscheid Daniel**:
-
-- **2024 und 2025:** nachversenden. Ein bis zwei Jahre alte Rechnungen für
-  erbrachte Reinigungen sind beim Kunden erklärbar («Nachlieferung aus der
-  Umstellung auf das neue System»). Etwa 216 Rechnungen, ~23'800 CHF bei
-  aktiven Zahlern.
-- **2023:** Ermessen. Drei Jahre alt; bei guten Kunden vertretbar, mit kurzem
-  Begleitsatz. 71 Rechnungen, ~8'350 CHF.
-- **2021 und 2022:** abschreiben wie geplant. Vier bis fünf Jahre alte
-  Rechnungen erzeugen mehr Ärger als Ertrag; 2021 ist ohnehin verjährt.
-- **Nie-gestellt bei inaktiven Betrieben** (alle Jahrgänge): abschreiben.
-
-Was auch immer gewählt wird: **Zuerst entscheiden, dann abschreiben.** Eine
-2024er-Rechnung, die im Abschluss 2030 fällig zur Abschreibung wäre, kann man
-2026 noch stellen; umgekehrt nicht.
+**Entscheid Daniel, 19.09.2026: nichts nachversenden.** Alle nie gestellten
+Rechnungen bleiben in der jahrgangsweisen Abschreibung — 2023 im Abschluss
+2028, 2024 im 2029, 2025 im 2030. Die Zahlen oben bleiben als Grundlage
+stehen: Der Entscheid ist bis zur jeweiligen Abschreibung umkehrbar, eine
+2024er-Rechnung lässt sich bis Ende 2029 stellen. Was zur Wahl stand — 2024
+und 2025 nachversenden (~216 Rg, ~23'800 CHF), zusätzlich 2023 (~71 Rg,
+~8'350 CHF) — ist damit nicht verworfen, sondern vertagt.
 
 ---
 

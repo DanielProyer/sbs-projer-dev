@@ -14,6 +14,7 @@
 |---|---|---|
 | **Steuererklärung 2025** | **30.09.2026** | Lohnausweis und Jahresrechnung liegen in der App. **Es fehlt nur der GKB Zins-/Kapitalausweis per 31.12.2025** — bei der Bank holen. Dann Formular 11a (Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht». |
 | **AXA-Zahlung** | überfällig | Vorgesehen 4'467.90, **offen 8'935.80** (Q1+Q2/2026). |
+| **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | Rückholung der 2019er-Abschreibung: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90**. Buchung `JA2025_A_MWST` liegt im Journal. Im Portal prüfen, ob Zeile 302 eine reduzierende Eingabe annimmt; sonst ESTV-Hotline. |
 
 ### ☎️ Ein Nachmittag Telefonate: die eine Lohnsumme
 
@@ -66,7 +67,16 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 🔨 Bauen, wenn wieder Zeit ist
 
-Nichts davon drängt. Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet.
+Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet. Eines drängt sanft:
+
+- **«Jahrgang abschreiben» als App-Schritt** (Entscheid Daniel 19.09.2026, **vor
+  Januar 2027**): Vorschau mit Aufteilung Tresen / gestellt / nie gestellt,
+  Freigabe, Buchungen je Rechnung mit der tatsächlich abgelieferten MWST aus
+  `rechnungen.mwst_betrag` — **nicht** der Satz des Buchungstages, den der
+  bestehende `AbschreibungService` nimmt und der für 2020 542.69 statt 516.43
+  ergäbe —, Status `abgeschrieben`, Snapshot, Ziff.-235-Merker. Erster Einsatz:
+  Jahrgänge 2020 + 2021 per 31.12.2026 (160 Rg, 15'374.70, MWST 1'099.82).
+  Konzept: `docs/buchhaltung/abschreibungen-jahrgaenge.md`. Aufwand ein Tag.
 
 - **Ausbau Aufgaben:** Aufgaben ↔ Kalender/Tourenplan verknüpfen; echte
   Zeiterfassung für Störung/Montage statt Schätzung (braucht Entscheid Daniel).
@@ -79,6 +89,25 @@ Nichts davon drängt. Die App-Analyse (A1–A9, B1–B7) ist vollständig abgear
 - **BACKLOG ohne Zeitdruck:** GIS-Regionen-Polygone, Beta-Testing auf echten
   Geräten, Beleg-Foto-Optimierung, Bulk-Sync Handy-Kontakte, Termin-Erinnerungen
   Folge-Tests. Vollständig im Archiv.
+
+### 📒 Abschluss 2026 — Entscheide vom 19.09.2026
+
+Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
+
+- **Politik «minus 5»:** Ein Jahrgang wird im Abschluss des Jahres abgeschrieben,
+  in dem er verjährt → **2020 und 2021 im Abschluss 2026**, danach 2022/2027,
+  2023/2028, 2024/2029, 2025/2030. Stimmt mit der Prüfregel überein.
+- **Nie gestellte Rechnungen werden nicht nachversendet** — auch nicht die rund
+  32'000 CHF bei aktiven Zahlern aus 2023–2025 (ab 2023 wurden praktisch keine
+  Mail/Post-Rechnungen mehr gestellt, Excel `rechnung_gestellt`: 2024 null).
+  Umkehrbar bis zur jeweiligen Abschreibung; eine 2024er-Rechnung ist bis Ende
+  2029 stellbar.
+- **MWST-Rückholung ist zulässig:** ESTV Q4/2020 deklarierte 28'855 brutto gegen
+  29'147 im Journal — Abrechnung nach vereinbarten Entgelten, die Steuer auf die
+  offenen Rechnungen wurde abgeliefert. Satz der Leistung (7.7 % bis 2023),
+  Zeile 302 im Formular existiert noch.
+- **Ablauf Januar 2027:** Abschreibung datiert 31.12.2026 → Delkredere 5 % →
+  Q4/2026 Ziff. 235 14'274.88 netto, Zeile 302 → 1'099.82 → Abschlussprüfung grün.
 
 ### 🔭 Beobachten
 
