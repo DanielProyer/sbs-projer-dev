@@ -54,6 +54,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_form_scr
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/berichte_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/auswertung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/audit_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/jahrgang_abschreiben_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/monatsabschluss_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/steuern/steuerjahr_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/steuern/steuern_screen.dart';
@@ -512,6 +513,14 @@ final router = GoRouter(
       // ?jahr= wählt das Prüfjahr vor; der Screen prüft es und fällt bei
       // Unsinn aufs laufende Jahr zurück.
       builder: (context, state) => AuditScreen(
+        jahr: int.tryParse(state.uri.queryParameters['jahr'] ?? ''),
+      ),
+    ),
+    GoRoute(
+      // Abschluss-Schritt «Jahrgang abschreiben» — aus der Abschlussprüfung
+      // heraus (Regel «Offene Rechnungen älter als 5 Jahre»).
+      path: '/buchhaltung/abschreibung',
+      builder: (context, state) => JahrgangAbschreibenScreen(
         jahr: int.tryParse(state.uri.queryParameters['jahr'] ?? ''),
       ),
     ),

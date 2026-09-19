@@ -307,8 +307,12 @@ class DebitorenVerjaehrtRegel extends AbschlussRegel {
       alt.isEmpty ? PruefStatus.gruen : PruefStatus.rot,
       ist: '${alt.length} Rechnungen · ${chf(summe)}',
       soll: '0',
-      hinweis: alt.isEmpty ? '' : 'Verjährt (Art. 128 OR) — abschreiben.',
-      route: '/rechnungen',
+      hinweis: alt.isEmpty
+          ? ''
+          : 'Verjährt (Art. 128 OR) — Schritt «Jahrgang abschreiben».',
+      // Der geführte Schritt bucht alle auf einmal (seit v0.116.0); vorher
+      // zeigte die Regel bloss auf die Rechnungsliste.
+      route: '/buchhaltung/abschreibung?jahr=${k.jahr}',
     );
   }
 }
@@ -580,7 +584,6 @@ class GeschaeftsjahrDatumRegel extends AbschlussRegel {
     );
   }
 }
-
 
 /// Sozialversicherungs-Rechnungen, die gegen den Kreditor 2000 in den Aufwand
 /// gebucht wurden.

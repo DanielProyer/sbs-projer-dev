@@ -10,6 +10,8 @@ import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
+import 'package:sbs_projer_app/presentation/providers/abschreibung_providers.dart';
 
 class MwstAbrechnungScreen extends ConsumerStatefulWidget {
   const MwstAbrechnungScreen({super.key});
@@ -61,6 +63,16 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),
         data: (rows) {
+          final entgeltsminderungen =
+              (ref.watch(abschreibungLaeufeProvider).valueOrNull ??
+                      const <AbschreibungLauf>[])
+                  .where(
+                    (l) =>
+                        l.gebucht &&
+                        l.mwstJahr == _jahr &&
+                        l.mwstQuartal == _quartal,
+                  )
+                  .toList();
           final sel = rows.firstWhere(
             (r) => r['quartal'] == _quartal,
             orElse: () => <String, dynamic>{},
@@ -106,6 +118,37 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
                         umsatzsteuer,
                         AppColors.error,
                       ),
+                      // Abschreibungsläufe, deren MWST-Rückholung in dieses
+                      // Quartal gehört (Ziff. 235 Entgeltsminderung). Die
+                      // Umsatzsteuer oben ist um die Rückholung schon
+                      // reduziert (2200 im Soll); im Formular wird sie über
+                      // Ziff. 235 hergeleitet — beides muss zusammen.
+                      for (final l in entgeltsminderungen) ...[
+                        _z(
+                          'Entgeltsminderung (Ziff. 235)',
+                          l.netto,
+                          AppColors.info,
+                        ),
+                        _z(
+                          'Rückholung ${l.satz} %'
+                          '${_formularZeile(l.satz)}',
+                          l.mwst,
+                          AppColors.success,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            'Abschreibung Jahrgang '
+                            '${l.jahrgaenge.join(', ')} '
+                            '(Abschluss ${l.geschaeftsjahr}, '
+                            '${l.anzahl} Rechnungen)',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       _z(
                         'Vorsteuer Material (Ziff. 400)',
@@ -220,19 +263,29 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
 
   static double _d(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
 
+  /// Zeile im ESTV-Formular (Stand Q2/2026): 302 = 7.7 %, 303 = 8.1 %.
+  static String _formularZeile(double satz) => switch (satz) {
+    7.7 => ' (Zeile 302)',
+    8.1 => ' (Zeile 303)',
+    _ => '',
+  };
+
   Widget _z(String label, double betrag, Color color, {bool bold = false}) =>
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-                fontSize: 14,
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                  fontSize: 14,
+                ),
               ),
             ),
+            const SizedBox(width: 8),
             Text(
               '${chf(betrag)} CHF',
               style: TextStyle(

@@ -44,15 +44,19 @@ class MahnwesenService {
     bool mailSenden = false,
   }) async {
     final betrieb = await BetriebRepository.getByServerId(
-        rechnung.betriebId ?? '');
+      rechnung.betriebId ?? '',
+    );
     if (betrieb == null) throw Exception('Betrieb nicht gefunden');
 
     BetriebRechnungsadresse? ra;
     final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
-        rechnung.betriebId ?? '');
+      rechnung.betriebId ?? '',
+    );
     if (raLocal != null) {
-      ra = BetriebRechnungsadresseMapper.toDto(raLocal,
-        betriebId: rechnung.betriebId ?? '');
+      ra = BetriebRechnungsadresseMapper.toDto(
+        raLocal,
+        betriebId: rechnung.betriebId ?? '',
+      );
     }
 
     // 1. PDF generieren
@@ -93,34 +97,44 @@ class MahnwesenService {
       final subject = '$titel - Rechnung $rgNr';
       final bodyText = _mailText(mahnStufe, rgNr);
 
-      await SupabaseService.client.functions.invoke('send-rechnung-mail',
-          body: {
-            'to': empfaenger,
-            'subject': subject,
-            'bodyText': bodyText,
-            'rechnungId': rechnung.id,
-            'pdfPath': 'mahnung_$mahnStufe.pdf',
-            'userId': SupabaseService.dataUserId,
-          });
+      await SupabaseService.client.functions.invoke(
+        'send-rechnung-mail',
+        body: {
+          'to': empfaenger,
+          'subject': subject,
+          'bodyText': bodyText,
+          'rechnungId': rechnung.id,
+          'pdfPath': 'mahnung_$mahnStufe.pdf',
+          'userId': SupabaseService.dataUserId,
+        },
+      );
 
       debugPrint('[Mahnwesen] $titel Mail an $empfaenger gesendet');
     }
 
-    debugPrint('[Mahnwesen] ${titelFuerStufe(mahnStufe)} für ${rechnung.rechnungsnummer} erstellt');
+    debugPrint(
+      '[Mahnwesen] ${titelFuerStufe(mahnStufe)} für ${rechnung.rechnungsnummer} erstellt',
+    );
   }
 
   /// Rechnung abschreiben + Debitorenverlust korrekt buchen (netto + MWST-Rückholung).
   static Future<void> abschreiben(Rechnung rechnung) async {
-    await RechnungRepository.update(rechnung.id, {'zahlungsstatus': 'abgeschrieben'});
+    await RechnungRepository.update(rechnung.id, {
+      'zahlungsstatus': 'abgeschrieben',
+    });
     await AbschreibungService.abschreiben(
       brutto: (rechnung.betragBrutto * 20).roundToDouble() / 20,
+      // Steuer der Rechnung, nicht Satz des Datums (Altjahrgänge!).
+      mwst: rechnung.mwstBetrag,
       datum: rechnung.rechnungsdatum,
       beschreibung:
           'Debitorenverlust ${rechnung.rechnungsnummer ?? rechnung.id.substring(0, 8)} (abgeschrieben)',
       belegnummer: rechnung.rechnungsnummer,
       belegId: rechnung.id,
     );
-    debugPrint('[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben (mit MWST-Rückholung)');
+    debugPrint(
+      '[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben (mit MWST-Rückholung)',
+    );
   }
 
   static String _mailText(int stufe, String rgNr) {
