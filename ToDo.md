@@ -2,7 +2,44 @@
 
 ## 📌 SESSION-ÜBERGABE 15.09.2026
 
-**Stand:** **v0.113.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1689 Tests grün** · Git sauber.
+**Stand:** **v0.114.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1694 Tests grün** · Git sauber.
+
+### ✅ B7 — Löschbestätigungen CanvasKit-sicher, mit Wächter (v0.114.0, 19.09.)
+
+Die CLAUDE.md-Regel «kritische Aktionen nicht aus Material-Buttons» stand
+bisher nur als **Text** da. Jetzt erzwingt sie ein Test.
+
+`TapKnopf` bekommt **`gefahr: true`** — rot, sonst unverändert. Kein zweites
+Widget: B7 wollte **einen** Knopf für alle Typen, und `TapKnopf` ist seit
+v0.99.13 schon die sichere Bauart.
+
+**26 destruktive Bestätigungen in 18 Dateien** umgestellt (Löschen,
+Stornieren, Verwerfen, Abschreiben, Rückgängig) — plus eine 27. in
+`heineken_rechnung_detail`, einen TextButton mit roter Schrift, **den erst
+der Wächter fand**.
+
+**Warum eng gefasst:** Der Wächter greift nur bei Buttons, die sich über
+`AppColors.error` selbst als destruktiv ausweisen. Die übrigen rund 180
+`FilledButton` im Bestand bleiben unangetastet — bei einem Speichern-Knopf
+merkt man den Ausfall sofort, bei einer Löschbestätigung steht man vor einem
+Dialog, der sich scheinbar nicht bedienen lässt.
+
+**Nebenbefund aus der Sichtprüfung:** Die neue Fassung ist **kompakter** —
+Abbrechen und Löschen passen nebeneinander, der alte Material-Button brach
+auf eine eigene Zeile um.
+
+Der zweite Teil von B7 («Arbeit beenden» für alle Typen) war **schon
+erledigt**: `ArbeitBeendenKnopf` gibt es seit 11.08., Montage und Störung
+nutzen ihn, Reinigungen haben ihren eigenen Abschluss-Dialog.
+
+⚠️ **Panne beim Bauen, korrigiert:** Ein `dart format lib` über das ganze
+Verzeichnis hat 367 statt 19 Dateien umformatiert und dabei 14 neue
+Analyse-Meldungen erzeugt. Zurückgesetzt und nur die betroffenen Dateien
+formatiert. **Lehre:** `dart format` immer auf die Liste der geänderten
+Dateien anwenden, nie auf `lib`.
+
+**Klicktest Daniel:** Irgendwo etwas löschen (z. B. einen Kontakt) — ist der
+rote Knopf da und reagiert er?
 
 ### ✅ B5 — Wochenleiste in einer Zeile, und die KW war falsch (v0.113.0, 19.09.)
 
