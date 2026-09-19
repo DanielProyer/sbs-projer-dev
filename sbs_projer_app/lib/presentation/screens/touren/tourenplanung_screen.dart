@@ -36,6 +36,7 @@ import 'package:sbs_projer_app/presentation/widgets/touren/saison_termine_sektio
 import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/war_geschlossen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
+import 'package:sbs_projer_app/presentation/screens/touren/widgets/wochen_leiste.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
   const TourenplanungScreen({super.key});
@@ -113,10 +114,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     });
   }
 
-  int _weekNumber(DateTime date) {
-    final firstDayOfYear = DateTime(date.year, 1, 1);
-    final days = date.difference(firstDayOfYear).inDays;
-    return ((days + firstDayOfYear.weekday - 1) / 7).ceil() + 1;
+  /// Liegen beide Daten in derselben Kalenderwoche?
+  bool _gleicheWoche(DateTime a, DateTime b) {
+    final montagA = a.subtract(Duration(days: a.weekday - 1));
+    final montagB = b.subtract(Duration(days: b.weekday - 1));
+    return gleicherTag(montagA, montagB);
   }
 
   @override
@@ -243,8 +245,19 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tourenplanung'),
+        // Der Titel trägt die Woche, seit die Leiste darunter nur noch die
+        // Tage zeigt (B5). «Tourenplanung» sagte nichts, was die
+        // Navigationsleiste nicht schon zeigt.
+        title: Text(wochenTitel(_weekStart)),
         actions: [
+          // Zurück zur laufenden Woche. Wer ein paar Wochen vorausgeblättert
+          // hat, kam bisher nur über die Pfeile zurück.
+          if (!_gleicheWoche(_selectedDate, DateTime.now()))
+            IconButton(
+              tooltip: 'Zur heutigen Woche',
+              onPressed: () => _selectDay(DateTime.now()),
+              icon: const Icon(Icons.today),
+            ),
           // Aktualisieren — für den PC, wo es keine Zieh-Geste gibt.
           IconButton(
             tooltip: 'Daten neu laden',
@@ -274,20 +287,16 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       ),
       body: Column(
         children: [
-          // Wochen-Navigation
-          _WeekNavigator(
-            weekStart: _weekStart,
-            weekNumber: _weekNumber(_selectedDate),
-            onPrevious: () => _changeWeek(-1),
-            onNext: () => _changeWeek(1),
-          ),
-
-          // Tages-Chips
-          _DayChips(
+          // Wochenwechsel und Tageswahl in EINER Zeile (B5, v0.113.0) — die
+          // Woche steht im AppBar-Titel. Vorher zwei Zeilen à rund 130 px
+          // zusammen, die der Zeitachse fehlten.
+          WochenLeiste(
             weekStart: _weekStart,
             selectedDate: _selectedDate,
-            onSelect: _selectDay,
             counts: dayCounts,
+            onPrevious: () => _changeWeek(-1),
+            onNext: () => _changeWeek(1),
+            onSelect: _selectDay,
           ),
 
           const Divider(height: 1),
@@ -405,8 +414,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                               )
                             : ListView.builder(
                                 physics: const AlwaysScrollableScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
                                 itemCount: angezeigtFaellig.length,
                                 itemBuilder: (_, i) {
                                   final e = angezeigtFaellig[i];
@@ -854,165 +864,6 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         context.push('/montagen/$id');
         break;
     }
-  }
-}
-
-// ─── Wochen-Navigation ───
-
-class _WeekNavigator extends StatelessWidget {
-  final DateTime weekStart;
-  final int weekNumber;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
-
-  const _WeekNavigator({
-    required this.weekStart,
-    required this.weekNumber,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final weekEnd = weekStart.add(const Duration(days: 5));
-    final df = DateFormat('d.');
-    final mf = DateFormat('d. MMM yyyy', 'de_CH');
-
-    final label = weekStart.month == weekEnd.month
-        ? '${df.format(weekStart)}–${mf.format(weekEnd)}'
-        : '${df.format(weekStart)} ${DateFormat('MMM', 'de_CH').format(weekStart)} – ${mf.format(weekEnd)}';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: AppColors.primary.withAlpha(15),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: onPrevious,
-            tooltip: 'Vorherige Woche',
-          ),
-          Text(
-            'KW $weekNumber · $label',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: onNext,
-            tooltip: 'Nächste Woche',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Tages-Chips ───
-
-class _DayChips extends StatelessWidget {
-  final DateTime weekStart;
-  final DateTime selectedDate;
-  final void Function(DateTime) onSelect;
-  final List<int> counts;
-
-  const _DayChips({
-    required this.weekStart,
-    required this.selectedDate,
-    required this.onSelect,
-    required this.counts,
-  });
-
-  static const _dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-
-  @override
-  Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(6, (i) {
-          final day = weekStart.add(Duration(days: i));
-          final isSelected =
-              day.year == selectedDate.year &&
-              day.month == selectedDate.month &&
-              day.day == selectedDate.day;
-          final isToday =
-              day.year == todayDate.year &&
-              day.month == todayDate.month &&
-              day.day == todayDate.day;
-          final count = counts[i];
-
-          return GestureDetector(
-            onTap: () => onSelect(day),
-            child: Container(
-              width: 52,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary
-                    : isToday
-                    ? AppColors.primary.withAlpha(25)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-                border: isToday && !isSelected
-                    ? Border.all(color: AppColors.primary, width: 1.5)
-                    : null,
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    _dayLabels[i],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? Colors.white
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${day.day}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  if (count > 0) ...[
-                    const SizedBox(height: 2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.white.withAlpha(50)
-                            : AppColors.info.withAlpha(25),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$count',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : AppColors.info,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
   }
 }
 
@@ -1491,8 +1342,9 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     // noch nicht begonnen), rechnet sie mit dem geplanten Beginn, und erst
     // danach mit dem ersten gemessenen Ereignis bzw. dem 06:00-Standard.
     // Beide Werte standen bis Migration 191 in derselben Spalte.
-    final gespeicherterTag =
-        ref.watch(gespeicherterTagesplanProvider(widget.datum)).valueOrNull;
+    final gespeicherterTag = ref
+        .watch(gespeicherterTagesplanProvider(widget.datum))
+        .valueOrNull;
     final erfassterBeginn =
         gespeicherterTag?.arbeitsbeginn ?? gespeicherterTag?.planBeginn;
     final ersterIstStart = istZeiten.isEmpty
