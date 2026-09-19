@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class HeinekenRechnungDetailScreen extends ConsumerStatefulWidget {
   final String rechnungId;
@@ -74,9 +75,11 @@ class _HeinekenRechnungDetailScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF nicht verfügbar: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF nicht verfügbar: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -120,7 +123,11 @@ class _HeinekenRechnungDetailScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Generierung fehlgeschlagen: $e')),
+          SnackBar(
+            content: Text(
+              'PDF-Generierung fehlgeschlagen: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
         );
       }
     } finally {
@@ -194,7 +201,7 @@ class _HeinekenRechnungDetailScreenState
           SnackBar(
             backgroundColor: AppColors.error,
             content: Text(
-              'Mail-Versand fehlgeschlagen: $e',
+              'Mail-Versand fehlgeschlagen: ${kurzeFehlermeldung(e)}',
               style: const TextStyle(color: Colors.white),
             ),
             duration: const Duration(seconds: 8),
@@ -230,9 +237,11 @@ class _HeinekenRechnungDetailScreenState
         ref.invalidate(buchungenStreamProvider);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Buchung fehlgeschlagen: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Buchung fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+            ),
+          );
         }
       }
     }
@@ -257,7 +266,9 @@ class _HeinekenRechnungDetailScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Zahlungseingang-Buchung fehlgeschlagen: $e'),
+              content: Text(
+                'Zahlungseingang-Buchung fehlgeschlagen: ${kurzeFehlermeldung(e)}',
+              ),
             ),
           );
         }

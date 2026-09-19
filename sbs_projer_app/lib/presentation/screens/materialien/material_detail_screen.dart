@@ -17,6 +17,7 @@ import 'package:sbs_projer_app/data/repositories/material_kategorie_repository.d
 import 'package:sbs_projer_app/data/repositories/material_verbrauch_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class MaterialDetailScreen extends ConsumerWidget {
   final String materialId;
@@ -71,7 +72,7 @@ class _MaterialDetailContentState
   List<MaterialVerbrauch>? _verbrauch;
   bool _loadingVerbrauch = true;
   MaterialArtikel? _artikel;
-  String? _previewUrl;   // Geringe Auflösung (für Vorschaukarte)
+  String? _previewUrl; // Geringe Auflösung (für Vorschaukarte)
   bool _uploadingFoto = false;
 
   bool get _hasManualKategorie =>
@@ -96,14 +97,16 @@ class _MaterialDetailContentState
       }
       // Artikel-Foto laden (nur Preview für schnelles Laden)
       if (_lager.materialId != null) {
-        final artikel =
-            await MaterialArtikelRepository.getById(_lager.materialId!);
+        final artikel = await MaterialArtikelRepository.getById(
+          _lager.materialId!,
+        );
         if (artikel != null && artikel.fotoStoragePath != null && mounted) {
           try {
             // Nur Preview laden — HighRes erst bei Tap auf Vollbild
             final previewUrl =
                 await MaterialArtikelRepository.getSignedUrlPreview(
-                    artikel.fotoStoragePath!);
+                  artikel.fotoStoragePath!,
+                );
             if (mounted) {
               setState(() {
                 _artikel = artikel;
@@ -117,8 +120,7 @@ class _MaterialDetailContentState
           setState(() => _artikel = artikel);
         }
       }
-      final verbrauch =
-          await MaterialVerbrauchRepository.getByLager(_lager.id);
+      final verbrauch = await MaterialVerbrauchRepository.getByLager(_lager.id);
       if (mounted) {
         setState(() {
           _verbrauch = verbrauch;
@@ -161,7 +163,9 @@ class _MaterialDetailContentState
             IconButton(
               icon: const Icon(Icons.remove_circle_outline),
               tooltip: 'Bestand −1',
-              color: _lager.bestandAktuell > 0 ? AppColors.error : AppColors.textSecondary.withAlpha(80),
+              color: _lager.bestandAktuell > 0
+                  ? AppColors.error
+                  : AppColors.textSecondary.withAlpha(80),
               onPressed: _lager.bestandAktuell > 0 ? _decrementBestand : null,
             ),
             IconButton(
@@ -186,94 +190,107 @@ class _MaterialDetailContentState
           if (_artikel != null) _buildFotoCard(),
 
           // Bestand-Card
-          _SectionCard(children: [
-            const Text('Bestand',
-                style:
-                    TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: ratio,
-                minHeight: 12,
-                backgroundColor: AppColors.textSecondary.withAlpha(30),
-                color: isNiedrig ? AppColors.error : AppColors.success,
+          _SectionCard(
+            children: [
+              const Text(
+                'Bestand',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                GestureDetector(
-                  onTap: SupabaseService.isGuest ? null : _showBestandDialog,
-                  child: Text(
-                    '${_lager.bestandAktuell.toStringAsFixed(0)} ${_lager.einheit}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isNiedrig ? AppColors.error : AppColors.success,
-                      decoration: SupabaseService.isGuest ? null : TextDecoration.underline,
-                      decorationColor: isNiedrig ? AppColors.error : AppColors.success,
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: ratio,
+                  minHeight: 12,
+                  backgroundColor: AppColors.textSecondary.withAlpha(30),
+                  color: isNiedrig ? AppColors.error : AppColors.success,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: SupabaseService.isGuest ? null : _showBestandDialog,
+                    child: Text(
+                      '${_lager.bestandAktuell.toStringAsFixed(0)} ${_lager.einheit}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isNiedrig ? AppColors.error : AppColors.success,
+                        decoration: SupabaseService.isGuest
+                            ? null
+                            : TextDecoration.underline,
+                        decorationColor: isNiedrig
+                            ? AppColors.error
+                            : AppColors.success,
+                      ),
                     ),
                   ),
-                ),
-                Text(
-                  'Mindest: ${_lager.bestandMindest.toStringAsFixed(0)} · '
-                  'Optimal: ${_lager.bestandOptimal.toStringAsFixed(0)}',
-                  style: TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-            if (isNiedrig) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withAlpha(20),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning,
-                        size: 16, color: AppColors.error),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Bestand niedrig – nachbestellen!',
-                      style: TextStyle(
+                  Text(
+                    'Mindest: ${_lager.bestandMindest.toStringAsFixed(0)} · '
+                    'Optimal: ${_lager.bestandOptimal.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              if (isNiedrig) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, size: 16, color: AppColors.error),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Bestand niedrig – nachbestellen!',
+                        style: TextStyle(
                           color: AppColors.error,
                           fontWeight: FontWeight.w600,
-                          fontSize: 13),
-                    ),
-                  ],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
-          ]),
+          ),
           const SizedBox(height: 12),
 
           // Info-Card
-          _SectionCard(children: [
-            const Text('Details',
-                style:
-                    TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 8),
-            if (_kategorieName != null)
-              _InfoRow('Kategorie', _kategorieName!),
-            _InfoRow('Einheit', _lager.einheit),
-            if (_lager.einheit == 'Packung' && _lager.stueckProPackung != null)
-              _InfoRow('Stück/Packung', '${_lager.stueckProPackung}'),
-            if (_lager.dboNr != null)
-              _InfoRow('DBO-Nr.', _lager.dboNr!),
-            if (_lager.sapNr != null)
-              _InfoRow('SAP-Nr.', _lager.sapNr!),
-            if (_lager.beschreibung != null &&
-                _lager.beschreibung!.isNotEmpty)
-              _InfoRow('Beschreibung', _lager.beschreibung!),
-            if (_lager.notizen != null && _lager.notizen!.isNotEmpty)
-              _InfoRow('Notizen', _lager.notizen!),
-          ]),
+          _SectionCard(
+            children: [
+              const Text(
+                'Details',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              if (_kategorieName != null)
+                _InfoRow('Kategorie', _kategorieName!),
+              _InfoRow('Einheit', _lager.einheit),
+              if (_lager.einheit == 'Packung' &&
+                  _lager.stueckProPackung != null)
+                _InfoRow('Stück/Packung', '${_lager.stueckProPackung}'),
+              if (_lager.dboNr != null) _InfoRow('DBO-Nr.', _lager.dboNr!),
+              if (_lager.sapNr != null) _InfoRow('SAP-Nr.', _lager.sapNr!),
+              if (_lager.beschreibung != null &&
+                  _lager.beschreibung!.isNotEmpty)
+                _InfoRow('Beschreibung', _lager.beschreibung!),
+              if (_lager.notizen != null && _lager.notizen!.isNotEmpty)
+                _InfoRow('Notizen', _lager.notizen!),
+            ],
+          ),
           const SizedBox(height: 12),
 
           // Manual-PDF (nur für bestimmte Kategorien)
@@ -283,15 +300,18 @@ class _MaterialDetailContentState
           ],
 
           // Verbrauchshistorie
-          _SectionCard(children: [
-            const Text('Verbrauchshistorie',
-                style:
-                    TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 8),
-            if (_loadingVerbrauch)
-              const Center(child: CircularProgressIndicator())
-            else if (_verbrauch != null && _verbrauch!.isNotEmpty)
-              ..._verbrauch!.map((v) => Padding(
+          _SectionCard(
+            children: [
+              const Text(
+                'Verbrauchshistorie',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              if (_loadingVerbrauch)
+                const Center(child: CircularProgressIndicator())
+              else if (_verbrauch != null && _verbrauch!.isNotEmpty)
+                ..._verbrauch!.map(
+                  (v) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
@@ -313,16 +333,21 @@ class _MaterialDetailContentState
                               ? _formatDate(v.verbrauchtAm!)
                               : '',
                           style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary),
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
-                  ))
-            else
-              Text('Noch kein Verbrauch',
-                  style: TextStyle(color: AppColors.textSecondary)),
-          ]),
+                  ),
+                )
+              else
+                Text(
+                  'Noch kein Verbrauch',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -330,40 +355,50 @@ class _MaterialDetailContentState
 
   Widget _buildManualCard() {
     final hasManual = _lager.manualStoragePath != null;
-    return _SectionCard(children: [
-      Row(
-        children: [
-          const Icon(Icons.picture_as_pdf, size: 20),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text('Manual / Anleitung',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          ),
-          if (hasManual && !SupabaseService.isGuest)
-            IconButton(
-              icon: Icon(Icons.delete_outline, size: 20, color: AppColors.error),
-              tooltip: 'Manual löschen',
-              onPressed: _deleteManual,
+    return _SectionCard(
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.picture_as_pdf, size: 20),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Manual / Anleitung',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
             ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      if (hasManual)
-        OutlinedButton.icon(
-          onPressed: _openManual,
-          icon: const Icon(Icons.open_in_new, size: 18),
-          label: const Text('Manual öffnen'),
-        )
-      else if (!SupabaseService.isGuest)
-        OutlinedButton.icon(
-          onPressed: _uploadManual,
-          icon: const Icon(Icons.upload_file, size: 18),
-          label: const Text('PDF hochladen'),
-        )
-      else
-        Text('Kein Manual vorhanden',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-    ]);
+            if (hasManual && !SupabaseService.isGuest)
+              IconButton(
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: 20,
+                  color: AppColors.error,
+                ),
+                tooltip: 'Manual löschen',
+                onPressed: _deleteManual,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (hasManual)
+          OutlinedButton.icon(
+            onPressed: _openManual,
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('Manual öffnen'),
+          )
+        else if (!SupabaseService.isGuest)
+          OutlinedButton.icon(
+            onPressed: _uploadManual,
+            icon: const Icon(Icons.upload_file, size: 18),
+            label: const Text('PDF hochladen'),
+          )
+        else
+          Text(
+            'Kein Manual vorhanden',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+      ],
+    );
   }
 
   Future<void> _uploadManual() async {
@@ -381,14 +416,16 @@ class _MaterialDetailContentState
       final updated = await LagerRepository.getById(_lager.id);
       if (mounted && updated != null) {
         setState(() => _lager = updated);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Manual hochgeladen')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Manual hochgeladen')));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Upload: $e')),
+          SnackBar(
+            content: Text('Fehler beim Upload: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     }
@@ -397,13 +434,14 @@ class _MaterialDetailContentState
   Future<void> _openManual() async {
     if (_lager.manualStoragePath == null) return;
     try {
-      final url =
-          await LagerRepository.getManualSignedUrl(_lager.manualStoragePath!);
+      final url = await LagerRepository.getManualSignedUrl(
+        _lager.manualStoragePath!,
+      );
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -417,30 +455,31 @@ class _MaterialDetailContentState
         title: const Text('Manual löschen?'),
         actions: [
           TextButton(
-              onPressed: () => ctx.pop(false),
-              child: const Text('Abbrechen')),
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
-              onPressed: () => ctx.pop(true),
-              child: const Text('Löschen')),
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
         ],
       ),
     );
     if (confirmed != true) return;
 
     try {
-      await LagerRepository.deleteManual(
-          _lager.id, _lager.manualStoragePath!);
+      await LagerRepository.deleteManual(_lager.id, _lager.manualStoragePath!);
       final updated = await LagerRepository.getById(_lager.id);
       if (mounted && updated != null) {
         setState(() => _lager = updated);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Manual gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Manual gelöscht')));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -462,9 +501,7 @@ class _MaterialDetailContentState
             GestureDetector(
               onTap: () => _showFullImage(),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxHeight: 300,
-                ),
+                constraints: const BoxConstraints(maxHeight: 300),
                 child: Image.network(
                   _previewUrl!,
                   width: double.infinity,
@@ -477,7 +514,7 @@ class _MaterialDetailContentState
                         child: CircularProgressIndicator(
                           value: loadingProgress.expectedTotalBytes != null
                               ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
+                                    loadingProgress.expectedTotalBytes!
                               : null,
                         ),
                       ),
@@ -485,9 +522,7 @@ class _MaterialDetailContentState
                   },
                   errorBuilder: (_, _, _) => const SizedBox(
                     height: 100,
-                    child: Center(
-                      child: Icon(Icons.broken_image, size: 40),
-                    ),
+                    child: Center(child: Icon(Icons.broken_image, size: 40)),
                   ),
                 ),
               ),
@@ -502,12 +537,19 @@ class _MaterialDetailContentState
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo,
-                        size: 32, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.add_a_photo,
+                      size: 32,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 8),
-                    Text('Artikelfoto hinzufügen',
-                        style: TextStyle(
-                            color: AppColors.textSecondary, fontSize: 13)),
+                    Text(
+                      'Artikelfoto hinzufügen',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -526,8 +568,10 @@ class _MaterialDetailContentState
                   TextButton.icon(
                     onPressed: _deleteFoto,
                     icon: Icon(Icons.delete, size: 16, color: AppColors.error),
-                    label: Text('Löschen',
-                        style: TextStyle(color: AppColors.error)),
+                    label: Text(
+                      'Löschen',
+                      style: TextStyle(color: AppColors.error),
+                    ),
                   ),
                 ],
               ),
@@ -597,51 +641,57 @@ class _MaterialDetailContentState
     // Zwei Auflösungen aus dem Crop-Ergebnis erzeugen
     try {
       final decoded = img.decodeImage(croppedBytes);
-      if (decoded == null) throw Exception('Bild konnte nicht dekodiert werden');
+      if (decoded == null) {
+        throw Exception('Bild konnte nicht dekodiert werden');
+      }
 
       // High-Res: Crop-Ergebnis als JPEG (max ~2400px)
-      final highResBytes =
-          Uint8List.fromList(img.encodeJpg(decoded, quality: 88));
+      final highResBytes = Uint8List.fromList(
+        img.encodeJpg(decoded, quality: 88),
+      );
 
       // Preview: auf 400px verkleinert, niedrige Qualität
       final previewImage = decoded.width > 400
           ? img.copyResize(decoded, width: 400)
           : decoded;
-      final previewBytes =
-          Uint8List.fromList(img.encodeJpg(previewImage, quality: 60));
+      final previewBytes = Uint8List.fromList(
+        img.encodeJpg(previewImage, quality: 60),
+      );
 
       debugPrint(
-          'Foto: HighRes ${highResBytes.length} bytes, '
-          'Preview ${previewBytes.length} bytes');
+        'Foto: HighRes ${highResBytes.length} bytes, '
+        'Preview ${previewBytes.length} bytes',
+      );
 
       await MaterialArtikelRepository.uploadFoto(
         _artikel!.id,
         highResBytes: highResBytes,
         previewBytes: previewBytes,
       );
-      final updated =
-          await MaterialArtikelRepository.getById(_artikel!.id);
+      final updated = await MaterialArtikelRepository.getById(_artikel!.id);
       if (updated != null && updated.fotoStoragePath != null && mounted) {
         // Nur Preview-URL laden (HighRes erst bei Tap)
-        final previewUrl =
-            await MaterialArtikelRepository.getSignedUrlPreview(
-                updated.fotoStoragePath!);
+        final previewUrl = await MaterialArtikelRepository.getSignedUrlPreview(
+          updated.fotoStoragePath!,
+        );
         setState(() {
           _artikel = updated;
           _previewUrl = previewUrl;
           _uploadingFoto = false;
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Foto hochgeladen')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Foto hochgeladen')));
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _uploadingFoto = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Upload: $e')),
+          SnackBar(
+            content: Text('Fehler beim Upload: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     }
@@ -656,11 +706,13 @@ class _MaterialDetailContentState
         title: const Text('Foto löschen?'),
         actions: [
           TextButton(
-              onPressed: () => ctx.pop(false),
-              child: const Text('Abbrechen')),
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
-              onPressed: () => ctx.pop(true),
-              child: const Text('Löschen')),
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
         ],
       ),
     );
@@ -668,17 +720,19 @@ class _MaterialDetailContentState
 
     try {
       await MaterialArtikelRepository.deleteFoto(
-          _artikel!.id, _artikel!.fotoStoragePath!);
+        _artikel!.id,
+        _artikel!.fotoStoragePath!,
+      );
       if (mounted) {
         setState(() => _previewUrl = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Foto gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Foto gelöscht')));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -692,7 +746,8 @@ class _MaterialDetailContentState
     String? highResUrl;
     try {
       highResUrl = await MaterialArtikelRepository.getSignedUrl(
-          _artikel!.fotoStoragePath!);
+        _artikel!.fotoStoragePath!,
+      );
     } catch (_) {
       // Fallback auf Preview
       highResUrl = _previewUrl;
@@ -725,14 +780,17 @@ class _MaterialDetailContentState
                         CircularProgressIndicator(
                           value: loadingProgress.expectedTotalBytes != null
                               ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
+                                    loadingProgress.expectedTotalBytes!
                               : null,
                         ),
                         const SizedBox(height: 12),
-                        Text('Volle Auflösung laden...',
-                            style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13)),
+                        Text(
+                          'Volle Auflösung laden...',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -757,16 +815,16 @@ class _MaterialDetailContentState
         setState(() => _lager = updated);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(newVal
-                ? 'Für Bestellung vorgemerkt'
-                : 'Vormerkung aufgehoben'),
+            content: Text(
+              newVal ? 'Für Bestellung vorgemerkt' : 'Vormerkung aufgehoben',
+            ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -803,12 +861,14 @@ class _MaterialDetailContentState
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-                'Aktuell: ${_lager.bestandAktuell.toStringAsFixed(0)} ${_lager.einheit}'),
+              'Aktuell: ${_lager.bestandAktuell.toStringAsFixed(0)} ${_lager.einheit}',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Neuer Bestand',
                 border: OutlineInputBorder(),
@@ -821,12 +881,12 @@ class _MaterialDetailContentState
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    controller.text =
-                        _lager.bestandOptimal.toStringAsFixed(0);
+                    controller.text = _lager.bestandOptimal.toStringAsFixed(0);
                   },
                   icon: const Icon(Icons.arrow_upward, size: 18),
                   label: Text(
-                      'Auf Optimal (${_lager.bestandOptimal.toStringAsFixed(0)}) auffüllen'),
+                    'Auf Optimal (${_lager.bestandOptimal.toStringAsFixed(0)}) auffüllen',
+                  ),
                 ),
               ),
             ],
@@ -834,7 +894,9 @@ class _MaterialDetailContentState
         ),
         actions: [
           TextButton(
-              onPressed: () => ctx.pop(), child: const Text('Abbrechen')),
+            onPressed: () => ctx.pop(),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
             onPressed: () {
               final val = double.tryParse(controller.text);
@@ -848,20 +910,19 @@ class _MaterialDetailContentState
 
     if (result != null) {
       try {
-        await LagerRepository.update(
-            _lager.id, {'bestand_aktuell': result});
+        await LagerRepository.update(_lager.id, {'bestand_aktuell': result});
         final updated = await LagerRepository.getById(_lager.id);
         if (mounted && updated != null) {
           ref.invalidate(materialienStreamProvider);
           setState(() => _lager = updated);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bestand aktualisiert')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Bestand aktualisiert')));
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
           );
         }
       }
@@ -933,13 +994,12 @@ class _InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 140,
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary)),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
         ],
       ),
     );
@@ -955,10 +1015,7 @@ class _FotoCropDialog extends StatefulWidget {
   final Uint8List imageBytes;
   final VoidCallback onRetake;
 
-  const _FotoCropDialog({
-    required this.imageBytes,
-    required this.onRetake,
-  });
+  const _FotoCropDialog({required this.imageBytes, required this.onRetake});
 
   @override
   State<_FotoCropDialog> createState() => _FotoCropDialogState();
@@ -987,8 +1044,9 @@ class _FotoCropDialogState extends State<_FotoCropDialog> {
       final decoded = img.decodeImage(_currentBytes);
       if (decoded == null) throw Exception('Bild nicht lesbar');
       final rotated = img.copyRotate(decoded, angle: 90);
-      final rotatedBytes =
-          Uint8List.fromList(img.encodeJpg(rotated, quality: 90));
+      final rotatedBytes = Uint8List.fromList(
+        img.encodeJpg(rotated, quality: 90),
+      );
       if (mounted) {
         setState(() {
           _currentBytes = rotatedBytes;
@@ -998,7 +1056,9 @@ class _FotoCropDialogState extends State<_FotoCropDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Drehen fehlgeschlagen: $e')),
+          SnackBar(
+            content: Text('Drehen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     } finally {
@@ -1038,9 +1098,13 @@ class _FotoCropDialogState extends State<_FotoCropDialog> {
                           children: [
                             CircularProgressIndicator(color: Colors.white),
                             SizedBox(height: 12),
-                            Text('Wird gedreht...',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 13)),
+                            Text(
+                              'Wird gedreht...',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -1071,8 +1135,7 @@ class _FotoCropDialogState extends State<_FotoCropDialog> {
               // Werkzeug-Leiste
               Container(
                 color: Colors.black,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -1095,8 +1158,10 @@ class _FotoCropDialogState extends State<_FotoCropDialog> {
                 child: Container(
                   color: Colors.black,
                   width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   child: FilledButton(
                     onPressed: (_cropping || _rotating)
                         ? null
@@ -1112,10 +1177,14 @@ class _FotoCropDialogState extends State<_FotoCropDialog> {
                             width: 22,
                             height: 22,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
-                        : const Text('Verwenden',
-                            style: TextStyle(fontSize: 16)),
+                        : const Text(
+                            'Verwenden',
+                            style: TextStyle(fontSize: 16),
+                          ),
                   ),
                 ),
               ),
@@ -1149,14 +1218,19 @@ class _ToolButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                color: enabled ? Colors.white : Colors.white38, size: 26),
+            Icon(
+              icon,
+              color: enabled ? Colors.white : Colors.white38,
+              size: 26,
+            ),
             const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                  color: enabled ? Colors.white70 : Colors.white38,
-                  fontSize: 11,
-                )),
+            Text(
+              label,
+              style: TextStyle(
+                color: enabled ? Colors.white70 : Colors.white38,
+                fontSize: 11,
+              ),
+            ),
           ],
         ),
       ),

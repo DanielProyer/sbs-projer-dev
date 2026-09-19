@@ -16,6 +16,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class HeinekenRasterScreen extends ConsumerStatefulWidget {
   const HeinekenRasterScreen({super.key});
@@ -40,8 +41,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
 
     try {
       final allBetriebe = await BetriebRepository.getAll();
-      final meineKunden =
-          allBetriebe.where((b) => b.istMeinKunde).toList();
+      final meineKunden = allBetriebe.where((b) => b.istMeinKunde).toList();
 
       setState(() => _status = 'Lade Regionen...');
       final regionen = await RegionRepository.getAll();
@@ -54,19 +54,27 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
 
       for (var i = 0; i < meineKunden.length; i++) {
         final b = meineKunden[i];
-        setState(() => _status = 'Verarbeite ${b.name} (${i + 1}/${meineKunden.length})...');
+        setState(
+          () => _status =
+              'Verarbeite ${b.name} (${i + 1}/${meineKunden.length})...',
+        );
 
         // Anlagen laden → Hahnen (Bierleitungen) + Rotpunkt
-        final anlagen = await AnlageRepository.getByBetrieb(b.serverId ?? b.id.toString());
+        final anlagen = await AnlageRepository.getByBetrieb(
+          b.serverId ?? b.id.toString(),
+        );
         int leitungenGesamt = 0;
         int kleinstesIntervallWochen = 0;
 
         for (final a in anlagen) {
-          final leitungen = await BierleitungRepository.getByAnlage(a.serverId ?? a.id.toString());
+          final leitungen = await BierleitungRepository.getByAnlage(
+            a.serverId ?? a.id.toString(),
+          );
           leitungenGesamt += leitungen.length;
 
           final wochen = _rhythmusZuWochen(a.reinigungRhythmus);
-          if (kleinstesIntervallWochen == 0 || (wochen > 0 && wochen < kleinstesIntervallWochen)) {
+          if (kleinstesIntervallWochen == 0 ||
+              (wochen > 0 && wochen < kleinstesIntervallWochen)) {
             kleinstesIntervallWochen = wochen;
           }
         }
@@ -79,17 +87,25 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
         // Zeile 1: Servicezeiten
         final szTeile = <String>[];
         if (b.servicezeitMorgenAb != null) {
-          szTeile.add('${b.servicezeitMorgenAb}-${b.servicezeitMorgenBis ?? '?'}');
+          szTeile.add(
+            '${b.servicezeitMorgenAb}-${b.servicezeitMorgenBis ?? '?'}',
+          );
         }
         if (b.servicezeitNachmittagAb != null) {
-          szTeile.add('${b.servicezeitNachmittagAb}-${b.servicezeitNachmittagBis ?? '?'}');
+          szTeile.add(
+            '${b.servicezeitNachmittagAb}-${b.servicezeitNachmittagBis ?? '?'}',
+          );
         }
         if (szTeile.isNotEmpty) {
           bemZeilen.add(szTeile.join(', '));
         }
         // Zeile 2: Kontakt-Telefon
-        final kontakte = await BetriebKontaktRepository.getByBetrieb(b.serverId ?? b.id.toString());
-        final kontaktMitTel = kontakte.where((k) => k.telefon != null && k.telefon!.isNotEmpty).toList();
+        final kontakte = await BetriebKontaktRepository.getByBetrieb(
+          b.serverId ?? b.id.toString(),
+        );
+        final kontaktMitTel = kontakte
+            .where((k) => k.telefon != null && k.telefon!.isNotEmpty)
+            .toList();
         if (kontaktMitTel.isNotEmpty) {
           bemZeilen.add(kontaktMitTel.first.telefon!);
         }
@@ -108,7 +124,9 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
         }
 
         // Reinigungen für das Jahr
-        final reinigungen = await ReinigungRepository.getByBetrieb(b.serverId ?? b.id.toString());
+        final reinigungen = await ReinigungRepository.getByBetrieb(
+          b.serverId ?? b.id.toString(),
+        );
         final reinigungenImJahr = reinigungen
             .where((r) => r.datum.year == _jahr)
             .toList();
@@ -137,24 +155,26 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
             : 'Ohne Region';
 
         betriebeProRegion.putIfAbsent(regionName, () => []);
-        betriebeProRegion[regionName]!.add(RasterBetrieb(
-          weNummer: b.weNummer,
-          agNummer: b.agNummer,
-          name: b.name,
-          rotpunkt: rotpunkt,
-          strasse: b.strasse,
-          plz: b.plz,
-          ort: b.ort,
-          hahnen: leitungenGesamt,
-          telefon: b.telefon,
-          bemerkungen: bemZeilen.join('\n'),
-          zahlung: zahlung,
-          regionName: regionName,
-          status: b.status,
-          ferien: ferien,
-          keineBetriebsferien: b.keineBetriebsferien,
-          reinigungenProMonat: reinigungenProMonat,
-        ));
+        betriebeProRegion[regionName]!.add(
+          RasterBetrieb(
+            weNummer: b.weNummer,
+            agNummer: b.agNummer,
+            name: b.name,
+            rotpunkt: rotpunkt,
+            strasse: b.strasse,
+            plz: b.plz,
+            ort: b.ort,
+            hahnen: leitungenGesamt,
+            telefon: b.telefon,
+            bemerkungen: bemZeilen.join('\n'),
+            zahlung: zahlung,
+            regionName: regionName,
+            status: b.status,
+            ferien: ferien,
+            keineBetriebsferien: b.keineBetriebsferien,
+            reinigungenProMonat: reinigungenProMonat,
+          ),
+        );
       }
 
       // Innerhalb jeder Region nach Name sortieren
@@ -172,7 +192,8 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
       setState(() {
         _pdfBytes = pdfBytes;
         _loading = false;
-        _status = 'Raster generiert (${(pdfBytes.length / 1024).toStringAsFixed(0)} KB)';
+        _status =
+            'Raster generiert (${(pdfBytes.length / 1024).toStringAsFixed(0)} KB)';
       });
     } catch (e, stack) {
       setState(() {
@@ -212,7 +233,10 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
 
     try {
       final kontakt = await KontaktRepository.getHeinekenZuweisung('raster');
-      final empfaenger = MailConfig.empfaenger(kontakt?.email, bereich: 'heineken');
+      final empfaenger = MailConfig.empfaenger(
+        kontakt?.email,
+        bereich: 'heineken',
+      );
 
       // PDF in Storage hochladen
       setState(() => _status = 'Lade PDF hoch...');
@@ -224,23 +248,28 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
           .uploadBinary(
             storagePath,
             _pdfBytes!,
-            fileOptions: const FileOptions(upsert: true, contentType: 'application/pdf'),
+            fileOptions: const FileOptions(
+              upsert: true,
+              contentType: 'application/pdf',
+            ),
           );
 
       // Mail senden via Edge Function
       setState(() => _status = 'Sende Mail...');
-      await SupabaseService.client.functions.invoke('send-raster-mail',
-          body: {
-            'to': empfaenger,
-            'subject': 'Monatsraster $_jahr SBS Projer GmbH',
-            'bodyText':
-                'Hallo${kontakt?.vorname != null ? ' ${kontakt!.vorname}' : ''}\n\n'
-                'Im Anhang sende ich Dir den aktuellen Serviceraster vom ${DateFormat('d. MMMM yyyy', 'de_CH').format(DateTime.now())}.\n\n'
-                'Gruass Dani',
-            'pdfBucket': 'raster-pdfs',
-            'pdfPath': storagePath,
-            'pdfFilename': 'Raster_$_jahr.pdf',
-          });
+      await SupabaseService.client.functions.invoke(
+        'send-raster-mail',
+        body: {
+          'to': empfaenger,
+          'subject': 'Monatsraster $_jahr SBS Projer GmbH',
+          'bodyText':
+              'Hallo${kontakt?.vorname != null ? ' ${kontakt!.vorname}' : ''}\n\n'
+              'Im Anhang sende ich Dir den aktuellen Serviceraster vom ${DateFormat('d. MMMM yyyy', 'de_CH').format(DateTime.now())}.\n\n'
+              'Gruass Dani',
+          'pdfBucket': 'raster-pdfs',
+          'pdfPath': storagePath,
+          'pdfFilename': 'Raster_$_jahr.pdf',
+        },
+      );
 
       setState(() {
         _loading = false;
@@ -259,7 +288,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -276,7 +305,10 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
           .uploadBinary(
             storagePath,
             _pdfBytes!,
-            fileOptions: const FileOptions(upsert: true, contentType: 'application/pdf'),
+            fileOptions: const FileOptions(
+              upsert: true,
+              contentType: 'application/pdf',
+            ),
           );
 
       // Signierte URL statt getPublicUrl: der Bucket ist seit 07.08.2026
@@ -290,7 +322,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -330,26 +362,26 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
                 const SizedBox(width: 8),
                 FilterChrome(
                   child: DropdownButton<int>(
-                  value: _jahr,
-                  isDense: true,
-                  underline: const SizedBox.shrink(),
-                  items: List.generate(5, (i) {
-                    final y = DateTime.now().year - 2 + i;
-                    return DropdownMenuItem(value: y, child: Text('$y'));
-                  }),
-                  onChanged: _loading
-                      ? null
-                      : (v) {
-                          if (v != null) {
-                            setState(() {
-                              _jahr = v;
-                              _pdfBytes = _pdfCache[v];
-                              _status = _pdfBytes != null
-                                  ? 'Raster geladen (${(_pdfBytes!.length / 1024).toStringAsFixed(0)} KB)'
-                                  : null;
-                            });
-                          }
-                        },
+                    value: _jahr,
+                    isDense: true,
+                    underline: const SizedBox.shrink(),
+                    items: List.generate(5, (i) {
+                      final y = DateTime.now().year - 2 + i;
+                      return DropdownMenuItem(value: y, child: Text('$y'));
+                    }),
+                    onChanged: _loading
+                        ? null
+                        : (v) {
+                            if (v != null) {
+                              setState(() {
+                                _jahr = v;
+                                _pdfBytes = _pdfCache[v];
+                                _status = _pdfBytes != null
+                                    ? 'Raster geladen (${(_pdfBytes!.length / 1024).toStringAsFixed(0)} KB)'
+                                    : null;
+                              });
+                            }
+                          },
                   ),
                 ),
               ],
@@ -364,8 +396,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_loading)
-              const LinearProgressIndicator(),
+            if (_loading) const LinearProgressIndicator(),
             if (_status != null) ...[
               const SizedBox(height: 8),
               Text(_status!, style: const TextStyle(color: Colors.grey)),

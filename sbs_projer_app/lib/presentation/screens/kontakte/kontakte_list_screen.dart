@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class KontakteListScreen extends ConsumerStatefulWidget {
   final String? kategorie;
@@ -104,9 +105,9 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/event_stand_anlage_repository.d
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Formular zum Anlegen/Bearbeiten eines Event-Stands mit dynamischen
 /// Schankanlagen-Zeilen (Typ + Anzahl).
@@ -17,11 +18,7 @@ class EventStandFormScreen extends ConsumerStatefulWidget {
   final String eventId;
   final String? standId; // null = neu
 
-  const EventStandFormScreen({
-    super.key,
-    required this.eventId,
-    this.standId,
-  });
+  const EventStandFormScreen({super.key, required this.eventId, this.standId});
 
   @override
   ConsumerState<EventStandFormScreen> createState() =>
@@ -73,8 +70,9 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
         if (mounted) setState(() => _initialLoading = false);
         return;
       }
-      final anlagen =
-          await EventStandAnlageRepository.getByStand(stand.serverId!);
+      final anlagen = await EventStandAnlageRepository.getByStand(
+        stand.serverId!,
+      );
       if (!mounted) return;
       setState(() {
         _existing = stand;
@@ -82,8 +80,10 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
         _standnummerController.text = stand.standnummer ?? '';
         _notizenController.text = stand.notizen ?? '';
         if (stand.latitude != null && stand.longitude != null) {
-          _koordinatenController.text =
-              koordinatenText(stand.latitude!, stand.longitude!);
+          _koordinatenController.text = koordinatenText(
+            stand.latitude!,
+            stand.longitude!,
+          );
         }
         _genauigkeit = stand.positionGenauigkeit;
         for (final a in anlagen) {
@@ -148,8 +148,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
       } else {
         final k = koordinatenAus(roh);
         if (k != null) {
-          final geaendert =
-              stand.latitude != k.lat || stand.longitude != k.lng;
+          final geaendert = stand.latitude != k.lat || stand.longitude != k.lng;
           stand
             ..latitude = k.lat
             ..longitude = k.lng
@@ -182,7 +181,8 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(_isEdit ? 'Stand aktualisiert' : 'Stand angelegt')),
+            content: Text(_isEdit ? 'Stand aktualisiert' : 'Stand angelegt'),
+          ),
         );
         // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
         geaendertZuruecksetzen();
@@ -191,7 +191,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -211,9 +211,7 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
   @override
   Widget build(BuildContext context) {
     if (_initialLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return UngespeichertSchutz(
@@ -309,7 +307,9 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
                   child: Text(
                     'Noch keine Anlagen erfasst.',
                     style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ..._buildAnlagenZeilen(),
@@ -376,10 +376,12 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
                     isDense: true,
                   ),
                   items: EventStandAnlage.typen
-                      .map((t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(EventStandAnlage.typLabel(t)),
-                          ))
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(EventStandAnlage.typLabel(t)),
+                        ),
+                      )
                       .toList(),
                   onChanged: (v) {
                     if (v != null) setState(() => _typen[i] = v);
@@ -417,9 +419,9 @@ class _EventStandFormScreenState extends ConsumerState<EventStandFormScreen>
   Widget _sectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }

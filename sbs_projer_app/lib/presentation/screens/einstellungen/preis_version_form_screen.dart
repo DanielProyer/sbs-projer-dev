@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class PreisVersionFormScreen extends ConsumerStatefulWidget {
   final String? preisId;
@@ -132,11 +133,9 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
     _bergkundenZCtrl.text = p.bergkundenZuschlag.toStringAsFixed(2);
   }
 
-  double _d(TextEditingController c) =>
-      double.tryParse(c.text) ?? 0;
+  double _d(TextEditingController c) => double.tryParse(c.text) ?? 0;
 
-  int _i(TextEditingController c) =>
-      int.tryParse(c.text) ?? 0;
+  int _i(TextEditingController c) => int.tryParse(c.text) ?? 0;
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -194,7 +193,7 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -229,9 +228,11 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
       was: 'Die Preisversion',
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_isReadOnly
-              ? 'Preisversion ${DateFormat('dd.MM.yyyy').format(_gueltigAb)}'
-              : 'Neue Werte erfassen'),
+          title: Text(
+            _isReadOnly
+                ? 'Preisversion ${DateFormat('dd.MM.yyyy').format(_gueltigAb)}'
+                : 'Neue Werte erfassen',
+          ),
           actions: [
             if (_isReadOnly)
               IconButton(
@@ -260,7 +261,9 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
                   onTap: _isReadOnly ? null : _pickDate,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey.shade400),
                       borderRadius: BorderRadius.circular(8),
@@ -275,8 +278,11 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
                         ),
                         if (!_isReadOnly) ...[
                           const SizedBox(width: 8),
-                          Icon(Icons.edit_calendar,
-                              size: 18, color: Colors.grey.shade600),
+                          Icon(
+                            Icons.edit_calendar,
+                            size: 18,
+                            color: Colors.grey.shade600,
+                          ),
                         ],
                       ],
                     ),
@@ -353,7 +359,10 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Icon(Icons.save),
                   label: const Text('Speichern'),
                   style: FilledButton.styleFrom(
@@ -385,12 +394,17 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w700)),
-              Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
             ],
           ),
         ],
@@ -413,8 +427,12 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
     );
   }
 
-  Widget _numRow(String label, TextEditingController ctrl,
-      {String? suffix, bool isInt = false}) {
+  Widget _numRow(
+    String label,
+    TextEditingController ctrl, {
+    String? suffix,
+    bool isInt = false,
+  }) {
     return _FieldRow(
       label: label,
       child: SizedBox(
@@ -423,20 +441,19 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
           controller: ctrl,
           readOnly: _isReadOnly,
           textAlign: TextAlign.right,
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: const TextStyle(fontSize: 15),
           decoration: InputDecoration(
             isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             filled: _isReadOnly,
             fillColor: _isReadOnly ? Colors.grey.shade100 : null,
             suffixText: suffix ?? 'CHF',
-            suffixStyle:
-                TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            suffixStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
           ),
           validator: (v) {
             if (v == null || v.isEmpty) return 'Pflicht';
@@ -505,10 +522,7 @@ class _FieldRow extends StatelessWidget {
             width: 150,
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
             ),
           ),
           child,

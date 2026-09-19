@@ -9,18 +9,25 @@ import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class MwstAbrechnungScreen extends ConsumerStatefulWidget {
   const MwstAbrechnungScreen({super.key});
   @override
-  ConsumerState<MwstAbrechnungScreen> createState() => _MwstAbrechnungScreenState();
+  ConsumerState<MwstAbrechnungScreen> createState() =>
+      _MwstAbrechnungScreenState();
 }
 
 class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
   int _jahr = DateTime.now().year;
   late int _quartal = ((DateTime.now().month - 1) ~/ 3) + 1;
 
-  static const _abgabefristen = {1: '31.05.', 2: '31.08.', 3: '30.11.', 4: '28.02.'};
+  static const _abgabefristen = {
+    1: '31.05.',
+    2: '31.08.',
+    3: '30.11.',
+    4: '28.02.',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +42,14 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('$_jahr',
-                      style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16)),
+                  Text(
+                    '$_jahr',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
                   const Icon(Icons.arrow_drop_down, size: 20),
                 ],
               ),
@@ -51,8 +61,10 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),
         data: (rows) {
-          final sel = rows.firstWhere((r) => r['quartal'] == _quartal,
-              orElse: () => <String, dynamic>{});
+          final sel = rows.firstWhere(
+            (r) => r['quartal'] == _quartal,
+            orElse: () => <String, dynamic>{},
+          );
           final umsatz = _d(sel['umsatz']);
           final umsatzsteuer = _d(sel['umsatzsteuer']);
           final vstMaterial = _d(sel['vorsteuer_material']);
@@ -81,55 +93,95 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Q$_quartal $_jahr',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        'Q$_quartal $_jahr',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       _z('Umsatz (Ziff. 200)', umsatz, AppColors.success),
-                      _z('Umsatzsteuer (Ziff. 382)', umsatzsteuer, AppColors.error),
+                      _z(
+                        'Umsatzsteuer (Ziff. 382)',
+                        umsatzsteuer,
+                        AppColors.error,
+                      ),
                       const SizedBox(height: 4),
-                      _z('Vorsteuer Material (Ziff. 400)', vstMaterial, AppColors.success),
-                      _z('Vorsteuer Betrieb (Ziff. 405)', vstBetrieb, AppColors.success),
+                      _z(
+                        'Vorsteuer Material (Ziff. 400)',
+                        vstMaterial,
+                        AppColors.success,
+                      ),
+                      _z(
+                        'Vorsteuer Betrieb (Ziff. 405)',
+                        vstBetrieb,
+                        AppColors.success,
+                      ),
                       const Divider(),
-                      _z('Zu bezahlen (Ziff. 500)', netto,
-                          netto > 0 ? AppColors.error : AppColors.success, bold: true),
+                      _z(
+                        'Zu bezahlen (Ziff. 500)',
+                        netto,
+                        netto > 0 ? AppColors.error : AppColors.success,
+                        bold: true,
+                      ),
                       const SizedBox(height: 8),
-                      Text('Abgabefrist: $frist',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                      Text(
+                        'Abgabefrist: $frist',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Builder(builder: (btnContext) {
-                        // Aufgaben-Marker: MWST-Erinnerung für dieses Quartal erledigen.
-                        final key = 'mwst:$_jahr-Q$_quartal';
-                        final liste =
-                            ref.watch(aufgabenListeProvider).valueOrNull ??
-                                const <AufgabenEintrag>[];
-                        final offen = liste.any((a) => a.key == key);
-                        return Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            icon: Icon(
+                      Builder(
+                        builder: (btnContext) {
+                          // Aufgaben-Marker: MWST-Erinnerung für dieses Quartal erledigen.
+                          final key = 'mwst:$_jahr-Q$_quartal';
+                          final liste =
+                              ref.watch(aufgabenListeProvider).valueOrNull ??
+                              const <AufgabenEintrag>[];
+                          final offen = liste.any((a) => a.key == key);
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              icon: Icon(
                                 offen ? Icons.check_circle_outline : Icons.undo,
-                                size: 18),
-                            label: Text(offen
-                                ? 'Als abgerechnet markieren'
-                                : 'Markierung zurücknehmen'),
-                            onPressed: () async {
-                              final messenger = ScaffoldMessenger.of(btnContext);
-                              try {
-                                if (offen) {
-                                  await AufgabenRepository.markerSetzen(key);
-                                } else {
-                                  await AufgabenRepository.markerLoeschen(key);
+                                size: 18,
+                              ),
+                              label: Text(
+                                offen
+                                    ? 'Als abgerechnet markieren'
+                                    : 'Markierung zurücknehmen',
+                              ),
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(
+                                  btnContext,
+                                );
+                                try {
+                                  if (offen) {
+                                    await AufgabenRepository.markerSetzen(key);
+                                  } else {
+                                    await AufgabenRepository.markerLoeschen(
+                                      key,
+                                    );
+                                  }
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Fehler: ${kurzeFehlermeldung(e)}',
+                                      ),
+                                    ),
+                                  );
                                 }
-                              } catch (e) {
-                                messenger.showSnackBar(
-                                    SnackBar(content: Text('Fehler: $e')));
-                              }
-                              ref.invalidate(aufgabenZeilenProvider);
-                              ref.invalidate(aufgabenListeProvider);
-                            },
-                          ),
-                        );
-                      }),
+                                ref.invalidate(aufgabenZeilenProvider);
+                                ref.invalidate(aufgabenListeProvider);
+                              },
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -154,7 +206,12 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
                 setState(() => _jahr = y);
                 Navigator.pop(ctx);
               },
-              child: Text('$y', style: TextStyle(fontWeight: y == _jahr ? FontWeight.w700 : null)),
+              child: Text(
+                '$y',
+                style: TextStyle(
+                  fontWeight: y == _jahr ? FontWeight.w700 : null,
+                ),
+              ),
             ),
         ],
       ),
@@ -163,14 +220,27 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
 
   static double _d(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
 
-  Widget _z(String label, double betrag, Color color, {bool bold = false}) => Padding(
+  Widget _z(String label, double betrag, Color color, {bool bold = false}) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w700 : FontWeight.w400, fontSize: 14)),
-            Text('${chf(betrag)} CHF',
-                style: TextStyle(fontWeight: bold ? FontWeight.w700 : FontWeight.w600, fontSize: 14, color: color)),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                fontSize: 14,
+              ),
+            ),
+            Text(
+              '${chf(betrag)} CHF',
+              style: TextStyle(
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 14,
+                color: color,
+              ),
+            ),
           ],
         ),
       );

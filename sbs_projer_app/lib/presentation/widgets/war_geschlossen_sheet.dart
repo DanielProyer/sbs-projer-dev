@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 enum _WgGrund { betriebsferien, ruhetag, anderes }
 
@@ -176,7 +177,9 @@ class _WarGeschlossenSheetState extends ConsumerState<WarGeschlossenSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _speichert = false);
-      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+      );
     }
   }
 

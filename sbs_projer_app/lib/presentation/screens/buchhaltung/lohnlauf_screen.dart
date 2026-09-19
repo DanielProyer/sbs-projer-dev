@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/pdf/lohnausweis_pdf_service.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class LohnlaufScreen extends ConsumerStatefulWidget {
   const LohnlaufScreen({super.key});
@@ -327,9 +328,9 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _buching = false);
@@ -376,9 +377,9 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -460,9 +461,9 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

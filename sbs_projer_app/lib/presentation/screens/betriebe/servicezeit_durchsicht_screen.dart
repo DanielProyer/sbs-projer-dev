@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/repositories/servicezeit_durchsicht_reposito
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_feld.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Servicezeiten aller Betriebe durchgehen — einer nach dem anderen.
 ///
@@ -111,7 +112,7 @@ class _ServicezeitDurchsichtScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: AppColors.error,
-          content: Text('Speichern fehlgeschlagen: $e'),
+          content: Text('Speichern fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
           duration: const Duration(seconds: 8),
         ),
       );
@@ -403,9 +404,7 @@ class _ServicezeitDurchsichtScreenState
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                keinService
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
+                keinService ? Icons.check_box : Icons.check_box_outline_blank,
                 size: 18,
                 color: sperren
                     ? Colors.grey.shade400
@@ -438,7 +437,9 @@ class _ServicezeitDurchsichtScreenState
     if (!hatMorgen && !hatNachmittag) {
       return 'Nichts erfasst — gilt als «keine Einschränkung bekannt».';
     }
-    if (hatMorgen && hatNachmittag) return 'Service vormittags und nachmittags.';
+    if (hatMorgen && hatNachmittag) {
+      return 'Service vormittags und nachmittags.';
+    }
     return hatMorgen
         ? 'Service nur vormittags — nachmittags kein Service.'
         : 'Service nur nachmittags — morgens kein Service.';
@@ -514,7 +515,11 @@ class _ServicezeitDurchsichtScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check_circle_outline, size: 48, color: AppColors.success),
+          const Icon(
+            Icons.check_circle_outline,
+            size: 48,
+            color: AppColors.success,
+          ),
           const SizedBox(height: 12),
           Text(
             _kandidaten.isEmpty
@@ -523,8 +528,7 @@ class _ServicezeitDurchsichtScreenState
             textAlign: TextAlign.center,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          if (_kandidaten.isNotEmpty &&
-              _erledigt < _kandidaten.length) ...[
+          if (_kandidaten.isNotEmpty && _erledigt < _kandidaten.length) ...[
             const SizedBox(height: 8),
             const Text(
               'Die übersprungenen kommen in der nächsten Runde wieder.',

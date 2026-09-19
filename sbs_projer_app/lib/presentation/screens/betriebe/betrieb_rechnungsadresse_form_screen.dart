@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/core/util/adresse_aus_betrieb.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BetriebRechnungsadresseFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -217,9 +218,9 @@ class _BetriebRechnungsadresseFormScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -11,9 +11,14 @@ import 'package:flutter_test/flutter_test.dart';
 /// nicht was Daniel am Tresen tun soll. Und im Mailpfad ist sie gefährlich:
 /// Sie fordert zum Nachholen auf und schickt dem Kunden die Rechnung zweimal.
 ///
-/// Der Bestand ist gross und wird nicht in einem Zug aufgeräumt. Deshalb eine
-/// Ratsche — die Zahl darf nur sinken — plus eine harte Null für den Pfad, in
-/// dem eine falsche Meldung Geld kostet.
+/// Der Test startete am 17.09.2026 als **Ratsche** bei 163 Fundstellen — die
+/// Zahl durfte nur sinken. Am 19.09.2026 wurden alle 163 auf
+/// `kurzeFehlermeldung()` umgestellt; seither steht hier eine harte Null.
+///
+/// Nicht erfasst und bewusst so: Listen gesammelter Fehlertexte wie
+/// `${fehler.join('; ')}` (camt-Import, Abgleich-Vorschau). Das sind keine
+/// gefangenen Ausnahmen, sondern eigene Meldungen — sie brauchen, wenn
+/// überhaupt, eine andere Kur.
 void main() {
   final funde = _funde();
 
@@ -35,14 +40,14 @@ void main() {
     );
   });
 
-  test('der Bestand waechst nicht', () {
-    // Stand 17.09.2026. Wer eine Stelle aufraeumt, setzt die Zahl herunter.
+  test('nirgends in lib steht eine rohe Ausnahme in einer Snackbar', () {
     expect(
-      funde.length,
-      lessThanOrEqualTo(163),
+      funde,
+      isEmpty,
       reason:
-          'Neue rohe Ausnahme in einer Snackbar — bitte `kurzeFehlermeldung(e)` '
-          'nutzen. Gefunden:\n${funde.join('\n')}',
+          'Rohe Ausnahme in einer Snackbar. Bitte `kurzeFehlermeldung(e)` '
+          'nutzen (core/util/anfrage_bloecke.dart) — die Rohfassung gehoert '
+          'ins debugPrint, nicht auf den Bildschirm:\n${funde.join('\n')}',
     );
   });
 }

@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/models/biersorte.dart';
 import 'package:sbs_projer_app/data/repositories/biersorte_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/biersorte_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BiersortenScreen extends ConsumerStatefulWidget {
   const BiersortenScreen({super.key});
@@ -135,9 +136,9 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -193,9 +194,9 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
       ref.invalidate(biersortenProvider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -234,9 +235,9 @@ class _BiersortenScreenState extends ConsumerState<BiersortenScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

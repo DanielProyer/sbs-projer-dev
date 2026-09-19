@@ -6,12 +6,12 @@ import 'package:sbs_projer_app/data/local/bergkundenpauschale_local_export.dart'
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BergkundenpauschaleDetailScreen extends ConsumerStatefulWidget {
   final String pauschaleId;
 
-  const BergkundenpauschaleDetailScreen(
-      {super.key, required this.pauschaleId});
+  const BergkundenpauschaleDetailScreen({super.key, required this.pauschaleId});
 
   @override
   ConsumerState<BergkundenpauschaleDetailScreen> createState() =>
@@ -49,9 +49,7 @@ class _BergkundenpauschaleDetailScreenState
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final p = _pauschale;
@@ -83,11 +81,15 @@ class _BergkundenpauschaleDetailScreenState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Status',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text(
+                    'Status',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: p.abgerechnet
                           ? AppColors.success.withAlpha(25)
@@ -97,8 +99,9 @@ class _BergkundenpauschaleDetailScreenState
                     child: Text(
                       p.abgerechnet ? 'Abgerechnet' : 'Offen',
                       style: TextStyle(
-                        color:
-                            p.abgerechnet ? AppColors.success : AppColors.warning,
+                        color: p.abgerechnet
+                            ? AppColors.success
+                            : AppColors.warning,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -128,8 +131,10 @@ class _BergkundenpauschaleDetailScreenState
                   ],
                   if (p.abrechnungsMonat != null) ...[
                     const Divider(height: 16),
-                    _InfoRow('Abrechnungsmonat',
-                        '${p.abrechnungsMonat!.month.toString().padLeft(2, '0')}/${p.abrechnungsMonat!.year}'),
+                    _InfoRow(
+                      'Abrechnungsmonat',
+                      '${p.abrechnungsMonat!.month.toString().padLeft(2, '0')}/${p.abrechnungsMonat!.year}',
+                    ),
                   ],
                 ],
               ),
@@ -145,8 +150,7 @@ class _BergkundenpauschaleDetailScreenState
                 leading: const Icon(Icons.cleaning_services),
                 title: const Text('Verknüpfte Reinigung'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () =>
-                    context.push('/reinigungen/${p.reinigungId}'),
+                onTap: () => context.push('/reinigungen/${p.reinigungId}'),
               ),
             ),
 
@@ -157,8 +161,7 @@ class _BergkundenpauschaleDetailScreenState
                 title: Text(_betriebName!),
                 subtitle: const Text('Zum Betrieb'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () =>
-                    context.push('/betriebe/${p.betriebId}'),
+                onTap: () => context.push('/betriebe/${p.betriebId}'),
               ),
             ),
         ],
@@ -171,13 +174,18 @@ class _BergkundenpauschaleDetailScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Pauschale löschen?'),
-        content:
-            const Text('Soll diese Bergkundenpauschale wirklich gelöscht werden?'),
+        content: const Text(
+          'Soll diese Bergkundenpauschale wirklich gelöscht werden?',
+        ),
         actions: [
           TextButton(
-              onPressed: () => ctx.pop(false), child: const Text('Abbrechen')),
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
-              onPressed: () => ctx.pop(true), child: const Text('Löschen')),
+            onPressed: () => ctx.pop(true),
+            child: const Text('Löschen'),
+          ),
         ],
       ),
     );
@@ -191,7 +199,7 @@ class _BergkundenpauschaleDetailScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -214,14 +222,15 @@ class _InfoRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500)),
-        const SizedBox(width: 16),
-        Flexible(
-          child: Text(value, textAlign: TextAlign.end),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
         ),
+        const SizedBox(width: 16),
+        Flexible(child: Text(value, textAlign: TextAlign.end)),
       ],
     );
   }

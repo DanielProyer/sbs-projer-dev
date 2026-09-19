@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Lageplan georeferenzieren (Daniel 13.08.2026, Fall Openair Gampel):
 /// Ein JPG/PNG des Festgeländes wird über 2–5 Passpunkte auf die Karte
@@ -108,8 +109,11 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _laedt = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler beim Laden: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Laden: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -131,12 +135,18 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
       endung = name.split('.').last;
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text('Datei konnte nicht gewählt werden: $e')));
+        SnackBar(
+          content: Text(
+            'Datei konnte nicht gewählt werden: ${kurzeFehlermeldung(e)}',
+          ),
+        ),
+      );
       return;
     }
 
     messenger.showSnackBar(
-        const SnackBar(content: Text('Lageplan wird hochgeladen …')));
+      const SnackBar(content: Text('Lageplan wird hochgeladen …')),
+    );
     try {
       // Bildmasse bestimmen — Grundlage der Pixel↔Karte-Abbildung.
       final codec = await ui.instantiateImageCodec(bytes);
@@ -145,7 +155,10 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
       final hoehe = frame.image.height.toDouble();
 
       final pfad = await EventDokumentStorage.uploadBild(
-          _event!.serverId!, bytes, endung);
+        _event!.serverId!,
+        bytes,
+        endung,
+      );
       final event = _event!;
       event.lageplanPfad = pfad;
       // Neues Bild = neue Geometrie: alte Passpunkte verwerfen.
@@ -168,15 +181,21 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
         });
       }
     } catch (e) {
-      messenger
-          .showSnackBar(SnackBar(content: Text('Hochladen fehlgeschlagen: $e')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Hochladen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
     }
   }
 
   void _planTap(double px, double py) {
     if (_punkte.length >= 5 && _offenerBildPunkt == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Maximal 5 Passpunkte — einen bestehenden löschen.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maximal 5 Passpunkte — einen bestehenden löschen.'),
+        ),
+      );
       return;
     }
     setState(() => _offenerBildPunkt = (px: px, py: py));
@@ -185,8 +204,11 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
   void _kartenTap(LatLng punkt) {
     final offen = _offenerBildPunkt;
     if (offen == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Zuerst den Punkt auf dem Plan antippen.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zuerst den Punkt auf dem Plan antippen.'),
+        ),
+      );
       return;
     }
     setState(() {
@@ -209,15 +231,18 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Lageplan entfernen?'),
         content: const Text(
-            'Bild und alle Passpunkte werden gelöscht. Die Stand-Positionen '
-            'bleiben unverändert.'),
+          'Bild und alle Passpunkte werden gelöscht. Die Stand-Positionen '
+          'bleiben unverändert.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Entfernen')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Entfernen'),
+          ),
         ],
       ),
     );
@@ -240,13 +265,15 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
           _punkte.clear();
           _offenerBildPunkt = null;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lageplan entfernt')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Lageplan entfernt')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -265,13 +292,15 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
       ref.invalidate(eventByIdProvider(widget.eventId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lageplan-Referenzierung gespeichert')));
+          const SnackBar(content: Text('Lageplan-Referenzierung gespeichert')),
+        );
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _speichert = false);
@@ -324,7 +353,9 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
             ),
         ],
       ),
-      body: _bildUrl == null ? _buildUploadAufforderung() : _buildReferenzieren(),
+      body: _bildUrl == null
+          ? _buildUploadAufforderung()
+          : _buildReferenzieren(),
     );
   }
 
@@ -333,8 +364,11 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.map_outlined,
-              size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+          Icon(
+            Icons.map_outlined,
+            size: 64,
+            color: AppColors.textSecondary.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 32),
@@ -379,7 +413,8 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
       anweisung = 'Punkt $naechste: jetzt denselben Ort auf der KARTE antippen';
       farbe = AppColors.info;
     } else if (_punkte.length < 2) {
-      anweisung = 'Punkt $naechste: markanten Ort auf dem PLAN antippen '
+      anweisung =
+          'Punkt $naechste: markanten Ort auf dem PLAN antippen '
           '(Gebäudeecke, Kreuzung …)';
       farbe = Colors.orange;
     } else {
@@ -397,18 +432,22 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
           Row(
             children: [
               Icon(
-                  _offenerBildPunkt != null
-                      ? Icons.touch_app
-                      : (g != null ? Icons.check_circle : Icons.touch_app),
-                  size: 15,
-                  color: farbe),
+                _offenerBildPunkt != null
+                    ? Icons.touch_app
+                    : (g != null ? Icons.check_circle : Icons.touch_app),
+                size: 15,
+                color: farbe,
+              ),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(anweisung,
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: farbe)),
+                child: Text(
+                  anweisung,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: farbe,
+                  ),
+                ),
               ),
               if (_offenerBildPunkt != null)
                 GestureDetector(
@@ -416,9 +455,13 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
                   child: const Icon(Icons.close, size: 16),
                 ),
               if (g != null)
-                Text('Ø ${g.rmsMeter.toStringAsFixed(1)} m',
-                    style: const TextStyle(
-                        fontSize: 12.5, fontWeight: FontWeight.w700)),
+                Text(
+                  'Ø ${g.rmsMeter.toStringAsFixed(1)} m',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
             ],
           ),
           if (_punkte.isNotEmpty)
@@ -447,42 +490,60 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
   Widget _buildPlanPanel() {
     final b = _bildBreite, h = _bildHoehe;
     if (b == null || h == null) {
-      return const Center(child: Text('Bildmasse fehlen — Bild neu hochladen.'));
+      return const Center(
+        child: Text('Bildmasse fehlen — Bild neu hochladen.'),
+      );
     }
-    return LayoutBuilder(builder: (context, c) {
-      // Anzeige auf Panelbreite eingepasst; Zoomen/Verschieben übernimmt der
-      // InteractiveViewer. Tap-Koordinaten kommen im Child-Raum an und werden
-      // über die Skala zurück in Bildpixel gerechnet.
-      final skala = c.maxWidth / b;
-      final anzeigeB = c.maxWidth;
-      final anzeigeH = h * skala;
-      return InteractiveViewer(
-        constrained: false,
-        minScale: 0.3,
-        maxScale: 12,
-        boundaryMargin: const EdgeInsets.all(300),
-        child: GestureDetector(
-          onTapUp: (d) =>
-              _planTap(d.localPosition.dx / skala, d.localPosition.dy / skala),
-          child: SizedBox(
-            width: anzeigeB,
-            height: anzeigeH,
-            child: Stack(
-              children: [
-                Image.network(_bildUrl!,
-                    width: anzeigeB, height: anzeigeH, fit: BoxFit.fill),
-                for (var i = 0; i < _punkte.length; i++)
-                  _planMarker(
-                      _punkte[i].px * skala, _punkte[i].py * skala, i, false),
-                if (_offenerBildPunkt != null)
-                  _planMarker(_offenerBildPunkt!.px * skala,
-                      _offenerBildPunkt!.py * skala, _punkte.length, true),
-              ],
+    return LayoutBuilder(
+      builder: (context, c) {
+        // Anzeige auf Panelbreite eingepasst; Zoomen/Verschieben übernimmt der
+        // InteractiveViewer. Tap-Koordinaten kommen im Child-Raum an und werden
+        // über die Skala zurück in Bildpixel gerechnet.
+        final skala = c.maxWidth / b;
+        final anzeigeB = c.maxWidth;
+        final anzeigeH = h * skala;
+        return InteractiveViewer(
+          constrained: false,
+          minScale: 0.3,
+          maxScale: 12,
+          boundaryMargin: const EdgeInsets.all(300),
+          child: GestureDetector(
+            onTapUp: (d) => _planTap(
+              d.localPosition.dx / skala,
+              d.localPosition.dy / skala,
+            ),
+            child: SizedBox(
+              width: anzeigeB,
+              height: anzeigeH,
+              child: Stack(
+                children: [
+                  Image.network(
+                    _bildUrl!,
+                    width: anzeigeB,
+                    height: anzeigeH,
+                    fit: BoxFit.fill,
+                  ),
+                  for (var i = 0; i < _punkte.length; i++)
+                    _planMarker(
+                      _punkte[i].px * skala,
+                      _punkte[i].py * skala,
+                      i,
+                      false,
+                    ),
+                  if (_offenerBildPunkt != null)
+                    _planMarker(
+                      _offenerBildPunkt!.px * skala,
+                      _offenerBildPunkt!.py * skala,
+                      _punkte.length,
+                      true,
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   Widget _planMarker(double x, double y, int index, bool offen) {
@@ -514,33 +575,43 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
         ),
         // Live-Vorschau: der referenzierte Plan über dem Luftbild.
         if (ecken != null)
-          OverlayImageLayer(overlayImages: [
-            RotatedOverlayImage(
-              imageProvider: NetworkImage(_bildUrl!),
-              topLeftCorner:
-                  LatLng(ecken.topLeft.lat, ecken.topLeft.lng),
-              bottomLeftCorner:
-                  LatLng(ecken.bottomLeft.lat, ecken.bottomLeft.lng),
-              bottomRightCorner:
-                  LatLng(ecken.bottomRight.lat, ecken.bottomRight.lng),
-              opacity: 0.65,
-            ),
-          ]),
-        MarkerLayer(markers: [
-          for (var i = 0; i < _punkte.length; i++)
-            Marker(
-              point: LatLng(_punkte[i].lat, _punkte[i].lng),
-              width: 22,
-              height: 22,
-              child: _PunktScheibe(
+          OverlayImageLayer(
+            overlayImages: [
+              RotatedOverlayImage(
+                imageProvider: NetworkImage(_bildUrl!),
+                topLeftCorner: LatLng(ecken.topLeft.lat, ecken.topLeft.lng),
+                bottomLeftCorner: LatLng(
+                  ecken.bottomLeft.lat,
+                  ecken.bottomLeft.lng,
+                ),
+                bottomRightCorner: LatLng(
+                  ecken.bottomRight.lat,
+                  ecken.bottomRight.lng,
+                ),
+                opacity: 0.65,
+              ),
+            ],
+          ),
+        MarkerLayer(
+          markers: [
+            for (var i = 0; i < _punkte.length; i++)
+              Marker(
+                point: LatLng(_punkte[i].lat, _punkte[i].lng),
+                width: 22,
+                height: 22,
+                child: _PunktScheibe(
                   index: i,
                   farbe: _punktFarben[i % _punktFarben.length],
-                  offen: false),
-            ),
-        ]),
-        RichAttributionWidget(attributions: [
-          TextSourceAttribution(basemapQuelle(Basemap.luftbild)),
-        ]),
+                  offen: false,
+                ),
+              ),
+          ],
+        ),
+        RichAttributionWidget(
+          attributions: [
+            TextSourceAttribution(basemapQuelle(Basemap.luftbild)),
+          ],
+        ),
       ],
     );
   }
@@ -553,8 +624,11 @@ class _PunktScheibe extends StatelessWidget {
   final Color farbe;
   final bool offen;
 
-  const _PunktScheibe(
-      {required this.index, required this.farbe, required this.offen});
+  const _PunktScheibe({
+    required this.index,
+    required this.farbe,
+    required this.offen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -586,8 +660,11 @@ class _PunktChip extends StatelessWidget {
   final double? residuum;
   final VoidCallback onLoeschen;
 
-  const _PunktChip(
-      {required this.index, required this.residuum, required this.onLoeschen});
+  const _PunktChip({
+    required this.index,
+    required this.residuum,
+    required this.onLoeschen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -602,14 +679,23 @@ class _PunktChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('${index + 1}',
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w800, color: farbe)),
+          Text(
+            '${index + 1}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: farbe,
+            ),
+          ),
           if (residuum != null) ...[
             const SizedBox(width: 4),
-            Text('${residuum!.toStringAsFixed(1)} m',
-                style:
-                    const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            Text(
+              '${residuum!.toStringAsFixed(1)} m',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
           const SizedBox(width: 4),
           GestureDetector(
@@ -629,8 +715,11 @@ class _SpeichernKnopf extends StatelessWidget {
   final bool laeuft;
   final VoidCallback onTap;
 
-  const _SpeichernKnopf(
-      {required this.aktiv, required this.laeuft, required this.onTap});
+  const _SpeichernKnopf({
+    required this.aktiv,
+    required this.laeuft,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -655,7 +744,9 @@ class _SpeichernKnopf extends StatelessWidget {
                   width: 13,
                   height: 13,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             Text(

@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/mail/bericht_mail_service.dart';
 import 'package:sbs_projer_app/services/pdf/bilanz_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/erfolgsrechnung_pdf_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BerichteScreen extends ConsumerStatefulWidget {
   const BerichteScreen({super.key});
@@ -21,8 +22,15 @@ class BerichteScreen extends ConsumerStatefulWidget {
 class _BerichteScreenState extends ConsumerState<BerichteScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
-  DateTime _stichtag = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-  Zeitraum _zeitraum = (von: DateTime(DateTime.now().year, 1, 1), bis: DateTime(DateTime.now().year, 12, 31));
+  DateTime _stichtag = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
+  Zeitraum _zeitraum = (
+    von: DateTime(DateTime.now().year, 1, 1),
+    bis: DateTime(DateTime.now().year, 12, 31),
+  );
 
   @override
   void initState() {
@@ -41,26 +49,46 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
       final g = ref.read(geschaeftProvider).valueOrNull;
       if (_tab.index == 0) {
         final b = await ref.read(bilanzStichtagProvider(_stichtag).future);
-        final bytes = await BilanzPdfService.generate(b, _stichtag,
-            firmaName: g?.firma, firmaStrasse: g?.adresseStrasse, firmaOrt: g?.adressePlzOrt, mwstZeile: g?.mwstZeile);
+        final bytes = await BilanzPdfService.generate(
+          b,
+          _stichtag,
+          firmaName: g?.firma,
+          firmaStrasse: g?.adresseStrasse,
+          firmaOrt: g?.adressePlzOrt,
+          mwstZeile: g?.mwstZeile,
+        );
         await Printing.layoutPdf(onLayout: (_) => bytes);
       } else {
-        final er = await ref.read(erfolgsrechnungZeitraumProvider(_zeitraum).future);
-        final konten = await ref.read(erKontenAufstellungProvider(_zeitraum).future);
-        final bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum,
-            firmaName: g?.firma, firmaStrasse: g?.adresseStrasse, firmaOrt: g?.adressePlzOrt, mwstZeile: g?.mwstZeile);
+        final er = await ref.read(
+          erfolgsrechnungZeitraumProvider(_zeitraum).future,
+        );
+        final konten = await ref.read(
+          erKontenAufstellungProvider(_zeitraum).future,
+        );
+        final bytes = await ErfolgsrechnungPdfService.generate(
+          er,
+          konten,
+          _zeitraum,
+          firmaName: g?.firma,
+          firmaStrasse: g?.adresseStrasse,
+          firmaOrt: g?.adressePlzOrt,
+          mwstZeile: g?.mwstZeile,
+        );
         await Printing.layoutPdf(onLayout: (_) => bytes);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
 
   Future<void> _mail() async {
     final geschaeft = ref.read(geschaeftProvider).valueOrNull;
-    final empfaenger = geschaeft?.mailEmpfaenger ?? BerichtMailService.fallbackEmpfaenger;
+    final empfaenger =
+        geschaeft?.mailEmpfaenger ?? BerichtMailService.fallbackEmpfaenger;
     final istBilanz = _tab.index == 0;
     final was = istBilanz ? 'Bilanz' : 'Erfolgsrechnung';
     final ok = await showDialog<bool>(
@@ -69,8 +97,14 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
         title: Text('$was senden'),
         content: Text('$was als PDF an $empfaenger senden?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Senden')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Senden'),
+          ),
         ],
       ),
     );
@@ -80,14 +114,31 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
       final String filename;
       if (istBilanz) {
         final b = await ref.read(bilanzStichtagProvider(_stichtag).future);
-        bytes = await BilanzPdfService.generate(b, _stichtag,
-            firmaName: geschaeft?.firma, firmaStrasse: geschaeft?.adresseStrasse, firmaOrt: geschaeft?.adressePlzOrt, mwstZeile: geschaeft?.mwstZeile);
+        bytes = await BilanzPdfService.generate(
+          b,
+          _stichtag,
+          firmaName: geschaeft?.firma,
+          firmaStrasse: geschaeft?.adresseStrasse,
+          firmaOrt: geschaeft?.adressePlzOrt,
+          mwstZeile: geschaeft?.mwstZeile,
+        );
         filename = 'Bilanz.pdf';
       } else {
-        final er = await ref.read(erfolgsrechnungZeitraumProvider(_zeitraum).future);
-        final konten = await ref.read(erKontenAufstellungProvider(_zeitraum).future);
-        bytes = await ErfolgsrechnungPdfService.generate(er, konten, _zeitraum,
-            firmaName: geschaeft?.firma, firmaStrasse: geschaeft?.adresseStrasse, firmaOrt: geschaeft?.adressePlzOrt, mwstZeile: geschaeft?.mwstZeile);
+        final er = await ref.read(
+          erfolgsrechnungZeitraumProvider(_zeitraum).future,
+        );
+        final konten = await ref.read(
+          erKontenAufstellungProvider(_zeitraum).future,
+        );
+        bytes = await ErfolgsrechnungPdfService.generate(
+          er,
+          konten,
+          _zeitraum,
+          firmaName: geschaeft?.firma,
+          firmaStrasse: geschaeft?.adresseStrasse,
+          firmaOrt: geschaeft?.adressePlzOrt,
+          mwstZeile: geschaeft?.mwstZeile,
+        );
         filename = 'Erfolgsrechnung.pdf';
       }
       await BerichtMailService.send(
@@ -98,12 +149,15 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
         pdf: bytes,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$was gesendet an $empfaenger')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$was gesendet an $empfaenger')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Mail-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Mail-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -127,7 +181,10 @@ class _BerichteScreenState extends ConsumerState<BerichteScreen>
         ],
         bottom: TabBar(
           controller: _tab,
-          tabs: const [Tab(text: 'Bilanz'), Tab(text: 'Erfolgsrechnung')],
+          tabs: const [
+            Tab(text: 'Bilanz'),
+            Tab(text: 'Erfolgsrechnung'),
+          ],
         ),
       ),
       body: Column(

@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/camt_datei.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_abgleich_providers.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Übersicht der archivierten camt-Dateien: erfasste Zeiträume chronologisch,
 /// Warnung bei Lücken (> 3 Tage zwischen zwei Dateien) und Download je Datei.
@@ -25,7 +26,9 @@ class CamtDateienTab extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download fehlgeschlagen: $e')),
+          SnackBar(
+            content: Text('Download fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     }
@@ -80,7 +83,9 @@ class CamtDateienTab extends ConsumerWidget {
               items.add(_LueckeBanner(von: prevBis, bis: d.zeitraumVon!));
             }
           }
-          items.add(_DateiCard(datei: d, onDownload: () => _download(context, d)));
+          items.add(
+            _DateiCard(datei: d, onDownload: () => _download(context, d)),
+          );
         }
 
         return ListView(

@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_aufwand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 // kAufwandKategorien liegt in core/util/event_aufwand_slots.dart — eine
 // Wahrheit für Formular-Dropdown und die generierten Montage-Slot-Texte.
@@ -96,13 +97,16 @@ class _EventAufwandFormScreenState extends ConsumerState<EventAufwandFormScreen>
       a.kategorie = _kategorie;
       final notiz = _notizController.text.trim();
       a.notiz = notiz.isEmpty ? null : notiz;
-      a.stunden = double.tryParse(_stundenController.text.replaceAll(',', '.')) ?? 0;
+      a.stunden =
+          double.tryParse(_stundenController.text.replaceAll(',', '.')) ?? 0;
       await EventAufwandRepository.save(a);
 
       ref.invalidate(eventAufwaendeProvider(widget.eventId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isEdit ? 'Zeit aktualisiert' : 'Zeit erfasst')),
+          SnackBar(
+            content: Text(_isEdit ? 'Zeit aktualisiert' : 'Zeit erfasst'),
+          ),
         );
         // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
         geaendertZuruecksetzen();
@@ -111,7 +115,7 @@ class _EventAufwandFormScreenState extends ConsumerState<EventAufwandFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -135,7 +139,9 @@ class _EventAufwandFormScreenState extends ConsumerState<EventAufwandFormScreen>
       geaendert: geaendert,
       was: 'Der Aufwand',
       child: Scaffold(
-        appBar: AppBar(title: Text(_isEdit ? 'Zeit bearbeiten' : 'Zeit erfassen')),
+        appBar: AppBar(
+          title: Text(_isEdit ? 'Zeit bearbeiten' : 'Zeit erfassen'),
+        ),
         body: Form(
           key: _formKey,
           // Deckt alle FormFields ab; Schalter und Auswahl melden sich selbst.
@@ -187,7 +193,9 @@ class _EventAufwandFormScreenState extends ConsumerState<EventAufwandFormScreen>
                   prefixIcon: Icon(Icons.schedule),
                   suffixText: 'h',
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 validator: (v) {
                   final n = double.tryParse((v ?? '').replaceAll(',', '.'));
                   if (n == null || n <= 0) return 'Stunden > 0 erforderlich';
@@ -199,8 +207,10 @@ class _EventAufwandFormScreenState extends ConsumerState<EventAufwandFormScreen>
                 onPressed: _isLoading ? null : _save,
                 child: _isLoading
                     ? const SizedBox(
-                        height: 20, width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : Text(_isEdit ? 'Speichern' : 'Zeit erfassen'),
               ),
               const SizedBox(height: 32),

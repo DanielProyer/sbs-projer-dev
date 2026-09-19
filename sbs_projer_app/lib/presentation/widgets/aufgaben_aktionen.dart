@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Die Aktionen der Aufgabenliste — Sheet und Screen rufen dieselben (B6).
 /// Jede Aktion endet mit dem Invalidieren der Tabelle und der Liste; Fehler
@@ -33,9 +34,9 @@ class AufgabenAktionen {
       await f();
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       _neuLaden();

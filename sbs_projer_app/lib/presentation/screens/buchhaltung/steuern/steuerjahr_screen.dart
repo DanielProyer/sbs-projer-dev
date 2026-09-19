@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/presentation/widgets/steuern/steuer_ampel.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 final _chf = NumberFormat('#,##0.00', 'de_CH');
 final _df = DateFormat('dd.MM.yyyy');
@@ -166,7 +167,9 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Speichern fehlgeschlagen: $e')),
+        SnackBar(
+          content: Text('Speichern fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _speichert = false);
@@ -180,7 +183,9 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
       if (mounted) invalidateSteuern(ref);
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Löschen fehlgeschlagen: $e')),
+        SnackBar(
+          content: Text('Löschen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
       );
     }
   }
@@ -570,7 +575,11 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
           }
         } catch (e) {
           messenger.showSnackBar(
-            SnackBar(content: Text('Zuordnen fehlgeschlagen: $e')),
+            SnackBar(
+              content: Text(
+                'Zuordnen fehlgeschlagen: ${kurzeFehlermeldung(e)}',
+              ),
+            ),
           );
         }
       },

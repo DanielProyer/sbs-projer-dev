@@ -36,6 +36,7 @@ import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class CamtImportTab extends ConsumerStatefulWidget {
   final VoidCallback? onZurPruefliste;
@@ -72,8 +73,8 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   int _prueflisteCount = 0;
   int _uebersprungen = 0;
   int _altpostenAusgeblendet = 0;
-  AbgleichErgebnis? _abgleich;          // Bereich 1 Ergebnis
-  List<Rechnung> _alleOffenen = [];     // Pool für ⚪-Zuordnung
+  AbgleichErgebnis? _abgleich; // Bereich 1 Ergebnis
+  List<Rechnung> _alleOffenen = []; // Pool für ⚪-Zuordnung
   Map<String, String> _betriebName = {};
   bool _loading = false;
   String? _error;
@@ -141,7 +142,11 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
               ),
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Text(_error!, style: const TextStyle(color: AppColors.error), textAlign: TextAlign.center),
+              Text(
+                _error!,
+                style: const TextStyle(color: AppColors.error),
+                textAlign: TextAlign.center,
+              ),
             ],
           ],
         ),
@@ -152,12 +157,19 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   Future<void> _pickFile() async {
     String schritt = 'Datei wählen';
     try {
-      setState(() { _loading = true; _error = null; });
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
 
       final picked = await pickXmlFile();
 
       if (picked == null) {
-        setState(() { _loading = false; _error = 'Keine Datei ausgewählt oder Datei konnte nicht gelesen werden.'; });
+        setState(() {
+          _loading = false;
+          _error =
+              'Keine Datei ausgewählt oder Datei konnte nicht gelesen werden.';
+        });
         return;
       }
 
@@ -191,21 +203,26 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       SaldoCheck? anschluss;
       String? luecke;
       try {
-        final vortag =
-            statement.fromDate.subtract(const Duration(days: 1));
+        final vortag = statement.fromDate.subtract(const Duration(days: 1));
         final journalVortag = await BuchungService.bankSaldoPer(vortag);
         anschluss = BankWaechter.pruefeAnschluss(
-            opbd: statement.openingBalance, journalVortag: journalVortag);
+          opbd: statement.openingBalance,
+          journalVortag: journalVortag,
+        );
         final dateien = await CamtDateiRepository.getAll();
         final letzteBis = dateien.isEmpty
             ? null
             : dateien
-                .map((d) => d.zeitraumBis)
-                .whereType<DateTime>()
-                .fold<DateTime?>(null,
-                    (max, d) => max == null || d.isAfter(max) ? d : max);
+                  .map((d) => d.zeitraumBis)
+                  .whereType<DateTime>()
+                  .fold<DateTime?>(
+                    null,
+                    (max, d) => max == null || d.isAfter(max) ? d : max,
+                  );
         luecke = BankWaechter.luecke(
-            letztesBis: letzteBis, neuesVon: statement.fromDate);
+          letztesBis: letzteBis,
+          neuesVon: statement.fromDate,
+        );
       } catch (e) {
         // Der Wächter darf den Import nie verhindern — nur informieren.
         debugPrint('[BankWaechter] Prüfung fehlgeschlagen: $e');
@@ -250,12 +267,18 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
               children: [
                 Text(
                   'Bankauszug ${_dateFormat.format(stmt.fromDate)} – ${_dateFormat.format(stmt.toDate)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${stmt.ownerName} · IBAN ${stmt.iban} · ${txs.length} Transaktionen',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -268,14 +291,14 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (_lueckenWarnung == null &&
-                        (_anschlussCheck?.ok ?? true))
+                color:
+                    (_lueckenWarnung == null && (_anschlussCheck?.ok ?? true))
                     ? AppColors.success.withAlpha(25)
                     : AppColors.error.withAlpha(25),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: (_lueckenWarnung == null &&
-                          (_anschlussCheck?.ok ?? true))
+                  color:
+                      (_lueckenWarnung == null && (_anschlussCheck?.ok ?? true))
                       ? AppColors.success.withAlpha(120)
                       : AppColors.error.withAlpha(120),
                 ),
@@ -287,19 +310,29 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                     Text(
                       '${_anschlussCheck!.ok ? '✓' : '⚠'} ${_anschlussCheck!.text}',
                       style: const TextStyle(
-                          fontSize: 12.5, fontWeight: FontWeight.w600),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   if (_lueckenWarnung != null) ...[
                     if (_anschlussCheck != null) const SizedBox(height: 4),
-                    Text('⚠ $_lueckenWarnung',
-                        style: const TextStyle(
-                            fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    Text(
+                      '⚠ $_lueckenWarnung',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ],
               ),
             ),
           const SizedBox(height: 32),
-          Icon(Icons.auto_awesome, size: 56, color: AppColors.primary.withAlpha(120)),
+          Icon(
+            Icons.auto_awesome,
+            size: 56,
+            color: AppColors.primary.withAlpha(120),
+          ),
           const SizedBox(height: 20),
           Text(
             'Verbuchung & Rechnungskontrolle',
@@ -359,9 +392,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
             onTap: _loading
                 ? null
                 : () => setState(() {
-                      _step = 0;
-                      _statement = null;
-                    }),
+                    _step = 0;
+                    _statement = null;
+                  }),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
@@ -386,42 +419,66 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       final stmt = _statement!;
       // Doppel-Upload-Schutz (wie Forderungs-Abgleich).
       final bereitsErfasst = await CamtDateiRepository.existsZeitraum(
-          stmt.iban, stmt.fromDate, stmt.toDate);
+        stmt.iban,
+        stmt.fromDate,
+        stmt.toDate,
+      );
       if (bereitsErfasst) {
-        if (!mounted) { setState(() => _loading = false); return; }
+        if (!mounted) {
+          setState(() => _loading = false);
+          return;
+        }
         final weiter = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Zeitraum bereits erfasst'),
-            content: Text('Für diese IBAN ist der Zeitraum '
-                '${_dateFormat.format(stmt.fromDate)} – '
-                '${_dateFormat.format(stmt.toDate)} bereits archiviert.\n\n'
-                'Trotzdem importieren?'),
+            content: Text(
+              'Für diese IBAN ist der Zeitraum '
+              '${_dateFormat.format(stmt.fromDate)} – '
+              '${_dateFormat.format(stmt.toDate)} bereits archiviert.\n\n'
+              'Trotzdem importieren?',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Trotzdem')),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Abbrechen'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Trotzdem'),
+              ),
             ],
           ),
         );
-        if (weiter != true) { setState(() => _loading = false); return; }
+        if (weiter != true) {
+          setState(() => _loading = false);
+          return;
+        }
       }
-      final betriebe = ref.read(betriebeProvider)
+      final betriebe = ref
+          .read(betriebeProvider)
           .where((b) => b.serverId != null)
-          .map((b) => {
-                'id': b.serverId!,
-                'name': b.name,
-                'ort': b.ort ?? '',
-                'aliase': b.zahlerAliase.join('\n'),
-                'nr': b.nr ?? '',
-                'we_nummer': b.weNummer ?? '',
-                'ag_nummer': b.agNummer ?? '',
-                'heineken_nr': b.betriebNr ?? '',
-              })
+          .map(
+            (b) => {
+              'id': b.serverId!,
+              'name': b.name,
+              'ort': b.ort ?? '',
+              'aliase': b.zahlerAliase.join('\n'),
+              'nr': b.nr ?? '',
+              'we_nummer': b.weNummer ?? '',
+              'ag_nummer': b.agNummer ?? '',
+              'heineken_nr': b.betriebNr ?? '',
+            },
+          )
           .toList();
       final alleRechnungen = await RechnungRepository.getAll();
-      final alleOffenen = alleRechnungen.where((r) =>
-          r.rechnungstyp == 'kundenrechnung' &&
-          (r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'gesendet')).toList();
+      final alleOffenen = alleRechnungen
+          .where(
+            (r) =>
+                r.rechnungstyp == 'kundenrechnung' &&
+                (r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'gesendet'),
+          )
+          .toList();
       // Nur Forderungen bis ein Jahr zurück (Regel Daniel 28.07.2026) — ältere
       // stammen aus der Zeit ohne Rechnungsversand, werden abgeschrieben und
       // würden im Abgleich nur Fehlgriffe provozieren.
@@ -429,9 +486,15 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       final offeneRechnungen = alleOffenen
           .where((r) => istImAbgleichsfenster(r.rechnungsdatum, jetzt))
           .toList();
-      final ausgeblendeteAltposten = alleOffenen.length - offeneRechnungen.length;
-      final heinekenRechnungen = alleRechnungen.where((r) =>
-          r.rechnungstyp == 'heineken_monat' && r.zahlungsstatus != 'bezahlt').toList();
+      final ausgeblendeteAltposten =
+          alleOffenen.length - offeneRechnungen.length;
+      final heinekenRechnungen = alleRechnungen
+          .where(
+            (r) =>
+                r.rechnungstyp == 'heineken_monat' &&
+                r.zahlungsstatus != 'bezahlt',
+          )
+          .toList();
       // Gebuchte TX + erledigte/ignorierte Prüflisten-Einträge blockieren.
       // OFFENE Prüflisten-Einträge werden bewusst neu bewertet (Upsert
       // verhindert Duplikate; nach einer Buchung wird der Eintrag gelöscht).
@@ -445,13 +508,19 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       final vorlagenById = {for (final v in vorlagen) v.id: v};
       // TP-5: offene Kreditoren (Stufe-1 gebucht, noch nicht bezahlt) als
       // Match-Kandidaten für camt-Belastungen.
-      final offeneKreditoren = (await EingangsrechnungRepository
-              .getByStatus(['gebucht', 'zahlung_vorgemerkt', 'exportiert']))
-          .where((e) =>
-              e.camtTxKey == null &&
-              e.bezahltAm == null &&
-              e.buchungStufe1Id != null)
-          .toList();
+      final offeneKreditoren =
+          (await EingangsrechnungRepository.getByStatus([
+                'gebucht',
+                'zahlung_vorgemerkt',
+                'exportiert',
+              ]))
+              .where(
+                (e) =>
+                    e.camtTxKey == null &&
+                    e.bezahltAm == null &&
+                    e.buchungStufe1Id != null,
+              )
+              .toList();
 
       final stmtTx = _statement!.transactions;
       // Post-Stichtag + noch nicht verarbeitet → in Bereiche aufteilen.
@@ -460,7 +529,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
           .where((t) => !bereitsVerarbeitet.contains(t.txKey))
           .toList();
       final bereich1 = post.where(istKundenzahlungsKandidat).toList();
-      final bereich2 = post.where((t) => !istKundenzahlungsKandidat(t)).toList();
+      final bereich2 = post
+          .where((t) => !istKundenzahlungsKandidat(t))
+          .toList();
 
       // Bereich 2 (Übriges): Anfangsphase — NICHTS automatisch buchen.
       // Regel-/Heineken-Treffer werden als Vorschläge zum Bestätigen gezeigt,
@@ -483,8 +554,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       var rueckFehler = false;
       if (steuerVorschlaege.isNotEmpty) {
         try {
-          rueckRest.addAll(rueckstellungsRest(
-              await BuchungRepository.getAll()));
+          rueckRest.addAll(
+            rueckstellungsRest(await BuchungRepository.getAll()),
+          );
         } catch (e) {
           // Ohne Rückstellungs-Info wird auf 8900 kontiert — im Dropdown
           // korrigierbar; der Import darf daran nicht scheitern. Der Fehler
@@ -498,9 +570,11 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       }
 
       final preStichtagOderVerarbeitet = stmtTx
-          .where((t) =>
-              !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
-              bereitsVerarbeitet.contains(t.txKey))
+          .where(
+            (t) =>
+                !CamtStichtag.istAutomatisierbar(t.bookingDate) ||
+                bereitsVerarbeitet.contains(t.txKey),
+          )
           .length;
 
       // Bereich 1: Kundenzahlungen gegen offene Forderungen abgleichen.
@@ -515,12 +589,22 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       // Duplikatprüfung jeden weiteren Versuch mit derselben Datei.
       final gutAnzahl = stmt.transactions.where((t) => t.isCredit).length;
       await CamtDateiRepository.speichern(
-        CamtDatei(id: '', userId: '', dateiname: _dateiname ?? 'camt.xml',
-          zeitraumVon: stmt.fromDate, zeitraumBis: stmt.toDate, iban: stmt.iban,
-          anzahlEintraege: stmt.transactions.length, anzahlGutschriften: gutAnzahl, storagePfad: '',
+        CamtDatei(
+          id: '',
+          userId: '',
+          dateiname: _dateiname ?? 'camt.xml',
+          zeitraumVon: stmt.fromDate,
+          zeitraumBis: stmt.toDate,
+          iban: stmt.iban,
+          anzahlEintraege: stmt.transactions.length,
+          anzahlGutschriften: gutAnzahl,
+          storagePfad: '',
           // Bank-Salden für den Bank-Wächter (Lückenlos- und Schluss-Check).
-          anfangssaldo: stmt.openingBalance, schlusssaldo: stmt.closingBalance),
-        Uint8List.fromList(utf8.encode(_xmlRoh ?? '')));
+          anfangssaldo: stmt.openingBalance,
+          schlusssaldo: stmt.closingBalance,
+        ),
+        Uint8List.fromList(utf8.encode(_xmlRoh ?? '')),
+      );
 
       setState(() {
         _vorschlaege = plan.vorschlaege;
@@ -541,7 +625,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
           for (final b in betriebe)
             b['id']!: (b['ort'] ?? '').isEmpty
                 ? b['name']!
-                : '${b['name']} · ${b['ort']}'
+                : '${b['name']} · ${b['ort']}',
         };
         _step = 2;
         _loading = false;
@@ -549,7 +633,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -557,7 +643,8 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   // === Schritt 3: Ergebnis ===
   Widget _buildResultStep() {
     final ab = _abgleich!;
-    final hatKundenzahlungen = ab.auto.isNotEmpty ||
+    final hatKundenzahlungen =
+        ab.auto.isNotEmpty ||
         ab.manuell.isNotEmpty ||
         ab.unbekannteGutschriften.isNotEmpty ||
         ab.keineZahlung.isNotEmpty;
@@ -571,8 +658,10 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
             // === Bereich 1: Kundenzahlungen ===
             const Padding(
               padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
-              child: Text('Kundenzahlungen',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              child: Text(
+                'Kundenzahlungen',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
             ),
             if (hatKundenzahlungen)
               AbgleichVorschau(
@@ -584,31 +673,37 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
             else
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Keine Kundenzahlungen in diesem Auszug.',
-                    style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'Keine Kundenzahlungen in diesem Auszug.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
             const Divider(height: 32),
             // === Bereich 2: Übriges — zu BESTÄTIGEN (nichts auto-gebucht) ===
             const Padding(
               padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
-              child: Text('Übriges — zu bestätigen',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              child: Text(
+                'Übriges — zu bestätigen',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
             ),
             if (_vorschlaege.isNotEmpty) ...[
               // Einmalige Warnung statt einer pro Zeile — und nur dort, wo sie
               // zutrifft: MWST (2202) und Bussen (8900) kennen gar keine
               // Rückstellung, dort widerspräche sie dem Zielkonto-Hinweis.
               if (_rueckstellungFehler &&
-                  _steuer.values.any((z) =>
-                      z.steuerart == 'bund' || z.steuerart == 'kanton'))
+                  _steuer.values.any(
+                    (z) => z.steuerart == 'bund' || z.steuerart == 'kanton',
+                  ))
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 12, 8),
                   child: Text(
                     'Rückstellungs-Prüfung fehlgeschlagen — Kontierung auf 8900, bitte prüfen',
                     style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.warning,
-                        fontWeight: FontWeight.w600),
+                      fontSize: 12,
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               Padding(
@@ -626,21 +721,29 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
             ] else
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Keine automatisch zuordenbaren Buchungen.',
-                    style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'Keine automatisch zuordenbaren Buchungen.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
             if (_prueflisteCount > 0)
-              _ResultRow(Icons.info_outline,
-                  '$_prueflisteCount in Prüfliste (manuell klären)',
-                  AppColors.warning),
+              _ResultRow(
+                Icons.info_outline,
+                '$_prueflisteCount in Prüfliste (manuell klären)',
+                AppColors.warning,
+              ),
             if (_uebersprungen > 0)
-              _ResultRow(Icons.skip_next,
-                  '$_uebersprungen übersprungen (vor Stichtag / bereits verarbeitet)',
-                  AppColors.textSecondary),
+              _ResultRow(
+                Icons.skip_next,
+                '$_uebersprungen übersprungen (vor Stichtag / bereits verarbeitet)',
+                AppColors.textSecondary,
+              ),
             if (_altpostenAusgeblendet > 0)
-              _ResultRow(Icons.history_toggle_off,
-                  '$_altpostenAusgeblendet Forderungen älter als ein Jahr — nicht im Abgleich',
-                  AppColors.textSecondary),
+              _ResultRow(
+                Icons.history_toggle_off,
+                '$_altpostenAusgeblendet Forderungen älter als ein Jahr — nicht im Abgleich',
+                AppColors.textSecondary,
+              ),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.center,
@@ -672,8 +775,11 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
               primaer: false,
             ),
             const SizedBox(height: 10),
-            _tapButton('Fertig', () => Navigator.of(context).pop(),
-                primaer: true),
+            _tapButton(
+              'Fertig',
+              () => Navigator.of(context).pop(),
+              primaer: true,
+            ),
             const SizedBox(height: 24),
           ],
         ),
@@ -686,7 +792,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   String? _vorschlagInfo(CamtVorschlag v) {
     final teile = <String>[];
     final name = effektiverZahlername(
-        partyName: v.tx.partyName, additionalInfo: v.tx.additionalInfo);
+      partyName: v.tx.partyName,
+      additionalInfo: v.tx.additionalInfo,
+    );
     if (name != null) teile.add(name);
     final adr = v.tx.partyAddress.trim();
     if (adr.isNotEmpty) teile.add(adr);
@@ -720,12 +828,19 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   /// Vorbelegung um ein Jahr zu hoch und per Dropdown zu korrigieren
   /// (bewusste Spec-Entscheidung 02.09.2026: der häufigere Fall gewinnt).
   SteuerZuordnung _initialeSteuerZuordnung(
-      CamtVorschlag v, Map<int, double> rueckstellungRest) {
-    final name = effektiverZahlername(
-            partyName: v.tx.partyName, additionalInfo: v.tx.additionalInfo) ??
+    CamtVorschlag v,
+    Map<int, double> rueckstellungRest,
+  ) {
+    final name =
+        effektiverZahlername(
+          partyName: v.tx.partyName,
+          additionalInfo: v.tx.additionalInfo,
+        ) ??
         '';
-    final art = steuerartVorschlag('$name '
-        '${v.tx.strukturierteReferenz ?? ''} ${v.tx.additionalInfo ?? ''}');
+    final art = steuerartVorschlag(
+      '$name '
+      '${v.tx.strukturierteReferenz ?? ''} ${v.tx.additionalInfo ?? ''}',
+    );
     final jahr = art == 'mwst'
         ? v.tx.bookingDate.year
         : v.tx.bookingDate.year - 1;
@@ -756,21 +871,28 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     final z = _steuer[v.tx.txKey];
     if (z == null) return;
     final gebuchtesKonto = steuerKontoFuer(
-        steuerart: z.steuerart, hatRueckstellung: z.hatRueckstellung);
-    if (gebuchtesKonto != 2208) return; // 8900/2202 rühren die Rückstellung nicht an
+      steuerart: z.steuerart,
+      hatRueckstellung: z.hatRueckstellung,
+    );
+    if (gebuchtesKonto != 2208) {
+      return; // 8900/2202 rühren die Rückstellung nicht an
+    }
     // Vorzeichen aus derselben Quelle wie die Seitenwahl beim Buchen (die
     // Bankseite), nicht aus der camt-Richtung — eine als «Bank an 2208»
     // definierte Vorlage baut die Rückstellung auch bei einer Belastung auf.
     final k = kontenFuerCamt(v.vorlage!);
-    final bautAuf = rueckstellungBautAuf(ausgabeBuchungsFelder(
-      betrag: v.tx.amount,
-      isCredit: v.tx.isCredit,
-      mwstSatz: v.vorlage!.mwstSatz ?? 0,
-      vorlageSoll: k.sollKonto,
-      vorlageHaben: k.habenKonto,
-      vorlageMwstKonto: k.mwstKonto,
-    ));
-    final rest = (_rueckstellungRest[z.steuerjahr] ?? 0) +
+    final bautAuf = rueckstellungBautAuf(
+      ausgabeBuchungsFelder(
+        betrag: v.tx.amount,
+        isCredit: v.tx.isCredit,
+        mwstSatz: v.vorlage!.mwstSatz ?? 0,
+        vorlageSoll: k.sollKonto,
+        vorlageHaben: k.habenKonto,
+        vorlageMwstKonto: k.mwstKonto,
+      ),
+    );
+    final rest =
+        (_rueckstellungRest[z.steuerjahr] ?? 0) +
         (bautAuf ? v.tx.amount : -v.tx.amount);
     _rueckstellungRest[z.steuerjahr] = rest;
     final hat = rest > 0.05;
@@ -793,7 +915,12 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Beleg konnte nicht geöffnet werden: $e')));
+          SnackBar(
+            content: Text(
+              'Beleg konnte nicht geöffnet werden: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
+        );
       }
     }
   }
@@ -816,16 +943,22 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${v.tx.amount.toStringAsFixed(2)} CHF',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
+                    Text(
+                      '${v.tx.amount.toStringAsFixed(2)} CHF',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       '${v.label} · ${_dateFormat.format(v.tx.bookingDate)}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 13, color: AppColors.textSecondary),
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     if (info != null) ...[
                       const SizedBox(height: 2),
@@ -834,7 +967,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary),
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ],
@@ -846,15 +981,25 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                   behavior: HitTestBehavior.opaque,
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.picture_as_pdf, size: 16, color: AppColors.primary),
-                      SizedBox(width: 3),
-                      Text('Beleg',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.picture_as_pdf,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                        SizedBox(width: 3),
+                        Text(
+                          'Beleg',
                           style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600)),
-                    ]),
+                            fontSize: 11,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               const SizedBox(width: 8),
@@ -873,10 +1018,11 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     final jahre = <int>{
       for (int j = DateTime.now().year; j >= kSteuerJahrAb; j--) j,
       z.steuerjahr,
-    }.toList()
-      ..sort((a, b) => b.compareTo(a));
+    }.toList()..sort((a, b) => b.compareTo(a));
     final konto = steuerKontoFuer(
-        steuerart: z.steuerart, hatRueckstellung: z.hatRueckstellung);
+      steuerart: z.steuerart,
+      hatRueckstellung: z.hatRueckstellung,
+    );
     const kontoText = {
       2208: '→ 2208 Rückstellung',
       8900: '→ 8900 Steueraufwand',
@@ -894,13 +1040,15 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                   value: z.steuerjahr,
                   isDense: true,
                   isExpanded: true,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                   items: [
                     for (final j in jahre)
                       DropdownMenuItem(value: j, child: Text('Steuerjahr $j')),
                   ],
-                  onChanged: (j) =>
-                      j == null ? null : _setzeSteuer(v, jahr: j),
+                  onChanged: (j) => j == null ? null : _setzeSteuer(v, jahr: j),
                 ),
               ),
               const SizedBox(width: 12),
@@ -909,13 +1057,15 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
                   value: z.steuerart,
                   isDense: true,
                   isExpanded: true,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                   items: [
                     for (final e in steuerarten.entries)
                       DropdownMenuItem(value: e.key, child: Text(e.value)),
                   ],
-                  onChanged: (a) =>
-                      a == null ? null : _setzeSteuer(v, art: a),
+                  onChanged: (a) => a == null ? null : _setzeSteuer(v, art: a),
                 ),
               ),
             ],
@@ -923,9 +1073,10 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
           Text(
             kontoText[konto] ?? '→ $konto',
             style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600),
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -944,13 +1095,15 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
         _steuer.remove(v.tx.txKey);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Verbucht.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Verbucht.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Buchungs-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Buchungs-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -979,11 +1132,15 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
           _steuer.remove(v.tx.txKey);
         }
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(fehler.isEmpty
-            ? '${ok.length} verbucht.'
-            : '${ok.length} verbucht, ${fehler.length} fehlgeschlagen'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            fehler.isEmpty
+                ? '${ok.length} verbucht.'
+                : '${ok.length} verbucht, ${fehler.length} fehlgeschlagen',
+          ),
+        ),
+      );
     }
   }
 
@@ -992,8 +1149,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
         decoration: BoxDecoration(
           color: primaer ? AppColors.primary : Colors.transparent,
           border: primaer ? null : Border.all(color: AppColors.primary),
@@ -1031,7 +1187,9 @@ class _ResultRow extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: color),
           const SizedBox(width: 8),
-          Flexible(child: Text(text, style: TextStyle(fontSize: 14, color: color))),
+          Flexible(
+            child: Text(text, style: TextStyle(fontSize: 14, color: color)),
+          ),
         ],
       ),
     );

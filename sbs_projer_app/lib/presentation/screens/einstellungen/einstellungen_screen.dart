@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auth_service.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class EinstellungenScreen extends ConsumerStatefulWidget {
   const EinstellungenScreen({super.key});
@@ -332,7 +333,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                     ),
                   );
                 } catch (e) {
-                  messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+                  );
                 }
               },
             ),

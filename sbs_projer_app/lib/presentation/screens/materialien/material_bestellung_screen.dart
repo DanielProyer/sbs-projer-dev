@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/data/repositories/material_bestellung_repository.
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/services/pdf/bestellung_pdf_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class MaterialBestellungScreen extends ConsumerStatefulWidget {
   const MaterialBestellungScreen({super.key});
@@ -28,8 +29,7 @@ class _BestellPosition {
   final TextEditingController mengeController;
 
   _BestellPosition({this.menge = 1})
-      : mengeController =
-            TextEditingController(text: menge.toStringAsFixed(0));
+    : mengeController = TextEditingController(text: menge.toStringAsFixed(0));
 }
 
 class _BestellItem {
@@ -85,8 +85,9 @@ class _MaterialBestellungScreenState
 
   Future<void> _loadData() async {
     try {
-      final kontakt =
-          await KontaktRepository.getHeinekenZuweisung('materialbestellung');
+      final kontakt = await KontaktRepository.getHeinekenZuweisung(
+        'materialbestellung',
+      );
       final alleLager = await LagerRepository.getAll();
       final kategorien = ref.read(kategorienProvider).valueOrNull ?? [];
       final kategorieNames = <String, String>{};
@@ -101,8 +102,9 @@ class _MaterialBestellungScreenState
 
       for (final l in alleLager) {
         if (!l.istAktiv) continue;
-        final katName =
-            l.kategorieId != null ? kategorieNames[l.kategorieId] : null;
+        final katName = l.kategorieId != null
+            ? kategorieNames[l.kategorieId]
+            : null;
         if (katName == 'Verbrauchsmaterial') {
           verbrauchLager.add(l);
         } else if (katName == 'Reinigungsmaterial') {
@@ -111,16 +113,14 @@ class _MaterialBestellungScreenState
 
         if (l.vorgemerkt) {
           final fehlmenge = l.bestandOptimal - l.bestandAktuell;
-          vorgemerkt.add(_BestellItem(
-            lager: l,
-            menge: fehlmenge > 0 ? fehlmenge : 1,
-          ));
+          vorgemerkt.add(
+            _BestellItem(lager: l, menge: fehlmenge > 0 ? fehlmenge : 1),
+          );
         } else if (l.bestandNiedrig == true) {
           final fehlmenge = l.bestandOptimal - l.bestandAktuell;
-          niedrig.add(_BestellItem(
-            lager: l,
-            menge: fehlmenge > 0 ? fehlmenge : 1,
-          ));
+          niedrig.add(
+            _BestellItem(lager: l, menge: fehlmenge > 0 ? fehlmenge : 1),
+          );
         }
       }
 
@@ -150,7 +150,9 @@ class _MaterialBestellungScreenState
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Laden: $e')),
+          SnackBar(
+            content: Text('Fehler beim Laden: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     }
@@ -198,17 +200,19 @@ class _MaterialBestellungScreenState
   Future<void> _sendBestellung() async {
     final selected = _allSelected;
     if (selected.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Keine Artikel ausgewählt')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Keine Artikel ausgewählt')));
       return;
     }
 
     if (_empfaengerEmail == null || _empfaengerEmail!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text(
-                'Kein Heineken-Kontakt zugewiesen. Bitte unter Einstellungen → Heineken-Kontaktzuweisung konfigurieren.')),
+          content: Text(
+            'Kein Heineken-Kontakt zugewiesen. Bitte unter Einstellungen → Heineken-Kontaktzuweisung konfigurieren.',
+          ),
+        ),
       );
       return;
     }
@@ -217,8 +221,10 @@ class _MaterialBestellungScreenState
 
     try {
       final bestellNr = await MaterialBestellungRepository.nextBestellNr();
-      final empfaenger =
-          MailConfig.empfaenger(_empfaengerEmail, bereich: 'bestellung');
+      final empfaenger = MailConfig.empfaenger(
+        _empfaengerEmail,
+        bereich: 'bestellung',
+      );
 
       final positionen = selected.map((e) {
         final katName = e.lager.kategorieId != null
@@ -248,8 +254,9 @@ class _MaterialBestellungScreenState
         positionen: positionen,
       );
 
-      final savedPositionen =
-          await MaterialBestellungRepository.getPositionen(bestellung.id);
+      final savedPositionen = await MaterialBestellungRepository.getPositionen(
+        bestellung.id,
+      );
 
       final pdfBytes = await BestellungPdfService.generate(
         bestellung: bestellung,
@@ -274,7 +281,9 @@ class _MaterialBestellungScreenState
       );
 
       await MaterialBestellungRepository.updateStatus(
-          bestellung.id, 'gesendet');
+        bestellung.id,
+        'gesendet',
+      );
 
       for (final item in _vorgemerktItems) {
         if (item.selected) {
@@ -295,7 +304,7 @@ class _MaterialBestellungScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -348,9 +357,7 @@ class _MaterialBestellungScreenState
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final selectedCount = _allSelected.length;
@@ -395,8 +402,12 @@ class _MaterialBestellungScreenState
           // 3. Vorgemerkte Artikel
           if (_vorgemerktItems.isNotEmpty) ...[
             const SizedBox(height: 16),
-            _buildCheckboxSektion('Vorgemerkte Artikel', _vorgemerktItems,
-                icon: Icons.bookmark, iconColor: Colors.orange),
+            _buildCheckboxSektion(
+              'Vorgemerkte Artikel',
+              _vorgemerktItems,
+              icon: Icons.bookmark,
+              iconColor: Colors.orange,
+            ),
           ],
 
           // 4. Niedrige Bestände (mit Switch)
@@ -407,8 +418,10 @@ class _MaterialBestellungScreenState
                 title: const Text('Niedrige Bestände bestellen'),
                 subtitle: Text(
                   '${_niedrigItems.length} Artikel unter Mindestbestand',
-                  style:
-                      TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 value: _autoNiedrig,
                 onChanged: (v) => setState(() => _autoNiedrig = v),
@@ -444,12 +457,16 @@ class _MaterialBestellungScreenState
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.send),
-              label: Text(_sending
-                  ? 'Wird gesendet...'
-                  : 'Bestellung senden ($selectedCount Artikel)'),
+              label: Text(
+                _sending
+                    ? 'Wird gesendet...'
+                    : 'Bestellung senden ($selectedCount Artikel)',
+              ),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
               ),
@@ -460,17 +477,18 @@ class _MaterialBestellungScreenState
   }
 
   Widget _buildEmpfaengerCard() {
-    final hasContact =
-        _empfaengerEmail != null && _empfaengerEmail!.isNotEmpty;
+    final hasContact = _empfaengerEmail != null && _empfaengerEmail!.isNotEmpty;
     return Card(
       child: ListTile(
         leading: Icon(
           hasContact ? Icons.person : Icons.warning,
           color: hasContact ? AppColors.primary : AppColors.error,
         ),
-        title: Text(hasContact
-            ? _empfaengerName ?? 'Heineken-Kontakt'
-            : 'Kein Kontakt zugewiesen'),
+        title: Text(
+          hasContact
+              ? _empfaengerName ?? 'Heineken-Kontakt'
+              : 'Kein Kontakt zugewiesen',
+        ),
         subtitle: Text(
           hasContact
               ? _empfaengerEmail!
@@ -508,17 +526,19 @@ class _MaterialBestellungScreenState
         Row(
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(title,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13)),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
             ),
             const Spacer(),
             TextButton.icon(
@@ -570,19 +590,25 @@ class _MaterialBestellungScreenState
                 initialValue: position.lager?.id,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6)),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   isDense: true,
                   hintText: 'Artikel wählen...',
-                  hintStyle:
-                      TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  hintStyle: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 style: const TextStyle(fontSize: 13, color: Colors.black87),
                 items: items.map((l) {
-                  final label =
-                      l.dboNr != null ? '${l.dboNr} – ${l.name}' : l.name;
+                  final label = l.dboNr != null
+                      ? '${l.dboNr} – ${l.name}'
+                      : l.name;
                   return DropdownMenuItem(value: l.id, child: Text(label));
                 }).toList(),
                 onChanged: (id) {
@@ -595,8 +621,8 @@ class _MaterialBestellungScreenState
                       final fehlmenge =
                           lager.bestandOptimal - lager.bestandAktuell;
                       position.menge = fehlmenge > 0 ? fehlmenge : 1;
-                      position.mengeController.text =
-                          position.menge.toStringAsFixed(0);
+                      position.mengeController.text = position.menge
+                          .toStringAsFixed(0);
                     }
                   });
                 },
@@ -610,13 +636,18 @@ class _MaterialBestellungScreenState
                 controller: position.mengeController,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
                 decoration: InputDecoration(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
+                  ),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6)),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   isDense: true,
                 ),
                 onChanged: (v) {
@@ -642,8 +673,12 @@ class _MaterialBestellungScreenState
 
   // --- Checkbox-Sektion (Vorgemerkt / Niedrig) ---
 
-  Widget _buildCheckboxSektion(String title, List<_BestellItem> items,
-      {IconData? icon, Color? iconColor}) {
+  Widget _buildCheckboxSektion(
+    String title,
+    List<_BestellItem> items, {
+    IconData? icon,
+    Color? iconColor,
+  }) {
     final selectedCount = items.where((i) => i.selected).length;
     final allSelected = selectedCount == items.length;
     return Column(
@@ -656,22 +691,25 @@ class _MaterialBestellungScreenState
               const SizedBox(width: 6),
             ],
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: iconColor ?? AppColors.primary,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(title,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13)),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
-            Text('$selectedCount/${items.length}',
-                style:
-                    TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            Text(
+              '$selectedCount/${items.length}',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
             const Spacer(),
             TextButton(
               onPressed: () {
@@ -681,8 +719,10 @@ class _MaterialBestellungScreenState
                   }
                 });
               },
-              child: Text(allSelected ? 'Keine' : 'Alle',
-                  style: const TextStyle(fontSize: 12)),
+              child: Text(
+                allSelected ? 'Keine' : 'Alle',
+                style: const TextStyle(fontSize: 12),
+              ),
             ),
           ],
         ),
@@ -704,18 +744,26 @@ class _MaterialBestellungScreenState
         title: Row(
           children: [
             Expanded(
-              child: Text(l.name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
+              child: Text(
+                l.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (l.dboNr != null)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: Text('DBO ${l.dboNr}',
-                    style: TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary)),
+                child: Text(
+                  'DBO ${l.dboNr}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ),
           ],
         ),
@@ -733,13 +781,18 @@ class _MaterialBestellungScreenState
                 initialValue: item.menge.toStringAsFixed(0),
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
                 decoration: InputDecoration(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 4,
+                  ),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6)),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   isDense: true,
                 ),
                 onChanged: (v) {

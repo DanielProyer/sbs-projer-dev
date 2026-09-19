@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt/camt_regeln_tab.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt/kundenzahlung_zuordnen_dialog.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// camt-Prüfliste — persistente Liste der Transaktionen, die der Auto-Booker
 /// nicht sicher verbuchen konnte.
@@ -46,7 +47,7 @@ class CamtPrueflisteTab extends ConsumerWidget {
     } catch (err) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $err')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(err)}')),
         );
       }
     }
@@ -108,12 +109,12 @@ class CamtPrueflisteTab extends ConsumerWidget {
               // sonst nie erfassen und die Zahlung bliebe ungebucht.
               onRegelAnlegen: regelKategorien.contains(e.kategorie)
                   ? () => showRegelDialog(
-                        context,
-                        ref,
-                        vorausgefuelltMatchName: e.parteiName,
-                        vorausgefuellteIban: e.parteiIban,
-                        buchenFuer: e,
-                      )
+                      context,
+                      ref,
+                      vorausgefuelltMatchName: e.parteiName,
+                      vorausgefuellteIban: e.parteiIban,
+                      buchenFuer: e,
+                    )
                   : null,
               // Geparkte Kundenzahlungen (aus «Später klären» im Abgleich)
               // lassen sich hier direkt offenen Rechnungen zuordnen.
@@ -188,7 +189,9 @@ class _PrueflisteCard extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: e.istGutschrift ? AppColors.success : AppColors.error,
+                    color: e.istGutschrift
+                        ? AppColors.success
+                        : AppColors.error,
                   ),
                 ),
               ],
@@ -229,8 +232,11 @@ class _PrueflisteCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.lightbulb_outline,
-                        size: 12, color: AppColors.primary),
+                    const Icon(
+                      Icons.lightbulb_outline,
+                      size: 12,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Vorschlag: $vorschlagBetrieb',

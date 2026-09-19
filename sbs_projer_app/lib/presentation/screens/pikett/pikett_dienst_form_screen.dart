@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/utils/schweizer_feiertage.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class PikettDienstFormScreen extends ConsumerStatefulWidget {
   final String? pikettId; // null = neu
@@ -20,8 +21,7 @@ class PikettDienstFormScreen extends ConsumerStatefulWidget {
       _PikettDienstFormScreenState();
 }
 
-class _PikettDienstFormScreenState
-    extends ConsumerState<PikettDienstFormScreen>
+class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
     with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -74,9 +74,11 @@ class _PikettDienstFormScreenState
           .limit(1);
       if (preisRows.isNotEmpty && mounted) {
         final p = double.tryParse(
-            preisRows.first['pikett_pauschale']?.toString() ?? '');
+          preisRows.first['pikett_pauschale']?.toString() ?? '',
+        );
         final f = double.tryParse(
-            preisRows.first['pikett_feiertag_zuschlag']?.toString() ?? '');
+          preisRows.first['pikett_feiertag_zuschlag']?.toString() ?? '',
+        );
         setState(() {
           if (p != null) _pauschale = p;
           if (f != null) _feiertagZuschlagProTag = f;
@@ -138,9 +140,9 @@ class _PikettDienstFormScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEdit
-                ? 'Pikett-Dienst aktualisiert'
-                : 'Pikett-Dienst erfasst'),
+            content: Text(
+              _isEdit ? 'Pikett-Dienst aktualisiert' : 'Pikett-Dienst erfasst',
+            ),
           ),
         );
         if (kIsWeb) ref.invalidate(pikettDiensteStreamProvider);
@@ -151,7 +153,7 @@ class _PikettDienstFormScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -162,8 +164,7 @@ class _PikettDienstFormScreenState
   @override
   Widget build(BuildContext context) {
     if (_isEdit && _existing == null) {
-      return const Scaffold(
-          body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final freitag = _freitagOfKw(_jahr, _kw);
@@ -174,8 +175,7 @@ class _PikettDienstFormScreenState
       was: 'Der Pikett-Dienst',
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-              _isEdit ? 'Pikett bearbeiten' : 'Neuer Pikett-Dienst'),
+          title: Text(_isEdit ? 'Pikett bearbeiten' : 'Neuer Pikett-Dienst'),
         ),
         body: Form(
           key: _formKey,
@@ -245,7 +245,11 @@ class _PikettDienstFormScreenState
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.schedule, size: 16, color: AppColors.primary),
+                        const Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Einsatzzeiten KW $_kw',
@@ -260,8 +264,10 @@ class _PikettDienstFormScreenState
                     const SizedBox(height: 8),
                     // Feiertage unter der Woche (Mo–Do) als zusätzliche Einsatztage
                     for (final f in _erkanneFeiertage.where(
-                        (f) => f.datum.weekday >= DateTime.monday &&
-                               f.datum.weekday <= DateTime.thursday))
+                      (f) =>
+                          f.datum.weekday >= DateTime.monday &&
+                          f.datum.weekday <= DateTime.thursday,
+                    ))
                       _zeitRow(
                         '${_wochentagName(f.datum.weekday)} (${f.name})',
                         _formatDate(f.datum),
@@ -297,10 +303,10 @@ class _PikettDienstFormScreenState
                         labelText: 'Feiertage',
                         prefixIcon: Icon(Icons.celebration),
                       ),
-                      items: List.generate(4, (i) => DropdownMenuItem(
-                        value: i,
-                        child: Text('$i'),
-                      )),
+                      items: List.generate(
+                        4,
+                        (i) => DropdownMenuItem(value: i, child: Text('$i')),
+                      ),
                       onChanged: (v) {
                         if (v != null) setState(() => _anzahlFeiertage = v);
                       },
@@ -319,14 +325,24 @@ class _PikettDienstFormScreenState
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.celebration, size: 16, color: AppColors.warning),
+                      const Icon(
+                        Icons.celebration,
+                        size: 16,
+                        color: AppColors.warning,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _erkanneFeiertage.map((f) =>
-                            '${_wochentagName(f.datum.weekday)} ${_formatDate(f.datum)} – ${f.name}'
-                          ).join('\n'),
-                          style: const TextStyle(fontSize: 12, color: AppColors.warning),
+                          _erkanneFeiertage
+                              .map(
+                                (f) =>
+                                    '${_wochentagName(f.datum.weekday)} ${_formatDate(f.datum)} – ${f.name}',
+                              )
+                              .join('\n'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.warning,
+                          ),
                         ),
                       ),
                     ],
@@ -367,13 +383,18 @@ class _PikettDienstFormScreenState
           ),
           SizedBox(
             width: 90,
-            child: Text(datum,
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary)),
-          ),
-          Text(zeit,
+            child: Text(
+              datum,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600)),
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Text(
+            zeit,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -394,19 +415,22 @@ class _PikettDienstFormScreenState
             _preisRow(
               'Feiertag-Zuschlag',
               '$_anzahlFeiertage × ${_feiertagZuschlagProTag.toStringAsFixed(2)} = '
-              '${(_anzahlFeiertage * _feiertagZuschlagProTag).toStringAsFixed(2)} CHF',
+                  '${(_anzahlFeiertage * _feiertagZuschlagProTag).toStringAsFixed(2)} CHF',
             ),
           const Divider(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Gesamt',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 15)),
+              const Text(
+                'Gesamt',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
               Text(
                 '${_pauschaleGesamt.toStringAsFixed(2)} CHF',
                 style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 15),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
               ),
             ],
           ),
@@ -421,9 +445,13 @@ class _PikettDienstFormScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 13, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
           Text(betrag, style: const TextStyle(fontSize: 13)),
         ],
       ),
@@ -433,9 +461,9 @@ class _PikettDienstFormScreenState
   Widget _sectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 

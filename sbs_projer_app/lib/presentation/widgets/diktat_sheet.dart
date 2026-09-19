@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
 import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_entwurf_speicher.dart';
 import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Zeigt das Diktier-Sheet: freier Text (übers Mikrofon der Tastatur
 /// eingesprochen) -> KI-Auswertung (`parse-einsatz`) -> Bestätigung. Nichts
@@ -433,9 +434,11 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Speichern fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
     }
   }
 
@@ -519,9 +522,11 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Speichern fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
     }
   }
 

@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BetriebKontaktFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -91,8 +92,9 @@ class _BetriebKontaktFormScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text(_isEdit ? 'Kontakt aktualisiert' : 'Kontakt erstellt'),
+            content: Text(
+              _isEdit ? 'Kontakt aktualisiert' : 'Kontakt erstellt',
+            ),
           ),
         );
         // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
@@ -102,7 +104,7 @@ class _BetriebKontaktFormScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -192,9 +194,7 @@ class _BetriebKontaktFormScreenState
                   Expanded(
                     child: TextFormField(
                       controller: _nachnameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nachname',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Nachname'),
                       textInputAction: TextInputAction.next,
                     ),
                   ),
@@ -210,9 +210,18 @@ class _BetriebKontaktFormScreenState
                   prefixIcon: Icon(Icons.work_outline),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'Geschäftsführer', child: Text('Geschäftsführer')),
-                  DropdownMenuItem(value: 'F&B Manager', child: Text('F&B Manager')),
-                  DropdownMenuItem(value: 'Mitarbeiter', child: Text('Mitarbeiter')),
+                  DropdownMenuItem(
+                    value: 'Geschäftsführer',
+                    child: Text('Geschäftsführer'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'F&B Manager',
+                    child: Text('F&B Manager'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Mitarbeiter',
+                    child: Text('Mitarbeiter'),
+                  ),
                   DropdownMenuItem(value: 'Hauswart', child: Text('Hauswart')),
                   DropdownMenuItem(value: 'Sonstige', child: Text('Sonstige')),
                 ],
@@ -255,7 +264,9 @@ class _BetriebKontaktFormScreenState
               ),
               SwitchListTile(
                 title: Text(_istDuAnrede ? 'Du' : 'Sie'),
-                subtitle: Text(_istDuAnrede ? 'Informelle Anrede' : 'Formelle Anrede'),
+                subtitle: Text(
+                  _istDuAnrede ? 'Informelle Anrede' : 'Formelle Anrede',
+                ),
                 value: _istDuAnrede,
                 contentPadding: EdgeInsets.zero,
                 onChanged: (v) {

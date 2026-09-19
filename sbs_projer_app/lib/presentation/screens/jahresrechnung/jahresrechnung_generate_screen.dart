@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/jahresrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/jahresrechnung_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class JahresrechnungGenerateScreen extends ConsumerStatefulWidget {
   const JahresrechnungGenerateScreen({super.key});
@@ -45,7 +46,9 @@ class _JahresrechnungGenerateScreenState
       _reinigungen.clear();
       for (final b in betriebe) {
         final reinigungen = await JahresrechnungService.sammleReinigungen(
-            b.serverId!, _selectedJahr);
+          b.serverId!,
+          _selectedJahr,
+        );
         _reinigungen[b.serverId!] = reinigungen;
       }
       setState(() => _loading = false);
@@ -82,7 +85,7 @@ class _JahresrechnungGenerateScreenState
       setState(() => _generatingBetriebId = null);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -118,8 +121,14 @@ class _JahresrechnungGenerateScreenState
   }
 
   /// Berechnet Totale über alle Betriebe.
-  ({int anzahlBetriebe, int anzahlReinigungen, double netto, double mwst, double brutto})
-      _berechneTotale() {
+  ({
+    int anzahlBetriebe,
+    int anzahlReinigungen,
+    double netto,
+    double mwst,
+    double brutto,
+  })
+  _berechneTotale() {
     int betriebe = 0;
     int reinigungen = 0;
     double netto = 0;
@@ -177,8 +186,11 @@ class _JahresrechnungGenerateScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.receipt_long_outlined,
-                        size: 64, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.receipt_long_outlined,
+                      size: 64,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Keine Betriebe mit Rechnungsstellung\n"Jahresrechnung" gefunden.',
@@ -208,14 +220,19 @@ class _JahresrechnungGenerateScreenState
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primary.withAlpha(25),
-                    child: const Icon(Icons.calendar_today,
-                        color: AppColors.primary, size: 20),
+                    child: const Icon(
+                      Icons.calendar_today,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                   ),
                   title: const Text('Geschäftsjahr'),
                   subtitle: Text(
                     '$_selectedJahr',
                     style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.w700),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   trailing: const Icon(Icons.unfold_more),
                   onTap: () => _showJahrPicker(betriebe, now),
@@ -240,10 +257,9 @@ class _JahresrechnungGenerateScreenState
                 // ── Betrieb-Liste ──
                 Text(
                   'Betriebe (${betriebe.length})',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 8),
 
@@ -265,7 +281,14 @@ class _JahresrechnungGenerateScreenState
   // ─── WIDGETS ───
 
   Widget _buildSummaryCard(
-    ({int anzahlBetriebe, int anzahlReinigungen, double netto, double mwst, double brutto}) totale,
+    ({
+      int anzahlBetriebe,
+      int anzahlReinigungen,
+      double netto,
+      double mwst,
+      double brutto,
+    })
+    totale,
   ) {
     return Card(
       color: AppColors.primary.withAlpha(15),
@@ -281,9 +304,10 @@ class _JahresrechnungGenerateScreenState
                 Text(
                   'Zusammenfassung $_selectedJahr',
                   style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -307,10 +331,13 @@ class _JahresrechnungGenerateScreenState
             const Divider(height: 1),
             const SizedBox(height: 12),
             _TotalRow(label: 'Netto', value: totale.netto),
-            _TotalRow(label: 'MwSt ${ref.read(aktuellePreiseProvider).valueOrNull?.mwstLabel ?? '8.1%'}', value: totale.mwst),
-            const Divider(height: 16),
             _TotalRow(
-                label: 'Gesamttotal', value: totale.brutto, bold: true),
+              label:
+                  'MwSt ${ref.read(aktuellePreiseProvider).valueOrNull?.mwstLabel ?? '8.1%'}',
+              value: totale.mwst,
+            ),
+            const Divider(height: 16),
+            _TotalRow(label: 'Gesamttotal', value: totale.brutto, bold: true),
           ],
         ),
       ),
@@ -322,8 +349,11 @@ class _JahresrechnungGenerateScreenState
     final istGeneriert = _generiert.containsKey(b.serverId);
     final istAktiv = _generatingBetriebId == b.serverId;
     final netto = reinigungen.fold<double>(
-        0, (sum, r) => sum + JahresrechnungService.calcNetto(r));
-    final mwstF = ref.read(aktuellePreiseProvider).valueOrNull?.mwstFaktor ?? 0.081;
+      0,
+      (sum, r) => sum + JahresrechnungService.calcNetto(r),
+    );
+    final mwstF =
+        ref.read(aktuellePreiseProvider).valueOrNull?.mwstFaktor ?? 0.081;
     final brutto = _round5Rappen(netto + _round2(netto * mwstF));
     final dateFormat = DateFormat('dd.MM.');
 
@@ -342,19 +372,19 @@ class _JahresrechnungGenerateScreenState
                   backgroundColor: istGeneriert
                       ? AppColors.success.withAlpha(25)
                       : reinigungen.isEmpty
-                          ? AppColors.inaktiv.withAlpha(25)
-                          : AppColors.primary.withAlpha(25),
+                      ? AppColors.inaktiv.withAlpha(25)
+                      : AppColors.primary.withAlpha(25),
                   child: Icon(
                     istGeneriert
                         ? Icons.check
                         : reinigungen.isEmpty
-                            ? Icons.do_not_disturb
-                            : Icons.store,
+                        ? Icons.do_not_disturb
+                        : Icons.store,
                     color: istGeneriert
                         ? AppColors.success
                         : reinigungen.isEmpty
-                            ? AppColors.inaktiv
-                            : AppColors.primary,
+                        ? AppColors.inaktiv
+                        : AppColors.primary,
                     size: 18,
                   ),
                 ),
@@ -366,21 +396,27 @@ class _JahresrechnungGenerateScreenState
                       Text(
                         b.name,
                         style: const TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       if (b.ort != null && b.ort!.isNotEmpty)
                         Text(
                           b.ort!,
                           style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                     ],
                   ),
                 ),
                 if (istGeneriert)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.success.withAlpha(25),
                       borderRadius: BorderRadius.circular(12),
@@ -388,15 +424,18 @@ class _JahresrechnungGenerateScreenState
                     child: const Text(
                       'Erstellt',
                       style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.success),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.success,
+                      ),
                     ),
                   )
                 else if (reinigungen.isEmpty)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.inaktiv.withAlpha(25),
                       borderRadius: BorderRadius.circular(12),
@@ -404,7 +443,9 @@ class _JahresrechnungGenerateScreenState
                     child: const Text(
                       'Keine',
                       style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary),
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
               ],
@@ -437,17 +478,21 @@ class _JahresrechnungGenerateScreenState
                         Text(
                           '${reinigungen.length} Reinigungen',
                           style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w500),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           reinigungen.length <= 4
                               ? reinigungen
-                                  .map((r) => dateFormat.format(r.datum))
-                                  .join(', ')
+                                    .map((r) => dateFormat.format(r.datum))
+                                    .join(', ')
                               : '${reinigungen.take(3).map((r) => dateFormat.format(r.datum)).join(', ')} +${reinigungen.length - 3}',
                           style: const TextStyle(
-                              fontSize: 11, color: AppColors.textSecondary),
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -458,12 +503,16 @@ class _JahresrechnungGenerateScreenState
                       Text(
                         '${brutto.toStringAsFixed(2)} CHF',
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       Text(
                         'inkl. MwSt',
                         style: const TextStyle(
-                            fontSize: 10, color: AppColors.textSecondary),
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -502,7 +551,14 @@ class _JahresrechnungGenerateScreenState
 
   Widget _buildGenerateAllButton(
     List<BetriebLocal> betriebe,
-    ({int anzahlBetriebe, int anzahlReinigungen, double netto, double mwst, double brutto}) totale,
+    ({
+      int anzahlBetriebe,
+      int anzahlReinigungen,
+      double netto,
+      double mwst,
+      double brutto,
+    })
+    totale,
   ) {
     return SizedBox(
       width: double.infinity,
@@ -514,7 +570,9 @@ class _JahresrechnungGenerateScreenState
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : const Icon(Icons.playlist_add_check),
         label: Text(
@@ -533,12 +591,17 @@ class _JahresrechnungGenerateScreenState
         children: [
           Icon(Icons.error_outline, size: 48, color: AppColors.error),
           const SizedBox(height: 12),
-          const Text('Fehler beim Laden',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text(
+            'Fehler beim Laden',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           Text(
             _error!,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -566,8 +629,10 @@ class _JahresrechnungGenerateScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Geschäftsjahr wählen',
-                  style: Theme.of(ctx).textTheme.titleMedium),
+              Text(
+                'Geschäftsjahr wählen',
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
               const SizedBox(height: 16),
               SegmentedButton<int>(
                 segments: [
@@ -623,12 +688,20 @@ class _SummaryChip extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 10, color: AppColors.textSecondary)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ],

@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/basemap_umschalter.dart';
 import 'package:sbs_projer_app/presentation/widgets/mein_standort_marker.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Ein Betrieb mit seiner aggregierten Fälligkeit für die Karte.
 class BetriebMarkerData {
@@ -60,9 +61,9 @@ class _BetriebeMapState extends State<BetriebeMap> {
       if (zentrieren) _controller.move(_meinStandort!, 14);
     } catch (e) {
       if (mounted && zentrieren) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Standort: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Standort: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _standortLaedt = false);

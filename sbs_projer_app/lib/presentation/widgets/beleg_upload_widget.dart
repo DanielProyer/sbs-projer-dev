@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/models/buchungs_beleg.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchungs_beleg_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Wiederverwendbares Widget zum Anzeigen und Hochladen von Belegen.
 class BelegUploadWidget extends ConsumerStatefulWidget {
@@ -169,9 +170,11 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler beim Upload: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Upload: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -209,9 +212,9 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+          );
         }
       }
     }
@@ -230,9 +233,9 @@ class _BelegUploadWidgetState extends ConsumerState<BelegUploadWidget> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/presentation/widgets/dokumente/dokument_upload_di
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Ablage aller Geschäftsdokumente, gefiltert nach Bereich und Jahr.
 class DokumenteScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,9 @@ class _DokumenteScreenState extends ConsumerState<DokumenteScreen> {
       invalidateSteuern(ref);
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Löschen fehlgeschlagen: $e')),
+        SnackBar(
+          content: Text('Löschen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
       );
     }
   }

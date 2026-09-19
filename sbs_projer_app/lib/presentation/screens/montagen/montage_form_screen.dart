@@ -32,6 +32,7 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
 class MontageVorbefuellung {
@@ -447,7 +448,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       markiereGeaendert();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ende nicht gespeichert: $e')),
+          SnackBar(
+            content: Text('Ende nicht gespeichert: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     } finally {
@@ -484,9 +487,11 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       // beim Verlassen fragen.
       markiereGeaendert();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Beginn nicht gespeichert: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Beginn nicht gespeichert: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _arbeitBeginnLaeuft = false);
@@ -845,9 +850,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) {
@@ -2016,8 +2021,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       ),
       child: Row(
         children: [
-          Icon(bis == null ? Icons.timer : Icons.check_circle,
-              color: AppColors.success),
+          Icon(
+            bis == null ? Icons.timer : Icons.check_circle,
+            color: AppColors.success,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -2031,7 +2038,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
           // einzige Weg zum Abschluss war der Schalter «Erst geplant», was
           // niemand erraten konnte (Fall Sartons).
           if (bis == null)
-            ArbeitBeendenKnopf(onTap: _arbeitBeenden, laeuft: _arbeitBeginnLaeuft),
+            ArbeitBeendenKnopf(
+              onTap: _arbeitBeenden,
+              laeuft: _arbeitBeginnLaeuft,
+            ),
         ],
       ),
     );

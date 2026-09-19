@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Freitext-Option im Material-Autocomplete (kein Lager-Artikel).
 class _MaterialFreitext {
@@ -32,8 +33,7 @@ class EventEinsatzFormScreen extends ConsumerStatefulWidget {
       _EventEinsatzFormScreenState();
 }
 
-class _EventEinsatzFormScreenState
-    extends ConsumerState<EventEinsatzFormScreen>
+class _EventEinsatzFormScreenState extends ConsumerState<EventEinsatzFormScreen>
     with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -175,9 +175,9 @@ class _EventEinsatzFormScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

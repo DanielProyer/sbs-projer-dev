@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Formular zum Anlegen/Bearbeiten eines Event-Jahres (E1).
 /// Bei Neu-Anlage optional Kontakte aus dem Vorjahres-Event übernehmen.
@@ -92,8 +93,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
     if (!_formKey.currentState!.validate()) return;
     if (_betriebId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Bitte Veranstaltungs-Betrieb wählen')),
+        const SnackBar(content: Text('Bitte Veranstaltungs-Betrieb wählen')),
       );
       return;
     }
@@ -110,7 +110,8 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('«Termin bis» liegt vor «Termin von»')),
+              content: Text('«Termin bis» liegt vor «Termin von»'),
+            ),
           );
         }
         return;
@@ -119,16 +120,20 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
       // Duplikat-Schutz: pro Betrieb und Jahr genau ein Event
       // (UNIQUE-Constraint nicht in die DB crashen lassen)
       final alle = await EventRepository.getAll();
-      final duplikat = alle.any((e) =>
-          e.betriebId == _betriebId &&
-          e.jahr == jahr &&
-          (_existing == null || e.serverId != _existing!.serverId));
+      final duplikat = alle.any(
+        (e) =>
+            e.betriebId == _betriebId &&
+            e.jahr == jahr &&
+            (_existing == null || e.serverId != _existing!.serverId),
+      );
       if (duplikat) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    'Für diesen Betrieb existiert $jahr bereits ein Event')),
+              content: Text(
+                'Für diesen Betrieb existiert $jahr bereits ein Event',
+              ),
+            ),
           );
         }
         return;
@@ -147,13 +152,17 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
       var kontakteUebernommen = -1;
       if (!_isEdit && _uebernehmeVorjahr && _vorjahrEvent != null) {
         kontakteUebernommen = await EventKontaktRepository.uebernehmeVon(
-            _vorjahrEvent!.serverId!, e.serverId!);
+          _vorjahrEvent!.serverId!,
+          e.serverId!,
+        );
       }
 
       var staendeUebernommen = -1;
       if (!_isEdit && _uebernehmeVorjahrStaende && _vorjahrEvent != null) {
         staendeUebernommen = await EventStandRepository.uebernehmeVon(
-            _vorjahrEvent!.serverId!, e.serverId!);
+          _vorjahrEvent!.serverId!,
+          e.serverId!,
+        );
       }
 
       ref.invalidate(eventsProvider);
@@ -162,14 +171,16 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
         // Kombinierte Snackbar (Singular/Plural je Teil, nur übernommene Teile)
         final teile = <String>[];
         if (kontakteUebernommen >= 0) {
-          teile.add(kontakteUebernommen == 1
-              ? '1 Kontakt'
-              : '$kontakteUebernommen Kontakte');
+          teile.add(
+            kontakteUebernommen == 1
+                ? '1 Kontakt'
+                : '$kontakteUebernommen Kontakte',
+          );
         }
         if (staendeUebernommen >= 0) {
-          teile.add(staendeUebernommen == 1
-              ? '1 Stand'
-              : '$staendeUebernommen Stände');
+          teile.add(
+            staendeUebernommen == 1 ? '1 Stand' : '$staendeUebernommen Stände',
+          );
         }
         if (teile.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -187,7 +198,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -211,8 +222,10 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
     final betriebe = ref.watch(betriebeProvider);
     // Nur Veranstaltungs-Betriebe (zapfsysteme enthält exakt 'Veranstaltungen')
     final veranstaltungsBetriebe = betriebe
-        .where((b) =>
-            b.serverId != null && b.zapfsysteme.contains('Veranstaltungen'))
+        .where(
+          (b) =>
+              b.serverId != null && b.zapfsysteme.contains('Veranstaltungen'),
+        )
         .toList();
     final betriebNamen = ref.watch(betriebNameMapProvider);
 
@@ -268,15 +281,17 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen>
                     prefixIcon: Icon(Icons.festival),
                   ),
                   items: veranstaltungsBetriebe
-                      .map((b) => DropdownMenuItem(
-                            value: b.serverId,
-                            child: Text(
-                              b.ort != null && b.ort!.isNotEmpty
-                                  ? '${b.name} (${b.ort})'
-                                  : b.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ))
+                      .map(
+                        (b) => DropdownMenuItem(
+                          value: b.serverId,
+                          child: Text(
+                            b.ort != null && b.ort!.isNotEmpty
+                                ? '${b.name} (${b.ort})'
+                                : b.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
                       .toList(),
                   validator: (v) =>
                       v == null ? 'Betrieb ist erforderlich' : null,

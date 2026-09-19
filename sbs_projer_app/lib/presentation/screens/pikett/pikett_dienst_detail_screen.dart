@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/pikett_dienst_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class PikettDienstDetailScreen extends ConsumerWidget {
   final String pikettId;
@@ -256,9 +257,9 @@ class _PikettDetailContent extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

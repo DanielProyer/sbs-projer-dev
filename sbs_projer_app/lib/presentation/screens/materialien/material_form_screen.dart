@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/material_artikel_repository.dar
 import 'package:sbs_projer_app/data/repositories/material_kategorie_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class MaterialFormScreen extends ConsumerStatefulWidget {
   final String? materialId;
@@ -16,8 +17,7 @@ class MaterialFormScreen extends ConsumerStatefulWidget {
   const MaterialFormScreen({super.key, this.materialId});
 
   @override
-  ConsumerState<MaterialFormScreen> createState() =>
-      _MaterialFormScreenState();
+  ConsumerState<MaterialFormScreen> createState() => _MaterialFormScreenState();
 }
 
 class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
@@ -81,12 +81,9 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
       _materialId = lager.materialId;
       _dboNr = lager.dboNr;
       _sapNr = lager.sapNr;
-      _bestandAktuellController.text =
-          lager.bestandAktuell.toStringAsFixed(0);
-      _bestandMindestController.text =
-          lager.bestandMindest.toStringAsFixed(0);
-      _bestandOptimalController.text =
-          lager.bestandOptimal.toStringAsFixed(0);
+      _bestandAktuellController.text = lager.bestandAktuell.toStringAsFixed(0);
+      _bestandMindestController.text = lager.bestandMindest.toStringAsFixed(0);
+      _bestandOptimalController.text = lager.bestandOptimal.toStringAsFixed(0);
       _notizenController.text = lager.notizen ?? '';
       _stueckProPackungController.text =
           lager.stueckProPackung?.toString() ?? '';
@@ -110,10 +107,8 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
         'material_id': _materialId,
         'dbo_nr': _dboNr,
         'sap_nr': _sapNr,
-        'bestand_aktuell':
-            double.tryParse(_bestandAktuellController.text) ?? 0,
-        'bestand_mindest':
-            double.tryParse(_bestandMindestController.text) ?? 5,
+        'bestand_aktuell': double.tryParse(_bestandAktuellController.text) ?? 0,
+        'bestand_mindest': double.tryParse(_bestandMindestController.text) ?? 5,
         'bestand_optimal':
             double.tryParse(_bestandOptimalController.text) ?? 10,
         'notizen': _emptyToNull(_notizenController.text),
@@ -132,8 +127,10 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
         ref.invalidate(materialienStreamProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  _isEdit ? 'Material aktualisiert' : 'Material erstellt')),
+            content: Text(
+              _isEdit ? 'Material aktualisiert' : 'Material erstellt',
+            ),
+          ),
         );
         // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
         geaendertZuruecksetzen();
@@ -142,7 +139,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -153,9 +150,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
   @override
   Widget build(BuildContext context) {
     if (_isEdit && _existing == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return UngespeichertSchutz(
@@ -187,8 +182,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
               // Beschreibung
               TextFormField(
                 controller: _beschreibungController,
-                decoration:
-                    const InputDecoration(labelText: 'Beschreibung'),
+                decoration: const InputDecoration(labelText: 'Beschreibung'),
                 maxLines: 2,
               ),
               const SizedBox(height: 16),
@@ -199,11 +193,12 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
                 decoration: const InputDecoration(labelText: 'Kategorie'),
                 items: [
                   const DropdownMenuItem(
-                      value: null, child: Text('Keine Kategorie')),
-                  ..._kategorien.map((k) => DropdownMenuItem(
-                        value: k.id,
-                        child: Text(k.name),
-                      )),
+                    value: null,
+                    child: Text('Keine Kategorie'),
+                  ),
+                  ..._kategorien.map(
+                    (k) => DropdownMenuItem(value: k.id, child: Text(k.name)),
+                  ),
                 ],
                 onChanged: (v) => setState(() => _kategorieId = v),
               ),
@@ -218,9 +213,10 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
                   DropdownMenuItem(value: 'Liter', child: Text('Liter')),
                   DropdownMenuItem(value: 'Meter', child: Text('Meter')),
                   DropdownMenuItem(
-                      value: 'Kilogramm', child: Text('Kilogramm')),
-                  DropdownMenuItem(
-                      value: 'Packung', child: Text('Packung')),
+                    value: 'Kilogramm',
+                    child: Text('Kilogramm'),
+                  ),
+                  DropdownMenuItem(value: 'Packung', child: Text('Packung')),
                   DropdownMenuItem(value: 'Set', child: Text('Set')),
                 ],
                 onChanged: (v) {
@@ -241,16 +237,14 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
               const SizedBox(height: 16),
 
               // Bestand
-              Text('Bestand',
-                  style: Theme.of(context).textTheme.titleSmall),
+              Text('Bestand', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _bestandAktuellController,
-                      decoration:
-                          const InputDecoration(labelText: 'Aktuell'),
+                      decoration: const InputDecoration(labelText: 'Aktuell'),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -258,8 +252,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
                   Expanded(
                     child: TextFormField(
                       controller: _bestandMindestController,
-                      decoration:
-                          const InputDecoration(labelText: 'Mindest'),
+                      decoration: const InputDecoration(labelText: 'Mindest'),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -267,8 +260,7 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
                   Expanded(
                     child: TextFormField(
                       controller: _bestandOptimalController,
-                      decoration:
-                          const InputDecoration(labelText: 'Optimal'),
+                      decoration: const InputDecoration(labelText: 'Optimal'),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -277,8 +269,10 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
               const SizedBox(height: 16),
 
               // Heineken-Artikel
-              Text('Heineken-Artikel',
-                  style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                'Heineken-Artikel',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               const SizedBox(height: 8),
               if (_dboNr != null)
                 Card(
@@ -286,7 +280,8 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
                     leading: const Icon(Icons.link),
                     title: Text(_linkedArtikelName ?? _dboNr!),
                     subtitle: Text(
-                        'DBO $_dboNr${_sapNr != null ? '  ·  SAP $_sapNr' : ''}'),
+                      'DBO $_dboNr${_sapNr != null ? '  ·  SAP $_sapNr' : ''}',
+                    ),
                     trailing: IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () {
@@ -358,12 +353,14 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
         content: Text('«${_nameController.text}» wirklich löschen?'),
         actions: [
           TextButton(
-              onPressed: () => ctx.pop(false),
-              child: const Text('Abbrechen')),
+            onPressed: () => ctx.pop(false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
-              onPressed: () => ctx.pop(true),
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Löschen')),
+            onPressed: () => ctx.pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Löschen'),
+          ),
         ],
       ),
     );
@@ -376,14 +373,14 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
         // Gelöscht — der Schutz darf beim Verlassen nicht mehr fragen.
         geaendertZuruecksetzen();
         context.go('/materialien');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Material gelöscht')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Material gelöscht')));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -480,28 +477,27 @@ class _ArtikelPickerDialogState extends State<_ArtikelPickerDialog> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _results == null
-                      ? const Center(
-                          child: Text('Mindestens 2 Zeichen eingeben'))
-                      : _results!.isEmpty
-                          ? const Center(child: Text('Keine Ergebnisse'))
-                          : ListView.builder(
-                              itemCount: _results!.length,
-                              itemBuilder: (context, index) {
-                                final a = _results![index];
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(a.name,
-                                      style:
-                                          const TextStyle(fontSize: 13)),
-                                  subtitle: Text(
-                                      'DBO ${a.dboNr}${a.sapNr != null ? '  ·  SAP ${a.sapNr}' : ''}',
-                                      style:
-                                          const TextStyle(fontSize: 11)),
-                                  onTap: () =>
-                                      Navigator.of(context).pop(a),
-                                );
-                              },
-                            ),
+                  ? const Center(child: Text('Mindestens 2 Zeichen eingeben'))
+                  : _results!.isEmpty
+                  ? const Center(child: Text('Keine Ergebnisse'))
+                  : ListView.builder(
+                      itemCount: _results!.length,
+                      itemBuilder: (context, index) {
+                        final a = _results![index];
+                        return ListTile(
+                          dense: true,
+                          title: Text(
+                            a.name,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          subtitle: Text(
+                            'DBO ${a.dboNr}${a.sapNr != null ? '  ·  SAP ${a.sapNr}' : ''}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          onTap: () => Navigator.of(context).pop(a),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

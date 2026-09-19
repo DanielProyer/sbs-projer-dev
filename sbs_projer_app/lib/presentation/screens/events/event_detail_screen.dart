@@ -50,6 +50,7 @@ import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/pdf/event_abschluss_pdf_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Event-Detail: Kopf mit Termin/Status, darunter Tabs Kontakte | Stände |
 /// Einsätze | Dokumente. Der FAB wechselt je nach aktivem Tab (E2/E3).
@@ -127,9 +128,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -250,9 +251,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Ladehinweis schliessen
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -350,9 +351,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -607,7 +608,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Datei konnte nicht ausgewählt werden: $e')),
+          SnackBar(
+            content: Text(
+              'Datei konnte nicht ausgewählt werden: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
         );
       }
       return;
@@ -649,9 +654,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler beim Hochladen: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Hochladen: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -730,9 +737,9 @@ class _KontakteTab extends ConsumerWidget {
       ref.invalidate(eventKontakteProvider(eventServerId));
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
     // false: Liste wird über den Provider neu geladen, nicht per Dismiss-Animation
@@ -1019,9 +1026,9 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -1064,9 +1071,9 @@ class _StaendeTabState extends ConsumerState<_StaendeTab> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -1342,9 +1349,11 @@ class _StandCardState extends ConsumerState<_StandCard> {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Standort nicht möglich: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Standort nicht möglich: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -1859,9 +1868,9 @@ class _EinsaetzeTab extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -2062,9 +2071,9 @@ class _ZeitTab extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -2176,7 +2185,11 @@ class _DokumenteTab extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Dokument konnte nicht geöffnet werden: $e')),
+          SnackBar(
+            content: Text(
+              'Dokument konnte nicht geöffnet werden: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
         );
       }
     }
@@ -2220,9 +2233,9 @@ class _DokumenteTab extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -2510,9 +2523,9 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _speichert = false);

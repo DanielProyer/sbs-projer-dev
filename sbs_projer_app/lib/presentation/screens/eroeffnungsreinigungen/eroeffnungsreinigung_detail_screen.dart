@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/eroeffnungsreinigung_repository
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class EroeffnungsreinigungDetailScreen extends ConsumerWidget {
   final String eroeffnungsreinigungId;
@@ -207,9 +208,9 @@ class _DetailContent extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

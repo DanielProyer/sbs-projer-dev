@@ -17,6 +17,7 @@ import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 const _monatNamen = [
   '',
@@ -187,7 +188,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       messenger.showSnackBar(
         SnackBar(
           backgroundColor: AppColors.error,
-          content: Text('Nachbuchen fehlgeschlagen: $e'),
+          content: Text('Nachbuchen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
           duration: const Duration(seconds: 10),
         ),
       );
@@ -789,9 +790,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+          );
         }
       }
       return;
@@ -833,9 +834,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+          );
         }
       }
       return;
@@ -880,9 +881,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+          );
         }
       }
     }

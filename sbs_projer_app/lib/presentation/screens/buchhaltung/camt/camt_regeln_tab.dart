@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/presentation/providers/camt_regel_providers.dart'
 import 'package:sbs_projer_app/services/camt/camt_ausgabe_booker.dart';
 import 'package:sbs_projer_app/services/camt/pruefliste_buchung.dart';
 import 'package:sbs_projer_app/services/camt/regel_matcher.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Dialog zum Anlegen einer neuen camt-Regel.
 ///
@@ -39,11 +40,8 @@ Future<void> showRegelDialog(
   final matchNameController = TextEditingController(
     text: vorausgefuelltMatchName ?? '',
   );
-  final ibanController = TextEditingController(
-    text: vorausgefuellteIban ?? '',
-  );
-  String? selectedVorlageId =
-      vorlagen.isNotEmpty ? vorlagen.first.id : null;
+  final ibanController = TextEditingController(text: vorausgefuellteIban ?? '');
+  String? selectedVorlageId = vorlagen.isNotEmpty ? vorlagen.first.id : null;
   String? hint;
   bool speichertGerade = false;
 
@@ -78,16 +76,12 @@ Future<void> showRegelDialog(
                   ],
                   TextField(
                     controller: bezeichnungController,
-                    decoration: const InputDecoration(
-                      labelText: 'Bezeichnung',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Bezeichnung'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: matchNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Match Name',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Match Name'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -104,16 +98,17 @@ Future<void> showRegelDialog(
                       labelText: 'Buchungsvorlage',
                     ),
                     items: vorlagen
-                        .map((v) => DropdownMenuItem<String>(
-                              value: v.id,
-                              child: Text(
-                                v.bezeichnung,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ))
+                        .map(
+                          (v) => DropdownMenuItem<String>(
+                            value: v.id,
+                            child: Text(
+                              v.bezeichnung,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (val) =>
-                        setState(() => selectedVorlageId = val),
+                    onChanged: (val) => setState(() => selectedVorlageId = val),
                   ),
                   if (hint != null) ...[
                     const SizedBox(height: 8),
@@ -137,63 +132,64 @@ Future<void> showRegelDialog(
                 onPressed: speichertGerade
                     ? null
                     : () async {
-                  final bezeichnung = bezeichnungController.text.trim();
-                  final matchName = matchNameController.text.trim();
-                  final iban = ibanController.text.trim();
+                        final bezeichnung = bezeichnungController.text.trim();
+                        final matchName = matchNameController.text.trim();
+                        final iban = ibanController.text.trim();
 
-                  if (bezeichnung.isEmpty ||
-                      selectedVorlageId == null ||
-                      (matchName.isEmpty && iban.isEmpty)) {
-                    setState(() {
-                      hint =
-                          'Bezeichnung, eine Vorlage und mindestens Name oder IBAN sind nötig.';
-                    });
-                    return;
-                  }
-                  setState(() {
-                    speichertGerade = true;
-                    hint = null;
-                  });
+                        if (bezeichnung.isEmpty ||
+                            selectedVorlageId == null ||
+                            (matchName.isEmpty && iban.isEmpty)) {
+                          setState(() {
+                            hint =
+                                'Bezeichnung, eine Vorlage und mindestens Name oder IBAN sind nötig.';
+                          });
+                          return;
+                        }
+                        setState(() {
+                          speichertGerade = true;
+                          hint = null;
+                        });
 
-                  try {
-                    await CamtRegelRepository.insert(
-                      CamtRegel(
-                        bezeichnung: bezeichnung,
-                        matchName: matchName.isEmpty ? null : matchName,
-                        // Normalisiert speichern, damit die Regel auch dann
-                        // greift, wenn die IBAN gruppiert eingetippt wurde.
-                        matchIban: RegelMatcher.normIban(iban),
-                        buchungsVorlageId: selectedVorlageId!,
-                        prioritaet: 10,
-                      ),
-                    );
-                    ref.invalidate(camtRegelnProvider);
+                        try {
+                          await CamtRegelRepository.insert(
+                            CamtRegel(
+                              bezeichnung: bezeichnung,
+                              matchName: matchName.isEmpty ? null : matchName,
+                              // Normalisiert speichern, damit die Regel auch dann
+                              // greift, wenn die IBAN gruppiert eingetippt wurde.
+                              matchIban: RegelMatcher.normIban(iban),
+                              buchungsVorlageId: selectedVorlageId!,
+                              prioritaet: 10,
+                            ),
+                          );
+                          ref.invalidate(camtRegelnProvider);
 
-                    var meldung = 'Regel gespeichert';
-                    if (buchenFuer != null) {
-                      meldung = await _bucheAusPruefliste(
-                        ref: ref,
-                        eintrag: buchenFuer,
-                        vorlage: vorlagen
-                            .firstWhere((v) => v.id == selectedVorlageId),
-                      );
-                    }
+                          var meldung = 'Regel gespeichert';
+                          if (buchenFuer != null) {
+                            meldung = await _bucheAusPruefliste(
+                              ref: ref,
+                              eintrag: buchenFuer,
+                              vorlage: vorlagen.firstWhere(
+                                (v) => v.id == selectedVorlageId,
+                              ),
+                            );
+                          }
 
-                    if (dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop();
-                    }
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(meldung)),
-                      );
-                    }
-                  } catch (err) {
-                    setState(() {
-                      speichertGerade = false;
-                      hint = 'Fehler: $err';
-                    });
-                  }
-                },
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text(meldung)));
+                          }
+                        } catch (err) {
+                          setState(() {
+                            speichertGerade = false;
+                            hint = 'Fehler: $err';
+                          });
+                        }
+                      },
                 child: Text(
                   buchenFuer != null ? 'Speichern & buchen' : 'Speichern',
                 ),
@@ -262,7 +258,7 @@ class CamtRegelnTab extends ConsumerWidget {
     } catch (err) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $err')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(err)}')),
         );
       }
     }
@@ -311,7 +307,8 @@ class CamtRegelnTab extends ConsumerWidget {
           itemCount: regeln.length,
           itemBuilder: (context, index) {
             final r = regeln[index];
-            final vorlageName = vorlagen
+            final vorlageName =
+                vorlagen
                     .where((v) => v.id == r.buchungsVorlageId)
                     .map((v) => v.bezeichnung)
                     .firstOrNull ??
@@ -325,8 +322,7 @@ class CamtRegelnTab extends ConsumerWidget {
             ];
 
             return Card(
-              margin:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
                 child: Row(
@@ -372,7 +368,11 @@ class CamtRegelnTab extends ConsumerWidget {
                         } catch (err) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Fehler: $err')),
+                              SnackBar(
+                                content: Text(
+                                  'Fehler: ${kurzeFehlermeldung(err)}',
+                                ),
+                              ),
                             );
                           }
                         }

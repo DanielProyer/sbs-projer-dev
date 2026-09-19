@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class DebitorenHeader extends ConsumerStatefulWidget {
   const DebitorenHeader({super.key});
@@ -21,15 +22,21 @@ class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
         children: [
           async.when(
             loading: () => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator())),
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
             error: (e, _) => Text('Fehler: $e'),
             data: (d) => Column(
               children: [
                 _zeileCard('Debitoren gesamt (1100)', d['debitoren_total']!),
-                _zeileCard('davon native offene Rechnungen', d['native_offen']!),
                 _zeileCard(
-                    'davon historischer Aggregat', d['historisch_aggregat']!),
+                  'davon native offene Rechnungen',
+                  d['native_offen']!,
+                ),
+                _zeileCard(
+                  'davon historischer Aggregat',
+                  d['historisch_aggregat']!,
+                ),
                 _zeileCard('Delkredere (1109)', d['delkredere']!),
                 const SizedBox(height: 16),
                 FilledButton.icon(
@@ -52,12 +59,14 @@ class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
   }
 
   Widget _zeileCard(String label, double v) => Card(
-        child: ListTile(
-          title: Text(label),
-          trailing: Text('${v.toStringAsFixed(2)} CHF',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-        ),
-      );
+    child: ListTile(
+      title: Text(label),
+      trailing: Text(
+        '${v.toStringAsFixed(2)} CHF',
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    ),
+  );
 
   Future<void> _delkredere(double debitorenTotal) async {
     try {
@@ -68,21 +77,24 @@ class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
       );
       ref.invalidate(debitorenUebersichtProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Delkredere gesetzt')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Delkredere gesetzt')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
 
   Future<void> _sammelDialog(double historischAggregat) async {
     final betragC = TextEditingController();
-    final bezC =
-        TextEditingController(text: 'Sammel-Abschreibung alte Debitoren');
+    final bezC = TextEditingController(
+      text: 'Sammel-Abschreibung alte Debitoren',
+    );
     DateTime datum = DateTime(2024, 12, 31);
     final ok = await showDialog<bool>(
       context: context,
@@ -94,41 +106,50 @@ class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
             children: [
               TextField(
                 controller: betragC,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration:
-                    const InputDecoration(labelText: 'Betrag brutto (CHF)'),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Betrag brutto (CHF)',
+                ),
               ),
               TextField(
-                  controller: bezC,
-                  decoration:
-                      const InputDecoration(labelText: 'Bezeichnung')),
+                controller: bezC,
+                decoration: const InputDecoration(labelText: 'Bezeichnung'),
+              ),
               const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
+              Row(
+                children: [
+                  Expanded(
                     child: Text(
-                        'Datum: ${datum.toIso8601String().split('T').first}')),
-                TextButton(
-                  onPressed: () async {
-                    final p = await showDatePicker(
+                      'Datum: ${datum.toIso8601String().split('T').first}',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final p = await showDatePicker(
                         context: ctx,
                         initialDate: datum,
                         firstDate: DateTime(2019),
-                        lastDate: DateTime.now());
-                    if (p != null) setS(() => datum = p);
-                  },
-                  child: const Text('wählen'),
-                ),
-              ]),
+                        lastDate: DateTime.now(),
+                      );
+                      if (p != null) setS(() => datum = p);
+                    },
+                    child: const Text('wählen'),
+                  ),
+                ],
+              ),
             ],
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Abbrechen')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Abschreiben')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Abschreiben'),
+            ),
           ],
         ),
       ),
@@ -138,20 +159,24 @@ class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
     if (brutto == null || brutto <= 0) return;
     try {
       await AbschreibungService.abschreiben(
-          brutto: brutto,
-          datum: datum,
-          beschreibung: bezC.text,
-          belegnummer: 'ABSCHR-HIST');
+        brutto: brutto,
+        datum: datum,
+        beschreibung: bezC.text,
+        belegnummer: 'ABSCHR-HIST',
+      );
       ref.invalidate(debitorenUebersichtProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content:
-                Text('${brutto.toStringAsFixed(2)} CHF abgeschrieben')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${brutto.toStringAsFixed(2)} CHF abgeschrieben'),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

@@ -26,6 +26,7 @@ import 'package:sbs_projer_app/services/pdf/mahnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class RechnungDetailScreen extends ConsumerWidget {
   final String rechnungId;
@@ -125,30 +126,38 @@ class _RechnungDetailContentState
       builder: (ctx) => AlertDialog(
         title: const Text('Zahlung rückgängig machen?'),
         content: const Text(
-            'Die Zahlungs-Buchung aus dem Bankabgleich wird gelöscht und die '
-            'Rechnung wieder auf offen/gesendet gesetzt. Die Bank-Gutschrift '
-            'erscheint beim nächsten Import erneut zum Zuordnen.\n\n'
-            'Nur für falsch zugeordnete Zahlungen gedacht.'),
+          'Die Zahlungs-Buchung aus dem Bankabgleich wird gelöscht und die '
+          'Rechnung wieder auf offen/gesendet gesetzt. Die Bank-Gutschrift '
+          'erscheint beim nächsten Import erneut zum Zuordnen.\n\n'
+          'Nur für falsch zugeordnete Zahlungen gedacht.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Rückgängig machen')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Rückgängig machen'),
+          ),
         ],
       ),
     );
     if (ok != true) return;
     try {
-      final anzahl =
-          await ForderungsAbgleichService.zahlungRueckgaengig(_rechnung);
+      final anzahl = await ForderungsAbgleichService.zahlungRueckgaengig(
+        _rechnung,
+      );
       if (!mounted) return;
       if (anzahl == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
             content: Text(
-                'Keine Bankabgleich-Zahlung gefunden — nichts geändert. '
-                '(Diese Rechnung wurde nicht über den camt-Abgleich bezahlt.)')));
+              'Keine Bankabgleich-Zahlung gefunden — nichts geändert. '
+              '(Diese Rechnung wurde nicht über den camt-Abgleich bezahlt.)',
+            ),
+          ),
+        );
         return;
       }
       final frisch = await RechnungRepository.getById(_rechnung.id);
@@ -160,14 +169,20 @@ class _RechnungDetailContentState
       setState(() {
         if (frisch != null) _rechnung = frisch;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$anzahl Buchung(en) gelöscht — Rechnung wieder '
-              '${_rechnung.zahlungsstatus}. Gutschrift ist beim nächsten '
-              'Import erneut zuordenbar.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$anzahl Buchung(en) gelöscht — Rechnung wieder '
+            '${_rechnung.zahlungsstatus}. Gutschrift ist beim nächsten '
+            'Import erneut zuordenbar.',
+          ),
+        ),
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -568,8 +583,10 @@ class _RechnungDetailContentState
         _rechnung.betriebId!,
       );
       if (raLocal != null) {
-        betriebRa = BetriebRechnungsadresseMapper.toDto(raLocal,
-          betriebId: _rechnung.betriebId!);
+        betriebRa = BetriebRechnungsadresseMapper.toDto(
+          raLocal,
+          betriebId: _rechnung.betriebId!,
+        );
       }
       final effRa = effektiveRechnungsadresse(
         _rechnung.rechnungsadresse,
@@ -657,7 +674,11 @@ class _RechnungDetailContentState
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Neu-Versand fehlgeschlagen: $e')),
+          SnackBar(
+            content: Text(
+              'Neu-Versand fehlgeschlagen: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
         );
       }
     }
@@ -763,8 +784,10 @@ class _RechnungDetailContentState
           _rechnung.betriebId!,
         );
         if (raLocal != null) {
-          ra = BetriebRechnungsadresseMapper.toDto(raLocal,
-            betriebId: _rechnung.betriebId!);
+          ra = BetriebRechnungsadresseMapper.toDto(
+            raLocal,
+            betriebId: _rechnung.betriebId!,
+          );
         }
       }
 
@@ -805,9 +828,9 @@ class _RechnungDetailContentState
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -835,8 +858,10 @@ class _RechnungDetailContentState
           _rechnung.betriebId!,
         );
         if (raLocal != null) {
-          ra = BetriebRechnungsadresseMapper.toDto(raLocal,
-            betriebId: _rechnung.betriebId!);
+          ra = BetriebRechnungsadresseMapper.toDto(
+            raLocal,
+            betriebId: _rechnung.betriebId!,
+          );
         }
       }
 
@@ -872,9 +897,9 @@ class _RechnungDetailContentState
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -896,7 +921,11 @@ class _RechnungDetailContentState
       if (context.mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Keine Protokolle vorhanden oder Fehler: $e')),
+          SnackBar(
+            content: Text(
+              'Keine Protokolle vorhanden oder Fehler: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
         );
       }
     }

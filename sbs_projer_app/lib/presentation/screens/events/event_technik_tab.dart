@@ -18,6 +18,7 @@ import 'package:sbs_projer_app/presentation/screens/events/event_technik_kuehler
 import 'package:sbs_projer_app/presentation/screens/events/stand_position_dialog.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Technik-Tab im Event-Detail: Anstiche (Orion, Mehrfachanstich) mit ihren
 /// Leitungen, darunter die Durchlaufkühler. Erfassungswerkzeug fürs Openair
@@ -59,10 +60,14 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
     // Auswahl bliebe leer (I4).
     ref.watch(eventStaendeProvider(eventId));
 
-    return ref.watch(eventGeraeteProvider(eventId)).when(
+    return ref
+        .watch(eventGeraeteProvider(eventId))
+        .when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _FehlerLaden(fehler: e, onRetry: _neuLaden),
-          data: (geraete) => ref.watch(eventLeitungenProvider(eventId)).when(
+          data: (geraete) => ref
+              .watch(eventLeitungenProvider(eventId))
+              .when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => _FehlerLaden(fehler: e, onRetry: _neuLaden),
                 data: (leitungen) => _buildInhalt(geraete, leitungen),
@@ -77,10 +82,12 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
     List<EventGeraetLocal> geraete,
     List<EventLeitungLocal> leitungen,
   ) {
-    final anstiche =
-        geraete.where((g) => EventGeraet.istAnstich(g.typ)).toList();
-    final kuehler =
-        geraete.where((g) => !EventGeraet.istAnstich(g.typ)).toList();
+    final anstiche = geraete
+        .where((g) => EventGeraet.istAnstich(g.typ))
+        .toList();
+    final kuehler = geraete
+        .where((g) => !EventGeraet.istAnstich(g.typ))
+        .toList();
 
     // Nummernsuche: exakte Treffer über alle Anstiche (Nummern sind nur je
     // Anstich eindeutig — bei Mehrdeutigkeit erscheinen alle Treffer).
@@ -161,7 +168,9 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
             key: ValueKey(g.serverId),
             geraet: g,
             geraete: geraete,
-            leitungen: leitungen.where((l) => l.quelleId == g.serverId).toList(),
+            leitungen: leitungen
+                .where((l) => l.quelleId == g.serverId)
+                .toList(),
             eventId: eventId,
             onEdit: () => _geraetBearbeiten(geraet: g, anstich: true),
             onChanged: _neuLaden,
@@ -197,8 +206,9 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
             key: ValueKey(g.serverId),
             geraet: g,
             geraete: geraete,
-            leitungen:
-                leitungen.where((l) => l.kuehlerId == g.serverId).toList(),
+            leitungen: leitungen
+                .where((l) => l.kuehlerId == g.serverId)
+                .toList(),
             eventId: eventId,
             onEdit: () => _geraetBearbeiten(geraet: g, anstich: false),
             onChanged: _neuLaden,
@@ -217,8 +227,10 @@ class _EventTechnikTabState extends ConsumerState<EventTechnikTab> {
     // Events, nicht nur Anstiche oder Kühler) — sonst landen sie alle bei
     // sortierung=0 und die Reihenfolge wird zufällig (M9).
     final alleGeraete =
-        ref.read(eventGeraeteProvider(eventId)).valueOrNull ?? <EventGeraetLocal>[];
-    final naechsteSortierung = alleGeraete.fold<int>(
+        ref.read(eventGeraeteProvider(eventId)).valueOrNull ??
+        <EventGeraetLocal>[];
+    final naechsteSortierung =
+        alleGeraete.fold<int>(
           -1,
           (m, g) => g.sortierung > m ? g.sortierung : m,
         ) +
@@ -260,10 +272,7 @@ class _FehlerLaden extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Nochmals laden'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Nochmals laden')),
         ],
       ),
     );
@@ -333,8 +342,9 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
       g.inBetriebAm = vorherInBetriebAm;
       if (mounted) {
         setState(() => _schaltet = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -411,9 +421,11 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
       g.positionGenauigkeit = vorherGenauigkeit;
       if (mounted) {
         setState(() => _ortet = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Standort nicht möglich: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Standort nicht möglich: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -430,7 +442,7 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
     // die Liste stammt ja aus dem geladenen Provider).
     final messungen = !istAnstich && g.serverId != null
         ? ref.watch(eventKuehlerMessungenProvider(g.serverId!)).valueOrNull ??
-            const <EventKuehlerMessungLocal>[]
+              const <EventKuehlerMessungLocal>[]
         : const <EventKuehlerMessungLocal>[];
     final letzteMessung = messungen.isEmpty ? null : messungen.last;
     final letzteAusserhalb = letzteMessung == null
@@ -455,7 +467,9 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                   Icon(
                     istAnstich ? Icons.propane_tank : Icons.ac_unit,
                     size: 22,
-                    color: g.inBetrieb ? AppColors.success : AppColors.textSecondary,
+                    color: g.inBetrieb
+                        ? AppColors.success
+                        : AppColors.textSecondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -490,11 +504,8 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
                               ),
                               if (letzteMessung != null)
                                 TextSpan(
-                                  text: ' · ${messungText(
-                                    letzteMessung.gemessenAm,
-                                    letzteMessung.temperatur,
-                                    jetzt: DateTime.now(),
-                                  )}',
+                                  text:
+                                      ' · ${messungText(letzteMessung.gemessenAm, letzteMessung.temperatur, jetzt: DateTime.now())}',
                                   style: letzteAusserhalb
                                       ? const TextStyle(
                                           color: AppColors.error,
@@ -725,7 +736,9 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
     if (von == null || bis == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bitte Zahlen eingeben (z. B. 1 bis 12)')),
+          const SnackBar(
+            content: Text('Bitte Zahlen eingeben (z. B. 1 bis 12)'),
+          ),
         );
       }
       return;
@@ -751,8 +764,9 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -786,8 +800,9 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
       widget.onChanged();
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -854,8 +869,9 @@ class _LeitungZeileState extends ConsumerState<_LeitungZeile> {
       leitung.inBetriebAm = vorherInBetriebAm;
       if (mounted) {
         setState(() => _schaltet = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -880,9 +896,8 @@ class _LeitungZeileState extends ConsumerState<_LeitungZeile> {
     // anzeigen, kein «(unbekannt)» — das ist hier nur Zusatzinfo.
     String? geraetezeile;
     if (leitung.standAnlageId != null && leitung.standId != null) {
-      final anlagen = ref
-              .watch(eventStandAnlagenProvider(leitung.standId!))
-              .valueOrNull ??
+      final anlagen =
+          ref.watch(eventStandAnlagenProvider(leitung.standId!)).valueOrNull ??
           const <EventStandAnlageLocal>[];
       for (final a in anlagen) {
         if (a.serverId == leitung.standAnlageId) {
@@ -1032,16 +1047,17 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
     if (_speichert) return; // Doppeltipp-Riegel vor dem ersten await
     final bezeichnung = _bezeichnung.text.trim();
     if (bezeichnung.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bezeichnung fehlt')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Bezeichnung fehlt')));
       return;
     }
     if (_typ == 'durchlaufkuehler') {
       final fehler = _kuehlerFelderKey.currentState?.validate();
       if (fehler != null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(fehler)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(fehler)));
         return;
       }
     }
@@ -1058,8 +1074,9 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
         ..typ = _typ
         ..bezeichnung = bezeichnung
         ..anzahlTanks = _typ == 'mehrfachanstich' ? _anzahlTanks : null
-        ..standortNotiz =
-            _standort.text.trim().isEmpty ? null : _standort.text.trim()
+        ..standortNotiz = _standort.text.trim().isEmpty
+            ? null
+            : _standort.text.trim()
         ..notizen = _notizen.text.trim().isEmpty ? null : _notizen.text.trim();
       if (_typ == 'durchlaufkuehler') {
         final werte = _kuehlerFelderKey.currentState!.werte();
@@ -1080,8 +1097,9 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _speichert = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -1179,8 +1197,7 @@ class _GeraetFormSheetState extends State<_GeraetFormSheet> {
               initialPumpeTyp: widget.geraet?.pumpeTyp,
               initialTypenschildKuehlerPfad:
                   widget.geraet?.typenschildKuehlerPfad,
-              initialTypenschildPumpePfad:
-                  widget.geraet?.typenschildPumpePfad,
+              initialTypenschildPumpePfad: widget.geraet?.typenschildPumpePfad,
               initialErkennungJson: widget.geraet?.typenschildErkennungJson,
               initialSollMin: widget.geraet?.sollMinCelsius,
               initialSollMax: widget.geraet?.sollMaxCelsius,
@@ -1269,8 +1286,9 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _speichert = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -1317,8 +1335,9 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

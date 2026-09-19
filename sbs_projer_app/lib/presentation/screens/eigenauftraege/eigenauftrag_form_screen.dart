@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class EigenauftragFormScreen extends ConsumerStatefulWidget {
   final String? eigenauftragId;
@@ -28,8 +29,8 @@ class EigenauftragFormScreen extends ConsumerStatefulWidget {
       _EigenauftragFormScreenState();
 }
 
-class _EigenauftragFormScreenState
-    extends ConsumerState<EigenauftragFormScreen> with UngespeichertMixin {
+class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
+    with UngespeichertMixin {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   EigenauftragLocal? _existing;
@@ -46,8 +47,10 @@ class _EigenauftragFormScreenState
   // Material
   List<Lager> _lagerItems = [];
   final _materialControllers = List.generate(3, (_) => TextEditingController());
-  final _materialMengenControllers =
-      List.generate(3, (_) => TextEditingController(text: '1'));
+  final _materialMengenControllers = List.generate(
+    3,
+    (_) => TextEditingController(text: '1'),
+  );
   final _materialIds = List<String?>.filled(3, null);
 
   @override
@@ -81,8 +84,7 @@ class _EigenauftragFormScreenState
 
       // Anzahl aus Pauschale berechnen (pauschale / 30)
       if (ea.pauschale != null && ea.pauschale! > 0) {
-        _anzahlController.text =
-            (ea.pauschale! / 30.0).round().toString();
+        _anzahlController.text = (ea.pauschale! / 30.0).round().toString();
       }
 
       // Material laden
@@ -91,8 +93,7 @@ class _EigenauftragFormScreenState
       for (int i = 0; i < 3; i++) {
         _materialIds[i] = ids[i];
         if (mengen[i] != null) {
-          _materialMengenControllers[i].text =
-              mengen[i]!.toStringAsFixed(0);
+          _materialMengenControllers[i].text = mengen[i]!.toStringAsFixed(0);
         }
       }
     });
@@ -111,7 +112,9 @@ class _EigenauftragFormScreenState
 
     // Das Form ist beim Laden schon gebaut (kein Platzhalter) — die
     // Controller-Befüllung oben meldet sich sonst fälschlich als Änderung.
-    WidgetsBinding.instance.addPostFrameCallback((_) => geaendertZuruecksetzen());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => geaendertZuruecksetzen(),
+    );
   }
 
   @override
@@ -137,8 +140,9 @@ class _EigenauftragFormScreenState
       was: 'Der Eigenauftrag',
       child: Scaffold(
         appBar: AppBar(
-          title:
-              Text(isEdit ? 'Eigenauftrag bearbeiten' : 'Neuer Eigenauftrag'),
+          title: Text(
+            isEdit ? 'Eigenauftrag bearbeiten' : 'Neuer Eigenauftrag',
+          ),
         ),
         body: Form(
           key: _formKey,
@@ -219,9 +223,7 @@ class _EigenauftragFormScreenState
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildPreisPreview(),
-                  ),
+                  Expanded(child: _buildPreisPreview()),
                 ],
               ),
               const SizedBox(height: 16),
@@ -235,14 +237,15 @@ class _EigenauftragFormScreenState
                     prefixIcon: Icon(Icons.flag),
                   ),
                   items: const [
+                    DropdownMenuItem(value: 'behoben', child: Text('Behoben')),
                     DropdownMenuItem(
-                        value: 'behoben', child: Text('Behoben')),
+                      value: 'nicht_behebbar',
+                      child: Text('Nicht behebbar'),
+                    ),
                     DropdownMenuItem(
-                        value: 'nicht_behebbar',
-                        child: Text('Nicht behebbar')),
-                    DropdownMenuItem(
-                        value: 'nachbearbeitung_noetig',
-                        child: Text('Nachbearbeitung nötig')),
+                      value: 'nachbearbeitung_noetig',
+                      child: Text('Nachbearbeitung nötig'),
+                    ),
                   ],
                   onChanged: (v) => setState(() => _status = v!),
                 ),
@@ -250,8 +253,10 @@ class _EigenauftragFormScreenState
               ],
 
               // Material
-              const Text('Material',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'Material',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
               const SizedBox(height: 8),
               ..._buildMaterialSlots(),
               const SizedBox(height: 16),
@@ -265,7 +270,8 @@ class _EigenauftragFormScreenState
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.save),
                 label: Text(isEdit ? 'Speichern' : 'Eigenauftrag erfassen'),
               ),
@@ -297,12 +303,14 @@ class _EigenauftragFormScreenState
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) return betriebe;
         final query = textEditingValue.text.toLowerCase();
-        return betriebe.where((b) => betriebPasst(
-              name: b.name,
-              ort: b.ort,
-              betriebNr: b.betriebNr,
-              suche: query,
-            ));
+        return betriebe.where(
+          (b) => betriebPasst(
+            name: b.name,
+            ort: b.ort,
+            betriebNr: b.betriebNr,
+            suche: query,
+          ),
+        );
       },
       fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
         return TextFormField(
@@ -371,8 +379,9 @@ class _EigenauftragFormScreenState
       child: Text(
         '${total.toStringAsFixed(2)} CHF',
         style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: AppColors.primary),
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
       ),
     );
   }
@@ -387,31 +396,34 @@ class _EigenauftragFormScreenState
               flex: 3,
               child: _lagerItems.isNotEmpty
                   ? Autocomplete<Lager>(
-                      initialValue:
-                          TextEditingValue(text: _materialControllers[i].text),
+                      initialValue: TextEditingValue(
+                        text: _materialControllers[i].text,
+                      ),
                       displayStringForOption: (l) => l.name,
                       optionsBuilder: (textEditingValue) {
                         if (textEditingValue.text.isEmpty) return [];
                         final query = textEditingValue.text.toLowerCase();
                         return _lagerItems
-                            .where((l) =>
-                                l.name.toLowerCase().contains(query) ||
-                                (l.dboNr?.toLowerCase().contains(query) ??
-                                    false))
+                            .where(
+                              (l) =>
+                                  l.name.toLowerCase().contains(query) ||
+                                  (l.dboNr?.toLowerCase().contains(query) ??
+                                      false),
+                            )
                             .take(10);
                       },
                       fieldViewBuilder:
                           (context, controller, focusNode, onSubmitted) {
-                        _materialControllers[i] = controller;
-                        return TextFormField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          decoration: InputDecoration(
-                            labelText: 'Material ${i + 1}',
-                            isDense: true,
-                          ),
-                        );
-                      },
+                            _materialControllers[i] = controller;
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: InputDecoration(
+                                labelText: 'Material ${i + 1}',
+                                isDense: true,
+                              ),
+                            );
+                          },
                       onSelected: (l) {
                         markiereGeaendert();
                         setState(() => _materialIds[i] = l.id);
@@ -430,8 +442,10 @@ class _EigenauftragFormScreenState
               width: 60,
               child: TextFormField(
                 controller: _materialMengenControllers[i],
-                decoration:
-                    const InputDecoration(labelText: 'Anz.', isDense: true),
+                decoration: const InputDecoration(
+                  labelText: 'Anz.',
+                  isDense: true,
+                ),
                 keyboardType: TextInputType.number,
               ),
             ),
@@ -479,9 +493,9 @@ class _EigenauftragFormScreenState
         if (_materialIds[i] == null) {
           final text = _materialControllers[i].text.trim();
           if (text.isNotEmpty && _lagerItems.isNotEmpty) {
-            final match = _lagerItems.where(
-              (l) => l.name.toLowerCase() == text.toLowerCase(),
-            ).firstOrNull;
+            final match = _lagerItems
+                .where((l) => l.name.toLowerCase() == text.toLowerCase())
+                .firstOrNull;
             if (match != null) {
               _materialIds[i] = match.id;
             }
@@ -524,7 +538,7 @@ class _EigenauftragFormScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {

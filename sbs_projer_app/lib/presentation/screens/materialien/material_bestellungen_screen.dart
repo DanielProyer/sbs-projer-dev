@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/repositories/material_bestellung_repository.
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/widgets/abhol_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Liste aller Materialbestellungen mit Status, Bestell-PDF und der
 /// Abhol-Buchung („Material abgeholt" / „Buchung rückgängig").
@@ -45,8 +46,9 @@ class _MaterialBestellungenScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Fehler beim Laden: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fehler beim Laden: ${kurzeFehlermeldung(e)}')),
+      );
     }
   }
 
@@ -67,7 +69,12 @@ class _MaterialBestellungenScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('PDF konnte nicht geöffnet werden: $e')));
+          SnackBar(
+            content: Text(
+              'PDF konnte nicht geöffnet werden: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
+        );
       }
     }
   }
@@ -80,16 +87,24 @@ class _MaterialBestellungenScreenState
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Positionen konnten nicht geladen werden: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Positionen konnten nicht geladen werden: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
+        );
       }
       return;
     }
     if (!mounted) return;
     setState(() => _busy = false);
 
-    final payload = await zeigeAbholDialog(context,
-        bestellung: b, positionen: positionen);
+    final payload = await zeigeAbholDialog(
+      context,
+      bestellung: b,
+      positionen: positionen,
+    );
     if (payload == null || payload.isEmpty) return;
 
     setState(() => _busy = true);
@@ -97,14 +112,21 @@ class _MaterialBestellungenScreenState
       await MaterialBestellungRepository.abholen(b.id, payload);
       if (!mounted) return;
       ref.invalidate(materialienStreamProvider); // Bestände sind neu
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-              '${payload.length} Artikel gebucht — Bestände aktualisiert.')));
+            '${payload.length} Artikel gebucht — Bestände aktualisiert.',
+          ),
+        ),
+      );
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler beim Buchen: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Buchen: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -117,15 +139,18 @@ class _MaterialBestellungenScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Buchung rückgängig?'),
         content: Text(
-            'Die Bestände aus Bestellung ${b.bestellNr} werden wieder abgezogen '
-            'und die Bestellung geht zurück auf „gesendet".'),
+          'Die Bestände aus Bestellung ${b.bestellNr} werden wieder abgezogen '
+          'und die Bestellung geht zurück auf „gesendet".',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Rückgängig')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Rückgängig'),
+          ),
         ],
       ),
     );
@@ -137,12 +162,14 @@ class _MaterialBestellungenScreenState
       if (!mounted) return;
       ref.invalidate(materialienStreamProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Buchung rückgängig gemacht.')));
+        const SnackBar(content: Text('Buchung rückgängig gemacht.')),
+      );
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -156,15 +183,15 @@ class _MaterialBestellungenScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _bestellungen.isEmpty
-              ? const Center(child: Text('Noch keine Bestellungen.'))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _bestellungen.length,
-                    itemBuilder: (_, i) => _karte(_bestellungen[i]),
-                  ),
-                ),
+          ? const Center(child: Text('Noch keine Bestellungen.'))
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: _bestellungen.length,
+                itemBuilder: (_, i) => _karte(_bestellungen[i]),
+              ),
+            ),
     );
   }
 
@@ -179,8 +206,10 @@ class _MaterialBestellungenScreenState
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ExpansionTile(
-        title: Text('${b.bestellNr} · ${_dateFormat.format(b.datum)}',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        title: Text(
+          '${b.bestellNr} · ${_dateFormat.format(b.datum)}',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Wrap(
@@ -193,23 +222,38 @@ class _MaterialBestellungenScreenState
                 GestureDetector(
                   onTap: () => _oeffnePdf(b),
                   behavior: HitTestBehavior.opaque,
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.picture_as_pdf,
-                        size: 15, color: AppColors.primary),
-                    SizedBox(width: 3),
-                    Text('PDF',
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.picture_as_pdf,
+                        size: 15,
+                        color: AppColors.primary,
+                      ),
+                      SizedBox(width: 3),
+                      Text(
+                        'PDF',
                         style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600)),
-                  ]),
+                          fontSize: 11,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               if (istGesendet)
-                _tapButton('Material abgeholt',
-                    _busy ? null : () => _abholen(b), true),
+                _tapButton(
+                  'Material abgeholt',
+                  _busy ? null : () => _abholen(b),
+                  true,
+                ),
               if (istAbgeholt)
-                _tapButton('Buchung rückgängig',
-                    _busy ? null : () => _rueckgaengig(b), false),
+                _tapButton(
+                  'Buchung rückgängig',
+                  _busy ? null : () => _rueckgaengig(b),
+                  false,
+                ),
             ],
           ),
         ),
@@ -230,11 +274,13 @@ class _MaterialBestellungenScreenState
         Padding(
           padding: EdgeInsets.all(16),
           child: Center(
-              child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))),
-        )
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
       ];
     }
     return positionen.map((p) {
@@ -247,7 +293,7 @@ class _MaterialBestellungenScreenState
           erhalten == null
               ? '${p.menge.toStringAsFixed(0)} ${p.einheit}'
               : 'bestellt ${p.menge.toStringAsFixed(0)} · '
-                  'erhalten ${erhalten.toStringAsFixed(0)} ${p.einheit}',
+                    'erhalten ${erhalten.toStringAsFixed(0)} ${p.einheit}',
           style: TextStyle(
             fontSize: 12,
             fontWeight: abweichung ? FontWeight.w700 : FontWeight.normal,
@@ -262,9 +308,9 @@ class _MaterialBestellungenScreenState
     final (text, farbe) = switch (b.status) {
       'gesendet' => ('gesendet', AppColors.primary),
       'abgeholt' => (
-          'abgeholt${b.abgeholtAm != null ? ' am ${_dateFormat.format(b.abgeholtAm!)}' : ''}',
-          AppColors.success
-        ),
+        'abgeholt${b.abgeholtAm != null ? ' am ${_dateFormat.format(b.abgeholtAm!)}' : ''}',
+        AppColors.success,
+      ),
       'storniert' => ('storniert', AppColors.error),
       _ => ('Entwurf', AppColors.textSecondary),
     };
@@ -274,9 +320,14 @@ class _MaterialBestellungenScreenState
         color: farbe.withAlpha(30),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(text,
-          style: TextStyle(
-              fontSize: 11, color: farbe, fontWeight: FontWeight.w700)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          color: farbe,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
@@ -293,9 +344,14 @@ class _MaterialBestellungenScreenState
           color: onTap == null ? Colors.grey.shade300 : farbe,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(label,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
       ),
     );
   }

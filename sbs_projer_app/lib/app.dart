@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/presentation/widgets/haupt_navigation.dart';
 import 'package:sbs_projer_app/presentation/widgets/inhalts_breite.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_auto_sync.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Globaler Messenger-Key für In-App-Hinweise ohne konkreten BuildContext.
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -107,13 +108,17 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
             onPressed: () {
               if (passwordController.text.length < 6) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwort muss mindestens 6 Zeichen haben')),
+                  const SnackBar(
+                    content: Text('Passwort muss mindestens 6 Zeichen haben'),
+                  ),
                 );
                 return;
               }
               if (passwordController.text != confirmController.text) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwörter stimmen nicht überein')),
+                  const SnackBar(
+                    content: Text('Passwörter stimmen nicht überein'),
+                  ),
                 );
                 return;
               }
@@ -136,7 +141,7 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')),
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
           );
         }
       }

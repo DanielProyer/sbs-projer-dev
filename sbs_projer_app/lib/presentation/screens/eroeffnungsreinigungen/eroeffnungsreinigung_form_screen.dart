@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class EroeffnungsreinigungFormScreen extends ConsumerStatefulWidget {
   final String? eroeffnungsreinigungId;
@@ -65,12 +66,15 @@ class _EroeffnungsreinigungFormScreenState
       if (rows.isNotEmpty && mounted) {
         setState(() {
           _preisNormal =
-              double.tryParse(rows.first['eroeffnung_preis_normal'].toString()) ??
-                  60.00;
+              double.tryParse(
+                rows.first['eroeffnung_preis_normal'].toString(),
+              ) ??
+              60.00;
           _preisBergkunde =
               double.tryParse(
-                      rows.first['eroeffnung_preis_bergkunde'].toString()) ??
-                  135.00;
+                rows.first['eroeffnung_preis_bergkunde'].toString(),
+              ) ??
+              135.00;
         });
       }
     } catch (_) {}
@@ -78,7 +82,8 @@ class _EroeffnungsreinigungFormScreenState
 
   Future<void> _loadExisting() async {
     final er = await EroeffnungsreinigungRepository.getById(
-        widget.eroeffnungsreinigungId!);
+      widget.eroeffnungsreinigungId!,
+    );
     if (er == null || !mounted) return;
     setState(() {
       _existing = er;
@@ -111,9 +116,15 @@ class _EroeffnungsreinigungFormScreenState
       was: 'Die Eröffnungsreinigung',
       child: Scaffold(
         appBar: AppBar(
-          title: Text(isEdit
-              ? (_art == 'endreinigung' ? 'Endreinigung bearbeiten' : 'Eröffnungsreinigung bearbeiten')
-              : (_art == 'endreinigung' ? 'Neue Endreinigung' : 'Neue Eröffnungsreinigung')),
+          title: Text(
+            isEdit
+                ? (_art == 'endreinigung'
+                      ? 'Endreinigung bearbeiten'
+                      : 'Eröffnungsreinigung bearbeiten')
+                : (_art == 'endreinigung'
+                      ? 'Neue Endreinigung'
+                      : 'Neue Eröffnungsreinigung'),
+          ),
         ),
         body: Form(
           key: _formKey,
@@ -195,8 +206,9 @@ class _EroeffnungsreinigungFormScreenState
                 child: Text(
                   '${preis.toStringAsFixed(2)} CHF',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary),
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -208,11 +220,16 @@ class _EroeffnungsreinigungFormScreenState
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.save),
-                label: Text(isEdit
-                    ? 'Speichern'
-                    : (_art == 'endreinigung' ? 'Endreinigung erfassen' : 'Eröffnungsreinigung erfassen')),
+                label: Text(
+                  isEdit
+                      ? 'Speichern'
+                      : (_art == 'endreinigung'
+                            ? 'Endreinigung erfassen'
+                            : 'Eröffnungsreinigung erfassen'),
+                ),
               ),
               const SizedBox(height: 80),
             ],
@@ -244,12 +261,14 @@ class _EroeffnungsreinigungFormScreenState
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) return betriebe;
         final query = textEditingValue.text.toLowerCase();
-        return betriebe.where((b) => betriebPasst(
-              name: b.name,
-              ort: b.ort,
-              betriebNr: b.betriebNr,
-              suche: query,
-            ));
+        return betriebe.where(
+          (b) => betriebPasst(
+            name: b.name,
+            ort: b.ort,
+            betriebNr: b.betriebNr,
+            suche: query,
+          ),
+        );
       },
       fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
         return TextFormField(
@@ -280,8 +299,7 @@ class _EroeffnungsreinigungFormScreenState
             elevation: 4,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
-              constraints:
-                  const BoxConstraints(maxHeight: 250, maxWidth: 350),
+              constraints: const BoxConstraints(maxHeight: 250, maxWidth: 350),
               child: ListView.builder(
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
@@ -293,8 +311,11 @@ class _EroeffnungsreinigungFormScreenState
                     title: Text(b.name),
                     subtitle: b.ort != null ? Text(b.ort!) : null,
                     trailing: b.istBergkunde
-                        ? Icon(Icons.terrain,
-                            size: 16, color: AppColors.warning)
+                        ? Icon(
+                            Icons.terrain,
+                            size: 16,
+                            color: AppColors.warning,
+                          )
                         : null,
                     onTap: () => onSelected(b),
                   );
@@ -356,7 +377,7 @@ class _EroeffnungsreinigungFormScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {

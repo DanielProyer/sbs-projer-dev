@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Ordnet eine in der Prüfliste geparkte **Kundenzahlung** (Kategorie
 /// `kundenzahlung`, Gutschrift) offenen Rechnungen zu und verbucht sie —
@@ -29,23 +30,32 @@ Future<void> showKundenzahlungZuordnenDialog(
   final List<Rechnung> offene;
   try {
     final alle = await RechnungRepository.getAll();
-    offene = alle
-        .where((r) =>
-            r.rechnungstyp == 'kundenrechnung' &&
-            (r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'gesendet'))
-        .toList()
-      ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+    offene =
+        alle
+            .where(
+              (r) =>
+                  r.rechnungstyp == 'kundenrechnung' &&
+                  (r.zahlungsstatus == 'offen' ||
+                      r.zahlungsstatus == 'gesendet'),
+            )
+            .toList()
+          ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
   } catch (err) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rechnungen konnten nicht geladen werden: $err')));
+        SnackBar(
+          content: Text(
+            'Rechnungen konnten nicht geladen werden: ${kurzeFehlermeldung(err)}',
+          ),
+        ),
+      );
     }
     return;
   }
   final betriebName = {
     for (final b in ref.read(betriebeProvider))
       if (b.serverId != null)
-        b.serverId!: (b.ort ?? '').isEmpty ? b.name : '${b.name} · ${b.ort}'
+        b.serverId!: (b.ort ?? '').isEmpty ? b.name : '${b.name} · ${b.ort}',
   };
 
   if (!context.mounted) return;
@@ -61,12 +71,16 @@ Future<void> showKundenzahlungZuordnenDialog(
           return (r.rechnungsnummer ?? '').toLowerCase().contains(q) ||
               (betriebName[r.betriebId] ?? '').toLowerCase().contains(q);
         }).toList();
-        final fordSumme =
-            gewaehlt.fold<double>(0, (s, r) => s + r.betragBrutto);
+        final fordSumme = gewaehlt.fold<double>(
+          0,
+          (s, r) => s + r.betragBrutto,
+        );
         final info = bewerteDifferenz(e.betrag, fordSumme);
         return AlertDialog(
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 24,
+          ),
           contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           title: Text('Zahlung zuordnen — ${e.betrag.toStringAsFixed(2)} CHF'),
           content: SizedBox(
@@ -100,7 +114,9 @@ Future<void> showKundenzahlungZuordnenDialog(
                             if ((e.referenz ?? '').isNotEmpty) e.referenz!,
                           ].join(' · '),
                           style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -127,10 +143,13 @@ Future<void> showKundenzahlungZuordnenDialog(
                           controlAffinity: ListTileControlAffinity.leading,
                           value: gewaehlt.contains(r),
                           title: Text(
-                              '${dateFormat.format(r.rechnungsdatum)} — '
-                              '${r.betragBrutto.toStringAsFixed(2)} CHF'),
-                          subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
-                              '${betriebName[r.betriebId] ?? '?'}'),
+                            '${dateFormat.format(r.rechnungsdatum)} — '
+                            '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                          ),
+                          subtitle: Text(
+                            'Rechnung ${r.rechnungsnummer ?? '?'} · '
+                            '${betriebName[r.betriebId] ?? '?'}',
+                          ),
                           onChanged: (sel) => setDialogState(() {
                             if (sel == true) {
                               gewaehlt.add(r);
@@ -145,9 +164,10 @@ Future<void> showKundenzahlungZuordnenDialog(
                           child: Text(
                             '… und ${gefiltert.length - 50} weitere — Suche eingrenzen',
                             style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                fontStyle: FontStyle.italic),
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ),
                     ],
@@ -160,10 +180,11 @@ Future<void> showKundenzahlungZuordnenDialog(
                     child: Text(
                       info.text,
                       style: TextStyle(
-                          fontSize: 12,
-                          color: info.istMinder
-                              ? AppColors.error
-                              : AppColors.success),
+                        fontSize: 12,
+                        color: info.istMinder
+                            ? AppColors.error
+                            : AppColors.success,
+                      ),
                     ),
                   ),
               ],
@@ -171,8 +192,9 @@ Future<void> showKundenzahlungZuordnenDialog(
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Abbrechen')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen'),
+            ),
             FilledButton(
               onPressed: gewaehlt.isEmpty
                   ? null
@@ -187,8 +209,13 @@ Future<void> showKundenzahlungZuordnenDialog(
                         if (ctx.mounted) Navigator.pop(ctx, true);
                       } catch (err) {
                         if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                              content: Text('Verbuchungs-Fehler: $err')));
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Verbuchungs-Fehler: ${kurzeFehlermeldung(err)}',
+                              ),
+                            ),
+                          );
                         }
                       }
                     },
@@ -207,8 +234,9 @@ Future<void> showKundenzahlungZuordnenDialog(
     ref.invalidate(rechnungenStreamProvider);
     ref.invalidate(buchungenStreamProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
     }
   }
 }

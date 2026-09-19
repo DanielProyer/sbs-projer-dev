@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/models/kreditor_regel.dart';
 import 'package:sbs_projer_app/data/repositories/kreditor_regel_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/konto_providers.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Verwaltungs-Screen für Lieferanten-Lernregeln (Kreditor-Vorbelegung).
 ///
@@ -53,7 +54,7 @@ class KreditorRegelnScreen extends ConsumerWidget {
     } catch (err) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $err')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(err)}')),
         );
       }
     }
@@ -67,8 +68,7 @@ class KreditorRegelnScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Rechnungsregeln')),
       floatingActionButton: FloatingActionButton(
-        onPressed: () =>
-            showKreditorRegelDialog(context, ref, konten: konten),
+        onPressed: () => showKreditorRegelDialog(context, ref, konten: konten),
         child: const Icon(Icons.add),
       ),
       body: async.when(
@@ -124,15 +124,16 @@ class KreditorRegelnScreen extends ConsumerWidget {
                 onDelete: () => _delete(context, ref, r),
                 onToggleAktiv: (val) async {
                   try {
-                    await KreditorRegelRepository.update(
-                      r.id,
-                      {'ist_aktiv': val},
-                    );
+                    await KreditorRegelRepository.update(r.id, {
+                      'ist_aktiv': val,
+                    });
                     ref.invalidate(kreditorRegelnProvider);
                   } catch (err) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Fehler: $err')),
+                        SnackBar(
+                          content: Text('Fehler: ${kurzeFehlermeldung(err)}'),
+                        ),
                       );
                     }
                   }
@@ -224,10 +225,7 @@ class _RegelCard extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () => onToggleAktiv(!r.istAktiv),
-                child: Switch(
-                  value: r.istAktiv,
-                  onChanged: onToggleAktiv,
-                ),
+                child: Switch(value: r.istAktiv, onChanged: onToggleAktiv),
               ),
               GestureDetector(
                 onTap: onDelete,
@@ -288,10 +286,12 @@ Future<void> showKreditorRegelDialog(
 }) async {
   final istNeu = bestehend == null;
 
-  final nameController =
-      TextEditingController(text: bestehend?.lieferantNamePattern ?? '');
-  final referenzController =
-      TextEditingController(text: bestehend?.referenzPraefix ?? '');
+  final nameController = TextEditingController(
+    text: bestehend?.lieferantNamePattern ?? '',
+  );
+  final referenzController = TextEditingController(
+    text: bestehend?.referenzPraefix ?? '',
+  );
   final mwstSatzController = TextEditingController(
     text: bestehend?.mwstSatzPercent != null
         ? bestehend!.mwstSatzPercent!.toString()
@@ -346,16 +346,17 @@ Future<void> showKreditorRegelDialog(
                       labelText: 'Aufwandskonto',
                     ),
                     items: aktiveKonten
-                        .map((k) => DropdownMenuItem<int>(
-                              value: k.kontonummer,
-                              child: Text(
-                                '${k.kontonummer} ${k.bezeichnung}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ))
+                        .map(
+                          (k) => DropdownMenuItem<int>(
+                            value: k.kontonummer,
+                            child: Text(
+                              '${k.kontonummer} ${k.bezeichnung}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (val) =>
-                        setState(() => selectedAufwand = val),
+                    onChanged: (val) => setState(() => selectedAufwand = val),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int?>(
@@ -378,8 +379,7 @@ Future<void> showKreditorRegelDialog(
                         child: Text('1171 Vorsteuer Investitionen'),
                       ),
                     ],
-                    onChanged: (val) =>
-                        setState(() => selectedVorsteuer = val),
+                    onChanged: (val) => setState(() => selectedVorsteuer = val),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -388,9 +388,7 @@ Future<void> showKreditorRegelDialog(
                       decimal: true,
                     ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'[0-9.,]'),
-                      ),
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                     ],
                     decoration: const InputDecoration(
                       labelText: 'MwSt-Satz %',
@@ -402,8 +400,7 @@ Future<void> showKreditorRegelDialog(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('MwSt-pflichtig'),
                     value: mwstPflichtig,
-                    onChanged: (val) =>
-                        setState(() => mwstPflichtig = val),
+                    onChanged: (val) => setState(() => mwstPflichtig = val),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -433,8 +430,10 @@ Future<void> showKreditorRegelDialog(
                 onPressed: () async {
                   final name = nameController.text.trim();
                   final referenz = referenzController.text.trim();
-                  final satzText =
-                      mwstSatzController.text.trim().replaceAll(',', '.');
+                  final satzText = mwstSatzController.text.trim().replaceAll(
+                    ',',
+                    '.',
+                  );
 
                   if (name.isEmpty) {
                     setState(() => hint = 'Name-Pattern ist nötig.');
@@ -444,8 +443,9 @@ Future<void> showKreditorRegelDialog(
                     setState(() => hint = 'Aufwandskonto wählen.');
                     return;
                   }
-                  final double? satz =
-                      satzText.isEmpty ? null : double.tryParse(satzText);
+                  final double? satz = satzText.isEmpty
+                      ? null
+                      : double.tryParse(satzText);
                   if (satzText.isNotEmpty && satz == null) {
                     setState(() => hint = 'MwSt-Satz ungültig.');
                     return;

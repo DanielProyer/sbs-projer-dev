@@ -32,6 +32,7 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BetriebDetailScreen extends ConsumerWidget {
   final String betriebId;
@@ -538,9 +539,11 @@ class _BetriebDetailContent extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Kontoauszug-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Kontoauszug-Fehler: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -805,9 +808,9 @@ class _KontaktRow extends StatelessWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+          );
         }
       }
     }

@@ -23,6 +23,7 @@ import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_steckbrief_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class AnlageDetailScreen extends ConsumerWidget {
   final String anlageId;
@@ -280,9 +281,11 @@ class _AnlageDetailContent extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -314,9 +317,11 @@ class _AnlageDetailContent extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF fehlgeschlagen: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -487,9 +492,11 @@ class _FotosSectionState extends State<_FotosSection> {
       await _loadFotos();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Upload fehlgeschlagen: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _uploadingSlot = null);
@@ -519,9 +526,11 @@ class _FotosSectionState extends State<_FotosSection> {
       await _loadFotos();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Löschen fehlgeschlagen: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Löschen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }

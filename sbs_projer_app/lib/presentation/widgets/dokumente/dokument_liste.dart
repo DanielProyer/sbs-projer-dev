@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/models/dokument.dart';
 import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_tab_oeffner_export.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Dokumentliste, nach Typ gruppiert. Zeilen aus InkWell + Container statt
 /// ListTile/ExpansionTile (CanvasKit-Regel, CLAUDE.md).
@@ -164,7 +165,9 @@ class DokumentListe extends StatelessWidget {
       }
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Öffnen fehlgeschlagen: $e')),
+        SnackBar(
+          content: Text('Öffnen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
       );
     }
   }

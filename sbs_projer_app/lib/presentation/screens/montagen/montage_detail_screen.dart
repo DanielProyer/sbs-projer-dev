@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class MontageDetailScreen extends ConsumerWidget {
   final String montageId;
@@ -380,9 +381,11 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Nicht gespeichert: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Nicht gespeichert: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _erledigtLaeuft = false);
@@ -454,9 +457,9 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }

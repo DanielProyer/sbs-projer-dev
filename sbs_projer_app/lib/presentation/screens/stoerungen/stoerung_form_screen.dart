@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class StoerungFormScreen extends ConsumerStatefulWidget {
   final String? stoerungId; // null = neu
@@ -280,8 +281,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Arbeit beendet ($zeitStr) — Rapport ergänzen '
-                'und speichern nicht vergessen.'),
+            content: Text(
+              'Arbeit beendet ($zeitStr) — Rapport ergänzen '
+              'und speichern nicht vergessen.',
+            ),
           ),
         );
       }
@@ -291,7 +294,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
       markiereGeaendert();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ende nicht gespeichert: $e')),
+          SnackBar(
+            content: Text('Ende nicht gespeichert: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     } finally {
@@ -324,9 +329,11 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
       // keinem FormField, also merkt Form.onChanged nichts davon.
       markiereGeaendert();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Beginn nicht gespeichert: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Beginn nicht gespeichert: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _arbeitBeginnLaeuft = false);
@@ -597,9 +604,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -764,7 +771,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
                   if (v && !_isEdit) {
                     final stoerungen = ref.read(stoerungenProvider);
                     final letzte =
-                        stoerungen.where((s) => s.istKilometerabrechnung).toList()
+                        stoerungen
+                            .where((s) => s.istKilometerabrechnung)
+                            .toList()
                           ..sort((a, b) => b.datum.compareTo(a.datum));
                     if (letzte.isNotEmpty) {
                       if (_beschreibungController.text.isEmpty) {
@@ -880,7 +889,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
               // === Beschreibung ===
               _sectionTitle(
                 context,
-                _istKilometerabrechnung ? 'Beschreibung' : 'Störungsbeschreibung',
+                _istKilometerabrechnung
+                    ? 'Beschreibung'
+                    : 'Störungsbeschreibung',
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -914,14 +925,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
                     setState(() => _istPikettWochenende = v);
                   },
                 ),
-                _checkTile(
-                  'Bergkunde',
-                  _istBergkunde,
-                  (v) {
-                    markiereGeaendert();
-                    setState(() => _istBergkunde = v);
-                  },
-                ),
+                _checkTile('Bergkunde', _istBergkunde, (v) {
+                  markiereGeaendert();
+                  setState(() => _istBergkunde = v);
+                }),
                 const SizedBox(height: 24),
               ],
 
@@ -1442,8 +1449,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
       ),
       child: Row(
         children: [
-          Icon(bis == null ? Icons.timer : Icons.check_circle,
-              color: AppColors.success),
+          Icon(
+            bis == null ? Icons.timer : Icons.check_circle,
+            color: AppColors.success,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1455,7 +1464,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
           ),
           // «Arbeit beenden» — fehlte bis 11.08.2026 ganz (Fall Sartons).
           if (bis == null)
-            ArbeitBeendenKnopf(onTap: _arbeitBeenden, laeuft: _arbeitBeginnLaeuft),
+            ArbeitBeendenKnopf(
+              onTap: _arbeitBeenden,
+              laeuft: _arbeitBeginnLaeuft,
+            ),
         ],
       ),
     );

@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/lohn_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/geschaeft_mapping.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class LohnEinstellungenScreen extends ConsumerStatefulWidget {
   const LohnEinstellungenScreen({super.key});
@@ -45,9 +46,17 @@ class _LohnEinstellungenScreenState
   @override
   void dispose() {
     for (final c in [
-      _ahvAnCtrl, _ahvAgCtrl,
-      _alvAnCtrl, _alvAgCtrl, _nbuAnCtrl, _buAgCtrl,
-      _bvgAnCtrl, _bvgAgCtrl, _fakAgCtrl, _ktgAnCtrl, _ktgAgCtrl,
+      _ahvAnCtrl,
+      _ahvAgCtrl,
+      _alvAnCtrl,
+      _alvAgCtrl,
+      _nbuAnCtrl,
+      _buAgCtrl,
+      _bvgAnCtrl,
+      _bvgAgCtrl,
+      _fakAgCtrl,
+      _ktgAnCtrl,
+      _ktgAgCtrl,
     ]) {
       c.dispose();
     }
@@ -103,9 +112,13 @@ class _LohnEinstellungenScreenState
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('$_jahr',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(
+                    '$_jahr',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const Icon(Icons.arrow_drop_down),
                 ],
               ),
@@ -144,9 +157,13 @@ class _LohnEinstellungenScreenState
             onPressed: _saving ? null : _save,
             icon: _saving
                 ? const SizedBox(
-                    width: 18, height: 18,
+                    width: 18,
+                    height: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                 : const Icon(Icons.save),
             label: const Text('Speichern'),
           ),
@@ -159,26 +176,31 @@ class _LohnEinstellungenScreenState
   Widget _sectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(title,
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall
-              ?.copyWith(fontWeight: FontWeight.w700)),
+      child: Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+      ),
     );
   }
 
-  Widget _rateRow(String label, TextEditingController anCtrl,
-      TextEditingController agCtrl,
-      {bool isBetrag = false}) {
+  Widget _rateRow(
+    String label,
+    TextEditingController anCtrl,
+    TextEditingController agCtrl, {
+    bool isBetrag = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           SizedBox(
             width: 80,
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w500)),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ),
           Expanded(
             child: TextFormField(
@@ -188,8 +210,9 @@ class _LohnEinstellungenScreenState
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -201,8 +224,9 @@ class _LohnEinstellungenScreenState
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
             ),
           ),
         ],
@@ -210,17 +234,21 @@ class _LohnEinstellungenScreenState
     );
   }
 
-  Widget _rateRowSingle(String label, TextEditingController ctrl,
-      {bool isAg = false}) {
+  Widget _rateRowSingle(
+    String label,
+    TextEditingController ctrl, {
+    bool isAg = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           SizedBox(
             width: 80,
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w500)),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ),
           if (!isAg) ...[
             Expanded(
@@ -231,8 +259,9 @@ class _LohnEinstellungenScreenState
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -248,8 +277,9 @@ class _LohnEinstellungenScreenState
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ),
           ],
@@ -263,7 +293,9 @@ class _LohnEinstellungenScreenState
 
     setState(() => _saving = true);
     try {
-      final geschaeft = ref.read(geschaeftProvider).valueOrNull ?? const GeschaeftEinstellungen();
+      final geschaeft =
+          ref.read(geschaeftProvider).valueOrNull ??
+          const GeschaeftEinstellungen();
       final an = GeschaeftMapping.arbeitnehmer(geschaeft);
       final ag = GeschaeftMapping.arbeitgeber(geschaeft);
       final e = LohnEinstellungen(
@@ -304,7 +336,7 @@ class _LohnEinstellungenScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {

@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
 import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
 import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BuchungFormScreen extends ConsumerStatefulWidget {
   const BuchungFormScreen({super.key});
@@ -75,8 +76,8 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
       if (vorlage != null) {
         _beschreibungController.text = vorlage.bezeichnung;
         // Geschäftsfall + Zahlungsweg: bei art != 'fix' ersten erlaubten Weg vorbelegen.
-        _zahlungsweg = (vorlage.art != 'fix' &&
-                vorlage.erlaubteZahlungswege.isNotEmpty)
+        _zahlungsweg =
+            (vorlage.art != 'fix' && vorlage.erlaubteZahlungswege.isNotEmpty)
             ? vorlage.erlaubteZahlungswege.first
             : null;
         _vorlageMwstSatz = 0;
@@ -88,8 +89,9 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
   /// Lädt den datumsabhängigen MWST-Satz für die Vorschau (nur Vorlagen-Modus).
   Future<void> _ladeVorlageSatz() async {
     final v = _selectedVorlage;
-    final satz =
-        (v != null && v.mwstPflichtig) ? await MwstSatzService.satzFuerDatum(_datum) : 0.0;
+    final satz = (v != null && v.mwstPflichtig)
+        ? await MwstSatzService.satzFuerDatum(_datum)
+        : 0.0;
     if (mounted) setState(() => _vorlageMwstSatz = satz);
   }
 
@@ -121,9 +123,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                           Expanded(
                             child: Text(
                               'Buchungsart',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
+                              style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                           ),
@@ -145,25 +145,26 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                       const SizedBox(height: 8),
                       if (!_freiBuchen)
                         vorlagenAsync.when(
-                          data: (vorlagen) => DropdownButtonFormField<BuchungsVorlage>(
-                            value: _selectedVorlage,
-                            decoration: const InputDecoration(
-                              labelText: 'Vorlage',
-                            ),
-                            isExpanded: true,
-                            items: vorlagen.map((v) {
-                              return DropdownMenuItem(
-                                value: v,
-                                child: Text(
-                                  '${v.geschaeftsfallId} – ${v.bezeichnung}',
-                                  overflow: TextOverflow.ellipsis,
+                          data: (vorlagen) =>
+                              DropdownButtonFormField<BuchungsVorlage>(
+                                value: _selectedVorlage,
+                                decoration: const InputDecoration(
+                                  labelText: 'Vorlage',
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: _onVorlageSelected,
-                            validator: (v) =>
-                                v == null ? 'Bitte Vorlage wählen' : null,
-                          ),
+                                isExpanded: true,
+                                items: vorlagen.map((v) {
+                                  return DropdownMenuItem(
+                                    value: v,
+                                    child: Text(
+                                      '${v.geschaeftsfallId} – ${v.bezeichnung}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: _onVorlageSelected,
+                                validator: (v) =>
+                                    v == null ? 'Bitte Vorlage wählen' : null,
+                              ),
                           loading: () =>
                               const Center(child: CircularProgressIndicator()),
                           error: (e, _) => Text('Fehler: $e'),
@@ -212,11 +213,14 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                           labelText: 'Betrag Netto (CHF)',
                           prefixText: 'CHF ',
                         ),
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Pflichtfeld';
-                          if (double.tryParse(v) == null) return 'Ungültiger Betrag';
+                          if (double.tryParse(v) == null) {
+                            return 'Ungültiger Betrag';
+                          }
                           return null;
                         },
                       ),
@@ -252,9 +256,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                       children: [
                         Text(
                           'Konten',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
+                          style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 8),
@@ -307,8 +309,10 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                                 decoration: const InputDecoration(
                                   labelText: 'MwSt-Satz (%)',
                                 ),
-                                keyboardType: const TextInputType.numberWithOptions(
-                                    decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                               ),
                             ),
                           ],
@@ -320,10 +324,18 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                             labelText: 'Zahlungsweg',
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'kasse', child: Text('Kasse')),
-                            DropdownMenuItem(value: 'bank', child: Text('Bank')),
                             DropdownMenuItem(
-                                value: 'privat', child: Text('Privat')),
+                              value: 'kasse',
+                              child: Text('Kasse'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'bank',
+                              child: Text('Bank'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'privat',
+                              child: Text('Privat'),
+                            ),
                           ],
                           onChanged: (v) => setState(() => _zahlungsweg = v),
                         ),
@@ -346,10 +358,9 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                     children: [
                       Text(
                         'Beleg',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       if (_belegDateiname != null)
@@ -357,10 +368,11 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           leading: CircleAvatar(
-                            backgroundColor: (_belegDateityp == 'pdf'
-                                    ? AppColors.error
-                                    : AppColors.info)
-                                .withAlpha(25),
+                            backgroundColor:
+                                (_belegDateityp == 'pdf'
+                                        ? AppColors.error
+                                        : AppColors.info)
+                                    .withAlpha(25),
                             radius: 16,
                             child: Icon(
                               _belegDateityp == 'pdf'
@@ -375,7 +387,9 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                           title: Text(
                             _belegDateiname!,
                             style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w500),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           trailing: IconButton(
@@ -465,16 +479,14 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
       } else if (option == 'kamera' || option == 'foto') {
         final picker = ImagePicker();
         final image = await picker.pickImage(
-          source:
-              option == 'kamera' ? ImageSource.camera : ImageSource.gallery,
+          source: option == 'kamera' ? ImageSource.camera : ImageSource.gallery,
           imageQuality: 85,
           maxWidth: 2000,
         );
         if (image != null) {
           bytes = await image.readAsBytes();
           filename = image.name;
-          dateityp =
-              image.name.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+          dateityp = image.name.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
         }
       }
 
@@ -489,7 +501,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -551,10 +563,9 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
           children: [
             Text(
               istFix ? 'Buchung' : 'Zahlungsweg',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             if (!istFix && v.erlaubteZahlungswege.isNotEmpty)
@@ -562,10 +573,12 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                 value: _zahlungsweg,
                 decoration: const InputDecoration(labelText: 'Zahlungsweg'),
                 items: v.erlaubteZahlungswege
-                    .map((z) => DropdownMenuItem(
-                          value: z,
-                          child: Text(_zahlungswegLabels[z] ?? z),
-                        ))
+                    .map(
+                      (z) => DropdownMenuItem(
+                        value: z,
+                        child: Text(_zahlungswegLabels[z] ?? z),
+                      ),
+                    )
                     .toList(),
                 validator: (z) => z == null ? 'Bitte Zahlungsweg wählen' : null,
                 onChanged: (z) => setState(() => _zahlungsweg = z),
@@ -621,10 +634,14 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Brutto',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                Text('${brutto.toStringAsFixed(2)} CHF',
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                const Text(
+                  'Brutto',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  '${brutto.toStringAsFixed(2)} CHF',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ],
             ),
           ],
@@ -649,8 +666,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
       if (_freiBuchen) {
         // Frei buchen: Soll/Haben/MwSt manuell.
         final mwstSatz = double.tryParse(_mwstSatzController.text) ?? 0;
-        final mwstBetrag =
-            (netto * mwstSatz / 100 * 100).roundToDouble() / 100;
+        final mwstBetrag = (netto * mwstSatz / 100 * 100).roundToDouble() / 100;
         final sollKonto = int.parse(_sollKontoController.text);
         final habenKonto = int.parse(_habenKontoController.text);
         final mwstKonto = _mwstKontoController.text.isNotEmpty
@@ -703,9 +719,9 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
       ref.invalidate(buchungenStreamProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Buchung gespeichert')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Buchung gespeichert')));
         // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
         geaendertZuruecksetzen();
         context.pop();
@@ -713,7 +729,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {

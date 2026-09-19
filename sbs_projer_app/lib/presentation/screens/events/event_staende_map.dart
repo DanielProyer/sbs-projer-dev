@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/models/event_geraet.dart';
 import 'package:sbs_projer_app/presentation/widgets/basemap_umschalter.dart';
 import 'package:sbs_projer_app/presentation/widgets/mein_standort_marker.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Karte mit swisstopo-Hintergrund (Luftbild/Karte umschaltbar), einem Marker je
 /// Stand (mit Position) und dem eigenen Handy-Standort. Tap auf Marker ruft
@@ -60,7 +61,7 @@ class EventStaendeMap extends StatefulWidget {
   /// Position eines Stands auf der Karte setzen (Planung). Fehlt der Callback,
   /// ist die Karte reine Anzeige.
   final Future<void> Function(EventStandLocal stand, LatLng punkt)?
-      onPositionSetzen;
+  onPositionSetzen;
 
   /// Referenzierter Lageplan — liegt halbtransparent über dem Luftbild und
   /// ist per Ebenen-Knopf ausblendbar.
@@ -149,7 +150,11 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Position nicht gespeichert: $e')),
+          SnackBar(
+            content: Text(
+              'Position nicht gespeichert: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
         );
       }
     } finally {
@@ -186,21 +191,21 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                   s.latitude == null
                       ? Icons.location_off_outlined
                       : (s.positionQuelle == quelleGps
-                          ? Icons.gps_fixed
-                          : Icons.push_pin_outlined),
+                            ? Icons.gps_fixed
+                            : Icons.push_pin_outlined),
                   color: s.latitude == null
                       ? AppColors.textSecondary
                       : (s.positionQuelle == quelleGps
-                          ? AppColors.success
-                          : AppColors.info),
+                            ? AppColors.success
+                            : AppColors.info),
                 ),
                 title: Text(s.name),
                 subtitle: Text(
                   s.latitude == null
                       ? 'Noch keine Position'
                       : (s.positionQuelle == quelleGps
-                          ? 'Im Feld gemessen'
-                          : 'Auf der Karte geplant'),
+                            ? 'Im Feld gemessen'
+                            : 'Auf der Karte geplant'),
                 ),
                 onTap: () => Navigator.pop(ctx, s),
               ),
@@ -234,20 +239,18 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
         onTap: _platziert != null
             ? null
             : () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${g.bezeichnung} · ${EventGeraet.typLabel(g.typ)}',
-                    ),
+                SnackBar(
+                  content: Text(
+                    '${g.bezeichnung} · ${EventGeraet.typLabel(g.typ)}',
                   ),
                 ),
+              ),
         child: Container(
           decoration: BoxDecoration(
             color: Colors.deepPurple,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
-            boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 3),
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
           ),
           child: Icon(
             EventGeraet.istAnstich(g.typ) ? Icons.propane_tank : Icons.ac_unit,
@@ -315,9 +318,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
       if (zentrieren) _controller.move(_meinStandort!, 15);
     } catch (e) {
       if (mounted && zentrieren) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Standort: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Standort: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _standortLaedt = false);
@@ -340,7 +343,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
     // toter Schalter.
     final hatAnstiche = widget.geraete.any(
       (g) =>
-          g.latitude != null && g.longitude != null && EventGeraet.istAnstich(g.typ),
+          g.latitude != null &&
+          g.longitude != null &&
+          EventGeraet.istAnstich(g.typ),
     );
     final hatKuehler = widget.geraete.any(
       (g) =>
@@ -370,7 +375,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
                   ),
             initialCenter:
                 widget.fokus ?? (punkte.isEmpty ? schweiz : punkte.first),
-            initialZoom: widget.fokus != null ? 18 : (punkte.isEmpty ? 7.5 : 13),
+            initialZoom: widget.fokus != null
+                ? 18
+                : (punkte.isEmpty ? 7.5 : 13),
             onTap: _platziert == null ? null : (_, punkt) => _kartenTap(punkt),
             onMapReady: () {
               // CanvasKit zeichnet die Kacheln sonst erst nach der ersten
@@ -393,15 +400,17 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
             // Lageplan unter den Markern, über den Kacheln — so bleiben die
             // Stand-Pins sichtbar und der Plan dient als Zeichenunterlage.
             if (widget.lageplan != null && _zeigeLageplan)
-              OverlayImageLayer(overlayImages: [
-                RotatedOverlayImage(
-                  imageProvider: NetworkImage(widget.lageplan!.url),
-                  topLeftCorner: widget.lageplan!.topLeft,
-                  bottomLeftCorner: widget.lageplan!.bottomLeft,
-                  bottomRightCorner: widget.lageplan!.bottomRight,
-                  opacity: 0.65,
-                ),
-              ]),
+              OverlayImageLayer(
+                overlayImages: [
+                  RotatedOverlayImage(
+                    imageProvider: NetworkImage(widget.lageplan!.url),
+                    topLeftCorner: widget.lageplan!.topLeft,
+                    bottomLeftCorner: widget.lageplan!.bottomLeft,
+                    bottomRightCorner: widget.lageplan!.bottomRight,
+                    opacity: 0.65,
+                  ),
+                ],
+              ),
             // Geräte-Marker UNTER den Stand-Markern (nächste Layer) — die
             // Stände bleiben die prominente Ebene, Technik ist Zusatzinfo.
             // Anstiche und Kühler sind zwei getrennte Ebenen (Feldfeedback
@@ -497,8 +506,9 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
             child: _PositionierLeiste(
               stand: _platziert,
               speichert: _speichert,
-              ohnePosition:
-                  widget.staende.where((s) => s.latitude == null).length,
+              ohnePosition: widget.staende
+                  .where((s) => s.latitude == null)
+                  .length,
               onWaehlen: _standWaehlen,
               onAbbrechen: () => setState(() => _platziert = null),
             ),
@@ -513,7 +523,8 @@ class _EventStaendeMapState extends State<EventStaendeMap> {
             // sonst erklärt sie eine Farbe für Marker, die nie existierten.
             zeigeStaende: _zeigeStaende,
             zeigeTechnik:
-                (_zeigeAnstiche && hatAnstiche) || (_zeigeKuehler && hatKuehler),
+                (_zeigeAnstiche && hatAnstiche) ||
+                (_zeigeKuehler && hatKuehler),
           ),
         ),
         Positioned(
@@ -635,15 +646,20 @@ class _PositionierLeiste extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.add_location_alt_outlined,
-                    size: 18, color: AppColors.info),
+                const Icon(
+                  Icons.add_location_alt_outlined,
+                  size: 18,
+                  color: AppColors.info,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   ohnePosition > 0
                       ? 'Positionieren ($ohnePosition offen)'
                       : 'Positionieren',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -679,7 +695,9 @@ class _PositionierLeiste extends StatelessWidget {
                 Text(
                   stand!.name,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 13),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const Text(

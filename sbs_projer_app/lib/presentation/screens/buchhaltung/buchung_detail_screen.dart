@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers
 import 'package:sbs_projer_app/presentation/widgets/beleg_upload_widget.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_reversal_service.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BuchungDetailScreen extends ConsumerStatefulWidget {
   final String buchungId;
@@ -245,9 +246,9 @@ class _BuchungDetailScreenState extends ConsumerState<BuchungDetailScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+          );
         }
       }
     }

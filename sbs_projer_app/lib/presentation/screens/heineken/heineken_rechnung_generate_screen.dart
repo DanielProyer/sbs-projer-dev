@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class HeinekenRechnungGenerateScreen extends ConsumerStatefulWidget {
   const HeinekenRechnungGenerateScreen({super.key});
@@ -23,8 +24,19 @@ class _HeinekenRechnungGenerateScreenState
   String? _error;
 
   static const _monatNamen = [
-    '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+    '',
+    'Januar',
+    'Februar',
+    'März',
+    'April',
+    'Mai',
+    'Juni',
+    'Juli',
+    'August',
+    'September',
+    'Oktober',
+    'November',
+    'Dezember',
   ];
 
   @override
@@ -42,8 +54,9 @@ class _HeinekenRechnungGenerateScreenState
       _error = null;
     });
     try {
-      final daten =
-          await HeinekenRechnungService.sammleMonatsDaten(_selectedMonat);
+      final daten = await HeinekenRechnungService.sammleMonatsDaten(
+        _selectedMonat,
+      );
       setState(() {
         _daten = daten;
         _loading = false;
@@ -60,21 +73,22 @@ class _HeinekenRechnungGenerateScreenState
     if (_daten == null) return;
     setState(() => _generating = true);
     try {
-      final rechnung =
-          await HeinekenRechnungService.erstelleMonatsrechnung(_daten!);
+      final rechnung = await HeinekenRechnungService.erstelleMonatsrechnung(
+        _daten!,
+      );
 
       if (mounted) {
         ref.invalidate(heinekenRechnungenProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rechnung erstellt')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Rechnung erstellt')));
         context.pushReplacement('/heineken/${rechnung.id}');
       }
     } catch (e) {
       setState(() => _generating = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -106,8 +120,10 @@ class _HeinekenRechnungGenerateScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Monat wählen',
-                      style: Theme.of(ctx).textTheme.titleMedium),
+                  Text(
+                    'Monat wählen',
+                    style: Theme.of(ctx).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 16),
                   // Jahr
                   SegmentedButton<int>(
@@ -144,9 +160,9 @@ class _HeinekenRechnungGenerateScreenState
                         style: FilledButton.styleFrom(
                           backgroundColor: selected
                               ? Theme.of(ctx).colorScheme.primary
-                              : Theme.of(ctx)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                              : Theme.of(
+                                  ctx,
+                                ).colorScheme.surfaceContainerHighest,
                           foregroundColor: selected
                               ? Theme.of(ctx).colorScheme.onPrimary
                               : Theme.of(ctx).colorScheme.onSurface,
@@ -183,7 +199,9 @@ class _HeinekenRechnungGenerateScreenState
               subtitle: Text(
                 '${_monatNamen[_selectedMonat.month]} ${_selectedMonat.year}',
                 style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w600),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               trailing: const Icon(Icons.edit),
               onTap: _pickMonat,
@@ -203,17 +221,21 @@ class _HeinekenRechnungGenerateScreenState
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Icon(Icons.error_outline,
-                      size: 48, color: AppColors.error),
+                  Icon(Icons.error_outline, size: 48, color: AppColors.error),
                   const SizedBox(height: 12),
-                  Text('Fehler beim Laden der Daten',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(
+                    'Fehler beim Laden der Daten',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 8),
-                  Text(_error!,
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary),
-                      textAlign: TextAlign.center),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: _loadDaten,
@@ -227,10 +249,9 @@ class _HeinekenRechnungGenerateScreenState
             // Übersicht der Kategorien
             Text(
               'Übersicht',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
 
@@ -250,7 +271,9 @@ class _HeinekenRechnungGenerateScreenState
             // Totale
             _TotalRow(label: 'Total', value: _daten!.totalNetto),
             _TotalRow(
-                label: 'Mehrwertsteuer (8.1%)', value: _daten!.mwstBetrag),
+              label: 'Mehrwertsteuer (8.1%)',
+              value: _daten!.mwstBetrag,
+            ),
             _TotalRow(
               label: 'GESAMTTOTAL INKL. MWST',
               value: _daten!.totalBrutto,
@@ -268,13 +291,12 @@ class _HeinekenRechnungGenerateScreenState
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child:
-                            CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.receipt_long),
-                label: Text(_generating
-                    ? 'Wird generiert...'
-                    : 'Rechnung generieren'),
+                label: Text(
+                  _generating ? 'Wird generiert...' : 'Rechnung generieren',
+                ),
               ),
             ),
           ],
@@ -282,7 +304,6 @@ class _HeinekenRechnungGenerateScreenState
       ),
     );
   }
-
 }
 
 class _KategorieCard extends StatelessWidget {
@@ -311,15 +332,16 @@ class _KategorieCard extends StatelessWidget {
                   Text(
                     '$anzahl Einträge',
                     style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
             Text(
               '${total.toStringAsFixed(2)} CHF',
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ],
         ),

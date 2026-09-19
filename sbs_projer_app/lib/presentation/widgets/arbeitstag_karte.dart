@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Arbeitstag-Karte auf dem Startbildschirm (Daniel 29.07.2026):
 /// Arbeitsbeginn, Arbeitsende und km-Stand direkt dort erfassen, wo der Tag
@@ -199,7 +200,11 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
     } catch (e) {
       if (melden) {
         messenger.showSnackBar(
-          SnackBar(content: Text('$wofuer ohne Standort erfasst ($e).')),
+          SnackBar(
+            content: Text(
+              '$wofuer ohne Standort erfasst (${kurzeFehlermeldung(e)}).',
+            ),
+          ),
         );
       }
       return null;
@@ -275,7 +280,9 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
     } catch (e) {
       // Die Arbeitszeit steht bereits — nur der Standort fehlt.
       messenger.showSnackBar(
-        SnackBar(content: Text('Standort nicht gespeichert: $e')),
+        SnackBar(
+          content: Text('Standort nicht gespeichert: ${kurzeFehlermeldung(e)}'),
+        ),
       );
     }
     return wahl.position;
@@ -346,27 +353,25 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
     // vorher davor und blieb auf Geräten ohne Standortdienst wortlos stehen —
     // Zeit und km gingen verloren, ohne dass eine Meldung erschien.
     try {
-      await _speichern(
-        heute,
-        (
-          beginn: beginn,
-          ende: bisher.ende,
-          km: bisher.km,
-          kmStart: km ?? bisher.kmStart,
-          lat: bisher.lat,
-          lng: bisher.lng,
-          endLat: bisher.endLat,
-          endLng: bisher.endLng,
-          pauseMinuten: bisher.pauseMinuten,
-          pauseStart: bisher.pauseStart,
-        ),
-        beginnDb: beginn,
-      );
+      await _speichern(heute, (
+        beginn: beginn,
+        ende: bisher.ende,
+        km: bisher.km,
+        kmStart: km ?? bisher.kmStart,
+        lat: bisher.lat,
+        lng: bisher.lng,
+        endLat: bisher.endLat,
+        endLng: bisher.endLng,
+        pauseMinuten: bisher.pauseMinuten,
+        pauseStart: bisher.pauseStart,
+      ), beginnDb: beginn);
       messenger.showSnackBar(
         SnackBar(content: Text('Arbeitsbeginn $beginn erfasst')),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+      );
       return;
     }
 
@@ -402,27 +407,25 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
     // wortlos verworfen, zweimal. Die Arbeitszeit darf nie davon abhängen,
     // ob eine Koordinate zustande kommt.
     try {
-      await _speichern(
-        heute,
-        (
-          beginn: eingabe.beginn ?? '06:00',
-          ende: eingabe.ende,
-          km: eingabe.km,
-          kmStart: eingabe.kmStart,
-          lat: at.lat,
-          lng: at.lng,
-          endLat: at.endLat,
-          endLng: at.endLng,
-          pauseMinuten: at.pauseMinuten,
-          pauseStart: at.pauseStart,
-        ),
-        beginnDb: eingabe.beginn,
-      );
+      await _speichern(heute, (
+        beginn: eingabe.beginn ?? '06:00',
+        ende: eingabe.ende,
+        km: eingabe.km,
+        kmStart: eingabe.kmStart,
+        lat: at.lat,
+        lng: at.lng,
+        endLat: at.endLat,
+        endLng: at.endLng,
+        pauseMinuten: at.pauseMinuten,
+        pauseStart: at.pauseStart,
+      ), beginnDb: eingabe.beginn);
       messenger.showSnackBar(
         const SnackBar(content: Text('Arbeitstag gespeichert')),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+      );
       return;
     }
 

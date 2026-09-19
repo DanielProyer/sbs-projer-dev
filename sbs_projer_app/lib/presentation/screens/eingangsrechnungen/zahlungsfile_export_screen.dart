@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/zahlungsfile_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/pain001_writer.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/pain001_validation.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Export-Screen für das GKB-Zahlungsfile (ISO-20022 pain.001).
 ///
@@ -44,14 +45,17 @@ class _ZahlungsfileExportScreenState
       _fehler = null;
     });
     try {
-      final rechnungen = await EingangsrechnungRepository.getByStatus(
-        const ['gebucht', 'zahlung_vorgemerkt'],
-      );
+      final rechnungen = await EingangsrechnungRepository.getByStatus(const [
+        'gebucht',
+        'zahlung_vorgemerkt',
+      ]);
       final offen = rechnungen
-          .where((e) =>
-              e.zahlungVorgemerkt &&
-              e.exportiertAm == null &&
-              (e.lieferantIban?.trim().isNotEmpty ?? false))
+          .where(
+            (e) =>
+                e.zahlungVorgemerkt &&
+                e.exportiertAm == null &&
+                (e.lieferantIban?.trim().isNotEmpty ?? false),
+          )
           .toList();
       setState(() {
         _zahlungen = offen;
@@ -67,19 +71,19 @@ class _ZahlungsfileExportScreenState
 
   /// Baut die pain.001-Zahlung aus einer Eingangsrechnung.
   Pain001Payment _toPayment(Eingangsrechnung e) => Pain001Payment(
-        endToEndId: e.rechnungsnummer ?? 'NOTPROVIDED',
-        cdtrName: e.ausstellerName ?? '',
-        cdtrIban: e.lieferantIban ?? '',
-        cdtrStrtNm: e.ausstellerStrasse,
-        cdtrBldgNb: e.ausstellerHausnr,
-        cdtrPstCd: e.ausstellerPlz,
-        cdtrTwnNm: e.ausstellerOrt,
-        cdtrCtry: e.ausstellerLand ?? 'CH',
-        referenzTyp: e.referenzTyp ?? 'NON',
-        referenz: e.qrReferenz,
-        betrag: e.betragBrutto,
-        waehrung: 'CHF',
-      );
+    endToEndId: e.rechnungsnummer ?? 'NOTPROVIDED',
+    cdtrName: e.ausstellerName ?? '',
+    cdtrIban: e.lieferantIban ?? '',
+    cdtrStrtNm: e.ausstellerStrasse,
+    cdtrBldgNb: e.ausstellerHausnr,
+    cdtrPstCd: e.ausstellerPlz,
+    cdtrTwnNm: e.ausstellerOrt,
+    cdtrCtry: e.ausstellerLand ?? 'CH',
+    referenzTyp: e.referenzTyp ?? 'NON',
+    referenz: e.qrReferenz,
+    betrag: e.betragBrutto,
+    waehrung: 'CHF',
+  );
 
   /// Exportierbare Zahlungen (Vor-Export-Validierung ok).
   List<Eingangsrechnung> get _valide =>
@@ -136,9 +140,7 @@ class _ZahlungsfileExportScreenState
       final g = await GeschaeftRepository.get();
       final iban = (g.firmenIban ?? '').replaceAll(' ', '');
       if (iban.isEmpty) {
-        throw Exception(
-          'Firmen-IBAN fehlt in den Geschäfts-Einstellungen.',
-        );
+        throw Exception('Firmen-IBAN fehlt in den Geschäfts-Einstellungen.');
       }
       final debtor = _buildDebtor(g);
 
@@ -165,8 +167,10 @@ class _ZahlungsfileExportScreenState
       );
 
       // 2. Zahlungsfile-Eintrag in der DB anlegen.
-      final ctrlSum =
-          exportierte.fold<double>(0, (sum, e) => sum + e.betragBrutto);
+      final ctrlSum = exportierte.fold<double>(
+        0,
+        (sum, e) => sum + e.betragBrutto,
+      );
       final zf = await ZahlungsfileRepository.create({
         'msg_id': msgId,
         'format': 'pain.001.001.09',
@@ -199,7 +203,7 @@ class _ZahlungsfileExportScreenState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Fehler: $e')),
+        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -363,14 +367,19 @@ class _ZahlungZeile extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: 14, color: AppColors.error),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 14,
+                    color: AppColors.error,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       fehler!.join(' · '),
                       style: const TextStyle(
-                          fontSize: 12, color: AppColors.error),
+                        fontSize: 12,
+                        color: AppColors.error,
+                      ),
                     ),
                   ),
                 ],
@@ -462,10 +471,7 @@ class _Footer extends StatelessWidget {
               const Text(
                 'Datei anschliessend im GKB-E-Banking hochladen.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
           ),

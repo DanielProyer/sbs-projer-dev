@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class GeschaeftForm extends ConsumerStatefulWidget {
   final GeschaeftEinstellungen geschaeft;
@@ -94,9 +95,9 @@ class _GeschaeftFormState extends ConsumerState<GeschaeftForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);

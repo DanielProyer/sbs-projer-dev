@@ -37,6 +37,7 @@ import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.da
 import 'package:sbs_projer_app/presentation/widgets/war_geschlossen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/widgets/wochen_leiste.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
   const TourenplanungScreen({super.key});
@@ -64,7 +65,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       await tourenplanNeuLaden(ProviderScope.containerOf(context));
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Aktualisieren fehlgeschlagen: $e')),
+        SnackBar(
+          content: Text(
+            'Aktualisieren fehlgeschlagen: ${kurzeFehlermeldung(e)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _laedtNeu = false);
@@ -2205,7 +2210,9 @@ class _ArbeitstagZeile extends ConsumerWidget {
         );
       } catch (e) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Fehler beim Speichern: $e')),
+          SnackBar(
+            content: Text('Fehler beim Speichern: ${kurzeFehlermeldung(e)}'),
+          ),
         );
       }
     }

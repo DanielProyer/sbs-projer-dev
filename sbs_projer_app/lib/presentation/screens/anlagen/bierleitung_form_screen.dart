@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/biersorte_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BierleitungFormScreen extends ConsumerStatefulWidget {
   final String anlageId;
@@ -104,7 +105,9 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
       final alle = {...dbNamen, ...leitungsSorten}.toList()..sort();
       if (mounted) setState(() => _biersortenVorschlaege = alle);
     } catch (_) {
-      if (mounted) setState(() => _biersortenVorschlaege = [..._fallbackBiersorten]);
+      if (mounted) {
+        setState(() => _biersortenVorschlaege = [..._fallbackBiersorten]);
+      }
     }
   }
 
@@ -121,8 +124,7 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
   }
 
   Future<void> _loadBierleitung() async {
-    final leitung =
-        await BierleitungRepository.getById(widget.bierleitungId!);
+    final leitung = await BierleitungRepository.getById(widget.bierleitungId!);
     if (leitung == null || !mounted) return;
 
     final hahnTyp = leitung.hahnTyp ?? '';
@@ -139,8 +141,7 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
       _biersorreController.text = leitung.biersorte ?? '';
       _selectedHahnTyp = selectedHahn;
       _hahnTypController.text = selectedHahn == 'Anderer' ? hahnTyp : '';
-      _niederdruckBarController.text =
-          leitung.niederdruckBar?.toString() ?? '';
+      _niederdruckBarController.text = leitung.niederdruckBar?.toString() ?? '';
       _hatFobStop = leitung.hatFobStop;
       _istGekoppelt = leitung.istGekoppelt;
       _istAktiv = leitung.istAktiv;
@@ -160,8 +161,9 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
       leitung.hahnTyp = _selectedHahnTyp == 'Anderer'
           ? _emptyToNull(_hahnTypController.text)
           : _selectedHahnTyp;
-      leitung.niederdruckBar =
-          double.tryParse(_niederdruckBarController.text.trim());
+      leitung.niederdruckBar = double.tryParse(
+        _niederdruckBarController.text.trim(),
+      );
       leitung.hatFobStop = _hatFobStop;
       leitung.istGekoppelt = _istGekoppelt;
       leitung.istAktiv = _istAktiv;
@@ -171,9 +173,9 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEdit
-                ? 'Bierleitung aktualisiert'
-                : 'Bierleitung erstellt'),
+            content: Text(
+              _isEdit ? 'Bierleitung aktualisiert' : 'Bierleitung erstellt',
+            ),
           ),
         );
         // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
@@ -183,7 +185,7 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     } finally {
@@ -215,8 +217,7 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
       was: 'Die Bierleitung',
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-              _isEdit ? 'Bierleitung bearbeiten' : 'Neue Bierleitung'),
+          title: Text(_isEdit ? 'Bierleitung bearbeiten' : 'Neue Bierleitung'),
         ),
         body: Form(
           key: _formKey,
@@ -253,30 +254,32 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
                     return _biersortenVorschlaege;
                   }
                   final query = textEditingValue.text.toLowerCase();
-                  return _biersortenVorschlaege
-                      .where((s) => s.toLowerCase().contains(query));
-                },
-                onSelected: (value) => _biersorreController.text = value,
-                fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                  // Sync mit unserem Controller
-                  controller.text = _biersorreController.text;
-                  controller.addListener(() {
-                    if (_biersorreController.text != controller.text) {
-                      _biersorreController.text = controller.text;
-                    }
-                  });
-                  return TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(
-                      labelText: 'Biersorte',
-                      prefixIcon: Icon(Icons.local_drink),
-                      hintText: 'z.B. Heineken, Feldschlösschen',
-                    ),
-                    textInputAction: TextInputAction.next,
-                    onFieldSubmitted: (_) => onSubmitted(),
+                  return _biersortenVorschlaege.where(
+                    (s) => s.toLowerCase().contains(query),
                   );
                 },
+                onSelected: (value) => _biersorreController.text = value,
+                fieldViewBuilder:
+                    (context, controller, focusNode, onSubmitted) {
+                      // Sync mit unserem Controller
+                      controller.text = _biersorreController.text;
+                      controller.addListener(() {
+                        if (_biersorreController.text != controller.text) {
+                          _biersorreController.text = controller.text;
+                        }
+                      });
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Biersorte',
+                          prefixIcon: Icon(Icons.local_drink),
+                          hintText: 'z.B. Heineken, Feldschlösschen',
+                        ),
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) => onSubmitted(),
+                      );
+                    },
               ),
               const SizedBox(height: 12),
 
@@ -315,8 +318,9 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
                   labelText: 'Niederdruck (bar)',
                   prefixIcon: Icon(Icons.speed),
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: 12),
@@ -367,8 +371,7 @@ class _BierleitungFormScreenState extends ConsumerState<BierleitungFormScreen>
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(
-                        _isEdit ? 'Speichern' : 'Bierleitung erstellen'),
+                    : Text(_isEdit ? 'Speichern' : 'Bierleitung erstellen'),
               ),
               const SizedBox(height: 32),
             ],

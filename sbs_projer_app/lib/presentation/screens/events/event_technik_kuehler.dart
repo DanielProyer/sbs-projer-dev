@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/services/events/typenschild_service.dart';
 import 'package:sbs_projer_app/services/spesen/beleg_bild_service.dart';
 import 'package:sbs_projer_app/services/storage/event_dokument_storage.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// V2-6: Durchlaufkühler-Details (Typenschild-Fotos → KI → Felder, Soll-
 /// Temperaturbereich) und Temperatur-Monitoring (Erfassen, Warnfarbe,
@@ -101,10 +102,14 @@ class KuehlerFelderState extends State<KuehlerFelder> {
     _kuehlerTyp = TextEditingController(text: widget.initialKuehlerTyp ?? '');
     _pumpeTyp = TextEditingController(text: widget.initialPumpeTyp ?? '');
     _sollMin = TextEditingController(
-      text: widget.initialSollMin == null ? '' : _formatZahl(widget.initialSollMin!),
+      text: widget.initialSollMin == null
+          ? ''
+          : _formatZahl(widget.initialSollMin!),
     );
     _sollMax = TextEditingController(
-      text: widget.initialSollMax == null ? '' : _formatZahl(widget.initialSollMax!),
+      text: widget.initialSollMax == null
+          ? ''
+          : _formatZahl(widget.initialSollMax!),
     );
     _typenschildKuehlerPfad = widget.initialTypenschildKuehlerPfad;
     _typenschildPumpePfad = widget.initialTypenschildPumpePfad;
@@ -160,17 +165,23 @@ class KuehlerFelderState extends State<KuehlerFelder> {
   /// Aktuelle Werte für den Aufrufer beim Speichern — [validate] vorher
   /// aufrufen und bei Fehler nicht speichern, hier wird nicht mehr geprüft.
   KuehlerFelderWerte werte() => KuehlerFelderWerte(
-        kuehlerTyp: _kuehlerTyp.text.trim().isEmpty ? null : _kuehlerTyp.text.trim(),
-        pumpeTyp: _pumpeTyp.text.trim().isEmpty ? null : _pumpeTyp.text.trim(),
-        typenschildKuehlerPfad: _typenschildKuehlerPfad,
-        typenschildPumpePfad: _typenschildPumpePfad,
-        typenschildErkennungJson: _erkennung.isEmpty ? null : jsonEncode(_erkennung),
-        sollMinCelsius: _parseKomma(_sollMin.text),
-        sollMaxCelsius: _parseKomma(_sollMax.text),
-      );
+    kuehlerTyp: _kuehlerTyp.text.trim().isEmpty
+        ? null
+        : _kuehlerTyp.text.trim(),
+    pumpeTyp: _pumpeTyp.text.trim().isEmpty ? null : _pumpeTyp.text.trim(),
+    typenschildKuehlerPfad: _typenschildKuehlerPfad,
+    typenschildPumpePfad: _typenschildPumpePfad,
+    typenschildErkennungJson: _erkennung.isEmpty
+        ? null
+        : jsonEncode(_erkennung),
+    sollMinCelsius: _parseKomma(_sollMin.text),
+    sollMaxCelsius: _parseKomma(_sollMax.text),
+  );
 
   Future<void> _fotografieren(bool istKuehler) async {
-    if (istKuehler ? _liestKuehler : _liestPumpe) return; // Riegel vor dem ersten await
+    if (istKuehler ? _liestKuehler : _liestPumpe) {
+      return; // Riegel vor dem ersten await
+    }
     setState(() {
       if (istKuehler) {
         _liestKuehler = true;
@@ -230,8 +241,10 @@ class KuehlerFelderState extends State<KuehlerFelder> {
       });
 
       try {
-        final ergebnis =
-            await TypenschildService.lesen(bytes, mediaType: mediaType);
+        final ergebnis = await TypenschildService.lesen(
+          bytes,
+          mediaType: mediaType,
+        );
         if (!mounted) return;
         setState(() {
           final vorschlag = ergebnis.vorschlagTyp();
@@ -258,7 +271,9 @@ class KuehlerFelderState extends State<KuehlerFelder> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Foto gespeichert, KI-Auswertung fehlgeschlagen: $e'),
+              content: Text(
+                'Foto gespeichert, KI-Auswertung fehlgeschlagen: ${kurzeFehlermeldung(e)}',
+              ),
             ),
           );
         }
@@ -274,8 +289,9 @@ class KuehlerFelderState extends State<KuehlerFelder> {
             _liestPumpe = false;
           }
         });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
@@ -340,7 +356,11 @@ class KuehlerFelderState extends State<KuehlerFelder> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _typFeld(istKuehler: true, controller: _kuehlerTyp, label: 'Typ Kühler'),
+        _typFeld(
+          istKuehler: true,
+          controller: _kuehlerTyp,
+          label: 'Typ Kühler',
+        ),
         const SizedBox(height: 4),
         _typFeld(istKuehler: false, controller: _pumpeTyp, label: 'Typ Pumpe'),
         const SizedBox(height: 4),
@@ -349,8 +369,10 @@ class KuehlerFelderState extends State<KuehlerFelder> {
             Expanded(
               child: TextField(
                 controller: _sollMin,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true, signed: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
                 decoration: const InputDecoration(labelText: 'Soll von (°C)'),
               ),
             ),
@@ -358,8 +380,10 @@ class KuehlerFelderState extends State<KuehlerFelder> {
             Expanded(
               child: TextField(
                 controller: _sollMax,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true, signed: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
                 decoration: const InputDecoration(labelText: 'Soll bis (°C)'),
               ),
             ),
@@ -424,7 +448,10 @@ class _TemperaturDialogState extends State<_TemperaturDialog> {
           TextField(
             controller: _wert,
             autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+              signed: true,
+            ),
             decoration: InputDecoration(
               labelText: 'Temperatur (°C)',
               errorText: _fehler,
@@ -494,8 +521,9 @@ class _KuehlerTemperaturBereichState
         setState(() => _erfasst = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('🌡️ ${eingabe.temperatur.toStringAsFixed(1)} °C erfasst'),
+            content: Text(
+              '🌡️ ${eingabe.temperatur.toStringAsFixed(1)} °C erfasst',
+            ),
           ),
         );
       }
@@ -503,15 +531,17 @@ class _KuehlerTemperaturBereichState
       // Kein stiller Fehlschlag — der Riegel geht so oder so wieder auf.
       if (mounted) {
         setState(() => _erfasst = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final messungen = ref
+    final messungen =
+        ref
             .watch(eventKuehlerMessungenProvider(widget.geraetServerId))
             .valueOrNull ??
         const <EventKuehlerMessungLocal>[];
@@ -574,7 +604,8 @@ class KuehlerVerlaufChart extends StatelessWidget {
     ];
     final xMin = spots.first.x;
     final xMax = spots.last.x;
-    final mehrereTage = messungen.last.gemessenAm
+    final mehrereTage =
+        messungen.last.gemessenAm
             .difference(messungen.first.gemessenAm)
             .inHours >=
         24;
@@ -587,17 +618,22 @@ class KuehlerVerlaufChart extends StatelessWidget {
         gridData: const FlGridData(show: true, drawVerticalLine: false),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 34,
               getTitlesWidget: (value, meta) => Text(
                 '${value.toStringAsFixed(0)}°',
-                style:
-                    const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ),
@@ -616,7 +652,9 @@ class KuehlerVerlaufChart extends StatelessWidget {
                   child: Text(
                     text,
                     style: const TextStyle(
-                        fontSize: 9, color: AppColors.textSecondary),
+                      fontSize: 9,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 );
               },

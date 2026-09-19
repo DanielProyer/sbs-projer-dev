@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/models/betrieb_vorschlag.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_vorschlag_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_vorschlag_providers.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Prüfliste für Änderungsvorschläge aus Google und Kundenwebsites (Spec
 /// docs/superpowers/specs/2026-07-31-betriebsdaten-aktuell-halten-design.md).
@@ -35,7 +36,9 @@ class BetriebVorschlaegeScreen extends ConsumerWidget {
       if (v.feld == 'ferien') ref.invalidate(ferienPeriodenProvider);
       messenger.showSnackBar(const SnackBar(content: Text('Übernommen.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+      );
     }
   }
 
@@ -50,7 +53,9 @@ class BetriebVorschlaegeScreen extends ConsumerWidget {
       ref.invalidate(offeneVorschlaegeProvider);
       messenger.showSnackBar(const SnackBar(content: Text('Verworfen.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+      );
     }
   }
 
@@ -69,7 +74,9 @@ class BetriebVorschlaegeScreen extends ConsumerWidget {
         SnackBar(content: Text('$anzahl Vorschläge übernommen.')),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+      );
     }
   }
 

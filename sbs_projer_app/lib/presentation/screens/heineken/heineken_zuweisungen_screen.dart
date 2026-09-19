@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_zuweisung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class HeinekenZuweisungenScreen extends ConsumerStatefulWidget {
   const HeinekenZuweisungenScreen({super.key});
@@ -51,13 +52,18 @@ class _HeinekenZuweisungenScreenState
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.contacts, size: 64,
-                            color: AppColors.textSecondary),
+                        Icon(
+                          Icons.contacts,
+                          size: 64,
+                          color: AppColors.textSecondary,
+                        ),
                         SizedBox(height: 16),
                         Text(
                           'Keine Heineken-Kontakte vorhanden',
                           style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 16),
+                            color: AppColors.textSecondary,
+                            fontSize: 16,
+                          ),
                         ),
                         SizedBox(height: 8),
                         Text(
@@ -106,10 +112,7 @@ class _HeinekenZuweisungenScreenState
   Future<void> _setZuweisung(String funktion, KontaktLocal? kontakt) async {
     setState(() => _saving = true);
     try {
-      await KontaktRepository.setHeinekenZuweisung(
-        funktion,
-        kontakt?.routeId,
-      );
+      await KontaktRepository.setHeinekenZuweisung(funktion, kontakt?.routeId);
       setState(() {
         _zuweisungen![funktion] = kontakt;
         _saving = false;
@@ -118,9 +121,11 @@ class _HeinekenZuweisungenScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(kontakt != null
-                ? '${kontakt.vorname} ${kontakt.nachname ?? ''} zugewiesen'
-                : 'Zuweisung entfernt'),
+            content: Text(
+              kontakt != null
+                  ? '${kontakt.vorname} ${kontakt.nachname ?? ''} zugewiesen'
+                  : 'Zuweisung entfernt',
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -129,7 +134,7 @@ class _HeinekenZuweisungenScreenState
       setState(() => _saving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );
       }
     }
@@ -162,7 +167,8 @@ class _ZuweisungCard extends StatelessWidget {
         currentKontakt!.rolle!,
       if (currentKontakt?.email != null && currentKontakt!.email!.isNotEmpty)
         currentKontakt!.email!,
-      if (currentKontakt?.telefon != null && currentKontakt!.telefon!.isNotEmpty)
+      if (currentKontakt?.telefon != null &&
+          currentKontakt!.telefon!.isNotEmpty)
         currentKontakt!.telefon!,
     ];
 
@@ -177,9 +183,13 @@ class _ZuweisungCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 20, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(label,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 15)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -187,21 +197,25 @@ class _ZuweisungCard extends StatelessWidget {
               value: currentKontakt?.routeId,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
               isExpanded: true,
               items: [
                 const DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('Kein Kontakt zugewiesen',
-                      style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontStyle: FontStyle.italic)),
+                  child: Text(
+                    'Kein Kontakt zugewiesen',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ),
                 ...kontakte.map((k) {
-                  final name =
-                      '${k.vorname} ${k.nachname ?? ''}'.trim();
+                  final name = '${k.vorname} ${k.nachname ?? ''}'.trim();
                   final rolle = k.rolle ?? '';
                   return DropdownMenuItem<String?>(
                     value: k.routeId,
@@ -214,14 +228,20 @@ class _ZuweisungCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withAlpha(20),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: Text(rolle,
-                                style: const TextStyle(
-                                    fontSize: 11, color: AppColors.primary)),
+                            child: Text(
+                              rolle,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.primary,
+                              ),
+                            ),
                           ),
                         ],
                       ],
@@ -235,8 +255,9 @@ class _ZuweisungCard extends StatelessWidget {
                       if (id == null) {
                         onChanged(null);
                       } else {
-                        final kontakt =
-                            kontakte.firstWhere((k) => k.routeId == id);
+                        final kontakt = kontakte.firstWhere(
+                          (k) => k.routeId == id,
+                        );
                         onChanged(kontakt);
                       }
                     },
@@ -246,7 +267,9 @@ class _ZuweisungCard extends StatelessWidget {
               Text(
                 details.join('  ·  '),
                 style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ],

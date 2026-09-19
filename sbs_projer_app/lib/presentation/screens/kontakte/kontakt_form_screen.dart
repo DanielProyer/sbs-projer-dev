@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class KontaktFormScreen extends ConsumerStatefulWidget {
   final String? kontaktId;
@@ -130,9 +131,9 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/services/camt/zahlername.dart';
 import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Wiederverwendbare Ergebnis-Vorschau für den camt-Forderungsabgleich:
 /// Kopf-Übersicht (KPIs) + vier klappbare Gruppen (🟢 Auto / 🟡 Manuell /
@@ -60,9 +61,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   @override
   Widget build(BuildContext context) {
     final erg = widget.ergebnis;
-    final autoSumme = erg.auto.fold<double>(0, (s, t) => s + t.gutschrift.amount);
-    final unbekanntSumme =
-        erg.unbekannteGutschriften.fold<double>(0, (s, g) => s + g.amount);
+    final autoSumme = erg.auto.fold<double>(
+      0,
+      (s, t) => s + t.gutschrift.amount,
+    );
+    final unbekanntSumme = erg.unbekannteGutschriften.fold<double>(
+      0,
+      (s, g) => s + g.amount,
+    );
     return ListView(
       padding: widget.padding,
       shrinkWrap: true,
@@ -86,11 +92,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 controlAffinity: ListTileControlAffinity.leading,
                 value: _autoLernen,
                 onChanged: (v) => setState(() => _autoLernen = v ?? true),
-                title: const Text('Zahlernamen aus Auto-Treffern lernen',
-                    style: TextStyle(fontSize: 13)),
+                title: const Text(
+                  'Zahlernamen aus Auto-Treffern lernen',
+                  style: TextStyle(fontSize: 13),
+                ),
                 subtitle: const Text(
-                    'Schreibt den Einzahler-Namen als Alias des Betriebs fest.',
-                    style: TextStyle(fontSize: 11)),
+                  'Schreibt den Einzahler-Namen als Alias des Betriebs fest.',
+                  style: TextStyle(fontSize: 11),
+                ),
               ),
             if (erg.auto.isNotEmpty)
               Padding(
@@ -202,8 +211,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // Kontroll-Block: Zahler + Treffer-Grund, jede Rechnung mit Nummer, Datum
     // und Betrag, zuletzt die Bank-Bemerkung.
     final zahler = effektiverZahlername(
-        partyName: t.gutschrift.partyName,
-        additionalInfo: t.gutschrift.additionalInfo);
+      partyName: t.gutschrift.partyName,
+      additionalInfo: t.gutschrift.additionalInfo,
+    );
     final remit = t.gutschrift.remittanceInfo?.trim();
     final kopf = [
       if (zahler != null) 'Zahler: $zahler',
@@ -233,7 +243,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   String? _zahlungInfo(CamtTransaction g) {
     final teile = <String>[];
     final name = effektiverZahlername(
-        partyName: g.partyName, additionalInfo: g.additionalInfo);
+      partyName: g.partyName,
+      additionalInfo: g.additionalInfo,
+    );
     if (name != null) teile.add(name);
     final adr = g.partyAddress.trim();
     if (adr.isNotEmpty) teile.add(adr);
@@ -254,7 +266,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   String? _zahlungInfoKurz(CamtTransaction g) {
     final teile = <String>[];
     final name = effektiverZahlername(
-        partyName: g.partyName, additionalInfo: g.additionalInfo);
+      partyName: g.partyName,
+      additionalInfo: g.additionalInfo,
+    );
     if (name != null) teile.add(name);
     final remit = g.remittanceInfo?.trim();
     if (remit != null && remit.isNotEmpty) teile.add('Bemerkung: $remit');
@@ -295,7 +309,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   /// tatsächlich begleicht — bei Mehrfachauswahl also nicht pauschal gegen die
   /// erste Gutschrift.
   Future<bool> _pruefeDatumsfolge(
-      List<CamtTransaction> gutschriften, Iterable<Rechnung> forderungen) async {
+    List<CamtTransaction> gutschriften,
+    Iterable<Rechnung> forderungen,
+  ) async {
     if (gutschriften.isEmpty) return true;
     final paarung = paareMitBetrag<CamtTransaction>(
       zahlungen: gutschriften,
@@ -303,7 +319,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       betragVon: (g) => g.amount,
       forderungen: [
         for (final r in forderungen)
-          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto)
+          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto),
       ],
     );
     final zeilen = <String>[];
@@ -313,12 +329,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         (
           bezeichnung: r.rechnungsnummer ?? r.id,
           rechnungsdatum: r.rechnungsdatum,
-        )
+        ),
       ]);
       if (treffer.isNotEmpty) {
-        zeilen.add('${treffer.first} — Zahlung vom '
-            '${_datumKurz(zahlung.bookingDate)}, Rechnung vom '
-            '${_datumKurz(r.rechnungsdatum)}');
+        zeilen.add(
+          '${treffer.first} — Zahlung vom '
+          '${_datumKurz(zahlung.bookingDate)}, Rechnung vom '
+          '${_datumKurz(r.rechnungsdatum)}',
+        );
       }
     }
     if (zeilen.isEmpty || !mounted) return zeilen.isEmpty;
@@ -366,8 +384,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Icon(an ? Icons.expand_less : Icons.expand_more,
-                size: 20, color: AppColors.primary),
+            Icon(
+              an ? Icons.expand_less : Icons.expand_more,
+              size: 20,
+              color: AppColors.primary,
+            ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -375,9 +396,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     ? 'Ältere ausblenden (über ein Jahr)'
                     : '$anzahl Forderungen älter als ein Jahr einblenden',
                 style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600),
+                  fontSize: 13,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -400,10 +422,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     required Set<CamtTransaction> gewaehlteGuts,
     required Set<Rechnung> gewaehlteForderungen,
   }) {
-    final selGuts =
-        [for (final g in gutsAnzeige) if (gewaehlteGuts.contains(g)) g];
+    final selGuts = [
+      for (final g in gutsAnzeige)
+        if (gewaehlteGuts.contains(g)) g,
+    ];
     final gutNr = <CamtTransaction, int>{
-      for (var i = 0; i < selGuts.length; i++) selGuts[i]: i + 1
+      for (var i = 0; i < selGuts.length; i++) selGuts[i]: i + 1,
     };
     if (selGuts.isEmpty || gewaehlteForderungen.isEmpty) {
       return (gut: gutNr, ford: const {});
@@ -414,14 +438,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       betragVon: (g) => g.amount,
       forderungen: [
         for (final r in gewaehlteForderungen)
-          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto)
+          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto),
       ],
     );
     return (
       gut: gutNr,
       ford: {
         for (final e in paarung.entries)
-          if (gutNr[e.value] != null) e.key: gutNr[e.value]!
+          if (gutNr[e.value] != null) e.key: gutNr[e.value]!,
       },
     );
   }
@@ -456,14 +480,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       if (a.forderungen.isEmpty) widget.ergebnis.auto.remove(a);
     }
     // Manuell-Fälle, die dadurch leer laufen, fallen weg.
-    widget.ergebnis.manuell
-        .removeWhere((m) => m.forderungen.isEmpty && m.gutschriften.isEmpty);
+    widget.ergebnis.manuell.removeWhere(
+      (m) => m.forderungen.isEmpty && m.gutschriften.isEmpty,
+    );
   }
 
   Future<void> _verbuche(AutoTreffer t) async {
     final stand = ValueNotifier<int>(0);
-    FortschrittsDialog.zeige(context,
-        titel: 'Zahlung verbuchen', stand: stand);
+    FortschrittsDialog.zeige(context, titel: 'Zahlung verbuchen', stand: stand);
     try {
       await ForderungsAbgleichService.verbuche(
         zahlbetrag: t.gutschrift.amount,
@@ -485,14 +509,18 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         _entferneVerbuchte(t.forderungen.map((r) => r.id).toSet());
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop(); // Fortschritt zu
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Verbuchungs-Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
     }
   }
@@ -504,8 +532,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // Fortschritt sichtbar machen: 30+ sequenzielle Buchungen dauerten vorher
     // ~10 s ohne jedes Lebenszeichen (Rückmeldung Daniel 01.09.2026).
     final stand = ValueNotifier<int>(0);
-    FortschrittsDialog.zeige(context,
-        titel: 'Zahlungen verbuchen', stand: stand, total: treffer.length);
+    FortschrittsDialog.zeige(
+      context,
+      titel: 'Zahlungen verbuchen',
+      stand: stand,
+      total: treffer.length,
+    );
     try {
       for (final t in treffer) {
         try {
@@ -530,8 +562,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           final bid = t.forderungen.first.betriebId;
           if (bid == null) continue;
           final name = effektiverZahlername(
-              partyName: t.gutschrift.partyName,
-              additionalInfo: t.gutschrift.additionalInfo);
+            partyName: t.gutschrift.partyName,
+            additionalInfo: t.gutschrift.additionalInfo,
+          );
           if (name == null || !gelernt.add('$bid|${zahlernameNorm(name)}')) {
             continue;
           }
@@ -548,17 +581,23 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     if (mounted) {
       setState(() {
         widget.ergebnis.auto.removeWhere((t) => verbuchteTreffer.contains(t));
-        _entferneVerbuchte(verbuchteTreffer
-            .expand((t) => t.forderungen)
-            .map((r) => r.id)
-            .toSet());
+        _entferneVerbuchte(
+          verbuchteTreffer
+              .expand((t) => t.forderungen)
+              .map((r) => r.id)
+              .toSet(),
+        );
       });
       final verbucht = treffer.length - fehler.length;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(fehler.isEmpty
-            ? '$verbucht Zahlung(en) verbucht.'
-            : '$verbucht verbucht, ${fehler.length} fehlgeschlagen: ${fehler.join('; ')}'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            fehler.isEmpty
+                ? '$verbucht Zahlung(en) verbucht.'
+                : '$verbucht verbucht, ${fehler.length} fehlgeschlagen: ${fehler.join('; ')}',
+          ),
+        ),
+      );
     }
   }
 
@@ -585,8 +624,8 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       var treffer = v.rechnungsnummer == null
           ? const <Rechnung>[]
           : f.forderungen
-              .where((r) => r.rechnungsnummer == v.rechnungsnummer)
-              .toList();
+                .where((r) => r.rechnungsnummer == v.rechnungsnummer)
+                .toList();
       if (treffer.isEmpty && v.datum != null) {
         treffer = f.forderungen
             .where((r) => _sameDay(r.rechnungsdatum, v.datum!))
@@ -610,12 +649,17 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             // Live-Summen + 5-Rappen-gerundete Differenz.
-            final zahlSumme =
-                gewaehlteGutschriften.fold<double>(0, (s, g) => s + g.amount);
+            final zahlSumme = gewaehlteGutschriften.fold<double>(
+              0,
+              (s, g) => s + g.amount,
+            );
             final fordSumme = gewaehlteForderungen.fold<double>(
-                0, (s, r) => s + r.betragBrutto);
+              0,
+              (s, r) => s + r.betragBrutto,
+            );
             final info = bewerteDifferenz(zahlSumme, fordSumme);
-            final kannVerbuchen = gewaehlteGutschriften.isNotEmpty &&
+            final kannVerbuchen =
+                gewaehlteGutschriften.isNotEmpty &&
                 gewaehlteForderungen.isNotEmpty;
             // Forderungen chronologisch (neueste zuoberst, nach Datum — nicht Nr.).
             final forderungenSortiert = [...f.forderungen]
@@ -630,163 +674,175 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
 
             return AlertDialog(
               // Schmaler Rand → auf dem Handy zählt jeder Pixel Textbreite.
-              insetPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
-              contentPadding:
-                  const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 24,
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               title: Text('Manuelle Zuordnung — ${f.betriebName}'),
               content: SizedBox(
                 width: 420,
                 child: SingleChildScrollView(
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Zahlungseingänge (Gutschriften) als Mehrfachauswahl.
-                    const Text('Zahlungseingänge',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
-                    for (final g in gutschriftenSortiert)
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        value: gewaehlteGutschriften.contains(g),
-                        title: _mitPaarBadge(
-                          badges.gut[g],
-                          '${_dateFormat.format(g.bookingDate)} — '
-                          '${g.amount.toStringAsFixed(2)} CHF',
-                        ),
-                        subtitle: _zahlungInfoText(g),
-                        // Gehört zu einem anderen Betrieb? Über alle Betriebe
-                        // neu zuordnen (+ Alias lernen). GestureDetector, da
-                        // Material-Buttons in CanvasKit teils nicht rendern.
-                        secondary: Tooltip(
-                          message: 'Anders zuordnen',
-                          child: GestureDetector(
-                            onTap: () {
-                              umleiten = g;
-                              Navigator.pop(ctx, false);
-                            },
-                            behavior: HitTestBehavior.opaque,
-                            // Icon statt zweizeiligem Label: schmaler (mehr
-                            // Platz für den Text) und die Zeile wird nicht
-                            // vom Button hochgedrückt. 44px = Tippfläche.
-                            child: const SizedBox(
-                              width: 44,
-                              height: 44,
-                              child: Icon(Icons.swap_horiz,
-                                  size: 22, color: AppColors.primary),
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Zahlungseingänge (Gutschriften) als Mehrfachauswahl.
+                      const Text(
+                        'Zahlungseingänge',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      for (final g in gutschriftenSortiert)
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: gewaehlteGutschriften.contains(g),
+                          title: _mitPaarBadge(
+                            badges.gut[g],
+                            '${_dateFormat.format(g.bookingDate)} — '
+                            '${g.amount.toStringAsFixed(2)} CHF',
+                          ),
+                          subtitle: _zahlungInfoText(g),
+                          // Gehört zu einem anderen Betrieb? Über alle Betriebe
+                          // neu zuordnen (+ Alias lernen). GestureDetector, da
+                          // Material-Buttons in CanvasKit teils nicht rendern.
+                          secondary: Tooltip(
+                            message: 'Anders zuordnen',
+                            child: GestureDetector(
+                              onTap: () {
+                                umleiten = g;
+                                Navigator.pop(ctx, false);
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              // Icon statt zweizeiligem Label: schmaler (mehr
+                              // Platz für den Text) und die Zeile wird nicht
+                              // vom Button hochgedrückt. 44px = Tippfläche.
+                              child: const SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Icon(
+                                  Icons.swap_horiz,
+                                  size: 22,
+                                  color: AppColors.primary,
+                                ),
+                              ),
                             ),
                           ),
+                          onChanged: (sel) => setDialogState(() {
+                            if (sel == true) {
+                              gewaehlteGutschriften.add(g);
+                            } else {
+                              gewaehlteGutschriften.remove(g);
+                            }
+                          }),
                         ),
-                        onChanged: (sel) => setDialogState(() {
-                          if (sel == true) {
-                            gewaehlteGutschriften.add(g);
-                          } else {
-                            gewaehlteGutschriften.remove(g);
-                          }
-                        }),
-                      ),
-                    const SizedBox(height: 12),
-                    // Offene Forderungen als Mehrfachauswahl.
-                    const Text('Offene Forderungen',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
-                    for (final r in forderungenSortiert)
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        tileColor: vorschlagFordIds.contains(r.id)
-                            ? AppColors.success.withAlpha(20)
-                            : null,
-                        value: gewaehlteForderungen.contains(r),
-                        title: _mitPaarBadge(
-                          badges.ford[r.id],
-                          '${_dateFormat.format(r.rechnungsdatum)} — '
-                          '${r.betragBrutto.toStringAsFixed(2)} CHF',
-                        ),
-                        subtitle: Text(vorschlagFordIds.contains(r.id)
-                            ? 'Rechnung ${r.rechnungsnummer ?? '?'} · 📌 Vorschlag (Bemerkung/Betrag)'
-                            : 'Rechnung ${r.rechnungsnummer ?? '?'}'),
-                        secondary: _forderungPdfLink(r),
-                        onChanged: (sel) => setDialogState(() {
-                          if (sel == true) {
-                            gewaehlteForderungen.add(r);
-                          } else {
-                            gewaehlteForderungen.remove(r);
-                          }
-                        }),
-                      ),
-                    const SizedBox(height: 12),
-                    if (badges.ford.isNotEmpty) ...[
-                      Row(
-                        children: [
-                          const PaarBadge(nummer: 1),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Gleicher Punkt = Zahlung und Rechnung werden '
-                              'einander zugeordnet.',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    // Summen + Differenz-Hinweis (gespiegelt aus rechnung_detail_screen).
-                    Text(
-                      'Zahlung: CHF ${zahlSumme.toStringAsFixed(2)}\n'
-                      'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    if (!info.istKeine) ...[
                       const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: info.istMinder
-                              ? AppColors.error.withAlpha(25)
-                              : AppColors.success.withAlpha(25),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: (info.istMinder
-                                    ? AppColors.error
-                                    : AppColors.success)
-                                .withAlpha(80),
+                      // Offene Forderungen als Mehrfachauswahl.
+                      const Text(
+                        'Offene Forderungen',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      for (final r in forderungenSortiert)
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          tileColor: vorschlagFordIds.contains(r.id)
+                              ? AppColors.success.withAlpha(20)
+                              : null,
+                          value: gewaehlteForderungen.contains(r),
+                          title: _mitPaarBadge(
+                            badges.ford[r.id],
+                            '${_dateFormat.format(r.rechnungsdatum)} — '
+                            '${r.betragBrutto.toStringAsFixed(2)} CHF',
                           ),
+                          subtitle: Text(
+                            vorschlagFordIds.contains(r.id)
+                                ? 'Rechnung ${r.rechnungsnummer ?? '?'} · 📌 Vorschlag (Bemerkung/Betrag)'
+                                : 'Rechnung ${r.rechnungsnummer ?? '?'}',
+                          ),
+                          secondary: _forderungPdfLink(r),
+                          onChanged: (sel) => setDialogState(() {
+                            if (sel == true) {
+                              gewaehlteForderungen.add(r);
+                            } else {
+                              gewaehlteForderungen.remove(r);
+                            }
+                          }),
                         ),
-                        child: Row(
+                      const SizedBox(height: 12),
+                      if (badges.ford.isNotEmpty) ...[
+                        Row(
                           children: [
-                            Icon(
-                              info.istMinder
-                                  ? Icons.trending_down
-                                  : Icons.trending_up,
-                              size: 18,
-                              color: info.istMinder
-                                  ? AppColors.error
-                                  : AppColors.success,
-                            ),
-                            const SizedBox(width: 8),
+                            const PaarBadge(nummer: 1),
+                            const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                info.text,
+                                'Gleicher Punkt = Zahlung und Rechnung werden '
+                                'einander zugeordnet.',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  color: info.istMinder
-                                      ? AppColors.error
-                                      : AppColors.success,
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 8),
+                      ],
+                      // Summen + Differenz-Hinweis (gespiegelt aus rechnung_detail_screen).
+                      Text(
+                        'Zahlung: CHF ${zahlSumme.toStringAsFixed(2)}\n'
+                        'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 13),
                       ),
+                      if (!info.istKeine) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: info.istMinder
+                                ? AppColors.error.withAlpha(25)
+                                : AppColors.success.withAlpha(25),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color:
+                                  (info.istMinder
+                                          ? AppColors.error
+                                          : AppColors.success)
+                                      .withAlpha(80),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                info.istMinder
+                                    ? Icons.trending_down
+                                    : Icons.trending_up,
+                                size: 18,
+                                color: info.istMinder
+                                    ? AppColors.error
+                                    : AppColors.success,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  info.text,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: info.istMinder
+                                        ? AppColors.error
+                                        : AppColors.success,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
+                  ),
                 ),
               ),
               actions: [
@@ -798,8 +854,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                   onPressed: kannVerbuchen
                       ? () async {
                           if (!await _pruefeDatumsfolge(
-                              gewaehlteGutschriften.toList(),
-                              gewaehlteForderungen)) {
+                            gewaehlteGutschriften.toList(),
+                            gewaehlteForderungen,
+                          )) {
                             return;
                           }
                           try {
@@ -813,9 +870,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           } catch (e) {
                             if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                                  content:
-                                      Text('Verbuchungs-Fehler: $e')));
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}',
+                                  ),
+                                ),
+                              );
                             }
                           }
                         }
@@ -843,7 +904,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final gelernteNamen = <String>{};
     for (final g in gewaehlteGutschriften) {
       final name = effektiverZahlername(
-          partyName: g.partyName, additionalInfo: g.additionalInfo);
+        partyName: g.partyName,
+        additionalInfo: g.additionalInfo,
+      );
       if (name == null || !gelernteNamen.add(zahlernameNorm(name))) continue;
       await _lerneAlias(f.betriebId, g);
     }
@@ -879,8 +942,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       }
     });
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
     }
   }
 
@@ -889,8 +953,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   /// korrigiert einen falschen Auto-Treffer (z.B. Betreiber-/Ketten-Name) —
   /// dieser wird entfernt, seine ursprünglichen Forderungen wieder als offen
   /// gezeigt; bei eindeutigem Betrieb wird der Alias gelernt.
-  Future<void> _ordneZu(CamtTransaction g,
-      {AutoTreffer? korrigiereAuto, ManuellFall? korrigiereManuell}) async {
+  Future<void> _ordneZu(
+    CamtTransaction g, {
+    AutoTreffer? korrigiereAuto,
+    ManuellFall? korrigiereManuell,
+  }) async {
     final gewaehlt = <Rechnung>{};
     var suche = '';
     var zeigeAlte = false;
@@ -907,27 +974,34 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          final gefiltert = widget.alleOffenen.where((r) {
-            if (!zeigeAlte && !istImAbgleichsfenster(r.rechnungsdatum, jetzt)) {
-              return false;
-            }
-            if (suche.isEmpty) return true;
-            final q = suche.toLowerCase();
-            final nr = (r.rechnungsnummer ?? '').toLowerCase();
-            final betrieb = (widget.betriebName[r.betriebId] ?? '').toLowerCase();
-            return nr.contains(q) || betrieb.contains(q);
-          }).toList()
-            ..sort((a, b) {
-              final ba = passtBetrag(a) ? 0 : 1;
-              final bb = passtBetrag(b) ? 0 : 1;
-              if (ba != bb) return ba - bb;
-              return b.rechnungsdatum.compareTo(a.rechnungsdatum);
-            });
+          final gefiltert =
+              widget.alleOffenen.where((r) {
+                if (!zeigeAlte &&
+                    !istImAbgleichsfenster(r.rechnungsdatum, jetzt)) {
+                  return false;
+                }
+                if (suche.isEmpty) return true;
+                final q = suche.toLowerCase();
+                final nr = (r.rechnungsnummer ?? '').toLowerCase();
+                final betrieb = (widget.betriebName[r.betriebId] ?? '')
+                    .toLowerCase();
+                return nr.contains(q) || betrieb.contains(q);
+              }).toList()..sort((a, b) {
+                final ba = passtBetrag(a) ? 0 : 1;
+                final bb = passtBetrag(b) ? 0 : 1;
+                if (ba != bb) return ba - bb;
+                return b.rechnungsdatum.compareTo(a.rechnungsdatum);
+              });
           final zahlSumme = g.amount;
-          final fordSumme = gewaehlt.fold<double>(0, (s, r) => s + r.betragBrutto);
+          final fordSumme = gewaehlt.fold<double>(
+            0,
+            (s, r) => s + r.betragBrutto,
+          );
           final info = bewerteDifferenz(zahlSumme, fordSumme);
           return AlertDialog(
-            title: Text('Zahlung zuordnen — ${g.amount.toStringAsFixed(2)} CHF'),
+            title: Text(
+              'Zahlung zuordnen — ${g.amount.toStringAsFixed(2)} CHF',
+            ),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -955,7 +1029,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           Text(
                             _zahlungInfo(g)!,
                             style: const TextStyle(
-                                fontSize: 12, color: AppColors.textSecondary),
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ],
@@ -989,11 +1065,15 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             tileColor: passtBetrag(r)
                                 ? AppColors.success.withAlpha(20)
                                 : null,
-                            title: Text('${_dateFormat.format(r.rechnungsdatum)} — '
-                                '${r.betragBrutto.toStringAsFixed(2)} CHF'),
-                            subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
-                                '${widget.betriebName[r.betriebId] ?? '?'}'
-                                '${passtBetrag(r) ? ' · 💰 Betrag passt' : ''}'),
+                            title: Text(
+                              '${_dateFormat.format(r.rechnungsdatum)} — '
+                              '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                            ),
+                            subtitle: Text(
+                              'Rechnung ${r.rechnungsnummer ?? '?'} · '
+                              '${widget.betriebName[r.betriebId] ?? '?'}'
+                              '${passtBetrag(r) ? ' · 💰 Betrag passt' : ''}',
+                            ),
                             secondary: _forderungPdfLink(r),
                             onChanged: (sel) => setDialogState(() {
                               if (sel == true) {
@@ -1011,23 +1091,27 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (info.istMinder
-                                ? AppColors.error
-                                : AppColors.success)
-                            .withAlpha(25),
+                        color:
+                            (info.istMinder
+                                    ? AppColors.error
+                                    : AppColors.success)
+                                .withAlpha(25),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(children: [
-                        Icon(
+                      child: Row(
+                        children: [
+                          Icon(
                             info.istMinder
                                 ? Icons.trending_down
                                 : Icons.trending_up,
                             color: info.istMinder
                                 ? AppColors.error
-                                : AppColors.success),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(info.text)),
-                      ]),
+                                : AppColors.success,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(info.text)),
+                        ],
+                      ),
                     ),
                 ],
               ),
@@ -1041,8 +1125,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 child: const Text('Später klären'),
               ),
               TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Abbrechen')),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Abbrechen'),
+              ),
               FilledButton(
                 onPressed: gewaehlt.isEmpty
                     ? null
@@ -1061,7 +1146,12 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         } catch (e) {
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
-                                SnackBar(content: Text('Verbuchungs-Fehler: $e')));
+                              SnackBar(
+                                content: Text(
+                                  'Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}',
+                                ),
+                              ),
+                            );
                           }
                         }
                       },
@@ -1073,14 +1163,19 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       ),
     );
     if (spaeterKlaeren) {
-      await _parkeInPruefliste(g,
-          korrigiereAuto: korrigiereAuto, korrigiereManuell: korrigiereManuell);
+      await _parkeInPruefliste(
+        g,
+        korrigiereAuto: korrigiereAuto,
+        korrigiereManuell: korrigiereManuell,
+      );
       return;
     }
     if (ok == true) {
       // Lernen nur bei eindeutigem Betrieb der gewählten Forderungen.
-      final betriebIds =
-          gewaehlt.map((r) => r.betriebId).whereType<String>().toSet();
+      final betriebIds = gewaehlt
+          .map((r) => r.betriebId)
+          .whereType<String>()
+          .toSet();
       if (betriebIds.length == 1) {
         await _lerneAlias(betriebIds.first, g);
       }
@@ -1119,12 +1214,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         }
         _entferneVerbuchte(gebuchteIds);
         widget.alleOffenen.removeWhere((r) => gebuchteIds.contains(r.id));
-        widget.ergebnis.keineZahlung
-            .removeWhere((r) => gebuchteIds.contains(r.id));
+        widget.ergebnis.keineZahlung.removeWhere(
+          (r) => gebuchteIds.contains(r.id),
+        );
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
       }
     }
   }
@@ -1133,27 +1230,38 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   /// „kundenzahlung") — für die seltenen Fälle, in denen die Zuordnung erst
   /// nach Recherche möglich ist. Aus der Prüfliste lässt sie sich später über
   /// „Zuordnen" verbuchen; der nächste Import bewertet offene Einträge neu.
-  Future<void> _parkeInPruefliste(CamtTransaction g,
-      {AutoTreffer? korrigiereAuto, ManuellFall? korrigiereManuell}) async {
+  Future<void> _parkeInPruefliste(
+    CamtTransaction g, {
+    AutoTreffer? korrigiereAuto,
+    ManuellFall? korrigiereManuell,
+  }) async {
     try {
-      await CamtPrueflisteRepository.insert(CamtPrueflisteEintrag(
-        txKey: g.txKey,
-        bookingDatum: g.bookingDate,
-        betrag: g.amount,
-        istGutschrift: g.isCredit,
-        parteiName: effektiverZahlername(
-                partyName: g.partyName, additionalInfo: g.additionalInfo) ??
-            g.partyName,
-        parteiIban: g.partyIban,
-        belegRef: g.accountServiceRef,
-        referenz: g.remittanceInfo ?? g.additionalInfo,
-        kategorie: 'kundenzahlung',
-      ));
+      await CamtPrueflisteRepository.insert(
+        CamtPrueflisteEintrag(
+          txKey: g.txKey,
+          bookingDatum: g.bookingDate,
+          betrag: g.amount,
+          istGutschrift: g.isCredit,
+          parteiName:
+              effektiverZahlername(
+                partyName: g.partyName,
+                additionalInfo: g.additionalInfo,
+              ) ??
+              g.partyName,
+          parteiIban: g.partyIban,
+          belegRef: g.accountServiceRef,
+          referenz: g.remittanceInfo ?? g.additionalInfo,
+          kategorie: 'kundenzahlung',
+        ),
+      );
       ref.invalidate(camtPrueflisteProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Parken fehlgeschlagen: $e')));
+          SnackBar(
+            content: Text('Parken fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          ),
+        );
       }
       return;
     }
@@ -1184,9 +1292,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       }
     });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:
-              Text('In die Prüfliste gelegt — dort später über „Zuordnen" verbuchen.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'In die Prüfliste gelegt — dort später über „Zuordnen" verbuchen.',
+          ),
+        ),
+      );
     }
   }
 
@@ -1194,16 +1306,21 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
   /// Zeigt bei Konflikt (Name schon bei anderem Betrieb) einen Hinweis.
   Future<void> _lerneAlias(String betriebId, CamtTransaction g) async {
     final name = effektiverZahlername(
-        partyName: g.partyName, additionalInfo: g.additionalInfo);
+      partyName: g.partyName,
+      additionalInfo: g.additionalInfo,
+    );
     if (name == null) return;
     try {
       final res = await BetriebRepository.addZahlerAlias(betriebId, name);
       if (res == AliasLernResultat.konflikt && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
               'Zahlername „$name" ist bereits einem anderen Betrieb zugeordnet — '
-              'nicht gelernt.'),
-        ));
+              'nicht gelernt.',
+            ),
+          ),
+        );
       }
     } catch (_) {
       // Lernen ist Best-Effort; Verbuchung darf dadurch nicht scheitern.
@@ -1236,8 +1353,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('PDF konnte nicht geöffnet werden: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'PDF konnte nicht geöffnet werden: ${kurzeFehlermeldung(e)}',
+            ),
+          ),
+        );
       }
     }
   }
@@ -1252,15 +1374,21 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       behavior: HitTestBehavior.opaque,
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.picture_as_pdf, size: 16, color: AppColors.primary),
-          SizedBox(width: 3),
-          Text('Rechnung',
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.picture_as_pdf, size: 16, color: AppColors.primary),
+            SizedBox(width: 3),
+            Text(
+              'Rechnung',
               style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600)),
-        ]),
+                fontSize: 11,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1277,7 +1405,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final einzeln = <CamtTransaction>[];
     for (final g in sortiert) {
       final name = effektiverZahlername(
-          partyName: g.partyName, additionalInfo: g.additionalInfo);
+        partyName: g.partyName,
+        additionalInfo: g.additionalInfo,
+      );
       if (name == null) {
         einzeln.add(g);
       } else {
@@ -1287,30 +1417,39 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final widgets = <Widget>[];
     gruppen.forEach((_, list) {
       if (list.length >= 2) {
-        final name = effektiverZahlername(
-                partyName: list.first.partyName,
-                additionalInfo: list.first.additionalInfo) ??
+        final name =
+            effektiverZahlername(
+              partyName: list.first.partyName,
+              additionalInfo: list.first.additionalInfo,
+            ) ??
             '?';
         final summe = list.fold<double>(0, (s, g) => s + g.amount);
-        widgets.add(InkWell(
-          onTap: () => _ordneZuGruppe(list),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 12, 2),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '$name · ${list.length} Zahlungen · ${summe.toStringAsFixed(2)} CHF',
-                    style:
-                        const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        widgets.add(
+          InkWell(
+            onTap: () => _ordneZuGruppe(list),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 12, 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '$name · ${list.length} Zahlungen · ${summe.toStringAsFixed(2)} CHF',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
-                ),
-                const Icon(Icons.playlist_add_check,
-                    size: 18, color: AppColors.primary),
-              ],
+                  const Icon(
+                    Icons.playlist_add_check,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
             ),
           ),
-        ));
+        );
         for (final g in list) {
           widgets.add(_unbekanntZeile(g, eingerueckt: true));
         }
@@ -1326,7 +1465,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
 
   Widget _unbekanntZeile(CamtTransaction g, {bool eingerueckt = false}) {
     final name = effektiverZahlername(
-        partyName: g.partyName, additionalInfo: g.additionalInfo);
+      partyName: g.partyName,
+      additionalInfo: g.additionalInfo,
+    );
     final remit = g.remittanceInfo?.trim();
     // Ohne Zahlername (Schalter-/Automaten-/Posteinzahlung): den rohen
     // Bank-Text zeigen — der enthält bei Automaten Ort/Datum/Uhrzeit und ist
@@ -1341,8 +1482,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     ].join(' · ');
     return ListTile(
       contentPadding: EdgeInsets.only(left: eingerueckt ? 32 : 16, right: 8),
-      title: Text('${g.amount.toStringAsFixed(2)} CHF — '
-          '${name ?? 'Einzahlung ohne Zahlername (Schalter/Automat)'}'),
+      title: Text(
+        '${g.amount.toStringAsFixed(2)} CHF — '
+        '${name ?? 'Einzahlung ohne Zahlername (Schalter/Automat)'}',
+      ),
       subtitle: Text(sub, maxLines: 3, overflow: TextOverflow.ellipsis),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _ordneZu(g),
@@ -1363,9 +1506,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     final anzahlAlte = widget.alleOffenen
         .where((r) => !istImAbgleichsfenster(r.rechnungsdatum, jetzt))
         .length;
-    final name = effektiverZahlername(
-            partyName: guts.first.partyName,
-            additionalInfo: guts.first.additionalInfo) ??
+    final name =
+        effektiverZahlername(
+          partyName: guts.first.partyName,
+          additionalInfo: guts.first.additionalInfo,
+        ) ??
         '?';
     // Betrags-Treffer gegen IRGENDEINE Zahlung der Gruppe nach oben + markieren.
     bool passtBetrag(Rechnung r) =>
@@ -1375,25 +1520,32 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          final gefiltert = widget.alleOffenen.where((r) {
-            if (!zeigeAlte && !istImAbgleichsfenster(r.rechnungsdatum, jetzt)) {
-              return false;
-            }
-            if (suche.isEmpty) return true;
-            final q = suche.toLowerCase();
-            return (r.rechnungsnummer ?? '').toLowerCase().contains(q) ||
-                (widget.betriebName[r.betriebId] ?? '').toLowerCase().contains(q);
-          }).toList()
-            ..sort((a, b) {
-              final ba = passtBetrag(a) ? 0 : 1;
-              final bb = passtBetrag(b) ? 0 : 1;
-              if (ba != bb) return ba - bb;
-              return b.rechnungsdatum.compareTo(a.rechnungsdatum);
-            });
-          final zahlSumme =
-              gewaehlteGuts.fold<double>(0, (s, g) => s + g.amount);
+          final gefiltert =
+              widget.alleOffenen.where((r) {
+                if (!zeigeAlte &&
+                    !istImAbgleichsfenster(r.rechnungsdatum, jetzt)) {
+                  return false;
+                }
+                if (suche.isEmpty) return true;
+                final q = suche.toLowerCase();
+                return (r.rechnungsnummer ?? '').toLowerCase().contains(q) ||
+                    (widget.betriebName[r.betriebId] ?? '')
+                        .toLowerCase()
+                        .contains(q);
+              }).toList()..sort((a, b) {
+                final ba = passtBetrag(a) ? 0 : 1;
+                final bb = passtBetrag(b) ? 0 : 1;
+                if (ba != bb) return ba - bb;
+                return b.rechnungsdatum.compareTo(a.rechnungsdatum);
+              });
+          final zahlSumme = gewaehlteGuts.fold<double>(
+            0,
+            (s, g) => s + g.amount,
+          );
           final fordSumme = gewaehlteForderungen.fold<double>(
-              0, (s, r) => s + r.betragBrutto);
+            0,
+            (s, r) => s + r.betragBrutto,
+          );
           final info = bewerteDifferenz(zahlSumme, fordSumme);
           final kannVerbuchen =
               gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
@@ -1403,8 +1555,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             gewaehlteForderungen: gewaehlteForderungen,
           );
           return AlertDialog(
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 24,
+            ),
             contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             title: Text('Zuordnen — $name'),
             content: SizedBox(
@@ -1414,8 +1568,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Zahlungseingänge',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    const Text(
+                      'Zahlungseingänge',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     for (final g in sortiertGuts)
                       CheckboxListTile(
                         dense: true,
@@ -1423,9 +1579,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         controlAffinity: ListTileControlAffinity.leading,
                         value: gewaehlteGuts.contains(g),
                         title: _mitPaarBadge(
-                            badges.gut[g],
-                            '${_dateFormat.format(g.bookingDate)} — '
-                            '${g.amount.toStringAsFixed(2)} CHF'),
+                          badges.gut[g],
+                          '${_dateFormat.format(g.bookingDate)} — '
+                          '${g.amount.toStringAsFixed(2)} CHF',
+                        ),
                         subtitle: _zahlungInfoText(g),
                         onChanged: (sel) => setDialogState(() {
                           if (sel == true) {
@@ -1436,8 +1593,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         }),
                       ),
                     const SizedBox(height: 12),
-                    const Text('Offene Forderungen',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    const Text(
+                      'Offene Forderungen',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     TextField(
                       decoration: const InputDecoration(
                         labelText: 'Suche (Rechnungsnr. oder Betrieb)',
@@ -1463,12 +1622,15 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             ? AppColors.success.withAlpha(20)
                             : null,
                         title: _mitPaarBadge(
-                            badges.ford[r.id],
-                            '${_dateFormat.format(r.rechnungsdatum)} — '
-                            '${r.betragBrutto.toStringAsFixed(2)} CHF'),
-                        subtitle: Text('Rechnung ${r.rechnungsnummer ?? '?'} · '
-                            '${widget.betriebName[r.betriebId] ?? '?'}'
-                            '${passtBetrag(r) ? ' · 💰 Betrag passt' : ''}'),
+                          badges.ford[r.id],
+                          '${_dateFormat.format(r.rechnungsdatum)} — '
+                          '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                        ),
+                        subtitle: Text(
+                          'Rechnung ${r.rechnungsnummer ?? '?'} · '
+                          '${widget.betriebName[r.betriebId] ?? '?'}'
+                          '${passtBetrag(r) ? ' · 💰 Betrag passt' : ''}',
+                        ),
                         secondary: _forderungPdfLink(r),
                         onChanged: (sel) => setDialogState(() {
                           if (sel == true) {
@@ -1489,8 +1651,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                               'Gleicher Punkt = Zahlung und Rechnung werden '
                               'einander zugeordnet.',
                               style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary),
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ),
                         ],
@@ -1508,10 +1671,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         child: Text(
                           info.text,
                           style: TextStyle(
-                              fontSize: 12,
-                              color: info.istMinder
-                                  ? AppColors.error
-                                  : AppColors.success),
+                            fontSize: 12,
+                            color: info.istMinder
+                                ? AppColors.error
+                                : AppColors.success,
+                          ),
                         ),
                       ),
                   ],
@@ -1520,13 +1684,16 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Abbrechen')),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Abbrechen'),
+              ),
               FilledButton(
                 onPressed: kannVerbuchen
                     ? () async {
                         if (!await _pruefeDatumsfolge(
-                            gewaehlteGuts.toList(), gewaehlteForderungen)) {
+                          gewaehlteGuts.toList(),
+                          gewaehlteForderungen,
+                        )) {
                           return;
                         }
                         try {
@@ -1540,8 +1707,13 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           if (ctx.mounted) Navigator.pop(ctx, true);
                         } catch (e) {
                           if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                                content: Text('Verbuchungs-Fehler: $e')));
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}',
+                                ),
+                              ),
+                            );
                           }
                         }
                       }
@@ -1555,8 +1727,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     );
 
     if (ok == true) {
-      final betriebIds =
-          gewaehlteForderungen.map((r) => r.betriebId).whereType<String>().toSet();
+      final betriebIds = gewaehlteForderungen
+          .map((r) => r.betriebId)
+          .whereType<String>()
+          .toSet();
       if (betriebIds.length == 1) {
         await _lerneAlias(betriebIds.first, gewaehlteGuts.first);
       }
@@ -1564,13 +1738,15 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
       setState(() {
-        widget.ergebnis.unbekannteGutschriften
-            .removeWhere((g) => gewaehlteGuts.contains(g));
+        widget.ergebnis.unbekannteGutschriften.removeWhere(
+          (g) => gewaehlteGuts.contains(g),
+        );
         _entferneVerbuchte(gewaehlteForderungen.map((r) => r.id).toSet());
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Zahlung verbucht.')));
       }
     }
   }
@@ -1641,8 +1817,10 @@ class _GruppeCard extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('—',
-                          style: TextStyle(color: AppColors.textSecondary)),
+                      child: Text(
+                        '—',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
                     ),
                   ),
                 ]
@@ -1706,7 +1884,9 @@ class _Kpi extends StatelessWidget {
             Text(
               sub!,
               style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary),
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
             ),
         ],
       ),
