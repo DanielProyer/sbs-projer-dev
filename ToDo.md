@@ -1,8 +1,95 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-## 📌 SESSION-ÜBERGABE 15.09.2026
-
 **Stand:** **v0.115.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1694 Tests grün** · Git sauber.
+
+## 🔴 OFFEN — hier weitermachen
+
+> Alles darunter ist Archiv. Diese Liste wurde am 19.09.2026 aus 3196 Zeilen
+> zusammengezogen; jeder Punkt wurde vor der Aufnahme geprüft, die Zahlen sind
+> vom selben Tag. Erledigtes steht im Archiv, nichts wurde gelöscht.
+
+### ⏳ Mit Frist
+
+| | Frist | Stand |
+|---|---|---|
+| **Steuererklärung 2025** | **30.09.2026** | Lohnausweis und Jahresrechnung liegen in der App. **Es fehlt nur der GKB Zins-/Kapitalausweis per 31.12.2025** — bei der Bank holen. Dann Formular 11a (Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht». |
+| **AXA-Zahlung** | überfällig | Vorgesehen 4'467.90, **offen 8'935.80** (Q1+Q2/2026). |
+
+### ☎️ Ein Nachmittag Telefonate: die eine Lohnsumme
+
+Fünf Stellen führen fünf verschiedene Lohnsummen, keine stimmt. Tatsächlich:
+58'500 (2023) · 59'500 (2024) · 70'700 (2025).
+
+| Stelle | gemeldet | Kontakt |
+|---|---|---|
+| SVA | 30'734 | Marco Cavegn, 081 257 41 53 |
+| SUVA | 121'000 | Nadine Ackermann, 081 286 27 42 |
+| AXA BVG | 100'000 | Giuseppe Lamanna, 052 218 89 73 |
+| AXA Krankentaggeld | 80'000 | Hauptagentur Ilanz, 081 920 00 50 |
+| AXA Haftpflicht | 100'000 / Umsatz 200'000 | dieselbe |
+
+Die zu tiefe SVA-Meldung erzeugt Mahnungen und Verzugszinsen, die zu hohe SUVA-Meldung
+kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
+
+### 💰 Forderungen und Daten
+
+- **Blue Cinema Chur:** **34 offene Rechnungen, CHF 6'911.90**, vom 07.12.2022 bis
+  14.09.2026 — und in der ganzen Zeit genau **eine** Zahlung (05.02.2026, 184.85).
+  Das läuft seit vier Jahren weiter. Entscheid nötig: nachfassen, Inkasso oder
+  abschreiben. *(Stand 19.09.2026 nachgezählt; die alte Notiz nannte 37 / ~7'500.)*
+- **Dischma 2026-05-0579** (74.60) abschreiben, **Concordia 2026-05-0580** (74.60)
+  zuordnen — Entscheid Daniel.
+- **201 von 305 aktiven Betrieben ohne Servicezeit.** Der Durchsicht-Screen dafür
+  steht (`/betriebe/servicezeiten`).
+- **15 Saisonbetriebe ohne Saison-Startdatum** — sie erscheinen nach dem Saisonende
+  nie wieder im Tourenplan. Im Winter beisst das. *(10.08. waren es 9; die Zahl
+  wächst, weil neue Saisonbetriebe ohne Datum angelegt werden.)*
+- **Pizzeria Badus (Sedrun) und Tijuana (Davos)** sind auf Rechnung/Mail gestellt,
+  haben aber **nirgends** eine Mailadresse — weder Rechnungs- noch Betriebsmail.
+  Ihre Rechnungen landen bei Daniel selbst.
+
+### 📱 Klicktests am Handy (offen)
+
+- **v0.115.0** — kein Test nötig, nur Meldungstexte.
+- **v0.114.0** — irgendwo etwas löschen: ist der rote Knopf da und reagiert er?
+- **v0.113.0** — stimmt die Kalenderwoche jetzt mit deinem Kalender? Ein paar Wochen
+  vorblättern: kommt der Heute-Knopf?
+- **v0.112.0** — stören drei Kacheln statt vier? Arbeitstage-Auswertung in der
+  Buchhaltung auffindbar?
+- **v0.111.0** — Kulanz-Schalter am Betrieb setzen, neue Reinigung erfassen: steht
+  Kulanz schon an? Und ist der Merker nach dem Abschluss wieder aus?
+- **v0.109.1** — beim nächsten Abschluss im Funkloch: gelbe Meldung «laut Server
+  versendet» statt roter URL?
+- **Formular-Schutz** (offen seit 08.09.): Formular öffnen → nichts ändern → zurück
+  (darf **nicht** fragen); Feld ändern → zurück (**muss** fragen).
+- **B2/B3/B4/B6** — die Klicktests aus den Sessions vom 15./16.09. stehen im Archiv.
+
+### 🔨 Bauen, wenn wieder Zeit ist
+
+Nichts davon drängt. Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet.
+
+- **Ausbau Aufgaben:** Aufgaben ↔ Kalender/Tourenplan verknüpfen; echte
+  Zeiterfassung für Störung/Montage statt Schätzung (braucht Entscheid Daniel).
+- **Tote Zeitfelder aufräumen** (Entscheid Daniel 26.08.: später): `uhrzeit_ende`
+  und `dauer_minuten` bei Reinigungen, doppelter Störungseingang, leere
+  Montage-Zeiten.
+- **Migrations-Ablage:** Rund ein Dutzend Server-Migrationen haben keine lokale
+  Datei — meist Einmal-Operationen (Storage-Policies, RLS-Nachzieher, Snapshots).
+  Rezept im Archiv-Abschnitt zu 192b.
+- **BACKLOG ohne Zeitdruck:** GIS-Regionen-Polygone, Beta-Testing auf echten
+  Geräten, Beleg-Foto-Optimierung, Bulk-Sync Handy-Kontakte, Termin-Erinnerungen
+  Folge-Tests. Vollständig im Archiv.
+
+### 🔭 Beobachten
+
+- **Function v22 hält?** Seit dem 11.09. kein Fall mehr, in dem eine Rechnung
+  versendet wurde und der Vermerk fehlte. Weiter im Auge behalten.
+- **Nutzungsmessung** läuft seit 09.09. — erste Auswertung ist in A6 (v0.112.0)
+  eingeflossen. Einstellungen → Nutzung der App.
+
+---
+
+## 📌 Zuletzt gebaut (17.–19.09.2026)
 
 ### ✅ Keine rohen Ausnahmen mehr auf dem Bildschirm (v0.115.0, 19.09.)
 
@@ -441,7 +528,7 @@ bleibt über «Weitere».
   geöffnet? Bleibt `/buchhaltung` am Handy bei null? Das entscheidet, ob die
   vier Ziele stimmen — und ist die Grundlage für A6 (Ballast im Hauptmenü).
 
-### 🟠 Nachlauf im Funkloch (16.09., 10:22, Sartons) — v0.106.1
+### ✅ Nachlauf im Funkloch (behoben in v0.106.1) (16.09., 10:22, Sartons) — v0.106.1
 
 Daniels Screenshot: orange Snackbar «Nachbuchen älterer Reinigungen
 abgebrochen» mit bildschirmfüllender Supabase-URL (`buchungen?beleg_id=in.(…)`,
@@ -539,7 +626,7 @@ zeigen dorthin; Störungs-Zusatzfilter nur bei genau «Störung».
      Kulanz aus Tages-/Monats-/Jahresumsatz, `/einsaetze` zeigt «Reinigung
      (Kulanz)» ohne Betrag. Notiz an der Reinigung gesetzt.
 
-### 🔴 Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
+### ✅ Der Versandvermerk hing nie am Serverfix (14.09., behoben in v0.100.1)
 
 **Zweimal an einem Tag:** Blue Cinema (14:03, CHF 256.20) und Alpina Resort
 (16:08, CHF 74.60) — beide Male meldete die App «MAIL-VERSAND FEHLGESCHLAGEN:
@@ -739,7 +826,7 @@ fünf Schritten wird einer, bei gebündelten Betrieben mit allen Anlagen
 vorbelegt (`/reinigungen/neu?betriebId=…&anlageIds=a,b,c`). Gilt für
 Reinigung, Störung und Montage.
 
-### 🔴 Gefunden am 13.09.: `arbeitsbeginn` trägt zwei Bedeutungen
+### ✅ `arbeitsbeginn` trug zwei Bedeutungen (getrennt in v0.102.0)
 
 **Ein Feld, zwei Sachen.** `tagesplaene.arbeitsbeginn` hält sowohl den
 **hypothetischen Beginn für die Planung** (gesetzt in der `_ArbeitstagZeile`
@@ -785,7 +872,12 @@ gebändigt — ohne `Flexible` lief er auf dem Pixel 9 um 33 px über.
 Spec: `docs/superpowers/specs/2026-09-13-startseite-heute-a1-a3-design.md`
 Plan: `docs/superpowers/plans/2026-09-13-startseite-heute-a1-a3.md`
 
----
+# 📚 ARCHIV — erledigt, chronologisch (neueste zuerst)
+
+> Ab hier steht nur noch, was abgeschlossen ist. Einige Überschriften
+> tragen aus historischen Gründen noch ein rotes Symbol — der jeweilige
+> Text sagt, ob und wie der Punkt erledigt wurde. Nichts hier wartet auf
+> Arbeit; was offen ist, steht ganz oben.
 
 ## 📌 Übergabe 11.09.2026 (abends)
 
@@ -816,7 +908,7 @@ Plan: `docs/superpowers/plans/2026-09-13-startseite-heute-a1-a3.md`
 
 **Heute gelaufen (4 Deploys, 23 Commits):** Post-Eingang ausgewertet · BVG-Lohnkorrektur rückwirkend · Kreditor-Regeln umgestellt + 17. Abschlussregel als Wächter · **`00_Rechnungen` vollständig erschlossen: 252 Dokumente in der App** · Franchisevertrag Heineken ausgewertet · Rückläufer-Meldung der Heineken-Session geprüft und zwei Fehlalarme aufgeklärt.
 
-### 🔴 Morgen zuerst
+### 📌 «Morgen zuerst» vom 08.09. (überholt — aktueller Stand oben unter OFFEN)
 
 1. **AXA-Zahlung** — vorgesehen sind 4'467.90, **offen sind 8'935.80** (Q1+Q2/2026). Beide Quartale zahlen erspart die Februar-Mahnung samt 100.— Gebühr und 5 % Verzugszins. Das Muster läuft sonst ins vierte Jahr.
 2. **Eine Lohnsumme an fünf Stellen melden**, sobald 2026 feststeht (realistisch rund 90'000):
@@ -1237,7 +1329,7 @@ Beitragsrechnung 03.07.2026 für Q2/2026 (01.04.–30.06.), **4'467.90, davon Ar
 17.08.2026, Kunden-Nr. 4-00003-10064, 5 Seiten + Prämientarif-Auszug. **BUV 0,6618 % → 0,6230 %** (sinkt, Rückerstattung überschüssiger Ausgleichsreserven, einmalig), **NBUV 0,8000 % unverändert**. Klasse 15D (Mikro-/Medizinaltechnik, Elektrotechnik), Lohnsumme 2018–2025 451'200. Abgelegt als `230_Sozialversicherungen/SUVA_Praemienverfuegung_ab_2027_2026_08_17.pdf` (kein Belegnummer-Schema, weil kein Zahlungsbeleg).
 - [ ] Beim Lohnlauf ab 01.01.2027 den neuen BUV-Satz übernehmen. Gehört zusätzlich in die App unter **Dokumente → Versicherungen**.
 
-### 🔴 Kreditor-Regeln SVA/SUVA/PK zeigen auf die falschen Konten
+### ✅ Kreditor-Regeln SVA/SUVA/PK — umgestellt 08.09.
 Die Seed-Regeln stammen aus dem Juni — von **vor** dem Lohnmodell (2270–2273, August). Sie buchen Sozialversicherungs-Rechnungen in den **Aufwand**: `Ausgleichskasse → 5700`, `SUVA → 5730`, `AXA/Ref-98 → 5720`. Der Lohnlauf bucht diesen Aufwand aber bereits; die Rechnung ist danach nur noch **Tilgung** (`2270/2271/2272 an 1020`). Die AXA-Rechnung zeigt es exemplarisch: von 4'467.90 sind 2'233.95 Arbeitnehmeranteil, beim Lohn längst abgezogen.
 - **Produktiv gebucht wurde darüber noch nichts** — die einzige SVA/PK-Erfassung ist ein verworfenes AXA-Testdokument vom 19.09.2025. Alle 15 echten Zahlungen liefen korrekt über 2270/2271/2272.
 - [x] **UMGESTELLT 08.09. (Freigabe Daniel).** Es waren **vier** Regeln, nicht drei — `AXA` mit Referenz-Präfix `4412738` (UVG) hatte dasselbe Problem:
@@ -1759,7 +1851,7 @@ Der Knopf «Arbeit beginnen» setzt den Status sofort auf `in_bearbeitung` ([:36
 - [ ] ⚠️ `dauerStunden` bleibt tabu — nie automatisch überschreiben (Abrechnungsfeld, enthält bewusst Anfahrtsanteile).
 - [ ] Deploy, dann **Klicktest durch Daniel** am Handy: neue Montage planen → «Arbeit beginnen» → Rapport ausfüllen → speichern → verschwindet sie aus dem Tourenplan?
 
-## 🟡 OFFEN 10.08.: Saisonbetriebe ohne Saison-Startdatum erscheinen nie wieder — 9 Betriebe
+## 📌 Saisonbetriebe ohne Startdatum — Analyse 10.08. (aktueller Stand oben unter OFFEN) erscheinen nie wieder — 9 Betriebe
 
 **Gemeldet:** «warum sehe ich Steakhouse Ochsen Davos im Tourenplan nicht?»
 
@@ -1821,7 +1913,7 @@ Der Knopf «Arbeit beginnen» setzt den Status sofort auf `in_bearbeitung` ([:36
 - [x] **Gegenprobe an den Echtdaten (14.08.):** **Café Restaurant Mühle Nottwil** (Ferien 27.07.–18.08., 23 T) und **Mastro Alfonso Cham** (23.07.–18.08., 27 T) stehen ab heute im Fenster (Wiedereröffnung 19.08., 5 Tage) — beide letzte Reinigung als `standardservice` erfasst, vor dem Fix wäre also **an keinem Tag** ein Vorschlag gekommen. Die übrigen fünf sind inzwischen wieder offen und laufen über die reguläre Fälligkeit (Flora/Paradies/Traube wurden am 10.08. von Hand terminiert).
 - [x] ~~Klicktest Daniel~~ **BESTANDEN 14.08. (Daniel): «ja stehen beide drin»** — Café Mühle Nottwil und Mastro Alfonso Cham erscheinen im Tourenplan. Damit ist der Fall abgeschlossen.
 
-## 🔴 OFFEN 08.08.: Lohnbuchhaltung 2019–2024 geprüft + SVA-Originalbelege gesichtet
+## ✅ Lohnbuchhaltung 2019–2024 geprüft (08.08.) + SVA-Originalbelege gesichtet
 
 **Auftrag Daniel:** «und jetzt noch die Lohnbuchhaltung 2019 bis und mit 2024», dann «die SVA-Schlussabrechnungen hast du ja bereits». Grundlage: 115 Lohnläufe vom 28.05.2019 bis 05.12.2024 (je 7 Buchungen) **plus 20 gesichtete Original-Scans aus `00_Rechnungen/04_SVA/`**. Vollständige Auswertung: `docs/lohnabgleich-2019-2026.md`, Abschnitt 4e.
 
@@ -1929,7 +2021,7 @@ Ein Rest ist normal (Q4 wird erst im Folgejahr abgerechnet), aber **6'115.96 auf
 - [ ] **Restliche Schlussrechnungen sichten** (2019, 2021, 2023) und die drei Salden gegen die tatsächlich fakturierten Beträge stellen — dann ist geklärt, ob 8'292.27 sauberes Timing oder echte Restschuld ist.
 - [x] ~~Prüfpunkt B1: Lohnaufwand 5000 liegt über dem Lohnausweis-Brutto~~ — **bereits erklärt** in `docs/lohnabgleich-2019-2026.md` Abschnitt 3: 5000 enthält Auszahlung + AN-Beiträge inkl. NBU, der Lohnausweis nicht.
 
-## 🔴 OFFEN 08.08.: MWST-Saldierung fehlt seit Q1/2025 — darum 2200 = 27'728.42 und 2202 = −10'350.80
+## ✅ MWST-Saldierung — nachgeholt, Q1/25–Q2/26 eingereicht 01.09. (Befund 08.08.) — darum 2200 = 27'728.42 und 2202 = −10'350.80
 
 **Frage Daniel:** «warum ist die geschuldete MWST in der Bilanz so hoch und warum das Abrechnungskonto −10'350?» — **Antwort: beides ist derselbe fehlende Abschlussschritt, kein Buchungsfehler.**
 
@@ -2087,7 +2179,7 @@ Wunsch Daniel: «im offiziellen Design, gleich wie 2019 bis 2024». Der App-Lohn
 
 ---
 
-## 🔴 NEU 06.08.2026: Buchhaltungs-Gesamtprüfung — Vollbericht `docs/buchhaltungspruefung-2026-08-06.md`
+## ✅ Buchhaltungs-Gesamtprüfung 06.08.2026 — abgearbeitet — Vollbericht `docs/buchhaltungspruefung-2026-08-06.md`
 
 Auftrag Daniel («gesamte Buchhaltung prüfen, muss alles stimmen»), Massstab = Recherchen aus `D:\Projekte\KMU Tool 2\02_Recherche\` (02 Buchhaltung, 07 MWST). Vier Opus-Agenten (MWST-Abrechnung, Code-Audit 20 Buchungspfade, Journal-Audit, Rechnungsstellung), schwerste Befunde einzeln verifiziert.
 
@@ -2103,7 +2195,7 @@ Auftrag Daniel («gesamte Buchhaltung prüfen, muss alles stimmen»), Massstab =
 
 ---
 
-## 🔴 NEU 05.08.2026: Datenprüfung — Vollbericht `docs/datenpruefung-2026-08-05.md`
+## ✅ Datenprüfung 05.08.2026 — abgearbeitet — Vollbericht `docs/datenpruefung-2026-08-05.md`
 
 Sechs Bereiche geprüft (Stammdaten, Anlagen/Reinigungen, Rechnungen, Buchhaltung, Bankauszug, Saison/Touren), nur lesend. Die schwersten Funde am Code und an den Buchungen gegengeprüft. **Übersicht als Artifact veröffentlicht.**
 
@@ -2358,7 +2450,7 @@ Die Zuordnung der 147 ist davon **nicht** betroffen — die 12 Fälle bei Mischb
 
 ---
 
-## 🔴 OFFEN: Blue Cinema Chur — 37 offene Rechnungen, eine Zahlung
+## 📌 Blue Cinema Chur — Vorgeschichte (aktueller Stand oben unter OFFEN) — 37 offene Rechnungen, eine Zahlung
 
 12/2022 bis 05/2026, rund CHF 7'500 offen, dazu genau **eine** Zahlung (05.02.2026, 184.85). Vermutlich laufen die Zahlungen über eine Zentrale unter anderem Namen und wurden im Excel nie diesem Objekt zugeordnet. Vor dem camt-Abgleich klären.
 
@@ -2575,7 +2667,7 @@ Legst du einen Betrieb an (typisch mit «aus Google übernehmen»), berechnet di
 
 **Behoben:** Umwegfaktor (2.20 → 1.45) und Schnitt (32 → 78 km/h) laufen jetzt exponentiell mit der Distanz, kalibriert an den 804 echten Routen. Median-Fehler über alle: **7 min statt 35**; Gegenprobe an 2'807 beobachteten Tür-zu-Tür-Fahrten: 7 statt 12 min. Der Rüst-/Parkierzuschlag ist neu additiv (5 min) statt im Faktor versteckt — er skalierte sonst mit der Distanz. Anfahrt/Heimweg nehmen ausserdem primär die **gerechneten Werte** aus `anfahrtszeiten`; welcher Startort gilt, entscheidet die GPS-Position des Arbeitsbeginns (nächster der beiden, max. 5 km).
 
-## 🔴 OFFEN: Ausbau Aufgaben (Folgepaket)
+## 📌 Ausbau Aufgaben — Wunschliste (steht oben unter OFFEN)
 - **Aufgaben ↔ Kalender + Tourenplanung verknüpfen:** Aufgaben-Einträge in den Tagesplan des jeweiligen Tages übernehmen können; Sync mit Google Kalender (Teil des geplanten Kalender-Pakets G1–G4); Störungen mit PLAN-Datum (heute nur Meldedatum).
 - **Echte Zeiterfassung Störung/Montage — braucht Entscheid Daniel:** Der Live-Tagesplan schätzt weiterhin (Ende = Wegpunkt-Stempel, Start = Stempel − Plandauer). Befund 30.07.: Die Felder `uhrzeit_start/ende` existieren bei beiden Tabellen und `dauer_minuten` ist eine **GENERATED**-Spalte (`ende − start`). Bei Störungen ist `uhrzeit_start` aber der **Störungseingang** (Anruf, 107 Altwerte) — trägt man dort ein Ende ein, wird die «Dauer» zur Reaktionszeit statt zur Arbeitszeit. Sauber wären eigene Felder «Arbeit von/bis» (Migration) ODER die Umdeutung des Eingangs-Felds. **Frage an Daniel:** Wie soll der Störungseingang künftig festgehalten werden?
 
@@ -2765,14 +2857,14 @@ Die Logik ist **nicht** das Problem: `touren_saison.dart` warnt sauber mit Grund
 
 **Nebenbefund (kein Fehler):** Die Zeitfelder sind normale Formularfelder und schreiben erst beim Speichern in die Datenbank — nur «Arbeit beginnen»/«Beenden» persistieren sofort. Beim Klicktest gingen die von Hand gesetzten Zeiten beim Neuladen deshalb verloren.
 
-## 🟡 OFFEN (Merkposten, ohne Eile): Tote Zeitfelder aufräumen
+## 📌 Tote Zeitfelder aufräumen — Einzelheiten (steht oben unter OFFEN)
 
 Entscheid Daniel 26.08.: **später, jetzt nicht.** Wenn ohnehin an den Tabellen gearbeitet wird:
 - `uhrzeit_ende` und `dauer_minuten` entfernen — 0 Werte in 1934 Sätzen, die GENERATED-Spalte ist wirkungslos.
 - Der **Störungseingang steht doppelt**: `uhrzeit_start` (120 Werte, im UI «Störungseingang») **und** `gemeldet_am` (109 Werte). Auf ein Feld zusammenführen.
 - Bei Montagen sind `uhrzeit_start`/`uhrzeit_ende` komplett leer (0 von 815) — Rest eines alten Entwurfs.
 
-## 🔴 OFFEN (Wunsch Daniel 31.07.): Arbeitstag sauber erfassen — Rest
+## ✅ Arbeitstag sauber erfassen — erledigt über A5/A8 und die Zeiten-Trennung
 - **Planung von Störungen/Montagen gefällt noch nicht** (O-Ton 31.07.) → **GEPLANT, Spec + Plan liegen vor**, siehe eigener Abschnitt unten.
 
 **Langfrist-Entscheid Daniel:** Eine **Version 2 der App wird eine reine Android-App** (kein Web mehr). Erst dort sind Dinge möglich, die der Browser prinzipiell verbietet — allen voran echte Fahrterkennung im Hintergrund (Android Activity Recognition, «IN_VEHICLE») und zuverlässiges GPS bei ausgeschaltetem Bildschirm. Bis dahin gilt: alles, was Hintergrund-Tracking bräuchte, wird ereignisbasiert nachgerechnet statt live gemessen.
@@ -2791,7 +2883,7 @@ Entscheid Daniel 26.08.: **später, jetzt nicht.** Wenn ohnehin an den Tabellen 
 - **Für Donnerstag angelegt:** Termin `eroeffnungsreinigung` Gasthof Löwen, 06.08.2026 (id `61555540-8807-472a-98b9-363f7812c647`) — direkt in DB, daher **ohne Google-Kalender-Push** (der läuft erst beim nächsten App-seitigen Termin-Ereignis mit).
 - ⚠️ Visueller Browser-Check vor Deploy war nicht möglich (Browser-Pane ohne Anzeige, Login) — kompensiert durch Widget-Tests; **Live-Check Daniel am Handy offen**: Tourenplan Donnerstag 06.08. muss Löwen in «Saison-Termine» zeigen.
 
-## 🔴 OFFEN: Nächste Schritte
+## 📌 Alte Live-Checks Juli/August (überholt)
 - **Tourenplan v0.55.x/v0.56.0 — Live-Check Daniel am Handy:** (1) Zeitleiste prüfen (Blöcke/Fahrzeiten/Anker/Warnbänder), (2) **Arbeitstag-Karte auf dem Startbildschirm**: morgens «Jetzt starten» mit km-Stand → GPS-Abfrage erlauben; abends «Feierabend» mit End-km, (3) **Live-Modus am heutigen Tag**: nach einer abgeschlossenen Reinigung muss der Block grün mit «X min gemessen» erscheinen, rote Jetzt-Linie wandert im Minutentakt, gelbe frei-Fenster ab 3 min Leerlauf. End-zu-End-Test Edge-Function `fahrzeit-route` passiert automatisch beim ersten Plan mit unbekanntem Betriebspaar.
 - **Kontakte-Übertragung Daniel (geplant 30.07.):** Alle Telefon-Kontakte in die App erfassen → syncen → in Google kontrollieren → erst DANN die alten Handy-Kontakte löschen (Reihenfolge wichtig; Sync löscht nur eigene «SBS App»-Karten, manuelle bleiben).
 - **Auswertungen Arbeitstag/km (späteres Paket, Entscheid Daniel 29.07.):** km pro Tour, Stundenauslastung, Anfahrtskosten je Kunde — Daten werden seit v0.55.x erfasst (tagesplaene: arbeitsbeginn/arbeitsende, km_start/km_stand, Start-/End-GPS; `wegpunkte`-Tabelle für spätere Routen-Optimierung), Auswertung bewusst nicht gebaut.
@@ -3078,7 +3170,7 @@ Vorgehen: subagent-getrieben (Phase A 5 Tasks parallel, Phase B 5 Ferien-Tasks s
 
 ---
 
-## 🔴 OFFEN — relevant
+## ✅ Auswertung Umsatz/Arbeiten — Phasen abgeschlossen
 
 ### Auswertung Umsatz/Arbeiten (Buchhaltung) — NEU 11.07.2026
 Spec `docs/superpowers/specs/2026-07-11-buchhaltung-auswertung-design.md`. App-Pendant zum Excel-Blatt „Auswertung" (`00_SBS_Projer_70`).
@@ -3150,7 +3242,7 @@ Befunde komplett in Memory `buchhaltung_vollcheck_2026_07.md`. Positiv: Import 2
 
 ---
 
-## 🟢 BACKLOG (kein Zeitdruck)
+## 📌 BACKLOG ohne Zeitdruck (Kurzfassung oben unter OFFEN)
 - [ ] **GIS Regionen-Polygone** für 15 Regionen (KML/GeoJSON, WGS84/EPSG:4326). Tools: QGIS / Google Earth Pro / My Maps.
 - [ ] **Franchise: geteilte zentrale Regionen (ferne Zukunft).** Heute sind Regionen pro Nutzer (`regionen.user_id` + RLS `user_isolation`), erfassbar über Einstellungen → Regionen (v0.46.20). Sobald mehrere Franchisenehmer sich Regionen **teilen** (N:M Franchisenehmer↔Region, User-Wunsch 14.07.2026): `regionen` zu **zentral gepflegtem, geteiltem Katalog** umbauen — Ownership weg von `user_id`, **Admin-Rolle** schreibt, Franchisenehmer wählen nur aus (`RegionenScreen._kannBearbeiten=false` für Nicht-Admins). Umsetzung bleibt lokal in `RegionRepository` + RLS; `betriebe.region_id`-FK stabil halten (bestehende 14 Regionen in Katalog migrieren, IDs behalten). Zuordnung Franchisenehmer→genutzte Regionen via Verknüpfungstabelle. Erst angehen, wenn 2. Franchisenehmer real ansteht (YAGNI).
 - [ ] **Beta-Testing-Phase** (echte Geräte, Real-World, Offline-Modus Bergkunden).
