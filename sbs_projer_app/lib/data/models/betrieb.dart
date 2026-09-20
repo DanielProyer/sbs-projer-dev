@@ -52,6 +52,7 @@ class Betrieb {
   final DateTime? ferien5Start;
   final DateTime? ferien5Ende;
   final bool keineBetriebsferien;
+  final bool keineHerbstpause;
   final DateTime? ferienBestaetigtAm;
   final DateTime? ferienFrageRuhtBis;
 
@@ -115,6 +116,7 @@ class Betrieb {
     this.ferien5Start,
     this.ferien5Ende,
     this.keineBetriebsferien = false,
+    this.keineHerbstpause = false,
     this.ferienBestaetigtAm,
     this.ferienFrageRuhtBis,
     this.ruhetageBestaetigtAm,
@@ -216,6 +218,7 @@ class Betrieb {
           ? DateTime.parse(json['ferien5_ende'])
           : null,
       keineBetriebsferien: json['keine_betriebsferien'] ?? false,
+      keineHerbstpause: json['keine_herbstpause'] ?? false,
       ferienBestaetigtAm: json['ferien_bestaetigt_am'] != null
           ? DateTime.parse(json['ferien_bestaetigt_am'])
           : null,
@@ -299,6 +302,7 @@ class Betrieb {
       'ferien5_start': ferien5Start?.toIso8601String().split('T').first,
       'ferien5_ende': ferien5Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': keineBetriebsferien,
+      'keine_herbstpause': keineHerbstpause,
       'ferien_bestaetigt_am': ferienBestaetigtAm?.toIso8601String(),
       'ferien_frage_ruht_bis': ferienFrageRuhtBis
           ?.toIso8601String()

@@ -46,6 +46,7 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
   bool _sommerAktiv = false;
   DateTime? _sommerStart;
   DateTime? _sommerEnde;
+  bool _keineHerbstpause = false;
   String? _geladenFuer;
 
   void _felderLaden(BetriebLocal b) {
@@ -56,6 +57,7 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
     _sommerAktiv = b.sommerSaisonAktiv;
     _sommerStart = b.sommerStartDatum;
     _sommerEnde = b.sommerEndeDatum;
+    _keineHerbstpause = b.keineHerbstpause;
   }
 
   @override
@@ -102,6 +104,10 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
             onStart: (d) => setState(() => _winterStart = d),
             onEnde: (d) => setState(() => _winterEnde = d),
           ),
+          if (_winterAktiv && _sommerAktiv) ...[
+            const SizedBox(height: 12),
+            _herbstSchalter(),
+          ],
           const SizedBox(height: 12),
           _saisonBlock(
             titel: 'Sommersaison',
@@ -141,6 +147,35 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
       ),
     );
   }
+
+  /// «Keine Herbstpause» — der Sommerbetrieb geht direkt in den Winter über
+  /// (Alpenblick und Hörnlihütte Arosa, Daniel 20.09.2026). Nur sichtbar,
+  /// wenn beide Saisons angehakt sind; sonst gibt es keinen Übergang.
+  Widget _herbstSchalter() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.divider),
+    ),
+    child: SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text(
+        'Keine Herbstpause',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        _keineHerbstpause
+            ? 'Vom Sommerende bis zum Winterstart durchgehend offen. '
+                  'Die Frühlingspause bleibt.'
+            : 'Zwischen Sommerende und Winterstart gilt der Betrieb als '
+                  'geschlossen.',
+        style: const TextStyle(fontSize: 12),
+      ),
+      value: _keineHerbstpause,
+      onChanged: (v) => setState(() => _keineHerbstpause = v),
+    ),
+  );
 
   Widget _gespeichertBand() => Padding(
     padding: const EdgeInsets.only(bottom: 12),
@@ -345,6 +380,7 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
       b.sommerSaisonAktiv = _sommerAktiv;
       b.sommerStartDatum = _sommerAktiv ? _sommerStart : null;
       b.sommerEndeDatum = _sommerAktiv ? _sommerEnde : null;
+      b.keineHerbstpause = _winterAktiv && _sommerAktiv && _keineHerbstpause;
       await BetriebRepository.save(b);
 
       // Gleiche Archiv-Regel wie im Betriebs-Formular: Ein neuer Start heisst

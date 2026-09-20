@@ -51,6 +51,7 @@ class BetriebMapper {
     local.ferien5Start = dto.ferien5Start;
     local.ferien5Ende = dto.ferien5Ende;
     local.keineBetriebsferien = dto.keineBetriebsferien;
+    local.keineHerbstpause = dto.keineHerbstpause;
     local.ferienBestaetigtAm = dto.ferienBestaetigtAm;
     local.ferienFrageRuhtBis = dto.ferienFrageRuhtBis;
     local.ruhetageBestaetigtAm = dto.ruhetageBestaetigtAm;
@@ -131,6 +132,7 @@ class BetriebMapper {
       'ferien5_start': local.ferien5Start?.toIso8601String().split('T').first,
       'ferien5_ende': local.ferien5Ende?.toIso8601String().split('T').first,
       'keine_betriebsferien': local.keineBetriebsferien,
+      'keine_herbstpause': local.keineHerbstpause,
       'ferien_bestaetigt_am': local.ferienBestaetigtAm?.toIso8601String(),
       'ferien_frage_ruht_bis': local.ferienFrageRuhtBis
           ?.toIso8601String()

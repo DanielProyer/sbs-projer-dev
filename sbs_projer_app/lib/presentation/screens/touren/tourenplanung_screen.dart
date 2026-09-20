@@ -459,9 +459,10 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final luecken = ref.watch(saisonLueckenProvider);
     if (luecken.isEmpty) return const SizedBox.shrink();
     final heute = DateTime.now();
-    final schonWeg = luecken
-        .where((b) => saisonLueckeWirktSchon(b, heute))
-        .length;
+    // Wie viele fallen demnächst wirklich heraus? Bei den übrigen fehlt die
+    // Pause — falsch, aber nicht dringend (Korrektur 20.09.2026: vorher stand
+    // hier «bereits weg», obwohl keiner draussen war).
+    final fallenRaus = luecken.where((b) => saisonDeckungBis(b) != null).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: InkWell(
@@ -492,10 +493,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                               ),
                             ),
                             Text(
-                              saisonLuecken(b).map((l) => l.kurz).join(' · ') +
-                                  (saisonLueckeWirktSchon(b, heute)
-                                      ? ' — bereits weg'
-                                      : ''),
+                              '${saisonLuecken(b).map((l) => l.kurz).join(' · ')}'
+                              ' — ${saisonLueckeWirkung(b, heute)}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textSecondary,
@@ -550,9 +549,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  schonWeg > 0
+                  fallenRaus > 0
                       ? '${luecken.length} Saisonbetriebe mit Lücke — '
-                            '$schonWeg bereits aus dem Plan gefallen'
+                            '$fallenRaus fallen aus dem Plan'
                       : '${luecken.length} Saisonbetriebe: Saisonfenster ohne '
                             'Startdatum',
                   style: const TextStyle(

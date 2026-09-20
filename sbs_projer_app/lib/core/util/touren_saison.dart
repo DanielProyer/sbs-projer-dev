@@ -66,7 +66,32 @@ bool istInAktiverSaison(BetriebLocal b, DateTime datum) {
       _imFenster(b.sommerStartDatum, b.sommerEndeDatum, datum)) {
     return true;
   }
+  if (_imHerbstuebergang(b, datum)) return true;
   return false;
+}
+
+/// Brücke über den Herbst: Sommerende bis Winterstart gilt als Saison.
+///
+/// WARUM (Daniel, 20.09.2026): Alpenblick und Hörnlihütte in Arosa machen im
+/// Herbst nicht zu — der Sommerbetrieb geht direkt in den Winter über, eine
+/// Pause gibt es nur im Frühling. Mit zwei getrennten Fenstern entsteht
+/// zwangsläufig ein Loch: Bei der Hörnlihütte endet der Sommer am 18.10., der
+/// Winter beginnt am 01.11. — dreizehn Tage offen, aber nicht im Plan.
+///
+/// Nur wenn der Winterstart NACH dem Sommerende liegt. Steht dort noch ein
+/// Datum der Vorsaison, ist die Spanne sinnlos und die Brücke bleibt zu — den
+/// Fall meldet ohnehin die Lücken-Warnung.
+bool _imHerbstuebergang(BetriebLocal b, DateTime datum) {
+  if (!b.keineHerbstpause) return false;
+  if (!b.winterSaisonAktiv || !b.sommerSaisonAktiv) return false;
+  final se = b.sommerEndeDatum;
+  final ws = b.winterStartDatum;
+  if (se == null || ws == null) return false;
+  final von = DateTime(se.year, se.month, se.day);
+  final bis = DateTime(ws.year, ws.month, ws.day);
+  if (bis.isBefore(von)) return false;
+  final d = DateTime(datum.year, datum.month, datum.day);
+  return !d.isBefore(von) && !d.isAfter(bis);
 }
 
 /// Betrieb an diesem Tag in einer Schliessung (Saisonpause oder Ferien)?
@@ -133,8 +158,7 @@ bool darfTrotzSchliessungGeplantWerden({
   required String art,
   required BetriebLocal betrieb,
   required DateTime tag,
-}) =>
-    _fensterTag(art: art, betrieb: betrieb, tag: tag) != null;
+}) => _fensterTag(art: art, betrieb: betrieb, tag: tag) != null;
 
 /// Der wievielte Tag des Fensters ist [tag]? 1 = unmittelbar am Rand
 /// (letzter Schliessungstag bzw. erster Tag der Schliessung), maximal

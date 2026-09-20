@@ -66,6 +66,11 @@ class BetriebLocal {
   DateTime? ferien5Ende;
   bool keineBetriebsferien = false;
 
+  /// Saisonbetrieb ohne Herbstpause: Die Spanne zwischen Sommerende und
+  /// Winterstart gilt als Saison (Alpenblick und Hoernlihuette Arosa,
+  /// Daniel 20.09.2026). Die Fruehlingspause bleibt bestehen.
+  bool keineHerbstpause = false;
+
   /// Wann zuletzt eine Ferien-Aussage bestaetigt wurde
   /// (`betriebe.ferien_bestaetigt_am`). Die Ferienfrage beim
   /// Reinigungs-Abschluss wurde am 05.08.2026 entfernt (Daniel: stoert mehr

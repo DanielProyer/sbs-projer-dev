@@ -74,6 +74,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
   DateTime? _winterStartDatum;
   DateTime? _winterEndeDatum;
   bool _sommerSaisonAktiv = false;
+  bool _keineHerbstpause = false;
   DateTime? _sommerStartDatum;
   DateTime? _sommerEndeDatum;
   final List<DateTime?> _ferienStarts = List.filled(5, null);
@@ -169,6 +170,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
       _winterStartDatum = betrieb.winterStartDatum;
       _winterEndeDatum = betrieb.winterEndeDatum;
       _sommerSaisonAktiv = betrieb.sommerSaisonAktiv;
+      _keineHerbstpause = betrieb.keineHerbstpause;
       _sommerStartDatum = betrieb.sommerStartDatum;
       _sommerEndeDatum = betrieb.sommerEndeDatum;
       _winterStartBeimLaden = betrieb.winterStartDatum;
@@ -560,6 +562,11 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
           : false;
       betrieb.sommerStartDatum = _istSaisonbetrieb ? _sommerStartDatum : null;
       betrieb.sommerEndeDatum = _istSaisonbetrieb ? _sommerEndeDatum : null;
+      betrieb.keineHerbstpause =
+          _istSaisonbetrieb &&
+          _winterSaisonAktiv &&
+          _sommerSaisonAktiv &&
+          _keineHerbstpause;
       betrieb.ferienStart = _keineBetriebsferien ? null : _ferienStarts[0];
       betrieb.ferienEnde = _keineBetriebsferien ? null : _ferienEnden[0];
       betrieb.ferien2Start = _keineBetriebsferien ? null : _ferienStarts[1];
@@ -1367,6 +1374,27 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
                     ],
                   ),
                 if (_sommerSaisonAktiv) _saisonHistorieZeile('sommer'),
+
+                // Herbstübergang: nur sinnvoll, wenn es beide Saisons gibt.
+                // Alpenblick und Hörnlihütte Arosa machen im Herbst nicht zu,
+                // der Sommerbetrieb geht direkt in den Winter über (Daniel
+                // 20.09.2026). Ohne den Merker klafft zwischen Sommerende und
+                // Winterstart ein Loch im Tourenplan.
+                if (_winterSaisonAktiv && _sommerSaisonAktiv)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Keine Herbstpause'),
+                    subtitle: const Text(
+                      'Vom Sommerende bis zum Winterstart durchgehend offen. '
+                      'Die Frühlingspause bleibt bestehen.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: _keineHerbstpause,
+                    onChanged: (v) {
+                      markiereGeaendert();
+                      setState(() => _keineHerbstpause = v);
+                    },
+                  ),
               ],
 
               // === Ruhetage (für alle Betriebe) ===

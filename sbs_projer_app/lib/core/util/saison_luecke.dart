@@ -100,20 +100,51 @@ DateTime? saisonVorschlag(DateTime? datum, DateTime heute) {
   return d;
 }
 
-/// Ist der Betrieb bereits aus dem Plan gefallen, oder fällt er noch?
-/// Massgebend ist das späteste Ende der lückenhaften Fenster.
-bool saisonLueckeWirktSchon(BetriebLocal b, DateTime heute) {
-  final l = saisonLuecken(b);
-  if (l.isEmpty) return false;
-  if (l.contains(SaisonLuecke.keineSaisonAngehakt)) return true;
-  final h = DateTime(heute.year, heute.month, heute.day);
+/// Letzter Tag, an dem den Betrieb überhaupt noch ein Saisonfenster trägt —
+/// `null`, wenn ihn eines dauerhaft trägt oder gar keines angehakt ist.
+///
+/// WARUM das nötig wurde: Bis zum 20.09.2026 meldete die Warnung «bereits aus
+/// dem Plan gefallen», sobald das lückenhafte Fenster abgelaufen war. Das war
+/// falsch — nachgerechnet trug an jenem Tag **jeden der 21 gemeldeten
+/// Betriebe** noch sein Sommerfenster, keiner war draussen. Die Lücke wirkt
+/// erst, wenn auch das andere Fenster ausläuft.
+///
+/// Ein Fenster läuft **nie** ab, wenn sein Ende fehlt («läuft weiter»), wenn
+/// beide Grenzen fehlen («unbefristet offen») oder wenn der Start nach dem
+/// Ende liegt — das umspannt den Jahreswechsel und gilt damit jedes Jahr.
+/// In allen drei Fällen fällt der Betrieb nie heraus; dafür fehlt ihm die
+/// Pause, er wird also auch in der Sperrzeit eingeplant. Beides ist falsch,
+/// aber verschieden dringend.
+DateTime? saisonDeckungBis(BetriebLocal b) {
+  if (!b.istSaisonbetrieb) return null;
+  final fenster = <(DateTime?, DateTime?)>[
+    if (b.winterSaisonAktiv) (b.winterStartDatum, b.winterEndeDatum),
+    if (b.sommerSaisonAktiv) (b.sommerStartDatum, b.sommerEndeDatum),
+  ];
+  if (fenster.isEmpty) return null; // gar keine Saison — eigener Fall
   DateTime? spaetestes;
-  for (final x in l) {
-    final ende = x == SaisonLuecke.winterOhneStart
-        ? b.winterEndeDatum
-        : b.sommerEndeDatum;
-    if (ende == null) continue;
-    if (spaetestes == null || ende.isAfter(spaetestes)) spaetestes = ende;
+  for (final (von, bis) in fenster) {
+    if (bis == null) return null; // läuft weiter
+    if (von != null && von.isAfter(bis)) return null; // über den Jahreswechsel
+    final b2 = DateTime(bis.year, bis.month, bis.day);
+    if (spaetestes == null || b2.isAfter(spaetestes)) spaetestes = b2;
   }
-  return spaetestes != null && spaetestes.isBefore(h);
+  return spaetestes;
+}
+
+/// Was die Lücke praktisch bedeutet — fertig für die Anzeige.
+String saisonLueckeWirkung(BetriebLocal b, DateTime heute) {
+  if (saisonLuecken(b).contains(SaisonLuecke.keineSaisonAngehakt)) {
+    return 'erscheint an keinem einzigen Tag';
+  }
+  final bis = saisonDeckungBis(b);
+  if (bis == null) {
+    return 'Pause fehlt — wird auch in der Sperrzeit eingeplant';
+  }
+  final h = DateTime(heute.year, heute.month, heute.day);
+  final ab = bis.add(const Duration(days: 1));
+  final d =
+      '${ab.day.toString().padLeft(2, '0')}.'
+      '${ab.month.toString().padLeft(2, '0')}.${ab.year}';
+  return ab.isAfter(h) ? 'fällt am $d aus dem Plan' : 'seit $d aus dem Plan';
 }

@@ -42,7 +42,7 @@ void main() {
     test('gemeldet — und der Betrieb ist tatsächlich nie in Saison', () {
       final b = _b();
       expect(saisonLuecken(b), [SaisonLuecke.keineSaisonAngehakt]);
-      expect(saisonLueckeWirktSchon(b, heute), isTrue);
+      expect(saisonLueckeWirkung(b, heute), 'erscheint an keinem einzigen Tag');
       for (final tag in [
         DateTime(2026, 1, 15),
         DateTime(2026, 7, 1),
@@ -65,7 +65,8 @@ void main() {
     test('Winter: Ende gesetzt, Start leer — nach dem Ende für immer weg', () {
       final b = _b(winter: true, wEnde: DateTime(2026, 4, 12));
       expect(saisonLuecken(b), [SaisonLuecke.winterOhneStart]);
-      expect(saisonLueckeWirktSchon(b, heute), isTrue);
+      expect(saisonDeckungBis(b), DateTime(2026, 4, 12));
+      expect(saisonLueckeWirkung(b, heute), 'seit 13.04.2026 aus dem Plan');
       expect(istInAktiverSaison(b, DateTime(2026, 3, 1)), isTrue);
       expect(istInAktiverSaison(b, DateTime(2026, 12, 20)), isFalse);
       expect(istInAktiverSaison(b, DateTime(2030, 1, 1)), isFalse);
@@ -74,8 +75,8 @@ void main() {
     test('Sommer: gleiche Regel', () {
       final b = _b(sommer: true, sEnde: DateTime(2026, 11, 5));
       expect(saisonLuecken(b), [SaisonLuecke.sommerOhneStart]);
-      // Ende liegt noch vorn: gemeldet, wirkt aber noch nicht.
-      expect(saisonLueckeWirktSchon(b, heute), isFalse);
+      // Ende liegt noch vorn: gemeldet, wirkt aber erst danach.
+      expect(saisonLueckeWirkung(b, heute), 'fällt am 06.11.2026 aus dem Plan');
       expect(istInAktiverSaison(b, heute), isTrue);
       expect(istInAktiverSaison(b, DateTime(2026, 11, 6)), isFalse);
     });
@@ -92,7 +93,110 @@ void main() {
         SaisonLuecke.sommerOhneStart,
       ]);
       // Das spätere Ende entscheidet: noch sichtbar bis 18.10.
-      expect(saisonLueckeWirktSchon(b, heute), isFalse);
+      expect(saisonDeckungBis(b), DateTime(2026, 10, 18));
+      expect(saisonLueckeWirkung(b, heute), 'fällt am 19.10.2026 aus dem Plan');
+    });
+  });
+
+  group('Wirkung der Lücke — was sie praktisch bedeutet', () {
+    test(
+      'offenes Sommerfenster trägt weiter: nicht draussen, aber ohne Pause',
+      () {
+        // Sartons: Winter ohne Start (Ende 29.03.2026), Sommer ab 14.05.2026
+        // ohne Ende. Bis zum 20.09.2026 meldete die App «bereits weg» — falsch,
+        // das offene Sommerfenster trägt ihn.
+        final b = _b(
+          winter: true,
+          wEnde: DateTime(2026, 3, 29),
+          sommer: true,
+          sStart: DateTime(2026, 5, 14),
+        );
+        expect(saisonLuecken(b), [SaisonLuecke.winterOhneStart]);
+        expect(saisonDeckungBis(b), isNull);
+        expect(istInAktiverSaison(b, heute), isTrue);
+        expect(
+          saisonLueckeWirkung(b, heute),
+          'Pause fehlt — wird auch in der Sperrzeit eingeplant',
+        );
+      },
+    );
+
+    test('beide Fenster unbefristet offen: trägt ebenfalls weiter', () {
+      // Alpenblick: Sommer ganz ohne Daten.
+      final b = _b(winter: true, wEnde: DateTime(2026, 4, 6), sommer: true);
+      expect(saisonDeckungBis(b), isNull);
+      expect(istInAktiverSaison(b, heute), isTrue);
+    });
+
+    test('Fenster über den Jahreswechsel läuft nie ab', () {
+      final b = _b(
+        winter: true,
+        wStart: DateTime(2026, 12, 17),
+        wEnde: DateTime(2026, 4, 12),
+        sommer: true,
+        sEnde: DateTime(2026, 11, 5),
+      );
+      expect(saisonDeckungBis(b), isNull);
+    });
+  });
+
+  group('Keine Herbstpause', () {
+    // Hörnlihütte Arosa: Sommer 27.06.–18.10., Winter 01.11.–01.04. Ohne den
+    // Merker klafft im Herbst ein Loch von dreizehn Tagen.
+    BetriebLocal hoernli({required bool keineHerbstpause}) => _b(
+      winter: true,
+      wStart: DateTime(2026, 11, 1),
+      wEnde: DateTime(2027, 4, 1),
+      sommer: true,
+      sStart: DateTime(2026, 6, 27),
+      sEnde: DateTime(2026, 10, 18),
+    )..keineHerbstpause = keineHerbstpause;
+
+    test('ohne Merker: dreizehn Tage im Herbst fehlen', () {
+      final b = hoernli(keineHerbstpause: false);
+      expect(istInAktiverSaison(b, DateTime(2026, 10, 18)), isTrue);
+      expect(istInAktiverSaison(b, DateTime(2026, 10, 25)), isFalse);
+      expect(istInAktiverSaison(b, DateTime(2026, 11, 1)), isTrue);
+    });
+
+    test('mit Merker: der Herbst ist durchgehend Saison', () {
+      final b = hoernli(keineHerbstpause: true);
+      for (final tag in [
+        DateTime(2026, 10, 19),
+        DateTime(2026, 10, 25),
+        DateTime(2026, 10, 31),
+      ]) {
+        expect(istInAktiverSaison(b, tag), isTrue, reason: '${tag.day}.10.');
+      }
+    });
+
+    test('die Frühlingspause bleibt — dort machen sie immer zu', () {
+      final b = hoernli(keineHerbstpause: true);
+      expect(istInAktiverSaison(b, DateTime(2027, 4, 1)), isTrue);
+      expect(istInAktiverSaison(b, DateTime(2027, 4, 20)), isFalse);
+      expect(istInAktiverSaison(b, DateTime(2027, 5, 30)), isFalse);
+    });
+
+    test('greift nur, wenn beide Saisons angehakt sind', () {
+      final b = hoernli(keineHerbstpause: true)..sommerSaisonAktiv = false;
+      expect(istInAktiverSaison(b, DateTime(2026, 10, 25)), isFalse);
+    });
+
+    test('veraltetes Winterdatum öffnet die Brücke nicht', () {
+      // Winterstart noch aus der Vorsaison: Die Spanne wäre rückwärts.
+      final b = hoernli(keineHerbstpause: true)
+        ..winterStartDatum = DateTime(2025, 11, 1)
+        ..winterEndeDatum = DateTime(2026, 4, 1);
+      expect(istInAktiverSaison(b, DateTime(2026, 10, 25)), isFalse);
+    });
+
+    test('ohne Merker unveraendert — kein Einfluss auf normale Betriebe', () {
+      final b = _b(
+        winter: true,
+        wStart: DateTime(2026, 12, 4),
+        wEnde: DateTime(2027, 4, 6),
+      );
+      expect(istInAktiverSaison(b, DateTime(2026, 10, 25)), isFalse);
     });
   });
 

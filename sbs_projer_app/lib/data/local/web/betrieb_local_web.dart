@@ -57,6 +57,9 @@ class BetriebLocal {
   DateTime? ferien5Ende;
   bool keineBetriebsferien = false;
 
+  /// Saisonbetrieb ohne Herbstpause — siehe betrieb_local.dart.
+  bool keineHerbstpause = false;
+
   /// Wann zuletzt eine Ferien-Aussage bestaetigt wurde
   /// (`betriebe.ferien_bestaetigt_am`). Die Ferienfrage beim
   /// Reinigungs-Abschluss wurde am 05.08.2026 entfernt (Daniel: stoert mehr
