@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.118.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1726 Tests grün** · Git sauber.
+**Stand:** **v0.119.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1733 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -117,11 +117,6 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
 «Jahrgang abschreiben» seit v0.116.0 gebaut. Was bleibt:
 
-- **Abschreibungs-Datum im Mahnwesen** (gefunden 20.09.2026):
-  `MahnwesenService.abschreiben` bucht auf `rechnung.rechnungsdatum`. Stammt die
-  Rechnung aus einem bereits eingereichten Quartal, fällt die MWST-Rückholung in
-  eine geschlossene Periode — korrigierbar nur über eine Korrekturabrechnung.
-  Richtig wäre der Tag des Entscheids (Art. 41 Abs. 2 MWSTG). Kleinfix mit Test.
 - **Ausbau Aufgaben:** Aufgaben ↔ Kalender/Tourenplan verknüpfen; echte
   Zeiterfassung für Störung/Montage statt Schätzung (braucht Entscheid Daniel).
 - **Tote Zeitfelder aufräumen** (Entscheid Daniel 26.08.: später): `uhrzeit_ende`
@@ -191,11 +186,26 @@ Sammelbuchung `JA2025_A_MWST` bildet der Lauf 2025 bereits ab) und Rechnungen,
 die in `abschreibung_positionen` stehen. Der Satz kommt aus den
 Rechnungsbeträgen, nicht vom Buchungstag.
 
-**Nebenbefund, unverändert gelassen:** `MahnwesenService.abschreiben` datiert die
-Abschreibung aufs **Rechnungsdatum**. Bei einer Rechnung aus einem bereits
-abgerechneten Quartal landet die MWST-Rückholung damit in einer geschlossenen
-Periode. Die Dischma-Buchung habe ich deshalb von Hand auf den Entscheidtag
-datiert. Der Code müsste das auch tun — steht unter «Bauen».
+**Nebenbefund — behoben in v0.119.0** (siehe unten).
+
+### ✅ Abschreibung datiert auf den Entscheidtag (v0.119.0, 20.09.)
+
+`MahnwesenService.abschreiben` buchte auf das **Rechnungsdatum**. Bei einer
+Rechnung aus einem bereits eingereichten Quartal fiel die MWST-Rückholung damit
+in eine geschlossene Periode — herauszuholen nur noch über eine
+Korrekturabrechnung. Gefunden beim Buchen von Dischma 2026-05-0579 (Rechnung
+08.05., Q2 längst abgerechnet; Entscheid 20.09., Q3). Richtig ist der Tag der
+Erkenntnis, Art. 41 Abs. 2 MWSTG.
+
+**Zweiter Fund an derselben Stelle:** Das Brutto wurde auf 5 Rappen
+nachgerundet, während auf Konto 1100 der ungerundete Betrag liegt. Bei einem
+krummen Betrag hätte die Abschreibung den Debitor um ein paar Rappen **nicht**
+glattgestellt — und ein Rest auf 1100 fällt niemandem auf. Das Netto folgt
+jetzt aus `brutto − mwst`, damit die Buchung immer exakt aufgeht.
+
+Logik in `core/util/einzel_abschreibung.dart` (ohne Datenbank prüfbar, `heute`
+injizierbar), 7 Tests. **Kein Klicktest nötig** — keine Oberflächenänderung;
+die Rechnungsliste wurde nach dem Bau geladen und rendert unverändert.
 
 ### ✅ Saisonbetriebe, die still aus dem Plan fallen (v0.117.0, 20.09.)
 
