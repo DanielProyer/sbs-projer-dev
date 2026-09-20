@@ -243,6 +243,16 @@ eine Betriebs-ID halten können — `anfahrtszeiten`, `betrieb_ferien`,
 Dann braucht ein aufgelöster Betrieb eine geschlossene Zeile statt einer
 Löschung.
 
+**Herkunft steht am Betrieb, nicht nur hier.** Die Heineken-Session wies darauf
+hin, dass unsere gelöschte Zeile ab dem Archiv-Stichtag 01.01.2027 endgültig
+weg ist. In `betriebe.notizen` der 4eri Bar steht deshalb jetzt im Klartext,
+dass die 13 Reinigungen, 3 Rechnungen und die Montage von einem eigenen, seit
+14.11.2025 stillgelegten Betrieb stammen — **samt dessen ID
+`179bf62b-0953-587b-9096-ec5418adac97`**. Wer in zwei Jahren fragt, woher die
+2024er-Reinigungen unter Nummer 0680 kommen, findet die Antwort am Betrieb
+selbst. **Keine Grabstein-Zeile** — beide Seiten sind sich einig, dass eine
+Zeile nur der Symmetrie halber niemandem hilft.
+
 ### ✅ Saisondaten und Abmachung direkt bei der Reinigung (v0.125.0, Migration 199, 20.09.)
 
 **Wunsch Daniel:** Wenn er bei einem Betrieb reinigt, dessen Saisondaten
