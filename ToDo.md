@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.120.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1735 Tests grün** · Git sauber.
+**Stand:** **v0.121.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1741 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -67,19 +67,30 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     regulären Durchsicht-Runden und stützen sich auf **echte Besuche**; bei
     einem Störungseinsatz sagt die Zeit, wann man hinkann. **Bewusst stehen
     gelassen** — sagen, falls sie auch weg sollen.
-- **25 Saisonbetriebe mit kaputter Saison-Angabe** *(20.09.2026 exakt nachgerechnet,
-  vorher als «15» notiert)*. Zwei Fehlerbilder, beide machen den Betrieb dauerhaft
-  unsichtbar — die App warnt seit v0.117.0 rot im Tourenplan, **die Daten muss
-  Daniel eintragen**:
+- **26 Betriebe brauchen Saisondaten** — **Weg: Tour → «Fällig» → eine der beiden
+  Saison-Warnungen → «Saisondaten nachtragen»** (seit v0.121.0 ein Schritt für
+  alle, mit Vorschlag «ein Jahr weiter»). Zwei Gruppen:
   - **21 × Saisonfenster ohne Startdatum** (Ende gesetzt, Start leer). Das Fenster
     gilt nur «bis zum Ende», danach nie wieder. 20 im Winter: Alpenblick,
     Alpina Resort, Arflina, Armando, Clubhotel, Dieschen, Golden Dragon, Grischa,
     IKIGAI, Il Pub, Legna Bar, Madrisa Lodge, Mountain Plaza, Portal, Rotliechtli,
     Sartons, Seven Alpina, Spescha, Vereina, Vincenz. 1 im Sommer: Grand Hotel
     Surselva. **Alle 20 Winterfälle sind seit April 2026 aus dem Plan.**
-  - **4 × gar keine Saison angehakt** (weder Winter noch Sommer) — erscheinen an
-    keinem einzigen Tag: **Alpina** (Oberland), **Pellas** (Oberland), **Rätia**
-    (Engadin), **Weiss Kreuz** (Engadin).
+    *Hier hilft kein Vorschlag — wann sie aufmachen, weiss nur der Betrieb.*
+  - **5 × Endreinigung ohne künftigen Saisonstart**: Bolgenschanze Davos, Chesa
+    Davos Dorf, Hotel Sport Klosters, Indy Bar Laax, Kartitscha Obersaxen. Ihr
+    Winterfenster steht vollständig, aber auf 2025/26 — **ein Klick auf «Ein Jahr
+    weiter» genügt.**
+  - *(Die früher hier genannten vier ohne angehakte Saison — Alpina Vals, Pellas
+    Vignogn, Rätia Filisur, Weiss Kreuz Preda — sind **keine eigenen Kunden** und
+    seit v0.121.0 ausgefiltert.)*
+- **Internet-Recherche zu den Saisonstarts (20.09.2026):** Die **Bahnen** sind
+  publiziert — Davos Parsenn ab 20.11.2026 (Wochenenden ab 13.11.) bis 04.04.2027,
+  Klosters Parsenn ab 04.12.2026, Arosa Lenzerheide Vorsaison ab 28.11.2026 /
+  Hauptsaison ab 19.12.2026 / Bahnbetrieb bis 11.04.2027, Laax noch nicht angesagt
+  (Vorjahr 29.11.). Die Daten stehen im Nachtrag-Screen als Anhalt. **Öffnungs-
+  daten der einzelnen Restaurants und Bars stehen nirgends im Netz** — die bleiben
+  Ansage des Betriebs.
 - **Herbstarbeit: 19 Winterfenster stehen noch auf der Saison 2025/26.** Start und
   Ende sind vollständig, aber vom letzten Winter — ab Dezember fehlen sie im Plan,
   bis die neuen Daten drin sind. Acla Grischuna, Alp Nova, Bolgenschanze, Central,
@@ -181,6 +192,40 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ «Saisondaten nachtragen» — ein Schritt für beide Warnungen (v0.121.0, 20.09.)
+
+**Wunsch Daniel:** Aus der Warnung heraus direkt bei allen betroffenen Betrieben
+den Saisonstart setzen, statt jeden einzeln zu suchen.
+
+**Gebaut:** `/betriebe/saisondaten` — ein Betrieb pro Karte mit dem Grund
+daneben, Winter- und Sommerfenster als Schalter plus zwei Datumsfeldern,
+«Speichern und weiter» oder «Überspringen». Beide Saison-Warnungen im
+Tourenplan führen dorthin. **26 Betriebe** stehen drin (21 Lücken + 5
+Endreinigung-ohne-Anker, überschneidungsfrei).
+
+**Vorschlag «ein Jahr weiter»:** schiebt vorhandene Daten auf die kommende
+Saison vor — genau der Fall der fünf aus der Endreinigungs-Warnung, deren
+Winterfenster noch auf 2025/26 steht. Für ein Fenster **ohne** Start gibt es
+bewusst keinen Vorschlag: Das weiss nur der Betrieb.
+
+**Speichern archiviert** das bisherige Fenster nach derselben Regel wie das
+Betriebs-Formular, damit die Saison-Historie stimmt.
+
+**Kundenfilter nachgezogen:** Beide Saison-Warnungen melden jetzt nur eigene
+Reinigungskunden — dieselbe Lücke wie bei den Servicezeiten. Die vier «keine
+Saison angehakt» waren ausnahmslos Nicht-Kunden (Alpina Vals, Pellas Vignogn,
+Rätia Filisur, Weiss Kreuz Preda). Aus 25 gemeldeten Lücken werden **21 echte**.
+
+**Im Browser geprüft**, inklusive einer Speicherung ohne Änderung: Werte
+unverändert, kein Archiv-Eintrag (weil kein Start geändert wurde), grüne
+Bestätigung. Zwei Anzeigefehler dabei gefunden und behoben — ein Vorschlag-Knopf
+mit «—» als Start, und die rote Lücken-Warnung bei einem völlig leeren Fenster.
+
+**Klicktest Daniel:** Tour → «Fällig» → eine der beiden Saison-Warnungen →
+«Saisondaten nachtragen». Bei einem der fünf (Bolgenschanze, Chesa, Hotel Sport
+Klosters, Indy Bar, Kartitscha) den Vorschlag übernehmen und speichern — der
+Betrieb muss aus der Liste fallen und die Warnung um eins sinken.
 
 ### ✅ Servicezeiten-Durchsicht zeigte Nicht-Kunden (v0.120.0, 20.09.)
 
