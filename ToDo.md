@@ -56,9 +56,17 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   Kunden — alle 229 geprüft, alle mit Servicezeit** (Stand 20.09.2026; die alte
   Notiz «201 von 305 ohne» ist überholt). Die Durchsicht zeigte zuletzt nur noch
   Nicht-Kunden; seit v0.120.0 filtert sie die weg und meldet «Alle Kundenbetriebe
-  sind geprüft». *Nebenbei: Neun Nicht-Kunden tragen jetzt einen Prüfstempel und
-  Weiss Kreuz Preda eine Servicezeit 09:00 — vom Durchklicken heute. Schadet
-  nichts, kann aber weg, wenn es stört.*
+  sind geprüft».
+  - ✅ **Die vier Stempel vom 20.09. sind zurückgesetzt** (Stätzerhorn Parpan,
+    Piz Mitgel Savognin, Weiss Kreuz Preda, Albani Fest) — Prüfdatum und
+    Servicezeiten wieder leer. Sicherung mit den alten Werten:
+    `import.servicezeit_ruecknahme_2026_09_20`.
+  - ⚠️ **Fünf ältere Stempel stehen weiterhin** — Gspan Arosa (08.09., 14
+    Reinigungen, aktive Anlage), Ustria Startgels Flims (10), Capalari Laax (6),
+    Gemsli Davos Dorf (4), Rätia Filisur (12.09., 3). Die stammen aus den
+    regulären Durchsicht-Runden und stützen sich auf **echte Besuche**; bei
+    einem Störungseinsatz sagt die Zeit, wann man hinkann. **Bewusst stehen
+    gelassen** — sagen, falls sie auch weg sollen.
 - **25 Saisonbetriebe mit kaputter Saison-Angabe** *(20.09.2026 exakt nachgerechnet,
   vorher als «15» notiert)*. Zwei Fehlerbilder, beide machen den Betrieb dauerhaft
   unsichtbar — die App warnt seit v0.117.0 rot im Tourenplan, **die Daten muss
@@ -194,6 +202,21 @@ Daniel schon durchgeklickt, bevor es auffiel.
 Filter gesetzt, Abschluss-Text auf «Alle Kundenbetriebe sind geprüft» geändert
 (sonst widerspricht er der Betriebsliste), Quelltext-Wächter dazu.
 **Kein Klicktest nötig** — im Browser geprüft, der Screen meldet «fertig».
+
+**Aufräumen danach:** Ich hatte oben geschrieben, neun Nicht-Kunden trügen einen
+Stempel «vom Durchklicken heute». Das war ungenau — **nur vier waren von heute**,
+die anderen fünf stammen aus den Runden vom 08./12.09. und stützen sich auf
+echte Besuche. Zurückgesetzt habe ich deshalb nur die vier, mit Sicherung in
+`import.servicezeit_ruecknahme_2026_09_20`. Rückweg:
+
+```sql
+UPDATE betriebe b SET servicezeit_geprueft_am = s.servicezeit_geprueft_am,
+       servicezeit_morgen_ab = s.servicezeit_morgen_ab,
+       servicezeit_morgen_bis = s.servicezeit_morgen_bis,
+       servicezeit_nachmittag_ab = s.servicezeit_nachmittag_ab,
+       servicezeit_nachmittag_bis = s.servicezeit_nachmittag_bis
+  FROM import.servicezeit_ruecknahme_2026_09_20 s WHERE s.id = b.id;
+```
 
 ### ✅ Ziff. 235 zählte nur die halbe Wahrheit (v0.118.0, Migration 196, 20.09.)
 
