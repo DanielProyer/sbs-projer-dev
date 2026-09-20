@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.119.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1733 Tests grün** · Git sauber.
+**Stand:** **v0.120.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1735 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -52,8 +52,13 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   Art. 41 Abs. 2 MWSTG in Q3). Saldo 1100 zu dieser Rechnung danach exakt 0.
   **Concordia 2026-05-0580 bleibt offen** — die Rechnung ist sauber, eine
   passende Zahlung ist nirgends auffindbar (weder Prüfliste noch Journal).
-- **201 von 305 aktiven Betrieben ohne Servicezeit.** Der Durchsicht-Screen dafür
-  steht (`/betriebe/servicezeiten`).
+- ✅ **Servicezeiten sind durch.** Von 309 aktiven Betrieben sind **229 eigene
+  Kunden — alle 229 geprüft, alle mit Servicezeit** (Stand 20.09.2026; die alte
+  Notiz «201 von 305 ohne» ist überholt). Die Durchsicht zeigte zuletzt nur noch
+  Nicht-Kunden; seit v0.120.0 filtert sie die weg und meldet «Alle Kundenbetriebe
+  sind geprüft». *Nebenbei: Neun Nicht-Kunden tragen jetzt einen Prüfstempel und
+  Weiss Kreuz Preda eine Servicezeit 09:00 — vom Durchklicken heute. Schadet
+  nichts, kann aber weg, wenn es stört.*
 - **25 Saisonbetriebe mit kaputter Saison-Angabe** *(20.09.2026 exakt nachgerechnet,
   vorher als «15» notiert)*. Zwei Fehlerbilder, beide machen den Betrieb dauerhaft
   unsichtbar — die App warnt seit v0.117.0 rot im Tourenplan, **die Daten muss
@@ -168,6 +173,27 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ Servicezeiten-Durchsicht zeigte Nicht-Kunden (v0.120.0, 20.09.)
+
+**Gemeldet von Daniel beim Durchgehen:** «Weiss Kreuz Preda», «Albani Fest» und
+weitere erscheinen in der Durchsicht, obwohl sie keine Kunden sind. Eine
+Servicezeit beantwortet «wann darf ich zum Reinigen kommen» — bei einem Betrieb,
+den er nicht reinigt, gibt es darauf keine Antwort.
+
+**Ursache:** Die Kandidaten-Abfrage filterte auf `status = 'aktiv'` und «noch
+nicht geprüft», aber nicht auf `ist_mein_kunde`.
+
+**Beim Nachzählen kam heraus, dass die Aufgabe längst erledigt war:** Von 309
+aktiven Betrieben sind 229 eigene Kunden, und die waren **alle** durchgesehen
+und trugen **alle** eine Servicezeit. Die 71 verbliebenen Einträge waren
+ausnahmslos Nicht-Kunden — Feste, Heigenie-/David-Anlagen, Karteileichen —,
+keiner mit aktiver Anlage, keiner mit je einer Reinigung. Neun davon hatte
+Daniel schon durchgeklickt, bevor es auffiel.
+
+Filter gesetzt, Abschluss-Text auf «Alle Kundenbetriebe sind geprüft» geändert
+(sonst widerspricht er der Betriebsliste), Quelltext-Wächter dazu.
+**Kein Klicktest nötig** — im Browser geprüft, der Screen meldet «fertig».
 
 ### ✅ Ziff. 235 zählte nur die halbe Wahrheit (v0.118.0, Migration 196, 20.09.)
 
