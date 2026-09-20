@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.123.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **197** · **1757 Tests grün** · Git sauber.
+**Stand:** **v0.124.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **198** · **1757 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -192,6 +192,29 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ Aufgaben mit Datum gehen in den Google Kalender (v0.124.0, Migration 198, 20.09.)
+
+Beim Bau des Service-Termins aufgefallen: Eine Aufgabe mit Fälligkeitsdatum
+stand in der Glocke, aber **nicht** im Kalender. Dorthin gingen nur Pikett,
+Events, eingeplante Störungen/Montagen und Termine.
+
+**Jetzt:** `SBS · Aufgabe: <Titel>` als Ganztages-Eintrag — aber nur für eigene
+Aufgaben **mit** Datum und **ohne** Erledigt-Stempel. Marker- und Snooze-Zeilen
+liegen in derselben Tabelle, tragen kein Datum und bleiben aussen vor. Haken
+gesetzt oder Datum entfernt, und der Eintrag verschwindet beim nächsten Push
+von selbst — dieselbe Mechanik wie bei Störung, Montage und Termin.
+
+Der **Snooze bleibt bewusst ohne Wirkung** auf den Kalender: Er verschiebt die
+Erinnerung in der Glocke, nicht den Termin.
+
+Betroffen sind Migration 198 (CHECK auf `google_calendar_events.entity_type`),
+die Edge-Function `google-calendar-sync` (neu ausgeliefert) und
+`AufgabenRepository`.
+
+**Von Ende zu Ende geprüft:** Test-Aufgabe mit Datum angelegt → Kalender-Zeile
+mit Status «ok» entstand; abgehakt → Zeile verschwand; Test-Aufgabe danach
+gelöscht. Kein Rückstand.
 
 ### ✅ Service-Termin von Hand setzen (v0.123.0, 20.09.)
 
