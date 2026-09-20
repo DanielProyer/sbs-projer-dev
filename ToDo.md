@@ -226,8 +226,22 @@ eigenem Grundtarif, der Zuschlag entfällt. **Beim ersten Service nach dem
 03.10. kurz auf den Betrag schauen.**
 
 Die vier Ergänzungen (AG/WE, Kontakt, Öffnung, Monteur-Reinigung) sind an die
-Heineken-Session zurückgemeldet, samt Hinweis, dass dort dieselbe Altlast
-liegen könnte.
+Heineken-Session zurückgemeldet. Die Altlast lag dort tatsächlich genauso.
+
+**Bewusster Unterschied zwischen den beiden Systemen:** Dort bleibt der
+stillgelegte «Vieri Bar» als geschlossene Zeile stehen, mit Verweis auf die
+gültige ID — weil Danis Handy-App die alte ID noch kennt und eine gelöschte
+Zeile dort einen Fremdschlüsselfehler gäbe. **Bei uns ist sie gelöscht, und das
+ist hier richtig:** Die App läuft nur im Browser, es gibt keine Lesekopie mit
+alten IDs. Nach dem Hinweis habe ich alle Spalten im Schema durchsucht, die
+eine Betriebs-ID halten können — `anfahrtszeiten`, `betrieb_ferien`,
+`betrieb_saison_historie`, `betrieb_vorschlaege`, `fahrzeiten` (von und nach),
+`wegpunkte` (beide Spalten), `google_calendar_events.entity_id`,
+`buchungen.beleg_id`, `import.betrieb_mapping.ziel_id` — **überall null.**
+
+⚠️ **Sobald die Android-App kommt, gilt deren Regel «nie löschen» auch hier.**
+Dann braucht ein aufgelöster Betrieb eine geschlossene Zeile statt einer
+Löschung.
 
 ### ✅ Saisondaten und Abmachung direkt bei der Reinigung (v0.125.0, Migration 199, 20.09.)
 
