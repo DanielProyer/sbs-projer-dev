@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
+import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/tourenplan_refresh.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
@@ -395,6 +396,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                 Column(
                   children: [
                     _warnungSaisonAnker(),
+                    _warnungSaisonLuecke(),
                     Expanded(
                       // Pull-to-Refresh: auch der Leerzustand ist ziehbar —
                       // gerade eine (veraltet) leere Liste braucht den Weg
@@ -443,6 +445,117 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Saisonbetriebe, deren Saison-Angabe sie dauerhaft aus dem Plan wirft.
+  ///
+  /// Rot statt gelb: Ein Betrieb ohne Startdatum taucht nach seinem Enddatum
+  /// nie wieder auf — das fällt erst auf, wenn der Kunde anruft. Am
+  /// 20.09.2026 waren 25 von 96 operativen Saisonbetrieben betroffen.
+  Widget _warnungSaisonLuecke() {
+    final luecken = ref.watch(saisonLueckenProvider);
+    if (luecken.isEmpty) return const SizedBox.shrink();
+    final heute = DateTime.now();
+    final schonWeg = luecken
+        .where((b) => saisonLueckeWirktSchon(b, heute))
+        .length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('${luecken.length} Betriebe mit Saison-Lücke'),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final b in luecken)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              b.ort != null && b.ort!.isNotEmpty
+                                  ? '${b.name}, ${b.ort}'
+                                  : b.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              saisonLuecken(b).map((l) => l.kurz).join(' · ') +
+                                  (saisonLueckeWirktSchon(b, heute)
+                                      ? ' — bereits weg'
+                                      : ''),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Ein Saisonfenster ohne Startdatum gilt nur «bis zum '
+                      'Ende» — danach erscheint der Betrieb nie wieder im '
+                      'Tourenplan. Dasselbe gilt, wenn weder Winter noch '
+                      'Sommer angehakt ist. Beim Betrieb Start (und Ende) '
+                      'der Saison eintragen.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.error.withAlpha(30),
+            border: Border.all(color: AppColors.error.withAlpha(100)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.visibility_off,
+                color: AppColors.error,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  schonWeg > 0
+                      ? '${luecken.length} Saisonbetriebe mit Lücke — '
+                            '$schonWeg bereits aus dem Plan gefallen'
+                      : '${luecken.length} Saisonbetriebe: Saisonfenster ohne '
+                            'Startdatum',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.error, size: 18),
+            ],
+          ),
+        ),
       ),
     );
   }

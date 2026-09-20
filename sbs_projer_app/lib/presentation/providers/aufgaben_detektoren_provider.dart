@@ -115,6 +115,14 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     debugPrint('[Aufgaben] Saisondaten-Detektor: $e');
   }
 
+  // d2) Saison-Angabe kaputt — Betrieb faellt dauerhaft aus dem Plan.
+  try {
+    final a = saisonLueckeAufgabe(ref.watch(saisonLueckenProvider).length);
+    if (a != null) detektoren.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Saisonluecken-Detektor: $e');
+  }
+
   // e) Fehlende Ertragsbuchungen — dieselbe Quelle wie die Warnung in den
   //    Forderungen, damit beide nie auseinanderlaufen.
   try {
@@ -190,8 +198,7 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
   try {
     final m = vormonat(heute);
     final befunde = await ref.watch(monatsPruefungProvider(m).future);
-    final offen =
-        befunde.where((b) => b.status != PruefStatus.gruen).length;
+    final offen = befunde.where((b) => b.status != PruefStatus.gruen).length;
     final a = monatsabschlussAufgabe(offen, monatsName(m.monat));
     if (a != null) detektoren.add(a);
   } catch (e) {

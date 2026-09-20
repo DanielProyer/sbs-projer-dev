@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/region_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
@@ -1486,10 +1487,12 @@ TourEintrag tourEintragFromJson(Map<String, dynamic> j) {
 /// kompilierfähig durchgereicht.
 typedef GespeicherterTagesplan = ({
   List<TourEintrag> eintraege,
+
   /// Der TATSÄCHLICHE Arbeitsbeginn — gesetzt von «Jetzt starten» auf der
   /// Startseite, immer zusammen mit km-Stand und GPS. Ist er `null`, hat der
   /// Arbeitstag noch nicht begonnen.
   String? arbeitsbeginn,
+
   /// Der HYPOTHETISCHE Beginn für die Planung (Migration 191) — gesetzt in
   /// der Planungszeile des Tourenplans, damit die Zeitachse rechnen kann.
   ///
@@ -1961,6 +1964,22 @@ String faelligkeitLabel(FaelligkeitsStatus status) {
 /// künftige Wiedereröffnung gepflegt haben — die Fälligkeits-Uhr kann nicht
 /// starten. Ohne Meldung wären sie STILL nie fällig (Regel Daniel 17.07.2026:
 /// "falls nicht festgelegt Meldung").
+/// Saisonbetriebe mit einer Saison-Angabe, die sie dauerhaft aus dem Plan
+/// wirft — Fenster ohne Startdatum oder gar keine angehakte Saison.
+///
+/// Ergänzt [saisonAnkerFehltProvider]: Der meldet Betriebe, bei denen nach
+/// einer Endreinigung die Wiedereröffnung fehlt. Hier geht es um die
+/// Saison-Angabe selbst, unabhängig davon, ob je eine Endreinigung lief.
+final saisonLueckenProvider = Provider<List<BetriebLocal>>((ref) {
+  final betriebe = ref.watch(betriebeProvider);
+  return [
+    for (final b in betriebe)
+      if ((b.status == 'aktiv' || b.status == 'saisonpause') &&
+          saisonLuecken(b).isNotEmpty)
+        b,
+  ]..sort((a, b) => a.name.compareTo(b.name));
+});
+
 final saisonAnkerFehltProvider = Provider<List<BetriebLocal>>((ref) {
   final betriebe = ref.watch(betriebeProvider);
   final anlagen = ref.watch(anlagenProvider);

@@ -129,6 +129,21 @@ Aufgabe? saisondatenAufgabe(int anzahl) => anzahl <= 0
         route: '/touren',
       );
 
+/// Saisonbetriebe, deren Saison-Angabe sie dauerhaft aus dem Tourenplan
+/// wirft (Fenster ohne Startdatum, oder gar keine Saison angehakt).
+///
+/// Eigene Aufgabe neben [saisondatenAufgabe]: Jene meldet die fehlende
+/// Wiedereröffnung NACH einer Endreinigung. Hier ist die Angabe selbst
+/// kaputt — der Betrieb verschwindet, ohne dass je eine Endreinigung lief.
+/// Am 20.09.2026 traf das 25 von 96 operativen Saisonbetrieben.
+Aufgabe? saisonLueckeAufgabe(int anzahl) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'saison_luecke',
+        titel: '$anzahl Saisonbetriebe fallen aus dem Tourenplan',
+        route: '/touren',
+      );
+
 /// Reinigungen, deren Ertragsbuchung fehlt.
 ///
 /// Die Buchung ist der letzte Schritt der Abschlusskette und damit das erste
@@ -214,7 +229,8 @@ Aufgabe? monatsabschlussAufgabe(int anzahl, String monatName) => anzahl <= 0
     ? null
     : Aufgabe(
         key: 'monatsabschluss',
-        titel: 'Monatsabschluss $monatName: $anzahl '
+        titel:
+            'Monatsabschluss $monatName: $anzahl '
             '${anzahl == 1 ? 'Punkt' : 'Punkte'} offen',
         route: '/buchhaltung/monatsabschluss',
         istVorrat: true,

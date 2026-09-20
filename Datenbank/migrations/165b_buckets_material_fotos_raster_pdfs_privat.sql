@@ -1,0 +1,33 @@
+-- 165b: Buckets material-fotos und raster-pdfs auf privat
+--
+-- NACHGETRAGEN am 20.09.2026. Angewendet war sie am 07.08.2026, 14:40 —
+-- direkt über `apply_migration`, ohne lokale Datei (Server-Version
+-- 20260807144049 `buckets_material_fotos_raster_pdfs_privat`). Einsortiert
+-- als 165b, weil sie zeitlich vor 166 (mwst_view_storno_gegenbuchungen,
+-- 16:37 desselben Tages) lief.
+--
+-- Wortlaut aus `supabase_migrations.schema_migrations.statements`, nicht aus
+-- dem Gedächtnis rekonstruiert. GEGENGEPRÜFT am 20.09.2026:
+-- `SELECT id, public FROM storage.buckets` liefert für beide Buckets `false`.
+--
+-- Erneutes Ausführen ist gefahrlos (reines UPDATE auf denselben Wert).
+--
+-- ---------------------------------------------------------------------------
+-- Original-Begründung vom 07.08.2026:
+--
+-- Sicherheitsbefund (Projekt Heineken, gemeldet 07.08.2026): Die Buckets
+-- material-fotos (seit 17.02.2026) und raster-pdfs (seit 10.05.2026) waren
+-- PUBLIC — Objekt-URLs ohne Login abrufbar. raster-pdfs enthaelt den
+-- Serviceraster mit allen Kundennamen, material-fotos die Artikelfotos.
+--
+-- Gefahrlos umstellbar, vorher verifiziert:
+-- * material-fotos: App nutzt ausschliesslich createSignedUrl (1 h),
+--   DB speichert nur foto_storage_path; Owner-Policies (SELECT/INSERT/
+--   UPDATE/DELETE, auth.uid = erster Ordner) existieren bereits.
+-- * raster-pdfs: Policies fuer authenticated existieren; die Mail-Function
+--   send-raster-mail laedt per SERVICE_ROLE (unabhaengig von public);
+--   die einzige getPublicUrl-Stelle der App (heineken_raster_screen.dart)
+--   wurde am 07.08.2026 auf createSignedUrl umgestellt (v0.72.3).
+
+UPDATE storage.buckets SET public = false
+WHERE id IN ('material-fotos', 'raster-pdfs');
