@@ -98,12 +98,19 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   Posthotel, Pot au Feu, Rothorngipfel, Sezner, Snake Bar, Tgantieni, Tijuana.
   *(Bewusst nicht in der App-Warnung: Das ist jedes Jahr dasselbe und stünde sonst
   von April bis November rot.)*
-- **4eri Bar Cham: Rechnungsweg fehlt** (Betriebstrennung 20.09.2026, Details
-  unten). Das Feld steht bewusst leer — «weiss ich noch nicht». In beiden
-  Systemen offen. **Spätestens bis zum ersten Service nach dem 03.10.2026
-  festlegen**, sonst weiss die App beim Abschluss nicht, wie abgerechnet wird.
-  Beim selben Service auf den Betrag schauen: Der Zuschlag «Zusätzliche Hähne
-  anderer Standort» fällt weg, die Bar rechnet neu mit eigenem Grundtarif.
+- **4eri Bar Cham: Rechnungsart wird bei der ersten Reinigung gesetzt**
+  (Entscheid Daniel 20.09.2026). Das Feld bleibt bis dahin leer, in beiden
+  Systemen. *Korrektur meiner früheren Notiz: Die App kommt damit zurecht —
+  `resolveZahlungsart()` nimmt ohne Angabe am Betrieb «Rechnung am Tresen»,
+  bewusst der sicherste Rückfall («lieber eine Rechnung zu viel, sichtbar und
+  stornierbar, als eine lautlos fehlende»). Im Formular ist die Art frei
+  wählbar.*
+  - ⚠️ **Eine Stolperstelle:** Das Häkchen «als Standard übernehmen» erscheint
+    nur, wenn die Wahl vom errechneten Standard abweicht. Ist die richtige
+    Antwort ausgerechnet **Rechnung am Tresen**, taucht es nicht auf und das
+    Feld am Betrieb bleibt leer. Dann direkt am Betrieb setzen.
+  - Beim selben Service auf den Betrag schauen: Der Zuschlag «Zusätzliche Hähne
+    anderer Standort» fällt weg, die Bar rechnet neu mit eigenem Grundtarif.
 - **Pizzeria Badus (Sedrun) und Tijuana (Davos)** sind auf Rechnung/Mail gestellt,
   haben aber **nirgends** eine Mailadresse — weder Rechnungs- noch Betriebsmail.
   Ihre Rechnungen landen bei Daniel selbst. Recherche 20.09.2026:
