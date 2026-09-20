@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.124.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **198** · **1757 Tests grün** · Git sauber.
+**Stand:** **v0.125.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1778 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -192,6 +192,47 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ Saisondaten und Abmachung direkt bei der Reinigung (v0.125.0, Migration 199, 20.09.)
+
+**Wunsch Daniel:** Wenn er bei einem Betrieb reinigt, dessen Saisondaten
+fehlen, soll die App das melden — mit einem einfachen Weg, die Daten
+nachzutragen **und** die Eröffnungs- oder Endreinigung mit dem Wirt
+abzumachen. Der Wirt steht während der Reinigung daneben; eine Stunde später
+im Auto ist niemand mehr da, den man fragen könnte.
+
+**Gebaut:**
+- **Band im Reinigungs-Formular**, sobald Saisondaten fehlen. «Fehlen» heisst:
+  eine Lücke (Fenster ohne Start, keine Saison angehakt) **oder** kein
+  einziges der vier Daten liegt in der Zukunft — das trifft auch die Betriebe,
+  deren Winter noch auf 2025/26 steht.
+- **Nachfrage beim Abschliessen**, falls dann immer noch nichts erfasst ist.
+  «Später» schliesst die Reinigung trotzdem ab; ein Dialog, den man nicht
+  wegklicken kann, wird beim nächsten Mal reflexhaft weggetippt.
+- **Sheet «Saisondaten & Abmachung»**: Winter und Sommer mit Start und Ende,
+  Schalter «Keine Herbstpause», dazu wahlweise die Abmachung.
+
+**Die Abmachung kennt drei Formen** (Migration 199, `termine.spielraum` +
+`datum_bis`): **genau dann** (mit Uhrzeit von/bis), **ganze Woche** (sieben
+Tage ab dem gewählten Tag), **ganze Zwischensaison** (Zeitraum rechnet die App
+aus den Saisondaten). Im Kalender wird daraus ein Zeitfenster oder ein
+Ganztages-Eintrag über den ganzen Zeitraum — ein «ganze Woche möglich» sah
+bisher aus wie ein fixer Tag.
+
+**Grenze, bewusst so:** Lässt sich der Zeitraum der Zwischensaison nicht
+berechnen — etwa weil nach dem Winterende der Folgesommer noch nicht erfasst
+ist —, steht die Auswahl «ganze Zwischensaison» nicht zur Verfügung. Lieber
+keine Angabe als eine erfundene.
+
+**Von Ende zu Ende geprüft** an Alp Nova: Band erschien, Sheet öffnete, Termin
+«Endreinigung (ganze Woche)» vom 29.09. bis 05.10.2026 mit `spielraum = woche`
+gespeichert, Kalendereintrag mit Status «ok» entstanden. Danach abgehakt →
+Eintrag weg, Testzeile gelöscht, Saisondaten von Alp Nova unverändert.
+
+**Klicktest Daniel:** Bei einem der gemeldeten Betriebe über das Band die
+Saisondaten erfassen und eine Abmachung «ganze Zwischensaison» setzen — der
+Zeitraum muss automatisch stimmen, und im Kalender über den ganzen Zeitraum
+stehen.
 
 ### ✅ Aufgaben mit Datum gehen in den Google Kalender (v0.124.0, Migration 198, 20.09.)
 
