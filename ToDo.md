@@ -454,6 +454,35 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
   bezahlt, jüngste vom 28.04.: nur ein fehlender Stempel, kein Geldrisiko.)*
 - **Nutzungsmessung** läuft seit 09.09. — erste Auswertung ist in A6 (v0.112.0)
   eingeflossen. Einstellungen → Nutzung der App.
+- 🔴 **Heineken-Monatsrechnung: stimmt die Positionszeile im September wieder?**
+  Bei der August-Rechnung stand in `rechnungs_positionen` 3'434.60, während das
+  versendete PDF 3'184.60 nannte — 250.00 zu viel, entstanden zwischen dem
+  Anlegen (16.09., 12:16:35) und einer Änderung 2,5 Minuten später (12:19:03).
+  Mai, Juni und Juli waren sauber. **Einzelfall oder Fehler im Code, ist offen.**
+  Tritt es im September wieder auf, ist es kein Zufall und gehört in den Code.
+  Prüfung in einer Abfrage, nach dem Erstellen der Septemberrechnung:
+
+  ```sql
+  -- Position gegen die Summe der Störungen des Monats halten.
+  -- Erwartet: differenz = 0.00 (Ausnahme August 2026: −55.00, gewollt, s. oben)
+  with pos as (
+    select r.heineken_monat, rp.betrag_netto as position
+      from rechnungen r
+      join rechnungs_positionen rp on rp.rechnung_id = r.id
+     where rp.beschreibung = 'Störungen' and r.heineken_monat >= '2026-05-01'
+  ), st as (
+    select abrechnungs_monat as monat, sum(preis_netto) as summe
+      from stoerungen where abrechnungs_monat >= '2026-05-01' group by 1
+  )
+  select to_char(pos.heineken_monat,'YYYY-MM') as monat, pos.position,
+         st.summe, (pos.position - st.summe) as differenz
+    from pos join st on st.monat = pos.heineken_monat
+   order by 1;
+  ```
+
+  **Und vor jeder Freigabe einer Heineken-Rechnung gilt ohnehin:** erst die
+  Positionszeile gegen das PDF halten, dann auf `freigegeben` setzen. Die
+  Buchung entsteht aus dem Datensatz, nicht aus dem Dokument.
 
 ---
 
