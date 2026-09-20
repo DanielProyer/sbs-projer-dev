@@ -207,6 +207,41 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
   15'374.70). Rückweg: `UPDATE rechnungen SET versendet_am = NULL WHERE id IN
   (SELECT id FROM import.versendet_am_nachtrag_195)`.
 
+### 🔴 August-Heineken-Rechnung: Störungen-Position 250.00 zu hoch (20.09.2026)
+
+**Rechnung 2026-09-1449**, Monat August 2026, 14'236.34 brutto, Status
+**gesendet**. Die Position «Störungen» trägt **3'434.60 netto**. Die tatsächlich
+für August erfassten Störungen summieren sich auf **3'184.60** über 20 Zeilen.
+
+| Monat | Position «Störungen» | Summe der Störungen | Differenz |
+|---|---|---|---|
+| Mai 2026 | 2'854.20 | 2'854.20 | 0.00 |
+| Juni 2026 | 1'674.60 | 1'674.60 | 0.00 |
+| Juli 2026 | 2'824.20 | 2'824.20 | 0.00 |
+| **August 2026** | **3'434.60** | **3'184.60** | **+250.00** |
+
+Drei Monate stimmen auf den Rappen, die Regel lautet also «Position = Summe».
+**250.00 ist genau der Betrag von Störung 438** (Alpina Parpan, 26.08.,
+Pikett am Wochenende, Basis 90 + Anfahrt 60 + Wochenende 100). Das legt eine
+Doppelzählung dieser einen Störung nahe, beweisen lässt es sich aus dem
+Datenbestand nicht: Alle 20 August-Störungen tragen denselben Änderungsstempel
+`2026-09-16 12:16:55`, das ist der Sammel-Stempel beim Abrechnen. Eine
+zwischenzeitlich gelöschte Zeile wäre nicht mehr sichtbar.
+
+Wirkung, falls es eine Doppelzählung ist: **250.00 netto + 20.25 MWST =
+270.25 brutto zu viel gestellt.** Die Rechnung ist raus, aber noch nicht als
+bezahlt gebucht.
+
+**Nichts geändert — Entscheid Daniel.** Zu klären: Rechnung korrigieren und neu
+senden, oder Gutschrift. Und ob die Position beim nächsten Monat automatisch
+wieder stimmt.
+
+⚠️ **Zweiter Punkt am selben Fall:** Die v2-Session nennt für Störung 438
+**305.00** als richtigen Betrag, bei uns stehen **250.00**. Differenz 55.00.
+Welcher Preis stimmt, ist Feldwissen — Daniel fragen. *(Unabhängig davon hat
+v2 im eigenen August-Entwurf dieselbe Störung doppelt, 355.00 netto zu viel;
+der Entwurf ist dort nicht freigegeben.)*
+
 ### ✅ Alpina: Ort von Churwalden auf Parpan berichtigt (20.09.2026)
 
 Ansage Daniel: «Der Betrieb ist definitiv in Parpan (Störung vom 26.08.).» Die
