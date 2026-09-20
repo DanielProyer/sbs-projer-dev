@@ -207,33 +207,35 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
   15'374.70). Rückweg: `UPDATE rechnungen SET versendet_am = NULL WHERE id IN
   (SELECT id FROM import.versendet_am_nachtrag_195)`.
 
-### 🔴 Neu am 20.09.2026: sieben Reinigungen ohne Buchung
+### ✅ «Reinigungen ohne Buchung» war ein Fehlalarm von mir (20.09.2026)
 
-Abfrage über alle abgeschlossenen Reinigungen seit 01.07.2026 (303 Stück):
-**290 tragen eine Buchung, 13 nicht.** Fünf davon sind Heineken-Reinigungen und
-gehören so — die laufen über die Monatsabrechnung, die App meldet sie bewusst
-nie. Bleiben **sieben echte Lücken** und ein unklarer Fall:
+Ich hatte sieben fehlende Buchungen gemeldet und grob 400–470 CHF fehlenden
+Ertrag geschätzt. **Beides falsch — es fehlt nichts.** Nachgeprüft und einzeln
+aufgelöst:
 
-| Datum | Betrieb | Art |
+| Gruppe | Anzahl | Warum ohne Buchung korrekt |
 |---|---|---|
-| 07.09. | Türmli | rechnung_tresen |
-| 04.09. | Alpsu | barzahlung |
-| 10.08. | Schützenhaus | barzahlung |
-| 07.08. | Stiva Ursus | rechnung_tresen |
-| 06.08. | Rössli | rechnung_tresen |
-| 31.07. | Napoli Stories | rechnung_tresen |
-| 24.07. | Vincenz | rechnung_tresen |
-| 09.07. | Peperoncini 1313 | *(leer)* — vermutlich Heineken wie die übrigen |
+| Heineken-Monatsabrechnung | 6 | Läuft über die Monatsrechnung, nie einzeln gebucht |
+| Heineken-Monteur | 6 | Schalter «nur Datum erfassen», Preis 0.00, kein Protokoll |
+| Kulanz | 1 | Napoli Stories 31.07., kostenlos, mit Begründung in den Notizen |
 
-Keine davon hat eine Rechnung im Zeitfenster. Das ist das bekannte Muster
-«Handy weggesteckt, Kette bricht ab». Fünf Tresen-Reinigungen à rund 75–95 CHF
-heisst grob **400–470 CHF Ertrag und Debitor, die nirgends stehen**; dazu zwei
-Barzahlungen ohne Kassenbuchung.
+Der Code sagt es ausdrücklich: *«Kundenrechnung + Buchung erstellen bei
+Abschluss (nicht bei Kulanz/Heineken)»*. Auch die App-Warnung
+(`reinigungen_ohne_rechnung.dart`) überspringt Kulanz und Monteur bewusst — sie
+hat also nie Alarm geschlagen, und das war richtig.
 
-**Nicht von mir gebucht** — Buchungen sind dein Entscheid. Der Weg ist die
-Rechnungsliste (nicht das Reinigungs-Detail), die App listet diese Fälle in
-ihrer eigenen Warnung. Vor dem Nachbuchen je Fall klären, ob damals bar
-kassiert wurde.
+Breiter gegengeprüft über das ganze Jahr: Seit 01.01.2026 gibt es **keine
+einzige** abgeschlossene Reinigung mit Preis über 0, ohne Kulanz, ohne
+Monteur-Schalter, die eine Buchung vermissen lässt. Die 27 Treffer dieser
+Abfrage gehören alle sechs Heineken-Betrieben (Alpine Inn, Sarain, Peperoncini,
+Rothorngipfel, Alp Lavoz, Alp Nova), und für jeden Monat bis August 2026 liegt
+die Heineken-Monatsrechnung vor, bezahlt bis Juli, August auf «gesendet».
+September fehlt zu Recht, der Monat läuft noch.
+
+**Merksatz für die nächste solche Abfrage:** `not exists (buchung)` allein ist
+wertlos. Es braucht zusätzlich `ist_kulanz = false`, `ist_heineken_monteur =
+false`, `preis_brutto > 0` und den Ausschluss der Heineken-Betriebe. Ohne diese
+vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 
 ### 🔭 Beobachten
 
