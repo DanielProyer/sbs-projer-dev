@@ -54,11 +54,9 @@ class ServicezeitKandidat {
     this.oeffnungszeiten,
   });
 
-  String get label =>
-      (ort == null || ort!.isEmpty) ? name : '$name, $ort';
+  String get label => (ort == null || ort!.isEmpty) ? name : '$name, $ort';
 
-  int get besuche =>
-      vorschlag.morgenBesuche + vorschlag.nachmittagBesuche;
+  int get besuche => vorschlag.morgenBesuche + vorschlag.nachmittagBesuche;
 
   bool get hatBisherZeiten =>
       bisherMorgenAb != null || bisherNachmittagAb != null;
@@ -69,8 +67,13 @@ class ServicezeitKandidat {
   /// Der Rückfall ist wichtig: Ohne ihn stünde ein Betrieb ohne Datenbasis
   /// mit leeren Feldern da, und ein Wisch nach rechts würde seine bestehenden
   /// Servicezeiten löschen.
-  ({String? morgenAb, String? morgenBis, String? nachmittagAb,
-    String? nachmittagBis}) get vorbelegung => vorschlag.hatVorschlag
+  ({
+    String? morgenAb,
+    String? morgenBis,
+    String? nachmittagAb,
+    String? nachmittagBis,
+  })
+  get vorbelegung => vorschlag.hatVorschlag
       ? (
           morgenAb: vorschlag.morgenAb,
           morgenBis: vorschlag.morgenBis,
@@ -123,6 +126,17 @@ class ServicezeitDurchsichtRepository {
           )
           .eq('user_id', userId)
           .eq('status', 'aktiv')
+          // Nur eigene Reinigungskunden. Eine Servicezeit beantwortet die
+          // Frage «wann darf ich zum Reinigen kommen» — bei einem Betrieb,
+          // den Daniel nicht reinigt, gibt es darauf keine Antwort.
+          //
+          // WARUM als Filter und nicht zum Durchklicken: Am 20.09.2026 waren
+          // alle 229 eigenen Kunden durchgesehen und fertig; die Liste zeigte
+          // trotzdem noch 71 Betriebe — Feste (Albani Fest, Churerfest),
+          // Heigenie-/David-Anlagen und Karteileichen, allesamt ohne aktive
+          // Anlage und ohne je eine Reinigung. Daniel hatte sich schon durch
+          // neun davon geklickt, bevor es auffiel.
+          .eq('ist_mein_kunde', true)
           .isFilter('servicezeit_geprueft_am', null)
           .order('name')
           .order('id'),

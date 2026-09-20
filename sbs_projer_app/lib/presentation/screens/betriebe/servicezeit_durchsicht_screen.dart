@@ -522,8 +522,11 @@ class _ServicezeitDurchsichtScreenState
           ),
           const SizedBox(height: 12),
           Text(
+            // «Kundenbetriebe», nicht «Betriebe»: Die Durchsicht überspringt
+            // seit v0.120.0 alles ohne `ist_mein_kunde`. Sonst widerspricht
+            // die Meldung der Betriebsliste, die mehr Einträge zeigt.
             _kandidaten.isEmpty
-                ? 'Alle Betriebe sind geprüft.'
+                ? 'Alle Kundenbetriebe sind geprüft.'
                 : 'Runde durch — $_erledigt von ${_kandidaten.length} übernommen.',
             textAlign: TextAlign.center,
             style: const TextStyle(fontWeight: FontWeight.w600),
