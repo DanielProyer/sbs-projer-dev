@@ -207,6 +207,38 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
   15'374.70). Rückweg: `UPDATE rechnungen SET versendet_am = NULL WHERE id IN
   (SELECT id FROM import.versendet_am_nachtrag_195)`.
 
+### ✅ Alpina: Ort von Churwalden auf Parpan berichtigt (20.09.2026)
+
+Ansage Daniel: «Der Betrieb ist definitiv in Parpan (Störung vom 26.08.).» Die
+Zeile bestätigte es unabhängig — **PLZ 7076 ist Parpan**, Churwalden wäre 7075,
+und die Koordinaten 46.7581 / 9.5608 liegen zwischen Obertor und Stätzerhorn
+Parpan. Falsch war allein das Ortsfeld.
+
+```sql
+-- Rückweg, falls nötig:
+UPDATE betriebe SET ort = 'Churwalden'
+ WHERE id = 'cd01706a-3197-4cb8-aed6-5250a0d1fda8';
+```
+
+Alles Übrige am Betrieb bleibt: `ist_mein_kunde = false` (Anlagentyp **david**,
+nur Störungsdienst), keine Anlage, keine Reinigung, Störung 438 vom 26.08. mit
+270.25 brutto auf dem Abrechnungsmonat August 2026, als abgerechnet markiert.
+
+Gegenprobe auf denselben Fehler anderswo: **keiner.** Alle Churwalden-Betriebe
+tragen jetzt 7075 und Koordinaten um 46.777, alle Parpan-Betriebe 7076 und
+46.757–46.761.
+
+**Was die Prüfung sonst zeigte (keine Fehler, aber gut zu wissen):** Sechs
+Postleitzahlen führen zwei Ortsschreibweisen — Flims/Flims Dorf,
+Flims/Flims Waldhaus, Disentis/Disentis-Mustér, Davos/Davos Dorf,
+Davos/Davos Platz, Rueras/Sedrun. Das sind Varianten desselben Ortes, kein
+Mangel. Sie erklären aber, warum ein Abgleich über den Ortsnamen zwischen
+zwei Systemen reihenweise danebengreift.
+  - ⚠️ Einziger Zweifelsfall: **Bahnhofbuffet Sedrun steht auf PLZ 7189**, das
+    ist die Nummer von Rueras; Sedrun wäre 7188. Ich habe es **nicht**
+    geändert, weil ich die Schweizer Nummern nicht sicher genug kenne. Bei
+    Gelegenheit prüfen.
+
 ### ✅ «Reinigungen ohne Buchung» war ein Fehlalarm von mir (20.09.2026)
 
 Ich hatte sieben fehlende Buchungen gemeldet und grob 400–470 CHF fehlenden
