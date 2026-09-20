@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
@@ -118,22 +119,25 @@ class MahnwesenService {
   }
 
   /// Rechnung abschreiben + Debitorenverlust korrekt buchen (netto + MWST-Rückholung).
-  static Future<void> abschreiben(Rechnung rechnung) async {
+  /// [heute] nur für Tests; sonst der laufende Tag. Zum Datum und zu den
+  /// Beträgen siehe [einzelAbschreibung].
+  static Future<void> abschreiben(Rechnung rechnung, {DateTime? heute}) async {
+    final a = einzelAbschreibung(rechnung, heute: heute ?? DateTime.now());
     await RechnungRepository.update(rechnung.id, {
       'zahlungsstatus': 'abgeschrieben',
     });
     await AbschreibungService.abschreiben(
-      brutto: (rechnung.betragBrutto * 20).roundToDouble() / 20,
+      brutto: a.brutto,
       // Steuer der Rechnung, nicht Satz des Datums (Altjahrgänge!).
-      mwst: rechnung.mwstBetrag,
-      datum: rechnung.rechnungsdatum,
-      beschreibung:
-          'Debitorenverlust ${rechnung.rechnungsnummer ?? rechnung.id.substring(0, 8)} (abgeschrieben)',
+      mwst: a.mwst,
+      datum: a.datum,
+      beschreibung: a.beschreibung,
       belegnummer: rechnung.rechnungsnummer,
       belegId: rechnung.id,
     );
     debugPrint(
-      '[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben (mit MWST-Rückholung)',
+      '[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben '
+      '(${a.netto} + ${a.mwst} MWST, per ${a.datum.toIso8601String().split('T').first})',
     );
   }
 
