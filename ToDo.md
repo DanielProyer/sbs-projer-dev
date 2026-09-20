@@ -257,8 +257,40 @@ wie unsere.
 - **Zwei Bereiche** (305.00 richtig) → 250.00 zu viel durch die Doppelzählung,
   aber 55.00 zu wenig beim Bereich → **netto 195.00 zu hoch**.
 
-*Nicht gutschreiben, bevor das geklärt ist, sonst wird auf einen wieder
-falschen Betrag korrigiert.*
+✅ **Entschieden und umgesetzt (Daniel direkt, 20.09.2026): «Alpina Parpan,
+zwei Bereiche».** Störung 438 steht jetzt auf Bereichen {1,3}. Den Preis hat
+der Trigger `stoerung_preis_berechnung` selbst neu gerechnet:
+
+| | vorher | nachher |
+|---|---|---|
+| Bereiche | {3} | {1,3} |
+| Basis | 90.00 | 145.00 |
+| Anfahrt | 60.00 | 60.00 |
+| Wochenende/Pikett | 100.00 | 100.00 |
+| **Netto** | **250.00** | **305.00** |
+| MWST 8.1 % | 20.25 | 24.70 |
+| Brutto | 270.25 | 329.70 |
+
+```sql
+-- Rückweg, falls nötig (Trigger rechnet zurück):
+UPDATE stoerungen SET stoerung_bereiche = ARRAY[3] WHERE referenz_nr = '438';
+```
+
+🔴 **Damit steht der Korrekturbetrag der Rechnung fest — noch OFFEN:**
+
+| | Betrag |
+|---|---|
+| Position «Störungen» auf der Rechnung | 3'434.60 |
+| Summe der 20 August-Störungen (neu) | 3'239.60 |
+| **zu viel gestellt** | **195.00 netto / 210.80 brutto** |
+
+**Offen ist nur noch das Wie:** Rechnung korrigieren und neu senden, oder
+Gutschrift. Das ist nicht entschieden, ich habe die Rechnung nicht angefasst.
+
+**Vorbehalt, der bestehen bleibt:** Die Doppelzählung ist begründet vermutet,
+nicht bewiesen. Die 250.00-Differenz passt exakt, eine gelöschte Zeile wäre
+aber nicht mehr sichtbar. Vor einer Gutschrift lohnt der Blick ins
+Rechnungs-PDF vom August, falls es die Störungen einzeln aufführt.
 
 Die Beschreibungen derselben Störung lauten in beiden Systemen verschieden —
 bei uns «Hahn loose und Temperatur Buffet zu hoch (Bier im Glas 9.0 Grad)»,
