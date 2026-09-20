@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.122.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **197** · **1750 Tests grün** · Git sauber.
+**Stand:** **v0.123.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **197** · **1757 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -192,6 +192,37 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ Service-Termin von Hand setzen (v0.123.0, 20.09.)
+
+**Frage Daniel:** Alpina Resort Tschiertschen wird auf Abruf gereinigt — wie
+trägt man dort einen Termin für den nächsten Service ein, der auch im Google
+Kalender erscheint?
+
+**Bisher gar nicht.** 33 Anlagen laufen «auf Abruf»; für die rechnet die App
+bewusst kein Fälligkeitsdatum aus, sie tauchen also nie von selbst im
+Tourenplan auf. Einen vereinbarten Termin konnte man nirgends festhalten: Das
+Diktat kennt nur Störung, Montage, Eröffnungs-/Endreinigung und Aufgabe — und
+nur die beiden Reinigungsarten erzeugen einen Termin mit Kalender-Push. Eine
+Aufgabe mit Datum geht **nicht** in den Kalender.
+
+**Die Technik lag schon vollständig vor:** `termine.typ` erlaubt `sonstiges`,
+`anlass` erlaubt `manuell`, die Edge-Function baut daraus «SBS · Titel:
+Betrieb», und die Einsätze zeigen solche Termine bereits. Es fehlte nur der
+Weg, einen anzulegen.
+
+**Gebaut:** Abschnitt **«Geplanter Service»** im Betriebs-Detail (unter den
+Anlagen) — listet die freien Termine und setzt neue. Dialog mit Datum
+(Vorschlag: in einer Woche), Titel (Vorgabe «Service») und freiwilliger Notiz.
+«Erledigt» entfernt den Kalendereintrag beim nächsten Push von selbst.
+Saisonreinigungen bleiben aussen vor, die haben ihren eigenen Weg über die
+Vorschläge im Tourenplan.
+
+**Klicktest Daniel:** Bei Alpina Resort einen Termin setzen und prüfen, ob er
+im Google Kalender steht («SBS · Service: Alpina Resort») und in den Einsätzen
+auftaucht. Dann auf «Erledigt» — der Kalendereintrag muss verschwinden.
+*(Im Browser bis zum Dialog geprüft; einen echten Kalendereintrag habe ich
+bewusst nicht angelegt.)*
 
 ### ✅ «Keine Herbstpause» — und eine falsche Warnung korrigiert (v0.122.0, Migration 197, 20.09.)
 
