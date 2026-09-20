@@ -40,4 +40,4 @@
 - [x] 5 Router, Prüfregel-Route, MWST-Screen Ziff. 235
 - [x] 6 `AbschreibungService` + Mahnwesen auf `mwst_betrag`
 - [x] 7a analyze (56, Basis), 1712 Tests grün, Doku/ToDo/Memory
-- [ ] 7b Browser-Check (Login Daniel nötig) → Deploy v0.116.0
+- [x] 7b Browser-Check 20.09. (Abschlussprüfung → Schritt: 160 Rg / 15.374.70 / MWST 1.099.82 wie im Konzept; Liste, Kategorien, Knopf rendern; MwSt Q3/2026 zeigt Ziff. 235 2.076.00 + Rückholung 159.90, Q4 leer) → **deployed, live v0.116.0**
