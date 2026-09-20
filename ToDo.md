@@ -304,16 +304,41 @@ sie steht auf `gesendet`, und die Debitoren/Ertrag-Buchung entsteht erst bei
 sonst wandern 270.25 zu viel als Debitor und Ertrag in die Bücher, und beim
 Zahlungseingang von Heineken bliebe ein unerklärlicher Rest offen.
 
-🔴 **Zu entscheiden (Daniel), zwei Wege:**
+✅ **Entschieden und erledigt (Daniel: «A», 20.09.2026): Datensatz an das PDF
+angeglichen.** Nur die Positionszeile «Störungen» korrigiert, die Kopfsummen
+hat der Trigger `rechnung_summen_update` nachgezogen:
 
-| | Position Störungen | Gesamttotal | Folge |
+| | vorher | nachher | PDF |
 |---|---|---|---|
-| **A: an das PDF angleichen** | 3'184.60 | 13'966.09 | Datensatz stimmt mit dem, was Heineken schuldet. Die 55.00 aus dem zweiten Bereich bleiben unverrechnet. |
-| **B: auf den richtigen Wert** | 3'239.60 | 14'025.55 | Datensatz stimmt mit der Leistung. Heineken schuldet dann 59.45 brutto mehr, als im PDF steht — braucht eine Nachbelastung oder ein neues PDF. |
+| Position «Störungen» netto | 3'434.60 | **3'184.60** | 3'184.60 |
+| MWST der Position | 278.20 | 257.95 | — |
+| Total netto | 13'169.60 | **12'919.60** | 12'919.60 |
+| MWST gesamt | 1'066.74 | **1'046.49** | 1'046.49 |
+| **Gesamttotal** | 14'236.34 | **13'966.09** | **13'966.09** |
 
-*(Die 55.00 sind der nachgetragene Bereich 1 bei Störung 438, siehe oben.
-Beide Totale sind mit der Rechenweise der App gegengerechnet: Position × 8.1 %
-je Zeile, dann summiert — Weg A ergibt exakt die PDF-Zahlen.)*
+Rechnung steht weiter auf `gesendet`, **Buchungen: 0**. Sie kann jetzt gefahrlos
+freigegeben werden, die Debitoren/Ertrag-Buchung entsteht mit dem richtigen
+Betrag.
+
+```sql
+-- Rückweg (Kopfsummen zieht der Trigger nach):
+UPDATE rechnungs_positionen rp SET betrag_netto=3434.60, mwst_betrag=278.20,
+       betrag_brutto=3712.80
+  FROM rechnungen r
+ WHERE rp.rechnung_id=r.id AND r.rechnungsnummer='2026-09-1449'
+   AND rp.beschreibung='Störungen';
+```
+
+⚠️ **Bewusst offen gelassen, damit es später nicht als Fehler auftaucht:**
+Störung 438 trägt in den Daten jetzt **305.00**, verrechnet wurden im PDF
+**250.00**. Die Differenz von **55.00 netto ist knowingly nicht verrechnet** —
+das ist genau, was Weg A bedeutet. Die Störung ist als `abgerechnet = true` mit
+Abrechnungsmonat August markiert, taucht also in keiner Folgerechnung wieder
+auf.
+
+**Folge für jede künftige Vollständigkeitsprüfung:** Für August 2026 ist die
+Rechnungsposition (3'184.60) um 55.00 **niedriger** als die Summe der
+Störungen (3'239.60). Das ist gewollt und kein Befund.
 
 **Vorbehalt, der bestehen bleibt:** Die Doppelzählung ist begründet vermutet,
 nicht bewiesen. Die 250.00-Differenz passt exakt, eine gelöschte Zeile wäre
