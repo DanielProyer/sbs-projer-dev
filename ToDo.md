@@ -213,11 +213,12 @@ Kulanz; ein Betrieb mit Rössli», alles an einem stillgelegten Betrieb. Auf
 Danis Entscheid zusammengeführt: Anlage umgehängt, Historie mitgenommen,
 Alt-Eintrag gelöscht. Es gibt jetzt genau einen Eintrag.
 
-**Bewusst beim Rössli geblieben:** die vier App-Reinigungen von 2026 (22.01.,
-27.02., 09.04., 06.08.). Die vom 09.04. hängt an der bezahlten Rechnung
-2026-04-0491; sie umzuhängen hätte Rechnung und Leistung auf zwei Betriebe
-verteilt. Sie zeigen weiter auf die Anlage der Bar — historisch richtig, damals
-war die Bar Teil des Rössli. *Sagen, falls sie trotzdem mit sollen.*
+**Beim Rössli geblieben — von Daniel am 20.09.2026 bestätigt:** die vier
+App-Reinigungen von 2026 (22.01., 27.02., 09.04., 06.08.). Die vom 09.04.
+hängt an der bezahlten Rechnung 2026-04-0491; sie umzuhängen hätte Rechnung
+und Leistung auf zwei Betriebe verteilt. Sie zeigen weiter auf die Anlage der
+Bar — historisch richtig, damals war die Bar Teil des Rössli. **Erledigt, nicht
+wieder aufmachen.**
 
 **Fürs Abrechnen:** Rechnung 2026-04-0491 trug die Position «Zusätzliche Hähne
 anderer Standort (×1)». Ab jetzt rechnet die Bar als eigener Betrieb mit
