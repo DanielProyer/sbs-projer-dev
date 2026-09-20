@@ -98,6 +98,12 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   Posthotel, Pot au Feu, Rothorngipfel, Sezner, Snake Bar, Tgantieni, Tijuana.
   *(Bewusst nicht in der App-Warnung: Das ist jedes Jahr dasselbe und stünde sonst
   von April bis November rot.)*
+- **4eri Bar Cham: Rechnungsweg fehlt** (Betriebstrennung 20.09.2026, Details
+  unten). Das Feld steht bewusst leer — «weiss ich noch nicht». In beiden
+  Systemen offen. **Spätestens bis zum ersten Service nach dem 03.10.2026
+  festlegen**, sonst weiss die App beim Abschluss nicht, wie abgerechnet wird.
+  Beim selben Service auf den Betrag schauen: Der Zuschlag «Zusätzliche Hähne
+  anderer Standort» fällt weg, die Bar rechnet neu mit eigenem Grundtarif.
 - **Pizzeria Badus (Sedrun) und Tijuana (Davos)** sind auf Rechnung/Mail gestellt,
   haben aber **nirgends** eine Mailadresse — weder Rechnungs- noch Betriebsmail.
   Ihre Rechnungen landen bei Daniel selbst. Recherche 20.09.2026:
