@@ -169,11 +169,22 @@ jetzt die MWST der Rechnung. Der Schritt selbst:
 Probelauf 19.09.2026 in einer zurückgerollten Transaktion: 160 Rg, netto
 14'274.88, MWST 1'099.82, brutto 15'374.70 — exakt die Zahlen aus Abschnitt 4.
 
-*Schönheitsfehler, offen:* «gestellt» liest die App aus `versendet_am`, das
-beim Excel-Import leer blieb. Für 2020+2021 zeigt sie deshalb 45 Tresen /
-0 gestellt / 115 nie gestellt statt ~45 / ~62 / ~53. Migration 195 (Datei
-bereit, nicht angewendet) trüge das Excel-Stelldatum für 516 Rechnungen nach —
-Entscheid Daniel.
+*Nachtrag 20.09.2026 — Aufteilung stimmt jetzt.* «Gestellt» liest die App aus
+`versendet_am`, das beim Excel-Import leer geblieben war; die Vorschau zeigte
+deshalb «0 gestellt / 115 nie gestellt». **Migration 195** (Freigabe Daniel)
+hat das Excel-Stelldatum für **515 Rechnungen** nachgetragen. Die Vorschau
+zeigt seither:
+
+| Jahrgang | Tresen | gestellt | nie gestellt | total |
+|---|---|---|---|---|
+| 2020 | 29 · 2'547.30 | 24 · 2'908.00 | 23 · 1'761.00 | 76 · 7'216.30 |
+| 2021 | 16 · 1'353.80 | 32 · 3'587.60 | 36 · 3'217.00 | 84 · 8'158.40 |
+
+Das deckt sich **auf die Rechnung genau** mit Abschnitt 1 (2020: 29/24/23) und
+der Tabelle in Abschnitt 6 (2021: 36 nie gestellt) — beide waren damals direkt
+aus dem Excel gezählt. Die Abschreibungssummen ändern sich nicht (160 Rg,
+15'374.70), nur die Bewertung: echter Debitorenverlust gegen nie fakturierten
+Ertrag.
 
 ---
 

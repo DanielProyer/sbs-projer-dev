@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.117.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **194** (195 liegt bereit, nicht angewendet) · **1726 Tests grün** · Git sauber.
+**Stand:** **v0.117.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **195** · **1726 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -139,14 +139,12 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
   5 % → Q4/2026 Ziff. 235 14'274.88 netto, Zeile 302 → 1'099.82 (steht dann in
   der MwSt-Abrechnung Q4/2026) → Abschlussprüfung grün. Rückweg: «Lauf
   zurücknehmen» im selben Screen.
-- **Offener Entscheid — `versendet_am` aus dem Excel nachtragen?** Die Vorschau
-  teilt in Tresen / gestellt / nie gestellt; «gestellt» liest sie aus
-  `rechnungen.versendet_am`. Für Excel-Altbestände ist das Feld leer, obwohl das
-  Excel (`rechnung_gestellt`) für 516 Rechnungen ein Stelldatum kennt (114 davon
-  noch offen: 2020 30, 2021 32, 2022 45, 2023 7). Ohne Nachtrag zeigt die App
-  für 2020+2021 «0 gestellt / 115 nie gestellt», richtig wären ~62 / ~53.
-  Fürs Buchen ist das egal (gleiche Buchung), für die Bewertung nicht.
-  Vorschlag: Migration 195 (Datei liegt bereit, **nicht angewendet**).
+- ✅ **`versendet_am` aus dem Excel nachgetragen** (Migration 195, Freigabe Daniel
+  20.09.2026): 515 Rechnungen aus 2019–2023, davon 114 noch offen. Die Vorschau
+  teilt 2020/2021 jetzt in 45 Tresen · 56 gestellt · 59 nie gestellt — deckungs-
+  gleich mit den Excel-Zählungen im Konzept. Summen unverändert (160 Rg,
+  15'374.70). Rückweg: `UPDATE rechnungen SET versendet_am = NULL WHERE id IN
+  (SELECT id FROM import.versendet_am_nachtrag_195)`.
 
 ### 🔭 Beobachten
 

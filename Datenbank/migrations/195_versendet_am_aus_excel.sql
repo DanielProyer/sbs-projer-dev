@@ -5,7 +5,7 @@
 -- WARUM: Der Schritt «Jahrgang abschreiben» (Migration 194, v0.116.0) teilt
 -- die Vorschau in Tresen / gestellt / nie gestellt. «Gestellt» liest er aus
 -- `rechnungen.versendet_am`. Beim Excel-Import (quelle = 'excel_import') blieb
--- das Feld leer, obwohl das Excel in `rechnung_gestellt` für 516 Rechnungen
+-- das Feld leer, obwohl das Excel in `rechnung_gestellt` für 515 Rechnungen
 -- ein Stelldatum kennt (Stand 19.09.2026; 114 davon noch offen: 2020 30,
 -- 2021 32, 2022 45, 2023 7). Ohne Nachtrag zeigt die App für 2020+2021
 -- «0 gestellt / 115 nie gestellt»; tatsächlich gingen rund 62 davon per
@@ -19,7 +19,7 @@
 -- dem Rechnungsdatum (Reinigung nachträglich erfasst) — sie werden trotzdem
 -- übernommen, es ist das Datum, das im Excel steht.
 --
--- WIRKUNG in der App: Rechnungsliste und -detail zeigen bei diesen 516 Rechnungen
+-- WIRKUNG in der App: Rechnungsliste und -detail zeigen bei diesen 515 Rechnungen
 -- neu ein Versanddatum. Das Mahnwesen und die Aufgaben-Detektoren stützen sich
 -- auf zahlungsstatus/mahnung_stufe, nicht auf versendet_am — geprüft 19.09.2026.
 --
