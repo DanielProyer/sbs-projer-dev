@@ -32,6 +32,11 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/data/models/termin.dart';
+import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/service_termin_dialog.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class BetriebDetailScreen extends ConsumerWidget {
@@ -353,6 +358,9 @@ class _BetriebDetailContent extends ConsumerWidget {
 
           // Anlagen
           if (betrieb.serverId != null) _AnlagenSection(betrieb: betrieb),
+
+          // Geplanter Service
+          if (betrieb.serverId != null) _ServiceTerminSection(betrieb: betrieb),
 
           // Reinigungen
           if (betrieb.serverId != null) _ReinigungenSection(betrieb: betrieb),
@@ -984,6 +992,167 @@ class _AnlagenSection extends StatelessWidget {
     );
   }
 }
+
+/// Geplante Service-Termine des Betriebs, mit Knopf zum Setzen.
+///
+/// **Warum (Daniel, 20.09.2026):** 33 Anlagen laufen «auf Abruf». Für die
+/// rechnet die App bewusst kein Fälligkeitsdatum aus — sie tauchen nie von
+/// selbst im Tourenplan auf, und ein vereinbarter Termin liess sich nirgends
+/// festhalten. Fall Alpina Resort Tschiertschen.
+///
+/// Gezeigt werden nur die freien Termine (`typ` weder Eröffnungs- noch
+/// Endreinigung): Die Saisonreinigungen haben ihren eigenen Weg über die
+/// Vorschläge im Tourenplan und gehören nicht hierher.
+class _ServiceTerminSection extends ConsumerWidget {
+  final BetriebLocal betrieb;
+
+  const _ServiceTerminSection({required this.betrieb});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final alle = ref.watch(offeneTermineProvider).valueOrNull ?? const [];
+    final meine =
+        alle
+            .where(
+              (t) =>
+                  t.betriebId == betrieb.serverId &&
+                  t.typ != 'eroeffnungsreinigung' &&
+                  t.typ != 'endreinigung',
+            )
+            .toList()
+          ..sort((a, b) => a.datum.compareTo(b.datum));
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.event_available,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Geplanter Service',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Termin setzen'),
+                  onPressed: () => _planen(context, ref),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (meine.isEmpty)
+              const Text(
+                'Kein Termin gesetzt.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              )
+            else
+              for (final t in meine)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_terminDatum.format(t.datum)} · ${t.titel}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (t.notizen != null && t.notizen!.isNotEmpty)
+                              Text(
+                                t.notizen!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _erledigen(context, ref, t),
+                        child: const Text('Erledigt'),
+                      ),
+                    ],
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _planen(BuildContext context, WidgetRef ref) async {
+    final sid = betrieb.serverId;
+    if (sid == null) return;
+    final eingabe = await zeigeServiceTerminDialog(
+      context,
+      betriebName: betrieb.name,
+    );
+    if (eingabe == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await TerminRepository.anlegen(
+        betriebId: sid,
+        typ: 'sonstiges',
+        datum: eingabe.datum,
+        titel: eingabe.titel,
+        notizen: eingabe.notizen,
+      );
+      ref.invalidate(offeneTermineProvider);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Termin am ${_terminDatum.format(eingabe.datum)} gesetzt — '
+            'im Kalender und in den Einsätzen.',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Nicht gesetzt: ${kurzeFehlermeldung(e)}')),
+      );
+    }
+  }
+
+  Future<void> _erledigen(
+    BuildContext context,
+    WidgetRef ref,
+    TerminDto t,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await TerminRepository.erledigen(t.id);
+      ref.invalidate(offeneTermineProvider);
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Erledigt — der Kalendereintrag verschwindet.'),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Nicht erledigt: ${kurzeFehlermeldung(e)}')),
+      );
+    }
+  }
+}
+
+final _terminDatum = DateFormat('dd.MM.yyyy');
 
 class _StoerungenSection extends StatelessWidget {
   final BetriebLocal betrieb;
