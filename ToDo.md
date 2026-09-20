@@ -270,13 +270,32 @@ Worts, kein Systemunterschied.)*
 *(v2 hat im eigenen August-Entwurf dieselbe Störung ebenfalls doppelt,
 355.00 netto zu viel; der Entwurf ist dort nicht freigegeben.)*
 
-**Nebenbefund, kein Fehler:** Sechs Störungen seit 12/2025 weichen vom
-additiven Bereichspreis ab, jede mit passender Begründung im Text — dreimal
-130.00 bei Bereich {1} (Hahn ersetzt, Auslauftülle abgebrochen, Hahn tropft),
-zweimal 250.00 bei {1,5} (Druck zu hoch und Hahn loose), einmal 165.00 bei {3}
-(Kühler abholen und Transport Chur). Sieht nach bewusst höher angesetzter
-Arbeit aus. Eine davon, **Störung 439 Rhätia mit 190.00**, steckt in derselben
-August-Rechnung — beim Korrigieren mit anschauen.
+**Nebenbefund aufgelöst: Die sechs «Abweichungen» sind die sechs Bergkunden.**
+Ich hatte sie als bewusst höher angesetzte Arbeit gelesen. Falsch — es ist eine
+Preisregel, und sie greift lückenlos. Auf den Hinweis der v2-Session
+nachgerechnet, über alle 116 Störungen seit 2025 mit erfasstem Bereich:
+
+| | Fälle | Regel trifft zu |
+|---|---|---|
+| keine Bergkunden | 110 | 110 (reine Bereichssumme) |
+| Bergkunden | 6 | 6 (Bereichssumme + 75 **je Bereich**) |
+
+Null Ausnahmen in beide Richtungen. Die zwei Fälle mit Bereich {1,5} beweisen
+das «je Bereich»: Nur mit zweimal 75 kommen die 250.00 heraus.
+
+**Die vollständige Störungs-Preisformel, empirisch aus unseren Daten belegt:**
+
+```
+preis_netto = Bereichssumme                       (1=55, 2=55, 3=90, 4=45, 5=45)
+            + 75 × Anzahl Bereiche                (nur bei ist_bergkunde)
+            + 60                                  (Anfahrt, ausnahmslos in allen 116)
+            + 100                                 (nur bei Pikett/Wochenende)
+            + komplexitaet_zuschlag
+```
+
+Alle 116 Zeilen gehen auf den Rappen auf. **Störung 439 Rhätia mit 190.00 ist
+damit regelkonform** (Bereich 1 = 55, Berg-Zuschlag 75, Anfahrt 60) und beim
+Korrigieren der August-Rechnung **nicht** anzufassen.
 
 ### ✅ Alpina: Ort von Churwalden auf Parpan berichtigt (20.09.2026)
 
