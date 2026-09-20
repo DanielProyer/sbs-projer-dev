@@ -193,6 +193,41 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
 
+### ✅ Betriebstrennung Rössli Cham → «4eri Bar» (20.09.)
+
+Angestossen aus der Heineken-Session: Rössli und die Zusatzanlage haben neue
+Betreiber, die beiden Anlagen gehören getrennt. Dort ist es bereits gemacht,
+Dani wollte denselben Stand hier.
+
+**Neuer Betrieb «4eri Bar»** mit der **gleichen UUID wie in v2**
+(`859615a5-1844-43b2-933f-15df04297599`) — Sinserstrasse 4, 6330 Cham,
+Koordinaten vom Rössli (dieselbe Liegenschaft), aktiv, Kundenbetrieb,
+**AG 439343 / WE 208110**, Excel-Nr **0680**, Rechnungsweg bewusst leer.
+Kontakt Donato Toscano, 079 108 41 08, donato.toscano@bluewin.ch. Offen ab
+**03.10.2026**.
+
+**Was hier anders lag als in v2:** Die Bar hatte bereits eigene Vorgeschichte
+unter der Excel-Nummer 0680 — 13 Reinigungen (2024-06 bis 2025-11), 3
+Rechnungen und eine Montage vom 15.10.2024 mit dem Vermerk «Service auf
+Kulanz; ein Betrieb mit Rössli», alles an einem stillgelegten Betrieb. Auf
+Danis Entscheid zusammengeführt: Anlage umgehängt, Historie mitgenommen,
+Alt-Eintrag gelöscht. Es gibt jetzt genau einen Eintrag.
+
+**Bewusst beim Rössli geblieben:** die vier App-Reinigungen von 2026 (22.01.,
+27.02., 09.04., 06.08.). Die vom 09.04. hängt an der bezahlten Rechnung
+2026-04-0491; sie umzuhängen hätte Rechnung und Leistung auf zwei Betriebe
+verteilt. Sie zeigen weiter auf die Anlage der Bar — historisch richtig, damals
+war die Bar Teil des Rössli. *Sagen, falls sie trotzdem mit sollen.*
+
+**Fürs Abrechnen:** Rechnung 2026-04-0491 trug die Position «Zusätzliche Hähne
+anderer Standort (×1)». Ab jetzt rechnet die Bar als eigener Betrieb mit
+eigenem Grundtarif, der Zuschlag entfällt. **Beim ersten Service nach dem
+03.10. kurz auf den Betrag schauen.**
+
+Die vier Ergänzungen (AG/WE, Kontakt, Öffnung, Monteur-Reinigung) sind an die
+Heineken-Session zurückgemeldet, samt Hinweis, dass dort dieselbe Altlast
+liegen könnte.
+
 ### ✅ Saisondaten und Abmachung direkt bei der Reinigung (v0.125.0, Migration 199, 20.09.)
 
 **Wunsch Daniel:** Wenn er bei einem Betrieb reinigt, dessen Saisondaten
