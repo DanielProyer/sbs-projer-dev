@@ -214,15 +214,38 @@ function buildEvent(entityType: string, row: Any): Any | null {
       : row.typ === "eroeffnungsreinigung"
       ? "Eröffnungsreinigung"
       : (row.titel ?? "Termin");
-    return {
+    // Spielraum (Migration 199): «fix» mit Uhrzeit wird ein Zeitfenster,
+    // sonst ein Ganztages-Eintrag von datum bis datum_bis. Ein «ganze Woche
+    // moeglich» darf im Kalender nicht wie ein fixer Tag aussehen.
+    const spielraum = row.spielraum ?? "fix";
+    const zusatz = spielraum === "woche"
+      ? "ganze Woche möglich"
+      : spielraum === "zwischensaison"
+      ? "ganze Zwischensaison — jemand ist da"
+      : null;
+    const beschreibung = [zusatz, row.notizen].filter(Boolean).join("\n") || undefined;
+    const ev: Any = {
       summary: `SBS · ${label}: ${row.betrieb_name ?? ""}`,
-      description: row.notizen ?? undefined,
-      start: { date: row.datum },
-      end: { date: addDay(row.datum) },
+      description: beschreibung,
       colorId: "9",
       extendedProperties: ext,
       reminders: { useDefault: false, overrides: ALLDAY },
     };
+    if (spielraum === "fix" && row.uhrzeit_von) {
+      const start = zonedDateTime(row.datum, row.uhrzeit_von);
+      ev.start = { dateTime: start, timeZone: "Europe/Zurich" };
+      ev.end = {
+        dateTime: row.uhrzeit_bis
+          ? zonedDateTime(row.datum, row.uhrzeit_bis)
+          : addMinutesZoneless(start, 60),
+        timeZone: "Europe/Zurich",
+      };
+      ev.reminders = { useDefault: false, overrides: EINSATZ_TIMED };
+    } else {
+      ev.start = { date: row.datum };
+      ev.end = { date: addDay(row.datum_bis ?? row.datum) };
+    }
+    return ev;
   }
   if (entityType === "einsatz") {
     // Nur solange der Einsatz noch offen UND eingeplant ist — sonst null,

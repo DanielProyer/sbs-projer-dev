@@ -200,6 +200,73 @@ void main() {
     });
   });
 
+  group('Saisondaten unvollständig — Frage an den Wirt?', () {
+    test('Lücke zählt', () {
+      expect(
+        saisondatenUnvollstaendig(
+          _b(winter: true, wEnde: DateTime(2026, 4, 12)),
+          heute,
+        ),
+        isTrue,
+      );
+    });
+
+    test('alle Daten in der Vergangenheit zählt — die Herbstarbeit', () {
+      // Alp Nova: Winter 2025/26 vollständig, aber vom letzten Winter.
+      final b = _b(
+        winter: true,
+        wStart: DateTime(2025, 11, 30),
+        wEnde: DateTime(2026, 3, 29),
+      );
+      expect(saisonLuecken(b), isEmpty, reason: 'keine Lücke im engen Sinn');
+      expect(saisondatenUnvollstaendig(b, heute), isTrue);
+    });
+
+    test('ein künftiges Datum genügt', () {
+      final b = _b(
+        winter: true,
+        wStart: DateTime(2026, 12, 4),
+        wEnde: DateTime(2027, 4, 6),
+      );
+      expect(saisondatenUnvollstaendig(b, heute), isFalse);
+    });
+
+    test('Fenster über den Jahreswechsel: Start liegt vorn', () {
+      // Dischma: 04.12.2026 – 06.04.2026.
+      final b = _b(
+        winter: true,
+        wStart: DateTime(2026, 12, 4),
+        wEnde: DateTime(2026, 4, 6),
+      );
+      expect(saisondatenUnvollstaendig(b, heute), isFalse);
+    });
+
+    test('unbefristet offen ist eine Angabe, keine Lücke', () {
+      expect(saisondatenUnvollstaendig(_b(winter: true), heute), isFalse);
+    });
+
+    test('kein Saisonbetrieb wird nie gefragt', () {
+      expect(
+        saisondatenUnvollstaendig(
+          _b(saison: false, winter: true, wEnde: DateTime(2020, 1, 1)),
+          heute,
+        ),
+        isFalse,
+      );
+    });
+
+    test('inaktive Saison zählt nicht mit', () {
+      // Sommer abgehakt und alt, Winter angehakt und künftig.
+      final b = _b(
+        winter: true,
+        wStart: DateTime(2026, 12, 4),
+        sommer: false,
+        sStart: DateTime(2020, 5, 1),
+      );
+      expect(saisondatenUnvollstaendig(b, heute), isFalse);
+    });
+  });
+
   group('Vorschlag «ein Jahr weiter»', () {
     test('vergangenes Datum rückt auf die kommende Saison', () {
       expect(

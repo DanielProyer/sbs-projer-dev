@@ -132,6 +132,35 @@ DateTime? saisonDeckungBis(BetriebLocal b) {
   return spaetestes;
 }
 
+/// Fehlen dem Betrieb die Saisondaten für die kommende Saison?
+///
+/// Genau die Frage, die sich beim Reinigen vor Ort stellt: Muss ich den Wirt
+/// jetzt nach Saisonende und -start fragen? Zwei Fälle zählen:
+///
+/// 1. Eine **Lücke** im Sinne von [saisonLuecken] — ein Fenster ohne Start
+///    oder gar keine angehakte Saison.
+/// 2. **Kein einziges der vier Daten liegt in der Zukunft.** Die Angaben sind
+///    dann zwar vollständig, aber von der letzten Saison; für die kommende
+///    weiss die App nichts. Am 20.09.2026 traf das 19 Betriebe.
+///
+/// Ein Betrieb mit gepflegten künftigen Daten fällt bewusst durch — dort gibt
+/// es nichts zu fragen.
+bool saisondatenUnvollstaendig(BetriebLocal b, DateTime heute) {
+  if (!b.istSaisonbetrieb) return false;
+  if (saisonLuecken(b).isNotEmpty) return true;
+  final h = DateTime(heute.year, heute.month, heute.day);
+  final daten = <DateTime?>[
+    if (b.winterSaisonAktiv) b.winterStartDatum,
+    if (b.winterSaisonAktiv) b.winterEndeDatum,
+    if (b.sommerSaisonAktiv) b.sommerStartDatum,
+    if (b.sommerSaisonAktiv) b.sommerEndeDatum,
+  ];
+  // Kein Datum erfasst heisst «unbefristet offen» — das ist eine bewusste
+  // Angabe und keine Lücke (siehe [saisonLuecken]).
+  if (daten.every((d) => d == null)) return false;
+  return !daten.any((d) => d != null && !d.isBefore(h));
+}
+
 /// Was die Lücke praktisch bedeutet — fertig für die Anzeige.
 String saisonLueckeWirkung(BetriebLocal b, DateTime heute) {
   if (saisonLuecken(b).contains(SaisonLuecke.keineSaisonAngehakt)) {

@@ -14,6 +14,18 @@ class TerminDto {
   final String? uhrzeitVon;
   final String? uhrzeitBis;
 
+  /// Letzter Tag (null = eintaegig). Bei [spielraum] 'woche' oder
+  /// 'zwischensaison' gesetzt — Migration 199.
+  final DateTime? datumBis;
+
+  /// 'fix' = genau dann (ggf. mit Uhrzeit) | 'woche' = irgendwann in der
+  /// Woche | 'zwischensaison' = jederzeit waehrend der Zwischensaison.
+  ///
+  /// WARUM neben [datumBis]: Aus einem Sieben-Tage-Eintrag allein laesst
+  /// sich nicht ablesen, ob der Wirt die ganze Woche Zeit hat oder ob dort
+  /// eine Woche lang gearbeitet wird.
+  final String spielraum;
+
   /// 'eroeffnungsreinigung' | 'endreinigung' | 'sonstiges'
   final String typ;
 
@@ -32,6 +44,8 @@ class TerminDto {
     required this.datum,
     this.uhrzeitVon,
     this.uhrzeitBis,
+    this.datumBis,
+    this.spielraum = 'fix',
     required this.typ,
     this.anlass = 'manuell',
     required this.titel,
@@ -47,6 +61,10 @@ class TerminDto {
       datum: DateTime.parse(json['datum'] as String),
       uhrzeitVon: json['uhrzeit_von'] as String?,
       uhrzeitBis: json['uhrzeit_bis'] as String?,
+      datumBis: json['datum_bis'] == null
+          ? null
+          : DateTime.parse(json['datum_bis'] as String),
+      spielraum: json['spielraum'] as String? ?? 'fix',
       typ: json['typ'] as String? ?? 'sonstiges',
       anlass: json['anlass'] as String? ?? 'manuell',
       titel: json['titel'] as String? ?? '',
@@ -63,6 +81,8 @@ class TerminDto {
       'datum': datum.toIso8601String().split('T').first,
       'uhrzeit_von': uhrzeitVon,
       'uhrzeit_bis': uhrzeitBis,
+      'datum_bis': datumBis?.toIso8601String().split('T').first,
+      'spielraum': spielraum,
       'typ': typ,
       'anlass': anlass,
       'titel': titel,

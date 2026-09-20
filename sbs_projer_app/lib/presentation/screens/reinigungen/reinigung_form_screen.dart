@@ -7,6 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/saison_luecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/saison_abmachung_sheet.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -171,6 +174,95 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
   /// Auffällige Hinweisbox. Bewusst aus Container/Row statt einem Material-
   /// Komfort-Widget gebaut (CanvasKit-Regel in CLAUDE.md).
+  /// Band über dem Formular, wenn dem Betrieb die Saisondaten für die
+  /// kommende Saison fehlen.
+  ///
+  /// **Warum genau hier (Daniel, 20.09.2026):** Während der Reinigung steht
+  /// der Wirt daneben. Das ist der Moment, um zu fragen «wann macht ihr zu,
+  /// wann wieder auf?» und gleich abzumachen, wann Daniel zur Saisonreinigung
+  /// kommen darf. Eine Stunde später im Auto ist niemand mehr da, den man
+  /// fragen könnte.
+  Widget _saisonBand() {
+    final b = _betrieb;
+    if (b == null || !saisondatenUnvollstaendig(b, DateTime.now())) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: _saisonAbmachen,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withAlpha(30),
+            border: Border.all(color: AppColors.warning.withAlpha(100)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.event_note, color: AppColors.warning, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Saisondaten fehlen — jetzt beim Wirt fragen und gleich die '
+                  'Saisonreinigung abmachen.',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.warning,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saisonAbmachen() async {
+    final b = _betrieb;
+    if (b == null) return;
+    final ok = await zeigeSaisonAbmachungSheet(context, betrieb: b);
+    if (ok && mounted) setState(() {});
+  }
+
+  /// Einmalige Nachfrage beim Abschliessen, wenn die Saisondaten fehlen.
+  ///
+  /// Bewusst ohne Zwang: «Später» schliesst die Reinigung trotzdem ab. Ein
+  /// Dialog, der sich nicht wegklicken lässt, würde beim nächsten Mal
+  /// reflexhaft weggetippt.
+  Future<void> _saisonNachfragen() async {
+    final b = _betrieb;
+    if (b == null || !saisondatenUnvollstaendig(b, DateTime.now())) return;
+    final jetzt = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Saisondaten fehlen'),
+        content: Text(
+          'Bei ${b.name} weiss die App nicht, wann die Saison endet und '
+          'wieder beginnt. Solange der Wirt da ist: kurz fragen und gleich '
+          'die Saisonreinigung abmachen?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Später'),
+          ),
+          TapKnopf(
+            text: 'Jetzt erfassen',
+            icon: Icons.event_note,
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (jetzt == true && mounted) {
+      await zeigeSaisonAbmachungSheet(context, betrieb: b);
+    }
+  }
+
   Widget _hinweisBox(String text, IconData icon) {
     return Container(
       width: double.infinity,
@@ -1274,6 +1366,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         }
         // Gespeichert — der Schutz darf beim Verlassen nicht mehr fragen.
         geaendertZuruecksetzen();
+
+        // Letzte Gelegenheit: Fehlen die Saisondaten, EINMAL nachfragen,
+        // solange der Wirt noch greifbar ist (Daniel, 20.09.2026). Nur beim
+        // Abschluss — beim blossen Start der Arbeit waere es zu früh.
+        if (abschliessen) await _saisonNachfragen();
+        if (!mounted) return;
         context.pop();
       }
     } catch (e) {
@@ -1673,6 +1771,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 _buildBetriebCard(),
                 const SizedBox(height: 8),
               ],
+
+              // Saisondaten fehlen — jetzt ist der Wirt greifbar.
+              _saisonBand(),
 
               // === Heineken-Monteur Switch ===
               _buildHeinekenMonteurSwitch(),
