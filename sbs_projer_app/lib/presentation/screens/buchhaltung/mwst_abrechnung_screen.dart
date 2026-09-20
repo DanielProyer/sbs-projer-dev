@@ -10,7 +10,7 @@ import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
-import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
+
 import 'package:sbs_projer_app/presentation/providers/abschreibung_providers.dart';
 
 class MwstAbrechnungScreen extends ConsumerStatefulWidget {
@@ -63,15 +63,12 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),
         data: (rows) {
+          // Ziff. 235 aus `view_entgeltsminderung`: Jahrgangsläufe UND
+          // Einzelabschreibungen, je Satz getrennt (Migration 196).
           final entgeltsminderungen =
-              (ref.watch(abschreibungLaeufeProvider).valueOrNull ??
-                      const <AbschreibungLauf>[])
-                  .where(
-                    (l) =>
-                        l.gebucht &&
-                        l.mwstJahr == _jahr &&
-                        l.mwstQuartal == _quartal,
-                  )
+              (ref.watch(entgeltsminderungProvider(_jahr)).valueOrNull ??
+                      const <Entgeltsminderung>[])
+                  .where((e) => e.quartal == _quartal)
                   .toList();
           final sel = rows.firstWhere(
             (r) => r['quartal'] == _quartal,
@@ -138,10 +135,7 @@ class _MwstAbrechnungScreenState extends ConsumerState<MwstAbrechnungScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Text(
-                            'Abschreibung Jahrgang '
-                            '${l.jahrgaenge.join(', ')} '
-                            '(Abschluss ${l.geschaeftsjahr}, '
-                            '${l.anzahl} Rechnungen)',
+                            l.text,
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
