@@ -236,11 +236,47 @@ bezahlt gebucht.
 senden, oder Gutschrift. Und ob die Position beim nächsten Monat automatisch
 wieder stimmt.
 
-⚠️ **Zweiter Punkt am selben Fall:** Die v2-Session nennt für Störung 438
-**305.00** als richtigen Betrag, bei uns stehen **250.00**. Differenz 55.00.
-Welcher Preis stimmt, ist Feldwissen — Daniel fragen. *(Unabhängig davon hat
-v2 im eigenen August-Entwurf dieselbe Störung doppelt, 355.00 netto zu viel;
-der Entwurf ist dort nicht freigegeben.)*
+⚠️ **Zweiter Punkt am selben Fall — und er verändert den Korrekturbetrag.**
+v2 nennt für Störung 438 **305.00**, wir **250.00**. **Kein Preis ist falsch,
+beide rechnen richtig.** Die Systeme sind sich über die Zahl der
+Arbeitsbereiche uneinig:
+
+| | Bereiche | Basis | Anfahrt | Pikett | Summe |
+|---|---|---|---|---|---|
+| bei uns | {3} | 90 | 60 | 100 | **250.00** |
+| in v2 | {1, 3} | 145 | 60 | 100 | **305.00** |
+
+Aus unseren eigenen Störungen seit 2025 abgeleitet und bestätigt: Die
+Bereichspreise sind **additiv** — Bereich 1 = 55, 2 = 55, 3 = 90, 4 = 45,
+5 = 45. Alle Kombinationen gehen auf ({1,2} = 110, {1,4} = 100, {3,4} = 135,
+{4,5} = 90). **{1,3} ergibt 145**, die v2-Zahl stimmt also rechnerisch genauso
+wie unsere.
+
+🔴 **Damit hängt der Korrekturbetrag an Daniels Antwort:**
+- **Ein Bereich** (250.00 richtig) → Rechnung **250.00 netto zu hoch**.
+- **Zwei Bereiche** (305.00 richtig) → 250.00 zu viel durch die Doppelzählung,
+  aber 55.00 zu wenig beim Bereich → **netto 195.00 zu hoch**.
+
+*Nicht gutschreiben, bevor das geklärt ist, sonst wird auf einen wieder
+falschen Betrag korrigiert.*
+
+Die Beschreibungen derselben Störung lauten in beiden Systemen verschieden —
+bei uns «Hahn loose und Temperatur Buffet zu hoch (Bier im Glas 9.0 Grad)»,
+in v2 «David Counter: kommt nur noch Schaum». Beides Daniels eigene Erfassung
+am selben Tag. *(David/Drycounter hat sich erledigt: In v2 steht am Einsatz
+«David Counter», in der Notiz «Drycounter» — zwei Diktat-Hörweisen desselben
+Worts, kein Systemunterschied.)*
+
+*(v2 hat im eigenen August-Entwurf dieselbe Störung ebenfalls doppelt,
+355.00 netto zu viel; der Entwurf ist dort nicht freigegeben.)*
+
+**Nebenbefund, kein Fehler:** Sechs Störungen seit 12/2025 weichen vom
+additiven Bereichspreis ab, jede mit passender Begründung im Text — dreimal
+130.00 bei Bereich {1} (Hahn ersetzt, Auslauftülle abgebrochen, Hahn tropft),
+zweimal 250.00 bei {1,5} (Druck zu hoch und Hahn loose), einmal 165.00 bei {3}
+(Kühler abholen und Transport Chur). Sieht nach bewusst höher angesetzter
+Arbeit aus. Eine davon, **Störung 439 Rhätia mit 190.00**, steckt in derselben
+August-Rechnung — beim Korrigieren mit anschauen.
 
 ### ✅ Alpina: Ort von Churwalden auf Parpan berichtigt (20.09.2026)
 
