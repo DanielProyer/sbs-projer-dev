@@ -256,8 +256,10 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
     final heute = DateTime.now();
     final vStart = saisonVorschlag(start, heute);
     final vEnde = saisonVorschlag(ende, heute);
-    final hatVorschlag =
-        (vStart != null && vStart != start) || (vEnde != null && vEnde != ende);
+    // Nur anbieten, wenn es einen START zu verschieben gibt. Ein Fenster ohne
+    // Start bliebe sonst auch nach dem Klick lückenhaft — der Knopf verspräche
+    // eine Lösung, die er nicht liefert.
+    final hatVorschlag = vStart != null && vStart != start;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -282,7 +284,10 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
             _DatumFeld(label: 'Start', value: start, onChanged: onStart),
             const SizedBox(height: 8),
             _DatumFeld(label: 'Ende', value: ende, onChanged: onEnde),
-            if (start == null)
+            // Nur wenn ein Ende ohne Start dasteht. Sind beide leer, heisst
+            // das «unbefristet offen» — der Betrieb bleibt sichtbar, es gibt
+            // nichts zu warnen.
+            if (start == null && ende != null)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
@@ -297,13 +302,13 @@ class _SaisonNachtragScreenState extends ConsumerState<SaisonNachtragScreen> {
                 alignment: Alignment.centerLeft,
                 child: TapKnopf(
                   text:
-                      'Ein Jahr weiter: '
-                      '${vStart == null ? '—' : _ddMMyyyy.format(vStart)}'
+                      'Ein Jahr weiter: ${_ddMMyyyy.format(vStart)}'
                       '${vEnde == null ? '' : ' – ${_ddMMyyyy.format(vEnde)}'}',
                   primaer: false,
                   icon: Icons.update,
                   onTap: () {
-                    if (vStart != null) onStart(vStart);
+                    // vStart ist hier nie null — `hatVorschlag` hängt daran.
+                    onStart(vStart);
                     if (vEnde != null) onEnde(vEnde);
                   },
                 ),
