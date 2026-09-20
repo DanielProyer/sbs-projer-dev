@@ -276,16 +276,44 @@ der Trigger `stoerung_preis_berechnung` selbst neu gerechnet:
 UPDATE stoerungen SET stoerung_bereiche = ARRAY[3] WHERE referenz_nr = '438';
 ```
 
-🔴 **Damit steht der Korrekturbetrag der Rechnung fest — noch OFFEN:**
+🔴 **PDF geprüft (20.09.) — und es dreht den Befund um: Heineken wurde NICHT
+zu viel verrechnet. Falsch ist unser eigener Datensatz.**
 
-| | Betrag |
-|---|---|
-| Position «Störungen» auf der Rechnung | 3'434.60 |
-| Summe der 20 August-Störungen (neu) | 3'239.60 |
-| **zu viel gestellt** | **195.00 netto / 210.80 brutto** |
+Im versendeten PDF steht Störung 438 **genau einmal**, mit 250.00, und die
+Zwischensumme der Störungen lautet **3'184.60** — exakt die Summe der 20
+Störungen. Keine Doppelzählung. Meine Vermutung war falsch.
 
-**Offen ist nur noch das Wie:** Rechnung korrigieren und neu senden, oder
-Gutschrift. Das ist nicht entschieden, ich habe die Rechnung nicht angefasst.
+| | PDF an Heineken | unser Datensatz |
+|---|---|---|
+| Position «Störungen» | 3'184.60 | **3'434.60** |
+| Total netto | 12'919.60 | 13'169.60 |
+| MWST 8.1 % | 1'046.49 | 1'066.74 |
+| **Gesamttotal** | **13'966.09** | **14'236.34** |
+
+**Unsere Zeile ist 250.00 netto / 270.25 brutto zu hoch**, und zwar allein in
+der gespeicherten Position, nicht im Dokument. Die Rechnung wurde am
+16.09. um 12:16:35 angelegt und um **12:19:03 nochmals geändert** — das PDF
+stammt offenbar vom ersten, die Positionszeile vom zweiten Durchgang.
+Mai bis Juli sind davon nicht betroffen, dort stimmen Position und Summe.
+
+✅ **Noch nichts gebucht.** Für die Rechnung existiert keine einzige Buchung;
+sie steht auf `gesendet`, und die Debitoren/Ertrag-Buchung entsteht erst bei
+`freigegeben`. Der falsche Betrag ist also **nicht** in der Buchhaltung.
+
+⚠️ **Deshalb: NICHT auf «freigegeben» setzen, bevor die Position stimmt** —
+sonst wandern 270.25 zu viel als Debitor und Ertrag in die Bücher, und beim
+Zahlungseingang von Heineken bliebe ein unerklärlicher Rest offen.
+
+🔴 **Zu entscheiden (Daniel), zwei Wege:**
+
+| | Position Störungen | Gesamttotal | Folge |
+|---|---|---|---|
+| **A: an das PDF angleichen** | 3'184.60 | 13'966.09 | Datensatz stimmt mit dem, was Heineken schuldet. Die 55.00 aus dem zweiten Bereich bleiben unverrechnet. |
+| **B: auf den richtigen Wert** | 3'239.60 | 14'025.55 | Datensatz stimmt mit der Leistung. Heineken schuldet dann 59.45 brutto mehr, als im PDF steht — braucht eine Nachbelastung oder ein neues PDF. |
+
+*(Die 55.00 sind der nachgetragene Bereich 1 bei Störung 438, siehe oben.
+Beide Totale sind mit der Rechenweise der App gegengerechnet: Position × 8.1 %
+je Zeile, dann summiert — Weg A ergibt exakt die PDF-Zahlen.)*
 
 **Vorbehalt, der bestehen bleibt:** Die Doppelzählung ist begründet vermutet,
 nicht bewiesen. Die 250.00-Differenz passt exakt, eine gelöschte Zeile wäre
