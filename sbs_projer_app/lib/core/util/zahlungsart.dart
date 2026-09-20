@@ -19,6 +19,25 @@ const zahlungsarten = [
 /// Arten, die eine EINZELrechnung mit QR erzeugen (camt-abgleichbar).
 const rechnungsarten = {'rechnung_tresen', 'rechnung_mail', 'rechnung_post'};
 
+/// ⚠️ Der 'rechnung_tresen'-Rückfall unten greift beim BETRIEBSWEG praktisch
+/// nie — er ist kein Schutznetz für einen Betrieb ohne erfasste Rechnungsart.
+///
+/// Geprüft am 20.09.2026, nachdem ich genau das Gegenteil behauptet hatte:
+/// * `betriebe.rechnungsstellung` hat in der Datenbank den Spalten-Default
+///   `'rechnung_mail'` und eine CHECK-Liste der sechs gültigen Werte. Ein
+///   leerer String ist dort **nicht erlaubt**.
+/// * In der App ist das Feld nicht nullbar: `Betrieb.fromJson` setzt
+///   `json['rechnungsstellung'] ?? 'rechnung_mail'`, `BetriebLocal` und der
+///   Web-Stub tragen denselben Vorgabewert.
+///
+/// Heisst: Ein NULL in der Datenbank kommt hier als `'rechnung_mail'` an, nicht
+/// als «nicht entschieden». Ein Betrieb ohne erfasste Art wird also **per Mail
+/// verrechnet** — und hat er keine Rechnungsadresse-E-Mail, erscheint im
+/// Abschluss-Dialog die rote Warnung «Rechnung geht NICHT an den Kunden».
+/// Die Art ist «nicht entschieden» im Datenmodell schlicht nicht abbildbar.
+///
+/// Der Rückfall bleibt trotzdem stehen: Er deckt den REINIGUNGSweg ab
+/// (`reinigungen.zahlungsart` ist nullbar und darf leer sein).
 String resolveZahlungsart(String? reinigungsWert, String? betriebsWert) {
   if (reinigungsWert != null && reinigungsWert.isNotEmpty) {
     return reinigungsWert;

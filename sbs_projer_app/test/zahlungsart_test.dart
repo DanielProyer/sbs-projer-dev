@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
+import 'package:sbs_projer_app/data/models/betrieb.dart';
 
 void main() {
   group('resolveZahlungsart', () {
@@ -175,5 +176,42 @@ void main() {
         isNull,
       );
     });
+  });
+
+  group('Ein Betrieb ohne erfasste Rechnungsart heisst «per Mail»', () {
+    // WARUM dieser Wächter (20.09.2026): Ich hatte behauptet, ein leeres Feld
+    // am Betrieb falle über resolveZahlungsart() auf 'rechnung_tresen' zurück.
+    // Falsch. NULL wird schon beim Einlesen zu 'rechnung_mail' — der Rückfall
+    // kommt gar nicht zum Zug. Wer diesen Vorgabewert ändert, ändert damit
+    // still den Rechnungsweg JEDES Betriebs ohne erfasste Art (Stand
+    // 20.09.2026: zwei Stück, darunter die 4eri Bar). Dann muss der Entscheid
+    // bewusst fallen, nicht nebenbei.
+    Betrieb ausJson(Map<String, dynamic> extra) => Betrieb.fromJson({
+      'id': 'b1',
+      'user_id': 'u1',
+      'name': 'Testbetrieb',
+      ...extra,
+    });
+
+    test('fehlendes Feld ergibt rechnung_mail', () {
+      expect(ausJson({}).rechnungsstellung, 'rechnung_mail');
+    });
+
+    test('ausdrückliches NULL ergibt ebenfalls rechnung_mail', () {
+      expect(
+        ausJson({'rechnungsstellung': null}).rechnungsstellung,
+        'rechnung_mail',
+      );
+    });
+
+    test(
+      'und damit bleibt der Tresen-Rückfall auf dem Betriebsweg wirkungslos',
+      () {
+        final b = ausJson({'rechnungsstellung': null});
+        expect(resolveZahlungsart(null, b.rechnungsstellung), 'rechnung_mail');
+        // Nur der REINIGUNGSweg erreicht den Rückfall — dort ist leer erlaubt.
+        expect(resolveZahlungsart(null, null), 'rechnung_tresen');
+      },
+    );
   });
 }

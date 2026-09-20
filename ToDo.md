@@ -99,18 +99,30 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   *(Bewusst nicht in der App-Warnung: Das ist jedes Jahr dasselbe und stünde sonst
   von April bis November rot.)*
 - **4eri Bar Cham: Rechnungsart wird bei der ersten Reinigung gesetzt**
-  (Entscheid Daniel 20.09.2026). Das Feld bleibt bis dahin leer, in beiden
-  Systemen. *Korrektur meiner früheren Notiz: Die App kommt damit zurecht —
-  `resolveZahlungsart()` nimmt ohne Angabe am Betrieb «Rechnung am Tresen»,
-  bewusst der sicherste Rückfall («lieber eine Rechnung zu viel, sichtbar und
-  stornierbar, als eine lautlos fehlende»). Im Formular ist die Art frei
-  wählbar.*
-  - ⚠️ **Eine Stolperstelle:** Das Häkchen «als Standard übernehmen» erscheint
-    nur, wenn die Wahl vom errechneten Standard abweicht. Ist die richtige
-    Antwort ausgerechnet **Rechnung am Tresen**, taucht es nicht auf und das
-    Feld am Betrieb bleibt leer. Dann direkt am Betrieb setzen.
+  (Entscheid Daniel 20.09.2026). Das Feld ist in der Datenbank NULL.
+  - ⚠️ **Wichtig, am 20.09. im Browser nachgeprüft — «leer» heisst hier NICHT
+    «unentschieden», sondern «per Mail».** Ich hatte zweimal etwas anderes
+    behauptet, beide Male falsch. Belegt ist jetzt:
+    `betriebe.rechnungsstellung` hat den Spalten-Default `'rechnung_mail'` und
+    eine CHECK-Liste ohne Leerwert; die App setzt beim Einlesen
+    `json['rechnungsstellung'] ?? 'rechnung_mail'`. Der viel zitierte
+    Tresen-Rückfall in `resolveZahlungsart()` kann auf dem Betriebsweg gar
+    nicht greifen. Im geöffneten Abschluss-Dialog der Bar steht deshalb
+    **«Per E-Mail»** vorgewählt.
+  - **Folge:** Die Bar hat keine Rechnungsadresse-E-Mail. Der Dialog warnt
+    darum rot «Keine Rechnungsadresse-E-Mail — Rechnung geht NICHT an den
+    Kunden» und bietet ein Feld, sie sofort zu erfassen. Beim ersten Service
+    also **entweder die Mailadresse erfassen oder die Art auf Tresen/Bar
+    umstellen** — einfach durchklicken erzeugt eine Rechnung, die niemanden
+    erreicht (genau das Muster der 38 fehlenden Rechnungen).
+  - Der Rückfall ist im Code jetzt richtig beschrieben, und drei Tests in
+    `test/zahlungsart_test.dart` halten den Vorgabewert fest: Wer
+    `'rechnung_mail'` dort ändert, ändert still den Rechnungsweg **jedes**
+    Betriebs ohne erfasste Art.
   - Beim selben Service auf den Betrag schauen: Der Zuschlag «Zusätzliche Hähne
     anderer Standort» fällt weg, die Bar rechnet neu mit eigenem Grundtarif.
+    **Steht noch drin** — im Formular vom 20.09. war «Anderer Standort» mit 1 ×
+    30 CHF vorbelegt, Total 145.95. Vor dem Abschluss auf 0 stellen.
 - **Pizzeria Badus (Sedrun) und Tijuana (Davos)** sind auf Rechnung/Mail gestellt,
   haben aber **nirgends** eine Mailadresse — weder Rechnungs- noch Betriebsmail.
   Ihre Rechnungen landen bei Daniel selbst. Recherche 20.09.2026:
@@ -195,10 +207,42 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
   15'374.70). Rückweg: `UPDATE rechnungen SET versendet_am = NULL WHERE id IN
   (SELECT id FROM import.versendet_am_nachtrag_195)`.
 
+### 🔴 Neu am 20.09.2026: sieben Reinigungen ohne Buchung
+
+Abfrage über alle abgeschlossenen Reinigungen seit 01.07.2026 (303 Stück):
+**290 tragen eine Buchung, 13 nicht.** Fünf davon sind Heineken-Reinigungen und
+gehören so — die laufen über die Monatsabrechnung, die App meldet sie bewusst
+nie. Bleiben **sieben echte Lücken** und ein unklarer Fall:
+
+| Datum | Betrieb | Art |
+|---|---|---|
+| 07.09. | Türmli | rechnung_tresen |
+| 04.09. | Alpsu | barzahlung |
+| 10.08. | Schützenhaus | barzahlung |
+| 07.08. | Stiva Ursus | rechnung_tresen |
+| 06.08. | Rössli | rechnung_tresen |
+| 31.07. | Napoli Stories | rechnung_tresen |
+| 24.07. | Vincenz | rechnung_tresen |
+| 09.07. | Peperoncini 1313 | *(leer)* — vermutlich Heineken wie die übrigen |
+
+Keine davon hat eine Rechnung im Zeitfenster. Das ist das bekannte Muster
+«Handy weggesteckt, Kette bricht ab». Fünf Tresen-Reinigungen à rund 75–95 CHF
+heisst grob **400–470 CHF Ertrag und Debitor, die nirgends stehen**; dazu zwei
+Barzahlungen ohne Kassenbuchung.
+
+**Nicht von mir gebucht** — Buchungen sind dein Entscheid. Der Weg ist die
+Rechnungsliste (nicht das Reinigungs-Detail), die App listet diese Fälle in
+ihrer eigenen Warnung. Vor dem Nachbuchen je Fall klären, ob damals bar
+kassiert wurde.
+
 ### 🔭 Beobachten
 
-- **Function v22 hält?** Seit dem 11.09. kein Fall mehr, in dem eine Rechnung
-  versendet wurde und der Vermerk fehlte. Weiter im Auge behalten.
+- ✅ **Function v22 hält — Punkt erledigt (20.09.2026).** Belegt statt vermutet:
+  Von den Mail-Rechnungen seit 01.03.2026 tragen **122 von 122** ein
+  Versanddatum, seit dem 11.09. **13 von 13**. Kein einziger Ausfall.
+  *(Die 238 Tresen-Rechnungen ohne Vermerk sind korrekt so — Tresen wird
+  übergeben, nicht versendet. Sieben ältere Post-Rechnungen ohne Vermerk, alle
+  bezahlt, jüngste vom 28.04.: nur ein fehlender Stempel, kein Geldrisiko.)*
 - **Nutzungsmessung** läuft seit 09.09. — erste Auswertung ist in A6 (v0.112.0)
   eingeflossen. Einstellungen → Nutzung der App.
 
