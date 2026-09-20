@@ -7,9 +7,12 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 ///
 /// WARUM: Am 20.09.2026 waren 25 von 96 operativen Saisonbetrieben betroffen —
 /// 21 mit einem Fenster ohne Startdatum (Alpenblick, Sartons, Vincenz,
-/// Madrisa Lodge …), 4 ganz ohne angehakte Saison (Alpina, Pellas, Rätia,
-/// Weiss Kreuz). Beide Fälle laufen still: Die Betriebe tauchen einfach nicht
-/// mehr auf, es wird nirgends rot.
+/// Madrisa Lodge …), 4 ganz ohne angehakte Saison (Alpina Vals, Pellas
+/// Vignogn, Rätia Filisur, Weiss Kreuz Preda). Beide Fälle laufen still: Die
+/// Betriebe tauchen einfach nicht mehr auf, es wird nirgends rot.
+///
+/// Die vier ohne Saison sind keine eigenen Kunden; der Provider filtert sie
+/// weg, gemeldet werden 21. Diese Tests prüfen die Angabe selbst, ohne Filter.
 ///
 /// Die Tests halten die Lückenprüfung an [istInAktiverSaison] fest — eine
 /// gemeldete Lücke muss auch wirklich zum Verschwinden führen.
@@ -90,6 +93,67 @@ void main() {
       ]);
       // Das spätere Ende entscheidet: noch sichtbar bis 18.10.
       expect(saisonLueckeWirktSchon(b, heute), isFalse);
+    });
+  });
+
+  group('Vorschlag «ein Jahr weiter»', () {
+    test('vergangenes Datum rückt auf die kommende Saison', () {
+      expect(
+        saisonVorschlag(DateTime(2025, 11, 28), heute),
+        DateTime(2026, 11, 28),
+      );
+      expect(
+        saisonVorschlag(DateTime(2026, 4, 11), heute),
+        DateTime(2027, 4, 11),
+      );
+    });
+
+    test('künftiges Datum bleibt unangetastet', () {
+      expect(
+        saisonVorschlag(DateTime(2026, 12, 4), heute),
+        DateTime(2026, 12, 4),
+      );
+      expect(
+        saisonVorschlag(DateTime(2027, 4, 1), heute),
+        DateTime(2027, 4, 1),
+      );
+    });
+
+    test('mehrere Jahre alt: springt bis in die Zukunft, Tag bleibt', () {
+      final v = saisonVorschlag(DateTime(2021, 12, 19), heute);
+      expect(v, DateTime(2026, 12, 19));
+      expect(v!.day, 19);
+      expect(v.month, 12);
+    });
+
+    test('ohne Datum kein Vorschlag — ein Fenster ohne Start bleibt offen', () {
+      expect(saisonVorschlag(null, heute), isNull);
+    });
+
+    test('heute selbst gilt als nicht vergangen', () {
+      expect(
+        saisonVorschlag(DateTime(2026, 9, 20), heute),
+        DateTime(2026, 9, 20),
+      );
+    });
+
+    test('die fünf Betriebe aus der Endreinigungs-Warnung', () {
+      // Ihre Winterfenster stehen noch auf 2025/26 — genau der Fall, für den
+      // der Vorschlag gebaut ist (Stand 20.09.2026).
+      final faelle = {
+        'Bolgenschanze': (DateTime(2025, 11, 28), DateTime(2026, 4, 11)),
+        'Chesa': (DateTime(2025, 12, 12), DateTime(2026, 4, 7)),
+        'Hotel Sport': (DateTime(2025, 12, 12), DateTime(2026, 4, 6)),
+        'Indy Bar': (DateTime(2025, 12, 12), DateTime(2026, 4, 12)),
+        'Kartitscha': (DateTime(2025, 12, 19), DateTime(2026, 4, 6)),
+      };
+      faelle.forEach((name, fenster) {
+        final start = saisonVorschlag(fenster.$1, heute)!;
+        final ende = saisonVorschlag(fenster.$2, heute)!;
+        expect(start.year, 2026, reason: name);
+        expect(ende.year, 2027, reason: name);
+        expect(start.isBefore(ende), isTrue, reason: name);
+      });
     });
   });
 

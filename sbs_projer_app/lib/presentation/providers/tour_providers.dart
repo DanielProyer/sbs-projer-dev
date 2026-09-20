@@ -1970,11 +1970,61 @@ String faelligkeitLabel(FaelligkeitsStatus status) {
 /// Ergänzt [saisonAnkerFehltProvider]: Der meldet Betriebe, bei denen nach
 /// einer Endreinigung die Wiedereröffnung fehlt. Hier geht es um die
 /// Saison-Angabe selbst, unabhängig davon, ob je eine Endreinigung lief.
+/// Warum ein Betrieb Saisondaten braucht.
+enum SaisonNachtragGrund {
+  /// Saison-Angabe selbst ist lückenhaft (Fenster ohne Start, keine Saison
+  /// angehakt) — siehe [saisonLuecken].
+  luecke,
+
+  /// Endreinigung erledigt, aber kein künftiger Saisonstart/Ferien-Ende —
+  /// die Fälligkeits-Uhr kann nicht starten.
+  ankerFehlt,
+}
+
+typedef SaisonNachtragKandidat = ({
+  BetriebLocal betrieb,
+  Set<SaisonNachtragGrund> gruende,
+});
+
+/// Beide Saison-Warnungen in einer Liste, nach Name sortiert und ohne
+/// Doppelte — Grundlage für den Schritt «Saisondaten nachtragen».
+///
+/// Ein Betrieb kann in beiden Warnungen stehen: Ein abgelaufenes Fenster
+/// lässt gleichzeitig die Fälligkeits-Uhr stehen. Dann steht er hier einmal,
+/// mit beiden Gründen.
+final saisonNachtragProvider = Provider<List<SaisonNachtragKandidat>>((ref) {
+  final gruende = <String, Set<SaisonNachtragGrund>>{};
+  final betriebe = <String, BetriebLocal>{};
+  void merke(BetriebLocal b, SaisonNachtragGrund g) {
+    betriebe[b.routeId] = b;
+    (gruende[b.routeId] ??= <SaisonNachtragGrund>{}).add(g);
+  }
+
+  for (final b in ref.watch(saisonLueckenProvider)) {
+    merke(b, SaisonNachtragGrund.luecke);
+  }
+  for (final b in ref.watch(saisonAnkerFehltProvider)) {
+    merke(b, SaisonNachtragGrund.ankerFehlt);
+  }
+  final liste = [
+    for (final e in betriebe.entries)
+      (betrieb: e.value, gruende: gruende[e.key]!),
+  ];
+  liste.sort((a, b) => a.betrieb.name.compareTo(b.betrieb.name));
+  return liste;
+});
+
+/// Nur eigene Reinigungskunden: Ob ein Betrieb, den Daniel nicht reinigt, im
+/// Tourenplan auftaucht, ist gleichgültig. Ohne den Filter meldete die
+/// Warnung am 20.09.2026 vier Betriebe mehr — Alpina Vals, Pellas Vignogn,
+/// Rätia Filisur und Weiss Kreuz Preda, allesamt Fremdgebiet oder Heigenie,
+/// und genau die vier ohne angehakte Saison. Übrig bleiben 21 echte Lücken.
 final saisonLueckenProvider = Provider<List<BetriebLocal>>((ref) {
   final betriebe = ref.watch(betriebeProvider);
   return [
     for (final b in betriebe)
-      if ((b.status == 'aktiv' || b.status == 'saisonpause') &&
+      if (b.istMeinKunde &&
+          (b.status == 'aktiv' || b.status == 'saisonpause') &&
           saisonLuecken(b).isNotEmpty)
         b,
   ]..sort((a, b) => a.name.compareTo(b.name));
@@ -1999,6 +2049,10 @@ final saisonAnkerFehltProvider = Provider<List<BetriebLocal>>((ref) {
     if (b == null || (b.status != 'aktiv' && b.status != 'saisonpause')) {
       continue;
     }
+    // Nur eigene Reinigungskunden — bei einem Heigenie-/Fremdgebiets-Betrieb
+    // plant Daniel keine Reinigungsrhythmen, die Fälligkeits-Uhr ist dort
+    // gegenstandslos (gleiche Regel wie in `saisonLueckenProvider`).
+    if (!b.istMeinKunde) continue;
     if (faelligkeitsAnker(b, a.letzteReinigung!) == null) {
       result[b.routeId] = b;
     }

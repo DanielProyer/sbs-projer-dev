@@ -27,6 +27,7 @@ import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/tour_filter_leiste.dart';
@@ -519,7 +520,15 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
+                child: const Text('Schliessen'),
+              ),
+              TapKnopf(
+                text: 'Saisondaten nachtragen',
+                icon: Icons.edit_calendar,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/betriebe/saisondaten');
+                },
               ),
             ],
           ),
@@ -585,7 +594,15 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
+                child: const Text('Schliessen'),
+              ),
+              TapKnopf(
+                text: 'Saisondaten nachtragen',
+                icon: Icons.edit_calendar,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/betriebe/saisondaten');
+                },
               ),
             ],
           ),

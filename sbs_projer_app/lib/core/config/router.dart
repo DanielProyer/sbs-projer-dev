@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/presentation/screens/home_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/login_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_list_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/betriebe/saison_nachtrag_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/servicezeit_durchsicht_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betrieb_form_screen.dart';
@@ -167,6 +168,12 @@ final router = GoRouter(
     GoRoute(
       path: '/betriebe/servicezeiten',
       builder: (context, state) => const ServicezeitDurchsichtScreen(),
+    ),
+    GoRoute(
+      // Saisondaten der gemeldeten Betriebe nachtragen — Ziel beider
+      // Saison-Warnungen im Tourenplan.
+      path: '/betriebe/saisondaten',
+      builder: (context, state) => const SaisonNachtragScreen(),
     ),
     GoRoute(
       path: '/betriebe/neu',
