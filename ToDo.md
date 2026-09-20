@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.115.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **193** · **1694 Tests grün** · Git sauber.
+**Stand:** **v0.117.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **194** (195 liegt bereit, nicht angewendet) · **1726 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -75,6 +75,11 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.117.0** — Tour → Reiter «Fällig»: steht die rote Zeile «25 Saisonbetriebe
+  mit Lücke — 24 bereits aus dem Plan gefallen»? Antippen zeigt die Namen mit
+  Grund. Danach bei einem davon (z. B. **Sartons**) das Winter-Startdatum
+  eintragen — die Zahl muss auf 24 fallen und der Betrieb im Dezember wieder
+  im Plan stehen. *(Am Rechner bereits geprüft, Handy-Ansicht steht aus.)*
 - **v0.116.0** — Buchhaltung → Abschlussprüfung, Jahr 2026: führt die rote Zeile
   «Offene Rechnungen älter als 5 Jahre» auf den Schritt «Jahrgang abschreiben»?
   Zeigt die Vorschau 160 Rechnungen, 15'374.70, MWST 1'099.82? **Nicht buchen**
@@ -152,7 +157,39 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 
 ---
 
-## 📌 Zuletzt gebaut (17.–19.09.2026)
+## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ Saisonbetriebe, die still aus dem Plan fallen (v0.117.0, 20.09.)
+
+**Befund:** **25 von 96 operativen Saisonbetrieben** erscheinen dauerhaft nicht
+mehr im Tourenplan — **24 davon schon seit April 2026**. Zwei Ursachen:
+Ein Saisonfenster mit Ende, aber ohne Start gilt nur «bis zum Ende» und
+schliesst sich danach für immer (21 Fälle); und ein Saisonbetrieb, bei dem
+weder Winter noch Sommer angehakt ist, ist an keinem einzigen Tag in Saison
+(4 Fälle). Beides läuft still: Nirgends wurde etwas rot, der Betrieb war
+einfach weg. Namen stehen oben unter «Forderungen und Daten».
+
+**Gebaut:** `core/util/saison_luecke.dart` — zwei reine Funktionen, die diese
+Angaben melden. Im Tourenplan (Reiter «Fällig») eine rote Zeile mit Namensliste
+je Grund und dem Vermerk «bereits weg»; dazu eine Aufgabe in der Glocke.
+
+**Was bewusst NICHT gemeldet wird:** ein abgelaufenes, aber vollständiges
+Fenster (Winter 2025/26 noch nicht nachgeführt, 19 Betriebe). Das ist normale
+Herbstarbeit — eine Warnung dafür stünde von April bis November und wäre nach
+zwei Wochen unsichtbar. Die Liste steht stattdessen oben in der ToDo.
+
+**Nebenbei:** `chf()` schreibt «0.00» statt «-0.00». Die negative Null entsteht
+beim Umdrehen eines leeren Saldos (`-(saldi[3400] ?? 0)`) und stand in der
+MwSt-Abrechnung eines leeren Quartals in jeder Zeile.
+
+**Migrations-Ablage aufgeräumt:** Von 14 vermeintlich fehlenden Server-Migrationen
+lagen **12 lokal unter anderem Namen** — derselbe Irrtum wie am 17.09., weil ich
+wieder Namen statt Inhalte verglich. Diesmal am Inhalt geprüft. Echte Lücken
+waren zwei, jetzt abgelegt als `165b_buckets_material_fotos_raster_pdfs_privat.sql`
+und `166a_snapshot_camt_abgleich.sql`, beide am Ist-Zustand der Datenbank
+gegengeprüft.
+
+**Klicktest Daniel:** siehe oben (v0.117.0).
 
 ### ✅ «Jahrgang abschreiben» — der Abschluss-Schritt (v0.116.0, Migration 194, 19.09.)
 
