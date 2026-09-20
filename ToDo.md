@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.121.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1741 Tests grün** · Git sauber.
+**Stand:** **v0.122.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **197** · **1750 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -192,6 +192,36 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ «Keine Herbstpause» — und eine falsche Warnung korrigiert (v0.122.0, Migration 197, 20.09.)
+
+**Gemeldet von Daniel:** Alpenblick und Hörnlihütte Arosa sind Saisonbetriebe,
+machen aber im Herbst nicht zu — der Sommerbetrieb geht direkt in den Winter
+über, eine Pause gibt es nur im Frühling. Mit zwei getrennten Fenstern klafft
+dazwischen zwangsläufig ein Loch: Bei der Hörnlihütte endet der Sommer am
+18.10., der Winter beginnt am 01.11. — dreizehn Tage offen, aber nicht im Plan.
+
+**Gebaut:** Schalter **«Keine Herbstpause»** am Betrieb (Migration 197). Gesetzt
+gilt die Spanne zwischen Sommerende und Winterstart als Saison; die
+Frühlingspause bleibt unangetastet. Sichtbar im Betriebs-Formular und im
+Nachtrag-Screen, aber nur wenn beide Saisons angehakt sind. Steht am Winterstart
+noch ein Datum der Vorsaison, bleibt die Brücke zu — sonst würde ein veraltetes
+Datum den halben Herbst öffnen.
+
+*Abbilden liesse sich das auch ohne neues Feld, indem man das Sommerende auf den
+Tag vor dem Winterstart legt. Das hält aber nur bis zur nächsten Datumspflege.*
+
+**Dazu ein Fehler von gestern, behoben.** Die Lücken-Warnung meldete «24 bereits
+aus dem Plan gefallen». Nachgerechnet war an jenem Tag **keiner** draussen —
+jeden der 21 trug noch sein Sommerfenster. Die Lücke wirkt erst, wenn auch das
+andere Fenster ausläuft. Die Warnung nennt jetzt je Betrieb das Datum
+(«fällt am 19.10.2026 aus dem Plan») oder sagt «Pause fehlt — wird auch in der
+Sperrzeit eingeplant» für die, die ein offenes Fenster dauerhaft trägt.
+**Tatsächlich fallen 8 im Oktober heraus**, die übrigen werden nur in der
+Sperrzeit eingeplant. Beides falsch, aber verschieden dringend.
+
+**Klicktest Daniel:** Bei Alpenblick und Hörnlihütte den Schalter setzen und
+prüfen, ob sie Ende Oktober im Tourenplan stehen — und im Frühling nicht.
 
 ### ✅ «Saisondaten nachtragen» — ein Schritt für beide Warnungen (v0.121.0, 20.09.)
 
