@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.117.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **195** · **1726 Tests grün** · Git sauber.
+**Stand:** **v0.118.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **196** · **1726 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -14,7 +14,7 @@
 |---|---|---|
 | **Steuererklärung 2025** | **30.09.2026** | Lohnausweis und Jahresrechnung liegen in der App. **Es fehlt nur der GKB Zins-/Kapitalausweis per 31.12.2025** — bei der Bank holen. Dann Formular 11a (Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht». |
 | **AXA-Zahlung** | überfällig | Vorgesehen 4'467.90, **offen 8'935.80** (Q1+Q2/2026). |
-| **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | Rückholung der 2019er-Abschreibung: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90**. Buchung `JA2025_A_MWST` liegt im Journal. Im Portal prüfen, ob Zeile 302 eine reduzierende Eingabe annimmt; sonst ESTV-Hotline. |
+| **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | **Zwei Zeilen**, seit 20.09. beide in der App unter Buchhaltung → MwSt-Abrechnung → Q3: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90** (Abschreibung Jahrgang 2019) und **69.00 netto in Zeile 303 (8.1 %) → 5.60** (Einzelabschreibung Dischma). Zusammen 2'145.00 netto → **165.50**. Im Portal prüfen, ob die Zeilen eine reduzierende Eingabe annehmen; sonst ESTV-Hotline. |
 
 ### ☎️ Ein Nachmittag Telefonate: die eine Lohnsumme
 
@@ -34,12 +34,24 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 💰 Forderungen und Daten
 
-- **Blue Cinema Chur:** **34 offene Rechnungen, CHF 6'911.90**, vom 07.12.2022 bis
-  14.09.2026 — und in der ganzen Zeit genau **eine** Zahlung (05.02.2026, 184.85).
-  Das läuft seit vier Jahren weiter. Entscheid nötig: nachfassen, Inkasso oder
-  abschreiben. *(Stand 19.09.2026 nachgezählt; die alte Notiz nannte 37 / ~7'500.)*
-- **Dischma 2026-05-0579** (74.60) abschreiben, **Concordia 2026-05-0580** (74.60)
-  zuordnen — Entscheid Daniel.
+- **Blue Cinema Chur — ENTSCHIEDEN 20.09.2026: nichts nachsenden.** Die frühere
+  Notiz («eine Zahlung in vier Jahren») war irreführend. Tatsächlich: Die
+  Rechnungsadresse ist `invoice.blue@swisscom.com`, also die zentrale
+  Rechnungsannahme von Swisscom. **Alle 32 offenen Rechnungen (6'399.50, vom
+  07.12.2022 bis 05.11.2025) tragen kein Versanddatum — sie wurden nie
+  gestellt.** Seit die App den Versand übernimmt (ab 03/2026) wurde jede
+  zugestellte Rechnung bezahlt: vier von vier. Verjährt ist nichts, die älteste
+  liefe erst am 06.01.2028 ab. Daniel hat sich trotzdem gegen den Nachversand
+  entschieden — gleiche Linie wie beim übrigen Bestand (Politik 19.09.2026).
+  Die 32 laufen in die jahrgangsweise Abschreibung: 2022 im Abschluss 2027,
+  2023 im 2028, 2024 im 2029, 2025 im 2030. **Umkehrbar bis dahin.**
+- ✅ **Dischma 2026-05-0579 (74.60) abgeschrieben** (Entscheid Daniel 20.09.2026):
+  Wintersaison endete am 06.04.2026, die Reinigung vom 08.05. war die letzte.
+  Gebucht `3805 an 1100` 69.00 + `2200 an 1100` 5.60, datiert **20.09.2026**
+  (nicht aufs Rechnungsdatum — Q2/2026 ist abgerechnet, der Verlust fällt nach
+  Art. 41 Abs. 2 MWSTG in Q3). Saldo 1100 zu dieser Rechnung danach exakt 0.
+  **Concordia 2026-05-0580 bleibt offen** — die Rechnung ist sauber, eine
+  passende Zahlung ist nirgends auffindbar (weder Prüfliste noch Journal).
 - **201 von 305 aktiven Betrieben ohne Servicezeit.** Der Durchsicht-Screen dafür
   steht (`/betriebe/servicezeiten`).
 - **25 Saisonbetriebe mit kaputter Saison-Angabe** *(20.09.2026 exakt nachgerechnet,
@@ -105,6 +117,11 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
 «Jahrgang abschreiben» seit v0.116.0 gebaut. Was bleibt:
 
+- **Abschreibungs-Datum im Mahnwesen** (gefunden 20.09.2026):
+  `MahnwesenService.abschreiben` bucht auf `rechnung.rechnungsdatum`. Stammt die
+  Rechnung aus einem bereits eingereichten Quartal, fällt die MWST-Rückholung in
+  eine geschlossene Periode — korrigierbar nur über eine Korrekturabrechnung.
+  Richtig wäre der Tag des Entscheids (Art. 41 Abs. 2 MWSTG). Kleinfix mit Test.
 - **Ausbau Aufgaben:** Aufgaben ↔ Kalender/Tourenplan verknüpfen; echte
   Zeiterfassung für Störung/Montage statt Schätzung (braucht Entscheid Daniel).
 - **Tote Zeitfelder aufräumen** (Entscheid Daniel 26.08.: später): `uhrzeit_ende`
@@ -156,6 +173,29 @@ Konzept mit Faktenlage: `docs/buchhaltung/abschreibungen-jahrgaenge.md`.
 ---
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
+
+### ✅ Ziff. 235 zählte nur die halbe Wahrheit (v0.118.0, Migration 196, 20.09.)
+
+**Gefunden beim Buchen der Dischma-Abschreibung.** Der Entgeltsminderungs-Block
+in der MwSt-Abrechnung (seit v0.116.0) las seinen Wert aus den Jahrgangsläufen.
+Eine **einzelne** Abschreibung — der normale Mahnwesen-Weg — hängt an keinem
+Lauf und tauchte damit nirgends auf. Wer Q3/2026 nach dem Bildschirm deklariert
+hätte, hätte 159.90 statt 165.50 zurückgeholt, und bei jeder künftigen
+Einzelabschreibung dasselbe.
+
+**Gelöst** mit `view_entgeltsminderung` (Migration 196): führt Läufe und
+Einzelabschreibungen je Quartal und Satz zusammen. Drei Abgrenzungen halten den
+Doppelzähler fern — `beleg_typ = 'abschluss'` (das sind die MWST-Saldierungen
+JA2025_B1–B4, keine Entgeltsminderung), Buchungen ohne `beleg_id` (die
+Sammelbuchung `JA2025_A_MWST` bildet der Lauf 2025 bereits ab) und Rechnungen,
+die in `abschreibung_positionen` stehen. Der Satz kommt aus den
+Rechnungsbeträgen, nicht vom Buchungstag.
+
+**Nebenbefund, unverändert gelassen:** `MahnwesenService.abschreiben` datiert die
+Abschreibung aufs **Rechnungsdatum**. Bei einer Rechnung aus einem bereits
+abgerechneten Quartal landet die MWST-Rückholung damit in einer geschlossenen
+Periode. Die Dischma-Buchung habe ich deshalb von Hand auf den Entscheidtag
+datiert. Der Code müsste das auch tun — steht unter «Bauen».
 
 ### ✅ Saisonbetriebe, die still aus dem Plan fallen (v0.117.0, 20.09.)
 
