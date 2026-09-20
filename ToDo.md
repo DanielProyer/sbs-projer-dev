@@ -42,12 +42,36 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   zuordnen — Entscheid Daniel.
 - **201 von 305 aktiven Betrieben ohne Servicezeit.** Der Durchsicht-Screen dafür
   steht (`/betriebe/servicezeiten`).
-- **15 Saisonbetriebe ohne Saison-Startdatum** — sie erscheinen nach dem Saisonende
-  nie wieder im Tourenplan. Im Winter beisst das. *(10.08. waren es 9; die Zahl
-  wächst, weil neue Saisonbetriebe ohne Datum angelegt werden.)*
+- **25 Saisonbetriebe mit kaputter Saison-Angabe** *(20.09.2026 exakt nachgerechnet,
+  vorher als «15» notiert)*. Zwei Fehlerbilder, beide machen den Betrieb dauerhaft
+  unsichtbar — die App warnt seit v0.117.0 rot im Tourenplan, **die Daten muss
+  Daniel eintragen**:
+  - **21 × Saisonfenster ohne Startdatum** (Ende gesetzt, Start leer). Das Fenster
+    gilt nur «bis zum Ende», danach nie wieder. 20 im Winter: Alpenblick,
+    Alpina Resort, Arflina, Armando, Clubhotel, Dieschen, Golden Dragon, Grischa,
+    IKIGAI, Il Pub, Legna Bar, Madrisa Lodge, Mountain Plaza, Portal, Rotliechtli,
+    Sartons, Seven Alpina, Spescha, Vereina, Vincenz. 1 im Sommer: Grand Hotel
+    Surselva. **Alle 20 Winterfälle sind seit April 2026 aus dem Plan.**
+  - **4 × gar keine Saison angehakt** (weder Winter noch Sommer) — erscheinen an
+    keinem einzigen Tag: **Alpina** (Oberland), **Pellas** (Oberland), **Rätia**
+    (Engadin), **Weiss Kreuz** (Engadin).
+- **Herbstarbeit: 19 Winterfenster stehen noch auf der Saison 2025/26.** Start und
+  Ende sind vollständig, aber vom letzten Winter — ab Dezember fehlen sie im Plan,
+  bis die neuen Daten drin sind. Acla Grischuna, Alp Nova, Bolgenschanze, Central,
+  Chesa, Giodavin, Hotel Sport, Indy Bar, Kartitscha, Montana Bar, Ninos, Obertor,
+  Posthotel, Pot au Feu, Rothorngipfel, Sezner, Snake Bar, Tgantieni, Tijuana.
+  *(Bewusst nicht in der App-Warnung: Das ist jedes Jahr dasselbe und stünde sonst
+  von April bis November rot.)*
 - **Pizzeria Badus (Sedrun) und Tijuana (Davos)** sind auf Rechnung/Mail gestellt,
   haben aber **nirgends** eine Mailadresse — weder Rechnungs- noch Betriebsmail.
-  Ihre Rechnungen landen bei Daniel selbst.
+  Ihre Rechnungen landen bei Daniel selbst. Recherche 20.09.2026:
+  - **Tijuana Bar**, Talstrasse 15, 7270 Davos Platz — **hansilenz@bluewin.ch**,
+    Tel. 081 413 10 87. Übereinstimmend auf davos.ch und graubuenden.ch.
+    Vor dem Eintragen **bestätigen** (eine falsche Adresse schickt Rechnungen
+    an Fremde).
+  - **Pizzeria Badus**, Via Alpsu 87, 7188 Sedrun — **keine Mailadresse
+    auffindbar**. Nur Tel. **081 949 11 09** und Instagram @pizzeriailbadus.
+    Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
 
