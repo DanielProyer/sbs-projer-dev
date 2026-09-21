@@ -17,6 +17,11 @@ class _Bewegung {
   final double soll; // Rechnung
   final double haben; // Zahlung/Abschreibung
   final String? status; // Kennzeichnung nur bei Rechnungszeilen
+
+  /// Wie die Rechnung zum Kunden kam, z. B. «EZS am Tresen · 17.09.2026».
+  /// Nur bei Rechnungszeilen gesetzt.
+  final String? zustellung;
+
   _Bewegung({
     required this.datum,
     required this.vorgang,
@@ -24,6 +29,7 @@ class _Bewegung {
     this.soll = 0,
     this.haben = 0,
     this.status,
+    this.zustellung,
   });
 }
 
@@ -47,6 +53,37 @@ class KontoauszugPdfService {
   // Unicode-Schrift wäre auch ’ möglich — siehe services/pdf/pdf_schrift.dart).
   static final _chf = NumberFormat('#,##0.00', 'en_US');
   static String _fmt(double v) => _chf.format(v).replaceAll(',', "'");
+
+  /// Wie die Rechnung zum Kunden kam, für die Belegspalte:
+  /// «EZS am Tresen · 17.09.2026», «Per E-Mail · 14.09.2026».
+  ///
+  /// WARUM im Auszug (Wunsch Daniel 21.09.2026): Am Tresen übergeben und per
+  /// Mail versendet sind zwei verschiedene Gespräche. Steht es nicht auf dem
+  /// Papier, muss man für jede Zeile in die App zurück.
+  ///
+  /// Ohne hinterlegtes Datum steht nur der Weg. Ein «kein Zustelldatum» wäre
+  /// auf einem Kundendokument eine Behauptung über den Kunden, obwohl es eine
+  /// Lücke in UNSERER Erfassung ist. Für Daniel ist die Lücke trotzdem
+  /// sichtbar — am fehlenden Datum, und in der App orange hervorgehoben.
+  static String? zustellungKurz(Rechnung r, DateFormat df) {
+    final weg = switch (r.versandart) {
+      'rechnung_tresen' => 'EZS am Tresen',
+      'rechnung_mail' => 'Per E-Mail',
+      'rechnung_post' => 'Per Post',
+      'barzahlung' => 'Bar bezahlt',
+      'jahresrechnung' => 'Jahresrechnung',
+      'heineken' => 'Via Heineken',
+      null || '' => null,
+      _ => r.versandart,
+    };
+    if (weg == null) return null;
+    // Tresen wird übergeben, Mail und Post versendet — je nach Weg zählt ein
+    // anderes Datum. Liegen beide vor, gewinnt das spätere Ereignis.
+    final datum = r.versandart == 'rechnung_tresen'
+        ? (r.uebergebenAm ?? r.versendetAm)
+        : (r.versendetAm ?? r.uebergebenAm);
+    return datum == null ? weg : '$weg · ${df.format(datum)}';
+  }
 
   /// Schneidet die Rechnungen auf ein Kalenderjahr zu (nach `rechnungsdatum`).
   /// null = alles. Eigene Funktion, damit die Auswahl prüfbar ist, ohne ein
@@ -90,6 +127,7 @@ class KontoauszugPdfService {
           beleg: nr,
           soll: r.betragBrutto,
           status: _statusLabel(r),
+          zustellung: zustellungKurz(r, dateFormat),
         ),
       );
       totalFakturiert += r.betragBrutto;
@@ -410,6 +448,28 @@ class KontoauszugPdfService {
       );
     }
 
+    /// Belegnummer und darunter der Zustellweg. Zweizeilig statt als eigene
+    /// Spalte: Für eine achte Spalte reicht die A4-Breite nicht, ohne die
+    /// Belegnummer umbrechen zu lassen.
+    pw.Widget belegZelle(String beleg, String? zustellung) {
+      return pw.Container(
+        alignment: pw.Alignment.centerLeft,
+        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            pw.Text(beleg, style: cellGrey),
+            if (zustellung != null)
+              pw.Text(
+                zustellung,
+                style: const pw.TextStyle(fontSize: 7, color: _grey),
+              ),
+          ],
+        ),
+      );
+    }
+
     return pw.Table(
       columnWidths: {
         0: const pw.FixedColumnWidth(58), // Datum
@@ -429,7 +489,7 @@ class KontoauszugPdfService {
           children: [
             zelle('Datum', style: headerStyle),
             zelle('Vorgang', style: headerStyle),
-            zelle('Beleg / Rechnung', style: headerStyle),
+            zelle('Beleg / Zustellung', style: headerStyle),
             zelle('Status', style: headerStyle),
             zelle(
               'Rechnung CHF',
@@ -463,7 +523,7 @@ class KontoauszugPdfService {
                     ? const pw.TextStyle(fontSize: 8.5, color: _gruen)
                     : cellStyle,
               ),
-              zelle(bewegungen[i].beleg, style: cellGrey),
+              belegZelle(bewegungen[i].beleg, bewegungen[i].zustellung),
               zelle(
                 bewegungen[i].status ?? '',
                 style:

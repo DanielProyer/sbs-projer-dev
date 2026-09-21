@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 
 /// Kontoauszug mit Jahres-Eingrenzung (Wunsch Daniel 21.09.2026).
@@ -87,6 +88,79 @@ void main() {
     });
   });
 
+  group('Zustellweg in der Belegspalte', () {
+    // WARUM (Wunsch Daniel 21.09.2026): «Am Tresen übergeben» und «per Mail
+    // versendet» sind zwei verschiedene Gespräche mit dem Wirt. Stand das
+    // nicht im PDF, musste man für jede Zeile zurück in die App.
+    final df = DateFormat('dd.MM.yyyy');
+
+    Rechnung mitWeg(String? art, {DateTime? uebergeben, DateTime? versendet}) =>
+        Rechnung(
+          id: 'x',
+          userId: 'u1',
+          rechnungstyp: 'kundenrechnung',
+          rechnungsdatum: DateTime(2026, 9, 17),
+          faelligkeitsdatum: DateTime(2026, 10, 17),
+          versandart: art,
+          uebergebenAm: uebergeben,
+          versendetAm: versendet,
+        );
+
+    test('Tresen nennt den Einzahlungsschein und das Übergabedatum', () {
+      expect(
+        KontoauszugPdfService.zustellungKurz(
+          mitWeg('rechnung_tresen', uebergeben: DateTime(2026, 9, 17)),
+          df,
+        ),
+        'EZS am Tresen · 17.09.2026',
+      );
+    });
+
+    test('Mail nennt das Versanddatum', () {
+      expect(
+        KontoauszugPdfService.zustellungKurz(
+          mitWeg('rechnung_mail', versendet: DateTime(2026, 9, 14)),
+          df,
+        ),
+        'Per E-Mail · 14.09.2026',
+      );
+    });
+
+    test('Tresen nimmt das Übergabe-, nicht das Versanddatum', () {
+      // Eine Tresen-Rechnung kann später zusätzlich gemailt worden sein.
+      // Für den Weg «Tresen» zählt die Übergabe.
+      expect(
+        KontoauszugPdfService.zustellungKurz(
+          mitWeg(
+            'rechnung_tresen',
+            uebergeben: DateTime(2026, 9, 17),
+            versendet: DateTime(2026, 9, 20),
+          ),
+          df,
+        ),
+        'EZS am Tresen · 17.09.2026',
+      );
+    });
+
+    test('ohne Datum steht nur der Weg, keine Behauptung über den Kunden', () {
+      expect(
+        KontoauszugPdfService.zustellungKurz(mitWeg('rechnung_tresen'), df),
+        'EZS am Tresen',
+      );
+    });
+
+    test('ohne Versandart bleibt die Zeile weg', () {
+      expect(KontoauszugPdfService.zustellungKurz(mitWeg(null), df), isNull);
+      expect(KontoauszugPdfService.zustellungKurz(mitWeg(''), df), isNull);
+    });
+
+    test('unbekannter Weg wird durchgereicht statt verschluckt', () {
+      expect(
+        KontoauszugPdfService.zustellungKurz(mitWeg('neuer_weg'), df),
+        'neuer_weg',
+      );
+    });
+  });
   test('mit Jahr entsteht ebenfalls ein gültiges PDF', () async {
     // Bewusst KEIN Grössenvergleich: Das Jahres-PDF ist grösser als das
     // vollständige, weil der Vorbehalt-Satz fett gesetzt ist und dafür ein
