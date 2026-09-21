@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.126.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1800 Tests grün** · Git sauber.
+**Stand:** **v0.127.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1812 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -487,6 +487,48 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 ---
 
 ## 📌 Zuletzt gebaut (17.–21.09.2026)
+
+### ✅ Alle Rechnungen pro Betrieb + Kontoauszug je Jahr (v0.127.0, 21.09.)
+
+Nachtrag zu v0.126.0 auf Wunsch Daniel: **auch die bezahlten Rechnungen
+zeigen**, und **ein PDF wie das von der Betriebsseite, nur fürs laufende Jahr**.
+
+- **Umschalter «Alle Rechnungen» (Vorgabe) / «Nur offene».** Der Screen heisst
+  jetzt «Rechnungen pro Betrieb». Der offene Anteil bleibt getrennt
+  ausgewiesen, im Kopf und in jeder Betriebszeile — sonst verschwindet die
+  Mahn-Information in der Umsatzsumme.
+- **«ohne Zustellung» zählt nur noch OFFENE Rechnungen.** Ist das Geld da, ist
+  die Frage «kam sie an?» beantwortet, auch ohne Stempel. Sonst meldete die
+  Liste hunderte längst erledigte Tresen-Rechnungen.
+- **Je Betrieb ein Knopf «Kontoauszug \<Jahr\> (PDF)»** in der aufgeklappten
+  Karte. Es ist **derselbe** `KontoauszugPdfService` wie auf der Betriebsseite,
+  das Aussehen ist also identisch.
+
+Zahlen 2026 beim Bauen (gegen die Datenbank gerechnet):
+
+| | Alle Rechnungen | davon offen |
+|---|---|---|
+| Betriebe | 162 | |
+| Rechnungen | 672 | 172 |
+| Summe | 131'613.87 | 31'307.14 |
+
+**Am PDF-Service geändert (rückwärtskompatibel, `jahr` ist optional):**
+- Gefiltert wird **im Service**, nicht beim Aufrufer — sonst könnten Inhalt und
+  Zeitraum-Angabe im Kopf auseinanderlaufen.
+- Die Zeitraum-Zeile nennt beim Jahresauszug das **volle Kalenderjahr** statt
+  der ersten Buchung.
+- ⚠️ Die Fusszeile bekommt den Satz **«Dieser Auszug umfasst ausschliesslich das
+  Jahr X. Allfällige Posten aus früheren Jahren sind nicht enthalten.»**
+  *Ohne ihn liest der Kunde den Saldo als seinen gesamten Ausstand — und eine
+  Zahlung nach diesem Betrag liesse ältere Rechnungen stillschweigend liegen.*
+- 🐛 **Fehler dabei gefunden und behoben:** `offeneAnzahl` zählte über die
+  ungefilterte Liste. Die Kachel «OFFENER SALDO (n RG)» hätte beim Jahresauszug
+  die Anzahl ALLER offenen Rechnungen neben dem Betrag EINES Jahres genannt.
+  Ohne Jahresangabe war und ist beides identisch.
+
+*Im Browser geprüft: Kopfzahlen, beide Umschalter, Aufklappen, die Farbregel
+(bezahlt grau, offen ohne Zustellung orange) und der PDF-Knopf — er erzeugt
+nachweislich ein `application/pdf` von rund 19 KB.*
 
 ### ✅ Offene Rechnungen pro Betrieb, je Jahr, mit Zustellung (v0.126.0, 21.09.)
 
