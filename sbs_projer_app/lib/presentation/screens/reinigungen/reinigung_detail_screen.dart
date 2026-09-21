@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
@@ -11,6 +12,7 @@ import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/versand_meldung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
+import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
@@ -75,6 +77,12 @@ class _ReinigungDetailContent extends ConsumerWidget {
                 icon: const Icon(Icons.receipt_long),
                 tooltip: 'Rechnung erstellen & senden',
                 onPressed: () => _rechnungErstellenUndSenden(context, ref),
+              ),
+            if ((reinigung.protokollFotoPfad ?? '').isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf),
+                tooltip: 'Protokoll als PDF',
+                onPressed: () => _protokollHerunterladen(context),
               ),
             IconButton(
               icon: const Icon(Icons.edit),
@@ -262,6 +270,49 @@ class _ReinigungDetailContent extends ConsumerWidget {
       return null;
     }
   }
+
+  /// Lädt das abfotografierte Protokoll dieser Reinigung als PDF herunter.
+  ///
+  /// Die gespeicherte Datei ist bereits ein PDF und wird unverändert
+  /// durchgereicht — kein Neuaufbau, keine Qualitätseinbusse.
+  Future<void> _protokollHerunterladen(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Protokoll wird geladen …')),
+    );
+    try {
+      final bytes = await ProtokollePdfService.einzeln(reinigung);
+      if (bytes == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Kein Protokoll hinterlegt.')),
+        );
+        return;
+      }
+      final betrieb = reinigung.betriebId.isEmpty
+          ? null
+          : await BetriebRepository.getByServerId(reinigung.betriebId);
+      final name = (betrieb?.name ?? 'Reinigung').replaceAll(
+        RegExp(r'[^A-Za-z0-9äöüÄÖÜ]+'),
+        '_',
+      );
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'Protokoll_${name}_${_dateiDatum(reinigung.datum)}.pdf',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text('Protokoll fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    }
+  }
+
+  static String _dateiDatum(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(

@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -17,7 +15,7 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
+import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
 
 class JahresrechnungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
@@ -88,7 +86,8 @@ class JahresrechnungService {
 
   /// Prüft welche Reinigungs-IDs bereits als Position in einer Jahresrechnung existieren.
   static Future<Set<String>> _getAbgerechneteServiceIds(
-      String betriebId) async {
+    String betriebId,
+  ) async {
     try {
       final rows = await SupabaseService.client
           .from('rechnungs_positionen')
@@ -191,16 +190,20 @@ class JahresrechnungService {
     for (final p in positionen) {
       p['rechnung_id'] = rechnung.id;
     }
-    final createdPositionen =
-        await RechnungsPositionRepository.createAll(positionen);
+    final createdPositionen = await RechnungsPositionRepository.createAll(
+      positionen,
+    );
 
     // Rechnungsadresse laden
     BetriebRechnungsadresse? ra;
     final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
-        betrieb.serverId ?? betrieb.routeId);
+      betrieb.serverId ?? betrieb.routeId,
+    );
     if (raLocal != null) {
-      ra = BetriebRechnungsadresseMapper.toDto(raLocal,
-        betriebId: betrieb.serverId ?? '');
+      ra = BetriebRechnungsadresseMapper.toDto(
+        raLocal,
+        betriebId: betrieb.serverId ?? '',
+      );
     }
 
     // 1. Rechnungs-PDF generieren (nur Rechnung, ohne Protokolle)
@@ -224,192 +227,26 @@ class JahresrechnungService {
     // 2. Protokolle-PDF separat generieren (alle Reinigungsprotokolle)
     int protokollCount = 0;
     try {
-      final protokollBilder = await _ladeProtokollBilder(reinigungen);
+      final protokollBilder = await ProtokollePdfService.ladeBilder(
+        reinigungen,
+      );
       if (protokollBilder.isNotEmpty) {
-        final protokollPdf = await _generiereProtokollePdf(
+        final protokollPdf = await ProtokollePdfService.buendel(
           protokollBilder,
           betrieb.name,
           jahr,
         );
-        await RechnungPdfStorage.uploadProtokollePdf(
-            rechnung.id, protokollPdf);
+        await RechnungPdfStorage.uploadProtokollePdf(rechnung.id, protokollPdf);
         protokollCount = protokollBilder.length;
       }
     } catch (e) {
       debugPrint('Protokolle-PDF Fehler (nicht kritisch): $e');
     }
 
-    debugPrint('Jahresrechnung $rechnungsnummer erstellt: '
-        '${reinigungen.length} Reinigungen, $protokollCount Protokolle, Total CHF $bruttoTotal');
-    return rechnung;
-  }
-
-  /// Generiert ein separates PDF mit allen Reinigungsprotokollen.
-  /// Jedes Protokollbild wird als eigene A4-Seite eingebettet.
-  static Future<Uint8List> _generiereProtokollePdf(
-    List<Uint8List> bilder,
-    String betriebName,
-    int jahr,
-  ) async {
-    final pdf = await pdfDokument();
-
-    // Titelseite
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(50),
-        build: (context) => pw.Center(
-          child: pw.Column(
-            mainAxisAlignment: pw.MainAxisAlignment.center,
-            children: [
-              pw.Text(
-                'Reinigungsprotokolle',
-                style: pw.TextStyle(
-                    fontSize: 24, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text(
-                betriebName,
-                style: const pw.TextStyle(fontSize: 18),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text(
-                'Jahr $jahr',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text(
-                '${bilder.length} Protokoll${bilder.length == 1 ? '' : 'e'}',
-                style: const pw.TextStyle(fontSize: 14),
-              ),
-            ],
-          ),
-        ),
-      ),
+    debugPrint(
+      'Jahresrechnung $rechnungsnummer erstellt: '
+      '${reinigungen.length} Reinigungen, $protokollCount Protokolle, Total CHF $bruttoTotal',
     );
-
-    // Eine Seite pro Protokollbild
-    for (int i = 0; i < bilder.length; i++) {
-      try {
-        final image = pw.MemoryImage(bilder[i]);
-        pdf.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(20),
-            build: (context) => pw.Center(
-              child: pw.Image(image, fit: pw.BoxFit.contain),
-            ),
-          ),
-        );
-        debugPrint('Protokoll $i/${bilder.length}: ${bilder[i].length} Bytes eingebettet');
-      } catch (e) {
-        debugPrint('Protokollbild $i konnte nicht eingebettet werden: $e');
-      }
-    }
-
-    return pdf.save();
-  }
-
-  /// Lädt alle Reinigungsprotokolle als JPEG-Bilder.
-  /// Strategie:
-  /// 1. Versuche .jpg-Version direkt zu laden (neu hochgeladene Protokolle)
-  /// 2. Fallback: PDF herunterladen und JPEG-Bytes extrahieren (alte Protokolle)
-  static Future<List<Uint8List>> _ladeProtokollBilder(
-    List<ReinigungLocal> reinigungen,
-  ) async {
-    final bilder = <Uint8List>[];
-    for (final r in reinigungen) {
-      final pfad = r.protokollFotoPfad;
-      if (pfad == null || pfad.isEmpty) continue;
-      try {
-        Uint8List? imageBytes;
-
-        // 1. Versuche direkt die .jpg-Version zu laden
-        if (pfad.endsWith('.pdf')) {
-          final jpgPfad = pfad.replaceAll('.pdf', '.jpg');
-          try {
-            imageBytes = await SupabaseService.client.storage
-                .from('reinigung-fotos')
-                .download(jpgPfad);
-            debugPrint('Protokoll ${r.serverId}: JPG direkt geladen (${imageBytes.length} Bytes)');
-          } catch (_) {
-            // JPG existiert nicht (altes Protokoll), versuche PDF-Extraktion
-          }
-        }
-
-        // 2. Fallback: Original-Datei laden
-        if (imageBytes == null) {
-          final bytes = await SupabaseService.client.storage
-              .from('reinigung-fotos')
-              .download(pfad);
-
-          // Direktes Bild? (JPEG: FF D8, PNG: 89 50)
-          if (bytes.length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8) {
-            imageBytes = bytes;
-          } else if (bytes.length > 4 &&
-              bytes[0] == 0x89 && bytes[1] == 0x50 &&
-              bytes[2] == 0x4E && bytes[3] == 0x47) {
-            imageBytes = bytes;
-          } else {
-            // PDF-Hülle: JPEG extrahieren
-            imageBytes = _extractJpegFromPdf(bytes);
-            if (imageBytes != null) {
-              debugPrint('Protokoll ${r.serverId}: JPEG aus PDF extrahiert (${imageBytes.length} Bytes)');
-            } else {
-              debugPrint('Protokoll ${r.serverId}: Kein Bild gefunden (${bytes.length} Bytes, '
-                  'erste: ${bytes.length > 4 ? [bytes[0], bytes[1], bytes[2], bytes[3]] : bytes})');
-            }
-          }
-        }
-
-        if (imageBytes != null && imageBytes.length > 1000) {
-          bilder.add(imageBytes);
-        }
-      } catch (e) {
-        debugPrint('Protokoll-Download fehlgeschlagen für ${r.serverId}: $e');
-      }
-    }
-    debugPrint('_ladeProtokollBilder: ${bilder.length}/${reinigungen.length} Protokolle geladen');
-    return bilder;
-  }
-
-  /// Extrahiert JPEG-Bytes aus einer PDF-Datei.
-  /// Sucht nach dem JPEG SOI-Marker (FF D8 FF) und EOI-Marker (FF D9).
-  /// Der Dart `pdf` Package speichert JPEG mit /DCTDecode Filter — die rohen
-  /// JPEG-Bytes liegen direkt im PDF-Stream.
-  static Uint8List? _extractJpegFromPdf(Uint8List pdfBytes) {
-    // JPEG Start-Marker: FF D8 FF (SOI + erstes Marker-Byte)
-    int startIdx = -1;
-    for (int i = 0; i < pdfBytes.length - 2; i++) {
-      if (pdfBytes[i] == 0xFF &&
-          pdfBytes[i + 1] == 0xD8 &&
-          pdfBytes[i + 2] == 0xFF) {
-        startIdx = i;
-        break;
-      }
-    }
-    if (startIdx < 0) return null;
-
-    // JPEG End-Marker: FF D9 (letztes Vorkommen nach Start)
-    int endIdx = -1;
-    for (int i = pdfBytes.length - 2; i > startIdx; i--) {
-      if (pdfBytes[i] == 0xFF && pdfBytes[i + 1] == 0xD9) {
-        endIdx = i + 2; // inklusive der 2 Marker-Bytes
-        break;
-      }
-    }
-    if (endIdx < 0) return null;
-
-    // Sanity check: JPEG sollte mindestens ein paar KB gross sein
-    final length = endIdx - startIdx;
-    if (length < 1000) {
-      debugPrint('_extractJpegFromPdf: Verdächtig klein ($length Bytes)');
-      return null;
-    }
-
-    // WICHTIG: fromList erstellt eine KOPIE! sublistView wäre nur ein View
-    // auf den Original-Buffer — MemoryImage greift intern auf .buffer zu
-    // und würde dann den gesamten PDF-Buffer sehen statt nur das JPEG.
-    return Uint8List.fromList(pdfBytes.sublist(startIdx, endIdx));
+    return rechnung;
   }
 }

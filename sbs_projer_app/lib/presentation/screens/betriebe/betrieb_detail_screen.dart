@@ -30,6 +30,7 @@ import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
+import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:intl/intl.dart';
@@ -94,6 +95,11 @@ class _BetriebDetailContent extends ConsumerWidget {
               icon: const Icon(Icons.receipt_long),
               tooltip: 'Kontoauszug (PDF) — alle Rechnungen & Zahlungen',
               onPressed: () => _zeigeKontoauszug(context, ref),
+            ),
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'Reinigungsprotokolle (PDF) — je Jahr',
+              onPressed: () => _zeigeProtokolle(context),
             ),
             IconButton(
               icon: const Icon(Icons.edit),
@@ -500,6 +506,123 @@ class _BetriebDetailContent extends ConsumerWidget {
 
   /// Kontoauszug des Betriebs (alle Rechnungen + Zahlungen, laufender Saldo)
   /// als PDF öffnen/teilen — Grundlage für Mahn-Gespräche.
+  /// Alle Reinigungsprotokolle eines Jahres als ein PDF.
+  ///
+  /// WARUM je Jahr und nicht alles auf einmal (21.09.2026): Ein Betrieb hat
+  /// leicht 50 Protokolle über die Jahre, jedes rund eine Viertelmegabyte.
+  /// Ein Bündel über alles wäre unhandlich und dauert. Gefragt wird ohnehin
+  /// jahrweise — «schickst du mir die Nachweise für 2026».
+  Future<void> _zeigeProtokolle(BuildContext context) async {
+    final serverId = betrieb.serverId;
+    final messenger = ScaffoldMessenger.of(context);
+    if (serverId == null) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Betrieb noch nicht synchronisiert — kein Export.'),
+        ),
+      );
+      return;
+    }
+
+    final alle = await ReinigungRepository.getByBetrieb(serverId);
+    final mitProtokoll = alle
+        .where((r) => (r.protokollFotoPfad ?? '').isNotEmpty)
+        .toList();
+    if (mitProtokoll.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Für diesen Betrieb ist kein Protokoll hinterlegt.'),
+        ),
+      );
+      return;
+    }
+
+    // Jahre mit Anzahl, neueste zuoberst.
+    final proJahr = <int, int>{};
+    for (final r in mitProtokoll) {
+      proJahr[r.datum.year] = (proJahr[r.datum.year] ?? 0) + 1;
+    }
+    final jahre = proJahr.keys.toList()..sort((a, b) => b.compareTo(a));
+    if (!context.mounted) return;
+
+    final jahr = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Protokolle als PDF'),
+        children: [
+          for (final j in jahre)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, j),
+              child: Text(
+                '$j  ·  ${proJahr[j]} Protokoll${proJahr[j] == 1 ? '' : 'e'}',
+              ),
+            ),
+          const Divider(),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Abbrechen'),
+          ),
+        ],
+      ),
+    );
+    if (jahr == null) return;
+
+    final auswahl = mitProtokoll.where((r) => r.datum.year == jahr).toList()
+      ..sort((a, b) => a.datum.compareTo(b.datum));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          '${auswahl.length} Protokolle werden geladen — das dauert einen '
+          'Moment.',
+        ),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+    try {
+      final bilder = await ProtokollePdfService.ladeBilder(auswahl);
+      if (bilder.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Keines der Protokolle liess sich laden.'),
+          ),
+        );
+        return;
+      }
+      final bytes = await ProtokollePdfService.buendel(
+        bilder,
+        betrieb.name,
+        jahr,
+      );
+      final name = betrieb.name.replaceAll(RegExp(r'[^A-Za-z0-9äöüÄÖÜ]+'), '_');
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'Protokolle_${name}_$jahr.pdf',
+      );
+      // Ehrlich bleiben, wenn nicht alles geladen werden konnte — sonst hält
+      // man ein unvollständiges Bündel für vollständig.
+      if (bilder.length < auswahl.length) {
+        messenger.showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.warning,
+            content: Text(
+              '${bilder.length} von ${auswahl.length} Protokollen im PDF — '
+              '${auswahl.length - bilder.length} liessen sich nicht laden.',
+            ),
+            duration: const Duration(seconds: 10),
+          ),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text('Protokolle fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    }
+  }
+
   Future<void> _zeigeKontoauszug(BuildContext context, WidgetRef ref) async {
     final serverId = betrieb.serverId;
     if (serverId == null) {
