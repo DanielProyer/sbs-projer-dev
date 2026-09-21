@@ -161,6 +161,75 @@ void main() {
       );
     });
   });
+
+  group('Referenz auf dem Einzahlungsschein', () {
+    // Entscheid Daniel 21.09.2026: Nur bei GENAU EINER offenen Rechnung trägt
+    // der Schein deren Referenz. Bei mehreren würde die Zahlung sonst
+    // vollständig auf eine davon gebucht, die übrigen blieben offen, und der
+    // Fehler fiele erst bei der nächsten Mahnung auf.
+    Rechnung mitRef(String id, String status, String? ref) => Rechnung(
+      id: id,
+      userId: 'u1',
+      rechnungsnummer: id,
+      rechnungstyp: 'kundenrechnung',
+      rechnungsdatum: DateTime(2026, 5, 1),
+      faelligkeitsdatum: DateTime(2026, 6, 1),
+      betragBrutto: 100,
+      zahlungsstatus: status,
+      qrReferenz: ref,
+    );
+
+    test('genau eine offene Rechnung: deren Referenz', () {
+      expect(
+        KontoauszugPdfService.einzelReferenz([
+          mitRef('a', 'bezahlt', 'RF11'),
+          mitRef('b', 'offen', 'RF22'),
+        ]),
+        'RF22',
+      );
+    });
+
+    test('mehrere offene: keine Referenz', () {
+      expect(
+        KontoauszugPdfService.einzelReferenz([
+          mitRef('a', 'offen', 'RF11'),
+          mitRef('b', 'mahnung_1', 'RF22'),
+        ]),
+        isNull,
+      );
+    });
+
+    test('keine offene: keine Referenz', () {
+      expect(
+        KontoauszugPdfService.einzelReferenz([
+          mitRef('a', 'bezahlt', 'RF11'),
+          mitRef('b', 'abgeschrieben', 'RF22'),
+        ]),
+        isNull,
+      );
+    });
+
+    test('einzige offene ohne hinterlegte Referenz: keine Referenz', () {
+      expect(
+        KontoauszugPdfService.einzelReferenz([mitRef('a', 'offen', null)]),
+        isNull,
+      );
+      expect(
+        KontoauszugPdfService.einzelReferenz([mitRef('a', 'offen', '')]),
+        isNull,
+      );
+    });
+
+    test('Zwischenstatus zählen als offen', () {
+      expect(
+        KontoauszugPdfService.einzelReferenz([
+          mitRef('a', 'bezahlt', 'RF11'),
+          mitRef('b', 'erinnert', 'RF22'),
+        ]),
+        'RF22',
+      );
+    });
+  });
   test('mit Jahr entsteht ebenfalls ein gültiges PDF', () async {
     // Bewusst KEIN Grössenvergleich: Das Jahres-PDF ist grösser als das
     // vollständige, weil der Vorbehalt-Satz fett gesetzt ist und dafür ein

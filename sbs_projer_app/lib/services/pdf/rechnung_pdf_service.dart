@@ -1,33 +1,29 @@
 import 'dart:typed_data';
 
-import 'package:barcode/barcode.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
-import 'package:sbs_projer_app/core/util/swiss_qr_bill.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
+import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 
 class RechnungPdfService {
   static const _darkBlue = PdfColor.fromInt(0xFF1A3A5C);
   static const _grey = PdfColor.fromInt(0xFF666666);
   static const _lightGrey = PdfColor.fromInt(0xFFEEEEEE);
   static const _lineGrey = PdfColor.fromInt(0xFFCCCCCC);
-
-  // Firmendaten
-  static const _iban = 'CH6600774010376550601';
-  static const _ibanFormatted = 'CH66 0077 4010 3765 5060 1';
-  static const _firmaName = 'SBS Projer GmbH';
-  static const _firmaStrasse = 'Via Rezia';
-  static const _firmaNr = '8';
-  static const _firmaPlz = '7013';
-  static const _firmaOrt = 'Domat/Ems';
-  static const _firmaLand = 'CH';
+  // Firmendaten fuer den Briefkopf — eine Wahrheit mit dem QR-Zahlteil,
+  // damit Briefkopf und Einzahlungsschein nie auseinanderlaufen.
+  static const _firmaName = QrZahlteil.firmaName;
+  static const _firmaStrasse = QrZahlteil.firmaStrasse;
+  static const _firmaNr = QrZahlteil.firmaNr;
+  static const _firmaPlz = QrZahlteil.firmaPlz;
+  static const _firmaOrt = QrZahlteil.firmaOrt;
 
   /// Generiert eine professionelle A4-Kundenrechnung mit QR-Zahlteil.
   /// [mitteilung] überschreibt den Standard-Buchungstext im QR-Zahlteil (Ustrd).
@@ -49,7 +45,8 @@ class RechnungPdfService {
     final brutto = _roundTo5Rappen(rechnung.betragBrutto);
 
     // Positionen aufsteigend nach Position sortieren
-    positionen = List.of(positionen)..sort((a, b) => a.position.compareTo(b.position));
+    positionen = List.of(positionen)
+      ..sort((a, b) => a.position.compareTo(b.position));
 
     // Kundenadresse für QR-Bill
     final kundeAddr = _getKundenAdressDaten(betrieb, rechnungsadresse);
@@ -91,9 +88,14 @@ class RechnungPdfService {
               pw.Spacer(),
 
               // === QR-ZAHLTEIL (untere 105mm) ===
-              _buildQrZahlteil(brutto, kundeAddr,
-                  mitteilung: mitteilung ?? '${betrieb.ort ?? ''} - ${betrieb.name} - ${dateFormat.format(rechnung.rechnungsdatum)}',
-                  referenz: rechnung.qrReferenz),
+              QrZahlteil.bauen(
+                brutto,
+                kundeAddr,
+                mitteilung:
+                    mitteilung ??
+                    '${betrieb.ort ?? ''} - ${betrieb.name} - ${dateFormat.format(rechnung.rechnungsdatum)}',
+                referenz: rechnung.qrReferenz,
+              ),
             ],
           );
         },
@@ -129,15 +131,23 @@ class RechnungPdfService {
           ),
         ),
         pw.SizedBox(height: 4),
-        pw.Text(displayStrasse,
-            style: const pw.TextStyle(fontSize: 9, color: _grey)),
-        pw.Text(displayPlzOrt,
-            style: const pw.TextStyle(fontSize: 9, color: _grey)),
+        pw.Text(
+          displayStrasse,
+          style: const pw.TextStyle(fontSize: 9, color: _grey),
+        ),
+        pw.Text(
+          displayPlzOrt,
+          style: const pw.TextStyle(fontSize: 9, color: _grey),
+        ),
         pw.SizedBox(height: 4),
-        pw.Text('Tel 076 566 58 06 | sbs.projer@gmail.com',
-            style: const pw.TextStyle(fontSize: 9, color: _grey)),
-        pw.Text(displayMwst,
-            style: const pw.TextStyle(fontSize: 9, color: _grey)),
+        pw.Text(
+          'Tel 076 566 58 06 | sbs.projer@gmail.com',
+          style: const pw.TextStyle(fontSize: 9, color: _grey),
+        ),
+        pw.Text(
+          displayMwst,
+          style: const pw.TextStyle(fontSize: 9, color: _grey),
+        ),
       ],
     );
   }
@@ -212,8 +222,10 @@ class RechnungPdfService {
   }
 
   static pw.Widget _infoLabel(String text) {
-    return pw.Text(text,
-        style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold));
+    return pw.Text(
+      text,
+      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+    );
   }
 
   static pw.Widget _infoValue(String text) {
@@ -222,8 +234,7 @@ class RechnungPdfService {
 
   // ─── POSITIONSTABELLE ───
 
-  static pw.Widget _buildPositionenTabelle(
-      List<RechnungsPosition> positionen) {
+  static pw.Widget _buildPositionenTabelle(List<RechnungsPosition> positionen) {
     return pw.Column(
       children: [
         // Header
@@ -234,27 +245,36 @@ class RechnungPdfService {
             children: [
               pw.SizedBox(
                 width: 35,
-                child: pw.Text('Pos',
-                    style: pw.TextStyle(
-                        fontSize: 8,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white)),
+                child: pw.Text(
+                  'Pos',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
               ),
               pw.Expanded(
-                child: pw.Text('Beschreibung',
-                    style: pw.TextStyle(
-                        fontSize: 8,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white)),
+                child: pw.Text(
+                  'Beschreibung',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
               ),
               pw.SizedBox(
                 width: 80,
-                child: pw.Text('Betrag CHF',
-                    style: pw.TextStyle(
-                        fontSize: 8,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white),
-                    textAlign: pw.TextAlign.right),
+                child: pw.Text(
+                  'Betrag CHF',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                  textAlign: pw.TextAlign.right,
+                ),
               ),
             ],
           ),
@@ -264,8 +284,7 @@ class RechnungPdfService {
           final p = positionen[i];
           final isEven = i % 2 == 0;
           return pw.Container(
-            padding:
-                const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+            padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 8),
             decoration: pw.BoxDecoration(
               color: isEven ? PdfColors.white : _lightGrey,
             ),
@@ -273,18 +292,24 @@ class RechnungPdfService {
               children: [
                 pw.SizedBox(
                   width: 35,
-                  child: pw.Text('${p.position}',
-                      style: const pw.TextStyle(fontSize: 9)),
+                  child: pw.Text(
+                    '${p.position}',
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
                 ),
                 pw.Expanded(
-                  child: pw.Text(p.beschreibung,
-                      style: const pw.TextStyle(fontSize: 9)),
+                  child: pw.Text(
+                    p.beschreibung,
+                    style: const pw.TextStyle(fontSize: 9),
+                  ),
                 ),
                 pw.SizedBox(
                   width: 80,
-                  child: pw.Text(_chf(p.betragNetto),
-                      style: const pw.TextStyle(fontSize: 9),
-                      textAlign: pw.TextAlign.right),
+                  child: pw.Text(
+                    _chf(p.betragNetto),
+                    style: const pw.TextStyle(fontSize: 9),
+                    textAlign: pw.TextAlign.right,
+                  ),
                 ),
               ],
             ),
@@ -308,19 +333,28 @@ class RechnungPdfService {
             pw.SizedBox(height: 3),
             _summenRow(
               'MwSt ${rechnung.betragNetto > 0 ? (rechnung.mwstBetrag / rechnung.betragNetto * 100).toStringAsFixed(1) : '8.1'}%',
-              _chf(rechnung.mwstBetrag)),
+              _chf(rechnung.mwstBetrag),
+            ),
             pw.SizedBox(height: 4),
             pw.Container(height: 1, color: _lineGrey),
             pw.SizedBox(height: 4),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Total CHF',
-                    style: pw.TextStyle(
-                        fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                pw.Text(_chf(brutto),
-                    style: pw.TextStyle(
-                        fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                pw.Text(
+                  'Total CHF',
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.Text(
+                  _chf(brutto),
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ],
@@ -333,8 +367,7 @@ class RechnungPdfService {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label,
-            style: const pw.TextStyle(fontSize: 9, color: _grey)),
+        pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: _grey)),
         pw.Text(value, style: const pw.TextStyle(fontSize: 9)),
       ],
     );
@@ -346,264 +379,20 @@ class RechnungPdfService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Zahlbar innert 30 Tagen netto',
-            style: const pw.TextStyle(fontSize: 9)),
+        pw.Text(
+          'Zahlbar innert 30 Tagen netto',
+          style: const pw.TextStyle(fontSize: 9),
+        ),
         pw.SizedBox(height: 6),
-        pw.Text('Vielen Dank für Ihren Auftrag!',
-            style: pw.TextStyle(
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
-                color: _darkBlue)),
-      ],
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // ═══ QR-ZAHLTEIL (Swiss QR-bill, untere 105mm der A4-Seite) ═══
-  // ═══════════════════════════════════════════════════════════════
-
-  static pw.Widget _buildQrZahlteil(
-      double betrag, QrEmpfaenger kunde, {String? mitteilung, String? referenz}) {
-    const mm = PdfPageFormat.mm;
-    final betragStr = betrag.toStringAsFixed(2);
-
-    // QR-Code Daten (Swiss Payment Standards v2.3)
-    final qrData = _buildQrData(betrag, kunde, mitteilung: mitteilung, referenz: referenz);
-
-    return pw.Container(
-      height: 105 * mm,
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(width: 0.5)),
-      ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          // ─── EMPFANGSSCHEIN (links, 62mm) ───
-          pw.Container(
-            width: 62 * mm,
-            padding: const pw.EdgeInsets.fromLTRB(
-                5 * mm, 5 * mm, 5 * mm, 5 * mm),
-            decoration: const pw.BoxDecoration(
-              border: pw.Border(
-                  right: pw.BorderSide(width: 0.5, style: pw.BorderStyle.dashed)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('Empfangsschein',
-                    style: pw.TextStyle(
-                        fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 6),
-                _qrSectionTitle('Konto / Zahlbar an'),
-                _qrText(_ibanFormatted),
-                _qrText(_firmaName),
-                _qrText('$_firmaStrasse $_firmaNr'),
-                _qrText('$_firmaPlz $_firmaOrt'),
-                pw.SizedBox(height: 6),
-                if (kunde.name.isNotEmpty) ...[
-                  _qrSectionTitle('Zahlbar durch'),
-                  _qrText(kunde.name),
-                  if (kunde.strasseZeile.isNotEmpty) _qrText(kunde.strasseZeile),
-                  if (kunde.plzOrt.isNotEmpty) _qrText(kunde.plzOrt),
-                  pw.SizedBox(height: 6),
-                ],
-                pw.Row(
-                  children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        _qrSectionTitle('Währung'),
-                        _qrText('CHF'),
-                      ],
-                    ),
-                    pw.SizedBox(width: 8),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        _qrSectionTitle('Betrag'),
-                        _qrText(betragStr),
-                      ],
-                    ),
-                  ],
-                ),
-                pw.Spacer(),
-                pw.Align(
-                  alignment: pw.Alignment.centerRight,
-                  child: pw.Text('Annahmestelle',
-                      style: pw.TextStyle(
-                          fontSize: 6, fontWeight: pw.FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-
-          // ─── ZAHLTEIL (rechts, 148mm) ───
-          pw.Expanded(
-            child: pw.Padding(
-              padding: const pw.EdgeInsets.fromLTRB(
-                  5 * mm, 5 * mm, 5 * mm, 5 * mm),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('Zahlteil',
-                      style: pw.TextStyle(
-                          fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 6),
-                  pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      // QR-Code (46×46mm) mit zwingendem Schweizerkreuz (7mm) in der Mitte
-                      pw.Container(
-                        width: 46 * mm,
-                        height: 46 * mm,
-                        child: pw.Stack(
-                          alignment: pw.Alignment.center,
-                          children: [
-                            pw.BarcodeWidget(
-                              barcode: Barcode.qrCode(
-                                errorCorrectLevel:
-                                    BarcodeQRCorrectionLevel.medium,
-                              ),
-                              data: qrData,
-                              width: 46 * mm,
-                              height: 46 * mm,
-                            ),
-                            _swissQrCross(),
-                          ],
-                        ),
-                      ),
-                      pw.SizedBox(width: 5 * mm),
-                      // Betrag rechts vom QR
-                      pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Row(
-                            children: [
-                              pw.Column(
-                                crossAxisAlignment:
-                                    pw.CrossAxisAlignment.start,
-                                children: [
-                                  _qrSectionTitle('Währung'),
-                                  pw.Text('CHF',
-                                      style:
-                                          const pw.TextStyle(fontSize: 8)),
-                                ],
-                              ),
-                              pw.SizedBox(width: 10),
-                              pw.Column(
-                                crossAxisAlignment:
-                                    pw.CrossAxisAlignment.start,
-                                children: [
-                                  _qrSectionTitle('Betrag'),
-                                  pw.Text(betragStr,
-                                      style:
-                                          const pw.TextStyle(fontSize: 8)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 6),
-                  _qrSectionTitle('Konto / Zahlbar an'),
-                  _qrText(_ibanFormatted),
-                  _qrText(_firmaName),
-                  _qrText('$_firmaStrasse $_firmaNr'),
-                  _qrText('$_firmaPlz $_firmaOrt'),
-                  pw.SizedBox(height: 6),
-                  if (referenz != null && referenz.isNotEmpty) ...[
-                    _qrSectionTitle('Referenz'),
-                    _qrText(_scorAnzeige(referenz)),
-                    pw.SizedBox(height: 6),
-                  ],
-                  if (kunde.name.isNotEmpty) ...[
-                    _qrSectionTitle('Zahlbar durch'),
-                    _qrText(kunde.name),
-                    if (kunde.strasseZeile.isNotEmpty) _qrText(kunde.strasseZeile),
-                    if (kunde.plzOrt.isNotEmpty) _qrText(kunde.plzOrt),
-                  ],
-                  if (mitteilung != null && mitteilung.isNotEmpty) ...[
-                    pw.SizedBox(height: 6),
-                    _qrSectionTitle('Zusätzliche Informationen'),
-                    _qrText(mitteilung),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _qrSectionTitle(String text) {
-    return pw.Text(text,
-        style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold));
-  }
-
-  static pw.Widget _qrText(String text) {
-    return pw.Text(text, style: const pw.TextStyle(fontSize: 8));
-  }
-
-  /// Zwingendes Schweizerkreuz (7×7mm) in der Mitte des QR-Codes (Swiss QR-Bill).
-  /// Weisses Kreuz auf schwarzem Feld mit dünnem weissem Rahmen zur Abgrenzung.
-  static pw.Widget _swissQrCross() {
-    const mm = PdfPageFormat.mm;
-    const white = PdfColor.fromInt(0xFFFFFFFF);
-    const black = PdfColor.fromInt(0xFF000000);
-    return pw.Container(
-      width: 7 * mm,
-      height: 7 * mm,
-      color: white,
-      child: pw.Padding(
-        padding: pw.EdgeInsets.all(0.4 * mm),
-        child: pw.Container(
-          color: black,
-          child: pw.Stack(
-            alignment: pw.Alignment.center,
-            children: [
-              pw.Container(width: 1.3 * mm, height: 4.0 * mm, color: white),
-              pw.Container(width: 4.0 * mm, height: 1.3 * mm, color: white),
-            ],
+        pw.Text(
+          'Vielen Dank für Ihren Auftrag!',
+          style: pw.TextStyle(
+            fontSize: 10,
+            fontWeight: pw.FontWeight.bold,
+            color: _darkBlue,
           ),
         ),
-      ),
-    );
-  }
-
-  /// SCOR-Referenz in 4er-Gruppen für die Anzeige: RF18 5390 0754 7034.
-  static String _scorAnzeige(String ref) {
-    final r = ref.replaceAll(' ', '');
-    final sb = StringBuffer();
-    for (var i = 0; i < r.length; i += 4) {
-      if (i > 0) sb.write(' ');
-      sb.write(r.substring(i, i + 4 > r.length ? r.length : i + 4));
-    }
-    return sb.toString();
-  }
-
-  /// Baut den QR-Code Datenstring gemäss Swiss Payment Standards.
-  static String _buildQrData(double betrag, QrEmpfaenger kunde,
-      {String? mitteilung, String? referenz}) {
-    // Nutzt die gemeinsame reine Funktion (byte-identisch zur bisherigen Ausgabe).
-    return swissQrPayload(
-      iban: _iban,
-      creditorName: _firmaName,
-      creditorStreet: _firmaStrasse,
-      creditorNr: _firmaNr,
-      creditorPlz: _firmaPlz,
-      creditorOrt: _firmaOrt,
-      creditorLand: _firmaLand,
-      betrag: betrag,
-      debtorName: kunde.name,
-      debtorStreet: kunde.strasse,
-      debtorNr: kunde.nr,
-      debtorPlz: kunde.plz,
-      debtorOrt: kunde.ort,
-      referenz: referenz,
-      mitteilung: mitteilung,
+      ],
     );
   }
 
@@ -621,24 +410,26 @@ class RechnungPdfService {
   // für Rechnung, Mahnung und Kontoauszug, per Test abgesichert).
 
   static List<String> _adressZeilen(
-          BetriebLocal betrieb, BetriebRechnungsadresse? ra) =>
-      adressZeilen(
-        betriebName: betrieb.name,
-        betriebStrasse: betrieb.strasse,
-        betriebNr: betrieb.nr,
-        betriebPlz: betrieb.plz,
-        betriebOrt: betrieb.ort,
-        ra: ra,
-      );
+    BetriebLocal betrieb,
+    BetriebRechnungsadresse? ra,
+  ) => adressZeilen(
+    betriebName: betrieb.name,
+    betriebStrasse: betrieb.strasse,
+    betriebNr: betrieb.nr,
+    betriebPlz: betrieb.plz,
+    betriebOrt: betrieb.ort,
+    ra: ra,
+  );
 
   static QrEmpfaenger _getKundenAdressDaten(
-          BetriebLocal betrieb, BetriebRechnungsadresse? ra) =>
-      qrEmpfaenger(
-        betriebName: betrieb.name,
-        betriebStrasse: betrieb.strasse,
-        betriebNr: betrieb.nr,
-        betriebPlz: betrieb.plz,
-        betriebOrt: betrieb.ort,
-        ra: ra,
-      );
+    BetriebLocal betrieb,
+    BetriebRechnungsadresse? ra,
+  ) => qrEmpfaenger(
+    betriebName: betrieb.name,
+    betriebStrasse: betrieb.strasse,
+    betriebNr: betrieb.nr,
+    betriebPlz: betrieb.plz,
+    betriebOrt: betrieb.ort,
+    ra: ra,
+  );
 }

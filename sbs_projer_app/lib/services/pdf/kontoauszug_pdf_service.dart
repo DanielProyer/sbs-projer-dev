@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
+import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 
 /// Eine Bewegung auf dem Kunden-Konto: Rechnung (Soll) oder Zahlung (Haben).
 class _Bewegung {
@@ -232,7 +233,71 @@ class KontoauszugPdfService {
       ),
     );
 
+    // Einzahlungsschein auf einer eigenen Seite. Der Zahlteil braucht die
+    // unteren 105 mm einer randlosen A4-Seite; der Auszug selbst läuft über
+    // beliebig viele Seiten mit Rand. Beides auf derselben Seite ginge nur mit
+    // reserviertem Fussraum auf JEDER Seite — die eigene Seite ist die
+    // normkonforme und im Alltag übliche Lösung (Perforation).
+    final zahlbar = _rundeAuf5Rappen(offenerSaldo);
+    if (zahlbar > 0) {
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.zero,
+          build: (ctx) => pw.Column(
+            children: [
+              pw.Spacer(),
+              QrZahlteil.bauen(
+                zahlbar,
+                qrEmpfaenger(
+                  betriebName: betrieb.name,
+                  betriebStrasse: betrieb.strasse,
+                  betriebNr: betrieb.nr,
+                  betriebPlz: betrieb.plz,
+                  betriebOrt: betrieb.ort,
+                  ra: rechnungsadresse,
+                ),
+                mitteilung:
+                    'Kontoauszug${jahr == null ? '' : ' $jahr'} - '
+                    '${betrieb.name}',
+                referenz: einzelReferenz(gefiltert),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return pdf.save();
+  }
+
+  /// Auf 5 Rappen runden — ein Einzahlungsschein über 113.47 wäre in der
+  /// Schweiz nicht bezahlbar.
+  static double _rundeAuf5Rappen(double v) => (v * 20).roundToDouble() / 20;
+
+  /// Die Referenz für den Einzahlungsschein. Öffentlich, damit die Regel
+  /// prüfbar ist — `test/kontoauszug_jahr_test.dart`.
+  ///
+  /// Entscheid Daniel (21.09.2026): **Nur wenn genau EINE Rechnung offen ist**,
+  /// trägt der Schein deren Referenz — dann ordnet der camt-Abgleich die
+  /// Zahlung automatisch zu, wie bei einer normalen Rechnung.
+  ///
+  /// Sind mehrere offen, bleibt der Schein bewusst ohne Referenz. Die Referenz
+  /// einer einzelnen Rechnung zu nehmen wäre schlimmer als keine: Die Zahlung
+  /// würde vollständig auf jene eine Rechnung gebucht, die übrigen blieben
+  /// offen, und der Fehler fiele erst bei der nächsten Mahnung auf. Ohne
+  /// Referenz ordnet man von Hand zu — sichtbar und richtig.
+  static String? einzelReferenz(List<Rechnung> gefiltert) {
+    final offen = gefiltert
+        .where(
+          (r) =>
+              r.zahlungsstatus != 'bezahlt' &&
+              r.zahlungsstatus != 'abgeschrieben',
+        )
+        .toList();
+    if (offen.length != 1) return null;
+    final ref = offen.single.qrReferenz;
+    return (ref == null || ref.isEmpty) ? null : ref;
   }
 
   static String? _statusLabel(Rechnung r) {
