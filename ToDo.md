@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.125.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1778 Tests grün** · Git sauber.
+**Stand:** **v0.126.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1800 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -485,6 +485,53 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
   Buchung entsteht aus dem Datensatz, nicht aus dem Dokument.
 
 ---
+
+## 📌 Zuletzt gebaut (17.–21.09.2026)
+
+### ✅ Offene Rechnungen pro Betrieb, je Jahr, mit Zustellung (v0.126.0, 21.09.)
+
+**Forderungen → Karte «Offen pro Betrieb»** (Route `/rechnungen/pro-betrieb`).
+
+⚠️ **Die Übersicht, von der die Anfrage ausging, gab es nicht.** Der
+Forderungen-Hub gruppiert nach **Monat → Tag**. Eine Bündelung pro Betrieb
+existierte nur intern im camt-Forderungsabgleich, nicht als Screen. Deshalb neu
+gebaut statt umgebaut — der Hub bleibt unverändert, er bekam nur die
+Einstiegskarte.
+
+Was der Screen zeigt (Stand 21.09., gegen die Datenbank gerechnet):
+
+| | 2026 |
+|---|---|
+| Betriebe | 104 |
+| offene Rechnungen | 172 |
+| Summe | 31'307.14 |
+| **ohne Zustellnachweis** | **60** |
+
+- **Jahr-Auswahl**, vorbelegt mit dem laufenden Jahr, «Alle Jahre» wählbar. Die
+  Jahrgänge kommen aus den OFFENEN Rechnungen — sonst stünden längst bezahlte
+  Jahre zur Wahl und ergäben eine leere Liste.
+- **Je Rechnung Versandart und Zustellung mit Datum**: «Tresen · Übergeben
+  28.08.2026», «E-Mail · Versendet 14.09.2026», und **«Tresen · —» in Orange**,
+  wenn weder Übergabe noch Versand hinterlegt ist.
+- **Zähler «ohne Zustellung»** je Betrieb und im Kopf. *Eine offene Rechnung
+  ohne Zustellnachweis ist kein Zahlungsverzug, sondern der Verdacht auf eine
+  nie gestellte Rechnung.* Genau diese Verwechslung verdeckte den Fall Blue
+  Cinema vier Jahre lang.
+- Sortiert nach offenem Betrag absteigend, Suche über Betrieb und Ort.
+- Antippen einer Rechnung führt ins Rechnungs-Detail.
+
+**Technische Merkposten:**
+- Die Route **muss vor `/rechnungen/:id` stehen**, sonst fängt der Detailscreen
+  `pro-betrieb` als Rechnungs-ID ab.
+- Karten klappen über `GestureDetector` + `Container` auf, **kein
+  `ExpansionTile`** (CanvasKit-Regel).
+- Aggregation liegt als prüfbarer Helfer in `core/util/offene_pro_betrieb.dart`
+  (14 Tests). `core/util/rechnung_zustellung.dart` war ohne Test — 5 nachgezogen.
+- «Offen» ist eine **Negativliste** (alles ausser `bezahlt`/`abgeschrieben`):
+  Ein künftiger Zwischenstatus zählt automatisch mit, statt still zu fehlen.
+
+*Im Browser geprüft: Kopfzahlen, Jahr-Auswahl, Suche, Aufklappen, Tresen- und
+Mail-Zustellung. Dabei fiel «1 Betriebe» auf, korrigiert.*
 
 ## 📌 Zuletzt gebaut (17.–20.09.2026)
 
