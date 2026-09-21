@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.128.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1823 Tests grün** · Git sauber.
+**Stand:** **v0.129.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1829 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -487,6 +487,42 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 ---
 
 ## 📌 Zuletzt gebaut (17.–21.09.2026)
+
+### ✅ Reinigungsprotokolle als PDF herunterladen (v0.129.0, 21.09.)
+
+Zwei Wege, beide auf Wunsch Daniel:
+
+| Wo | Knopf | Ergebnis |
+|---|---|---|
+| **Reinigungs-Detail** | «Protokoll als PDF» | Das eine Protokoll |
+| **Betriebs-Detail** | «Reinigungsprotokolle (PDF)» | Jahresauswahl → alle Protokolle des Jahrgangs in einem PDF |
+
+- **Einzeln:** Die gespeicherte Datei **ist bereits ein PDF** (das Foto in eine
+  A4-Seite gehüllt) und wird unverändert durchgereicht — kein Neuaufbau, kein
+  Qualitätsverlust. Nur Altbestände, die als reines Bild abgelegt wurden,
+  bekommen eine Seite drumherum.
+- **Gebündelt:** Der Dialog zeigt je Jahrgang die Anzahl (bei Alpine Inn z. B.
+  2026 · 7, 2025 · 11, 2024 · 11, 2023 · 9, 2022 · 3). Ein Bündel über alle
+  Jahre wäre unhandlich, gefragt wird ohnehin jahrweise.
+- **Meldet ehrlich,** wenn nicht alle Protokolle geladen werden konnten —
+  sonst hält man ein unvollständiges Bündel für vollständig.
+
+⚠️ **`reinigung_pdf_service.dart` wurde bewusst NICHT verwendet.** Es erzeugt
+das alte Heineken-Formular aus Checkliste und Unterschriften. Diese Felder
+werden **seit der Foto-Umstellung nicht mehr gefüllt** — für eine heutige
+Reinigung käme ein fast leeres Blatt heraus. Es war ohnehin toter Code ohne
+Aufrufer, ebenso `reinigung_pdf_storage.dart` (Bucket `reinigung-pdfs` ist
+leer). Das echte Protokoll ist das abfotografierte Papier in
+`protokoll_foto_pfad`, Bucket `reinigung-fotos` (12'666 Dateien, 3.3 GB).
+
+**Refactor als Voraussetzung:** Die Bündel-Logik lag privat in
+`jahresrechnung_service.dart` und lief nur als Nebenprodukt der Jahresrechnung.
+Die drei Funktionen sind **unverändert** nach `services/pdf/
+protokolle_pdf_service.dart` gezogen; die Jahresrechnung ruft sie dort auf.
+
+*An echten Daten im Browser geprüft: einzeln 224'988 Bytes `application/pdf`,
+Bündel 2'050'925 Bytes, Konsole belegt «ladeBilder: 7/7 Protokolle geladen»
+und sieben eingebettete Seiten.*
 
 ### ✅ QR-Einzahlungsschein im Kontoauszug (v0.128.0, 21.09.)
 
