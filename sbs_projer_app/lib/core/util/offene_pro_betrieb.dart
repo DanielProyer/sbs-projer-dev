@@ -1,13 +1,22 @@
-/// Offene Rechnungen, gebündelt pro Betrieb.
+/// Rechnungen, gebündelt pro Betrieb.
 ///
 /// WARUM es das gibt (21.09.2026): Der Forderungen-Hub gruppiert nach Monat und
 /// Tag. Das beantwortet «was lief im März?», nicht «wer schuldet mir wie viel?».
-/// Für ein Telefonat beim Wirt braucht es die zweite Sicht — alle offenen
-/// Posten eines Betriebs auf einem Blick, mit der Frage daneben, ob die
-/// Rechnung überhaupt bei ihm angekommen ist.
+/// Für ein Telefonat beim Wirt braucht es die zweite Sicht — alle Posten eines
+/// Betriebs auf einem Blick, mit der Frage daneben, ob die Rechnung überhaupt
+/// bei ihm angekommen ist.
 library;
 
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+
+/// Welche Rechnungen sollen in die Auswertung?
+enum RechnungsAuswahl {
+  /// Nur unbezahlte — die Mahn- und Telefonliste.
+  offen,
+
+  /// Auch bezahlte und abgeschriebene — die Jahresübersicht je Kunde.
+  alle,
+}
 
 /// Gilt eine Rechnung als offen? Bewusst als Negativliste: Jeder neue
 /// Zwischenstatus (erinnert, mahnung_1, …) zählt automatisch als offen, statt
@@ -16,8 +25,8 @@ const kErledigteStatus = {'bezahlt', 'abgeschrieben'};
 
 bool istOffen(Rechnung r) => !kErledigteStatus.contains(r.zahlungsstatus);
 
-/// Ein Betrieb mit seinen offenen Rechnungen.
-class BetriebOffen {
+/// Ein Betrieb mit seinen Rechnungen.
+class BetriebRechnungen {
   /// null bei Rechnungen ohne Betriebsbezug (z. B. Heineken-Monatsrechnung).
   final String? betriebId;
   final String name;
@@ -26,7 +35,7 @@ class BetriebOffen {
   /// Absteigend nach Rechnungsdatum — die jüngste zuoberst.
   final List<Rechnung> rechnungen;
 
-  const BetriebOffen({
+  const BetriebRechnungen({
     required this.betriebId,
     required this.name,
     required this.ort,
@@ -35,52 +44,67 @@ class BetriebOffen {
 
   int get anzahl => rechnungen.length;
 
+  /// Summe aller angezeigten Rechnungen (bei [RechnungsAuswahl.alle] also der
+  /// Jahresumsatz dieses Betriebs, bezahlt und unbezahlt zusammen).
   double get summe => rechnungen.fold<double>(0, (s, r) => s + r.betragBrutto);
+
+  /// Davon noch nicht bezahlt. Bei [RechnungsAuswahl.offen] gleich [summe].
+  double get summeOffen =>
+      rechnungen.where(istOffen).fold<double>(0, (s, r) => s + r.betragBrutto);
+
+  int get anzahlOffen => rechnungen.where(istOffen).length;
 
   /// Ältestes Rechnungsdatum — je weiter zurück, desto dringender.
   DateTime get aeltestes => rechnungen
       .map((r) => r.rechnungsdatum)
       .reduce((a, b) => a.isBefore(b) ? a : b);
 
-  /// Rechnungen ohne jeden Zustellnachweis. Das ist KEIN Zahlungsverzug,
+  /// OFFENE Rechnungen ohne jeden Zustellnachweis. Das ist KEIN Zahlungsverzug,
   /// sondern der Verdacht auf eine nie gestellte Rechnung — mahnen wäre hier
   /// der falsche Schritt (Lehre aus Blue Cinema: 32 Rechnungen über vier Jahre,
   /// keine einzige je versendet).
+  ///
+  /// Bezahlte Rechnungen zählen bewusst NICHT mit: Ist das Geld da, ist die
+  /// Frage «kam sie an?» beantwortet, auch ohne Stempel. Sonst meldete die
+  /// Liste hunderte Tresen-Rechnungen, die längst erledigt sind.
   int get ohneZustellung => rechnungen
-      .where((r) => r.uebergebenAm == null && r.versendetAm == null)
+      .where(
+        (r) => istOffen(r) && r.uebergebenAm == null && r.versendetAm == null,
+      )
       .length;
 }
 
-/// Bündelt [alle] Rechnungen zu offenen Posten pro Betrieb.
+/// Bündelt [alle] Rechnungen pro Betrieb.
 ///
 /// [jahr] null bedeutet «alle Jahre». Gefiltert wird über `rechnungsdatum`,
 /// nicht über `created_at` — massgebend ist, wann die Leistung verrechnet
 /// wurde, nicht wann die Zeile entstand (die Historik-Importe von 2019–2023
 /// wurden alle 2026 angelegt).
 ///
-/// Sortiert nach offenem Betrag absteigend: Wer am meisten schuldet, steht
-/// oben. Bei gleichem Betrag alphabetisch, damit die Reihenfolge zwischen zwei
-/// Aufrufen stabil bleibt.
-List<BetriebOffen> offeneProBetrieb({
+/// Sortiert nach Betrag absteigend: Wer am meisten aussteht bzw. am meisten
+/// Umsatz macht, steht oben. Bei gleichem Betrag alphabetisch, damit die
+/// Reihenfolge zwischen zwei Aufrufen stabil bleibt.
+List<BetriebRechnungen> rechnungenProBetrieb({
   required List<Rechnung> alle,
   required int? jahr,
   required Map<String, String> namen,
   required Map<String, String> orte,
+  RechnungsAuswahl auswahl = RechnungsAuswahl.offen,
 }) {
   final gruppen = <String, List<Rechnung>>{};
   for (final r in alle) {
-    if (!istOffen(r)) continue;
+    if (auswahl == RechnungsAuswahl.offen && !istOffen(r)) continue;
     if (jahr != null && r.rechnungsdatum.year != jahr) continue;
     gruppen.putIfAbsent(r.betriebId ?? _ohneBetrieb, () => []).add(r);
   }
 
-  final result = <BetriebOffen>[];
+  final result = <BetriebRechnungen>[];
   for (final eintrag in gruppen.entries) {
     final id = eintrag.key == _ohneBetrieb ? null : eintrag.key;
     final liste = eintrag.value
       ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
     result.add(
-      BetriebOffen(
+      BetriebRechnungen(
         betriebId: id,
         name: _name(id, liste, namen),
         ort: id == null ? null : orte[id],

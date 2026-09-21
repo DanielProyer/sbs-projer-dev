@@ -7,10 +7,18 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/offene_pro_betrieb.dart';
 import 'package:sbs_projer_app/core/util/rechnung_zustellung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:printing/printing.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
-    show betriebNameMapProvider, betriebOrtMapProvider;
+    show betriebNameMapProvider, betriebOrtMapProvider, betriebeProvider;
+import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 
 /// Offene Rechnungen, gebündelt pro Betrieb, wahlweise auf ein Jahr begrenzt.
 ///
@@ -33,15 +41,81 @@ class OffenProBetriebScreen extends ConsumerStatefulWidget {
 class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
   /// null = alle Jahre. Vorbelegt mit dem laufenden Jahr.
   int? _jahr = DateTime.now().year;
+
+  /// Vorbelegt mit ALLEN Rechnungen (Wunsch Daniel 21.09.2026) — die Sicht
+  /// beantwortet damit zuerst «was habe ich diesem Kunden verrechnet».
+  /// «Nur offene» bleibt einen Griff entfernt.
+  RechnungsAuswahl _auswahl = RechnungsAuswahl.alle;
+
   final _offen = <String>{};
   String _suche = '';
+
+  /// Schlüssel des Betriebs, dessen PDF gerade gebaut wird — sperrt nur diesen
+  /// einen Knopf, nicht die ganze Liste.
+  String? _pdfLaeuft;
+
+  /// Erzeugt denselben Kontoauszug wie die Betriebsseite, nur auf das gewählte
+  /// Jahr eingegrenzt. Geladen werden ALLE Rechnungen des Betriebs; die
+  /// Jahresauswahl übernimmt der PDF-Service, damit Inhalt und Zeitraum-Angabe
+  /// im Kopf nicht auseinanderlaufen können.
+  Future<void> _kontoauszug(BetriebRechnungen g) async {
+    final serverId = g.betriebId;
+    if (serverId == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _pdfLaeuft = serverId);
+    try {
+      final betrieb = ref
+          .read(betriebeProvider)
+          .where((b) => b.serverId == serverId)
+          .firstOrNull;
+      if (betrieb == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Betrieb nicht gefunden.')),
+        );
+        return;
+      }
+      final rechnungen = await RechnungRepository.getByBetrieb(serverId);
+      final raLocal = await BetriebRechnungsadresseRepository.getByBetrieb(
+        serverId,
+      );
+      final ra = raLocal == null
+          ? null
+          : BetriebRechnungsadresseMapper.toDto(raLocal, betriebId: serverId);
+      final firma = ref.read(geschaeftProvider).valueOrNull;
+      final bytes = await KontoauszugPdfService.generate(
+        betrieb: betrieb,
+        rechnungen: rechnungen,
+        rechnungsadresse: ra,
+        firmaName: firma?.firma,
+        firmaStrasse: firma?.adresseStrasse,
+        firmaPlzOrt: firma?.adressePlzOrt,
+        firmaMwst: firma?.mwstZeile,
+        jahr: _jahr,
+      );
+      final sauber = g.name.replaceAll(RegExp(r'[^A-Za-z0-9äöüÄÖÜ]+'), '_');
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'Kontoauszug_$sauber${_jahr == null ? '' : '_$_jahr'}.pdf',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text('PDF fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _pdfLaeuft = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(rechnungenStreamProvider);
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: Text('Offen pro Betrieb  ·  v$kAppVersion')),
+      appBar: AppBar(title: Text('Pro Betrieb  ·  v$kAppVersion')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -59,18 +133,25 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
     final namen = ref.watch(betriebNameMapProvider);
     final orte = ref.watch(betriebOrtMapProvider);
 
-    // Jahre aus den OFFENEN Rechnungen ableiten, nicht aus allen — sonst
-    // stehen Jahrgänge zur Wahl, die längst bezahlt sind und eine leere Liste
-    // ergeben.
+    // Die Jahrgänge richten sich nach der Auswahl: Bei «nur offene» sollen
+    // keine Jahre zur Wahl stehen, die längst bezahlt sind und eine leere
+    // Liste ergäben.
     final jahre =
-        alle.where(istOffen).map((r) => r.rechnungsdatum.year).toSet().toList()
+        alle
+            .where(
+              (r) => _auswahl == RechnungsAuswahl.alle ? true : istOffen(r),
+            )
+            .map((r) => r.rechnungsdatum.year)
+            .toSet()
+            .toList()
           ..sort((a, b) => b.compareTo(a));
 
-    var gruppen = offeneProBetrieb(
+    var gruppen = rechnungenProBetrieb(
       alle: alle,
       jahr: _jahr,
       namen: namen,
       orte: orte,
+      auswahl: _auswahl,
     );
     if (_suche.trim().isNotEmpty) {
       final q = _suche.toLowerCase().trim();
@@ -97,6 +178,19 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
               options: [for (final j in jahre) (j, '$j')],
               onChanged: (v) => setState(() {
                 _jahr = v;
+                _offen.clear();
+              }),
+            ),
+            AppFilterDropdown<RechnungsAuswahl>(
+              hint: 'Alle Rechnungen',
+              value: _auswahl,
+              nullable: false,
+              options: const [
+                (RechnungsAuswahl.alle, 'Alle Rechnungen'),
+                (RechnungsAuswahl.offen, 'Nur offene'),
+              ],
+              onChanged: (v) => setState(() {
+                _auswahl = v ?? RechnungsAuswahl.alle;
                 _offen.clear();
               }),
             ),
@@ -145,8 +239,10 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
     ),
   );
 
-  Widget _kopf(List<BetriebOffen> gruppen) {
+  Widget _kopf(List<BetriebRechnungen> gruppen) {
     final summe = gruppen.fold<double>(0, (s, g) => s + g.summe);
+    final summeOffen = gruppen.fold<double>(0, (s, g) => s + g.summeOffen);
+    final anzahlOffen = gruppen.fold<int>(0, (s, g) => s + g.anzahlOffen);
     final rechnungen = gruppen.fold<int>(0, (s, g) => s + g.anzahl);
     final ohne = gruppen.fold<int>(0, (s, g) => s + g.ohneZustellung);
     return Container(
@@ -160,7 +256,8 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _jahr == null ? 'Offen, alle Jahre' : 'Offen aus $_jahr',
+            '${_auswahl == RechnungsAuswahl.alle ? 'Verrechnet' : 'Offen'}'
+            '${_jahr == null ? ', alle Jahre' : ' $_jahr'}',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -189,6 +286,20 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
               ),
             ],
           ),
+          // Bei «Alle Rechnungen» darf der offene Anteil nicht in der
+          // Umsatzsumme untergehen — sonst verliert die Seite ihren
+          // ursprünglichen Zweck als Mahnliste.
+          if (_auswahl == RechnungsAuswahl.alle && anzahlOffen > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'davon offen: ${chf(summeOffen)} · $anzahlOffen Rg.',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.warning,
+              ),
+            ),
+          ],
           if (ohne > 0) ...[
             const SizedBox(height: 6),
             Row(
@@ -219,7 +330,7 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
   /// dem produktiv genutzten CanvasKit-Web schon Titel und Untertitel gar nicht
   /// gezeichnet (13.08.2026, Stand-Übersicht). `test/canvaskit_sichere_widgets_test.dart`
   /// hält die Regel fest.
-  Widget _betriebKarte(BetriebOffen g) {
+  Widget _betriebKarte(BetriebRechnungen g) {
     final key = g.betriebId ?? '__ohne__';
     final aufgeklappt = _offen.contains(key);
     return Container(
@@ -256,6 +367,9 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
                           [
                             if ((g.ort ?? '').isNotEmpty) g.ort!,
                             '${g.anzahl} Rg.',
+                            if (_auswahl == RechnungsAuswahl.alle &&
+                                g.anzahlOffen > 0)
+                              'offen ${chf(g.summeOffen)}',
                             'ab ${_datum(g.aeltestes)}',
                             if (g.ohneZustellung > 0)
                               '${g.ohneZustellung} ohne Zustellung',
@@ -286,8 +400,25 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
               ),
             ),
           ),
-          if (aufgeklappt)
+          if (aufgeklappt) ...[
             for (final r in g.rechnungen) _rechnungZeile(r),
+            if (g.betriebId != null)
+              Container(
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.divider)),
+                ),
+                padding: const EdgeInsets.all(10),
+                child: TapKnopf(
+                  text: _jahr == null
+                      ? 'Kontoauszug (PDF)'
+                      : 'Kontoauszug $_jahr (PDF)',
+                  icon: Icons.picture_as_pdf,
+                  primaer: false,
+                  laeuft: _pdfLaeuft == key,
+                  onTap: () => _kontoauszug(g),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -298,7 +429,12 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
       uebergebenAm: r.uebergebenAm,
       versendetAm: r.versendetAm,
     );
-    final nieZugestellt = r.uebergebenAm == null && r.versendetAm == null;
+    // Nur bei NOCH OFFENEN Rechnungen hervorheben. Ist das Geld da, ist die
+    // Frage «kam sie an?» beantwortet — eine bezahlte Tresen-Rechnung ohne
+    // Stempel orange zu färben wäre ein Fehlalarm und liesse die echten Fälle
+    // in der Masse untergehen.
+    final nieZugestellt =
+        istOffen(r) && r.uebergebenAm == null && r.versendetAm == null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => context.push('/rechnungen/${r.id}'),

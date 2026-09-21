@@ -560,7 +560,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Offen pro Betrieb',
+                              'Rechnungen pro Betrieb',
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.textPrimary,
@@ -568,7 +568,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Nach Betrieb gebündelt, je Jahr — mit Zustellung',
+                              'Je Jahr, mit Zustellung — und Kontoauszug als PDF',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppColors.textSecondary,

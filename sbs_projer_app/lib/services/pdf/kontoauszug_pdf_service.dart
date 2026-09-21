@@ -48,6 +48,20 @@ class KontoauszugPdfService {
   static final _chf = NumberFormat('#,##0.00', 'en_US');
   static String _fmt(double v) => _chf.format(v).replaceAll(',', "'");
 
+  /// Schneidet die Rechnungen auf ein Kalenderjahr zu (nach `rechnungsdatum`).
+  /// null = alles. Eigene Funktion, damit die Auswahl prüfbar ist, ohne ein
+  /// PDF zerlegen zu müssen — `test/kontoauszug_jahr_test.dart`.
+  static List<Rechnung> fuerJahr(List<Rechnung> rechnungen, int? jahr) =>
+      jahr == null
+      ? rechnungen
+      : rechnungen.where((r) => r.rechnungsdatum.year == jahr).toList();
+
+  /// [jahr] grenzt den Auszug auf ein Kalenderjahr ein (nach `rechnungsdatum`).
+  /// null = alles, wie bisher von der Betriebsseite aufgerufen.
+  ///
+  /// Gefiltert wird BEWUSST hier drin und nicht beim Aufrufer: Sonst könnten
+  /// Inhalt und die Zeitraum-Angabe im Kopf auseinanderlaufen, und das Papier
+  /// behauptete einen Zeitraum, den es nicht zeigt.
   static Future<Uint8List> generate({
     required BetriebLocal betrieb,
     required List<Rechnung> rechnungen,
@@ -56,40 +70,49 @@ class KontoauszugPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    int? jahr,
   }) async {
     final pdf = await pdfDokument();
     final dateFormat = DateFormat('dd.MM.yyyy');
+
+    final gefiltert = fuerJahr(rechnungen, jahr);
 
     // Bewegungen aufbauen: je Rechnung eine Soll-Zeile; Zahlung bzw.
     // Abschreibung als Haben-Zeile am jeweiligen Datum.
     final bewegungen = <_Bewegung>[];
     double totalFakturiert = 0, totalZahlungen = 0, totalAbgeschrieben = 0;
-    for (final r in rechnungen) {
+    for (final r in gefiltert) {
       final nr = r.rechnungsnummer ?? '-';
-      bewegungen.add(_Bewegung(
-        datum: r.rechnungsdatum,
-        vorgang: 'Rechnung',
-        beleg: nr,
-        soll: r.betragBrutto,
-        status: _statusLabel(r),
-      ));
+      bewegungen.add(
+        _Bewegung(
+          datum: r.rechnungsdatum,
+          vorgang: 'Rechnung',
+          beleg: nr,
+          soll: r.betragBrutto,
+          status: _statusLabel(r),
+        ),
+      );
       totalFakturiert += r.betragBrutto;
       if (r.zahlungsstatus == 'bezahlt') {
         final zBetrag = r.zahlungBetrag ?? r.betragBrutto;
-        bewegungen.add(_Bewegung(
-          datum: r.zahlungEingegangenAm ?? r.rechnungsdatum,
-          vorgang: 'Zahlung',
-          beleg: nr,
-          haben: zBetrag,
-        ));
+        bewegungen.add(
+          _Bewegung(
+            datum: r.zahlungEingegangenAm ?? r.rechnungsdatum,
+            vorgang: 'Zahlung',
+            beleg: nr,
+            haben: zBetrag,
+          ),
+        );
         totalZahlungen += zBetrag;
       } else if (r.zahlungsstatus == 'abgeschrieben') {
-        bewegungen.add(_Bewegung(
-          datum: r.rechnungsdatum,
-          vorgang: 'Abschreibung',
-          beleg: nr,
-          haben: r.betragBrutto,
-        ));
+        bewegungen.add(
+          _Bewegung(
+            datum: r.rechnungsdatum,
+            vorgang: 'Abschreibung',
+            beleg: nr,
+            haben: r.betragBrutto,
+          ),
+        );
         totalAbgeschrieben += r.betragBrutto;
       }
     }
@@ -101,9 +124,17 @@ class KontoauszugPdfService {
     });
 
     final offenerSaldo = totalFakturiert - totalZahlungen - totalAbgeschrieben;
-    final offeneAnzahl = rechnungen
-        .where((r) =>
-            r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
+    // Über `gefiltert`, nicht über `rechnungen`: Sonst nennt die Kachel
+    // «OFFENER SALDO (n RG)» beim Jahresauszug die Anzahl ALLER offenen
+    // Rechnungen, während der Betrag daneben nur das Jahr umfasst — zwei
+    // Zahlen, die nicht zusammengehören. Ohne Jahresangabe ist beides
+    // identisch, das bisherige Verhalten ändert sich also nicht.
+    final offeneAnzahl = gefiltert
+        .where(
+          (r) =>
+              r.zahlungsstatus != 'bezahlt' &&
+              r.zahlungsstatus != 'abgeschrieben',
+        )
         .length;
 
     // Laufender Saldo je Zeile.
@@ -118,6 +149,12 @@ class KontoauszugPdfService {
     final von = bewegungen.isEmpty
         ? heute
         : dateFormat.format(bewegungen.first.datum);
+    // Beim Jahresauszug das ganze Kalenderjahr nennen, nicht die erste
+    // Bewegung — sonst liest sich «Zeitraum: 14.03.2026 - 21.09.2026» wie eine
+    // willkürliche Auswahl statt wie ein Jahresauszug.
+    final zeitraum = jahr == null
+        ? '$von - $heute'
+        : '01.01.$jahr - 31.12.$jahr';
 
     pdf.addPage(
       pw.MultiPage(
@@ -127,7 +164,8 @@ class KontoauszugPdfService {
           alignment: pw.Alignment.centerRight,
           margin: const pw.EdgeInsets.only(top: 8),
           child: pw.Text(
-            'Kontoauszug ${betrieb.name} · Seite ${ctx.pageNumber} von ${ctx.pagesCount}',
+            'Kontoauszug ${betrieb.name}${jahr == null ? '' : ' $jahr'} '
+            '· Seite ${ctx.pageNumber} von ${ctx.pagesCount}',
             style: const pw.TextStyle(fontSize: 8, color: _grey),
           ),
         ),
@@ -139,14 +177,19 @@ class KontoauszugPdfService {
             firmaMwst: firmaMwst,
           ),
           pw.SizedBox(height: 24),
-          _adresseUndTitel(betrieb, rechnungsadresse, von, heute),
+          _adresseUndTitel(betrieb, rechnungsadresse, zeitraum, heute),
           pw.SizedBox(height: 18),
-          _summenBlock(totalFakturiert, totalZahlungen, totalAbgeschrieben,
-              offenerSaldo, offeneAnzahl),
+          _summenBlock(
+            totalFakturiert,
+            totalZahlungen,
+            totalAbgeschrieben,
+            offenerSaldo,
+            offeneAnzahl,
+          ),
           pw.SizedBox(height: 16),
           _tabelle(bewegungen, salden, dateFormat),
           pw.SizedBox(height: 18),
-          _fusszeile(offenerSaldo),
+          _fusszeile(offenerSaldo, jahr),
         ],
       ),
     );
@@ -190,17 +233,28 @@ class KontoauszugPdfService {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(name,
-                style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: _darkBlue)),
+            pw.Text(
+              name,
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+                color: _darkBlue,
+              ),
+            ),
             pw.SizedBox(height: 4),
-            pw.Text(strasse, style: const pw.TextStyle(fontSize: 9, color: _grey)),
-            pw.Text(plzOrt, style: const pw.TextStyle(fontSize: 9, color: _grey)),
+            pw.Text(
+              strasse,
+              style: const pw.TextStyle(fontSize: 9, color: _grey),
+            ),
+            pw.Text(
+              plzOrt,
+              style: const pw.TextStyle(fontSize: 9, color: _grey),
+            ),
             pw.SizedBox(height: 4),
-            pw.Text('Tel 076 566 58 06 | sbs.projer@gmail.com',
-                style: const pw.TextStyle(fontSize: 9, color: _grey)),
+            pw.Text(
+              'Tel 076 566 58 06 | sbs.projer@gmail.com',
+              style: const pw.TextStyle(fontSize: 9, color: _grey),
+            ),
             pw.Text(mwst, style: const pw.TextStyle(fontSize: 9, color: _grey)),
           ],
         ),
@@ -210,12 +264,15 @@ class KontoauszugPdfService {
             color: _darkBlue,
             borderRadius: pw.BorderRadius.circular(4),
           ),
-          child: pw.Text('KONTOAUSZUG',
-              style: pw.TextStyle(
-                  fontSize: 13,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
-                  letterSpacing: 1.5)),
+          child: pw.Text(
+            'KONTOAUSZUG',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              letterSpacing: 1.5,
+            ),
+          ),
         ),
       ],
     );
@@ -224,7 +281,7 @@ class KontoauszugPdfService {
   static pw.Widget _adresseUndTitel(
     BetriebLocal betrieb,
     BetriebRechnungsadresse? ra,
-    String von,
+    String zeitraum,
     String bis,
   ) {
     final zeilen = adressZeilen(
@@ -250,25 +307,39 @@ class KontoauszugPdfService {
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
             pw.Text(
-                'Objekt: ${betrieb.name}'
-                    '${(betrieb.ort ?? '').isNotEmpty ? ', ${betrieb.ort}' : ''}',
-                style: const pw.TextStyle(fontSize: 9, color: _grey)),
+              'Objekt: ${betrieb.name}'
+              '${(betrieb.ort ?? '').isNotEmpty ? ', ${betrieb.ort}' : ''}',
+              style: const pw.TextStyle(fontSize: 9, color: _grey),
+            ),
             // Bindestrich statt Gedankenstrich (–, U+2013): fehlt in der
             // eingebauten PDF-Schrift.
-            pw.Text('Zeitraum: $von - $bis',
-                style: const pw.TextStyle(fontSize: 9, color: _grey)),
-            pw.Text('Erstellt am: $bis',
-                style: const pw.TextStyle(fontSize: 9, color: _grey)),
+            pw.Text(
+              'Zeitraum: $zeitraum',
+              style: const pw.TextStyle(fontSize: 9, color: _grey),
+            ),
+            pw.Text(
+              'Erstellt am: $bis',
+              style: const pw.TextStyle(fontSize: 9, color: _grey),
+            ),
           ],
         ),
       ],
     );
   }
 
-  static pw.Widget _summenBlock(double fakturiert, double zahlungen,
-      double abgeschrieben, double offen, int offeneAnzahl) {
-    pw.Widget kachel(String label, String wert,
-        {PdfColor farbe = _darkBlue, bool hebtHervor = false}) {
+  static pw.Widget _summenBlock(
+    double fakturiert,
+    double zahlungen,
+    double abgeschrieben,
+    double offen,
+    int offeneAnzahl,
+  ) {
+    pw.Widget kachel(
+      String label,
+      String wert, {
+      PdfColor farbe = _darkBlue,
+      bool hebtHervor = false,
+    }) {
       return pw.Expanded(
         child: pw.Container(
           margin: const pw.EdgeInsets.only(right: 8),
@@ -280,17 +351,23 @@ class KontoauszugPdfService {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(label,
-                  style: pw.TextStyle(
-                      fontSize: 7.5,
-                      color: hebtHervor ? PdfColors.grey300 : _grey,
-                      letterSpacing: 0.5)),
+              pw.Text(
+                label,
+                style: pw.TextStyle(
+                  fontSize: 7.5,
+                  color: hebtHervor ? PdfColors.grey300 : _grey,
+                  letterSpacing: 0.5,
+                ),
+              ),
               pw.SizedBox(height: 3),
-              pw.Text(wert,
-                  style: pw.TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: pw.FontWeight.bold,
-                      color: hebtHervor ? PdfColors.white : farbe)),
+              pw.Text(
+                wert,
+                style: pw.TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: pw.FontWeight.bold,
+                  color: hebtHervor ? PdfColors.white : farbe,
+                ),
+              ),
             ],
           ),
         ),
@@ -317,16 +394,15 @@ class KontoauszugPdfService {
     List<double> salden,
     DateFormat dateFormat,
   ) {
-    const headerStyle = pw.TextStyle(
-      fontSize: 8,
-      color: PdfColors.white,
-    );
+    const headerStyle = pw.TextStyle(fontSize: 8, color: PdfColors.white);
     const cellStyle = pw.TextStyle(fontSize: 8.5);
     const cellGrey = pw.TextStyle(fontSize: 8.5, color: _grey);
 
-    pw.Widget zelle(String text,
-        {pw.TextStyle style = cellStyle,
-        pw.Alignment align = pw.Alignment.centerLeft}) {
+    pw.Widget zelle(
+      String text, {
+      pw.TextStyle style = cellStyle,
+      pw.Alignment align = pw.Alignment.centerLeft,
+    }) {
       return pw.Container(
         alignment: align,
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -355,51 +431,72 @@ class KontoauszugPdfService {
             zelle('Vorgang', style: headerStyle),
             zelle('Beleg / Rechnung', style: headerStyle),
             zelle('Status', style: headerStyle),
-            zelle('Rechnung CHF',
-                style: headerStyle, align: pw.Alignment.centerRight),
-            zelle('Zahlung CHF',
-                style: headerStyle, align: pw.Alignment.centerRight),
-            zelle('Saldo CHF',
-                style: headerStyle, align: pw.Alignment.centerRight),
+            zelle(
+              'Rechnung CHF',
+              style: headerStyle,
+              align: pw.Alignment.centerRight,
+            ),
+            zelle(
+              'Zahlung CHF',
+              style: headerStyle,
+              align: pw.Alignment.centerRight,
+            ),
+            zelle(
+              'Saldo CHF',
+              style: headerStyle,
+              align: pw.Alignment.centerRight,
+            ),
           ],
         ),
         for (var i = 0; i < bewegungen.length; i++)
           pw.TableRow(
             decoration: pw.BoxDecoration(
-                color: i.isOdd ? _lightGrey : PdfColors.white),
+              color: i.isOdd ? _lightGrey : PdfColors.white,
+            ),
             children: [
               zelle(dateFormat.format(bewegungen[i].datum)),
-              zelle(bewegungen[i].vorgang,
-                  style: bewegungen[i].haben > 0 &&
-                          bewegungen[i].vorgang == 'Zahlung'
-                      ? const pw.TextStyle(fontSize: 8.5, color: _gruen)
-                      : cellStyle),
+              zelle(
+                bewegungen[i].vorgang,
+                style:
+                    bewegungen[i].haben > 0 &&
+                        bewegungen[i].vorgang == 'Zahlung'
+                    ? const pw.TextStyle(fontSize: 8.5, color: _gruen)
+                    : cellStyle,
+              ),
               zelle(bewegungen[i].beleg, style: cellGrey),
               zelle(
                 bewegungen[i].status ?? '',
-                style: bewegungen[i].status == null ||
+                style:
+                    bewegungen[i].status == null ||
                         bewegungen[i].status == 'offen'
                     ? cellGrey
                     : const pw.TextStyle(fontSize: 8.5, color: _rot),
               ),
-              zelle(bewegungen[i].soll > 0 ? _fmt(bewegungen[i].soll) : '',
-                  align: pw.Alignment.centerRight),
-              zelle(bewegungen[i].haben > 0 ? _fmt(bewegungen[i].haben) : '',
-                  align: pw.Alignment.centerRight,
-                  style: const pw.TextStyle(fontSize: 8.5, color: _gruen)),
-              zelle(_fmt(salden[i]),
-                  align: pw.Alignment.centerRight,
-                  style: pw.TextStyle(
-                      fontSize: 8.5,
-                      fontWeight: pw.FontWeight.bold,
-                      color: salden[i] > 0.005 ? _rot : _gruen)),
+              zelle(
+                bewegungen[i].soll > 0 ? _fmt(bewegungen[i].soll) : '',
+                align: pw.Alignment.centerRight,
+              ),
+              zelle(
+                bewegungen[i].haben > 0 ? _fmt(bewegungen[i].haben) : '',
+                align: pw.Alignment.centerRight,
+                style: const pw.TextStyle(fontSize: 8.5, color: _gruen),
+              ),
+              zelle(
+                _fmt(salden[i]),
+                align: pw.Alignment.centerRight,
+                style: pw.TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: pw.FontWeight.bold,
+                  color: salden[i] > 0.005 ? _rot : _gruen,
+                ),
+              ),
             ],
           ),
       ],
     );
   }
 
-  static pw.Widget _fusszeile(double offen) {
+  static pw.Widget _fusszeile(double offen, int? jahr) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
@@ -415,9 +512,27 @@ class KontoauszugPdfService {
                 : 'Das Konto ist ausgeglichen - besten Dank.',
             style: const pw.TextStyle(fontSize: 8.5),
           ),
+          // WICHTIG beim Jahresauszug: Ohne diesen Satz liest der Kunde den
+          // Saldo als seinen GESAMTEN Ausstand. Hat er ältere offene Posten,
+          // wäre das Papier schlicht falsch — und eine Zahlung nach diesem
+          // Betrag liesse die alten Rechnungen stillschweigend liegen.
+          if (jahr != null) ...[
+            pw.SizedBox(height: 4),
+            pw.Text(
+              'Dieser Auszug umfasst ausschliesslich das Jahr $jahr. '
+              'Allfällige Posten aus früheren Jahren sind nicht enthalten.',
+              style: pw.TextStyle(
+                fontSize: 8.5,
+                fontWeight: pw.FontWeight.bold,
+                color: _darkBlue,
+              ),
+            ),
+          ],
           pw.SizedBox(height: 5),
-          pw.Text('Zahlungsverbindung: Graubündner Kantonalbank · IBAN $_ibanFormatted · SBS Projer GmbH, Via Rezia 8, 7013 Domat/Ems',
-              style: const pw.TextStyle(fontSize: 8, color: _grey)),
+          pw.Text(
+            'Zahlungsverbindung: Graubündner Kantonalbank · IBAN $_ibanFormatted · SBS Projer GmbH, Via Rezia 8, 7013 Domat/Ems',
+            style: const pw.TextStyle(fontSize: 8, color: _grey),
+          ),
         ],
       ),
     );

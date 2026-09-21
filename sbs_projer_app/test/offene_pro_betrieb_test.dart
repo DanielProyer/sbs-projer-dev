@@ -39,7 +39,7 @@ void main() {
 
   group('Filter', () {
     test('nur das gewählte Jahr, gemessen am Rechnungsdatum', () {
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [
           rg(
             id: 'a',
@@ -69,7 +69,7 @@ void main() {
     });
 
     test('jahr null nimmt alle Jahrgänge', () {
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [
           rg(
             id: 'a',
@@ -89,7 +89,7 @@ void main() {
 
     test('bezahlt und abgeschrieben fallen raus, Zwischenstatus bleiben', () {
       // Negativliste: Ein neu eingeführter Status zählt automatisch als offen.
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [
           rg(id: 'a', betriebId: 'b1', datum: DateTime(2026, 1, 1), brutto: 10),
           rg(
@@ -137,7 +137,7 @@ void main() {
 
     test('kein Treffer ergibt eine leere Liste, keinen Eintrag mit 0', () {
       expect(
-        offeneProBetrieb(
+        rechnungenProBetrieb(
           alle: [
             rg(
               id: 'a',
@@ -158,7 +158,7 @@ void main() {
 
   group('Gruppierung und Reihenfolge', () {
     test('höchster offener Betrag zuoberst', () {
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [
           rg(id: 'a', betriebId: 'b1', datum: DateTime(2026, 1, 1), brutto: 50),
           rg(
@@ -179,7 +179,7 @@ void main() {
     test(
       'gleicher Betrag: alphabetisch, damit die Reihenfolge stabil bleibt',
       () {
-        final r = offeneProBetrieb(
+        final r = rechnungenProBetrieb(
           alle: [
             rg(
               id: 'a',
@@ -205,7 +205,7 @@ void main() {
     test(
       'Rechnungen eines Betriebs: jüngste zuoberst, ältestes Datum separat',
       () {
-        final r = offeneProBetrieb(
+        final r = rechnungenProBetrieb(
           alle: [
             rg(
               id: 'alt',
@@ -232,7 +232,7 @@ void main() {
 
   group('Rechnungen ohne Betrieb', () {
     test('Heineken-Monatsrechnung bekommt einen sprechenden Namen', () {
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [
           rg(
             id: 'h',
@@ -252,7 +252,7 @@ void main() {
     });
 
     test('anderer Typ ohne Betrieb heisst schlicht «Ohne Betrieb»', () {
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [rg(id: 'x', datum: DateTime(2026, 2, 1), brutto: 20)],
         jahr: 2026,
         namen: namen,
@@ -262,7 +262,7 @@ void main() {
     });
 
     test('unbekannte Betriebs-ID wird benannt, nicht verschwiegen', () {
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [
           rg(
             id: 'x',
@@ -284,7 +284,7 @@ void main() {
     test('zählt die Rechnungen ohne jeden Zustellnachweis', () {
       // Der Unterschied zwischen «schuldet mir Geld» und «hat nie eine
       // Rechnung gesehen» — bei Blue Cinema vier Jahre lang übersehen.
-      final r = offeneProBetrieb(
+      final r = rechnungenProBetrieb(
         alle: [
           rg(id: 'a', betriebId: 'b1', datum: DateTime(2026, 1, 1), brutto: 10),
           rg(
@@ -311,6 +311,95 @@ void main() {
     });
   });
 
+  group('Auswahl: offen gegen alle', () {
+    // WARUM: Bis v0.126.0 zeigte der Screen nur Unbezahltes. Daniel wollte am
+    // 21.09.2026 auch die bezahlten sehen — dieselbe Achse, andere Frage:
+    // «wer schuldet mir was» wird zu «was habe ich diesem Kunden verrechnet».
+    final daten = [
+      rg(
+        id: 'offen1',
+        betriebId: 'b1',
+        datum: DateTime(2026, 2, 1),
+        brutto: 100,
+      ),
+      rg(
+        id: 'bezahlt1',
+        betriebId: 'b1',
+        datum: DateTime(2026, 3, 1),
+        brutto: 250,
+        status: 'bezahlt',
+      ),
+      rg(
+        id: 'abg',
+        betriebId: 'b1',
+        datum: DateTime(2026, 4, 1),
+        brutto: 40,
+        status: 'abgeschrieben',
+      ),
+    ];
+
+    test('offen zeigt nur Unbezahltes', () {
+      final r = rechnungenProBetrieb(
+        alle: daten,
+        jahr: 2026,
+        namen: namen,
+        orte: orte,
+        auswahl: RechnungsAuswahl.offen,
+      );
+      expect(r.single.anzahl, 1);
+      expect(r.single.summe, 100);
+      expect(r.single.summeOffen, 100);
+    });
+
+    test('alle nimmt bezahlt und abgeschrieben dazu', () {
+      final r = rechnungenProBetrieb(
+        alle: daten,
+        jahr: 2026,
+        namen: namen,
+        orte: orte,
+        auswahl: RechnungsAuswahl.alle,
+      );
+      expect(r.single.anzahl, 3);
+      expect(r.single.summe, 390);
+      // Der offene Anteil bleibt getrennt ausweisbar — sonst verschwindet die
+      // Mahn-Information in der Umsatzsumme.
+      expect(r.single.summeOffen, 100);
+      expect(r.single.anzahlOffen, 1);
+    });
+
+    test('Vorgabe ohne Angabe ist offen', () {
+      final r = rechnungenProBetrieb(
+        alle: daten,
+        jahr: 2026,
+        namen: namen,
+        orte: orte,
+      );
+      expect(r.single.anzahl, 1);
+    });
+
+    test('bezahlte Rechnungen zaehlen NICHT als fehlende Zustellung', () {
+      // Ist das Geld da, ist die Frage «kam sie an?» beantwortet. Sonst
+      // meldete die Liste hunderte erledigte Tresen-Rechnungen.
+      final r = rechnungenProBetrieb(
+        alle: [
+          rg(id: 'a', betriebId: 'b1', datum: DateTime(2026, 1, 1), brutto: 10),
+          rg(
+            id: 'b',
+            betriebId: 'b1',
+            datum: DateTime(2026, 1, 2),
+            brutto: 10,
+            status: 'bezahlt',
+          ),
+        ],
+        jahr: 2026,
+        namen: namen,
+        orte: orte,
+        auswahl: RechnungsAuswahl.alle,
+      );
+      expect(r.single.anzahl, 2);
+      expect(r.single.ohneZustellung, 1);
+    });
+  });
   group('versandartKurz', () {
     test('kennt die gängigen Wege', () {
       expect(versandartKurz('rechnung_tresen'), 'Tresen');
