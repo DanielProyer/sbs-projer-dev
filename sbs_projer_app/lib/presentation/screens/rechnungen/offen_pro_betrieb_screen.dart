@@ -182,7 +182,9 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
                 ),
               ),
               Text(
-                '${gruppen.length} Betriebe · $rechnungen Rg.',
+                '${gruppen.length} '
+                '${gruppen.length == 1 ? 'Betrieb' : 'Betriebe'} '
+                '· $rechnungen Rg.',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
