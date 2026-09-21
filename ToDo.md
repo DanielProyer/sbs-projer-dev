@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.127.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1812 Tests grün** · Git sauber.
+**Stand:** **v0.127.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1818 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -487,6 +487,30 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 ---
 
 ## 📌 Zuletzt gebaut (17.–21.09.2026)
+
+### ✅ Zustellweg im Kontoauszug-PDF (v0.127.1, 21.09.)
+
+Rückmeldung Daniel: *«ich sehe im pdf immer noch nicht ob die Rechnung per EZS
+am Tresen gestellt wurde oder per Mail»* — stimmte, der Weg stand nur im
+Screen.
+
+Die Tabellenspalte heisst jetzt **«Beleg / Zustellung»** und trägt unter der
+Rechnungsnummer eine zweite Zeile:
+
+```
+2026-07-1269
+EZS am Tresen · 07.07.2026
+```
+
+- **Zweizeilig statt achte Spalte.** Die feste A4-Breite ist ausgereizt; eine
+  weitere Spalte hätte die Belegnummer umbrechen lassen.
+- **Tresen nimmt `uebergeben_am`, Mail und Post `versendet_am`.** Eine
+  Tresen-Rechnung kann später zusätzlich gemailt worden sein — für den Weg
+  «Tresen» zählt die Übergabe.
+- **Ohne hinterlegtes Datum steht nur der Weg.** Ein «kein Zustelldatum» wäre
+  auf einem **Kundendokument** eine Behauptung über den Kunden, obwohl es eine
+  Lücke in unserer Erfassung ist. Für Daniel bleibt die Lücke sichtbar: am
+  fehlenden Datum, und im Screen orange hervorgehoben.
 
 ### ✅ Alle Rechnungen pro Betrieb + Kontoauszug je Jahr (v0.127.0, 21.09.)
 
