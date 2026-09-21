@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.127.1 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1818 Tests grün** · Git sauber.
+**Stand:** **v0.128.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1823 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -487,6 +487,47 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 ---
 
 ## 📌 Zuletzt gebaut (17.–21.09.2026)
+
+### ✅ QR-Einzahlungsschein im Kontoauszug (v0.128.0, 21.09.)
+
+Der Auszug endet jetzt auf einer **eigenen, randlosen A4-Seite mit dem
+Schweizer Zahlteil** über den offenen Saldo. Bei ausgeglichenem Konto
+entfällt die Seite.
+
+- **Eigene Seite, nicht am Fuss der letzten Tabellenseite.** Der Zahlteil
+  braucht die unteren 105 mm einer randlosen Seite; der Auszug läuft über
+  beliebig viele Seiten mit Rand. Beides zusammen ginge nur mit reserviertem
+  Fussraum auf *jeder* Seite. Die eigene Seite ist normkonform und im Alltag
+  üblich (Perforation).
+- **Betrag** = offener Saldo des Auszugs, auf 5 Rappen gerundet.
+
+🔑 **Referenz — Entscheid Daniel 21.09.2026: «Nur bei einer Rechnung».**
+- Genau **eine** offene Rechnung → der Schein trägt **deren** Referenz, die
+  Zahlung matcht im camt-Abgleich automatisch wie bei einer normalen Rechnung.
+- **Mehrere** offen → **keine** Referenz, nur der Vermerk
+  «Kontoauszug \<Jahr\> - \<Betrieb\>». Zuordnung von Hand.
+- *Warum nicht einfach die Referenz der ältesten nehmen: Die Zahlung würde
+  vollständig auf jene eine Rechnung gebucht, die übrigen blieben offen, und
+  der Fehler fiele erst bei der nächsten Mahnung auf.*
+
+**Refactor als Voraussetzung:** Der Zahlteil lag **wortgleich** in
+`rechnung_pdf_service.dart` und `mahnung_pdf_service.dart`. Statt eine dritte
+Kopie liegt er jetzt in **`services/pdf/qr_zahlteil.dart`**. Die Rechnung nutzt
+ihn bereits.
+
+> ✅ **Beweis, dass die Rechnung unverändert bleibt:** Referenz-PDF vor und nach
+> dem Umbau erzeugt. Gleiche Gesamtgrösse (22'923 Bytes), **Bytes 1–22'622
+> identisch**; die einzigen 130 abweichenden Bytes sind die zufällige
+> Dokument-Kennung `/ID` am Dateiende.
+
+- ⏳ **Offen:** `mahnung_pdf_service.dart` führt weiterhin seine eigene Kopie
+  des Zahlteils. Umstellen wäre sauber, ging aber über den Auftrag hinaus.
+  Gleiches Rezept, gleicher Byte-Vergleich als Absicherung.
+- 🔍 **Beobachtung, kein Fehler:** Beim Erzeugen meldet das `pdf`-Paket
+  «Courier has no Unicode support». Das kommt vom Barcode-Widget und **besteht
+  im produktiven Rechnungs-PDF seit jeher** — sichtbarer Text ist nicht
+  betroffen (die Zahlteil-Beschriftungen kommen aus dem Roboto-Theme von
+  `pdfDokument()`).
 
 ### ✅ Zustellweg im Kontoauszug-PDF (v0.127.1, 21.09.)
 
