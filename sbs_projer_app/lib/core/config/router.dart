@@ -20,6 +20,7 @@ import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_betrie
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnungen_list_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/rechnungen/offen_pro_betrieb_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/materialien_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/material_detail_screen.dart';
@@ -459,6 +460,12 @@ final router = GoRouter(
     GoRoute(
       path: '/rechnungen',
       builder: (context, state) => const RechnungenListScreen(),
+    ),
+    // MUSS vor '/rechnungen/:id' stehen — GoRouter nimmt die erste passende
+    // Route, sonst landet 'pro-betrieb' als Rechnungs-ID im Detailscreen.
+    GoRoute(
+      path: '/rechnungen/pro-betrieb',
+      builder: (context, state) => const OffenProBetriebScreen(),
     ),
     GoRoute(
       path: '/rechnungen/:id',
