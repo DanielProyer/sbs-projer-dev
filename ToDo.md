@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.130.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1842 Tests grün** · Git sauber.
+**Stand:** **v0.131.0** (Navigation «Mehr») · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1859 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -162,6 +162,18 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.131.0** — Navigation «Mehr» (am Rechner bei 360 px geprüft, Handy steht
+  aus): (1) Heute zeigt nur noch Aufgaben, Arbeitstag, Tagesplan, Diktieren;
+  (2) Leiste mit fünf Zielen, «Mehr» leuchtet in Buchhaltung/Stammdaten;
+  (3) Mehr: Kacheln und Zeilen, Zähler, «zurück» führt nach Mehr;
+  (4) Bank und Zahlungen: camt-Erinnerung und Bank-Wächter oben;
+  (5) Buchhaltung: «Offene Rechnungen» öffnet die Forderungen;
+  (6) Stammdaten: «Neue Preise erfassen» antippbar, PO-Nummer speichern;
+  (7) Einstellungen: Abmelden; (8) Betriebe ↔ Personen wechselt.
+  **Neu seit dem Fix:** Auf dem Anmeldebildschirm keine Leiste mehr, und
+  direkt nach dem Anmelden steht sie auf Heute.
+  **Bitte eine Woche beobachten:** Findest du alles? Fehlt etwas auf Mehr?
 
 - **v0.117.0** — Tour → Reiter «Fällig»: steht die rote Zeile «25 Saisonbetriebe
   mit Lücke — 24 bereits aus dem Plan gefallen»? Antippen zeigt die Namen mit

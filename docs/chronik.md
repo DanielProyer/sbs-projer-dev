@@ -6,10 +6,38 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 22.09.2026 — v0.131.0 Navigation «Mehr»
 - 17.–22.09.2026 — v0.110.0 bis v0.130.0
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 22.09.2026 — v0.131.0 Navigation «Mehr»
+
+Teil 1 der Bedienungs-Vereinfachung (Spec
+`docs/superpowers/specs/2026-09-22-navigation-mehr-design.md`, Plan
+`docs/superpowers/plans/2026-09-22-navigation-mehr.md`), umgesetzt mit
+Subagenten und je einem Review.
+
+- **Leiste mit fünftem Ziel «Mehr»**: Heute · Einsätze · Betriebe · Tour · Mehr.
+  Jede Seite ausserhalb der ersten vier lässt «Mehr» leuchten.
+- **Heute ist nur noch der Tag**: Aufgaben-Karte, Arbeitstag, Heute-Liste,
+  Diktieren. Kacheln, «Weitere»-Liste und Abmelde-Symbol sind weg.
+- **Mehr-Seite** in drei Gruppen (Unterwegs · Büro · Einrichtung) mit Zählern
+  aus derselben Quelle wie die Glocke.
+- **Bereiche als Daten** (`lib/core/config/bereiche.dart`), neue Seiten
+  Bank und Zahlungen, Abschlüsse und Steuern, Auswertungen, Stammdaten.
+  Buchhaltung verkleinert, Einstellungen nur noch Technik + Abmelden.
+- **Betriebe | Personen**: Kontakte als Reiter der Betriebe.
+- **Fix Leiste**: hört auf den Router-Delegate. Vorher stand sie auf dem
+  Anmeldebildschirm und fehlte nach dem Anmelden — go_router meldet
+  Weiterleitungen dem `routeInformationProvider` ohne `notifyListeners()`
+  (seit v0.107.0 so).
+- **Wächter**: jeder Listen-Screen erreichbar (erkennt Weiterleitungs-Aliase),
+  Leuchten der Leiste, CanvasKit-Verbote um `TabBar`/`NavigationBar`/
+  `ElevatedButton` erweitert. 1859 Tests grün.
 
 ---
 

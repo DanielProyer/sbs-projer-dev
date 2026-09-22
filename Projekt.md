@@ -4,7 +4,7 @@
 (Heineken-Franchise, Graubünden) — Planung, Einsätze, Rechnungen und
 Buchhaltung in einer App.
 **Wer:** Daniel Projer, Einzelbetrieb; entwickelt mit Claude.
-**Stand:** 22.09.2026 · **v0.130.0** live · 1842 Tests grün · Migrationen bis 199.
+**Stand:** 22.09.2026 · **v0.131.0** · 1859 Tests grün · Migrationen bis 199.
 
 > **Wo was steht**
 > - **Diese Datei:** was die App heute kann und wie sie gebaut ist. Wird bei
@@ -66,7 +66,8 @@ Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.
   Öffnungs- und Servicezeiten, Ferien, Saisonfenster mit Historie,
   `ist_mein_kunde`, Kulanz-Merker; Google- und Website-Abgleich der
   Betriebsdaten mit Prüfliste (täglicher Lauf).
-- **Kontakte** (`kontakte/`): Sync ins Google-Adressbuch (Anrufer-Erkennung).
+- **Kontakte** (`kontakte/`, Reiter «Personen» der Betriebe): Sync ins
+  Google-Adressbuch (Anrufer-Erkennung).
 - **Google Kalender** (`google_kalender/`): Aufträge, Eröffnungs- und
   Endreinigungen, von Hand gesetzte Service-Termine und datierte Aufgaben —
   bewusst keine Tagestouren.
@@ -105,8 +106,8 @@ Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.
   SUVA, Krankentaggeld, Haftpflicht, Steuern, Verträge …).
 - **Aufgaben** (`aufgaben/`): eine Liste für Glocke, Startkarte und Kachel —
   Detektoren (Heineken-Rechnung, MWST, Mahnlauf, Saisondaten) plus eigene.
-- **Auswertungen** (`auswertungen/`) und **Nutzungsmessung** unter
-  Einstellungen.
+- **Auswertungen** (`/auswertungen`): Umsatz und Arbeiten, Arbeitstage,
+  Nutzung der App.
 
 ---
 
@@ -114,6 +115,11 @@ Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.
 
 Die verbindlichen Regeln stehen in `CLAUDE.md`, hier nur die Landkarte:
 
+- **Navigation** (seit v0.131.0): untere Leiste Heute · Einsätze · Betriebe ·
+  Tour · Mehr. Was unter «Mehr» und in den Bereichsseiten steht, ist **Daten**
+  in `lib/core/config/bereiche.dart`; umhängen heisst dort eine Zeile
+  verschieben. Ein Wächter-Test prüft, dass jeder Listen-Screen erreichbar
+  bleibt. Entwurf: `docs/superpowers/specs/2026-09-22-navigation-mehr-design.md`.
 - **Schichten:** `data/models` (DTOs) → `data/repositories` (`kIsWeb`-Branching:
   Web direkt auf Supabase, nativ über Isar) → Riverpod-Provider →
   `presentation/screens`.
