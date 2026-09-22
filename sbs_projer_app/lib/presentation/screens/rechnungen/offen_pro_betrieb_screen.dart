@@ -117,6 +117,14 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
+        // Wie in der Betriebe-/Kontakte-Liste: Nach einem Reiterwechsel (go)
+        // gibt es nichts zum Zurückgehen — ohne eigenen Pfeil fehlte er
+        // (Präzedenz Commit a0bd72d3).
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/mehr'),
+        ),
         title: Text('Pro Betrieb  ·  v$kAppVersion'),
         bottom: const BereichReiter(
           reiter: kReiterRechnungen,

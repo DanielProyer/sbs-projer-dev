@@ -508,6 +508,14 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // Wie in der Betriebe-/Kontakte-Liste: Nach einem Reiterwechsel (go)
+        // gibt es nichts zum Zurückgehen — ohne eigenen Pfeil fehlte er
+        // (Präzedenz Commit a0bd72d3).
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/mehr'),
+        ),
         // Version des GELADENEN Bundles — nicht die des Servers. Am 15.07. war
         // stundenlang nicht feststellbar, welcher Code im Browser läuft; das
         // hat mehrere Fehldiagnosen verursacht. Ab jetzt steht es da.

@@ -33,6 +33,14 @@ class _HeinekenRechnungenListScreenState
 
     return Scaffold(
       appBar: AppBar(
+        // Wie in der Betriebe-/Kontakte-Liste: Nach einem Reiterwechsel (go)
+        // gibt es nichts zum Zurückgehen — ohne eigenen Pfeil fehlte er
+        // (Präzedenz Commit a0bd72d3).
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/mehr'),
+        ),
         title: const Text('Heineken Rechnungen'),
         bottom: const BereichReiter(
           reiter: kReiterRechnungen,
@@ -51,127 +59,116 @@ class _HeinekenRechnungenListScreenState
           ),
         ],
       ),
-      body: rechnungen.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Fehler: $e')),
-        data: (list) {
-          if (list.isEmpty) {
-            return _buildEmpty();
-          }
+      // Bergkundenpauschalen stehen als festes erstes Kind ÜBER dem
+      // `when(...)` — sonst war /bergkundenpauschalen beim Laden, bei einem
+      // Fehler oder ganz ohne Heineken-Rechnungen (leere Liste) über die
+      // Oberfläche gar nicht erreichbar (Review 22.09.2026).
+      body: Column(
+        children: [
+          const _BergkundenKarte(),
+          Expanded(
+            child: rechnungen.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Fehler: $e')),
+              data: (list) {
+                if (list.isEmpty) {
+                  return _buildEmpty();
+                }
 
-          // Verfügbare Jahre (absteigend), Auswahl absichern.
-          final jahre = (list.map((r) => _sortDatum(r).year).toSet().toList()
-                ..sort((a, b) => b.compareTo(a)));
-          if (jahre.isEmpty) jahre.add(DateTime.now().year);
-          if (!jahre.contains(_selectedYear)) _selectedYear = jahre.first;
+                // Verfügbare Jahre (absteigend), Auswahl absichern.
+                final jahre =
+                    (list.map((r) => _sortDatum(r).year).toSet().toList()
+                      ..sort((a, b) => b.compareTo(a)));
+                if (jahre.isEmpty) jahre.add(DateTime.now().year);
+                if (!jahre.contains(_selectedYear)) _selectedYear = jahre.first;
 
-          // Absteigend sortieren (neuste zuoberst).
-          final sorted = List<Rechnung>.from(list)
-            ..sort((a, b) => _sortDatum(b).compareTo(_sortDatum(a)));
+                // Absteigend sortieren (neuste zuoberst).
+                final sorted = List<Rechnung>.from(list)
+                  ..sort((a, b) => _sortDatum(b).compareTo(_sortDatum(a)));
 
-          final filtered = sorted
-              .where((r) => _sortDatum(r).year == _selectedYear)
-              .toList();
+                final filtered = sorted
+                    .where((r) => _sortDatum(r).year == _selectedYear)
+                    .toList();
 
-          final jahrSumme =
-              filtered.fold(0.0, (sum, r) => sum + r.betragBrutto);
+                final jahrSumme =
+                    filtered.fold(0.0, (sum, r) => sum + r.betragBrutto);
 
-          return Column(
-            children: [
-              // Bergkundenpauschalen werden mit der Heineken-Monatsrechnung
-              // verrechnet — hier werden sie gesucht (v0.132.0).
-              Card(
-                margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                child: InkWell(
-                  onTap: () => context.push('/bergkundenpauschalen'),
-                  borderRadius: BorderRadius.circular(12),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Icon(Icons.landscape, color: AppColors.primary),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Bergkundenpauschalen',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Icon(Icons.chevron_right),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              AppJahrLeiste(
-                jahre: jahre,
-                selectedJahr: _selectedYear,
-                onJahrChanged: (y) => setState(() => _selectedYear = y),
-                trailing: Text(
-                  jahrSumme > 0
-                      ? '${filtered.length} – ${_chf(jahrSumme)} CHF'
-                      : '${filtered.length} Rechnungen',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ),
-              Expanded(
-                child: filtered.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Keine Rechnungen für $_selectedYear',
-                          style: const TextStyle(
-                              color: AppColors.textSecondary),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final r = filtered[index];
-                          final monat = r.heinekenMonat;
-                          final monatsName = monat != null
-                              ? _monatFormat.format(monat)
-                              : 'Unbekannt';
-
-                          return Card(
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    _statusColor(r.zahlungsstatus)
-                                        .withAlpha(30),
-                                child: Icon(
-                                  _statusIcon(r.zahlungsstatus),
-                                  color: _statusColor(r.zahlungsstatus),
-                                ),
-                              ),
-                              title: Text(monatsName),
-                              subtitle: Text(
-                                '${_dateFormat.format(r.rechnungsdatum)} · ${_chf(r.betragBrutto)} CHF',
-                              ),
-                              trailing: Chip(
-                                label: Text(
-                                  _statusLabel(r.zahlungsstatus),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _statusColor(r.zahlungsstatus),
-                                  ),
-                                ),
-                                backgroundColor:
-                                    _statusColor(r.zahlungsstatus)
-                                        .withAlpha(20),
-                                side: BorderSide.none,
-                              ),
-                              onTap: () => context.push('/heineken/${r.id}'),
+                return Column(
+                  children: [
+                    AppJahrLeiste(
+                      jahre: jahre,
+                      selectedJahr: _selectedYear,
+                      onJahrChanged: (y) => setState(() => _selectedYear = y),
+                      trailing: Text(
+                        jahrSumme > 0
+                            ? '${filtered.length} – ${_chf(jahrSumme)} CHF'
+                            : '${filtered.length} Rechnungen',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
                             ),
-                          );
-                        },
                       ),
-              ),
-            ],
-          );
-        },
+                    ),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Text(
+                                'Keine Rechnungen für $_selectedYear',
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final r = filtered[index];
+                                final monat = r.heinekenMonat;
+                                final monatsName = monat != null
+                                    ? _monatFormat.format(monat)
+                                    : 'Unbekannt';
+
+                                return Card(
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor:
+                                          _statusColor(r.zahlungsstatus)
+                                              .withAlpha(30),
+                                      child: Icon(
+                                        _statusIcon(r.zahlungsstatus),
+                                        color: _statusColor(r.zahlungsstatus),
+                                      ),
+                                    ),
+                                    title: Text(monatsName),
+                                    subtitle: Text(
+                                      '${_dateFormat.format(r.rechnungsdatum)} · ${_chf(r.betragBrutto)} CHF',
+                                    ),
+                                    trailing: Chip(
+                                      label: Text(
+                                        _statusLabel(r.zahlungsstatus),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color:
+                                              _statusColor(r.zahlungsstatus),
+                                        ),
+                                      ),
+                                      backgroundColor:
+                                          _statusColor(r.zahlungsstatus)
+                                              .withAlpha(20),
+                                      side: BorderSide.none,
+                                    ),
+                                    onTap: () =>
+                                        context.push('/heineken/${r.id}'),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/heineken/neu'),
@@ -243,5 +240,40 @@ class _HeinekenRechnungenListScreenState
 
   String _chf(double value) {
     return _nf.format(value);
+  }
+}
+
+/// Bergkundenpauschalen werden mit der Heineken-Monatsrechnung verrechnet —
+/// hier werden sie gesucht (v0.132.0). Eigenes Widget, damit die Karte in
+/// jedem Zweig von `rechnungen.when(...)` (Laden, Fehler, leer, Liste) exakt
+/// einmal steht, statt in jedem Zweig einzeln kopiert zu werden.
+class _BergkundenKarte extends StatelessWidget {
+  const _BergkundenKarte();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: InkWell(
+        onTap: () => context.push('/bergkundenpauschalen'),
+        borderRadius: BorderRadius.circular(12),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.landscape, color: AppColors.primary),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Bergkundenpauschalen',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -64,4 +64,33 @@ void main() {
     expect(find.text('Krone'), findsNothing);
     expect(find.byType(Text), findsNothing);
   });
+
+  testWidgets('Tippen auf die Karte führt zu /events/<routeId>',
+      (tester) async {
+    final jetzt = DateTime.now();
+    final e = event('b1', jetzt)..id = 7; // feste Id -> feste routeId '7'.
+    final betriebe = {'b1': betrieb('b1', 'Rössli')};
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        eventsProvider.overrideWith((ref) async => [e]),
+        betriebLookupProvider.overrideWithValue(betriebe),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(routes: [
+          GoRoute(path: '/', builder: (c, s) => const EventKarten()),
+          GoRoute(
+            path: '/events/:id',
+            builder: (c, s) => Text('Event ${s.pathParameters['id']}'),
+          ),
+        ]),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Rössli'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Event 7'), findsOneWidget);
+  });
 }
