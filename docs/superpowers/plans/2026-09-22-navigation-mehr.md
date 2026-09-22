@@ -2080,7 +2080,7 @@ Lokal starten (`flutter run -d edge` oder über die Browser-Vorschau), Fenster a
 - [ ] **Step 4: Doku**
 
 - `docs/chronik.md`: oben einen Abschnitt `## 22.09.2026 — v0.131.0` mit den Punkten aus Teil A.
-- `ToDo.md`: Stand-Zeile auf v0.131.0; unter «Klicktests am Handy» einen Eintrag v0.131.0 mit den acht Punkten aus Step 3; unter «Bauen, wenn wieder Zeit ist» einen Punkt «Vier Routen ohne Link prüfen: `/buchhaltung/bilanz`, `/buchhaltung/debitoren`, `/buchhaltung/camt-regeln`, `/buchhaltung/camt-dateien` (Erreichbarkeits-Wächter, 22.09.2026)».
+- `ToDo.md`: Stand-Zeile auf v0.131.0; unter «Klicktests am Handy» einen Eintrag v0.131.0 mit den acht Punkten aus Step 3.
 - `Projekt.md`: Stand-Zeile auf v0.131.0 und Testzahl.
 
 - [ ] **Step 5: Commit, dann Deploy nach CLAUDE.md**
@@ -2129,17 +2129,9 @@ const kReiterRechnungen = [
 
 In jeder der vier AppBars `bottom: const BereichReiter(reiter: kReiterRechnungen, aktiverPfad: '<eigene Route>'),` ergänzen — `'/rechnungen'`, `'/heineken'`, `'/rechnungen/pro-betrieb'`, `'/jahresrechnung'`. Hat ein Screen einen eigenen `leading`-Knopf mit `context.pop()`, auf `context.canPop() ? context.pop() : context.go('/mehr')` umstellen. Hat ein Screen schon ein `bottom:`, **anhalten und melden** statt zu überschreiben.
 
-- [ ] **Step 3: Mahnwesen und Bergkundenpauschalen an ihren festen Ort**
+- [ ] **Step 3: Bergkundenpauschalen an ihren festen Ort**
 
-In `rechnungen_list_screen.dart` (Kunden) eine AppBar-Aktion ergänzen — das Mahnwesen war bis dahin nur über eine Aufgabe erreichbar:
-
-```dart
-          IconButton(
-            icon: const Icon(Icons.notification_important),
-            tooltip: 'Mahnwesen',
-            onPressed: () => context.push('/buchhaltung/mahnwesen'),
-          ),
-```
+*(Nachtrag 22.09.2026: Keine Mahnwesen-Aktion — `/buchhaltung/mahnwesen` ist nur eine Weiterleitung auf `/rechnungen`, das Mahnwesen IST die Kunden-Seite. Der Erreichbarkeits-Wächter erkennt solche Aliase seit Commit ad377b81 selbst.)*
 
 In `heineken_rechnungen_list_screen.dart` als erstes Element der Liste:
 
@@ -2182,8 +2174,6 @@ In `bereiche.dart` aus `kBereichBuchhaltung` die Gruppe `titel: 'Rechnungen'` l�
 ```dart
     '/bergkundenpauschalen':
         'lib/presentation/screens/heineken/heineken_rechnungen_list_screen.dart',
-    '/buchhaltung/mahnwesen':
-        'lib/presentation/screens/rechnungen/rechnungen_list_screen.dart',
 ```
 
 - `'/rechnungen/pro-betrieb'` aus `unterseiten` entfernen (jetzt Reiter).
@@ -2197,7 +2187,7 @@ Expected: alle PASS, 56 issues.
 
 ```bash
 git add -A lib/ test/
-git commit -m "feat(nav): Rechnungen mit Reitern, Mahnwesen und Bergkundenpauschalen an festem Ort
+git commit -m "feat(nav): Rechnungen mit Reitern, Bergkundenpauschalen im Heineken-Reiter
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -2395,7 +2385,6 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 2: Volle Prüfung** — `flutter test && flutter analyze` → alle PASS, 56 issues.
 - [ ] **Step 3: Sichtprüfung 360 × 800 mit Screenshots:**
   1. Mehr → Rechnungen: vier Reiter, «Jährlich» nicht gekürzt, jeder wechselt, der aktive leuchtet.
-  2. Kunden: Mahnwesen-Symbol öffnet das Mahnwesen.
   3. Heineken: Zeile «Bergkundenpauschalen» oben.
   4. Buchhaltung: nur noch «Bücher».
   5. Heute: Event-Karte — zum Prüfen vorübergehend ein Event mit `termin_von` in 3 Tagen im Browser anzeigen lassen (bestehendes Event per Formular ändern **nur nach Rückfrage bei Daniel**; sonst die Karte über einen Widget-Test mit einem Stub-Provider belegen und im Browser nur prüfen, dass Heute ohne anstehendes Event unverändert aussieht).
@@ -2409,10 +2398,15 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - **Stammdaten und Einstellungen sind keine `BereichScreen`**, sondern
   eigene Screens: Sie enthalten eingebettete Formulare (Geschäft,
   MWST-Sätze, PO-Nummer, Google-Verbindung), keine reinen Link-Listen.
-- **Mahnwesen** bekommt einen festen Platz (Aktion in «Kunden»): Die Spec
-  nahm an, es sei über die Kunden-Seite erreichbar — tatsächlich führte nur
-  eine Aufgabe dorthin.
-- **Vier Routen ohne Link** stehen als begründete Ausnahme im
-  Erreichbarkeits-Wächter und als Aufräum-Punkt in `ToDo.md`.
+- ~~**Mahnwesen** bekommt einen festen Platz~~ — *zurückgenommen
+  22.09.2026:* `/buchhaltung/mahnwesen` leitet nur auf `/rechnungen` weiter;
+  die Spec lag richtig, das Mahnwesen ist die Kunden-Seite.
+- ~~**Vier Routen ohne Link** als Ausnahme~~ — *zurückgenommen 22.09.2026:*
+  Es sind Weiterleitungen für alte Links. Der Erreichbarkeits-Wächter
+  erkennt reine Weiterleitungen selbst (Commit ad377b81); kein ToDo-Punkt.
+- **Nachtrag (nicht in der Spec):** Die Leiste hört seit Commit 1390e9e4 auf
+  `routerDelegate` statt `routeInformationProvider` — sonst stand sie auf dem
+  Anmeldebildschirm und fehlte nach dem Anmelden (go_router meldet
+  Weiterleitungen dem Provider ohne `notifyListeners()`).
 - Der Reiter «Jahresrechnungen» heisst **«Jährlich»**, damit vier Reiter auf
   360 px ungekürzt passen.
