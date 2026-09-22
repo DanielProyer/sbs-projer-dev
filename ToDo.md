@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.129.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1829 Tests grün** · Git sauber.
+**Stand:** **v0.130.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1842 Tests grün** · Git sauber.
 
 ## 🔴 OFFEN — hier weitermachen
 
@@ -480,9 +480,25 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
    order by 1;
   ```
 
-  **Und vor jeder Freigabe einer Heineken-Rechnung gilt ohnehin:** erst die
-  Positionszeile gegen das PDF halten, dann auf `freigegeben` setzen. Die
-  Buchung entsteht aus dem Datensatz, nicht aus dem Dokument.
+  ✅ **Seit v0.130.0 macht die App das selbst** (22.09.2026). Vor dem Freigeben
+  rechnet sie die Positionen aus den Quelldaten neu — dieselbe Rechenkette wie
+  beim Erstellen (`sammleMonatsDaten`) — und hält sie gegen die gespeicherten.
+  Geprüft werden alle acht Kategorien plus die Kopfsumme gegen die Summe der
+  Positionen. Weicht etwas ab, kommt ein Dialog mit den Zahlen; freigeben geht
+  nur über «Trotzdem freigeben».
+
+  **Der Dialog entscheidet bewusst nicht, er legt vor.** Eine Abweichung ist
+  nicht zwingend ein Fehler: Quelldaten dürfen sich nach dem Versand ändern.
+  Massgebend ist, ob der Betrag auf der Rechnung zu dem passt, was Heineken im
+  PDF bekommen hat.
+
+  *Am echten Fall geprüft:* Die August-Rechnung meldet «Störungen: auf der
+  Rechnung 3'184.60, neu berechnet 3'239.60 (−55.00)» — genau die bewusst
+  nicht verrechnete Bereichskorrektur an Störung 438. Abbrechen liess Status
+  und Buchungen unverändert.
+
+  Die Abfrage oben bleibt trotzdem nützlich, wenn du **nach** dem Erstellen
+  über mehrere Monate schauen willst, ohne jede Rechnung zu öffnen.
 
 ---
 
