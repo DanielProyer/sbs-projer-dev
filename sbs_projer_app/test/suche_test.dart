@@ -178,6 +178,37 @@ void main() {
     });
   });
 
+  group('trifftSuche', () {
+    test('mehrere Woerter, normalisiert — dieselbe Regel wie suche()', () {
+      expect(trifftSuche('pub cham', ['Chleina Pub', 'Cham']), isTrue);
+      expect(trifftSuche('pub zug', ['Chleina Pub', 'Cham']), isFalse);
+    });
+
+    test('Umlaute in der Eingabe egal', () {
+      expect(trifftSuche('zurich', ['Zürich']), isTrue);
+    });
+
+    test('Telefon ueber telefone-Parameter, alle Schreibweisen', () {
+      expect(
+        trifftSuche('0791084108', [], telefone: ['+41 79 108 41 08']),
+        isTrue,
+      );
+      expect(
+        trifftSuche('+41 79 108', [], telefone: ['079 108 41 08']),
+        isTrue,
+      );
+    });
+
+    test('leerer Suchtext trifft immer', () {
+      expect(trifftSuche('', ['irgendwas']), isTrue);
+      expect(trifftSuche('   ', ['irgendwas']), isTrue);
+    });
+
+    test('kein Treffer, wenn ein Wort fehlt', () {
+      expect(trifftSuche('pub xyz', ['Chleina Pub']), isFalse);
+    });
+  });
+
   group('markiere', () {
     test('Suchwoerter fett, Gross/Klein egal, Reihenfolge erhalten', () {
       expect(markiere('Chleina Pub', 'pub'), [('Chleina ', false), ('Pub', true)]);

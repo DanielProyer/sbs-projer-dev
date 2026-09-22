@@ -324,6 +324,27 @@ int? _rang(List<String> felder, List<String> woerter) {
   return felder.any((f) => f.startsWith(woerter.first)) ? 0 : 1;
 }
 
+/// Dieselbe Trefferregel wie [suche] (normalisieren, führendes «+» vor
+/// Ziffern weg, jedes Wort muss in Feldern oder Telefon-Varianten
+/// vorkommen) — für Listen-Screens, die außerhalb der Suchseite mit
+/// derselben Regel filtern sollen, statt ihr eigenes `contains()` zu
+/// pflegen. Leerer Suchtext trifft immer, wie eine Liste ohne aktiven
+/// Filter es erwartet.
+bool trifftSuche(
+  String suchtext,
+  List<String?> felder, {
+  List<String?> telefone = const [],
+}) {
+  final q = normalisiere(ohneFuehrendesPlus(suchtext));
+  if (q.isEmpty) return true;
+  final woerter = q.split(' ');
+  final normalisierteFelder = [
+    for (final f in felder) normalisiere(f ?? ''),
+    for (final t in telefone) ..._telefonVarianten(t),
+  ];
+  return _rang(normalisierteFelder, woerter) != null;
+}
+
 int _vergleiche(List<Object> a, List<Object> b) {
   for (var i = 0; i < a.length; i++) {
     final c = (a[i] as Comparable).compareTo(b[i]);
@@ -356,12 +377,16 @@ SuchGruppenErgebnis? _gruppe(
   );
 }
 
+/// Ein führendes «+» direkt vor Ziffern («+41 79 108») ist Teil der
+/// Landesvorwahl, keine Textsuche — sonst würde die reine-Ziffern-Prüfung
+/// in [suche] nie greifen und «+» selbst passt in keinem Feld. Geteilt mit
+/// [trifftSuche] und der Hervorhebung auf der Suchseite (`markiere`), damit
+/// alle drei Stellen dasselbe Zeichen gleich behandeln.
+String ohneFuehrendesPlus(String text) =>
+    text.replaceFirst(RegExp(r'^\+(?=\d)'), '');
+
 SuchErgebnis suche(SuchEingabe e, String text) {
-  // Ein führendes «+» direkt vor Ziffern («+41 79 108») ist Teil der
-  // Landesvorwahl, keine Textsuche — sonst würde die reine-Ziffern-Prüfung
-  // unten nie greifen und «+» selbst passt in keinem Feld.
-  final ohnePlus = text.replaceFirst(RegExp(r'^\+(?=\d)'), '');
-  final q = normalisiere(ohnePlus);
+  final q = normalisiere(ohneFuehrendesPlus(text));
   if (q.length < kSuchMindestLaenge) return const SuchErgebnis([]);
   final woerter = q.split(' ');
   final nurZiffern = RegExp(r'^[0-9 ]+$').hasMatch(q);

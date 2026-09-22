@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/betrieb_faelligkeit.dart';
 import 'package:sbs_projer_app/core/util/betrieb_status.dart';
 import 'package:sbs_projer_app/core/util/google_maps_route.dart';
+import 'package:sbs_projer_app/core/util/suche.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
@@ -57,6 +58,10 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
     if (start != null && start.isNotEmpty) {
       _suchController.text = start;
       _searchQuery = start;
+      // Aus der Suche kommend soll der Treffer sichtbar sein, auch wenn er
+      // inaktiv/geschlossen ist — sonst blendet der Status-Filter (Default
+      // "operativ") ihn wieder aus, obwohl die Suche ihn gerade gezeigt hat.
+      _statusFilter = 'alle';
     }
   }
 
@@ -117,13 +122,10 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
           !_regionPasst(b.regionId, aktiveRegionIds)) {
         return false;
       }
-      if (_searchQuery.isNotEmpty) {
-        final query = _searchQuery.toLowerCase();
-        return b.name.toLowerCase().contains(query) ||
-            (b.ort?.toLowerCase().contains(query) ?? false) ||
-            (b.betriebNr?.toLowerCase().contains(query) ?? false);
-      }
-      return true;
+      // Dieselbe Trefferregel wie die App-Suche (Umlaute, Wort-Split,
+      // Rechnungs-/Betriebsnummer als Ziffernfolge) — sonst findet «pub cham»
+      // hier nichts, obwohl die Suchseite es zeigt.
+      return trifftSuche(_searchQuery, [b.name, b.ort, b.betriebNr]);
     }).toList();
 
     return Scaffold(
@@ -374,7 +376,6 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
 
     // Filter: Kunden + Region + Suche gemeinsam mit der Liste (Filter-Leiste
     // oben), "Nur fällige" ist karten-spezifisch.
-    final query = _searchQuery.toLowerCase();
     final gefiltert = alle.where((b) {
       // Nur operative Betriebe (aktiv + Saisonpause). Inaktiv/geschlossen
       // erscheinen auf der Karte nicht.
@@ -386,13 +387,8 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
         return false;
       }
       if (_karteNurFaellig && !istFaellig(statusFuer(b))) return false;
-      if (query.isNotEmpty &&
-          !(b.name.toLowerCase().contains(query) ||
-              (b.ort?.toLowerCase().contains(query) ?? false) ||
-              (b.betriebNr?.toLowerCase().contains(query) ?? false))) {
-        return false;
-      }
-      return true;
+      // Dieselbe Trefferregel wie die App-Suche — siehe Liste oben.
+      return trifftSuche(_searchQuery, [b.name, b.ort, b.betriebNr]);
     }).toList();
 
     final mitKoord = gefiltert

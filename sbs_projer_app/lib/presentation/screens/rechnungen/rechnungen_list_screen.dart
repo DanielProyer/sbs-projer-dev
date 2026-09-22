@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
+import 'package:sbs_projer_app/core/util/suche.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart'
@@ -481,16 +482,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       } else if (_statusFilter != 'alle' && r.zahlungsstatus != _statusFilter) {
         return false;
       }
-      if (_searchQuery.isNotEmpty) {
-        final query = _searchQuery.toLowerCase();
-        final betriebName =
-            (r.betriebId != null ? betriebNames[r.betriebId] : null)
-                ?.toLowerCase() ??
-            '';
-        return betriebName.contains(query) ||
-            (r.rechnungsnummer?.toLowerCase().contains(query) ?? false);
-      }
-      return true;
+      // Dieselbe Trefferregel wie die App-Suche — sonst findet «pub cham»
+      // oder «zurich» hier nichts, obwohl die Suchseite es zeigt.
+      final betriebName = r.betriebId != null ? betriebNames[r.betriebId] : null;
+      return trifftSuche(_searchQuery, [betriebName, r.rechnungsnummer]);
     }).toList();
 
     // Monats- und Tagesgruppierung (jahresübergreifend bei «Alle Jahre»).

@@ -31,17 +31,18 @@ class ZuletztGeoeffnet {
   static const _max = 5;
 
   static Future<List<ZuletztEintrag>> lade() async {
-    final prefs = await SharedPreferences.getInstance();
-    final roh = prefs.getString(_schluessel);
-    if (roh == null) return const [];
+    // getInstance() gehört mit in den try: Ist der Browser-Speicher
+    // gesperrt (privater Modus, voller Speicher), darf schon der Zugriff
+    // darauf die Suchseite nicht stören — nicht erst ein kaputter Inhalt.
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final roh = prefs.getString(_schluessel);
+      if (roh == null) return const [];
       final liste = jsonDecode(roh) as List<dynamic>;
       return liste
           .map((e) => ZuletztEintrag.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (_) {
-      // Kaputter Inhalt (alte Fassung, manuell gelöscht) ist kein Grund,
-      // die Suchseite zu stören.
       return const [];
     }
   }

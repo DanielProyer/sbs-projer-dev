@@ -58,8 +58,14 @@ class _SucheScreenState extends ConsumerState<SucheScreen> {
   }
 
   Future<void> _ladeZuletzt() async {
-    final l = await ZuletztGeoeffnet.lade();
-    if (mounted) setState(() => _zuletzt = l);
+    try {
+      final l = await ZuletztGeoeffnet.lade();
+      if (mounted) setState(() => _zuletzt = l);
+    } catch (_) {
+      // Gesperrter Browser-Speicher darf die Suche nicht stören — dann
+      // bleibt «Zuletzt geöffnet» einfach leer.
+      if (mounted) setState(() => _zuletzt = const []);
+    }
   }
 
   /// 150 ms nach dem letzten Zeichen rechnen: Bei ~4'000 Rechnungen soll
@@ -93,7 +99,17 @@ class _SucheScreenState extends ConsumerState<SucheScreen> {
   }
 
   Future<void> _anrufen(String telefon) async {
-    await launchUrl(Uri.parse('tel:${telefon.replaceAll(' ', '')}'));
+    var ok = false;
+    try {
+      ok = await launchUrl(Uri.parse('tel:${telefon.replaceAll(' ', '')}'));
+    } catch (_) {
+      ok = false;
+    }
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Anruf nicht möglich')));
+    }
   }
 
   Widget _kopf(String text) => Padding(
@@ -155,7 +171,10 @@ class _SucheScreenState extends ConsumerState<SucheScreen> {
           for (final t in g.treffer)
             SuchTrefferZeile(
               treffer: t,
-              suchtext: _text,
+              // Ohne führendes «+» vor Ziffern — dieselbe Bereinigung wie in
+              // `suche()`, sonst würde «+41 79» nie fett markiert, weil das
+              // «+» selbst in keinem Feld vorkommt.
+              suchtext: ohneFuehrendesPlus(_text),
               onTap: () => _oeffne(t.titel, t.untertitel, t.route),
               onAnruf: t.telefon == null || t.telefon!.isEmpty
                   ? null

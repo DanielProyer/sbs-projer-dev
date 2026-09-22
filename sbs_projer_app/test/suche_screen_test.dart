@@ -99,6 +99,10 @@ void main() {
     final nav = tester.state<NavigatorState>(find.byType(Navigator).last);
     nav.pop();
     await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      'mwst',
+    );
     await tester.enterText(find.byType(TextField), '');
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pumpAndSettle();

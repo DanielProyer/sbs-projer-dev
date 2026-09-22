@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/suche.dart';
 
 class KontakteListScreen extends ConsumerStatefulWidget {
   final String? kategorie;
@@ -147,18 +148,17 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
       result = result.where((k) => k.betriebId == widget.betriebId).toList();
     }
 
-    // Suche
+    // Suche — dieselbe Trefferregel wie die App-Suche (Umlaute, Wort-Split,
+    // Telefon in allen Schreibweisen), damit z. B. «zurich» oder
+    // «0791084108» hier dasselbe finden wie auf der Suchseite. Mail bleibt
+    // als eigenes Feld dabei, das durchsucht nur diese Liste.
     if (_suchText.isNotEmpty) {
-      final q = _suchText.toLowerCase();
       result = result.where((k) {
-        final name = '${k.vorname} ${k.nachname ?? ''}'.toLowerCase();
-        final tel = (k.telefon ?? '').toLowerCase();
-        final mail = (k.email ?? '').toLowerCase();
-        final betrieb = (betriebNamen[k.betriebId] ?? '').toLowerCase();
-        return name.contains(q) ||
-            tel.contains(q) ||
-            mail.contains(q) ||
-            betrieb.contains(q);
+        return trifftSuche(
+          _suchText,
+          [k.vorname, k.nachname, betriebNamen[k.betriebId], k.email],
+          telefone: [k.telefon],
+        );
       }).toList();
     }
 
