@@ -46,6 +46,7 @@ void main() {
 
   /// Unterseiten: Route → Datei, in der der Weg dorthin steht.
   const unterseiten = <String, String>{
+    '/suche': 'lib/presentation/screens/home_screen.dart',
     '/betriebe/servicezeiten':
         'lib/presentation/screens/betriebe/betriebe_list_screen.dart',
     '/betriebe/saisondaten':

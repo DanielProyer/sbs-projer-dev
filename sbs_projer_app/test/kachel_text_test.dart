@@ -180,6 +180,7 @@ void main() {
       '_AufgabenKarte(',
       'zeigeDiktatSheet',
       'EventKarten(',
+      "context.push('/suche')",
     ]) {
       expect(quelle.contains(bleibt), isTrue, reason: bleibt);
     }

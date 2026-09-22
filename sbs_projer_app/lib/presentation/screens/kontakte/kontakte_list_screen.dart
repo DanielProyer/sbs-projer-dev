@@ -19,14 +19,21 @@ import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 class KontakteListScreen extends ConsumerStatefulWidget {
   final String? kategorie;
   final String? betriebId;
+  final String? startSuche;
 
-  const KontakteListScreen({super.key, this.kategorie, this.betriebId});
+  const KontakteListScreen({
+    super.key,
+    this.kategorie,
+    this.betriebId,
+    this.startSuche,
+  });
 
   @override
   ConsumerState<KontakteListScreen> createState() => _KontakteListScreenState();
 }
 
 class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
+  final _suchController = TextEditingController();
   String _suchText = '';
   String _filterKategorie = 'alle';
 
@@ -36,6 +43,17 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
     if (widget.kategorie != null) {
       _filterKategorie = widget.kategorie!;
     }
+    final start = widget.startSuche;
+    if (start != null && start.isNotEmpty) {
+      _suchController.text = start;
+      _suchText = start;
+    }
+  }
+
+  @override
+  void dispose() {
+    _suchController.dispose();
+    super.dispose();
   }
 
   String _appBarTitle() {
@@ -211,6 +229,7 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                 child: TextField(
+                  controller: _suchController,
                   decoration: InputDecoration(
                     hintText: 'Suche nach Betrieb, Name, Telefon, E-Mail...',
                     prefixIcon: const Icon(Icons.search),

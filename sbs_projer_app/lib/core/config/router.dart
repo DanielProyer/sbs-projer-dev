@@ -204,7 +204,8 @@ final router = GoRouter(
     // Betriebe
     GoRoute(
       path: '/betriebe',
-      builder: (context, state) => const BetriebeListScreen(),
+      builder: (context, state) =>
+          BetriebeListScreen(startSuche: state.uri.queryParameters['suche']),
     ),
     GoRoute(
       path: '/betriebe/servicezeiten',
@@ -499,7 +500,9 @@ final router = GoRouter(
     // Rechnungen
     GoRoute(
       path: '/rechnungen',
-      builder: (context, state) => const RechnungenListScreen(),
+      builder: (context, state) => RechnungenListScreen(
+        startSuche: state.uri.queryParameters['suche'],
+      ),
     ),
     // MUSS vor '/rechnungen/:id' stehen — GoRouter nimmt die erste passende
     // Route, sonst landet 'pro-betrieb' als Rechnungs-ID im Detailscreen.
@@ -698,7 +701,8 @@ final router = GoRouter(
     // Kontakte
     GoRoute(
       path: '/kontakte',
-      builder: (context, state) => const KontakteListScreen(),
+      builder: (context, state) =>
+          KontakteListScreen(startSuche: state.uri.queryParameters['suche']),
     ),
     GoRoute(
       path: '/kontakte/neu',

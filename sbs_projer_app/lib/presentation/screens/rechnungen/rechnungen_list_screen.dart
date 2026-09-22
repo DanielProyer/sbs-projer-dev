@@ -92,7 +92,9 @@ String? _naechsterStatus(String current) {
 }
 
 class RechnungenListScreen extends ConsumerStatefulWidget {
-  const RechnungenListScreen({super.key});
+  final String? startSuche;
+
+  const RechnungenListScreen({super.key, this.startSuche});
 
   @override
   ConsumerState<RechnungenListScreen> createState() =>
@@ -100,10 +102,31 @@ class RechnungenListScreen extends ConsumerStatefulWidget {
 }
 
 class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
+  final _suchController = TextEditingController();
   String _searchQuery = '';
   String _statusFilter = 'alle';
   int _selectedYear = DateTime.now().year; // 0 = Alle Jahre
   int _selectedMonth = 0; // 0 = Alle Monate
+
+  @override
+  void initState() {
+    super.initState();
+    final start = widget.startSuche;
+    if (start != null && start.isNotEmpty) {
+      _suchController.text = start;
+      _searchQuery = start;
+      // Aus der Suche kommend soll der Treffer über alle Jahre sichtbar
+      // sein — sonst versteckt der (auf das laufende Jahr voreingestellte)
+      // Jahresfilter ältere Rechnungen, die die Suche gerade gezeigt hat.
+      _selectedYear = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _suchController.dispose();
+    super.dispose();
+  }
 
   /// Bucht fehlende Ertragsbuchungen nach (04.09.2026: zwei Reinigungen
   /// blieben unverbucht, weil die Abschluss-Kette im Browser abbrach).
@@ -626,6 +649,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SearchBar(
+              controller: _suchController,
               hintText: 'Rechnung suchen...',
               leading: const Padding(
                 padding: EdgeInsets.only(left: 8),

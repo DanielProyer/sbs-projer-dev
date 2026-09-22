@@ -16,13 +16,16 @@ import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class BetriebeListScreen extends ConsumerStatefulWidget {
-  const BetriebeListScreen({super.key});
+  final String? startSuche;
+
+  const BetriebeListScreen({super.key, this.startSuche});
 
   @override
   ConsumerState<BetriebeListScreen> createState() => _BetriebeListScreenState();
 }
 
 class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
+  final _suchController = TextEditingController();
   String _searchQuery = '';
   // 'operativ' (aktiv+saisonpause, Default) | aktiv | saisonpause | inaktiv |
   // geschlossen | alle — nur Liste
@@ -46,6 +49,22 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   // Karten-Ansicht
   bool _karteAktiv = false;
   bool _karteNurFaellig = false; // nur Karte
+
+  @override
+  void initState() {
+    super.initState();
+    final start = widget.startSuche;
+    if (start != null && start.isNotEmpty) {
+      _suchController.text = start;
+      _searchQuery = start;
+    }
+  }
+
+  @override
+  void dispose() {
+    _suchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -169,6 +188,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: SearchBar(
+              controller: _suchController,
               hintText: 'Betrieb suchen...',
               leading: const Padding(
                 padding: EdgeInsets.only(left: 8),

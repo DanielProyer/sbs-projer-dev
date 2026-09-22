@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
@@ -30,6 +31,13 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         actions: [
+          // Suche (v0.133.0): hier und oben auf Mehr — von jedem Screen in
+          // zwei Tipps erreichbar, ohne 100 Kopfzeilen umzubauen.
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Suchen',
+            onPressed: () => context.push('/suche'),
+          ),
           const Padding(
             padding: EdgeInsets.only(right: 8),
             child: _SyncIndicator(),
