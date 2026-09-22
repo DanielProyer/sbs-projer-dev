@@ -189,7 +189,8 @@ class SuchEingabe {
           gruppe: SuchGruppe.rechnungen,
           titel: r.nummer ?? 'ohne Nummer',
           untertitel: '${r.betriebName ?? '–'} · '
-              '${r.brutto.toStringAsFixed(2)} · ${r.zahlungsstatus}',
+              '${formatiereBrutto(r.brutto)} · '
+              '${zahlungsstatusLesbar(r.zahlungsstatus)}',
           route: '/rechnungen/${r.id}',
         ),
         [normalisiere(r.nummer ?? ''), normalisiere(r.betriebName ?? '')],
@@ -219,6 +220,40 @@ class SuchEingabe {
       ),
   ];
 }
+
+/// Schweizer Zahlenformat mit Tausender-Apostroph, zwei Nachkommastellen —
+/// über `toStringAsFixed` statt eigener Rundung, damit Fliesskomma-Reste
+/// (13966.089999…) nicht falsch runden.
+String formatiereBrutto(double brutto) {
+  final fest = brutto.toStringAsFixed(2);
+  final negativ = fest.startsWith('-');
+  final ohneVorzeichen = negativ ? fest.substring(1) : fest;
+  final teile = ohneVorzeichen.split('.');
+  final ganzzahl = teile[0];
+  final b = StringBuffer();
+  for (var i = 0; i < ganzzahl.length; i++) {
+    if (i > 0 && (ganzzahl.length - i) % 3 == 0) b.write("'");
+    b.write(ganzzahl[i]);
+  }
+  return '${negativ ? '-' : ''}$b.${teile[1]}';
+}
+
+/// Lesbarer Rechnungsstatus für die Trefferzeile — roher Wert («mahnung_1»)
+/// ist für den Nutzer nicht selbsterklärend. Unbekannte/künftige Werte
+/// kommen unverändert durch, statt eine Zeile zu leeren.
+const _zahlungsstatusLabels = <String, String>{
+  'offen': 'offen',
+  'gesendet': 'gesendet',
+  'freigegeben': 'freigegeben',
+  'bezahlt': 'bezahlt',
+  'erinnert': 'erinnert',
+  'mahnung_1': '1. Mahnung',
+  'mahnung_2': '2. Mahnung',
+  'abgeschrieben': 'abgeschrieben',
+};
+
+String zahlungsstatusLesbar(String status) =>
+    _zahlungsstatusLabels[status] ?? status;
 
 enum SuchGruppe { betriebe, personen, rechnungen, bereiche }
 

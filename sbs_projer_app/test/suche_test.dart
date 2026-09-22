@@ -148,6 +148,20 @@ void main() {
           ['2026-09-2000', '2026-09-1000']);
     });
 
+    test('Rechnungstreffer: Betrag mit Apostroph, Status lesbar', () {
+      final e = SuchEingabe(
+        betriebe: const [],
+        personen: const [],
+        rechnungen: [
+          _r('rx', '2026-09-9999', betrieb: 'X', brutto: 13966.09, status: 'mahnung_1'),
+        ],
+        bereiche: const [],
+      );
+      final t = suche(e, '9999').gruppen.single.treffer.single;
+      expect(t.untertitel, contains("13'966.09"));
+      expect(t.untertitel, contains('1. Mahnung'));
+    });
+
     test('Deckel 5 mit Gesamtzahl; Bereiche ohne Deckel', () {
       final viele = SuchEingabe(
         betriebe: [for (var i = 0; i < 8; i++) _b('b$i', 'Bar $i')],
