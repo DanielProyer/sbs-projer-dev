@@ -201,16 +201,16 @@ Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
 - **Migrations-Ablage:** Rund ein Dutzend Server-Migrationen haben keine lokale
   Datei — meist Einmal-Operationen (Storage-Policies, RLS-Nachzieher, Snapshots).
   Rezept im Archiv-Abschnitt zu 192b.
-- ⚠️ **`Projekt.md` mit der Commit-Historie abgleichen** (aufgefallen bei der
-  Abschlussroutine 22.09.2026). Das Dokument ist seit dem **02.06.2026** nicht
-  mehr nachgeführt; seither sind **1563 Commits** entstanden, davon rund **840
-  Feature- und Fix-Commits**. Die Abschnitte «Nächste Schritte» und «Temporär
-  aktiv» beschreiben den Juni-Stand, und die Zeile zu den Migrationen war
-  schlicht falsch («bis 080», tatsächlich 199). Oben im Dokument steht jetzt
-  ein Warnhinweis mit dem aktuellen Stand, die Migrationszeile ist korrigiert.
-  **Vier Monate nachzuerfinden ist keine Sessionende-Arbeit** — das braucht
-  einen eigenen Durchgang durch `git log`. Solange gilt: **`ToDo.md` ist die
-  gepflegte Quelle**, nicht `Projekt.md`.
+- ✅ **`Projekt.md` abgeglichen (22.09.2026, abends).** Der Befund vom
+  Arbeitsschluss war falsch: Der Kopf mit der Chronik war bis zum **17.09.**
+  (v0.109.2) gepflegt, rund 45 Commits seit Juni. Gefehlt haben die fünf Tage
+  v0.110.0–v0.130.0. Stehen geblieben war nur der strukturierte Teil
+  (Phasentabelle, Arbeitspakete, «Nächste Schritte», «Temporär aktiv»).
+  **Neu aufgeteilt:** `Projekt.md` ist jetzt eine Übersicht (was die App kann,
+  wie sie gebaut ist, Doku-Landkarte) und wird nur bei neuen Modulen oder
+  Architektur-Entscheiden nachgeführt. Die Chronik, der ursprüngliche Plan und
+  die Erledigt-Liste bis Juni stehen **wörtlich** in `docs/chronik.md`, mit
+  einem Nachtrag zu v0.110.0–v0.130.0. **`ToDo.md` bleibt die Arbeitsquelle.**
 - **BACKLOG ohne Zeitdruck:** GIS-Regionen-Polygone, Beta-Testing auf echten
   Geräten, Beleg-Foto-Optimierung, Bulk-Sync Handy-Kontakte, Termin-Erinnerungen
   Folge-Tests. Vollständig im Archiv.
