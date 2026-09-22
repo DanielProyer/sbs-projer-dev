@@ -72,6 +72,7 @@ void main() {
       'lib/presentation/screens/buchhaltung/monatsabschluss_screen.dart',
       'lib/presentation/widgets/bereich_gruppen_liste.dart',
       'lib/presentation/screens/bereich_screen.dart',
+      'lib/presentation/widgets/bereich_reiter.dart',
     ]) {
       final datei = File(pfad);
       expect(

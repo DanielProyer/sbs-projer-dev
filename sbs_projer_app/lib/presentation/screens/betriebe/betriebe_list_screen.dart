@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_map.dart';
+import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -110,9 +111,13 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
         title: const Text('Betriebe'),
+        bottom: const BereichReiter(
+          reiter: kReiterBetriebe,
+          aktiverPfad: '/betriebe',
+        ),
         actions: [
           // Servicezeiten aller Betriebe der Reihe nach durchgehen
           // (Vorschlag aus den Besuchszeiten seit 2019).

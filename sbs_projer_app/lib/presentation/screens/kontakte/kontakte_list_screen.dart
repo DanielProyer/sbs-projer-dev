@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anruf_log_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -166,7 +167,15 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
     final kontakteAsync = ref.watch(kontakteProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_appBarTitle())),
+      appBar: AppBar(
+        title: Text(_appBarTitle()),
+        bottom: widget.betriebId == null
+            ? const BereichReiter(
+                reiter: kReiterBetriebe,
+                aktiverPfad: '/kontakte',
+              )
+            : null,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           final params = <String, String>{};
