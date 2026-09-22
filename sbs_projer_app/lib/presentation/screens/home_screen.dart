@@ -1,23 +1,14 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/core/util/sync_meldung.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
-import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
-import 'package:sbs_projer_app/presentation/widgets/dashboard_tile.dart';
 import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/heute_liste.dart';
-import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -42,16 +33,11 @@ class HomeScreen extends StatelessWidget {
             padding: EdgeInsets.only(right: 8),
             child: _SyncIndicator(),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Abmelden',
-            onPressed: () async {
-              if (!kIsWeb) SyncService.stopListening();
-              await SupabaseService.client.auth.signOut();
-            },
-          ),
         ],
       ),
+      // Seit v0.131.0 nur noch der Tag: Kacheln und «Weitere» rutschten mit
+      // jedem Stopp des Tagesplans tiefer und waren am Handy kaum zu
+      // erreichen. Sie stehen jetzt unter «Mehr» in der Leiste.
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         children: [
@@ -60,10 +46,6 @@ class HomeScreen extends StatelessWidget {
           // GPS-Position, abends Ende + km) — Daniel 29.07.2026.
           const ArbeitstagKarte(),
           const HeuteListe(),
-          const SizedBox(height: 8),
-          const _KachelGrid(),
-          const SizedBox(height: 16),
-          const _WeitereSection(),
         ],
       ),
       // Diktieren als frei schwebender Knopf statt fester Leiste: Daniel
@@ -77,174 +59,6 @@ class HomeScreen extends StatelessWidget {
         label: const Text('Diktieren'),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-    );
-  }
-}
-
-class _KachelGrid extends ConsumerWidget {
-  const _KachelGrid();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Kachelzähler = Glocken-Badge — dieselbe Quelle (B6).
-    final aufgabenCount = ref.watch(aufgabenBadgeProvider);
-    final niedrigCount = ref.watch(niedrigCountProvider);
-
-    // Flachere Kacheln (2.1 statt 1.75) + engere Abstände: ursprünglich
-    // sollten alle 10 Kacheln zusammen mit Arbeitstag + Übersicht ohne
-    // Scrollen aufs Pixel 9 passen (Daniel 31.07.2026). Diese Regel ist
-    // überholt — seit Task 10 (13.09.2026) zeigt die Startseite zusätzlich
-    // die Heute-Liste mit dem vollständigen Tagesplan, der je nach
-    // Stopp-Zahl beliebig lang wird; die Seite scrollt jetzt bewusst. Das
-    // knappe Kachel-Layout bleibt trotzdem so, weil es unabhängig davon
-    // gut lesbar ist.
-    // Seit v0.107.0 (B1) führt die untere Navigationsleiste zu Heute,
-    // Einsätzen, Betrieben und Tour. Hier stehen nur noch die Ziele, die
-    // sie nicht abdeckt — und «Weitere» darunter den Rest.
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 6,
-      mainAxisSpacing: 6,
-      childAspectRatio: 2.1,
-      children: [
-        // Kontakte standen bis v0.112.0 (A6) hier. Der Nutzungszähler zeigte
-        // vom 09.–18.09.2026 **null** Aufrufe, während Material (8), Spesen
-        // (6) und Aufgaben (2) ihren Platz verdienten. Sie sind jetzt
-        // zuoberst in «Weitere» — erreichbar, aber nicht auf einem der vier
-        // Plätze, die man am Handy mit dem Daumen trifft.
-        //
-        // Events sind seit v0.58.0 unten in der Liste (oberhalb Buchhaltung);
-        // an ihrer Stelle die neuen Aufgaben (anstehende Arbeiten) — Daniel
-        // 31.07.2026.
-        DashboardTile(
-          icon: Icons.task_alt,
-          label: 'Aufgaben',
-          count: aufgabenCount > 0 ? '$aufgabenCount' : null,
-          color: Colors.deepOrange,
-          onTap: () => context.push('/aufgaben'),
-        ),
-        DashboardTile(
-          icon: Icons.receipt_long,
-          label: 'Spesen',
-          count: null,
-          color: Colors.brown,
-          onTap: () => context.push('/spesen'),
-        ),
-        // Material braucht Daniel auch unterwegs (16.09.2026) — und «N
-        // niedrig» ist einer der wenigen Kachelzähler, die eine Handlung
-        // verlangen. Stand bis v0.107.0 in «Weitere», dort jetzt entfernt.
-        DashboardTile(
-          icon: Icons.inventory_2,
-          label: 'Material',
-          count: niedrigCount > 0 ? '$niedrigCount niedrig' : null,
-          color: Colors.blueGrey,
-          onTap: () => context.push('/materialien'),
-        ),
-      ],
-    );
-  }
-}
-
-class _WeitereSection extends ConsumerWidget {
-  const _WeitereSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final buchungenCount = ref.watch(buchungenCountProvider);
-    final eventCount =
-        ref
-            .watch(eventsProvider)
-            .valueOrNull
-            ?.where((e) => e.jahr == DateTime.now().year)
-            .length ??
-        0;
-
-    return Column(
-      children: [
-        // Kontakte zuoberst: von den Einträgen hier braucht man sie am
-        // ehesten unterwegs (Telefonnummer eines Wirts). Aus dem Kachel-
-        // Raster hierher — siehe Begründung dort (A6, v0.112.0).
-        _MenuListTile(
-          icon: Icons.contacts,
-          label: 'Kontakte',
-          onTap: () => context.push('/kontakte'),
-        ),
-        // Events (aus dem Kachel-Raster hierher verschoben — Daniel
-        // 31.07.2026; die Kachel gehört jetzt den Aufgaben).
-        _MenuListTile(
-          icon: Icons.festival,
-          label: 'Events',
-          count: eventCount > 0 ? '$eventCount' : null,
-          onTap: () => context.push('/events'),
-        ),
-        // Buchhaltung für Gast (Heineken) ausgeblendet
-        if (!SupabaseService.isGuest)
-          _MenuListTile(
-            icon: Icons.account_balance,
-            label: 'Buchhaltung',
-            count: buchungenCount > 0 ? '$buchungenCount' : null,
-            onTap: () => context.push('/buchhaltung'),
-          ),
-        // Dokumentenablage — wie die Buchhaltung nichts für den Gast
-        if (!SupabaseService.isGuest)
-          _MenuListTile(
-            icon: Icons.folder_open,
-            label: 'Dokumente',
-            onTap: () => context.push('/dokumente'),
-          ),
-        // «Auswertung Arbeitstage» steht seit v0.112.0 (A6) in der
-        // Buchhaltung, gleich neben der Umsatz-Auswertung — dort wird sie
-        // gesucht, nicht auf der Werkstatt-Startseite. Die Route bleibt
-        // unverändert.
-        _MenuListTile(
-          icon: Icons.nightlight_round,
-          label: 'Pikett-Dienste',
-          onTap: () => context.push('/einsaetze?typ=pikett'),
-        ),
-        _MenuListTile(
-          icon: Icons.propane_tank_outlined,
-          label: 'Anlagen',
-          onTap: () => context.push('/anlagen'),
-        ),
-        _MenuListTile(
-          icon: Icons.landscape,
-          label: 'Bergkundenpauschalen',
-          onTap: () => context.push('/bergkundenpauschalen'),
-        ),
-        _MenuListTile(
-          icon: Icons.settings,
-          label: 'Einstellungen',
-          onTap: () => context.push('/einstellungen'),
-        ),
-        if (!kIsWeb)
-          _MenuListTile(
-            icon: Icons.sync,
-            label: 'Sync erzwingen',
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              messenger.showSnackBar(
-                const SnackBar(content: Text('Synchronisierung gestartet...')),
-              );
-              // Ergebnis abwarten und melden: Vorher blieb es bei
-              // «gestartet», auch wenn einzelne Sätze nicht durchkamen.
-              final r = await SyncService.syncAll();
-              final m = syncMeldung(
-                pushed: r.pushed,
-                pulled: r.pulled,
-                fehler: r.errors,
-              );
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(m.text),
-                  backgroundColor: m.istFehler ? AppColors.offline : null,
-                  duration: Duration(seconds: m.istFehler ? 8 : 3),
-                ),
-              );
-            },
-          ),
-      ],
     );
   }
 }
@@ -277,48 +91,6 @@ class _SyncIndicator extends ConsumerWidget {
       isOnline ? Icons.cloud_done : Icons.cloud_off,
       color: isOnline ? AppColors.online : AppColors.offline,
       size: 20,
-    );
-  }
-}
-
-class _MenuListTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String? count;
-  final VoidCallback onTap;
-
-  const _MenuListTile({
-    required this.icon,
-    required this.label,
-    this.count,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(label),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (count != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  count!,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
-        onTap: onTap,
-      ),
     );
   }
 }

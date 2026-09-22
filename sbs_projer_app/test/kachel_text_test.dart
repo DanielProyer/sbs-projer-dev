@@ -160,27 +160,25 @@ void main() {
     },
   );
 
-  testWidgets('die Startseite zeigt nur noch die drei Kacheln ohne Leisten-Ziel',
-      (tester) async {
+  test('die Startseite ist nur noch der Tag (v0.131.0)', () {
     final quelle =
         File('lib/presentation/screens/home_screen.dart').readAsStringSync();
     for (final weg in [
-      "label: 'Reinigungen'",
-      "label: 'Störungen'",
-      "label: 'Montagen'",
-      "label: 'Eigenaufträge'",
-      "label: 'Eröffnungen'",
-      "label: 'Betriebe'",
-      "label: 'Tourenplanung'",
+      'DashboardTile(',
+      '_KachelGrid',
+      '_WeitereSection',
+      '_MenuListTile',
+      'Icons.logout',
     ]) {
       expect(quelle.contains(weg), isFalse,
-          reason: '$weg doppelt die Navigationsleiste (B1)');
+          reason: '$weg gehoert seit v0.131.0 auf Mehr bzw. in die '
+              'Einstellungen — auf Heute rutscht es unter den Tagesplan');
     }
     for (final bleibt in [
-      "label: 'Aufgaben'",
-      "label: 'Spesen'",
-      "label: 'Kontakte'",
-      "label: 'Material'",
+      'ArbeitstagKarte(',
+      'HeuteListe(',
+      '_AufgabenKarte(',
+      'zeigeDiktatSheet',
     ]) {
       expect(quelle.contains(bleibt), isTrue, reason: bleibt);
     }
