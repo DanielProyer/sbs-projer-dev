@@ -31,12 +31,17 @@ class BereichEintrag {
   final String ziel;
   final ZaehlerQuelle? zaehler;
 
+  /// Weitere Suchbegriffe (Suche, v0.133.0): «mwst» findet die
+  /// MwSt-Abrechnung, auch wenn das Wort nicht im Titel steht.
+  final List<String> stichwoerter;
+
   const BereichEintrag({
     required this.titel,
     this.untertitel,
     required this.icon,
     required this.ziel,
     this.zaehler,
+    this.stichwoerter = const [],
   });
 }
 
@@ -141,12 +146,14 @@ const kBereichMehr = Bereich(
           icon: Icons.inventory_2,
           ziel: '/materialien',
           zaehler: ZaehlerQuelle.materialNiedrig,
+          stichwoerter: ['bestellung', 'lager', 'bestand'],
         ),
         BereichEintrag(
           titel: 'Aufgaben',
           icon: Icons.task_alt,
           ziel: '/aufgaben',
           zaehler: ZaehlerQuelle.aufgaben,
+          stichwoerter: ['todo', 'erinnerung'],
         ),
         BereichEintrag(
           titel: 'Events',
@@ -164,6 +171,7 @@ const kBereichMehr = Bereich(
           icon: Icons.request_quote,
           ziel: '/rechnungen',
           zaehler: ZaehlerQuelle.bereich,
+          stichwoerter: ['forderungen', 'debitoren', 'mahnung', 'mahnwesen', 'offen'],
         ),
         BereichEintrag(
           titel: 'Bank und Zahlungen',
@@ -171,6 +179,7 @@ const kBereichMehr = Bereich(
           icon: Icons.account_balance,
           ziel: '/bank',
           zaehler: ZaehlerQuelle.bereich,
+          stichwoerter: ['camt', 'gkb', 'zahlung'],
         ),
         BereichEintrag(
           titel: 'Buchhaltung',
@@ -185,6 +194,7 @@ const kBereichMehr = Bereich(
           icon: Icons.payments,
           ziel: '/buchhaltung/lohn',
           zaehler: ZaehlerQuelle.bereich,
+          stichwoerter: ['lohnausweis', 'ahv', 'bvg', 'sozialversicherung'],
         ),
         BereichEintrag(
           titel: 'Abschlüsse und Steuern',
@@ -192,6 +202,7 @@ const kBereichMehr = Bereich(
           icon: Icons.fact_check,
           ziel: '/abschluesse',
           zaehler: ZaehlerQuelle.bereich,
+          stichwoerter: ['jahresabschluss', 'steuererklaerung'],
         ),
         BereichEintrag(
           titel: 'Dokumente',
@@ -215,12 +226,14 @@ const kBereichMehr = Bereich(
           untertitel: 'Firma, Preise, Regionen, Anlagen',
           icon: Icons.dataset,
           ziel: '/stammdaten',
+          stichwoerter: ['preise', 'preisliste', 'biersorten', 'regionen', 'firma', 'anlagen'],
         ),
         BereichEintrag(
           titel: 'Einstellungen',
           untertitel: 'Google, Speicher, Abmelden',
           icon: Icons.settings,
           ziel: '/einstellungen',
+          stichwoerter: ['google', 'kalender', 'kontakte sync', 'abmelden', 'logout'],
         ),
       ],
     ),
@@ -267,12 +280,14 @@ const kBereichAbschluesse = Bereich(
           untertitel: 'Quartals-Abrechnung ESTV',
           icon: Icons.account_balance,
           ziel: '/buchhaltung/mwst',
+          stichwoerter: ['mwst', 'mehrwertsteuer', 'estv'],
         ),
         BereichEintrag(
           titel: 'Abschlussprüfung',
           untertitel: 'Jahres-Check, Jahrgang abschreiben',
           icon: Icons.fact_check,
           ziel: '/buchhaltung/audit',
+          stichwoerter: ['abschreiben', 'jahrgang'],
         ),
         BereichEintrag(
           titel: 'Steuern',
@@ -308,6 +323,7 @@ const kBereichAuswertungen = Bereich(
           untertitel: 'Welcher Bereich wird wie oft geöffnet',
           icon: Icons.bar_chart,
           ziel: '/auswertungen/nutzung',
+          stichwoerter: ['statistik'],
         ),
       ],
     ),

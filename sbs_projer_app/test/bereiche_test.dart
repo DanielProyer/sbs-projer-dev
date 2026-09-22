@@ -133,5 +133,16 @@ void main() {
       final ids = kAlleBereiche.map((b) => b.id).toList();
       expect(ids.toSet().length, ids.length);
     });
+
+    test('Stichwoerter sind klein und ohne Umlaute (werden so verglichen)', () {
+      for (final b in kAlleBereiche) {
+        for (final e in b.alleEintraege) {
+          for (final s in e.stichwoerter) {
+            expect(s, s.toLowerCase(), reason: '${e.titel}: $s');
+            expect(RegExp('[äöüß]').hasMatch(s), isFalse, reason: '${e.titel}: $s');
+          }
+        }
+      }
+    });
   });
 }
