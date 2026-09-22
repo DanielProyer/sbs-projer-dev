@@ -1,5 +1,13 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/config/bereiche.dart';
+import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/bereich_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/einstellungen/stammdaten_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/home_screen.dart';
+import 'package:sbs_projer_app/presentation/widgets/bank_waechter_karte.dart';
+import 'package:sbs_projer_app/presentation/widgets/camt_erinnerung_karte.dart';
 import 'package:sbs_projer_app/presentation/screens/login_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_list_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/saison_nachtrag_screen.dart';
@@ -136,6 +144,33 @@ final router = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+
+    // Bereiche (v0.131.0) — Aufbau in lib/core/config/bereiche.dart.
+    GoRoute(
+      path: '/mehr',
+      builder: (context, state) => const BereichScreen(bereich: kBereichMehr),
+    ),
+    GoRoute(
+      path: '/bank',
+      builder: (context, state) => const BereichScreen(
+        bereich: kBereichBank,
+        kopf: [CamtErinnerungKarte(), _BankWaechterKopf()],
+      ),
+    ),
+    GoRoute(
+      path: '/abschluesse',
+      builder: (context, state) =>
+          const BereichScreen(bereich: kBereichAbschluesse),
+    ),
+    GoRoute(
+      path: '/auswertungen',
+      builder: (context, state) =>
+          const BereichScreen(bereich: kBereichAuswertungen),
+    ),
+    GoRoute(
+      path: '/stammdaten',
+      builder: (context, state) => const StammdatenScreen(),
+    ),
 
     // Tourenplanung
     GoRoute(
@@ -767,3 +802,12 @@ final router = GoRouter(
     ),
   ],
 );
+
+/// Liest den Bank-Wächter-Stand für die Seite «Bank und Zahlungen».
+class _BankWaechterKopf extends ConsumerWidget {
+  const _BankWaechterKopf();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      BankWaechterKarte(stand: ref.watch(bankWaechterProvider));
+}

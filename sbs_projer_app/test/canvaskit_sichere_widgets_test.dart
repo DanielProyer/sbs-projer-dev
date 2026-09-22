@@ -68,9 +68,10 @@ void main() {
       'lib/presentation/widgets/aufgabe_zeile.dart',
       'lib/presentation/widgets/aufgaben_sheet.dart',
       'lib/presentation/widgets/haupt_navigation.dart',
-      'lib/presentation/widgets/buero_offen_block.dart',
       'lib/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart',
       'lib/presentation/screens/buchhaltung/monatsabschluss_screen.dart',
+      'lib/presentation/widgets/bereich_gruppen_liste.dart',
+      'lib/presentation/screens/bereich_screen.dart',
     ]) {
       final datei = File(pfad);
       expect(
@@ -97,6 +98,9 @@ void main() {
         'FilledButton',
         'OutlinedButton',
         'ExpansionTile(',
+        'TabBar(',
+        'NavigationBar(',
+        'ElevatedButton',
       ]) {
         expect(
           text.contains(verboten),
