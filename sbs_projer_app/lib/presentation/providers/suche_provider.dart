@@ -21,11 +21,27 @@ final suchEingabeProvider = Provider<SuchEingabe>((ref) {
   };
 
   final bereiche = <SuchBereich>[];
-  final gesehen = <String>{};
+  final indexVonZiel = <String, int>{};
   void neu(SuchBereich b) {
     // Mehr verweist auf die Bereichsseiten, die Bereichsseiten auf die
-    // Screens — dasselbe Ziel nur einmal zeigen.
-    if (gesehen.add(b.ziel)) bereiche.add(b);
+    // Screens — dasselbe Ziel soll nur einmal als Zeile erscheinen. Die
+    // Stichwörter beider Fundstellen zusammenführen statt die zweiten zu
+    // verwerfen: Mehr trägt oft einen anderen Titel/Untertitel als die
+    // Bereichsseite, aber beide sollen über ihre Stichwörter treffen.
+    final vorhandenerIndex = indexVonZiel[b.ziel];
+    if (vorhandenerIndex == null) {
+      indexVonZiel[b.ziel] = bereiche.length;
+      bereiche.add(b);
+      return;
+    }
+    final vorhanden = bereiche[vorhandenerIndex];
+    bereiche[vorhandenerIndex] = (
+      titel: vorhanden.titel,
+      untertitel: vorhanden.untertitel,
+      gruppe: vorhanden.gruppe,
+      ziel: vorhanden.ziel,
+      stichwoerter: [...vorhanden.stichwoerter, ...b.stichwoerter],
+    );
   }
 
   for (final z in NavZiel.values) {

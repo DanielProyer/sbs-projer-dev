@@ -12,33 +12,78 @@ import 'package:sbs_projer_app/core/util/betrieb_status.dart';
 const kSuchMindestLaenge = 2;
 const kSuchDeckel = 5;
 
-const _ersatz = {
-  'ä': 'a', 'ö': 'o', 'ü': 'u', 'ß': 'ss',
-  'à': 'a', 'á': 'a', 'â': 'a', 'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-  'î': 'i', 'ï': 'i', 'ô': 'o', 'ù': 'u', 'û': 'u', 'ç': 'c',
+/// Nach Unicode-Codepunkt (nicht als String-Key), damit [normalisiere]
+/// ohne Substring-Allokation pro Zeichen auskommt — siehe dort.
+const _ersatz = <int, String>{
+  0x00E4: 'a', // ä
+  0x00F6: 'o', // ö
+  0x00FC: 'u', // ü
+  0x00DF: 'ss', // ß
+  0x00E0: 'a', // à
+  0x00E1: 'a', // á
+  0x00E2: 'a', // â
+  0x00E9: 'e', // é
+  0x00E8: 'e', // è
+  0x00EA: 'e', // ê
+  0x00EB: 'e', // ë
+  0x00EE: 'i', // î
+  0x00EF: 'i', // ï
+  0x00EC: 'i', // ì
+  0x00ED: 'i', // í
+  0x00F4: 'o', // ô
+  0x00F2: 'o', // ò
+  0x00F3: 'o', // ó
+  0x00F5: 'o', // õ
+  0x00F9: 'u', // ù
+  0x00FB: 'u', // û
+  0x00FA: 'u', // ú
+  0x00E7: 'c', // ç
+  0x00F1: 'n', // ñ
 };
 
 /// Klein, Umlaute/Akzente aufgelöst, Mehrfach-Leerzeichen zu einem.
+///
+/// WARUM `codeUnitAt` statt `split('')`: Ein Review-Messwert zeigte ~10 ms
+/// VM-Zeit je Aufruf bei ~5000 Datensätzen (am Handy eher 3–5×) — `split('')`
+/// legt dafür eine Liste aus Einzelzeichen-Strings an, nur um sie sofort
+/// wegzuwerfen. Die Ersatztabelle deckt bewusst nur einzelne UTF-16-Einheiten
+/// ab (BMP-Zeichen); das reicht für Umlaute/Akzente in unseren Namen.
 String normalisiere(String s) {
+  final klein = s.toLowerCase();
   final b = StringBuffer();
-  for (final z in s.toLowerCase().split('')) {
-    b.write(_ersatz[z] ?? z);
+  for (var i = 0; i < klein.length; i++) {
+    final code = klein.codeUnitAt(i);
+    final ersatz = _ersatz[code];
+    if (ersatz != null) {
+      b.write(ersatz);
+    } else {
+      b.writeCharCode(code);
+    }
   }
   return b.toString().trim().replaceAll(RegExp(r'\s+'), ' ');
 }
 
-/// Telefon als reine Ziffern, in beiden Schreibweisen (+41… und 0…):
-/// «+41 79 108 41 08» → «41791084108» und «0791084108».
+/// Telefon als reine Ziffern, in allen drei Schreibweisen — unabhängig
+/// davon, ob gespeichert wurde als «+41…», «0041…» oder «0…»:
+/// «+41 79 108 41 08» → «0791084108», «41791084108», «0041791084108».
 List<String> _telefonVarianten(String? telefon) {
   if (telefon == null || telefon.isEmpty) return const [];
   final ziffern = telefon.replaceAll(RegExp(r'\D'), '');
-  if (ziffern.startsWith('41') && ziffern.length > 9) {
-    return [ziffern, '0${ziffern.substring(2)}'];
-  }
+  if (ziffern.isEmpty) return const [];
+  final String national;
   if (ziffern.startsWith('0041')) {
-    return [ziffern, '0${ziffern.substring(4)}'];
+    national = ziffern.substring(4);
+  } else if (ziffern.startsWith('41') && ziffern.length > 9) {
+    national = ziffern.substring(2);
+  } else if (ziffern.startsWith('0')) {
+    national = ziffern.substring(1);
+  } else {
+    // Unbekanntes Format (kein Landes- oder Trunk-Präfix) — so übernehmen,
+    // wie gespeichert, statt zu raten.
+    national = ziffern;
   }
-  return [ziffern];
+  if (national.isEmpty) return [ziffern];
+  return ['0$national', '41$national', '0041$national'];
 }
 
 typedef SuchBetrieb = ({
@@ -80,12 +125,99 @@ class SuchEingabe {
   final List<SuchRechnung> rechnungen;
   final List<SuchBereich> bereiche;
 
-  const SuchEingabe({
+  SuchEingabe({
     required this.betriebe,
     required this.personen,
     required this.rechnungen,
     required this.bereiche,
   });
+
+  // WARUM `late final` statt Neuberechnung in jedem `suche()`-Aufruf: Vorher
+  // normalisierte jeder Tastenanschlag alle ~5000 Datensätze neu (siehe
+  // Kommentar bei `normalisiere`). `late final` rechnet einmal, beim ersten
+  // Zugriff — nicht schon beim Bauen von `SuchEingabe`, das der Provider bei
+  // jeder Datenänderung neu erzeugt, auch ausserhalb der Suchseite, wo das
+  // Ergebnis nie gebraucht wird.
+  late final List<_Kandidat> _betriebeKandidaten = [
+    for (final b in betriebe)
+      _Kandidat(
+        SuchTreffer(
+          gruppe: SuchGruppe.betriebe,
+          titel: b.name,
+          untertitel: b.ort,
+          route: '/betriebe/${b.id}',
+          status: b.status,
+        ),
+        [
+          normalisiere(b.name),
+          normalisiere(b.ort ?? ''),
+          normalisiere(b.betriebNr ?? ''),
+        ],
+        [istBetriebOperativ(b.status) ? 0 : 1, normalisiere(b.name)],
+      ),
+  ];
+
+  late final List<_Kandidat> _personenKandidaten = [
+    for (final p in personen)
+      () {
+        final name = [p.vorname, p.nachname ?? '']
+            .where((s) => s.isNotEmpty)
+            .join(' ');
+        return _Kandidat(
+          SuchTreffer(
+            gruppe: SuchGruppe.personen,
+            titel: name,
+            untertitel: p.betriebName,
+            route: '/kontakte/${p.id}/bearbeiten',
+            telefon: p.telefon,
+          ),
+          [
+            normalisiere(p.vorname),
+            normalisiere(p.nachname ?? ''),
+            normalisiere(p.betriebName ?? ''),
+            ..._telefonVarianten(p.telefon),
+          ],
+          [normalisiere(name)],
+        );
+      }(),
+  ];
+
+  late final List<_Kandidat> _rechnungenKandidaten = [
+    for (final r in rechnungen)
+      _Kandidat(
+        SuchTreffer(
+          gruppe: SuchGruppe.rechnungen,
+          titel: r.nummer ?? 'ohne Nummer',
+          untertitel: '${r.betriebName ?? '–'} · '
+              '${r.brutto.toStringAsFixed(2)} · ${r.zahlungsstatus}',
+          route: '/rechnungen/${r.id}',
+        ),
+        [normalisiere(r.nummer ?? ''), normalisiere(r.betriebName ?? '')],
+        // Neueste zuerst: negativer Zeitstempel sortiert aufsteigend richtig.
+        // Bei gleichem Datum (z. B. zwei Rechnungen desselben Tages) sonst
+        // eine undefinierte Reihenfolge — zweiter Schlüssel Rechnungsnummer
+        // absteigend macht sie stabil.
+        [-r.datum.millisecondsSinceEpoch, _Absteigend(r.nummer ?? '')],
+      ),
+  ];
+
+  late final List<_Kandidat> _bereicheKandidaten = [
+    for (final b in bereiche)
+      _Kandidat(
+        SuchTreffer(
+          gruppe: SuchGruppe.bereiche,
+          titel: b.titel,
+          untertitel: b.gruppe,
+          route: b.ziel,
+        ),
+        [
+          normalisiere(b.titel),
+          normalisiere(b.untertitel ?? ''),
+          for (final s in b.stichwoerter) normalisiere(s),
+        ],
+        [normalisiere(b.titel)],
+      ),
+  ];
 }
 
 enum SuchGruppe { betriebe, personen, rechnungen, bereiche }
@@ -136,6 +268,17 @@ class _Kandidat {
   const _Kandidat(this.treffer, this.felder, this.sortierung);
 }
 
+/// Hüllt einen String, dessen `compareTo` absteigend statt aufsteigend
+/// sortiert — für Sortierschlüssel wie «Rechnungsnummer absteigend als
+/// zweites Kriterium», wo eine negative Zahl (wie beim Zeitstempel) nicht
+/// geht.
+class _Absteigend implements Comparable<_Absteigend> {
+  final String wert;
+  const _Absteigend(this.wert);
+  @override
+  int compareTo(_Absteigend other) => other.wert.compareTo(wert);
+}
+
 /// 0 = ein Feld beginnt mit dem ersten Wort, 1 = Treffer nur in der Mitte,
 /// null = kein Treffer (nicht alle Wörter kommen vor).
 int? _rang(List<String> felder, List<String> woerter) {
@@ -148,10 +291,7 @@ int? _rang(List<String> felder, List<String> woerter) {
 
 int _vergleiche(List<Object> a, List<Object> b) {
   for (var i = 0; i < a.length; i++) {
-    final x = a[i], y = b[i];
-    final c = x is num && y is num
-        ? x.compareTo(y)
-        : x.toString().compareTo(y.toString());
+    final c = (a[i] as Comparable).compareTo(b[i]);
     if (c != 0) return c;
   }
   return 0;
@@ -182,90 +322,22 @@ SuchGruppenErgebnis? _gruppe(
 }
 
 SuchErgebnis suche(SuchEingabe e, String text) {
-  final q = normalisiere(text);
+  // Ein führendes «+» direkt vor Ziffern («+41 79 108») ist Teil der
+  // Landesvorwahl, keine Textsuche — sonst würde die reine-Ziffern-Prüfung
+  // unten nie greifen und «+» selbst passt in keinem Feld.
+  final ohnePlus = text.replaceFirst(RegExp(r'^\+(?=\d)'), '');
+  final q = normalisiere(ohnePlus);
   if (q.length < kSuchMindestLaenge) return const SuchErgebnis([]);
   final woerter = q.split(' ');
   final nurZiffern = RegExp(r'^[0-9 ]+$').hasMatch(q);
 
-  final betriebe = _gruppe(SuchGruppe.betriebe, [
-    for (final b in e.betriebe)
-      _Kandidat(
-        SuchTreffer(
-          gruppe: SuchGruppe.betriebe,
-          titel: b.name,
-          untertitel: b.ort,
-          route: '/betriebe/${b.id}',
-          status: b.status,
-        ),
-        [
-          normalisiere(b.name),
-          normalisiere(b.ort ?? ''),
-          normalisiere(b.betriebNr ?? ''),
-        ],
-        [istBetriebOperativ(b.status) ? 0 : 1, normalisiere(b.name)],
-      ),
-  ], woerter);
-
-  final personen = _gruppe(SuchGruppe.personen, [
-    for (final p in e.personen)
-      () {
-        final name = [p.vorname, p.nachname ?? '']
-            .where((s) => s.isNotEmpty)
-            .join(' ');
-        return _Kandidat(
-          SuchTreffer(
-            gruppe: SuchGruppe.personen,
-            titel: name,
-            untertitel: p.betriebName,
-            route: '/kontakte/${p.id}/bearbeiten',
-            telefon: p.telefon,
-          ),
-          [
-            normalisiere(p.vorname),
-            normalisiere(p.nachname ?? ''),
-            normalisiere(p.betriebName ?? ''),
-            ..._telefonVarianten(p.telefon),
-          ],
-          [normalisiere(name)],
-        );
-      }(),
-  ], woerter);
-
-  final rechnungen = _gruppe(SuchGruppe.rechnungen, [
-    for (final r in e.rechnungen)
-      _Kandidat(
-        SuchTreffer(
-          gruppe: SuchGruppe.rechnungen,
-          titel: r.nummer ?? 'ohne Nummer',
-          untertitel: '${r.betriebName ?? '–'} · '
-              '${r.brutto.toStringAsFixed(2)} · ${r.zahlungsstatus}',
-          route: '/rechnungen/${r.id}',
-        ),
-        [normalisiere(r.nummer ?? ''), normalisiere(r.betriebName ?? '')],
-        // Neueste zuerst: negativer Zeitstempel sortiert aufsteigend richtig.
-        [-r.datum.millisecondsSinceEpoch],
-      ),
-  ], woerter);
-
+  final betriebe = _gruppe(SuchGruppe.betriebe, e._betriebeKandidaten, woerter);
+  final personen = _gruppe(SuchGruppe.personen, e._personenKandidaten, woerter);
+  final rechnungen =
+      _gruppe(SuchGruppe.rechnungen, e._rechnungenKandidaten, woerter);
   final bereiche = _gruppe(
     SuchGruppe.bereiche,
-    [
-      for (final b in e.bereiche)
-        _Kandidat(
-          SuchTreffer(
-            gruppe: SuchGruppe.bereiche,
-            titel: b.titel,
-            untertitel: b.gruppe,
-            route: b.ziel,
-          ),
-          [
-            normalisiere(b.titel),
-            normalisiere(b.untertitel ?? ''),
-            for (final s in b.stichwoerter) normalisiere(s),
-          ],
-          [normalisiere(b.titel)],
-        ),
-    ],
+    e._bereicheKandidaten,
     woerter,
     gedeckelt: false,
   );
@@ -286,7 +358,21 @@ SuchErgebnis suche(SuchEingabe e, String text) {
 /// Positionen müssen im Originaltext stimmen. Findet ein Wort nichts, bleibt
 /// der Text einfach normal.
 List<(String, bool)> markiere(String text, String suchtext) {
-  final klein = text.toLowerCase();
+  // WARUM zeichenweise statt `text.toLowerCase()` am Stück: Auf Web/JS macht
+  // z. B. 'İ'.toLowerCase() aus einem Zeichen zwei (İ → i + Punkt oberhalb).
+  // Mit der Gesamtstring-Variante verschieben sich danach alle Indizes
+  // gegenüber `text`, und `fett[i]` griff mit einem zu grossen Index daneben
+  // → RangeError. Zeichenweise wird ein solches Zeichen unverändert
+  // übernommen (nicht kleingeschrieben), damit `klein.length == text.length`
+  // garantiert bleibt — es bleibt dann halt bei diesem einen Zeichen
+  // gross/klein-empfindlich, was fürs Hervorheben unerheblich ist.
+  final kleinBuffer = StringBuffer();
+  for (var i = 0; i < text.length; i++) {
+    final c = text[i];
+    final k = c.toLowerCase();
+    kleinBuffer.write(k.length == 1 ? k : c);
+  }
+  final klein = kleinBuffer.toString();
   final fett = List<bool>.filled(text.length, false);
   for (final w in suchtext.toLowerCase().trim().split(RegExp(r'\s+'))) {
     if (w.isEmpty) continue;

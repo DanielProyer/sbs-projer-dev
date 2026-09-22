@@ -20,6 +20,10 @@ void main() {
       expect(normalisiere('Straße'), 'strasse');
       expect(normalisiere('Café Über'), 'cafe uber');
     });
+
+    test('romanische/Tessiner Akzente', () {
+      expect(normalisiere('Mòta'), 'mota');
+    });
   });
 
   group('suche', () {
@@ -96,6 +100,17 @@ void main() {
       expect(titel(suche(eingabe, '0797007129'), SuchGruppe.personen), ['Priska Raguth']);
     });
 
+    test('Telefon: alle drei Formen, egal wie gespeichert', () {
+      // Donato ist als «+41 79 108 41 08» gespeichert.
+      expect(titel(suche(eingabe, '+41 79 108'), SuchGruppe.personen), ['Donato Toscano']);
+      expect(titel(suche(eingabe, '0041791084108'), SuchGruppe.personen), ['Donato Toscano']);
+      expect(titel(suche(eingabe, '41791084108'), SuchGruppe.personen), ['Donato Toscano']);
+      expect(titel(suche(eingabe, '0791084108'), SuchGruppe.personen), ['Donato Toscano']);
+      // Priska ist als «079 700 71 29» gespeichert.
+      expect(titel(suche(eingabe, '41797007129'), SuchGruppe.personen), ['Priska Raguth']);
+      expect(titel(suche(eingabe, '+41 79 700'), SuchGruppe.personen), ['Priska Raguth']);
+    });
+
     test('Person ueber den Betriebsnamen', () {
       expect(titel(suche(eingabe, '4eri'), SuchGruppe.personen), ['Donato Toscano']);
     });
@@ -117,6 +132,20 @@ void main() {
     test('leere Gruppen fehlen', () {
       final e = suche(eingabe, 'toscano');
       expect(e.gruppen.map((g) => g.gruppe), [SuchGruppe.personen]);
+    });
+
+    test('gleiches Rechnungsdatum: Rechnungsnummer absteigend als zweiter Schluessel', () {
+      final e = SuchEingabe(
+        betriebe: const [],
+        personen: const [],
+        rechnungen: [
+          _r('x1', '2026-09-1000', datum: DateTime(2026, 9, 5)),
+          _r('x2', '2026-09-2000', datum: DateTime(2026, 9, 5)),
+        ],
+        bereiche: const [],
+      );
+      expect(titel(suche(e, '2026-09'), SuchGruppe.rechnungen),
+          ['2026-09-2000', '2026-09-1000']);
     });
 
     test('Deckel 5 mit Gesamtzahl; Bereiche ohne Deckel', () {
@@ -141,6 +170,11 @@ void main() {
       expect(markiere('Chleina Pub', 'pub ch'),
           [('Ch', true), ('leina ', false), ('Pub', true)]);
       expect(markiere('Rössli', 'xyz'), [('Rössli', false)]);
+    });
+
+    test('tuerkisches İ stuerzt nicht ab (JS: toLowerCase() macht 2 Zeichen)', () {
+      expect(markiere('İnci Arslan', 'arslan'),
+          [('İnci ', false), ('Arslan', true)]);
     });
   });
 }
