@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/heineken_pdf_regenerierbar.dart';
+import 'package:sbs_projer_app/core/util/heineken_positionen_pruefung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
@@ -209,6 +210,124 @@ class _HeinekenRechnungDetailScreenState
         );
       }
     }
+  }
+
+  /// Wächter vor der Freigabe: rechnet die Positionen aus den Quelldaten neu
+  /// und hält sie gegen die gespeicherten.
+  ///
+  /// WARUM hier und nicht beim Erstellen: Die Freigabe ist die Stelle, an der
+  /// aus einer Zahl eine Buchung wird — Debitor und Ertrag entstehen aus dem
+  /// DATENSATZ, nicht aus dem versendeten PDF. Bei der August-Rechnung 2026
+  /// standen dort 250.00 mehr als im PDF.
+  ///
+  /// Eine Abweichung ist NICHT automatisch ein Fehler: Quelldaten dürfen sich
+  /// nach dem Versand ändern (bei der August-Rechnung wurde eine Störung
+  /// nachträglich auf zwei Bereiche korrigiert, die Rechnung blieb bewusst auf
+  /// dem PDF-Wert). Der Dialog entscheidet deshalb nicht, er legt vor.
+  Future<void> _freigebenMitPruefung() async {
+    final r = _rechnung;
+    if (r == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Positionen werden geprüft …')),
+    );
+
+    var abw = const <PositionsAbweichung>[];
+    var kopfDiff = 0.0;
+    String? pruefFehler;
+    try {
+      final gespeichert = <String, double>{
+        for (final p in _positionen) p.beschreibung: p.betragNetto,
+      };
+      final monat = r.heinekenMonat;
+      if (monat == null) {
+        pruefFehler = 'Der Rechnung fehlt der Abrechnungsmonat.';
+      } else {
+        final daten = await HeinekenRechnungService.sammleMonatsDaten(monat);
+        final berechnet = <String, double>{
+          for (final (name, _, total) in daten.kategorien) name: total,
+        };
+        abw = positionsAbweichungen(
+          gespeichert: gespeichert,
+          berechnet: berechnet,
+        );
+        kopfDiff = kopfAbweichung(
+          kopfNetto: r.betragNetto,
+          gespeichert: gespeichert,
+        );
+      }
+    } catch (e) {
+      pruefFehler = kurzeFehlermeldung(e);
+    }
+    if (!mounted) return;
+
+    final sauber =
+        pruefFehler == null && abw.isEmpty && kopfDiff.abs() <= kPruefToleranz;
+    if (sauber) {
+      await _updateStatus('freigegeben');
+      return;
+    }
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          pruefFehler != null
+              ? 'Prüfung nicht möglich'
+              : 'Positionen weichen ab',
+        ),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (pruefFehler != null)
+                  Text(
+                    'Die Positionen liessen sich nicht gegen die Quelldaten '
+                    'halten: $pruefFehler\n\n'
+                    'Die Freigabe erzeugt trotzdem Debitor und Ertrag aus dem '
+                    'gespeicherten Betrag von '
+                    '${r.betragBrutto.toStringAsFixed(2)} brutto.',
+                    style: const TextStyle(fontSize: 13),
+                  )
+                else ...[
+                  Text(
+                    abweichungsText(abw, kopfDiff),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Gebucht wird, was auf der Rechnung steht — nicht die '
+                    'Neuberechnung. Eine Abweichung ist nicht zwingend ein '
+                    'Fehler: Quelldaten dürfen sich nach dem Versand geändert '
+                    'haben. Entscheidend ist, ob der Betrag auf der Rechnung '
+                    'zu dem passt, was Heineken im PDF bekommen hat.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          TapKnopf(
+            text: 'Trotzdem freigeben',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _updateStatus('freigegeben');
   }
 
   Future<void> _updateStatus(String newStatus) async {
@@ -514,7 +633,7 @@ class _HeinekenRechnungDetailScreenState
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: r.zahlungsstatus == 'gesendet'
-                  ? () => _updateStatus('freigegeben')
+                  ? _freigebenMitPruefung
                   : null,
               icon: const Icon(Icons.task_alt),
               label: Text(
