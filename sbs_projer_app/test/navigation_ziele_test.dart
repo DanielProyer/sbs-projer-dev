@@ -3,21 +3,24 @@ import 'package:sbs_projer_app/core/util/navigation_ziele.dart';
 
 void main() {
   group('navPfad und navLabel', () {
-    test('vier Ziele mit Pfad und Beschriftung', () {
+    test('fuenf Ziele mit Pfad und Beschriftung', () {
       expect(NavZiel.values, [
         NavZiel.heute,
         NavZiel.einsaetze,
         NavZiel.betriebe,
         NavZiel.tour,
+        NavZiel.mehr,
       ]);
       expect(navPfad(NavZiel.heute), '/');
       expect(navPfad(NavZiel.einsaetze), '/einsaetze');
       expect(navPfad(NavZiel.betriebe), '/betriebe');
       expect(navPfad(NavZiel.tour), '/touren');
+      expect(navPfad(NavZiel.mehr), '/mehr');
       expect(navLabel(NavZiel.heute), 'Heute');
       expect(navLabel(NavZiel.einsaetze), 'Einsätze');
       expect(navLabel(NavZiel.betriebe), 'Betriebe');
       expect(navLabel(NavZiel.tour), 'Tour');
+      expect(navLabel(NavZiel.mehr), 'Mehr');
     });
   });
 
@@ -54,16 +57,30 @@ void main() {
       }
     });
 
-    test('Fremdes hebt nichts hervor — die Leiste bleibt trotzdem', () {
-      expect(aktivesZiel('/buchhaltung'), isNull);
-      expect(aktivesZiel('/rechnungen/abc'), isNull);
-      expect(aktivesZiel('/aufgaben'), isNull);
+    test('alles uebrige leuchtet «Mehr»', () {
+      for (final p in [
+        '/mehr',
+        '/buchhaltung',
+        '/buchhaltung/mwst',
+        '/rechnungen/abc',
+        '/heineken',
+        '/aufgaben',
+        '/stammdaten',
+        '/einstellungen',
+      ]) {
+        expect(aktivesZiel(p), NavZiel.mehr, reason: p);
+      }
       expect(zeigtNavigation('/buchhaltung'), isTrue);
+    });
+
+    test('Personen gehoeren zu den Betrieben', () {
+      expect(aktivesZiel('/kontakte'), NavZiel.betriebe);
+      expect(aktivesZiel('/kontakte/abc/bearbeiten'), NavZiel.betriebe);
     });
 
     test('ein Praefix darf keinen anderen Namen kapern', () {
       // '/betriebe-alt' faengt mit '/betriebe' an, ist aber etwas anderes.
-      expect(aktivesZiel('/betriebe-alt'), isNull);
+      expect(aktivesZiel('/betriebe-alt'), NavZiel.mehr);
     });
   });
 

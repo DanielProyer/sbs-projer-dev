@@ -17,11 +17,11 @@ void main() {
     await (FontLoader('Roboto')..addFont(Future.value(daten))).load();
   });
 
-  testWidgets('zeigt alle vier Ziele', (tester) async {
+  testWidgets('zeigt alle fuenf Ziele', (tester) async {
     await tester.pumpWidget(
       rahmen(HauptNavigation(aktiv: NavZiel.heute, onZiel: (_) {})),
     );
-    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour']) {
+    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour', 'Mehr']) {
       expect(find.text(t), findsOneWidget, reason: t);
     }
   });
@@ -40,7 +40,7 @@ void main() {
     await tester.pumpWidget(
       rahmen(const HauptNavigation(aktiv: null, onZiel: _nichts)),
     );
-    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour']) {
+    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour', 'Mehr']) {
       expect(
         tester.widget<Text>(find.text(t)).style?.color,
         AppColors.textSecondary,
@@ -60,6 +60,8 @@ void main() {
     expect(gewaehlt, NavZiel.tour);
     await tester.tap(find.text('Einsätze'));
     expect(gewaehlt, NavZiel.einsaetze);
+    await tester.tap(find.text('Mehr'));
+    expect(gewaehlt, NavZiel.mehr);
   });
 
   testWidgets('passt auf 360 px, keine Beschriftung wird gekuerzt', (
@@ -75,7 +77,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour']) {
+    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour', 'Mehr']) {
       final absatz = tester.renderObject<RenderParagraph>(find.text(t));
       expect(absatz.didExceedMaxLines, isFalse, reason: t);
     }

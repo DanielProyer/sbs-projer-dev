@@ -12,11 +12,16 @@
 /// Beide Entscheidungen — welches Ziel leuchtet und ob die Leiste
 /// überhaupt erscheint — sind reine Funktionen über dem Pfad, damit sie
 /// ohne Router und ohne Widget prüfbar bleiben.
+///
+/// Seit v0.131.0 fünftes Ziel «Mehr»: Alles unterhalb der Heute-Liste war
+/// schlecht erreichbar, je länger der Tagesplan, desto tiefer. «Mehr» ist
+/// von jeder Seite aus einen Tipp entfernt, und jede Seite ausserhalb der
+/// ersten vier Ziele lässt es leuchten — vorher leuchtete dort nichts.
 library;
 
 import 'package:flutter/material.dart';
 
-enum NavZiel { heute, einsaetze, betriebe, tour }
+enum NavZiel { heute, einsaetze, betriebe, tour, mehr }
 
 /// Höhe der Leiste ohne den `SafeArea`-Unterrand.
 const double kNavigationHoehe = 56;
@@ -26,6 +31,7 @@ String navPfad(NavZiel z) => switch (z) {
   NavZiel.einsaetze => '/einsaetze',
   NavZiel.betriebe => '/betriebe',
   NavZiel.tour => '/touren',
+  NavZiel.mehr => '/mehr',
 };
 
 String navLabel(NavZiel z) => switch (z) {
@@ -33,6 +39,7 @@ String navLabel(NavZiel z) => switch (z) {
   NavZiel.einsaetze => 'Einsätze',
   NavZiel.betriebe => 'Betriebe',
   NavZiel.tour => 'Tour',
+  NavZiel.mehr => 'Mehr',
 };
 
 IconData navIcon(NavZiel z) => switch (z) {
@@ -40,6 +47,7 @@ IconData navIcon(NavZiel z) => switch (z) {
   NavZiel.einsaetze => Icons.assignment,
   NavZiel.betriebe => Icons.store,
   NavZiel.tour => Icons.route,
+  NavZiel.mehr => Icons.apps,
 };
 
 /// Die Einsatztypen haben eigene Detailrouten (aus der Zeit vor B2). Sie
@@ -58,15 +66,19 @@ String _ohneSchraegstrich(String pfad) => pfad.length > 1 && pfad.endsWith('/')
     ? pfad.substring(0, pfad.length - 1)
     : pfad;
 
+/// Die Personen sind seit v0.131.0 ein Reiter der Betriebe-Liste — das
+/// Leuchten bleibt deshalb bei «Betriebe».
+const _betriebPraefixe = ['/kontakte'];
+
 /// Gehört [pfad] zu [basis] — als die Seite selbst oder als Unterseite?
 /// `/betriebe-alt` gehört NICHT zu `/betriebe`, deshalb reicht
 /// `startsWith` allein nicht.
 bool _unter(String pfad, String basis) =>
     pfad == basis || pfad.startsWith('$basis/');
 
-/// Welches Ziel ist hervorgehoben? `null` heisst: keines — die Leiste
-/// bleibt trotzdem stehen (etwa in der Buchhaltung).
-NavZiel? aktivesZiel(String pfad) {
+/// Welches Ziel ist hervorgehoben? Immer genau eines: Was zu keinem der
+/// ersten vier gehört, gehört zu «Mehr».
+NavZiel aktivesZiel(String pfad) {
   final p = _ohneSchraegstrich(pfad);
   if (p == '/') return NavZiel.heute;
   for (final z in [NavZiel.einsaetze, NavZiel.betriebe, NavZiel.tour]) {
@@ -75,7 +87,10 @@ NavZiel? aktivesZiel(String pfad) {
   for (final e in _einsatzPraefixe) {
     if (_unter(p, e)) return NavZiel.einsaetze;
   }
-  return null;
+  for (final b in _betriebPraefixe) {
+    if (_unter(p, b)) return NavZiel.betriebe;
+  }
+  return NavZiel.mehr;
 }
 
 /// Pfad-Endungen, die ein Formular kennzeichnen. Fast alle
