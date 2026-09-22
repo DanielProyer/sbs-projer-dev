@@ -4,7 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sbs_projer_app/presentation/screens/home_screen.dart';
+import 'package:sbs_projer_app/presentation/widgets/dashboard_tile.dart';
 
 // Test für Schritt 4 (A2): die neuen Kachel-Zähler-Texte ("18 diese Woche")
 // sind deutlich länger als die alten reinen Zahlen ("933") und müssen bei
