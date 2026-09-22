@@ -179,6 +179,7 @@ void main() {
       'HeuteListe(',
       '_AufgabenKarte(',
       'zeigeDiktatSheet',
+      'EventKarten(',
     ]) {
       expect(quelle.contains(bleibt), isTrue, reason: bleibt);
     }

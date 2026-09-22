@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeitstag_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
+import 'package:sbs_projer_app/presentation/widgets/event_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/heute_liste.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -41,6 +42,7 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         children: [
+          const EventKarten(),
           const _AufgabenKarte(),
           // Arbeitstag direkt auf dem Startbildschirm erfassen (Beginn mit
           // GPS-Position, abends Ende + km) — Daniel 29.07.2026.

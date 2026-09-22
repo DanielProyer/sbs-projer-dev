@@ -73,6 +73,7 @@ void main() {
       'lib/presentation/widgets/bereich_gruppen_liste.dart',
       'lib/presentation/screens/bereich_screen.dart',
       'lib/presentation/widgets/bereich_reiter.dart',
+      'lib/presentation/widgets/event_karte.dart',
     ]) {
       final datei = File(pfad);
       expect(
