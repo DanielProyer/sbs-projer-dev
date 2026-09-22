@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sbs_projer_app/core/config/router.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/config/router.dart' as app show router;
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/navigation_ziele.dart';
 
@@ -70,22 +71,38 @@ class HauptNavigation extends StatelessWidget {
   }
 }
 
-/// Angebunden: beobachtet den Router, entscheidet über Sichtbarkeit und
-/// aktives Ziel und navigiert.
+/// Angebunden: beobachtet den Router-Delegate, entscheidet über Sichtbarkeit
+/// und aktives Ziel und navigiert.
 ///
-/// `router.routeInformationProvider` ist ein `Listenable` und meldet jeden
-/// Routenwechsel — `GoRouterState.of(context)` gibt es hier oben nicht.
-/// `go` statt `push`: Der Stapel wird ersetzt, damit die Browser-Zurück-
+/// `GoRouterState.of(context)` gibt es hier oben nicht — deshalb der
+/// Delegate als `Listenable` (warum nicht `routeInformationProvider`: siehe
+/// `build`). `go` statt `push`: Der Stapel wird ersetzt, damit die Browser-Zurück-
 /// Geste eine Seite zurückführt statt durch einen wachsenden Stapel.
 class HauptNavigationLeiste extends StatelessWidget {
-  const HauptNavigationLeiste({super.key});
+  /// Standard: der Router der App; Tests geben einen eigenen mit.
+  final GoRouter? goRouter;
+
+  const HauptNavigationLeiste({super.key, this.goRouter});
 
   @override
   Widget build(BuildContext context) {
+    final router = goRouter ?? app.router;
+    // Der Delegate, nicht `routeInformationProvider`: Eine Weiterleitung
+    // meldet dem Provider den neuen Pfad OHNE `notifyListeners()` (go_router
+    // 17.5.0, `routerReportsNewRouteInformation`). Die Leiste blieb dadurch
+    // auf dem Stand davor — auf dem Anmeldebildschirm stand sie mit
+    // «Heute», nach dem Anmelden fehlte sie (Befund 22.09.2026). Der
+    // Delegate meldet jede Änderung, auch Weiterleitungen und `pop`.
+    // `state.uri` ist die oberste Route, also auch eine per `push` geöffnete
+    // — `currentConfiguration.uri` allein übersähe gepushte Formulare.
+    final delegate = router.routerDelegate;
     return AnimatedBuilder(
-      animation: router.routeInformationProvider,
+      animation: delegate,
       builder: (context, _) {
-        final pfad = router.routeInformationProvider.value.uri.path;
+        if (delegate.currentConfiguration.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final pfad = delegate.state.uri.path;
         if (!zeigtNavigation(pfad)) return const SizedBox.shrink();
         return HauptNavigation(
           aktiv: aktivesZiel(pfad),
