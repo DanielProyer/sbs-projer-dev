@@ -6,12 +6,34 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 22.09.2026 — v0.133.0 Suche
 - 22.09.2026 — v0.132.0 Rechnungs-Bereich, Event-Karte
 - 22.09.2026 — v0.131.0 Navigation «Mehr»
 - 17.–22.09.2026 — v0.110.0 bis v0.130.0
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 22.09.2026 — v0.133.0 Suche
+
+Teil 2 der Bedienungs-Vereinfachung (Spec
+`docs/superpowers/specs/2026-09-22-suche-design.md`, Plan
+`docs/superpowers/plans/2026-09-22-suche.md`).
+
+- **Suchseite `/suche`**, erreichbar über die Lupe auf Heute und das Feld
+  oben auf Mehr. Findet Betriebe (Name, Ort, Nummer, mit Status-Punkt),
+  Personen (Name, Telefon in jeder Schreibweise, Betrieb; Anruf direkt aus
+  dem Treffer), Rechnungen (Nummer oder Teil davon, Betrieb; ohne
+  Heineken-Monatsrechnungen) und Bereiche der App (auch über Stichwörter
+  wie «mwst», «preise», «lohnausweis»).
+- Umlaute, Akzente und mehrere Wörter egal («pub cham»); höchstens 5 je
+  Gruppe, «alle N anzeigen» öffnet die Liste mit vorbefülltem Suchfeld.
+  Die drei Listen suchen seither mit derselben Regel (`trifftSuche`).
+- «Zuletzt geöffnet» (lokal im Browser, letzte 5).
+- Regeln als reines Dart (`lib/core/util/suche.dart`), Normalisierung
+  vorberechnet: rund 1,5 ms je Tastendruck. 1905 Tests grün.
 
 ---
 

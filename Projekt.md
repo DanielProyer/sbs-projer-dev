@@ -4,7 +4,7 @@
 (Heineken-Franchise, Graubünden) — Planung, Einsätze, Rechnungen und
 Buchhaltung in einer App.
 **Wer:** Daniel Projer, Einzelbetrieb; entwickelt mit Claude.
-**Stand:** 22.09.2026 · **v0.132.0** live · 1870 Tests grün · Migrationen bis 199.
+**Stand:** 22.09.2026 · **v0.133.0** live · 1905 Tests grün · Migrationen bis 199.
 
 > **Wo was steht**
 > - **Diese Datei:** was die App heute kann und wie sie gebaut ist. Wird bei
@@ -120,6 +120,9 @@ Die verbindlichen Regeln stehen in `CLAUDE.md`, hier nur die Landkarte:
   in `lib/core/config/bereiche.dart`; umhängen heisst dort eine Zeile
   verschieben. Ein Wächter-Test prüft, dass jeder Listen-Screen erreichbar
   bleibt. Entwurf: `docs/superpowers/specs/2026-09-22-navigation-mehr-design.md`.
+- **Suche** (seit v0.133.0): `/suche`, über die Lupe auf Heute und das Feld
+  oben auf Mehr. Regeln als reines Dart in `lib/core/util/suche.dart`; die
+  Listen (Betriebe, Personen, Rechnungen) suchen mit derselben Regel.
 - **Schichten:** `data/models` (DTOs) → `data/repositories` (`kIsWeb`-Branching:
   Web direkt auf Supabase, nativ über Isar) → Riverpod-Provider →
   `presentation/screens`.

@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.132.0 live** (Navigation «Mehr», Rechnungs-Bereich) · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1870 Tests grün**.
+**Stand:** **v0.133.0 live** (Navigation «Mehr», Rechnungs-Bereich, Suche) · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1905 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -162,6 +162,12 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.133.0** — Suche: Heute → Lupe (Tastatur geht auf); einen Betrieb,
+  einen Wirt per Telefonnummer, eine Rechnungsnummer (Teil genügt) und
+  «mwst» suchen; bei einer Person das Telefon-Symbol antippen; «alle N
+  anzeigen» (Liste vorbefüllt, Rechnungen «Alle Jahre»); zurück, Feld leeren
+  → «Zuletzt geöffnet»; Mehr → Feld oben öffnet die Suche.
 
 - **v0.132.0** — Mehr → Rechnungen: vier Reiter (Kunden · Heineken · Pro
   Betrieb · Jährlich), jeder wechselt; nach einem Wechsel führt der
