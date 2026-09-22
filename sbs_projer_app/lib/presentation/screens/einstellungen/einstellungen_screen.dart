@@ -563,6 +563,8 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           TapKnopf(
             text: 'Abmelden',
             icon: Icons.logout,
+            // Selten gebraucht, soll nicht wie die Hauptaktion aussehen.
+            primaer: false,
             onTap: () async {
               if (!kIsWeb) SyncService.stopListening();
               await SupabaseService.client.auth.signOut();

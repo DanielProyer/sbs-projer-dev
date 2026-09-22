@@ -11,8 +11,8 @@ import 'package:sbs_projer_app/presentation/screens/einstellungen/widgets/mwst_s
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Stammdaten: Geschäft, Anlagen, Lohn-Einstellungen, MwSt-Sätze und Preise —
-/// aus den Einstellungen gelöst (Task 6). Die Einstellungen behalten nur
-/// noch Technik (Google-Verbindungen, Speicher) und Abmelden/Sync/Version.
+/// bis v0.130.0 in den Einstellungen. Die Einstellungen behalten nur noch
+/// Technik (Google-Verbindungen, Speicher) und Abmelden/Sync/Version.
 class StammdatenScreen extends ConsumerStatefulWidget {
   const StammdatenScreen({super.key});
 
@@ -40,9 +40,12 @@ class _StammdatenScreenState extends ConsumerState<StammdatenScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Speichern'),
+          // CanvasKit-Falle: FilledButton rendert auf Daniels Web-Build
+          // unzuverlässig (Vorfall 20.06.2026, camt-Bestätigen).
+          TapKnopf(
+            text: 'Speichern',
+            primaer: true,
+            onTap: () => Navigator.pop(ctx, controller.text),
           ),
         ],
       ),
