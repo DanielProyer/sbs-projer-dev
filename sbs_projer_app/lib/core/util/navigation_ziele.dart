@@ -1,6 +1,6 @@
 /// Die fünf Ziele der unteren Navigationsleiste (B1).
 ///
-/// WARUM diese vier: Die App hat 97 Routen und hatte keine globale
+/// WARUM diese vier (ohne «Mehr»): Die App hat 97 Routen und hatte keine globale
 /// Navigation — aus einer Eingangsrechnung zurück zur Startseite waren es
 /// drei Mal «zurück». Die Analyse schlug «Heute · Betriebe · Einsätze ·
 /// Büro» vor; die Nutzungsmessung (`route_nutzung`, 09.–16.09.2026) zeigte

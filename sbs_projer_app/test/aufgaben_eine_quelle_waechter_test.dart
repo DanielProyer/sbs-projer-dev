@@ -13,6 +13,7 @@ void main() {
     'lib/presentation/widgets/aufgaben_sheet.dart',
     'lib/presentation/screens/aufgaben/aufgaben_screen.dart',
     'lib/presentation/screens/home_screen.dart',
+    'lib/presentation/providers/bereich_zaehler_provider.dart',
   ];
   const verboten = [
     'offeneEigeneAufgabenProvider',
