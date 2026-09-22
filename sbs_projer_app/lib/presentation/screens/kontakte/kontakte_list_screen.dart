@@ -168,6 +168,13 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // Wie in der Betriebe-Liste: Nach einem Reiterwechsel (go) gibt es
+        // nichts zum Zurückgehen — ohne eigenen Pfeil fehlte er hier, dort
+        // nicht.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+        ),
         title: Text(_appBarTitle()),
         bottom: widget.betriebId == null
             ? const BereichReiter(
