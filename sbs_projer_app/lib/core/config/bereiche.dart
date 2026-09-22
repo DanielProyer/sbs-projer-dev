@@ -316,9 +316,11 @@ const kBereichAuswertungen = Bereich(
 
 /// Die Einträge unter den Kennzahlen der Buchhaltung.
 ///
-/// Die Gruppe «Rechnungen» ist ein Übergang: Heineken, Jahresrechnungen,
-/// Bergkundenpauschalen und Mahnwesen ziehen mit v0.132.0 in den
-/// Rechnungs-Bereich (Reiter). Bis dahin stünden sie sonst nirgends.
+/// Die Gruppe «Rechnungen» ist ein Übergang: Heineken, Jahresrechnungen und
+/// Bergkundenpauschalen ziehen mit v0.132.0 in den Rechnungs-Bereich
+/// (Reiter). Bis dahin stünden sie sonst nirgends. Kein eigener Eintrag
+/// «Mahnwesen»: `/buchhaltung/mahnwesen` leitet nur auf `/rechnungen`
+/// weiter, das Mahnwesen IST die Kunden-Rechnungsliste.
 const kBereichBuchhaltung = Bereich(
   id: 'buchhaltung',
   titel: 'Buchhaltung',
@@ -365,12 +367,6 @@ const kBereichBuchhaltung = Bereich(
           titel: 'Bergkundenpauschalen',
           icon: Icons.landscape,
           ziel: '/bergkundenpauschalen',
-        ),
-        BereichEintrag(
-          titel: 'Mahnwesen',
-          untertitel: 'Überfällige Rechnungen, Mahnstufen',
-          icon: Icons.notification_important,
-          ziel: '/buchhaltung/mahnwesen',
         ),
       ],
     ),

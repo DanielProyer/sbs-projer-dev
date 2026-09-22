@@ -19,6 +19,18 @@ void main() {
       .map((m) => m.group(1)!)
       .toSet();
 
+  /// Reine Weiterleitungen (Route mit `redirect:`, ohne eigenen `builder:`)
+  /// sind Aliase für alte Links — sie brauchen keinen eigenen Weg, ihr Ziel
+  /// wird selbst geprüft. Am 22.09.2026 standen vier davon irrtümlich als
+  /// «ohne Link» in einer Ausnahmeliste (etwa `/buchhaltung/bilanz` →
+  /// `/buchhaltung/berichte`).
+  final aliase = <String>{};
+  for (final block in router.split('GoRoute(').skip(1)) {
+    if (!block.contains('redirect:') || block.contains('builder:')) continue;
+    final pfad = RegExp(r"path:\s*'([^']+)'").firstMatch(block)?.group(1);
+    if (pfad != null) aliase.add(pfad);
+  }
+
   bool detailOderFormular(String p) =>
       p.contains('/:') ||
       p.endsWith('/neu') ||
@@ -64,26 +76,29 @@ void main() {
         'lib/presentation/screens/einstellungen/einstellungen_screen.dart',
   };
 
-  /// Routen ohne jeden Link im Code (Stand 22.09.2026). Sie bleiben für alte
-  /// Lesezeichen bestehen; vermutlich Überbleibsel, seit der Bankauszug-
-  /// Import vier Reiter hat (v0.16.19). Aufräumen ist eine eigene Aufgabe
-  /// (ToDo.md) — hier stehen sie, damit der Wächter nicht blind wird.
-  const ohneLink = {
-    '/buchhaltung/bilanz',
-    '/buchhaltung/debitoren',
-    '/buchhaltung/camt-regeln',
-    '/buchhaltung/camt-dateien',
-  };
-
   test('router.dart wird gelesen', () {
     expect(pfade.length, greaterThan(50));
+  });
+
+  test('Alias-Erkennung greift (sonst wuerde sie still alles durchwinken)', () {
+    expect(
+      aliase,
+      containsAll([
+        '/buchhaltung/bilanz',
+        '/buchhaltung/debitoren',
+        '/buchhaltung/camt-regeln',
+        '/buchhaltung/camt-dateien',
+      ]),
+    );
+    // Screens mit bedingter Weiterleitung sind KEINE Aliase.
+    expect(aliase.intersection(direkt), isEmpty);
   });
 
   test('jede Listen-Route ist erreichbar', () {
     final fehlt = <String>[];
     for (final p in pfade) {
       if (p == '/login' || detailOderFormular(p)) continue;
-      if (direkt.contains(p) || ohneLink.contains(p)) continue;
+      if (direkt.contains(p) || aliase.contains(p)) continue;
       final datei = unterseiten[p];
       if (datei != null && File(datei).readAsStringSync().contains("'$p")) {
         continue;
@@ -99,8 +114,8 @@ void main() {
     );
   });
 
-  test('Unterseiten- und Ausnahmeliste ohne Karteileichen', () {
-    for (final p in [...unterseiten.keys, ...ohneLink]) {
+  test('Unterseiten-Liste ohne Karteileichen', () {
+    for (final p in unterseiten.keys) {
       expect(pfade.contains(p), isTrue, reason: '$p gibt es nicht mehr');
     }
     for (final e in unterseiten.entries) {
