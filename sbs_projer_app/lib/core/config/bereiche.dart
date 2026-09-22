@@ -95,10 +95,14 @@ const _bereichPraefixe = <(String, String)>[
 
 /// Zu welchem Büro-Bereich gehört [pfad]? `null` ausserhalb des Büros.
 String? bereichFuerPfad(String pfad) {
+  // Aufgaben-Routen können einen Query-String tragen
+  // (`/buchhaltung/abschreibung?jahr=2025`) — ohne den Schnitt verglichen
+  // die Präfixe gegen den ganzen String und trafen nie.
+  final p = Uri.parse(pfad).path;
   for (final (praefix, id) in _bereichPraefixe) {
     final trifft = praefix.endsWith('-')
-        ? pfad.startsWith(praefix)
-        : pfad == praefix || pfad.startsWith('$praefix/');
+        ? p.startsWith(praefix)
+        : p == praefix || p.startsWith('$praefix/');
     if (trifft) return id;
   }
   return null;

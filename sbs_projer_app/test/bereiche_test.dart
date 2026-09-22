@@ -61,6 +61,11 @@ void main() {
       // Kein Namens-Kapern: /heinekenfest ist nicht /heineken.
       expect(bereichFuerPfad('/heinekenfest'), isNull);
     });
+
+    test('Query-String und Fragment werden vor dem Vergleich abgeschnitten', () {
+      expect(bereichFuerPfad('/buchhaltung/abschreibung?jahr=2025'), 'abschluesse');
+      expect(bereichFuerPfad('/rechnungen?x=1'), 'rechnungen');
+    });
   });
 
   group('zaehleJeBereich', () {

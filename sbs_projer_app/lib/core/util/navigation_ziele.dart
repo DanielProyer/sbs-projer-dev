@@ -1,4 +1,4 @@
-/// Die vier Ziele der unteren Navigationsleiste (B1).
+/// Die fünf Ziele der unteren Navigationsleiste (B1).
 ///
 /// WARUM diese vier: Die App hat 97 Routen und hatte keine globale
 /// Navigation — aus einer Eingangsrechnung zurück zur Startseite waren es
@@ -6,8 +6,8 @@
 /// Büro» vor; die Nutzungsmessung (`route_nutzung`, 09.–16.09.2026) zeigte
 /// aber, dass Büro auf dem Handy **nie** geöffnet wird (20 Aufrufe von
 /// Buchhaltung und Rechnungen, alle vom PC), während der Tourenplan
-/// neunmal unterwegs dran war. Also Tour statt Büro; Buchhaltung bleibt
-/// über «Weitere» auf der Startseite erreichbar.
+/// neunmal unterwegs dran war. Also Tour statt Büro; Buchhaltung blieb bis
+/// v0.130.0 über «Weitere» auf der Startseite erreichbar.
 ///
 /// Beide Entscheidungen — welches Ziel leuchtet und ob die Leiste
 /// überhaupt erscheint — sind reine Funktionen über dem Pfad, damit sie
