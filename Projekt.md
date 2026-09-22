@@ -56,6 +56,24 @@
 
 ## 📊 PROJEKT-STATUS
 
+> ⚠️ **Dieses Dokument ist seit dem 02.06.2026 nicht mehr nachgeführt.**
+> Seither sind **1563 Commits** entstanden, davon rund **840 Feature- und
+> Fix-Commits**. Der gepflegte Stand steht in **`ToDo.md`** — dort ist jede
+> Änderung mit Version, Begründung und Prüfung festgehalten.
+>
+> Die Abschnitte «Nächste Schritte», «Temporär aktiv» und «Offene
+> DB-Migrationen» weiter unten sind **veraltet** und beschreiben den Stand vom
+> Juni. Einzelne Angaben darin sind nachweislich falsch (siehe Migrationen).
+>
+> **Aktueller Stand (22.09.2026):** App **v0.130.0** live unter
+> danielproyer.github.io/sbs-projer-dev · **1842 Tests grün** ·
+> `flutter analyze` bei 56 (unverändertes Grundrauschen) · Migrationen bis
+> **199**, alle eingespielt · Edge Functions `send-rechnung-mail` v22,
+> `parse-einsatz` v9 · Git sauber, main und gh-pages gepusht.
+>
+> *Ein sauberer Abgleich dieses Dokuments mit der Commit-Historie steht als
+> eigene Aufgabe in `ToDo.md`.*
+
 ### Aktueller Stand: **Phase 4 - Polish & Testing** 📅
 
 | Phase | Status | Fortschritt | Fertig am |
@@ -826,7 +844,10 @@
 9. ☐ Performance: Lazy Route Loading, Image Compression, Pagination, select() Columns
 
 ### Offene DB-Migrationen (im Supabase SQL Editor ausführen)
-- Keine — alle Migrationen bis 080 sind ausgeführt
+- ~~Keine — alle Migrationen bis 080 sind ausgeführt~~ *(Stand 02.06.2026)*
+- **Stand 22.09.2026: keine offenen.** Alle lokalen Dateien bis
+  `199_termin_spielraum.sql` sind auf Supabase eingespielt, gegengeprüft an
+  `supabase_migrations.schema_migrations`.
 
 ---
 

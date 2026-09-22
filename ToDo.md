@@ -2,6 +2,33 @@
 
 **Stand:** **v0.130.0 live** · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1842 Tests grün** · Git sauber.
 
+## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
+
+**Stand ist sauber:** Arbeitskopie leer, `main` und `gh-pages` deckungsgleich
+mit dem Ursprung, live läuft v0.130.0, keine offenen Migrationen.
+
+**Heute gebaut:** v0.127.0 alle Rechnungen pro Betrieb · v0.127.1 Zustellweg im
+Kontoauszug · v0.128.0 QR-Einzahlungsschein · v0.129.0 Reinigungsprotokolle als
+PDF · v0.130.0 Wächter vor der Heineken-Freigabe.
+
+**Heute gebucht:** Die August-Heineken-Rechnung ist **freigegeben**
+(13'966.09 brutto, Soll 1100 an Haben 3400). Offen bleibt nur der
+Zahlungseingang über den Bankabgleich.
+
+**Wenn du weitermachst, das Naheliegende zuerst:**
+1. **Steuererklärung 2025** — Frist **30.09.**, es fehlt nur der GKB Zins- und
+   Kapitalausweis.
+2. **AXA-Zahlung** — überfällig, 8'935.80.
+3. **Die fünf Telefonate** zur Lohnsumme.
+4. **19 Winterfenster** stehen noch auf Saison 2025/26 — ab Dezember fallen
+   diese Betriebe still aus dem Tourenplan.
+
+**Zu beobachten:** Die September-Heineken-Rechnung ist noch nicht erstellt.
+Beim Freigeben zeigt der neue Wächter, ob die Positionszeile wieder abweicht —
+damit beantwortet sich, ob der August ein Einzelfall war.
+
+---
+
 ## 🔴 OFFEN — hier weitermachen
 
 > Alles darunter ist Archiv. Diese Liste wurde am 19.09.2026 aus 3196 Zeilen
@@ -174,6 +201,16 @@ Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
 - **Migrations-Ablage:** Rund ein Dutzend Server-Migrationen haben keine lokale
   Datei — meist Einmal-Operationen (Storage-Policies, RLS-Nachzieher, Snapshots).
   Rezept im Archiv-Abschnitt zu 192b.
+- ⚠️ **`Projekt.md` mit der Commit-Historie abgleichen** (aufgefallen bei der
+  Abschlussroutine 22.09.2026). Das Dokument ist seit dem **02.06.2026** nicht
+  mehr nachgeführt; seither sind **1563 Commits** entstanden, davon rund **840
+  Feature- und Fix-Commits**. Die Abschnitte «Nächste Schritte» und «Temporär
+  aktiv» beschreiben den Juni-Stand, und die Zeile zu den Migrationen war
+  schlicht falsch («bis 080», tatsächlich 199). Oben im Dokument steht jetzt
+  ein Warnhinweis mit dem aktuellen Stand, die Migrationszeile ist korrigiert.
+  **Vier Monate nachzuerfinden ist keine Sessionende-Arbeit** — das braucht
+  einen eigenen Durchgang durch `git log`. Solange gilt: **`ToDo.md` ist die
+  gepflegte Quelle**, nicht `Projekt.md`.
 - **BACKLOG ohne Zeitdruck:** GIS-Regionen-Polygone, Beta-Testing auf echten
   Geräten, Beleg-Foto-Optimierung, Bulk-Sync Handy-Kontakte, Termin-Erinnerungen
   Folge-Tests. Vollständig im Archiv.
