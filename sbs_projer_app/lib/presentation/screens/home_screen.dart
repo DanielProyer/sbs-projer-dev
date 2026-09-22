@@ -83,7 +83,8 @@ class _SyncIndicator extends ConsumerWidget {
     // erscheinen — genau das liess fehlende Daten wie übertragene aussehen.
     if (hatFehler) {
       return Tooltip(
-        message: 'Letzter Sync unvollständig — «Sync erzwingen» für Details',
+        message:
+            'Letzter Sync unvollständig — «Sync erzwingen» in den Einstellungen',
         child: Icon(Icons.cloud_off, color: AppColors.offline, size: 20),
       );
     }

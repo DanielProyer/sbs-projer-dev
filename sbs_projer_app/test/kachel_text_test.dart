@@ -13,7 +13,7 @@ import 'package:sbs_projer_app/presentation/widgets/dashboard_tile.dart';
 // Rendert `DashboardTile` (bis 13.09.2026 `_DashboardTile`, für diesen Test
 // öffentlich gemacht) DIREKT, nicht nachgebaut: die Kachel selbst ist ein
 // reines StatelessWidget ohne Provider-Zugriff — icon/label/count/color/
-// onTap sind einfache Parameter, verdrahtet wird erst in `_KachelGrid`. Ein
+// onTap sind einfache Parameter, verdrahtet wird erst in `BereichGruppenListe`. Ein
 // Nachbau hätte nur seine eigene Kopie geprüft und wäre stumm geblieben,
 // wenn sich die echte Kachel ändert (z. B. das `Flexible` um den
 // Zähler-Container verschwindet) — genau das Muster, das am 10.09.2026 zwei
@@ -37,7 +37,7 @@ void main() {
 
   Future<void> pumpGrid(WidgetTester tester, List<Widget> kacheln) async {
     // Pixel 9 (logische Breite 360px) — dieselbe Referenzgrösse, mit der
-    // das Kachel-Raster im Kommentar von _KachelGrid begründet wird.
+    // das Kachel-Raster im Kommentar von BereichGruppenListe begründet wird.
     tester.view.physicalSize = const Size(360, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

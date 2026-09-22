@@ -142,18 +142,6 @@ bool jetztFaellig(AufgabenEintrag a, DateTime heute) {
   };
 }
 
-/// Wohin die Büro-Startseite schaut. Die Zugehörigkeit folgt aus dem Ziel,
-/// nicht aus einem zweiten Pflegefeld: Ein neuer Detektor, der in die
-/// Buchhaltung führt, erscheint dort von selbst; Saisondaten (`/touren`)
-/// fällt heraus, ohne dass jemand daran denken muss.
-const _bueroPraefixe = ['/buchhaltung', '/rechnungen', '/heineken'];
-
-bool istBueroAufgabe(AufgabenEintrag a) {
-  final r = a.route;
-  if (r == null) return false;
-  return _bueroPraefixe.any((p) => r == p || r.startsWith('$p/'));
-}
-
 const _wochentage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 /// Kurztext für die Zeile: «überfällig seit 3 Tagen», «heute», «morgen»,

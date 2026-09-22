@@ -463,40 +463,4 @@ void main() {
       expect(liste.where((e) => jetztFaellig(e, heute)), hasLength(1));
     });
   });
-
-  group('istBueroAufgabe', () {
-    AufgabenEintrag mitRoute(String? route) => AufgabenEintrag(
-      quelle: AufgabenQuelle.detektor,
-      key: 'k',
-      titel: 't',
-      route: route,
-    );
-
-    test('Buchhaltung, Rechnungen und Heineken gehoeren ins Buero', () {
-      for (final r in [
-        '/buchhaltung',
-        '/buchhaltung/mwst',
-        '/buchhaltung/camt-pruefliste',
-        '/rechnungen',
-        '/heineken',
-      ]) {
-        expect(istBueroAufgabe(mitRoute(r)), isTrue, reason: r);
-      }
-    });
-
-    test('Werkstatt und Ziellose nicht', () {
-      for (final r in ['/touren', '/betriebe/abc', '/einsaetze', '/aufgaben']) {
-        expect(istBueroAufgabe(mitRoute(r)), isFalse, reason: r);
-      }
-      expect(
-        istBueroAufgabe(mitRoute(null)),
-        isFalse,
-        reason: 'eine eigene Aufgabe ohne Ziel ist keine Buero-Zeile',
-      );
-    });
-
-    test('ein Praefix darf keinen anderen Namen kapern', () {
-      expect(istBueroAufgabe(mitRoute('/rechnungen-alt')), isFalse);
-    });
-  });
 }
