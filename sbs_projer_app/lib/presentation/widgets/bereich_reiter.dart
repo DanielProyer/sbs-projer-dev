@@ -16,6 +16,15 @@ const kReiterBetriebe = [
   BereichReiterEintrag('Personen', '/kontakte'),
 ];
 
+/// Der Rechnungs-Bereich (v0.132.0): vorher hingen die vier Screens einzeln
+/// in der Buchhaltung, die Rechnungen zwei Stufen tief.
+const kReiterRechnungen = [
+  BereichReiterEintrag('Kunden', '/rechnungen'),
+  BereichReiterEintrag('Heineken', '/heineken'),
+  BereichReiterEintrag('Pro Betrieb', '/rechnungen/pro-betrieb'),
+  BereichReiterEintrag('Jährlich', '/jahresrechnung'),
+];
+
 /// Umschalter unter der AppBar.
 ///
 /// WARUM kein `TabBar`: Ein TabBar bettet die Reiter-Screens ein — jeder

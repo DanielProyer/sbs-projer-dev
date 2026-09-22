@@ -59,12 +59,7 @@ void main() {
   });
 
   testWidgets('vier Reiter passen auf 360 px', (tester) async {
-    await pump(tester, const [
-      BereichReiterEintrag('Kunden', '/rechnungen'),
-      BereichReiterEintrag('Heineken', '/heineken'),
-      BereichReiterEintrag('Pro Betrieb', '/rechnungen/pro-betrieb'),
-      BereichReiterEintrag('Jährlich', '/jahresrechnung'),
-    ], '/rechnungen');
+    await pump(tester, kReiterRechnungen, '/rechnungen');
     expect(tester.takeException(), isNull);
     for (final t in ['Kunden', 'Heineken', 'Pro Betrieb', 'Jährlich']) {
       final absatz = tester.renderObject<RenderParagraph>(find.text(t));

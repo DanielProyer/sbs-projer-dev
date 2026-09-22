@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/jahresrechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/services/rechnung/jahresrechnung_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
@@ -162,7 +163,13 @@ class _JahresrechnungGenerateScreenState
     final now = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Jahresrechnungen')),
+      appBar: AppBar(
+        title: const Text('Jahresrechnungen'),
+        bottom: const BereichReiter(
+          reiter: kReiterRechnungen,
+          aktiverPfad: '/jahresrechnung',
+        ),
+      ),
       body: betriebeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(

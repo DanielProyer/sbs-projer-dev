@@ -41,6 +41,7 @@ void main() {
     for (final z in NavZiel.values) navPfad(z),
     for (final b in kAlleBereiche) ...b.alleEintraege.map((e) => e.ziel),
     ...kReiterBetriebe.map((r) => r.pfad),
+    ...kReiterRechnungen.map((r) => r.pfad),
   };
 
   /// Unterseiten: Route → Datei, in der der Weg dorthin steht.
@@ -55,8 +56,8 @@ void main() {
         'lib/presentation/screens/einstellungen/stammdaten_screen.dart',
     '/heineken/raster':
         'lib/presentation/screens/heineken/heineken_rechnungen_list_screen.dart',
-    '/rechnungen/pro-betrieb':
-        'lib/presentation/screens/rechnungen/rechnungen_list_screen.dart',
+    '/bergkundenpauschalen':
+        'lib/presentation/screens/heineken/heineken_rechnungen_list_screen.dart',
     '/buchhaltung/abschreibung':
         'lib/services/buchhaltung/abschluss_regeln.dart',
     '/buchhaltung/camt-pruefliste': 'lib/core/util/aufgaben_regeln.dart',

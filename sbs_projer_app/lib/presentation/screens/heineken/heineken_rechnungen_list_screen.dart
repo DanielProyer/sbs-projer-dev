@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_leiste.dart';
 
 class HeinekenRechnungenListScreen extends ConsumerStatefulWidget {
@@ -33,6 +34,10 @@ class _HeinekenRechnungenListScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Heineken Rechnungen'),
+        bottom: const BereichReiter(
+          reiter: kReiterRechnungen,
+          aktiverPfad: '/heineken',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.grid_on),
@@ -73,6 +78,31 @@ class _HeinekenRechnungenListScreenState
 
           return Column(
             children: [
+              // Bergkundenpauschalen werden mit der Heineken-Monatsrechnung
+              // verrechnet — hier werden sie gesucht (v0.132.0).
+              Card(
+                margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: InkWell(
+                  onTap: () => context.push('/bergkundenpauschalen'),
+                  borderRadius: BorderRadius.circular(12),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.landscape, color: AppColors.primary),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Bergkundenpauschalen',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               AppJahrLeiste(
                 jahre: jahre,
                 selectedJahr: _selectedYear,

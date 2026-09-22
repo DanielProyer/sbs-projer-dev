@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
     show betriebNameMapProvider, betriebOrtMapProvider, betriebeProvider;
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
@@ -115,7 +116,13 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
     final async = ref.watch(rechnungenStreamProvider);
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: Text('Pro Betrieb  ·  v$kAppVersion')),
+      appBar: AppBar(
+        title: Text('Pro Betrieb  ·  v$kAppVersion'),
+        bottom: const BereichReiter(
+          reiter: kReiterRechnungen,
+          aktiverPfad: '/rechnungen/pro-betrieb',
+        ),
+      ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(

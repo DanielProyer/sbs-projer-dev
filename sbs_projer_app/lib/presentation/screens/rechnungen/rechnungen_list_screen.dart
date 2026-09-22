@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
     show betriebNameMapProvider;
 import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
+import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -513,6 +514,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         title: Text(
           'Forderungen  ·  v$kAppVersion',
           style: const TextStyle(fontSize: 18),
+        ),
+        bottom: const BereichReiter(
+          reiter: kReiterRechnungen,
+          aktiverPfad: '/rechnungen',
         ),
       ),
       body: Column(

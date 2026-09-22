@@ -316,11 +316,10 @@ const kBereichAuswertungen = Bereich(
 
 /// Die Einträge unter den Kennzahlen der Buchhaltung.
 ///
-/// Die Gruppe «Rechnungen» ist ein Übergang: Heineken, Jahresrechnungen und
-/// Bergkundenpauschalen ziehen mit v0.132.0 in den Rechnungs-Bereich
-/// (Reiter). Bis dahin stünden sie sonst nirgends. Kein eigener Eintrag
-/// «Mahnwesen»: `/buchhaltung/mahnwesen` leitet nur auf `/rechnungen`
-/// weiter, das Mahnwesen IST die Kunden-Rechnungsliste.
+/// Heineken, Jahresrechnungen und Bergkundenpauschalen hingen hier als
+/// Übergangsgruppe «Rechnungen» — seit v0.132.0 sind sie nur noch über die
+/// Reiter des Rechnungs-Bereichs erreichbar (`kReiterRechnungen`), nicht
+/// mehr über eine eigene Bereichsseite.
 const kBereichBuchhaltung = Bereich(
   id: 'buchhaltung',
   titel: 'Buchhaltung',
@@ -345,28 +344,6 @@ const kBereichBuchhaltung = Bereich(
           untertitel: 'Per Datum',
           icon: Icons.assessment,
           ziel: '/buchhaltung/berichte',
-        ),
-      ],
-    ),
-    BereichGruppe(
-      titel: 'Rechnungen',
-      eintraege: [
-        BereichEintrag(
-          titel: 'Heineken Rechnungen',
-          untertitel: 'Monatsrechnungen erstellen',
-          icon: Icons.receipt_long_outlined,
-          ziel: '/heineken',
-        ),
-        BereichEintrag(
-          titel: 'Jahresrechnungen',
-          untertitel: 'Sammelrechnungen pro Betrieb',
-          icon: Icons.calendar_month,
-          ziel: '/jahresrechnung',
-        ),
-        BereichEintrag(
-          titel: 'Bergkundenpauschalen',
-          icon: Icons.landscape,
-          ziel: '/bergkundenpauschalen',
         ),
       ],
     ),
