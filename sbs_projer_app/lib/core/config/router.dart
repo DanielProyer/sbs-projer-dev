@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart
 import 'package:sbs_projer_app/presentation/screens/bereich_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/einstellungen/stammdaten_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/home_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/suche/suche_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/bank_waechter_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/camt_erinnerung_karte.dart';
 import 'package:sbs_projer_app/presentation/screens/login_screen.dart';
@@ -149,6 +150,10 @@ final router = GoRouter(
     GoRoute(
       path: '/mehr',
       builder: (context, state) => const BereichScreen(bereich: kBereichMehr),
+    ),
+    GoRoute(
+      path: '/suche',
+      builder: (context, state) => const SucheScreen(),
     ),
     GoRoute(
       path: '/bank',
