@@ -6,11 +6,27 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 22.09.2026 — v0.132.0 Rechnungs-Bereich, Event-Karte
 - 22.09.2026 — v0.131.0 Navigation «Mehr»
 - 17.–22.09.2026 — v0.110.0 bis v0.130.0
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 22.09.2026 — v0.132.0 Rechnungs-Bereich, Event-Karte
+
+Teil B des Navigations-Plans.
+
+- **Rechnungen mit vier Reitern**: Kunden · Heineken · Pro Betrieb · Jährlich
+  (Umschalter `BereichReiter`, wechselt die Route statt Screens
+  einzubetten). Zurück-Pfeil in allen vier, auch nach einem Reiterwechsel.
+- **Bergkundenpauschalen** stehen oben im Heineken-Reiter — dort werden sie
+  verrechnet. Die Übergangsgruppe in der Buchhaltung ist weg; dort stehen nur
+  noch Kontenplan, Journal, Bilanz und Erfolgsrechnung.
+- **Event-Karte auf Heute**: ab 7 Tagen vor Beginn bis und mit dem letzten
+  Tag (`eventImFenster`, in UTC-Kalendertagen). 1870 Tests grün.
 
 ---
 

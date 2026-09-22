@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.131.0** (Navigation «Mehr») · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1859 Tests grün**.
+**Stand:** **v0.132.0 live** (Navigation «Mehr», Rechnungs-Bereich) · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1870 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -162,6 +162,15 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.132.0** — Mehr → Rechnungen: vier Reiter (Kunden · Heineken · Pro
+  Betrieb · Jährlich), jeder wechselt; nach einem Wechsel führt der
+  Zurück-Pfeil auf Mehr. Heineken: Zeile «Bergkundenpauschalen» oben.
+  Buchhaltung: nur noch «Bücher». Event-Karte: erscheint 7 Tage vor dem
+  nächsten Event oben auf Heute (derzeit keines im Fenster).
+- **Beobachten ab 06.10.2026:** Nutzungsmessung auswerten — wird «Mehr»
+  angenommen, welche Büro-Screens öffnest du am Handy? Grundlage für Teil 3
+  (Büro handytauglich) und Teil 2 (Suche).
 
 - **v0.131.0** — Navigation «Mehr» (am Rechner bei 360 px geprüft, Handy steht
   aus): (1) Heute zeigt nur noch Aufgaben, Arbeitstag, Tagesplan, Diktieren;
