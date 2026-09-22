@@ -316,9 +316,24 @@ hat der Trigger `rechnung_summen_update` nachgezogen:
 | MWST gesamt | 1'066.74 | **1'046.49** | 1'046.49 |
 | **Gesamttotal** | 14'236.34 | **13'966.09** | **13'966.09** |
 
-Rechnung steht weiter auf `gesendet`, **Buchungen: 0**. Sie kann jetzt gefahrlos
-freigegeben werden, die Debitoren/Ertrag-Buchung entsteht mit dem richtigen
-Betrag.
+✅ **Freigegeben am 22.09.2026** (Ansage Daniel), über die App, damit die
+Buchung durch `HeinekenBuchungService` entsteht und nicht von Hand. Der
+Wächter aus v0.130.0 meldete dabei die erwartete Abweichung von −55.00,
+bestätigt über «Trotzdem freigeben».
+
+Die entstandene Buchung, gegengeprüft:
+
+| | |
+|---|---|
+| Datum / Beleg | 31.08.2026 · 2026-09-1449 |
+| Konten | Soll **1100** Debitoren an Haben **3400** Dienstleistungsertrag |
+| MWST-Konto | **2200**, Satz 8.10 % |
+| Netto / MWST / Brutto | 12'919.60 · 1'046.49 · **13'966.09** |
+| Geschäftsjahr | 2026, nicht storniert, genau **eine** Buchung |
+
+Netto plus MWST ergibt exakt das Brutto, und der Betrag deckt sich mit dem
+versendeten PDF. Offen bleibt nur noch der Zahlungseingang über den
+Bankabgleich.
 
 ```sql
 -- Rückweg (Kopfsummen zieht der Trigger nach):
