@@ -58,8 +58,12 @@ Future<pw.Document> pdfDokument() async =>
 /// Seiten aus beiden Services optisch nicht unterscheiden, wenn sie in
 /// einem Dokument landen.
 ///
-/// Tiefe Deckkraft (0.18): gut lesbar als Aufdruck, verdeckt aber Tabellen
-/// und QR-Code nicht.
+/// WARUM im oberen Seitendrittel statt seitenfüllend (Review 23.09.2026,
+/// Minor 5): Ein `Watermark.text`, das per `FittedBox` die ganze Seite
+/// ausfüllt, reicht bis in die unteren 105 mm — genau dort, wo der
+/// Swiss-QR-Zahlteil liegt, und verdeckt den QR-Code. Fest positioniert im
+/// oberen Bereich (statt seitenfüllend skaliert) bleibt der Zahlteil frei,
+/// bei tiefer Deckkraft (0.15) trotzdem gut lesbar.
 pw.PageTheme musterPageTheme({
   required PdfPageFormat pageFormat,
   required pw.EdgeInsetsGeometry margin,
@@ -69,14 +73,22 @@ pw.PageTheme musterPageTheme({
     pageFormat: pageFormat,
     margin: margin,
     buildForeground: muster
-        ? (context) => pw.Opacity(
-              opacity: 0.18,
-              child: pw.Watermark.text(
-                'MUSTER',
-                style: pw.TextStyle(
-                  fontSize: 140,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.grey,
+        ? (context) => pw.Align(
+              // y = -0.55: oberes Fünftel der Seite — bewusst weit weg von
+              // den unteren 105 mm (Zahlteil-Zone bzw. Tabellenfuss).
+              alignment: const pw.Alignment(0, -0.55),
+              child: pw.Transform.rotate(
+                angle: -0.4,
+                child: pw.Opacity(
+                  opacity: 0.15,
+                  child: pw.Text(
+                    'MUSTER',
+                    style: pw.TextStyle(
+                      fontSize: 90,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey,
+                    ),
+                  ),
                 ),
               ),
             )

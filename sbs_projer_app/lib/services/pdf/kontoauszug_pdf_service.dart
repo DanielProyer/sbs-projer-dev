@@ -131,7 +131,19 @@ class KontoauszugPdfService {
   ///
   /// [muster] überlagert jede Seite mit einem «MUSTER»-Wasserzeichen — für
   /// Kontoauszug-Seiten, die einem Mahnschreiben-MUSTER beiliegen.
-  static Future<void> seitenHinzufuegen(
+  ///
+  /// [mitZahlteil] steuert den Einzahlungsschein über den Gesamtsaldo
+  /// (Default `true`, bisheriges Verhalten für den eigenständigen Auszug).
+  /// Das Mahnschreiben (v0.134.0) übergibt `false`: Es hat bereits einen
+  /// eigenen Zahlteil PRO RECHNUNG; ein zweiter, summierter Zahlteil über
+  /// denselben Gesamtbetrag wäre eine zweite Zahlungsaufforderung — eine
+  /// Doppelzahlung wäre möglich, und der camt-Abgleich fände eine Zahlung,
+  /// die zu keiner Einzelrechnung passt (Review 23.09.2026).
+  ///
+  /// Rückgabe: Anzahl der tatsächlich gebauten Zahlteile (0 oder 1) — rein
+  /// zu Prüfzwecken (`test/mahnschreiben_pdf_test.dart` zählt sie, um den
+  /// fehlenden Sammel-Zahlteil im Mahn-PDF nachzuweisen).
+  static Future<int> seitenHinzufuegen(
     pw.Document pdf, {
     required BetriebLocal betrieb,
     required List<Rechnung> rechnungen,
@@ -142,6 +154,7 @@ class KontoauszugPdfService {
     String? firmaMwst,
     int? jahr,
     bool muster = false,
+    bool mitZahlteil = true,
   }) async {
     final dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -274,37 +287,40 @@ class KontoauszugPdfService {
     // reserviertem Fussraum auf JEDER Seite — die eigene Seite ist die
     // normkonforme und im Alltag übliche Lösung (Perforation).
     final zahlbar = _rundeAuf5Rappen(offenerSaldo);
-    if (zahlbar > 0) {
-      pdf.addPage(
-        pw.Page(
-          pageTheme: musterPageTheme(
-            pageFormat: PdfPageFormat.a4,
-            margin: pw.EdgeInsets.zero,
-            muster: muster,
-          ),
-          build: (ctx) => pw.Column(
-            children: [
-              pw.Spacer(),
-              QrZahlteil.bauen(
-                zahlbar,
-                qrEmpfaenger(
-                  betriebName: betrieb.name,
-                  betriebStrasse: betrieb.strasse,
-                  betriebNr: betrieb.nr,
-                  betriebPlz: betrieb.plz,
-                  betriebOrt: betrieb.ort,
-                  ra: rechnungsadresse,
-                ),
-                mitteilung:
-                    'Kontoauszug${jahr == null ? '' : ' $jahr'} - '
-                    '${betrieb.name}',
-                referenz: einzelReferenz(gefiltert),
-              ),
-            ],
-          ),
-        ),
-      );
+    if (!mitZahlteil || zahlbar <= 0) {
+      return 0;
     }
+
+    pdf.addPage(
+      pw.Page(
+        pageTheme: musterPageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.zero,
+          muster: muster,
+        ),
+        build: (ctx) => pw.Column(
+          children: [
+            pw.Spacer(),
+            QrZahlteil.bauen(
+              zahlbar,
+              qrEmpfaenger(
+                betriebName: betrieb.name,
+                betriebStrasse: betrieb.strasse,
+                betriebNr: betrieb.nr,
+                betriebPlz: betrieb.plz,
+                betriebOrt: betrieb.ort,
+                ra: rechnungsadresse,
+              ),
+              mitteilung:
+                  'Kontoauszug${jahr == null ? '' : ' $jahr'} - '
+                  '${betrieb.name}',
+              referenz: einzelReferenz(gefiltert),
+            ),
+          ],
+        ),
+      ),
+    );
+    return 1;
   }
 
   /// Auf 5 Rappen runden — ein Einzahlungsschein über 113.47 wäre in der

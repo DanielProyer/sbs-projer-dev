@@ -39,48 +39,113 @@ class MahnschreibenPdfService {
   static const _firmaPlz = QrZahlteil.firmaPlz;
   static const _firmaOrt = QrZahlteil.firmaOrt;
 
-  /// Text des Schreibens für eine Stufe. Rein, ohne PDF-Widgets, damit die
-  /// Formulierung ohne Rendering geprüft werden kann (`test/mahnschreiben_pdf_test.dart`).
+  /// Ein Einzahlungsschein über 113.47 wäre in der Schweiz nicht bezahlbar —
+  /// gleiche Rundung wie Rechnung und Kontoauszug (Review 23.09.2026, Minor 5:
+  /// der QR-Betrag muss wie der Rechnungsbetrag runden, sonst zeigen Brief-
+  /// tabelle und Zahlteil zwei leicht verschiedene Zahlen).
+  static double _roundTo5Rappen(double value) => (value * 20).roundToDouble() / 20;
+
+  /// Text des Schreibens. Rein, ohne PDF-Widgets, damit die Formulierung ohne
+  /// Rendering geprüft werden kann (`test/mahnschreiben_pdf_test.dart`).
   ///
-  /// [ersteErinnerung] = frühestes Erinnerungsdatum der enthaltenen
-  /// Rechnungen. Nur die letzte Mahnung nennt es (Verzugszins-Satz) — die
-  /// 1. Mahnung nennt bewusst kein Datum, weil bei einer Sammelmahnung
-  /// mehrere Rechnungen mit unterschiedlichen Erinnerungsdaten enthalten sein
-  /// können.
+  /// [stufen] ist eine Stufe JE ENTHALTENER RECHNUNG (nicht dedupliziert) —
+  /// daraus ergeben sich Einzahl/Mehrzahl UND ob alle Rechnungen dieselbe
+  /// Stufe haben.
+  ///
+  /// WARUM die Fallunterscheidung «einheitlich vs. gemischt» (Review
+  /// 23.09.2026, Punkt 3): Bei einer Sammelmahnung können Rechnungen eines
+  /// Betriebs auf UNTERSCHIEDLICHEN Stufen stehen (eine gerade erst
+  /// erinnert, eine andere schon in der letzten Mahnung). Betreibungsandrohung
+  /// und Verzugszins dürfen sich dann NUR auf die Rechnungen beziehen, die
+  /// TATSÄCHLICH auf der letzten Stufe stehen — sonst drohte der Brief allen
+  /// Rechnungen mit Betreibung, obwohl die meisten frisch überfällig sind.
+  /// Ebenso darf «trotz mehrfacher Erinnerung» nur stehen, wenn das für ALLE
+  /// enthaltenen Rechnungen stimmt.
+  ///
+  /// [ersteErinnerungLetzte] = frühestes Erinnerungsdatum NUR der Rechnungen
+  /// auf Stufe [MahnStufe.letzte] (nicht aller enthaltenen Rechnungen) — der
+  /// Verzugszins-Satz bezieht sich ausschliesslich auf diese.
   static String mahnText(
-    MahnStufe stufe, {
+    List<MahnStufe> stufen, {
     required DateTime frist,
-    DateTime? ersteErinnerung,
+    DateTime? ersteErinnerungLetzte,
   }) {
+    if (stufen.isEmpty) {
+      throw ArgumentError('mahnText: stufen darf nicht leer sein');
+    }
     final fristStr = _df.format(frist);
+    final anzahl = stufen.length;
+    final hoechste = hoechsteStufe(stufen);
+    final einheitlich = stufen.every((s) => s == hoechste);
+    final enthaeltLetzte = stufen.contains(MahnStufe.letzte);
+
     const gegenstandslos =
         'Falls Sie die Zahlung inzwischen ausgelöst haben, betrachten Sie '
         'dieses Schreiben als gegenstandslos.';
+    const zahlungsschwierigkeiten =
+        'Bei Zahlungsschwierigkeiten melden Sie sich bitte — wir finden '
+        'gerne eine Lösung.';
+    final zinsTeil = ersteErinnerungLetzte == null
+        ? 'dabei wird ein Verzugszins von 5 % geltend gemacht'
+        : 'dabei wird ein Verzugszins von 5 % seit '
+            '${_df.format(ersteErinnerungLetzte)} geltend gemacht';
 
-    switch (stufe) {
-      case MahnStufe.erinnerung:
-        return 'Bei der Überprüfung unserer Buchhaltung ist uns entgangen, '
-            'dass die untenstehenden Beträge noch nicht bei uns eingegangen '
-            'sind. Wir bitten Sie freundlich, die offenen Rechnungen bis zum '
-            '$fristStr zu begleichen.\n\n$gegenstandslos';
-      case MahnStufe.mahnung1:
-        return 'Trotz unserer Zahlungserinnerung sind die untenstehenden '
-            'Beträge weiterhin nicht bei uns eingegangen. Wir fordern Sie '
-            'hiermit auf, die offenen Rechnungen bis spätestens $fristStr '
-            'zu begleichen.\n\n$gegenstandslos';
-      case MahnStufe.letzte:
-        final zinsSatz = ersteErinnerung == null
-            ? 'Wir behalten uns die Verrechnung eines Verzugszinses von 5 % '
-                'vor.'
-            : 'Wir behalten uns die Verrechnung eines Verzugszinses von 5 % '
-                'seit ${_df.format(ersteErinnerung)} vor.';
-        return 'Trotz mehrfacher Erinnerung und Mahnung sind die '
-            'untenstehenden Beträge bis heute nicht bei uns eingegangen. Wir '
-            'fordern Sie hiermit letztmalig auf, die offenen Rechnungen bis '
-            'spätestens $fristStr zu begleichen. $zinsSatz Andernfalls '
-            'sehen wir uns gezwungen, ohne weitere Ankündigung die '
-            'Betreibung einzuleiten.\n\n$gegenstandslos';
+    if (einheitlich) {
+      switch (hoechste) {
+        case MahnStufe.erinnerung:
+          final rechnungWort =
+              anzahl == 1 ? 'die folgende Rechnung' : 'die folgenden Rechnungen';
+          final istSind = anzahl == 1 ? 'ist' : 'sind';
+          final betragWort = anzahl == 1 ? 'den offenen Betrag' : 'die offenen Beträge';
+          return 'Vermutlich $istSind Ihnen $rechnungWort entgangen. Wir '
+              'bitten Sie freundlich, $betragWort bis zum $fristStr zu '
+              'begleichen.\n\n$gegenstandslos';
+        case MahnStufe.mahnung1:
+          final betragWort = anzahl == 1
+              ? 'der Betrag der folgenden Rechnung'
+              : 'die Beträge der folgenden Rechnungen';
+          final istSind = anzahl == 1 ? 'ist' : 'sind';
+          final ihnSie = anzahl == 1 ? 'ihn' : 'sie';
+          return 'Trotz unserer Zahlungserinnerung $istSind $betragWort '
+              'weiterhin nicht bei uns eingegangen. Wir fordern Sie hiermit '
+              'auf, $ihnSie bis spätestens $fristStr zu begleichen.\n\n'
+              '$gegenstandslos';
+        case MahnStufe.letzte:
+          final betragWort = anzahl == 1
+              ? 'der Betrag der folgenden Rechnung'
+              : 'die Beträge der folgenden Rechnungen';
+          final istSind = anzahl == 1 ? 'ist' : 'sind';
+          final ihnSie = anzahl == 1 ? 'ihn' : 'sie';
+          return 'Trotz mehrfacher Erinnerung und Mahnung $istSind $betragWort '
+              'bis heute nicht bei uns eingegangen. Wir fordern Sie hiermit '
+              'letztmalig auf, $ihnSie bis spätestens $fristStr zu '
+              'begleichen. Wir leiten ohne Zahlungseingang bis $fristStr ohne '
+              'weitere Ankündigung die Betreibung ein; $zinsTeil.\n\n'
+              '$zahlungsschwierigkeiten\n\n$gegenstandslos';
+      }
     }
+
+    // Gemischte Stufen: allgemeiner Hinweis auf die Tabelle, die die Stufe je
+    // Rechnung ausweist — plus die Betreibungs-/Zins-Klausel NUR, wenn
+    // mindestens eine Rechnung tatsächlich auf der letzten Stufe steht, und
+    // nur bezogen auf GENAU DIESE.
+    final buffer = StringBuffer(
+      'Die folgenden Rechnungen sind unterschiedlich lange überfällig; die '
+      'jeweilige Mahnstufe entnehmen Sie bitte der Tabelle. Wir bitten Sie, '
+      'sämtliche offenen Beträge bis zum $fristStr zu begleichen.',
+    );
+    if (enthaeltLetzte) {
+      buffer.write(
+        '\n\nFür die in der Tabelle als ‹Letzte Mahnung› bezeichneten '
+        'Rechnungen leiten wir ohne Zahlungseingang bis $fristStr ohne '
+        'weitere Ankündigung die Betreibung ein; $zinsTeil.',
+      );
+    }
+    if (hoechste == MahnStufe.letzte) {
+      buffer.write('\n\n$zahlungsschwierigkeiten');
+    }
+    buffer.write('\n\n$gegenstandslos');
+    return buffer.toString();
   }
 
   /// Baut das Sammel-Mahnschreiben eines Betriebs.
@@ -91,7 +156,12 @@ class MahnschreibenPdfService {
   /// schärfste enthaltene Rechnung.
   ///
   /// [kontoauszugRechnungen] hängt bei Angabe den Kontoauszug als Beilage an
-  /// (Druck-PDF, siehe Abweichung «ohne Rechnungskopien» im Plan).
+  /// (Druck-PDF, siehe Abweichung «ohne Rechnungskopien» im Plan). Der
+  /// Kontoauszug bekommt bewusst `mitZahlteil: false`: Ein zweiter,
+  /// SUMMIERTER Zahlteil über den Gesamtsaldo neben den Zahlteilen je
+  /// Rechnung wäre eine zweite Zahlungsaufforderung über denselben Betrag —
+  /// Doppelzahlungsgefahr, und der camt-Abgleich sähe eine Zahlung, die zu
+  /// keiner Einzelrechnung passt (Review 23.09.2026, Punkt 1).
   ///
   /// [muster] überlagert JEDE Seite (Schreiben, QR-Seiten, Kontoauszug) mit
   /// dem MUSTER-Wasserzeichen — für die Vorschau vor dem Versand.
@@ -110,8 +180,12 @@ class MahnschreibenPdfService {
     String? firmaMwst,
   }) async {
     final pdf = await pdfDokument();
-    final stufe = hoechsteStufe(posten.map((p) => p.stufe));
-    final ersteErinnerung = posten
+    final stufen = posten.map((p) => p.stufe).toList();
+    final stufe = hoechsteStufe(stufen);
+    // Nur die Erinnerungsdaten der Rechnungen auf der LETZTEN Stufe zählen
+    // für den Verzugszins-Satz — siehe Kommentar an `mahnText`.
+    final ersteErinnerungLetzte = posten
+        .where((p) => p.stufe == MahnStufe.letzte)
         .map((p) => p.rechnung.erinnerungAm)
         .whereType<DateTime>()
         .fold<DateTime?>(
@@ -149,20 +223,25 @@ class MahnschreibenPdfService {
           ),
           pw.SizedBox(height: 30),
           _buildKundenAdresse(betrieb, rechnungsadresse),
-          pw.SizedBox(height: 24),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                stufe.titel.toUpperCase(),
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                  color: stufe == MahnStufe.erinnerung ? _darkBlue : _darkRed,
-                ),
-              ),
-              pw.Text(_df.format(datum), style: const pw.TextStyle(fontSize: 10)),
-            ],
+          pw.SizedBox(height: 18),
+          // Ort vor dem Datum («Domat/Ems, 23.09.2026») — Review 23.09.2026,
+          // Punkt 4: Geschäftsbriefe datieren mit Absenderort, nicht bloss
+          // dem Datum allein.
+          pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(
+              '$_firmaOrt, ${_df.format(datum)}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+          ),
+          pw.SizedBox(height: 18),
+          pw.Text(
+            stufe.titel.toUpperCase(),
+            style: pw.TextStyle(
+              fontSize: 18,
+              fontWeight: pw.FontWeight.bold,
+              color: stufe == MahnStufe.erinnerung ? _darkBlue : _darkRed,
+            ),
           ),
           pw.SizedBox(height: 6),
           pw.Text(
@@ -173,7 +252,7 @@ class MahnschreibenPdfService {
           ),
           pw.SizedBox(height: 14),
           pw.Text(
-            mahnText(stufe, frist: frist, ersteErinnerung: ersteErinnerung),
+            mahnText(stufen, frist: frist, ersteErinnerungLetzte: ersteErinnerungLetzte),
             style: const pw.TextStyle(fontSize: 10),
           ),
           pw.SizedBox(height: 18),
@@ -204,10 +283,15 @@ class MahnschreibenPdfService {
       ),
     );
 
-    // ─── QR-Seiten: je Rechnung ein eigener Zahlteil, zwei pro A4-Seite ───
-    for (var i = 0; i < posten.length; i += 2) {
-      final oben = posten[i];
-      final unten = i + 1 < posten.length ? posten[i + 1] : null;
+    // ─── QR-Seiten: je Rechnung eine EIGENE Seite, Zahlteil UNTEN ───
+    //
+    // WARUM ein Zahlteil pro Seite statt zwei (Review 23.09.2026, Punkt 5):
+    // Die Swiss-QR-Bill-Norm sieht den Zahlteil am UNTEREN Rand einer A4-Seite
+    // vor (Perforation). Zwei Zahlteile pro Seite — einer oben, einer unten —
+    // verletzen das für den OBEREN. Eine eigene Seite je Rechnung, mit einem
+    // Spacer VOR dem Zahlteil, hält jeden Zahlteil unten — auch bei einer
+    // ungeraden Anzahl gibt es dadurch keinen Sonderfall mehr.
+    for (final p in posten) {
       pdf.addPage(
         pw.Page(
           pageTheme: musterPageTheme(
@@ -217,11 +301,8 @@ class MahnschreibenPdfService {
           ),
           build: (context) => pw.Column(
             children: [
-              _buildQrBlock(oben.rechnung, betrieb, kundeAddr),
-              if (unten != null)
-                _buildQrBlock(unten.rechnung, betrieb, kundeAddr)
-              else
-                pw.Spacer(),
+              pw.Spacer(),
+              _buildQrBlock(p.rechnung, betrieb, kundeAddr),
             ],
           ),
         ),
@@ -241,6 +322,9 @@ class MahnschreibenPdfService {
         firmaMwst: firmaMwst,
         jahr: kontoauszugJahr,
         muster: muster,
+        // Kein zweiter, summierter Zahlteil im Mahn-Druck-PDF — siehe
+        // Doc-Kommentar an [generate].
+        mitZahlteil: false,
       );
     }
 
@@ -264,7 +348,7 @@ class MahnschreibenPdfService {
           ),
         ),
         QrZahlteil.bauen(
-          rechnung.betragBrutto,
+          _roundTo5Rappen(rechnung.betragBrutto),
           kundeAddr,
           mitteilung: 'Rechnung ${rechnung.rechnungsnummer ?? ''}',
           referenz: rechnung.qrReferenz,
@@ -347,17 +431,19 @@ class MahnschreibenPdfService {
       return pw.Container(
         alignment: align,
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: pw.Text(text, style: style),
+        child: pw.Text(text, style: style, maxLines: 1),
       );
     }
 
     return pw.Table(
       columnWidths: {
         0: const pw.FlexColumnWidth(2), // Rechnungsnr.
-        1: const pw.FixedColumnWidth(65), // Rechnungsdatum
-        2: const pw.FixedColumnWidth(65), // fällig seit
-        3: const pw.FixedColumnWidth(65), // Betrag
-        4: const pw.FixedColumnWidth(75), // Stufe
+        1: const pw.FixedColumnWidth(62), // Rechnungsdatum
+        2: const pw.FixedColumnWidth(62), // fällig seit
+        3: const pw.FixedColumnWidth(62), // Betrag
+        // Breit genug für «Letzte Mahnung», den längsten Stufentitel, ohne
+        // Umbruch (Review 23.09.2026, Minor 5).
+        4: const pw.FixedColumnWidth(92),
       },
       border: const pw.TableBorder(
         horizontalInside: pw.BorderSide(color: _lineGrey, width: 0.4),
