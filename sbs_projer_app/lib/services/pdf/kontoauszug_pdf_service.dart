@@ -276,7 +276,7 @@ class KontoauszugPdfService {
           pw.SizedBox(height: 16),
           _tabelle(bewegungen, salden, dateFormat),
           pw.SizedBox(height: 18),
-          _fusszeile(offenerSaldo, jahr),
+          _fusszeile(offenerSaldo, jahr, mitZahlteil: mitZahlteil),
         ],
       ),
     );
@@ -673,7 +673,26 @@ class KontoauszugPdfService {
     );
   }
 
-  static pw.Widget _fusszeile(double offen, int? jahr) {
+  /// Zahlungssatz der Fusszeile — rein, ohne PDF-Widgets, damit er ohne
+  /// Rendering geprüft werden kann.
+  ///
+  /// [mitZahlteil] steuert NUR diesen Satz, nicht den Zahlteil selbst (der
+  /// wird schon in [seitenHinzufuegen] weggelassen): Ohne eigenen Zahlteil —
+  /// als Beilage zum Mahnschreiben (Review 23.09.2026, Vorab-Punkt 2) — wäre
+  /// «auf das untenstehende Konto» falsch, weil gar kein Einzahlungsschein
+  /// mehr folgt. Bezahlt wird dann über die Zahlteile im Mahnschreiben.
+  static String fusszeilenSatz(double offen, {bool mitZahlteil = true}) {
+    if (offen <= 0.005) return 'Das Konto ist ausgeglichen - besten Dank.';
+    if (!mitZahlteil) {
+      return 'Bitte verwenden Sie für die Zahlung die Einzahlungsscheine im '
+          'Mahnschreiben.';
+    }
+    return 'Wir bitten um Überweisung des offenen Saldos von CHF ${_fmt(offen)} '
+        'auf das untenstehende Konto. Bereits erfolgte Zahlungen sind in '
+        'diesem Auszug berücksichtigt.';
+  }
+
+  static pw.Widget _fusszeile(double offen, int? jahr, {bool mitZahlteil = true}) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
@@ -684,9 +703,7 @@ class KontoauszugPdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            offen > 0.005
-                ? 'Wir bitten um Überweisung des offenen Saldos von CHF ${_fmt(offen)} auf das untenstehende Konto. Bereits erfolgte Zahlungen sind in diesem Auszug berücksichtigt.'
-                : 'Das Konto ist ausgeglichen - besten Dank.',
+            fusszeilenSatz(offen, mitZahlteil: mitZahlteil),
             style: const pw.TextStyle(fontSize: 8.5),
           ),
           // WICHTIG beim Jahresauszug: Ohne diesen Satz liest der Kunde den

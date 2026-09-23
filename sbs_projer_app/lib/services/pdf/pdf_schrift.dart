@@ -74,9 +74,12 @@ pw.PageTheme musterPageTheme({
     margin: margin,
     buildForeground: muster
         ? (context) => pw.Align(
-              // y = -0.55: oberes Fünftel der Seite — bewusst weit weg von
-              // den unteren 105 mm (Zahlteil-Zone bzw. Tabellenfuss).
-              alignment: const pw.Alignment(0, -0.55),
+              // y = 0.55: oberes Fünftel der Seite — bewusst weit weg von
+              // den unteren 105 mm (Zahlteil-Zone bzw. Tabellenfuss). Die
+              // y-Achse zeigt im `pdf`-Paket nach OBEN (anders als in
+              // Flutter/Widgets); ein negativer Wert lag daher im UNTEREN
+              // Fünftel, direkt über dem QR-Code (Review 23.09.2026).
+              alignment: const pw.Alignment(0, 0.55),
               child: pw.Transform.rotate(
                 angle: -0.4,
                 child: pw.Opacity(

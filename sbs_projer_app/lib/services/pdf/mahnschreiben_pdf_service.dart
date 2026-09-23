@@ -116,10 +116,13 @@ class MahnschreibenPdfService {
               : 'die Beträge der folgenden Rechnungen';
           final istSind = anzahl == 1 ? 'ist' : 'sind';
           final ihnSie = anzahl == 1 ? 'ihn' : 'sie';
+          // Das Datum nur EINMAL nennen (Review 23.09.2026, Vorab-Punkt 3):
+          // Zahlungsfrist und Betreibungsandrohung beziehen sich auf denselben
+          // Termin, «bis dahin» verweist auf das oben genannte Datum zurück.
           return 'Trotz mehrfacher Erinnerung und Mahnung $istSind $betragWort '
               'bis heute nicht bei uns eingegangen. Wir fordern Sie hiermit '
               'letztmalig auf, $ihnSie bis spätestens $fristStr zu '
-              'begleichen. Wir leiten ohne Zahlungseingang bis $fristStr ohne '
+              'begleichen. Ohne Zahlungseingang bis dahin leiten wir ohne '
               'weitere Ankündigung die Betreibung ein; $zinsTeil.\n\n'
               '$zahlungsschwierigkeiten\n\n$gegenstandslos';
       }

@@ -108,6 +108,20 @@ void main() {
       expect(t, contains('Verzugszins von 5 % geltend gemacht'));
     });
 
+    test(
+      'Letzte Mahnung (Einzelrechnung): das Fristdatum steht nur EINMAL '
+      '(Vorab-Punkt 3, Review 23.09.2026 — vorher doppelt in Zahlungs- und '
+      'Betreibungssatz)',
+      () {
+        final t = MahnschreibenPdfService.mahnText(
+          [MahnStufe.letzte],
+          frist: frist,
+          ersteErinnerungLetzte: DateTime.utc(2026, 9, 1),
+        );
+        expect('03.10.2026'.allMatches(t).length, 1);
+      },
+    );
+
     test('jede Stufe mit Gegenstandslos-Satz', () {
       for (final s in MahnStufe.values) {
         expect(
@@ -242,6 +256,26 @@ void main() {
         kontoauszugRechnungen: [r],
       );
       expect(bytes.length, greaterThan(0));
+    });
+  });
+
+  group('Kontoauszug-Fusszeile ohne Zahlteil (Vorab-Punkt 2, Review 23.09.2026)', () {
+    test('mitZahlteil: false verweist auf die Einzahlungsscheine im Mahnschreiben', () {
+      final satz = KontoauszugPdfService.fusszeilenSatz(150, mitZahlteil: false);
+      expect(satz, contains('Einzahlungsscheine im Mahnschreiben'));
+      expect(satz, isNot(contains('untenstehende Konto')));
+    });
+
+    test('mitZahlteil-Default (true) nennt weiterhin das untenstehende Konto', () {
+      final satz = KontoauszugPdfService.fusszeilenSatz(150);
+      expect(satz, contains('untenstehende Konto'));
+    });
+
+    test('ausgeglichenes Konto bleibt unabhängig von mitZahlteil derselbe Satz', () {
+      expect(
+        KontoauszugPdfService.fusszeilenSatz(0, mitZahlteil: false),
+        KontoauszugPdfService.fusszeilenSatz(0),
+      );
     });
   });
 
