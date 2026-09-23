@@ -199,17 +199,24 @@ class RechnungRepository {
   /// Update nur, wenn `zahlungsstatus` noch [erwarteterStatus] ist
   /// (optimistisches Sperren für den Mahnlauf). `false` = keine Zeile
   /// getroffen, die Rechnung wurde inzwischen geändert.
+  ///
+  /// [nurOhneZahlung] (beim Hochstufen): zusätzlich nur, solange kein
+  /// Zahlungseingang vermerkt ist — ein Vermerk ohne nachgezogenen Status
+  /// darf nie in eine Mahnung laufen. Beim Zurücknehmen nicht: Dort setzt
+  /// das Update nur Mahnfelder zurück, der Zahlungsvermerk bleibt stehen.
   static Future<bool> updateWennStatus(
     String id,
     Map<String, dynamic> fields, {
     required String erwarteterStatus,
+    bool nurOhneZahlung = false,
   }) async {
-    final rows = await SupabaseService.client
+    var q = SupabaseService.client
         .from('rechnungen')
         .update(fields)
         .eq('id', id)
-        .eq('zahlungsstatus', erwarteterStatus)
-        .select('id');
+        .eq('zahlungsstatus', erwarteterStatus);
+    if (nurOhneZahlung) q = q.isFilter('zahlung_eingegangen_am', null);
+    final rows = await q.select('id');
     return rows.isNotEmpty;
   }
 

@@ -278,4 +278,43 @@ void main() {
       );
     });
   });
+
+  group('aufraeumPlan (Abbruch beim Setzen der Stufen, Review N-1)', () {
+    final updates = {
+      'r1': MahnlaufService.updateFuerStufe(MahnStufe.erinnerung, DateTime.utc(2026, 9, 23)),
+      'r2': MahnlaufService.updateFuerStufe(MahnStufe.mahnung1, DateTime.utc(2026, 9, 23)),
+      'r3': MahnlaufService.updateFuerStufe(MahnStufe.erinnerung, DateTime.utc(2026, 9, 23)),
+    };
+    final vorher = {
+      'r1': {'zahlungsstatus': 'offen', 'mahnung_stufe': 0},
+      'r2': {'zahlungsstatus': 'erinnert', 'mahnung_stufe': 0},
+      'r3': {'zahlungsstatus': 'gesendet', 'mahnung_stufe': 0},
+    };
+
+    test('nur die schon gesetzten (vor der gescheiterten) werden zurückgesetzt', () {
+      final plan = MahnlaufService.aufraeumPlan(
+        reihenfolge: const ['r1', 'r2', 'r3'],
+        gescheitert: 'r3',
+        updates: updates,
+        vorher: vorher,
+      );
+      expect(plan.map((s) => s.rechnungId), ['r1', 'r2']);
+      // Zurück auf den Vorher-Stand, aber nur, wenn noch der gesetzte Status gilt.
+      expect(plan.first.felder, vorher['r1']);
+      expect(plan.first.erwarteterStatus, 'erinnert');
+      expect(plan[1].erwarteterStatus, 'mahnung_1');
+    });
+
+    test('scheitert schon die erste: nichts zurückzusetzen', () {
+      expect(
+        MahnlaufService.aufraeumPlan(
+          reihenfolge: const ['r1', 'r2'],
+          gescheitert: 'r1',
+          updates: updates,
+          vorher: vorher,
+        ),
+        isEmpty,
+      );
+    });
+  });
 }

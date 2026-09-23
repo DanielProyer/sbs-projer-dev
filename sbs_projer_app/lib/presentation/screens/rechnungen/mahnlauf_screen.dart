@@ -54,6 +54,16 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
 
   bool get _einzel => widget.rechnungId != null;
 
+  @override
+  void initState() {
+    super.initState();
+    // Die Glocke hält den Mahnlauf am Leben (mahnlaufAufgabeProvider) —
+    // ohne Neuladen zeigte die Seite den Stand vom App-Start (Review N-2).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(mahnlaufProvider);
+    });
+  }
+
   Set<String> _gewaehlt(MahnBetrieb b) => _auswahl[b.betriebId] ??= _einzel
       ? {widget.rechnungId!}
       : b.faellig.map((p) => p.rechnung.id).toSet();
@@ -162,8 +172,9 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
 
   void _neuLaden() {
     // Der Mahnlauf lädt Prüfliste, Auszüge, Rechnungen und Zahlungen selbst
-    // aus der DB — ein Invalidate genügt und trifft nur ihn (nicht die
-    // übrigen Glocken-Detektoren).
+    // aus der DB — ein Invalidate genügt. Mit ihm rechnen nur die
+    // Mahnlauf-Aufgabe und das Zusammensetzen der Aufgabenliste neu; die
+    // übrigen Detektoren (aufgabenDetektorenProvider) bleiben unberührt.
     ref.invalidate(mahnlaufProvider);
   }
 

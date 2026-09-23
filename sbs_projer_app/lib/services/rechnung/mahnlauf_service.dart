@@ -34,6 +34,13 @@ class MahnlaufFehler implements Exception {
   String toString() => meldung;
 }
 
+/// Abbruch ohne Rückstand (nichts gesetzt oder sauber aufgeräumt) — wird in
+/// `erstellen` zu einem `MahnlaufFehler` OHNE Id.
+class _Aufgeraeumt implements Exception {
+  final String meldung;
+  _Aufgeraeumt(this.meldung);
+}
+
 /// Ergebnis eines Mahnlaufs (`MahnlaufService.erstellen`) — für den
 /// aufrufenden Screen: die Protokoll-Id (für ein sofortiges «zurücknehmen»),
 /// der tatsächliche Mail-Empfänger (im Testmodus Daniel statt des Kunden) und
@@ -248,6 +255,10 @@ class MahnlaufService {
         var subject = '${stufe.titel} — ${betrieb.name}';
         if (muster) subject = 'TEST an: $mailadresse — $subject';
 
+        // Letzter Abgleich direkt vor dem Protokoll (Review N-1): Das Fenster,
+        // in dem sich eine Rechnung noch ändern kann, bleibt so minimal.
+        await _statusAbgleich(postenKorrigiert, vorherMap);
+
         // Protokoll VOR dem Mailversand — siehe Klassenkommentar.
         await MahnschreibenRepository.insert({
           'id': mahnschreibenId,
@@ -265,7 +276,7 @@ class MahnlaufService {
         });
         protokolliert = true;
 
-        await _stufenSetzen(postenKorrigiert, updates, vorherMap);
+        await _stufenSetzen(postenKorrigiert, updates, vorherMap, mahnschreibenId);
 
         final zusatzPdfs = <Map<String, dynamic>>[
           {
@@ -318,6 +329,7 @@ class MahnlaufService {
         hauptdateiPfad =
             '${SupabaseService.dataUserId}/mahnungen/$mahnschreibenId/druck.pdf';
 
+        await _statusAbgleich(postenKorrigiert, vorherMap);
         await MahnschreibenRepository.insert({
           'id': mahnschreibenId,
           'user_id': SupabaseService.dataUserId,
@@ -334,7 +346,7 @@ class MahnlaufService {
         });
         protokolliert = true;
 
-        await _stufenSetzen(postenKorrigiert, updates, vorherMap);
+        await _stufenSetzen(postenKorrigiert, updates, vorherMap, mahnschreibenId);
       }
 
       return MahnlaufErgebnis(
@@ -343,6 +355,10 @@ class MahnlaufService {
         druckPdf: druckPdf,
         fehlendeAnhaenge: fehlendeAnhaenge,
       );
+    } on _Aufgeraeumt catch (a) {
+      // Abbruch beim Setzen der Stufen, aber sauber aufgeräumt: Es gibt
+      // nichts zurückzunehmen, also auch keine Id (Review N-1).
+      throw MahnlaufFehler(a.meldung);
     } catch (e) {
       // Kein roher Exception-Text auf der Oberfläche (Projektregel
       // `kurzeFehlermeldung`). Steht das Protokoll schon, bekommt der Fehler
@@ -365,21 +381,89 @@ class MahnlaufService {
   /// inzwischen jemand die Rechnung bezahlt gesetzt oder ein zweiter Lauf
   /// (anderes Gerät) gemahnt, trifft das Update keine Zeile: Abbruch, statt
   /// den neueren Stand zu überschreiben.
+  ///
+  /// Trifft ein Update keine Zeile, räumt der Lauf selbst auf (Review N-1):
+  /// die bereits gesetzten Rechnungen zurück (wieder optimistisch), das
+  /// Schreiben als zurückgenommen markieren, dann Abbruch OHNE Id — es gibt
+  /// nichts mehr zurückzunehmen. Scheitert das Aufräumen, fliegt der Fehler
+  /// normal weiter und bekommt die Id (Zurücknehmen von Hand).
   static Future<void> _stufenSetzen(
     List<MahnPosten> posten,
     Map<String, Map<String, dynamic>> updates,
     Map<String, Map<String, dynamic>> vorher,
+    String mahnschreibenId,
   ) async {
+    final reihenfolge = posten.map((p) => p.rechnung.id).toList();
     for (final p in posten) {
       final id = p.rechnung.id;
       final ok = await RechnungRepository.updateWennStatus(
         id,
         updates[id]!,
         erwarteterStatus: vorher[id]!['zahlungsstatus'] as String,
+        nurOhneZahlung: true,
       );
-      if (!ok) {
-        throw MahnlaufFehler(
-          'Rechnung ${p.rechnung.rechnungsnummer ?? id} wurde inzwischen geändert',
+      if (ok) continue;
+
+      final meldung = 'Rechnung ${p.rechnung.rechnungsnummer ?? id} wurde '
+          'inzwischen geändert';
+      var sauber = true;
+      for (final s in aufraeumPlan(
+        reihenfolge: reihenfolge,
+        gescheitert: id,
+        updates: updates,
+        vorher: vorher,
+      )) {
+        final zurueck = await RechnungRepository.updateWennStatus(
+          s.rechnungId,
+          s.felder,
+          erwarteterStatus: s.erwarteterStatus,
+        );
+        if (!zurueck) sauber = false;
+      }
+      if (!sauber) throw MahnlaufFehler(meldung);
+      await MahnschreibenRepository.markiereZurueckgenommen(mahnschreibenId);
+      throw _Aufgeraeumt('$meldung — nichts erstellt');
+    }
+  }
+
+  /// Welche Rechnungen muss der Abbruch zurücksetzen, und worauf? Die in
+  /// [reihenfolge] VOR der [gescheitert]en — nur sie wurden schon gesetzt.
+  /// Zurück auf [vorher], aber nur, wenn der Status noch der gesetzte
+  /// ([updates]) ist. Rein, getestet.
+  static List<({String rechnungId, Map<String, dynamic> felder, String erwarteterStatus})>
+      aufraeumPlan({
+    required List<String> reihenfolge,
+    required String gescheitert,
+    required Map<String, Map<String, dynamic>> updates,
+    required Map<String, Map<String, dynamic>> vorher,
+  }) {
+    final bis = reihenfolge.indexOf(gescheitert);
+    if (bis <= 0) return const [];
+    return [
+      for (final id in reihenfolge.take(bis))
+        (
+          rechnungId: id,
+          felder: vorher[id]!,
+          erwarteterStatus: updates[id]!['zahlungsstatus'] as String,
+        ),
+    ];
+  }
+
+  /// Direkt vor dem Protokoll: Jede Rechnung noch im Mahnbereich (keine
+  /// Zahlung vermerkt) und im gelesenen Status? Sonst Abbruch — noch ist
+  /// nichts geschrieben, also ohne Id.
+  static Future<void> _statusAbgleich(
+    List<MahnPosten> posten,
+    Map<String, Map<String, dynamic>> vorher,
+  ) async {
+    for (final p in posten) {
+      final db = await RechnungRepository.getById(p.rechnung.id);
+      if (db == null ||
+          !imMahnbereich(db) ||
+          db.zahlungsstatus != vorher[p.rechnung.id]!['zahlungsstatus']) {
+        throw _Aufgeraeumt(
+          'Rechnung ${p.rechnung.rechnungsnummer ?? p.rechnung.id} wurde '
+          'inzwischen geändert — nichts erstellt',
         );
       }
     }
