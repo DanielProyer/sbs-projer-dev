@@ -3,6 +3,12 @@
 // Deploy: supabase functions deploy send-rechnung-mail --no-verify-jwt
 // Secrets: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN
 
+import {
+  bereinigeDateiname,
+  kodierePfad,
+  zusatzPdfPfadErlaubt,
+} from "./pfad_pruefung.ts";
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -74,7 +80,7 @@ async function downloadFromStorage(bucket: string, path: string): Promise<Uint8A
     throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured");
   }
 
-  const url = `${supabaseUrl}/storage/v1/object/${bucket}/${path}`;
+  const url = `${supabaseUrl}/storage/v1/object/${bucket}/${kodierePfad(path)}`;
   const response = await fetch(url, {
     headers: {
       "apikey": serviceKey,
@@ -348,21 +354,50 @@ Deno.serve(async (req: Request) => {
     }
 
     // 3. Zusätzliche PDFs aus dem Bucket rechnung-pdfs (Mahnwesen, v0.134.0):
-    //    Mahnschreiben, Kontoauszug, Rechnungskopien. Nur Pfade des eigenen
-    //    Benutzers — sonst liesse sich jedes PDF im Bucket anhängen.
+    //    Mahnschreiben, Kontoauszug, Rechnungskopien. Jeder Pfad läuft streng
+    //    durch `zusatzPdfPfadErlaubt` (Review 23.09.2026, Punkt 7) — nur
+    //    Pfade, deren erstes Segment EXAKT dem eigenen `userId` entspricht
+    //    und die keine `..`/`%`/`\`/führenden-Slash-Tricks enthalten.
+    //
+    //    `pflicht: true` markiert einen Anhang, ohne den die Mail NICHT
+    //    rausgehen darf (Review 23.09.2026, Punkt 8) — z. B. das
+    //    Mahnschreiben selbst: eine Mahn-Mail ohne das Mahnschreiben wäre
+    //    eine leere Mail mit drohendem Betreff. Fehlt er, wird SOFORT
+    //    abgebrochen, bevor überhaupt eine Mail gebaut wird. Ein fehlender
+    //    NICHT-Pflicht-Anhang (z. B. der Kontoauszug) wird nur vermerkt.
+    const fehlendeAnhaenge: string[] = [];
     if (Array.isArray(zusatzPdfs)) {
       for (const z of zusatzPdfs) {
-        const pfad = typeof z?.pfad === "string" ? z.pfad : "";
-        const name = typeof z?.dateiname === "string" && z.dateiname ? z.dateiname : "Dokument.pdf";
-        if (!pfad.startsWith(`${userId}/`) || pfad.includes("..")) {
-          console.warn(`Zusatz-PDF abgelehnt (fremder Pfad): ${pfad}`);
+        const pfad = z?.pfad;
+        const name = bereinigeDateiname(
+          typeof z?.dateiname === "string" ? z.dateiname : "Dokument.pdf",
+        );
+        const pflicht = z?.pflicht === true;
+
+        if (!zusatzPdfPfadErlaubt(pfad, userId)) {
+          console.warn(`Zusatz-PDF abgelehnt (Pfad ungültig): ${JSON.stringify(pfad)}`);
+          if (pflicht) {
+            return new Response(
+              JSON.stringify({ error: "Pflicht-Anhang fehlt", pfad }),
+              { status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+            );
+          }
+          fehlendeAnhaenge.push(typeof pfad === "string" ? pfad : String(pfad));
           continue;
         }
+
         const daten = await downloadFromStorage("rechnung-pdfs", pfad);
         if (daten) {
           attachments.push({ filename: name, contentType: "application/pdf", data: daten });
         } else {
           console.warn(`Zusatz-PDF nicht gefunden: ${pfad}`);
+          if (pflicht) {
+            return new Response(
+              JSON.stringify({ error: "Pflicht-Anhang fehlt", pfad }),
+              { status: 404, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+            );
+          }
+          fehlendeAnhaenge.push(pfad);
         }
       }
     }
@@ -430,7 +465,12 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, messageId: result.id, versandVermerkt }),
+      JSON.stringify({
+        success: true,
+        messageId: result.id,
+        versandVermerkt,
+        ...(fehlendeAnhaenge.length > 0 ? { fehlendeAnhaenge } : {}),
+      }),
       { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   } catch (error) {
