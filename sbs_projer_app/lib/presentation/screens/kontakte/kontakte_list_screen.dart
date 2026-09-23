@@ -219,7 +219,8 @@ class _KontakteListScreenState extends ConsumerState<KontakteListScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Fehler: $e')),
         data: (alleKontakte) {
-          final betriebNamen = ref.watch(betriebNameMapProvider);
+          // Mit Ort: gleichnamige Betriebe sonst nicht unterscheidbar.
+          final betriebNamen = ref.watch(betriebAnzeigeMapProvider);
 
           final kontakte = _filterAndSearch(alleKontakte, betriebNamen);
 

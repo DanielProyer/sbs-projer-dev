@@ -23,6 +23,7 @@ import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
 import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_entwurf_speicher.dart';
 import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/telefon.dart';
 
 /// Zeigt das Diktier-Sheet: freier Text (übers Mikrofon der Tastatur
 /// eingesprochen) -> KI-Auswertung (`parse-einsatz`) -> Bestätigung. Nichts
@@ -507,7 +508,7 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
         if (g.nr != null) b.nr = g.nr;
         if (g.plz != null) b.plz = g.plz;
         if (g.ort != null) b.ort = g.ort;
-        if (g.telefon != null) b.telefon = g.telefon;
+        if (g.telefon != null) b.telefon = formatiereTelefon(g.telefon);
         if (g.website != null) b.website = g.website;
         if (g.latitude != null) b.latitude = g.latitude;
         if (g.longitude != null) b.longitude = g.longitude;

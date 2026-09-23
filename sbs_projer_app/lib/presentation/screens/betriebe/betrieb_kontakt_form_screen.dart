@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/util/google_kontakte.dart';
@@ -10,6 +9,7 @@ import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/telefon.dart';
 
 class BetriebKontaktFormScreen extends ConsumerStatefulWidget {
   final String betriebId;
@@ -79,7 +79,9 @@ class _BetriebKontaktFormScreenState
       kontakt.vorname = _vornameController.text.trim();
       kontakt.nachname = _emptyToNull(_nachnameController.text);
       kontakt.funktion = _selectedFunktion;
-      kontakt.telefon = _emptyToNull(_telefonController.text);
+      // Beim Speichern in die kanonische Form (+41 79 123 45 67), auch
+      // wenn als 079… eingetippt — so steht jede Nummer gleich in der DB.
+      kontakt.telefon = formatiereTelefon(_telefonController.text);
       kontakt.notizen = _emptyToNull(_notizenController.text);
       kontakt.istHauptkontakt = _istHauptkontakt;
       kontakt.istDuAnrede = _istDuAnrede;
@@ -239,7 +241,7 @@ class _BetriebKontaktFormScreenState
                 ),
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                inputFormatters: [_PhoneFormatter()],
+                inputFormatters: [TelefonEingabeFormatter()],
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return null;
                   final digits = v.replaceAll(RegExp(r'[^\d]'), '');
@@ -305,36 +307,6 @@ class _BetriebKontaktFormScreenState
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PhoneFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    var digits = newValue.text.replaceAll(RegExp(r'[^\d+]'), '');
-    if (digits.isEmpty) return const TextEditingValue();
-
-    final buffer = StringBuffer();
-    if (digits.startsWith('+')) {
-      buffer.write('+');
-      digits = digits.substring(1);
-    }
-
-    // Format: XX XX XXX XX XX (Leerzeichen nach Position 2, 4, 7, 9)
-    const gaps = {2, 4, 7, 9};
-    for (var i = 0; i < digits.length && i < 11; i++) {
-      if (gaps.contains(i)) buffer.write(' ');
-      buffer.write(digits[i]);
-    }
-
-    final text = buffer.toString();
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

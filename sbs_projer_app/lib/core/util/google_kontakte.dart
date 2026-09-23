@@ -1,6 +1,8 @@
 /// Reine Helfer für den Google-Kontakte-Sync (testbar, kein I/O).
 library;
 
+import 'package:sbs_projer_app/core/util/telefon.dart';
+
 /// Hat der gespeicherte OAuth-Scope den SCHREIB-Zugriff auf Kontakte?
 /// `contacts.readonly` genügt nicht.
 bool hatKontakteScope(String? scope) {
@@ -22,31 +24,7 @@ class PickerKontakt {
 /// Schweizer Nummern (+41, 11 Ziffern) werden im App-Raster formatiert,
 /// ausländische bleiben vollständig als «+…» ohne Raster, unbekannte
 /// Formate unverändert.
-String? telefonAusPicker(String? roh) {
-  final t = (roh ?? '').trim();
-  if (t.isEmpty) return null;
-  var nummer = t.replaceAll(RegExp(r'[^\d+]'), '');
-  if (nummer.startsWith('00')) nummer = '+${nummer.substring(2)}';
-  if (!nummer.startsWith('+')) {
-    if (nummer.startsWith('0') && nummer.length > 1) {
-      nummer = '+41${nummer.substring(1)}';
-    } else if (nummer.startsWith('41') && nummer.length >= 11) {
-      nummer = '+$nummer';
-    } else {
-      return t; // unbekanntes Format nicht verschlimmbessern
-    }
-  }
-  final ziffern = nummer.substring(1).replaceAll('+', '');
-  if (!ziffern.startsWith('41') || ziffern.length != 11) return '+$ziffern';
-  // CH-Raster wie der _PhoneFormatter der App: +41 79 123 45 67
-  final b = StringBuffer('+');
-  const gaps = {2, 4, 7, 9};
-  for (var i = 0; i < ziffern.length; i++) {
-    if (gaps.contains(i)) b.write(' ');
-    b.write(ziffern[i]);
-  }
-  return b.toString();
-}
+String? telefonAusPicker(String? roh) => formatiereTelefon(roh);
 
 /// Name-Split: letztes Wort = Nachname, Rest = Vorname; ein Wort = Nachname.
 PickerKontakt kontaktAusPicker(String? name, String? telefon, String? email) {

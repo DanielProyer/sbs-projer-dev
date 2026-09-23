@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_ferien_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 
 final betriebeStreamProvider = StreamProvider<List<BetriebLocal>>((ref) {
   return BetriebRepository.watchAll();
@@ -53,6 +54,16 @@ final betriebNameMapProvider = Provider<Map<String, String>>((ref) {
   return {
     for (final b in list)
       if (b.serverId != null) b.serverId!: b.name,
+  };
+});
+
+/// «Name, Ort» je Betrieb — für Stellen, an denen ein Betrieb neben einer
+/// Person oder Rechnung steht (gleichnamige Betriebe, Daniel 23.09.2026).
+final betriebAnzeigeMapProvider = Provider<Map<String, String>>((ref) {
+  final list = ref.watch(betriebeProvider);
+  return {
+    for (final b in list)
+      if (b.serverId != null) b.serverId!: betriebMitOrt(b.name, b.ort),
   };
 });
 

@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.133.2 live** (Navigation «Mehr», Rechnungs-Bereich, Suche) · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1910 Tests grün**.
+**Stand:** **v0.133.3 live** (Navigation «Mehr», Rechnungs-Bereich, Suche) · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1918 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -162,6 +162,12 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.133.3** — **nicht im Browser geprüft, zuerst am Handy:** Person
+  bearbeiten → Telefon «0791234567» tippen (erscheint «079 123 45 67»), eine
+  Ziffer in der Mitte ändern (Cursor bleibt dort), speichern und wieder
+  öffnen (steht «+41 79 123 45 67»); eine Nummer einfügen (sofort «+41 …»).
+  Personen-Liste und Betriebsfeld zeigen «Betrieb, Ort».
 
 - **v0.133.0** — Suche: Heute → Lupe (Tastatur geht auf); einen Betrieb,
   einen Wirt per Telefonnummer, eine Rechnungsnummer (Teil genügt) und

@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/util/suche.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 
 /// Die Listen, in denen gesucht wird — alle ohnehin app-weit geladen.
 ///
@@ -15,9 +16,10 @@ final suchEingabeProvider = Provider<SuchEingabe>((ref) {
   final kontakte = ref.watch(kontakteProvider).valueOrNull ?? const [];
   final rechnungen = ref.watch(rechnungenProvider);
 
+  // «Name, Ort» neben Personen und Rechnungen — gleichnamige Betriebe.
   final namen = <String, String>{
     for (final b in betriebe)
-      if (b.serverId != null) b.serverId!: b.name,
+      if (b.serverId != null) b.serverId!: betriebMitOrt(b.name, b.ort),
   };
 
   final bereiche = <SuchBereich>[];

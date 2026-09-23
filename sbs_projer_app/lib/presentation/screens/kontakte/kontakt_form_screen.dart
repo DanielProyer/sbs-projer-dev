@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
@@ -15,6 +14,8 @@ import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/telefon.dart';
+import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 
 class KontaktFormScreen extends ConsumerStatefulWidget {
   final String? kontaktId;
@@ -93,7 +94,9 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
       final kontakt = _existing ?? KontaktLocal();
       kontakt.vorname = _vornameCtrl.text.trim();
       kontakt.nachname = _emptyToNull(_nachnameCtrl.text);
-      kontakt.telefon = _emptyToNull(_telefonCtrl.text);
+      // Beim Speichern in die kanonische Form (+41 79 123 45 67), auch
+      // wenn als 079… eingetippt — so steht jede Nummer gleich in der DB.
+      kontakt.telefon = formatiereTelefon(_telefonCtrl.text);
       kontakt.email = _emptyToNull(_emailCtrl.text);
       kontakt.notizen = _emptyToNull(_notizenCtrl.text);
       kontakt.kategorie = _kategorie;
@@ -177,7 +180,7 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
     final currentName = _betriebId != null
         ? filtered
               .where((b) => b.serverId == _betriebId)
-              .map((b) => b.name)
+              .map((b) => betriebMitOrt(b.name, b.ort))
               .firstOrNull
         : null;
 
@@ -185,7 +188,8 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
       initialValue: currentName != null
           ? TextEditingValue(text: currentName)
           : TextEditingValue.empty,
-      displayStringForOption: (b) => b.name,
+      // Mit Ort: mehrere Betriebe heissen gleich (Daniel 23.09.2026).
+      displayStringForOption: (b) => betriebMitOrt(b.name, b.ort),
       optionsBuilder: (textEditingValue) {
         if (textEditingValue.text.isEmpty) return filtered.take(20);
         final query = textEditingValue.text.toLowerCase();
@@ -375,7 +379,7 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
                 ),
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                inputFormatters: [_PhoneFormatter()],
+                inputFormatters: [TelefonEingabeFormatter()],
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return null;
                   final digits = v.replaceAll(RegExp(r'[^\d]'), '');
@@ -492,35 +496,6 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PhoneFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    var digits = newValue.text.replaceAll(RegExp(r'[^\d+]'), '');
-    if (digits.isEmpty) return const TextEditingValue();
-
-    final buffer = StringBuffer();
-    if (digits.startsWith('+')) {
-      buffer.write('+');
-      digits = digits.substring(1);
-    }
-
-    const gaps = {2, 4, 7, 9};
-    for (var i = 0; i < digits.length && i < 11; i++) {
-      if (gaps.contains(i)) buffer.write(' ');
-      buffer.write(digits[i]);
-    }
-
-    final text = buffer.toString();
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

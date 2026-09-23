@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 23.09.2026 — v0.133.3 Telefon-Eingabe, Betrieb mit Ort
 - 23.09.2026 — v0.133.2 Zeitauswahl überall 24 h
 - 23.09.2026 — v0.133.1 Pikett mit KW
 - 22.09.2026 — v0.133.0 Suche
@@ -15,6 +16,23 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 23.09.2026 — v0.133.3 Telefon-Eingabe, Betrieb mit Ort
+
+- **Telefonfeld:** Der Cursor sprang nach jeder Taste ans Ende, und «079…»
+  wurde als «07 91 …» gruppiert. Neuer `TelefonEingabeFormatter`
+  (`lib/core/util/telefon.dart`) hält den Cursor hinter derselben Ziffer,
+  gruppiert «079 123 45 67» und «+41 79 123 45 67» richtig, und eine
+  eingefügte/übernommene Nummer steht sofort als «+41 79 123 45 67» da.
+  Beim Speichern immer kanonisch (`formatiereTelefon`). Ersetzt drei Kopien
+  des alten Formatierers (Personen, Betrieb, Betriebskontakt); Handy-Import
+  und Diktat nutzen dieselbe Funktion.
+- **Betrieb mit Ort** («Rössli, Cham») bei Personen: Liste, Betriebsfeld im
+  Formular, Suche (Personen und Rechnungen) — gleichnamige Betriebe
+  (`betriebMitOrt`, `betriebAnzeigeMapProvider`). 1918 Tests grün.
+- Browser-Sichtprüfung entfiel (nicht angemeldet); Klicktest am Handy.
 
 ---
 
