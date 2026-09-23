@@ -22,6 +22,10 @@ class Rechnung {
   final DateTime? erinnerungAm;
   final DateTime? mahnung1Am;
   final DateTime? mahnung2Am;
+
+  /// Im letzten Mahnschreiben gesetzte Zahlungsfrist (Versand + 10 Tage).
+  /// Grundlage für die Fälligkeit der nächsten Stufe (siehe `mahnregeln.dart`).
+  final DateTime? mahnFristBis;
   final String? pdfUrl;
   final String? qrReferenz;
 
@@ -57,6 +61,7 @@ class Rechnung {
     this.erinnerungAm,
     this.mahnung1Am,
     this.mahnung2Am,
+    this.mahnFristBis,
     this.pdfUrl,
     this.qrReferenz,
     this.rechnungsadresse,
@@ -106,6 +111,9 @@ class Rechnung {
       mahnung2Am: json['mahnung_2_am'] != null
           ? DateTime.parse(json['mahnung_2_am'])
           : null,
+      mahnFristBis: json['mahn_frist_bis'] != null
+          ? DateTime.parse(json['mahn_frist_bis'])
+          : null,
       pdfUrl: json['pdf_url'],
       qrReferenz: json['qr_referenz'],
       rechnungsadresse: json['rechnungsadresse'] is Map
@@ -149,6 +157,7 @@ class Rechnung {
       'erinnerung_am': erinnerungAm?.toIso8601String().split('T').first,
       'mahnung_1_am': mahnung1Am?.toIso8601String().split('T').first,
       'mahnung_2_am': mahnung2Am?.toIso8601String().split('T').first,
+      'mahn_frist_bis': mahnFristBis?.toIso8601String().split('T').first,
       'pdf_url': pdfUrl,
       'qr_referenz': qrReferenz,
       'rechnungsadresse': rechnungsadresse,
@@ -184,6 +193,7 @@ class Rechnung {
       erinnerungAm: erinnerungAm,
       mahnung1Am: mahnung1Am,
       mahnung2Am: mahnung2Am,
+      mahnFristBis: mahnFristBis,
       pdfUrl: pdfUrl,
       qrReferenz: qrReferenz,
       rechnungsadresse: rechnungsadresse,
