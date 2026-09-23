@@ -113,13 +113,20 @@ List<Aufgabe> mwstAufgaben({
   return ergebnis;
 }
 
-Aufgabe? mahnlaufAufgabe(int anzahl) => anzahl <= 0
-    ? null
-    : Aufgabe(
-        key: 'mahnlauf',
-        titel: 'Mahnlauf: $anzahl Rechnungen fällig',
-        route: '/buchhaltung/mahnwesen',
-      );
+/// Mahnlauf-Aufgabe (v0.134.0): gezählt werden BETRIEBE mit Fälligem — ein
+/// Mahnschreiben geht je Betrieb, nicht je Rechnung. [bankGesperrt]: Es gäbe
+/// Fälliges, aber der Bankauszug ist zu alt oder lückenhaft — dann zuerst
+/// einlesen, sonst droht eine Mahnung für Bezahltes.
+Aufgabe? mahnlaufAufgabe(int betriebe, {bool bankGesperrt = false}) =>
+    betriebe <= 0
+        ? null
+        : Aufgabe(
+            key: 'mahnlauf',
+            titel: bankGesperrt
+                ? 'Mahnlauf: zuerst Bankauszug einlesen'
+                : 'Mahnlauf: $betriebe ${betriebe == 1 ? 'Betrieb' : 'Betriebe'} fällig',
+            route: '/rechnungen/mahnlauf',
+          );
 
 Aufgabe? saisondatenAufgabe(int anzahl) => anzahl <= 0
     ? null

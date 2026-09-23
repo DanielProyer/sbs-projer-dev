@@ -25,6 +25,14 @@ class MahnschreibenRepository {
     return rows.map((r) => Mahnschreiben.fromJson(r)).toList();
   }
 
+  /// Ein Schreiben per Id — für «Zurücknehmen» direkt nach einem
+  /// abgebrochenen Mahnlauf (`MahnlaufFehler.mahnschreibenId`).
+  static Future<Mahnschreiben?> getById(String id) async {
+    final row =
+        await SupabaseService.client.from(_tabelle).select().eq('id', id).maybeSingle();
+    return row == null ? null : Mahnschreiben.fromJson(row);
+  }
+
   /// Alle Mahnschreiben, die [rechnungId] enthalten (`rechnung_ids @> {id}`).
   static Future<List<Mahnschreiben>> getByRechnung(String rechnungId) async {
     final rows = await SupabaseService.client

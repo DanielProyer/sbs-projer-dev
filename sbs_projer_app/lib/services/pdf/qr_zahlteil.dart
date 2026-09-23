@@ -9,9 +9,9 @@ import 'package:sbs_projer_app/core/util/swiss_qr_bill.dart';
 /// WARUM diese Datei existiert (21.09.2026): Der Block lag wortgleich in
 /// `rechnung_pdf_service.dart` und `mahnung_pdf_service.dart`. Mit dem
 /// Kontoauszug kam ein dritter Bedarf dazu — statt ein drittes Mal zu kopieren,
-/// steht er jetzt einmal hier. Die Rechnung nutzt ihn bereits; die Mahnung
-/// führt ihre eigene Kopie weiter (siehe ToDo), weil ein Umbau dort über den
-/// Auftrag hinausginge.
+/// steht er jetzt einmal hier. Die alte Kopie in `mahnung_pdf_service.dart`
+/// ist mit dieser Datei entfallen (v0.134.0); das Mahnschreiben nutzt diesen
+/// Zahlteil.
 ///
 /// Die Firmendaten sind bewusst Konstanten und kommen NICHT aus
 /// `geschaeft_einstellungen`: Ein Zahlteil mit einer versehentlich leeren oder

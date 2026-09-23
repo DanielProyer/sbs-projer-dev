@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
-import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers.dart';
@@ -10,7 +9,7 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/monats_pruef_service.dart';
-import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
+import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Ist ein Nutzer angemeldet? Im VM-Test ohne `Supabase.initialize()` wirft
@@ -83,25 +82,15 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     debugPrint('[Aufgaben] MWST-Detektor: $e');
   }
 
-  // c) Mahnlauf — offene Kundenrechnungen über den bestehenden Schwellen.
+  // c) Mahnlauf — dieselbe Aufbereitung wie die Mahnlauf-Seite (Stichtag =
+  //    Bankauszug, Sperren), gezählt je Betrieb. Eine eigene Regel hier
+  //    liefe früher oder später auseinander (bis v0.133: 5/25/30 Tage ab
+  //    heute, ohne Blick auf den Bankauszug).
   try {
-    final rows = await client
-        .from('rechnungen')
-        .select()
-        .inFilter('zahlungsstatus', [
-          'offen',
-          'erinnert',
-          'mahnung_1',
-          'mahnung_2',
-        ])
-        .neq('rechnungstyp', 'heineken_monat')
-        .limit(2000);
-    if (rows.length >= 2000) debugPrint('[Aufgaben] Mahnlauf-Query am Limit');
-    final anzahl = rows
-        .map((r) => Rechnung.fromJson(r))
-        .where((r) => ForderungService.istMahnfaellig(r, heute: heute))
-        .length;
-    final a = mahnlaufAufgabe(anzahl);
+    final m = await ref.watch(mahnlaufProvider.future);
+    final a = m.bankGesperrt
+        ? mahnlaufAufgabe(m.betriebeHinterBanksperre, bankGesperrt: true)
+        : mahnlaufAufgabe(m.betriebe.length);
     if (a != null) detektoren.add(a);
   } catch (e) {
     debugPrint('[Aufgaben] Mahnlauf-Detektor: $e');

@@ -6,6 +6,7 @@
 /// Spec: docs/superpowers/specs/2026-09-23-mahnwesen-design.md
 library;
 
+import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
 
@@ -181,6 +182,44 @@ bool _teilsummeTrifft(List<double> betraege, double ziel) {
   return false;
 }
 
+/// Welche offene Gutschrift sperrt den Betrieb — und warum?
+///
+/// [index] zeigt in [gutschriften] (der Aufrufer kennt dazu Datum und
+/// Zahler). [rueckfall] = true heisst: Gesperrt wurde nicht wegen eines
+/// echten Treffers, sondern weil der Betrieb mehr als
+/// [kMaxBetraegeFuerTeilsumme] offene Beträge hat und die Teilsummen nicht
+/// mehr vollständig geprüft werden (sicherer Rückfall). Die Oberfläche
+/// braucht das, um Daniel den richtigen Grund zu zeigen.
+typedef GutschriftTreffer = ({int index, bool rueckfall});
+
+/// Wie [gutschriftSperre], liefert aber die ERSTE treffende Gutschrift —
+/// damit die Mahnlauf-Seite sagen kann, welche Zahlung ungeklärt ist
+/// (Review 23.09.2026). Die Regel ist dieselbe: [gutschriftSperre] ruft
+/// genau diese Funktion.
+GutschriftTreffer? passendeGutschrift({
+  required String betriebName,
+  required List<String> aliase,
+  required List<double> offeneBetraege,
+  required List<OffeneGutschrift> gutschriften,
+}) {
+  final namen = {
+    zahlernameNorm(betriebName),
+    for (final a in aliase) zahlernameNorm(a),
+  }..remove('');
+  for (var i = 0; i < gutschriften.length; i++) {
+    final g = gutschriften[i];
+    final p = zahlernameNorm(g.partei ?? '');
+    if (_nameTrifft(namen, p)) return (index: i, rueckfall: false);
+    if (_teilsummeTrifft(offeneBetraege, g.betrag)) {
+      return (
+        index: i,
+        rueckfall: offeneBetraege.length > kMaxBetraegeFuerTeilsumme,
+      );
+    }
+  }
+  return null;
+}
+
 /// Gibt es eine noch nicht zugeordnete Bankgutschrift, die zu diesem
 /// Betrieb gehören könnte? Dann wird er nicht gemahnt.
 ///
@@ -192,17 +231,58 @@ bool gutschriftSperre({
   required List<String> aliase,
   required List<double> offeneBetraege,
   required List<OffeneGutschrift> gutschriften,
-}) {
-  final namen = {
-    zahlernameNorm(betriebName),
-    for (final a in aliase) zahlernameNorm(a),
-  }..remove('');
-  for (final g in gutschriften) {
-    final p = zahlernameNorm(g.partei ?? '');
-    if (_nameTrifft(namen, p)) return true;
-    if (_teilsummeTrifft(offeneBetraege, g.betrag)) return true;
+}) =>
+    passendeGutschrift(
+      betriebName: betriebName,
+      aliase: aliase,
+      offeneBetraege: offeneBetraege,
+      gutschriften: gutschriften,
+    ) !=
+    null;
+
+/// Zeitraum und Saldi eines eingelesenen Bankauszugs (camt_dateien).
+typedef AuszugInfo = ({
+  DateTime von,
+  DateTime bis,
+  double? anfangssaldo,
+  double? schlusssaldo,
+});
+
+/// Lücke in der Kette der Bankauszüge seit dem Mahnstart — oder null.
+///
+/// WARUM: Fehlt ein Stück Kontoauszug, fehlen womöglich genau die Zahlungen,
+/// die eine Mahnung verhindern würden — auch wenn der letzte Auszug aktuell
+/// ist (Review 23.09.2026, M-4). Dieselbe Prüfung wie der Bank-Wächter in
+/// der Abschlussprüfung (`CamtKetteRegel`): fehlende Tage zwischen dem
+/// bisher abgedeckten Zeitraum und dem nächsten Auszug, und bei nahtlosem
+/// Anschluss OPBD ≠ CLBD (Saldosprung). Überlappungen sind harmlos. Nur
+/// Auszüge, die in den Mahnbereich reichen, zählen — eine alte Lücke von
+/// 2025 darf den Mahnlauf nicht dauerhaft sperren.
+String? auszugKettenLuecke(List<AuszugInfo> auszuege) {
+  final l = auszuege.where((a) => !_tag(a.bis).isBefore(kMahnStart)).toList()
+    ..sort((a, b) => a.von.compareTo(b.von));
+  if (l.length < 2) return null;
+  var abgedecktBis = l.first.bis;
+  var abgedecktSaldo = l.first.schlusssaldo;
+  for (var i = 1; i < l.length; i++) {
+    final c = l[i];
+    final luecke = BankWaechter.luecke(letztesBis: abgedecktBis, neuesVon: c.von);
+    if (luecke != null) return luecke;
+    final nahtlos = _tag(c.von).difference(_tag(abgedecktBis)).inDays == 1;
+    final opbd = c.anfangssaldo;
+    if (nahtlos &&
+        opbd != null &&
+        abgedecktSaldo != null &&
+        (opbd - abgedecktSaldo).abs() > 0.005) {
+      return 'Saldosprung zwischen zwei Auszügen '
+          '(${abgedecktSaldo.toStringAsFixed(2)} → ${opbd.toStringAsFixed(2)})';
+    }
+    if (c.bis.isAfter(abgedecktBis)) {
+      abgedecktBis = c.bis;
+      abgedecktSaldo = c.schlusssaldo;
+    }
   }
-  return false;
+  return null;
 }
 
 MahnStufe hoechsteStufe(Iterable<MahnStufe> stufen) {

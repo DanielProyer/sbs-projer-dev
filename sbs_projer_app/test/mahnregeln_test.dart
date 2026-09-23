@@ -262,6 +262,111 @@ void main() {
     });
   });
 
+  group('passendeGutschrift (Sperrgrund sichtbar)', () {
+    test('liefert die treffende Gutschrift (Index), Namens-Treffer ohne Rückfall', () {
+      const fremd = (partei: 'Fremd AG', betrag: 12.00);
+      const passt = (partei: 'Rössli Chur GmbH', betrag: 500.00);
+      final t = passendeGutschrift(
+        betriebName: 'Rössli Chur',
+        aliase: const [],
+        offeneBetraege: const [94.05],
+        gutschriften: const [fremd, passt],
+      );
+      expect(t, isNotNull);
+      expect(t!.index, 1);
+      expect(t.rueckfall, isFalse);
+    });
+    test('Betrags-Treffer (Teilsumme) liefert den Index', () {
+      const g = (partei: 'Unbekannt', betrag: 188.10);
+      final t = passendeGutschrift(
+        betriebName: 'X',
+        aliase: const [],
+        offeneBetraege: const [94.05, 94.05, 50.00],
+        gutschriften: const [g],
+      );
+      expect(t?.index, 0);
+      expect(t?.rueckfall, isFalse);
+    });
+    test('mehr als 12 offene Beträge: Rückfall-Sperre wird als solche gemeldet', () {
+      const g = (partei: 'Unbekannt', betrag: 1.23);
+      final t = passendeGutschrift(
+        betriebName: 'X',
+        aliase: const [],
+        offeneBetraege: List.filled(13, 94.05),
+        gutschriften: const [g],
+      );
+      expect(t?.index, 0);
+      expect(t?.rueckfall, isTrue);
+    });
+    test('nichts passt: null — und gutschriftSperre bleibt gleich', () {
+      const g = (partei: 'Fremd AG', betrag: 12.00);
+      expect(
+        passendeGutschrift(betriebName: 'X', aliase: const [], offeneBetraege: const [94.05], gutschriften: const [g]),
+        isNull,
+      );
+      expect(
+        gutschriftSperre(betriebName: 'X', aliase: const [], offeneBetraege: const [94.05], gutschriften: const [g]),
+        isFalse,
+      );
+    });
+  });
+
+  group('auszugKettenLuecke', () {
+    ({DateTime von, DateTime bis, double? anfangssaldo, double? schlusssaldo}) a(
+      DateTime von,
+      DateTime bis, {
+      double? opbd,
+      double? clbd,
+    }) =>
+        (von: von, bis: bis, anfangssaldo: opbd, schlusssaldo: clbd);
+
+    test('lückenlose Kette mit passenden Saldi: keine Lücke', () {
+      expect(
+        auszugKettenLuecke([
+          a(d(2026, 8, 1), d(2026, 8, 31), opbd: 100, clbd: 200),
+          a(d(2026, 9, 1), d(2026, 9, 20), opbd: 200, clbd: 250),
+        ]),
+        isNull,
+      );
+    });
+    test('fehlende Tage zwischen zwei Auszügen: Lücke', () {
+      expect(
+        auszugKettenLuecke([
+          a(d(2026, 8, 1), d(2026, 8, 20)),
+          a(d(2026, 9, 1), d(2026, 9, 20)),
+        ]),
+        isNotNull,
+      );
+    });
+    test('nahtlos, aber Saldosprung (OPBD ≠ CLBD): Lücke', () {
+      expect(
+        auszugKettenLuecke([
+          a(d(2026, 8, 1), d(2026, 8, 31), opbd: 100, clbd: 200),
+          a(d(2026, 9, 1), d(2026, 9, 20), opbd: 150, clbd: 250),
+        ]),
+        isNotNull,
+      );
+    });
+    test('Überlappung ist harmlos; Reihenfolge der Eingabe egal', () {
+      expect(
+        auszugKettenLuecke([
+          a(d(2026, 9, 10), d(2026, 9, 22)),
+          a(d(2026, 8, 1), d(2026, 9, 15)),
+        ]),
+        isNull,
+      );
+    });
+    test('Auszüge vor dem Mahnstart zählen nicht (alte Lücken sperren nie)', () {
+      expect(
+        auszugKettenLuecke([
+          a(d(2025, 1, 1), d(2025, 3, 31)),
+          a(d(2026, 3, 11), d(2026, 9, 22)),
+        ]),
+        isNull,
+      );
+    });
+  });
+
   group('Schreiben', () {
     test('Titel = hoechste Stufe', () {
       expect(hoechsteStufe([MahnStufe.erinnerung, MahnStufe.letzte, MahnStufe.mahnung1]), MahnStufe.letzte);

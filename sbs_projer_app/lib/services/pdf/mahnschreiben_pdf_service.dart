@@ -19,7 +19,7 @@ typedef MahnPosten = ({Rechnung rechnung, MahnStufe stufe});
 
 /// Sammel-Mahnschreiben (v0.134.0): ein Brief für alle offenen Rechnungen
 /// eines Betriebs, mit einem eigenen QR-Zahlteil je Rechnung und optional dem
-/// Kontoauszug als Beilage. Ersetzt `MahnungPdfService` (Task 6), das je
+/// Kontoauszug als Beilage. Ersetzt das frühere `MahnungPdfService` (entfernt v0.134.0), das je
 /// Rechnung ein eigenes Schreiben erzeugte — Daniel wollte EIN Papier pro
 /// Kunde, nicht eines pro offener Rechnung (Spec Abschnitt 4).
 class MahnschreibenPdfService {

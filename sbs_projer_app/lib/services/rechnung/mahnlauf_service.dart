@@ -144,7 +144,7 @@ class MahnlaufService {
           .toList();
 
       // Rechnungsadresse des Betriebs — dieselbe Quelle wie beim bisherigen
-      // `MahnwesenService.eskalieren`. Ein Override pro Rechnung
+      // `MahnwesenService.eskalieren` (bis v0.133). Ein Override pro Rechnung
       // (`Rechnung.rechnungsadresse`) gibt es beim Sammelschreiben bewusst
       // nicht: Ein Brief geht an EINE Adresse für den ganzen Betrieb.
       BetriebRechnungsadresse? ra;

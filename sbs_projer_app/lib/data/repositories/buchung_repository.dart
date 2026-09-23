@@ -30,6 +30,32 @@ class BuchungRepository {
     return all.map((r) => Buchung.fromJson(r)).toList();
   }
 
+  /// Zahlungseingänge auf Debitoren (Haben 1100) mit Beleg ab [ab] — für den
+  /// Mahnlauf («Zahlung gebucht, Status hinkt nach»). Bewusst gezielt statt
+  /// [getAll]: Die Glocke rechnet den Mahnlauf bei jedem Start, und das ganze
+  /// Journal wären zehntausende Zeilen.
+  static Future<List<Buchung>> getZahlungseingaengeAb(DateTime ab) async {
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    var from = 0;
+    final abStr = ab.toIso8601String().split('T').first;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('buchungen')
+          .select()
+          .eq('user_id', _userId)
+          .eq('haben_konto', 1100)
+          .gte('datum', abStr)
+          .not('beleg_id', 'is', null)
+          .order('id') // stabile Pagination
+          .range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all.map((r) => Buchung.fromJson(r)).toList();
+  }
+
   static Stream<List<Buchung>> watchAll() {
     return Stream.fromFuture(getAll());
   }

@@ -179,6 +179,16 @@ void main() {
       expect(mahnlaufAufgabe(3)!.titel, contains('3'));
       expect(mahnlaufAufgabe(0), isNull);
       expect(saisondatenAufgabe(15)!.titel, contains('15'));
+    });
+    test('Mahnlauf zählt Betriebe, führt zur Mahnlauf-Seite, Bank-Sperre hat Vorrang', () {
+      expect(mahnlaufAufgabe(3)!.titel, 'Mahnlauf: 3 Betriebe fällig');
+      expect(mahnlaufAufgabe(1)!.titel, 'Mahnlauf: 1 Betrieb fällig');
+      expect(mahnlaufAufgabe(3)!.route, '/rechnungen/mahnlauf');
+      expect(
+        mahnlaufAufgabe(2, bankGesperrt: true)!.titel,
+        'Mahnlauf: zuerst Bankauszug einlesen',
+      );
+      expect(mahnlaufAufgabe(0, bankGesperrt: true), isNull);
       expect(saisondatenAufgabe(0), isNull);
     });
   });

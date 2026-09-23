@@ -29,6 +29,7 @@ import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_betrie
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnungen_list_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/rechnungen/mahnlauf_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/offen_pro_betrieb_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/materialien/materialien_list_screen.dart';
@@ -509,6 +510,14 @@ final router = GoRouter(
     GoRoute(
       path: '/rechnungen/pro-betrieb',
       builder: (context, state) => const OffenProBetriebScreen(),
+    ),
+    // Ebenfalls VOR '/rechnungen/:id' (sonst wäre 'mahnlauf' eine Rechnungs-ID).
+    // ?rechnung=<id> = Einzelmahnung aus der Rechnungs-Detailseite.
+    GoRoute(
+      path: '/rechnungen/mahnlauf',
+      builder: (context, state) => MahnlaufScreen(
+        rechnungId: state.uri.queryParameters['rechnung'],
+      ),
     ),
     GoRoute(
       path: '/rechnungen/:id',

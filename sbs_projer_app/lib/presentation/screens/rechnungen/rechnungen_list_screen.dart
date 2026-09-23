@@ -14,7 +14,8 @@ import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
     show betriebNameMapProvider;
-import 'package:sbs_projer_app/services/rechnung/forderung_service.dart';
+import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
@@ -478,7 +479,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       if (_statusFilter == 'nicht_versendet') {
         if (!rechnungNichtVersendet(r)) return false;
       } else if (_statusFilter == 'mahnfaellig') {
-        if (!ForderungService.istMahnfaellig(r)) return false;
+        // Anzeige-Filter: gemessen an heute. Die Sicherungen (Bankauszug als
+        // Stichtag, Sperren) greifen erst im Mahnlauf, wo gemahnt wird.
+        if (faelligeStufe(r, stichtag: DateTime.now()) == null) return false;
       } else if (_statusFilter != 'alle' && r.zahlungsstatus != _statusFilter) {
         return false;
       }
@@ -560,6 +563,12 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               offenSumme,
               ueberfaellige,
             ),
+          ),
+          // Einstieg Mahnlauf (v0.134.0) — oben, weil Mahnen hier beginnt;
+          // Einzelmahnungen laufen über denselben Ablauf.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _mahnlaufKarte(),
           ),
           // Zweite Achse auf dieselben Zahlen: Diese Liste gruppiert nach
           // Monat und Tag, der Screen dahinter nach Betrieb. Vor einem Anruf
@@ -776,7 +785,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                             ? betriebNames[entry.betriebId]
                             : null,
                         aktionLabel: _statusFilter == 'mahnfaellig'
-                            ? ForderungService.empfohleneAktion(entry)
+                            ? faelligeStufe(entry, stichtag: DateTime.now())?.titel
                             : null,
                         onTap: () => context.push('/rechnungen/${entry.id}'),
                         onStatusChange: () => _showStatusDialog(entry),
@@ -789,98 +798,85 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     );
   }
 
+  /// Karte «Mahnlauf» — GestureDetector + Container (CanvasKit, CLAUDE.md).
+  Widget _mahnlaufKarte() {
+    final async = ref.watch(mahnlaufProvider);
+    final m = async.valueOrNull;
+    final String text;
+    var rot = false;
+    if (m == null) {
+      text = async.hasError ? 'Stand nicht ladbar — antippen' : 'wird geprüft …';
+    } else if (m.bankGesperrt) {
+      text = 'zuerst Bankauszug einlesen';
+      rot = m.betriebeHinterBanksperre > 0;
+    } else if (m.betriebe.isEmpty) {
+      text = 'nichts fällig';
+    } else {
+      final n = m.betriebe.length;
+      text = '$n ${n == 1 ? 'Betrieb' : 'Betriebe'} fällig';
+      rot = true;
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.push('/rechnungen/mahnlauf'),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: rot ? AppColors.error.withAlpha(120) : AppColors.divider,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.notifications_active_outlined,
+              size: 20,
+              color: rot ? AppColors.error : AppColors.primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Mahnlauf',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: rot ? AppColors.error : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showStatusDialog(Rechnung rechnung) async {
     final naechster = _naechsterStatus(rechnung.zahlungsstatus);
     if (naechster == null) return;
 
-    // Für Mahnwesen-Eskalation (erinnert, mahnung_1, mahnung_2)
+    // Mahnstufen nur noch über den Mahnlauf (v0.134.0): Dort gelten die
+    // Sicherungen gegen das Mahnen bezahlter Rechnungen (aktueller
+    // Bankauszug, ungeklärte Gutschrift, gebuchte Zahlung) und es gibt eine
+    // Vorschau. Die frühere Direkt-Eskalation hier ging an allem vorbei.
     if (naechster == 'erinnert' ||
         naechster == 'mahnung_1' ||
         naechster == 'mahnung_2') {
-      final stufe = naechster == 'erinnert'
-          ? 0
-          : naechster == 'mahnung_1'
-          ? 1
-          : 2;
-      final titel = MahnwesenService.titelFuerStufe(stufe);
-      final hatEmail = rechnung.versandart == 'rechnung_mail';
-      bool? mailSenden = false;
-
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) {
-          bool mail = hatEmail;
-          return StatefulBuilder(
-            builder: (ctx, setDialogState) => AlertDialog(
-              title: Text('$titel erstellen?'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(rechnung.rechnungsnummer ?? 'Rechnung'),
-                  const SizedBox(height: 12),
-                  const Text('Ein PDF wird generiert und hochgeladen.'),
-                  const SizedBox(height: 8),
-                  CheckboxListTile(
-                    value: mail,
-                    onChanged: (v) => setDialogState(() => mail = v ?? false),
-                    title: Text(
-                      hatEmail
-                          ? 'Per E-Mail senden'
-                          : 'Per E-Mail senden (keine E-Mail)',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: hatEmail ? null : AppColors.textSecondary,
-                      ),
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Abbrechen'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    mailSenden = mail;
-                    Navigator.pop(ctx, true);
-                  },
-                  child: Text('$titel erstellen'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-
-      if (confirmed != true) return;
-      try {
-        await MahnwesenService.eskalieren(
-          rechnung: rechnung,
-          mahnStufe: stufe,
-          mailSenden: mailSenden ?? false,
-        );
-        ref.invalidate(rechnungenStreamProvider);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '$titel für ${rechnung.rechnungsnummer} erstellt${mailSenden == true ? ' & versendet' : ''}',
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
-          );
-        }
-      }
+      await context.push('/rechnungen/mahnlauf?rechnung=${rechnung.id}');
       return;
     }
 
@@ -1196,7 +1192,9 @@ class _RechnungListItem extends StatelessWidget {
                   size: 18,
                   color: _statusColor(naechster),
                 ),
-                tooltip: _statusLabel(naechster),
+                tooltip: naechster == 'abgeschrieben'
+                    ? 'Abschreiben'
+                    : 'Im Mahnlauf mahnen',
                 onPressed: onStatusChange,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32),
@@ -1232,25 +1230,8 @@ class _RechnungListItem extends StatelessWidget {
     parts.add(_formatDate(rechnung.rechnungsdatum));
     final brutto = (rechnung.betragBrutto * 20).roundToDouble() / 20;
     parts.add('CHF ${brutto.toStringAsFixed(2)}');
-    if (aktionLabel != null && aktionLabel != 'warten') {
-      parts.add(_aktionText(aktionLabel!));
-    }
+    if (aktionLabel != null) parts.add('$aktionLabel fällig');
     return parts.join(' · ');
-  }
-
-  String _aktionText(String aktion) {
-    switch (aktion) {
-      case 'erinnerung_faellig':
-        return 'Erinnerung fällig';
-      case 'mahnung_1_faellig':
-        return 'Mahnung 1 fällig';
-      case 'mahnung_2_faellig':
-        return 'Mahnung 2 fällig';
-      case 'eskalation':
-        return 'Eskalation';
-      default:
-        return aktion;
-    }
   }
 
   String _formatDate(DateTime date) {

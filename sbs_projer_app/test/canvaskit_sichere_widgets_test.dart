@@ -76,6 +76,8 @@ void main() {
       'lib/presentation/widgets/event_karte.dart',
       'lib/presentation/widgets/such_treffer_zeile.dart',
       'lib/presentation/screens/suche/suche_screen.dart',
+      'lib/presentation/screens/rechnungen/mahnlauf_screen.dart',
+      'lib/presentation/screens/rechnungen/widgets/mahnverlauf.dart',
     ]) {
       final datei = File(pfad);
       expect(
