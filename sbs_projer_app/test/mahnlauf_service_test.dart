@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/data/models/mahnschreiben.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnlauf_service.dart';
 
@@ -215,6 +216,66 @@ void main() {
       final f = MahnlaufFehler('keine Verbindung');
       expect(f.mahnschreibenId, isNull);
       expect(f.toString(), 'keine Verbindung');
+    });
+  });
+
+  group('istJuengstesSchreiben (nur das jüngste Schreiben darf zurücksetzen)', () {
+    Mahnschreiben schreiben(String id, DateTime am,
+        {List<String> rechnungen = const ['r1'], DateTime? zurueck}) {
+      return Mahnschreiben(
+        id: id,
+        userId: 'u1',
+        betriebId: 'b1',
+        stufe: 0,
+        rechnungIds: rechnungen,
+        kanal: 'mail',
+        test: true,
+        fristBis: am.add(const Duration(days: 10)),
+        vorher: const {},
+        erstelltAm: am,
+        zurueckgenommenAm: zurueck,
+      );
+    }
+
+    final alt = schreiben('m1', DateTime.utc(2026, 9, 1));
+    final neu = schreiben('m2', DateTime.utc(2026, 9, 20));
+
+    test('einziges Schreiben -> jüngstes', () {
+      expect(
+        MahnlaufService.istJuengstesSchreiben([alt], rechnungId: 'r1', kandidat: alt),
+        isTrue,
+      );
+    });
+
+    test('es gibt ein neueres Schreiben derselben Rechnung -> nein', () {
+      expect(
+        MahnlaufService.istJuengstesSchreiben([neu, alt], rechnungId: 'r1', kandidat: alt),
+        isFalse,
+      );
+      expect(
+        MahnlaufService.istJuengstesSchreiben([neu, alt], rechnungId: 'r1', kandidat: neu),
+        isTrue,
+      );
+    });
+
+    test('neueres Schreiben zurückgenommen -> älteres ist wieder das jüngste', () {
+      final neuZurueck = schreiben('m2', DateTime.utc(2026, 9, 20),
+          zurueck: DateTime.utc(2026, 9, 21));
+      expect(
+        MahnlaufService.istJuengstesSchreiben([neuZurueck, alt],
+            rechnungId: 'r1', kandidat: alt),
+        isTrue,
+      );
+    });
+
+    test('neueres Schreiben einer ANDEREN Rechnung zählt nicht', () {
+      final andere =
+          schreiben('m3', DateTime.utc(2026, 9, 22), rechnungen: const ['r2']);
+      expect(
+        MahnlaufService.istJuengstesSchreiben([andere, alt],
+            rechnungId: 'r1', kandidat: alt),
+        isTrue,
+      );
     });
   });
 }

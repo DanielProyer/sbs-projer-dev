@@ -70,6 +70,10 @@ class MahnlaufZuruecknehmenErgebnis {
     required this.zurueckgesetzt,
     required this.uebersprungen,
   });
+
+  /// Nichts zurückgesetzt → das Schreiben bleibt gültig (NICHT als
+  /// zurückgenommen markiert); die Gründe stehen in [uebersprungen].
+  bool get nichtsZurueckgesetzt => zurueckgesetzt.isEmpty;
 }
 
 /// Ob eine Rechnung beim Zurücknehmen zurückgesetzt werden darf, plus Grund
@@ -372,39 +376,78 @@ class MahnlaufService {
     final zurueckgesetzt = <String>[];
     final uebersprungen = <({String rechnungId, String grund})>[];
 
-    for (final id in m.rechnungIds) {
-      // Frisch aus der DB laden — der Zustand in [m] ist der von der
-      // ERSTELLUNG, nicht zwingend der aktuelle (der ganze Zweck der Prüfung).
-      final aktuelleRechnung = await RechnungRepository.getById(id);
-      if (aktuelleRechnung == null) {
-        uebersprungen.add((rechnungId: id, grund: 'Rechnung nicht gefunden'));
-        continue;
+    try {
+      for (final id in m.rechnungIds) {
+        // Nur das JÜNGSTE noch gültige Schreiben einer Rechnung darf sie
+        // zurücksetzen: Sein `vorher` ist der Stand vor der letzten Stufe.
+        // Das `vorher` eines älteren Schreibens würde eine spätere Mahnung
+        // stillschweigend mit auslöschen (Review 23.09.2026).
+        final alle = await MahnschreibenRepository.getByRechnung(id);
+        if (!istJuengstesSchreiben(alle, rechnungId: id, kandidat: m)) {
+          uebersprungen.add((rechnungId: id, grund: 'es gibt ein neueres Mahnschreiben'));
+          continue;
+        }
+
+        // Frisch aus der DB laden — der Zustand in [m] ist der von der
+        // ERSTELLUNG, nicht zwingend der aktuelle (der ganze Zweck der Prüfung).
+        final aktuelleRechnung = await RechnungRepository.getById(id);
+        if (aktuelleRechnung == null) {
+          uebersprungen.add((rechnungId: id, grund: 'Rechnung nicht gefunden'));
+          continue;
+        }
+
+        final nachherRoh = m.nachher[id];
+        final pruefung = darfZuruecksetzen(
+          _vergleichsStand(aktuelleRechnung),
+          nachherRoh is Map ? Map<String, dynamic>.from(nachherRoh) : null,
+        );
+        if (!pruefung.erlaubt) {
+          uebersprungen.add((rechnungId: id, grund: pruefung.grund ?? 'geändert'));
+          continue;
+        }
+
+        final vorher = m.vorher[id];
+        if (vorher is! Map) {
+          uebersprungen.add((rechnungId: id, grund: 'kein gespeicherter Vorher-Zustand'));
+          continue;
+        }
+        await RechnungRepository.update(id, Map<String, dynamic>.from(vorher));
+        zurueckgesetzt.add(id);
       }
 
-      final nachherRoh = m.nachher[id];
-      final pruefung = darfZuruecksetzen(
-        _vergleichsStand(aktuelleRechnung),
-        nachherRoh is Map ? Map<String, dynamic>.from(nachherRoh) : null,
-      );
-      if (!pruefung.erlaubt) {
-        uebersprungen.add((rechnungId: id, grund: pruefung.grund ?? 'geändert'));
-        continue;
+      // Nur als zurückgenommen markieren, wenn tatsächlich etwas zurück-
+      // gesetzt wurde: Sonst stünde im Mahnverlauf «zurückgenommen», obwohl
+      // die Stufen unverändert gelten — und ein ÄLTERES Schreiben würde
+      // dadurch wieder zum «jüngsten» und dürfte zurücksetzen.
+      if (zurueckgesetzt.isNotEmpty) {
+        await MahnschreibenRepository.markiereZurueckgenommen(m.id);
       }
-
-      final vorher = m.vorher[id];
-      if (vorher is! Map) {
-        uebersprungen.add((rechnungId: id, grund: 'kein gespeicherter Vorher-Zustand'));
-        continue;
-      }
-      await RechnungRepository.update(id, Map<String, dynamic>.from(vorher));
-      zurueckgesetzt.add(id);
+    } catch (e) {
+      // Kein roher Exception-Text auf der Oberfläche; die Id bleibt dabei,
+      // damit der Screen einen zweiten Versuch anbieten kann.
+      throw MahnlaufFehler(kurzeFehlermeldung(e), mahnschreibenId: m.id);
     }
-
-    await MahnschreibenRepository.markiereZurueckgenommen(m.id);
     return MahnlaufZuruecknehmenErgebnis(
       zurueckgesetzt: zurueckgesetzt,
       uebersprungen: uebersprungen,
     );
+  }
+
+  /// Ist [kandidat] das jüngste NICHT zurückgenommene Schreiben, das
+  /// [rechnungId] enthält? [schreiben] sind alle Schreiben dieser Rechnung
+  /// (Reihenfolge egal). Gleich alte Schreiben gelten nicht als «neuer» —
+  /// kommt praktisch nicht vor und würde sonst beide gegenseitig sperren.
+  static bool istJuengstesSchreiben(
+    List<Mahnschreiben> schreiben, {
+    required String rechnungId,
+    required Mahnschreiben kandidat,
+  }) {
+    for (final s in schreiben) {
+      if (s.id == kandidat.id || s.zurueckgenommen) continue;
+      if (!s.rechnungIds.contains(rechnungId)) continue;
+      if (s.erstelltAm.isAfter(kandidat.erstelltAm)) return false;
+    }
+    return true;
   }
 
   // ─── Reine Hilfsfunktionen (TDD, `test/mahnlauf_service_test.dart`) ───
