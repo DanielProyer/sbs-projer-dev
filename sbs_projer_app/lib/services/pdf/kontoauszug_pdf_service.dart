@@ -111,6 +111,38 @@ class KontoauszugPdfService {
     int? jahr,
   }) async {
     final pdf = await pdfDokument();
+    await seitenHinzufuegen(
+      pdf,
+      betrieb: betrieb,
+      rechnungen: rechnungen,
+      rechnungsadresse: rechnungsadresse,
+      firmaName: firmaName,
+      firmaStrasse: firmaStrasse,
+      firmaPlzOrt: firmaPlzOrt,
+      firmaMwst: firmaMwst,
+      jahr: jahr,
+    );
+    return pdf.save();
+  }
+
+  /// Hängt die Seiten des Kontoauszugs an [pdf] an — für das Druck-PDF des
+  /// Mahnschreibens (v0.134.0), das Schreiben und Auszug in EINEM Dokument
+  /// braucht. [generate] ruft das mit einem eigenen Dokument auf.
+  ///
+  /// [muster] überlagert jede Seite mit einem «MUSTER»-Wasserzeichen — für
+  /// Kontoauszug-Seiten, die einem Mahnschreiben-MUSTER beiliegen.
+  static Future<void> seitenHinzufuegen(
+    pw.Document pdf, {
+    required BetriebLocal betrieb,
+    required List<Rechnung> rechnungen,
+    BetriebRechnungsadresse? rechnungsadresse,
+    String? firmaName,
+    String? firmaStrasse,
+    String? firmaPlzOrt,
+    String? firmaMwst,
+    int? jahr,
+    bool muster = false,
+  }) async {
     final dateFormat = DateFormat('dd.MM.yyyy');
 
     final gefiltert = fuerJahr(rechnungen, jahr);
@@ -197,8 +229,11 @@ class KontoauszugPdfService {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 48),
+        pageTheme: musterPageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 48),
+          muster: muster,
+        ),
         footer: (ctx) => pw.Container(
           alignment: pw.Alignment.centerRight,
           margin: const pw.EdgeInsets.only(top: 8),
@@ -242,8 +277,11 @@ class KontoauszugPdfService {
     if (zahlbar > 0) {
       pdf.addPage(
         pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          margin: pw.EdgeInsets.zero,
+          pageTheme: musterPageTheme(
+            pageFormat: PdfPageFormat.a4,
+            margin: pw.EdgeInsets.zero,
+            muster: muster,
+          ),
           build: (ctx) => pw.Column(
             children: [
               pw.Spacer(),
@@ -267,8 +305,6 @@ class KontoauszugPdfService {
         ),
       );
     }
-
-    return pdf.save();
   }
 
   /// Auf 5 Rappen runden — ein Einzahlungsschein über 113.47 wäre in der

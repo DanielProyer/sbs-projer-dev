@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 /// Zentrale Schrift-Versorgung für ALLE PDF-Services.
@@ -49,3 +50,36 @@ class PdfSchrift {
 /// Ersetzt `pw.Document()` in allen Services — siehe [PdfSchrift].
 Future<pw.Document> pdfDokument() async =>
     pw.Document(theme: await PdfSchrift.theme());
+
+/// [PageTheme] für `pw.Page`/`pw.MultiPage`, optional mit diagonalem
+/// «MUSTER»-Wasserzeichen (Mahnschreiben-Vorschau, v0.134.0). Eine Wahrheit
+/// für alle PDF-Services, die den Aufdruck brauchen — Kontoauszug und
+/// Mahnschreiben teilen sich dieselbe Technik (`buildForeground`), damit sich
+/// Seiten aus beiden Services optisch nicht unterscheiden, wenn sie in
+/// einem Dokument landen.
+///
+/// Tiefe Deckkraft (0.18): gut lesbar als Aufdruck, verdeckt aber Tabellen
+/// und QR-Code nicht.
+pw.PageTheme musterPageTheme({
+  required PdfPageFormat pageFormat,
+  required pw.EdgeInsetsGeometry margin,
+  required bool muster,
+}) {
+  return pw.PageTheme(
+    pageFormat: pageFormat,
+    margin: margin,
+    buildForeground: muster
+        ? (context) => pw.Opacity(
+              opacity: 0.18,
+              child: pw.Watermark.text(
+                'MUSTER',
+                style: pw.TextStyle(
+                  fontSize: 140,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey,
+                ),
+              ),
+            )
+        : null,
+  );
+}
