@@ -16,6 +16,8 @@ Rechnung _r({
   DateTime? mahnung2,
   DateTime? frist,
   double brutto = 94.05,
+  DateTime? zahlungEingegangen,
+  double? zahlungBetrag,
 }) =>
     Rechnung.fromJson({
       'id': id,
@@ -40,6 +42,9 @@ Rechnung _r({
       'mahnung_2_am': mahnung2?.toIso8601String().split('T').first,
       'mahn_frist_bis': frist?.toIso8601String().split('T').first,
       'mahnung_stufe': 0,
+      'zahlung_eingegangen_am':
+          zahlungEingegangen?.toIso8601String().split('T').first,
+      'zahlung_betrag': zahlungBetrag,
     });
 
 void main() {
@@ -57,6 +62,16 @@ void main() {
     });
     test('Jahresrechnung zaehlt', () {
       expect(imMahnbereich(_r(typ: 'jahresrechnung', datum: d(2026, 5, 1))), isTrue);
+    });
+    test('vermerkte Zahlung (noch nicht auf bezahlt gesetzt) nie (I-3)', () {
+      expect(
+        imMahnbereich(_r(datum: d(2026, 5, 1), zahlungBetrag: 50)),
+        isFalse,
+      );
+      expect(
+        imMahnbereich(_r(datum: d(2026, 5, 1), zahlungEingegangen: d(2026, 5, 10))),
+        isFalse,
+      );
     });
     test('zugestellt: Mail, Uebergabe oder Versandart Tresen (Entscheid 23.09.)', () {
       expect(istZugestellt(_r(datum: d(2026, 5, 1), versendet: d(2026, 5, 2))), isTrue);
@@ -131,6 +146,15 @@ void main() {
       expect(faelligeStufe(_r(datum: d(2026, 5, 1), versandart: 'rechnung_mail'), stichtag: d(2026, 9, 20)), isNull);
       expect(faelligeStufe(_r(datum: d(2025, 5, 1), versendet: d(2025, 5, 1)), stichtag: d(2026, 9, 20)), isNull);
     });
+
+    test('nur bekannte Status loesen Erinnerung aus (I-4)', () {
+      final storniert = _r(
+        datum: d(2026, 8, 1),
+        versendet: d(2026, 8, 1),
+        status: 'storniert',
+      );
+      expect(faelligeStufe(storniert, stichtag: d(2026, 9, 13)), isNull);
+    });
   });
 
   group('bankSperre', () {
@@ -140,6 +164,12 @@ void main() {
     test('hoechstens 2 Tage alt', () {
       expect(bankSperre(d(2026, 9, 21), heute: d(2026, 9, 23)), isFalse);
       expect(bankSperre(d(2026, 9, 20), heute: d(2026, 9, 23)), isTrue);
+    });
+    test('Auszug-Luecke sperrt trotz aktuellem Datum (M-4)', () {
+      expect(
+        bankSperre(d(2026, 9, 23), heute: d(2026, 9, 23), auszugLuecke: true),
+        isTrue,
+      );
     });
   });
 
@@ -156,6 +186,29 @@ void main() {
         isTrue,
       );
     });
+    test('Zahlername enthaelt den Betriebsnamen, min. 4 Zeichen (M-2)', () {
+      const g5 = (partei: 'BarBar GmbH', betrag: 999.00);
+      expect(
+        gutschriftSperre(
+          betriebName: 'BarBar',
+          aliase: const [],
+          offeneBetraege: const [1.00],
+          gutschriften: const [g5],
+        ),
+        isTrue,
+      );
+      // 'bar' ist zu kurz (< 4 Zeichen) und darf allein nicht treffen.
+      const g6 = (partei: 'Barzahlung AG', betrag: 999.00);
+      expect(
+        gutschriftSperre(
+          betriebName: 'Bar',
+          aliase: const [],
+          offeneBetraege: const [1.00],
+          gutschriften: const [g6],
+        ),
+        isFalse,
+      );
+    });
     test('Betrag gleich einer Rechnung oder der Summe', () {
       const g2 = (partei: 'Unbekannt', betrag: 94.05);
       const g3 = (partei: 'Unbekannt', betrag: 188.10);
@@ -165,6 +218,38 @@ void main() {
       );
       expect(
         gutschriftSperre(betriebName: 'X', aliase: const [], offeneBetraege: const [94.05, 94.05], gutschriften: const [g3]),
+        isTrue,
+      );
+    });
+    test('Toleranz 0.10 bei Rundungsdifferenzen (I-2)', () {
+      const g7 = (partei: 'Unbekannt', betrag: 94.05);
+      expect(
+        gutschriftSperre(betriebName: 'X', aliase: const [], offeneBetraege: const [94.07], gutschriften: const [g7]),
+        isTrue,
+      );
+    });
+    test('Teilsumme einer beliebigen Teilmenge sperrt (I-1, 2 von 3)', () {
+      const g8 = (partei: 'Unbekannt', betrag: 70.00);
+      expect(
+        gutschriftSperre(
+          betriebName: 'X',
+          aliase: const [],
+          offeneBetraege: const [30.00, 40.00, 50.00],
+          gutschriften: const [g8],
+        ),
+        isTrue,
+      );
+    });
+    test('mehr als 12 offene Betraege: sicherer Rueckfall sperrt (I-1)', () {
+      final betraege = List<double>.generate(13, (i) => 10.0 + i);
+      const g9 = (partei: 'Unbekannt', betrag: 12345.67);
+      expect(
+        gutschriftSperre(
+          betriebName: 'X',
+          aliase: const [],
+          offeneBetraege: betraege,
+          gutschriften: const [g9],
+        ),
         isTrue,
       );
     });
@@ -180,6 +265,9 @@ void main() {
   group('Schreiben', () {
     test('Titel = hoechste Stufe', () {
       expect(hoechsteStufe([MahnStufe.erinnerung, MahnStufe.letzte, MahnStufe.mahnung1]), MahnStufe.letzte);
+    });
+    test('leere Liste wirft (M-5)', () {
+      expect(() => hoechsteStufe(const []), throwsArgumentError);
     });
     test('Frist = Versand + 10 Tage', () {
       expect(mahnFrist(d(2026, 9, 23)), d(2026, 10, 3));

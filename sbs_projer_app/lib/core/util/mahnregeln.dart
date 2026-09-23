@@ -56,7 +56,13 @@ bool imMahnbereich(Rechnung r) =>
     (r.rechnungstyp == 'kundenrechnung' || r.rechnungstyp == 'jahresrechnung') &&
     !_tag(r.rechnungsdatum).isBefore(kMahnStart) &&
     r.zahlungsstatus != 'bezahlt' &&
-    r.zahlungsstatus != 'abgeschrieben';
+    r.zahlungsstatus != 'abgeschrieben' &&
+    // I-3 (Review 23.09.2026): Ein bereits vermerkter Zahlungseingang darf
+    // nie ins Mahnsystem, auch wenn der Status noch nicht auf «bezahlt»
+    // nachgezogen wurde — sonst mahnt der Lauf schneller, als der Mensch
+    // den Status pflegt.
+    r.zahlungEingegangenAm == null &&
+    (r.zahlungBetrag ?? 0) == 0;
 
 /// Nachweislich beim Kunden: per Mail, am Tresen übergeben (mit Datum) oder
 /// Versandart Tresen — das Übergabedatum wird erst seit v0.71.0 gespeichert,
@@ -98,21 +104,82 @@ MahnStufe? faelligeStufe(Rechnung r, {required DateTime stichtag}) {
       return erreicht(_plus(frist, kNaechsteStufeNachFrist)) ? MahnStufe.letzte : null;
     case 'mahnung_2':
       return null; // weiter mit Heineken (Teil 2)
-    default:
+    case 'offen':
+    case 'gesendet':
       return erreicht(_plus(massgebendeFaelligkeit(r), kErinnerungNachTagen))
           ? MahnStufe.erinnerung
           : null;
+    default:
+      // I-4 (Review 23.09.2026): Nur bekannte Status lösen die erste Stufe
+      // aus. Ein unbekannter oder abweichender Status (z. B. «storniert»,
+      // «freigegeben») ist immer ein Zeichen, dass hier NICHT stur nach
+      // Fälligkeit gemahnt werden darf.
+      return null;
   }
 }
 
-bool bankSperre(DateTime? letzterAuszug, {required DateTime heute}) {
-  if (letzterAuszug == null) return true;
+bool bankSperre(
+  DateTime? letzterAuszug, {
+  required DateTime heute,
+  // M-4 (Review 23.09.2026): Eine erkannte Lücke in der Auszugskette
+  // (Bank-Wächter) heisst, dass Zahlungen fehlen könnten, die den Mahnlauf
+  // stoppen würden — auch wenn der letzte Auszug scheinbar aktuell ist.
+  bool auszugLuecke = false,
+}) {
+  if (letzterAuszug == null || auszugLuecke) return true;
   return _tag(heute).difference(_tag(letzterAuszug)).inDays > kAuszugHoechstensAltTage;
 }
 
 typedef OffeneGutschrift = ({String? partei, double betrag});
 
-bool _gleich(double a, double b) => (a - b).abs() < 0.005;
+/// Toleranz beim Betragsvergleich: Kunden zahlen oft auf 5 Rappen gerundet
+/// oder mit kleinen Bankspesen-Abweichungen (Review 23.09.2026, I-2).
+/// Lieber zu vorsichtig sperren als eine bezahlte Rechnung mahnen.
+const kBetragsToleranz = 0.10;
+
+bool _gleich(double a, double b) => (a - b).abs() < kBetragsToleranz;
+
+/// Höchstzahl offener Beträge, bis zu der die Teilsummen-Prüfung per
+/// Bitmaske noch vertretbar ist (2^12 = 4096 Kombinationen).
+const kMaxBetraegeFuerTeilsumme = 12;
+
+/// Trifft der normalisierte Zahlername einen der bekannten Namen, exakt
+/// oder als Teilstring (in beide Richtungen)? Der kürzere Teil muss
+/// mindestens 4 Zeichen haben (Review 23.09.2026, M-2) — sonst würde z. B.
+/// «Bar» jeden Zahler mit «bar» irgendwo im Namen treffen.
+bool _nameTrifft(Set<String> namen, String zahler) {
+  if (zahler.isEmpty) return false;
+  for (final n in namen) {
+    if (n == zahler) return true;
+    final kurz = n.length <= zahler.length ? n : zahler;
+    final lang = n.length <= zahler.length ? zahler : n;
+    if (kurz.length >= 4 && lang.contains(kurz)) return true;
+  }
+  return false;
+}
+
+/// Prüft, ob eine (beliebige, nicht-leere) Teilmenge der offenen Beträge in
+/// der Summe dem Gutschriftsbetrag entspricht — z. B. wenn eine Sammel-
+/// zahlung 2 von 3 offenen Rechnungen deckt (Review 23.09.2026, I-1).
+///
+/// WARUM Bitmaske bis [kMaxBetraegeFuerTeilsumme]: Ein Betrieb hat praktisch
+/// nie mehr offene Rechnungen; 2^12 Kombinationen sind trivial zu prüfen.
+/// Bei mehr offenen Beträgen wird — weil sich keine vollständige Prüfung
+/// mehr lohnt — aus Vorsicht IMMER gesperrt (sicherer Rückfall): lieber ein
+/// Betrieb zu viel zurückgehalten als eine Mahnung für Bezahltes.
+bool _teilsummeTrifft(List<double> betraege, double ziel) {
+  if (betraege.isEmpty) return false;
+  if (betraege.length > kMaxBetraegeFuerTeilsumme) return true;
+  final n = betraege.length;
+  for (var maske = 1; maske < (1 << n); maske++) {
+    var summe = 0.0;
+    for (var i = 0; i < n; i++) {
+      if (maske & (1 << i) != 0) summe += betraege[i];
+    }
+    if (_gleich(summe, ziel)) return true;
+  }
+  return false;
+}
 
 /// Gibt es eine noch nicht zugeordnete Bankgutschrift, die zu diesem
 /// Betrieb gehören könnte? Dann wird er nicht gemahnt.
@@ -130,17 +197,22 @@ bool gutschriftSperre({
     zahlernameNorm(betriebName),
     for (final a in aliase) zahlernameNorm(a),
   }..remove('');
-  final summe = offeneBetraege.fold<double>(0, (s, b) => s + b);
   for (final g in gutschriften) {
     final p = zahlernameNorm(g.partei ?? '');
-    if (p.isNotEmpty && namen.contains(p)) return true;
-    if (offeneBetraege.any((b) => _gleich(b, g.betrag))) return true;
-    if (offeneBetraege.length > 1 && _gleich(summe, g.betrag)) return true;
+    if (_nameTrifft(namen, p)) return true;
+    if (_teilsummeTrifft(offeneBetraege, g.betrag)) return true;
   }
   return false;
 }
 
-MahnStufe hoechsteStufe(Iterable<MahnStufe> stufen) =>
-    stufen.reduce((a, b) => a.index >= b.index ? a : b);
+MahnStufe hoechsteStufe(Iterable<MahnStufe> stufen) {
+  if (stufen.isEmpty) {
+    // M-5 (Review 23.09.2026): Ein leerer Aufruf ist ein Programmierfehler
+    // beim Aufrufer (kein Schreiben ohne Stufe) — lieber laut scheitern als
+    // still eine falsche Stufe erraten.
+    throw ArgumentError('hoechsteStufe: Liste darf nicht leer sein');
+  }
+  return stufen.reduce((a, b) => a.index >= b.index ? a : b);
+}
 
 DateTime mahnFrist(DateTime versand) => _plus(versand, kMahnFristTage);
