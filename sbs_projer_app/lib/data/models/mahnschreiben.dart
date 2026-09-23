@@ -1,7 +1,9 @@
-/// Protokollzeile eines Mahnlaufs (Migration 200/201, v0.134.0) — je
+/// Protokollzeile eines Mahnlaufs (Migration 200/201/202, v0.134.0) — je
 /// versendetem/gedrucktem Sammel-Mahnschreiben EIN Eintrag. Grundlage für
 /// «Mahnung zurücknehmen»: [vorher] hält den Zustand jeder betroffenen
-/// Rechnung fest, wie er VOR diesem Schreiben war.
+/// Rechnung fest, wie er VOR diesem Schreiben war, [nachher], wie er
+/// UNMITTELBAR DANACH war — nur wenn beide beim Zurücknehmen noch
+/// übereinstimmen, darf zurückgesetzt werden (siehe `MahnlaufService`).
 class Mahnschreiben {
   final String id;
   final String userId;
@@ -26,6 +28,13 @@ class Mahnschreiben {
   /// `{"(rechnungId)": {zahlungsstatus, mahnung_stufe, letzte_mahnung_am,
   ///   erinnerung_am, mahnung_1_am, mahnung_2_am, mahn_frist_bis}}`.
   final Map<String, dynamic> vorher;
+
+  /// Zustand jeder Rechnung UNMITTELBAR NACH dem Schreiben (gleiche Form wie
+  /// [vorher], Migration 202). Bei Zeilen von vor der Migration `{}` (nicht
+  /// `null` — die DB-Spalte kann null sein, siehe `fromJson`): dann darf
+  /// [MahnlaufService.zuruecknehmen] NICHT automatisch zurücksetzen, weil
+  /// kein Vergleichswert existiert.
+  final Map<String, dynamic> nachher;
   final DateTime erstelltAm;
   final DateTime? zurueckgenommenAm;
 
@@ -41,6 +50,7 @@ class Mahnschreiben {
     required this.fristBis,
     this.pdfPfad,
     required this.vorher,
+    this.nachher = const {},
     required this.erstelltAm,
     this.zurueckgenommenAm,
   });
@@ -62,6 +72,9 @@ class Mahnschreiben {
       vorher: json['vorher'] is Map
           ? Map<String, dynamic>.from(json['vorher'])
           : <String, dynamic>{},
+      nachher: json['nachher'] is Map
+          ? Map<String, dynamic>.from(json['nachher'])
+          : <String, dynamic>{},
       erstelltAm: DateTime.parse(json['erstellt_am']),
       zurueckgenommenAm: json['zurueckgenommen_am'] != null
           ? DateTime.parse(json['zurueckgenommen_am'])
@@ -82,6 +95,7 @@ class Mahnschreiben {
       'frist_bis': fristBis.toIso8601String().split('T').first,
       'pdf_pfad': pdfPfad,
       'vorher': vorher,
+      'nachher': nachher,
     };
   }
 }

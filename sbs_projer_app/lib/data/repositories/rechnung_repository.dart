@@ -173,10 +173,8 @@ class RechnungRepository {
       } on PostgrestException catch (e) {
         final istDuplikat = e.code == '23505';
         // Referenz-Kollision (eigene Vergabe) → mit anderem Suffix erneut.
-        final refKonflikt =
-            istDuplikat &&
-            (e.message.contains('qr_referenz') ||
-                (e.details?.toString().contains('qr_referenz') ?? false));
+        // Gleiche Prüfung wie `MahnlaufService` (`istQrReferenzKonflikt`).
+        final refKonflikt = istQrReferenzKonflikt(e);
         // rechnungsnummer wird per DB-Trigger aus einer Sequenz vergeben. Hinkt
         // die Sequenz hinter bereits vergebenen Nummern her, kollidiert der
         // Insert — ein Neuversuch erzeugt die nächste Sequenznummer und heilt

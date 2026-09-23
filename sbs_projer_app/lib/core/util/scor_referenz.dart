@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+
 /// SCOR / ISO 11649 Creditor Reference (`RF` + 2 Prüfziffern + Body).
 /// Body wird auf A–Z/0–9 reduziert und uppercased. Prüfziffer nach ISO 7064
 /// MOD 97-10: 98 - (Body + "RF00", Buchstaben→Zahlen A=10..Z=35) mod 97.
@@ -33,6 +35,50 @@ String? qrReferenzAusNummer(String? rechnungstyp, String? rechnungsnummer,
   final digits = rechnungsnummer.replaceAll(RegExp(r'\D'), '');
   if (digits.isEmpty) return null;
   return scorReferenz(suffix > 0 ? '$digits$suffix' : digits);
+}
+
+/// True, wenn [e] eine Unique-Kollision auf `qr_referenz` ist (Spalte ist seit
+/// Migration 104 UNIQUE) — zwei Rechnungsnummern mit identischen Ziffern
+/// erzeugen sonst denselben SCOR-Body. Pure Prüfung auf dem Postgrest-Fehler,
+/// ohne Netzzugriff — daher testbar mit einer lokal konstruierten Exception.
+bool istQrReferenzKonflikt(Object e) {
+  if (e is! PostgrestException) return false;
+  return e.code == '23505' &&
+      (e.message.contains('qr_referenz') ||
+          (e.details?.toString().contains('qr_referenz') ?? false));
+}
+
+/// Versucht [aktion] mit steigendem SCOR-Suffix (siehe [qrReferenzAusNummer]),
+/// bis sie ohne `qr_referenz`-Kollision durchläuft, oder gibt nach
+/// [maxVersuche] den letzten Fehler weiter.
+///
+/// Gemeinsame Retry-Logik für ZWEI Stellen, die dieselbe Kollision behandeln
+/// müssen (Review 23.09.2026 — "nicht kopieren, in eine gemeinsame Funktion
+/// ziehen"): `RechnungRepository.create` (neue Rechnung mit frischer
+/// Referenz) und `MahnlaufService` (nachträgliches Setzen an einer
+/// bestehenden Rechnung ohne Referenz).
+///
+/// Liefert [ref] `null` sofort ohne Versuch an [aktion] weiterzugeben, wenn
+/// schon der erste Kandidat (`suffix: 0`) null ist (kein Kundentyp oder keine
+/// Rechnungsnummer) — ein Suffix ändert daran nichts, ein Retry wäre sinnlos.
+Future<T> mitQrReferenzRetry<T>({
+  required String? rechnungstyp,
+  required String? rechnungsnummer,
+  required Future<T> Function(String? referenz) aktion,
+  int maxVersuche = 50,
+}) async {
+  for (var suffix = 0; suffix < maxVersuche; suffix++) {
+    final ref = qrReferenzAusNummer(rechnungstyp, rechnungsnummer, suffix: suffix);
+    try {
+      return await aktion(ref);
+    } catch (e) {
+      final letzterVersuch = suffix == maxVersuche - 1;
+      if (ref == null || !istQrReferenzKonflikt(e) || letzterVersuch) rethrow;
+    }
+  }
+  // Unerreichbar: die Schleife kehrt in jedem Durchlauf entweder per return
+  // oder per rethrow zurück.
+  throw StateError('mitQrReferenzRetry: unerreichbar');
 }
 
 /// MOD 97 über einen alphanumerischen String: jede Ziffer 0–9 bleibt, jeder

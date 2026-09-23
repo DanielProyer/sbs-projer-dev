@@ -130,4 +130,91 @@ void main() {
       }
     });
   });
+
+  group('darfZuruecksetzen (Review 23.09.2026 — CRITICAL: nie eine Zahlung überschreiben)', () {
+    final nachher = MahnlaufService.updateFuerStufe(
+      MahnStufe.erinnerung,
+      DateTime.utc(2026, 9, 23),
+    );
+
+    test('unverändert seit dem Schreiben -> ja', () {
+      final aktuell = {
+        'zahlungsstatus': nachher['zahlungsstatus'],
+        'mahnung_stufe': nachher['mahnung_stufe'],
+        'letzte_mahnung_am': nachher['letzte_mahnung_am'],
+      };
+      final p = MahnlaufService.darfZuruecksetzen(aktuell, nachher);
+      expect(p.erlaubt, isTrue);
+      expect(p.grund, isNull);
+    });
+
+    test('inzwischen bezahlt -> nein, Grund "inzwischen bezahlt"', () {
+      final aktuell = {
+        'zahlungsstatus': 'bezahlt',
+        'mahnung_stufe': nachher['mahnung_stufe'],
+        'letzte_mahnung_am': nachher['letzte_mahnung_am'],
+      };
+      final p = MahnlaufService.darfZuruecksetzen(aktuell, nachher);
+      expect(p.erlaubt, isFalse);
+      expect(p.grund, 'inzwischen bezahlt');
+    });
+
+    test('abgeschrieben zählt ebenfalls als "inzwischen bezahlt" (kein Zurücksetzen)', () {
+      final aktuell = {
+        'zahlungsstatus': 'abgeschrieben',
+        'mahnung_stufe': nachher['mahnung_stufe'],
+        'letzte_mahnung_am': nachher['letzte_mahnung_am'],
+      };
+      final p = MahnlaufService.darfZuruecksetzen(aktuell, nachher);
+      expect(p.erlaubt, isFalse);
+      expect(p.grund, 'inzwischen bezahlt');
+    });
+
+    test('seither weiter gemahnt (höhere Stufe) -> nein', () {
+      final aktuell = {
+        'zahlungsstatus': 'mahnung_1',
+        'mahnung_stufe': 1,
+        'letzte_mahnung_am': nachher['letzte_mahnung_am'],
+      };
+      final p = MahnlaufService.darfZuruecksetzen(aktuell, nachher);
+      expect(p.erlaubt, isFalse);
+      expect(p.grund, 'seither weiter gemahnt');
+    });
+
+    test('kein nachher-Zustand (altes Schreiben) -> nein, nie automatisch', () {
+      final aktuell = {
+        'zahlungsstatus': nachher['zahlungsstatus'],
+        'mahnung_stufe': nachher['mahnung_stufe'],
+        'letzte_mahnung_am': nachher['letzte_mahnung_am'],
+      };
+      final p = MahnlaufService.darfZuruecksetzen(aktuell, null);
+      expect(p.erlaubt, isFalse);
+      expect(p.grund, isNotNull);
+    });
+
+    test('letzte_mahnung_am weicht ab (z.B. manuell korrigiert) -> nein, "geändert"', () {
+      final aktuell = {
+        'zahlungsstatus': nachher['zahlungsstatus'],
+        'mahnung_stufe': nachher['mahnung_stufe'],
+        'letzte_mahnung_am': '2026-09-24',
+      };
+      final p = MahnlaufService.darfZuruecksetzen(aktuell, nachher);
+      expect(p.erlaubt, isFalse);
+      expect(p.grund, 'geändert');
+    });
+  });
+
+  group('MahnlaufFehler', () {
+    test('toString liefert NUR die Meldung, keine "Instance of"-Verpackung', () {
+      final f = MahnlaufFehler('keine Verbindung', mahnschreibenId: 'm1');
+      expect(f.toString(), 'keine Verbindung');
+      expect(f.mahnschreibenId, 'm1');
+    });
+
+    test('mahnschreibenId ist optional (Fehler vor dem Protokoll)', () {
+      final f = MahnlaufFehler('keine Verbindung');
+      expect(f.mahnschreibenId, isNull);
+      expect(f.toString(), 'keine Verbindung');
+    });
+  });
 }

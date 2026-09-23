@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 
 void main() {
@@ -35,5 +36,109 @@ void main() {
     expect(s2, isNot(s1));
     expect(istGueltigeScor(s1), isTrue);
     expect(istGueltigeScor(s2), isTrue);
+  });
+
+  group('istQrReferenzKonflikt (Review 23.09.2026, Punkt 5)', () {
+    test('23505 auf qr_referenz erkannt (message)', () {
+      final e = PostgrestException(
+        message: 'duplicate key value violates unique constraint "rechnungen_qr_referenz_key"',
+        code: '23505',
+      );
+      expect(istQrReferenzKonflikt(e), isTrue);
+    });
+
+    test('23505 auf qr_referenz erkannt (details)', () {
+      final e = PostgrestException(
+        message: 'duplicate key value violates unique constraint',
+        code: '23505',
+        details: 'Key (qr_referenz)=(RF18539007547034) already exists.',
+      );
+      expect(istQrReferenzKonflikt(e), isTrue);
+    });
+
+    test('23505 auf einer anderen Spalte (z.B. rechnungsnummer) ist KEIN Treffer', () {
+      final e = PostgrestException(
+        message: 'duplicate key value violates unique constraint "rechnungen_rechnungsnummer_key"',
+        code: '23505',
+      );
+      expect(istQrReferenzKonflikt(e), isFalse);
+    });
+
+    test('anderer Fehlercode ist kein Treffer, auch mit qr_referenz im Text', () {
+      final e = PostgrestException(message: 'irgendwas mit qr_referenz', code: '42501');
+      expect(istQrReferenzKonflikt(e), isFalse);
+    });
+
+    test('keine PostgrestException ist kein Treffer', () {
+      expect(istQrReferenzKonflikt(Exception('qr_referenz kaputt')), isFalse);
+    });
+  });
+
+  group('mitQrReferenzRetry (Review 23.09.2026, Punkt 5)', () {
+    test('erster Versuch klappt: kein Retry nötig', () async {
+      final versuche = <String?>[];
+      final ergebnis = await mitQrReferenzRetry<String?>(
+        rechnungstyp: 'kundenrechnung',
+        rechnungsnummer: '2026-06-25-0001',
+        aktion: (ref) async {
+          versuche.add(ref);
+          return ref;
+        },
+      );
+      expect(versuche, [qrReferenzAusNummer('kundenrechnung', '2026-06-25-0001')]);
+      expect(ergebnis, versuche.single);
+    });
+
+    test('Kollision auf dem ersten Kandidaten: zweiter Versuch mit Suffix 1', () async {
+      final versuche = <String?>[];
+      final ergebnis = await mitQrReferenzRetry<String?>(
+        rechnungstyp: 'kundenrechnung',
+        rechnungsnummer: '2026-06-25-0001',
+        aktion: (ref) async {
+          versuche.add(ref);
+          if (versuche.length == 1) {
+            throw PostgrestException(
+              message: 'duplicate key value violates unique constraint',
+              code: '23505',
+              details: 'Key (qr_referenz)=($ref) already exists.',
+            );
+          }
+          return ref;
+        },
+      );
+      expect(versuche, hasLength(2));
+      expect(versuche[1], qrReferenzAusNummer('kundenrechnung', '2026-06-25-0001', suffix: 1));
+      expect(ergebnis, versuche[1]);
+    });
+
+    test('ohne Rechnungsnummer/Kundentyp (ref null): EIN Versuch, kein Retry', () async {
+      final versuche = <String?>[];
+      final ergebnis = await mitQrReferenzRetry<String?>(
+        rechnungstyp: 'heineken_monat',
+        rechnungsnummer: '2026-06',
+        aktion: (ref) async {
+          versuche.add(ref);
+          return ref;
+        },
+      );
+      expect(versuche, [null]);
+      expect(ergebnis, isNull);
+    });
+
+    test('ein anderer Fehler (keine qr_referenz-Kollision) wird NICHT wiederholt', () async {
+      var versuche = 0;
+      await expectLater(
+        mitQrReferenzRetry<String?>(
+          rechnungstyp: 'kundenrechnung',
+          rechnungsnummer: '2026-06-25-0001',
+          aktion: (ref) async {
+            versuche++;
+            throw Exception('Netzwerkfehler');
+          },
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(versuche, 1);
+    });
   });
 }

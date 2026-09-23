@@ -63,6 +63,45 @@ void main() {
     expect(bytes.length, greaterThan(1000));
   });
 
+  group('generate reicht muster/mitZahlteil an seitenHinzufuegen durch (Review 23.09.2026, Punkt 3)', () {
+    // WARUM über die Byte-Grösse statt eine Seitenzahl: generate() liefert nur
+    // die fertigen Bytes zurück (seitenHinzufuegen — direkt getestet in
+    // mahnschreiben_pdf_test.dart — liefert die Zähler-Rückgabe). Mit
+    // Zahlteil kommt eine ganze zusätzliche A4-Seite (QR-Grafik) dazu; ohne
+    // muss das PDF spürbar kleiner sein. Das ist der Nachweis, dass
+    // `mitZahlteil: false` tatsächlich bis zur Zahlteil-Seite durchdringt —
+    // die Mail-Beilage im Mahnlauf (`MahnlaufService`) ruft genau so auf,
+    // weil sie schon einen Zahlteil PRO RECHNUNG im Mahnschreiben hat.
+    test('mitZahlteil: false ergibt ein kleineres PDF als der Default', () async {
+      final offen = [rg('2026-a', DateTime(2026, 3, 1), 150)];
+      final mitZahlteil = await KontoauszugPdfService.generate(
+        betrieb: betrieb(),
+        rechnungen: offen,
+      );
+      final ohneZahlteil = await KontoauszugPdfService.generate(
+        betrieb: betrieb(),
+        rechnungen: offen,
+        mitZahlteil: false,
+      );
+      expect(ohneZahlteil.length, lessThan(mitZahlteil.length));
+    });
+
+    test('muster: true fügt ebenfalls Bytes hinzu (Wasserzeichen wird gezeichnet)', () async {
+      final offen = [rg('2026-a', DateTime(2026, 3, 1), 150)];
+      final ohneMuster = await KontoauszugPdfService.generate(
+        betrieb: betrieb(),
+        rechnungen: offen,
+      );
+      final mitMuster = await KontoauszugPdfService.generate(
+        betrieb: betrieb(),
+        rechnungen: offen,
+        muster: true,
+      );
+      expect(istPdf(mitMuster), isTrue);
+      expect(mitMuster.length, isNot(ohneMuster.length));
+    });
+  });
+
   group('Jahres-Auswahl', () {
     test('nimmt nur den gewählten Jahrgang', () {
       final r = KontoauszugPdfService.fuerJahr(gemischt, 2026);

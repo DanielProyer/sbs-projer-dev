@@ -95,11 +95,16 @@ class KontoauszugPdfService {
       : rechnungen.where((r) => r.rechnungsdatum.year == jahr).toList();
 
   /// [jahr] grenzt den Auszug auf ein Kalenderjahr ein (nach `rechnungsdatum`).
-  /// null = alles, wie bisher von der Betriebsseite aufgerufen.
+  /// null = alles. Aufrufer: die Betriebsseite (eigenständiger Auszug) UND
+  /// `MahnlaufService` (Beilage zur Mahn-Mail, mit `muster`/`mitZahlteil:
+  /// false` — siehe dort).
   ///
   /// Gefiltert wird BEWUSST hier drin und nicht beim Aufrufer: Sonst könnten
   /// Inhalt und die Zeitraum-Angabe im Kopf auseinanderlaufen, und das Papier
   /// behauptete einen Zeitraum, den es nicht zeigt.
+  ///
+  /// [muster] und [mitZahlteil] werden unverändert an [seitenHinzufuegen]
+  /// durchgereicht (Doku dort).
   static Future<Uint8List> generate({
     required BetriebLocal betrieb,
     required List<Rechnung> rechnungen,
@@ -109,6 +114,8 @@ class KontoauszugPdfService {
     String? firmaPlzOrt,
     String? firmaMwst,
     int? jahr,
+    bool muster = false,
+    bool mitZahlteil = true,
   }) async {
     final pdf = await pdfDokument();
     await seitenHinzufuegen(
@@ -121,6 +128,8 @@ class KontoauszugPdfService {
       firmaPlzOrt: firmaPlzOrt,
       firmaMwst: firmaMwst,
       jahr: jahr,
+      muster: muster,
+      mitZahlteil: mitZahlteil,
     );
     return pdf.save();
   }

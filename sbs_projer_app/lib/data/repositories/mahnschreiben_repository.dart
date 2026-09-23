@@ -36,10 +36,12 @@ class MahnschreibenRepository {
     return rows.map((r) => Mahnschreiben.fromJson(r)).toList();
   }
 
+  /// UTC, wie überall sonst in der App bei Zeitstempeln (Datumsdifferenzen
+  /// in UTC rechnen — Sommerzeit frisst sonst einen Tag, CLAUDE.md).
   static Future<void> markiereZurueckgenommen(String id) async {
     await SupabaseService.client
         .from(_tabelle)
-        .update({'zurueckgenommen_am': DateTime.now().toIso8601String()})
+        .update({'zurueckgenommen_am': DateTime.now().toUtc().toIso8601String()})
         .eq('id', id);
   }
 }
