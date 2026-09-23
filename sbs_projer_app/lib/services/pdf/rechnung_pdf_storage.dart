@@ -95,4 +95,39 @@ class RechnungPdfStorage {
     final path = '$_userId/$rechnungId/rechnung.pdf';
     await SupabaseService.client.storage.from(_bucket).remove([path]);
   }
+
+  /// Mahnlauf-PDF hochladen (v0.134.0): Mahnschreiben, Kontoauszug-Beilage
+  /// oder Druck-Variante eines Sammel-Mahnschreibens. [mahnschreibenId] wird
+  /// vom Aufrufer client-seitig per Uuid erzeugt (üblicher Weg im Projekt),
+  /// damit der Storage-Pfad schon vor dem DB-Insert des Protokolls feststeht.
+  ///
+  /// WARUM `SupabaseService.dataUserId` statt [_userId]: Das Mahnprotokoll
+  /// (`mahnschreiben`-Zeile) trägt `user_id = dataUserId`, damit RLS
+  /// (`user_id = auth.uid()`) greift — der Pfad muss mit demselben Präfix
+  /// beginnen, sonst lehnt `send-rechnung-mail` den Anhang ab
+  /// (`zusatzPdfPfadErlaubt`). Für Daniel (kein Gast) ist das identisch mit
+  /// [_userId].
+  static Future<void> uploadMahnlaufPdf(
+      String mahnschreibenId, String datei, Uint8List bytes) async {
+    final path =
+        '${SupabaseService.dataUserId}/mahnungen/$mahnschreibenId/$datei';
+    await SupabaseService.client.storage.from(_bucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'application/pdf',
+            upsert: true,
+          ),
+        );
+  }
+
+  /// Signed URL für ein Mahnlauf-PDF (Mahnschreiben, Kontoauszug oder Druck).
+  static Future<String> getMahnlaufSignedUrl(
+      String mahnschreibenId, String datei) async {
+    final path =
+        '${SupabaseService.dataUserId}/mahnungen/$mahnschreibenId/$datei';
+    return await SupabaseService.client.storage
+        .from(_bucket)
+        .createSignedUrl(path, 3600);
+  }
 }
