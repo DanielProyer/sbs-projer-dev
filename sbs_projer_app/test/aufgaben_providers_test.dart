@@ -46,6 +46,7 @@ void main() {
     autoTermineProvider.overrideWith((ref, tag) => const []),
     offeneVorschlaegeAnzahlProvider.overrideWithValue(vorschlaege),
     aufgabenDetektorenProvider.overrideWith((ref) async => detektoren),
+    mahnlaufAufgabeProvider.overrideWith((ref) async => null),
     aufgabenZeilenProvider.overrideWith((ref) async => zeilen),
   ];
 

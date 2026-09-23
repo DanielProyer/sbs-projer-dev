@@ -82,19 +82,8 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     debugPrint('[Aufgaben] MWST-Detektor: $e');
   }
 
-  // c) Mahnlauf — dieselbe Aufbereitung wie die Mahnlauf-Seite (Stichtag =
-  //    Bankauszug, Sperren), gezählt je Betrieb. Eine eigene Regel hier
-  //    liefe früher oder später auseinander (bis v0.133: 5/25/30 Tage ab
-  //    heute, ohne Blick auf den Bankauszug).
-  try {
-    final m = await ref.watch(mahnlaufProvider.future);
-    final a = m.bankGesperrt
-        ? mahnlaufAufgabe(m.betriebeHinterBanksperre, bankGesperrt: true)
-        : mahnlaufAufgabe(m.betriebe.length);
-    if (a != null) detektoren.add(a);
-  } catch (e) {
-    debugPrint('[Aufgaben] Mahnlauf-Detektor: $e');
-  }
+  // c) Mahnlauf — eigener Provider (`mahnlaufAufgabeProvider`), damit ein
+  //    Neuladen des Mahnlaufs nicht alle Detektoren hier neu rechnet.
 
   // d) Saisondaten — bestehender Tourenplan-Provider.
   try {
@@ -195,4 +184,24 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
   }
 
   return detektoren;
+});
+
+/// Mahnlauf-Aufgabe (v0.134.0) — bewusst NICHT in
+/// [aufgabenDetektorenProvider]: Die Mahnlauf-Seite lädt vor jedem Erstellen
+/// neu (`ref.invalidate(mahnlaufProvider)`). Hinge die Aufgabe dort drin,
+/// rechnete jedes Neuladen alle anderen Detektoren mit (Review 23.09.2026,
+/// I-3). So trifft es nur diese Aufgabe; die Liste setzt sich daraus neu
+/// zusammen. Dieselbe Aufbereitung wie die Seite (Stichtag = Bankauszug,
+/// Sperren), gezählt je Betrieb.
+final mahnlaufAufgabeProvider = FutureProvider<Aufgabe?>((ref) async {
+  if (!_eingeloggt()) return null;
+  try {
+    final m = await ref.watch(mahnlaufProvider.future);
+    return m.bankGesperrt
+        ? mahnlaufAufgabe(m.betriebeHinterBanksperre, bankGesperrt: true)
+        : mahnlaufAufgabe(m.betriebe.length);
+  } catch (e) {
+    debugPrint('[Aufgaben] Mahnlauf-Detektor: $e');
+    return null;
+  }
 });

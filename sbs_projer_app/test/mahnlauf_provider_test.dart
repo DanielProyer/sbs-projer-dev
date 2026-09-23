@@ -45,8 +45,8 @@ void main() {
   final heute = d(2026, 9, 23);
   final auszug = d(2026, 9, 22);
   const betriebe = {
-    'b1': (name: 'Rössli', ort: 'Chur', aliase: <String>[]),
-    'b2': (name: 'Sonne', ort: 'Davos', aliase: <String>['Sonnenwirt AG']),
+    'b1': (name: 'Rössli', ort: 'Chur', aliase: <String>[], raMail: 'ra@roessli.ch', betriebMail: null),
+    'b2': (name: 'Sonne', ort: 'Davos', aliase: <String>['Sonnenwirt AG'], raMail: null, betriebMail: null),
   };
 
   // Rechnung vom 01.06., fällig 01.07., zugestellt → Erinnerung längst fällig.
@@ -58,7 +58,7 @@ void main() {
     List<MahnlaufGutschrift> gutschriften = const [],
     DateTime? letzterAuszug,
     bool ohneAuszug = false,
-    String? luecke,
+    AuszugKettenBefund kette = (status: AuszugKette.ok, text: null),
     Set<String> mitGebuchterZahlung = const {},
   }) =>
       baueMahnlauf(
@@ -66,7 +66,7 @@ void main() {
         betriebe: betriebe,
         gutschriften: gutschriften,
         letzterAuszug: ohneAuszug ? null : (letzterAuszug ?? auszug),
-        auszugLuecke: luecke,
+        auszugKette: kette,
         mitGebuchterZahlung: mitGebuchterZahlung,
         heute: heute,
       );
@@ -128,7 +128,10 @@ void main() {
 
   test('kein Auszug oder Lücke in der Kette → Bank gesperrt mit Grund', () {
     expect(bau([faellig('r1')], ohneAuszug: true).bankGesperrt, isTrue);
-    final l = bau([faellig('r1')], luecke: 'Lücke: 01.08.–03.08.');
+    final l = bau(
+      [faellig('r1')],
+      kette: (status: AuszugKette.luecke, text: 'Lücke: 01.08.–03.08.'),
+    );
     expect(l.bankGesperrt, isTrue);
     expect(l.betriebe, isEmpty);
     expect(l.bankSperrgrund, contains('Lücke zwischen den Bankauszügen'));
@@ -196,6 +199,89 @@ void main() {
     expect(b.rechnungenDesJahres.map((r) => r.id), unorderedEquals(['r1', 'p1']));
     expect(b.letzteZahlung?.datum, d(2026, 3, 5));
     expect(b.letzteZahlung?.betrag, 120);
+  });
+
+  test('Kanal auf der Karte: Mail bzw. Druck ohne Adresse', () {
+    final m = bau([faellig('r1'), faellig('r2', betrieb: 'b2')]);
+    final b1 = m.betriebe.firstWhere((b) => b.betriebId == 'b1');
+    final b2 = m.betriebe.firstWhere((b) => b.betriebId == 'b2');
+    expect(b1.kanal.kanal, 'mail');
+    expect(b1.kanal.mail, 'ra@roessli.ch');
+    expect(b2.kanal.kanal, 'druck');
+  });
+
+  test('fehlender Saldo in der Kette: Hinweis, aber keine Sperre', () {
+    final m = bau(
+      [faellig('r1')],
+      kette: (status: AuszugKette.ungeprueft, text: 'Saldo fehlt'),
+    );
+    expect(m.bankGesperrt, isFalse);
+    expect(m.auszugHinweis, 'Saldo fehlt');
+    expect(m.betriebe, hasLength(1));
+  });
+
+  group('pruefeVorErstellen (frische Daten vor dem zweiten Klick)', () {
+    final vorschau = bau([faellig('r1'), faellig('r2')]);
+    final gewaehlt = vorschau.betriebe.single.faellig;
+
+    test('unverändert: frische Karte und Posten', () {
+      final p = pruefeVorErstellen(
+        frisch: bau([faellig('r1'), faellig('r2')]),
+        betriebId: 'b1',
+        gewaehlt: gewaehlt,
+      );
+      expect(p.fehler, isNull);
+      expect(p.posten.map((x) => x.rechnung.id), ['r1', 'r2']);
+      expect(p.karte!.offeneImMahnbereich, hasLength(2));
+    });
+
+    test('inzwischen Zahlung gebucht: Abbruch', () {
+      final p = pruefeVorErstellen(
+        frisch: bau([faellig('r1'), faellig('r2')], mitGebuchterZahlung: {'r2'}),
+        betriebId: 'b1',
+        gewaehlt: gewaehlt,
+      );
+      expect(p.fehler, startsWith('Daten haben sich geändert — bitte neu prüfen'));
+      expect(p.posten, isEmpty);
+    });
+
+    test('inzwischen ungeklärte Gutschrift: Abbruch', () {
+      final p = pruefeVorErstellen(
+        frisch: bau(
+          [faellig('r1'), faellig('r2')],
+          gutschriften: [(partei: 'Rössli', betrag: 1.0, datum: d(2026, 9, 22))],
+        ),
+        betriebId: 'b1',
+        gewaehlt: gewaehlt,
+      );
+      expect(p.fehler, isNotNull);
+    });
+
+    test('Bank inzwischen gesperrt: Abbruch', () {
+      final p = pruefeVorErstellen(
+        frisch: bau([faellig('r1'), faellig('r2')], ohneAuszug: true),
+        betriebId: 'b1',
+        gewaehlt: gewaehlt,
+      );
+      expect(p.fehler, isNotNull);
+    });
+
+    test('andere Stufe als in der Vorschau: Abbruch', () {
+      final erinnert = _r(
+        id: 'r1',
+        datum: d(2026, 6, 1),
+        versendet: d(2026, 6, 1),
+        status: 'erinnert',
+        erinnerung: d(2026, 8, 1),
+        frist: d(2026, 8, 11),
+      );
+      final p = pruefeVorErstellen(
+        frisch: bau([erinnert, faellig('r2')]),
+        betriebId: 'b1',
+        gewaehlt: gewaehlt,
+      );
+      expect(p.fehler, contains('NR-r1'));
+    });
   });
 
   group('Einzelmahnung', () {

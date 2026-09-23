@@ -30,7 +30,11 @@ final aufgabenListeProvider = FutureProvider<List<AufgabenEintrag>>((
   final heuteTag = DateTime(heute.year, heute.month, heute.day);
   final betriebe = ref.watch(betriebLookupProvider);
 
-  final detektoren = await ref.watch(aufgabenDetektorenProvider.future);
+  final mahnlauf = await ref.watch(mahnlaufAufgabeProvider.future);
+  final detektoren = [
+    ...await ref.watch(aufgabenDetektorenProvider.future),
+    if (mahnlauf != null) mahnlauf,
+  ];
   final zeilen = await ref.watch(aufgabenZeilenProvider.future);
   final termine = await ref.watch(offeneTermineProvider.future);
 

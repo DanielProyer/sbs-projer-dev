@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,8 +14,6 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/mahnschreiben_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/camt_abgleich_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/mahnverlauf.dart';
@@ -47,6 +46,11 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
   final _auswahl = <String, Set<String>>{};
   final _offen = <String>{};
   String? _laeuftFuer;
+
+  /// Letztes Druck-PDF dieser Sitzung — geöffnet nur per Klick (Pop-up-
+  /// Sperre des Browsers), siehe `_erstellen`.
+  Uint8List? _druckPdf;
+  String? _druckName;
 
   bool get _einzel => widget.rechnungId != null;
 
@@ -89,6 +93,39 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 _bankKarte(daten),
+                if (daten.auszugHinweis != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _kasten(
+                      farbe: AppColors.warning,
+                      child: Text(
+                        daten.auszugHinweis!,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ),
+                if (_druckPdf != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _kasten(
+                      farbe: AppColors.primary,
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Druck-PDF der letzten Mahnung',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          TapKnopf(
+                            text: 'Öffnen',
+                            icon: Icons.picture_as_pdf,
+                            onTap: _druckPdfOeffnen,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (!MailConfig.istScharf('mahnwesen')) _testmodusZeile(),
                 const SizedBox(height: 12),
                 _titel('Mahnfällig', daten.betriebe.length),
@@ -124,10 +161,9 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
   }
 
   void _neuLaden() {
-    // Prüfliste und Auszüge frisch holen — eben eingelesene Auszüge oder
-    // zugeordnete Zahlungen müssen die Sperren sofort lösen bzw. setzen.
-    ref.invalidate(camtPrueflisteProvider);
-    ref.invalidate(camtDateienProvider);
+    // Der Mahnlauf lädt Prüfliste, Auszüge, Rechnungen und Zahlungen selbst
+    // aus der DB — ein Invalidate genügt und trifft nur ihn (nicht die
+    // übrigen Glocken-Detektoren).
     ref.invalidate(mahnlaufProvider);
   }
 
@@ -257,7 +293,8 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
                         const SizedBox(height: 2),
                         Text(
                           '${b.faellig.length} Rechnung(en) · '
-                          'CHF ${b.summeFaellig.toStringAsFixed(2)} · ${b.hoechste.titel}',
+                          'CHF ${b.summeFaellig.toStringAsFixed(2)} · ${b.hoechste.titel} · '
+                          '${_kanalText(b.kanal)}',
                           style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ],
@@ -357,15 +394,10 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
 
     setState(() => _laeuftFuer = b.betriebId);
     BetriebLocal? betrieb;
-    String? mail;
+    String? raMail;
     try {
       betrieb = await BetriebRepository.getByServerId(b.betriebId);
-      final ra = await BetriebRechnungsadresseRepository.getByBetrieb(b.betriebId);
-      // Dieselbe Reihenfolge wie `MahnlaufService.erstellen`: Rechnungs-
-      // adresse, sonst Betrieb.
-      final raMail = (ra?.email ?? '').trim();
-      final bMail = (betrieb?.email ?? '').trim();
-      mail = raMail.isNotEmpty ? raMail : (bMail.isNotEmpty ? bMail : null);
+      raMail = (await BetriebRechnungsadresseRepository.getByBetrieb(b.betriebId))?.email;
     } catch (e) {
       _meldung('Vorschau nicht möglich: ${kurzeFehlermeldung(e)}');
       return;
@@ -379,10 +411,9 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     if (!mounted) return;
 
     final stufe = hoechsteStufe(posten.map((p) => p.stufe));
-    final druck = mail == null || stufe == MahnStufe.letzte;
-    final kanal = mail == null
-        ? 'Druck — keine Mailadresse'
-        : (druck ? 'Mail + PDF zum Einschreiben' : 'Mail');
+    // Dieselbe Regel wie der Versand (`mahnKanal`) — die Vorschau darf nie
+    // einen anderen Kanal zeigen, als dann gewählt wird.
+    final k = mahnKanal(raMail: raMail, betriebMail: betrieb.email, stufe: stufe);
     final kontoauszug = b.offeneImMahnbereich.length > 1;
     final test = !MailConfig.istScharf('mahnwesen');
 
@@ -400,10 +431,10 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
-              _vorschauZeile('Empfänger', mail ?? 'keine Mailadresse'),
-              if (test && mail != null)
+              _vorschauZeile('Empfänger', k.mail ?? 'keine Mailadresse'),
+              if (test && k.mail != null)
                 _vorschauZeile('', 'Testmodus: geht an ${MailConfig.testEmpfaenger}'),
-              _vorschauZeile('Kanal', kanal),
+              _vorschauZeile('Kanal', _kanalText(k)),
               _vorschauZeile('Stufe', stufe.titel),
               _vorschauZeile('Neue Frist', _datum(mahnFrist(DateTime.now()))),
               _vorschauZeile(
@@ -417,7 +448,7 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
                 'Beilagen',
                 [
                   kontoauszug ? 'Kontoauszug ${DateTime.now().year}' : 'kein Kontoauszug',
-                  if (mail != null) '${posten.length} Rechnungskopie(n) per Mail',
+                  if (k.mail != null) '${posten.length} Rechnungskopie(n) per Mail',
                 ].join(' · '),
               ),
               const SizedBox(height: 8),
@@ -458,10 +489,11 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
   }
 
   /// Erstellt die Mahnung — aber erst nach einer FRISCHEN Prüfung aller
-  /// Sicherungen: Zwischen Anzeige und Klick kann ein Auszug eingelesen,
-  /// eine Zahlung zugeordnet oder eine Rechnung bezahlt worden sein. Weicht
-  /// irgendetwas ab, wird nichts erstellt (Oberstes Ziel: nie Bezahltes
-  /// mahnen).
+  /// Sicherungen (Review 23.09.2026, I-1): Zwischen Vorschau und Klick kann
+  /// ein Auszug eingelesen, eine Zahlung zugeordnet oder gebucht, eine
+  /// Rechnung bezahlt worden sein. Der Mahnlauf wird dafür neu aus der
+  /// Datenbank gebaut; aus DIESEM Stand kommen auch offene Rechnungen und
+  /// Kontoauszug-Inhalt. Weicht etwas ab, wird nichts erstellt.
   Future<void> _erstellen(
     MahnBetrieb alt,
     BetriebLocal betrieb,
@@ -471,40 +503,43 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     try {
       _neuLaden();
       final frisch = await ref.read(mahnlaufProvider.future);
-      final karte = frisch.betriebe.where((k) => k.betriebId == alt.betriebId).firstOrNull;
-      if (frisch.bankGesperrt || karte == null || karte.gesperrt) {
-        _meldung('Stand hat sich geändert — nichts erstellt. Bitte neu prüfen.');
+      final p = pruefeVorErstellen(frisch: frisch, betriebId: alt.betriebId, gewaehlt: posten);
+      if (p.fehler != null) {
+        _meldung(p.fehler!);
         return;
       }
+      // Zusätzlich jede Rechnung einzeln direkt aus der DB — der Stand der
+      // Seite ist höchstens Sekunden alt, aber hier geht es um Bezahltes.
       final geprueft = <MahnPosten>[];
-      for (final p in posten) {
-        final f = karte.faellig.where((k) => k.rechnung.id == p.rechnung.id).firstOrNull;
-        // Zusätzlich direkt aus der DB: Der Rechnungs-Stream kann einen
-        // Moment hinterherhinken.
-        final db = await RechnungRepository.getById(p.rechnung.id);
+      for (final x in p.posten) {
+        final db = await RechnungRepository.getById(x.rechnung.id);
         final stufeDb =
             db == null ? null : faelligeStufe(db, stichtag: frisch.letzterAuszug!);
-        if (f == null || db == null || stufeDb != p.stufe) {
-          _meldung('${p.rechnung.rechnungsnummer ?? 'Rechnung'} ist nicht mehr '
-              'mahnfällig — nichts erstellt. Bitte neu prüfen.');
+        if (db == null || stufeDb != x.stufe) {
+          _meldung('Daten haben sich geändert — bitte neu prüfen '
+              '(${x.rechnung.rechnungsnummer ?? 'Rechnung'}).');
           return;
         }
-        geprueft.add((rechnung: db, stufe: stufeDb!));
+        geprueft.add((rechnung: db, stufe: x.stufe));
       }
 
       final erg = await MahnlaufService.erstellen(
         betrieb: betrieb,
         posten: geprueft,
-        offeneDesBetriebs: karte.offeneImMahnbereich,
-        rechnungenDesJahres: karte.rechnungenDesJahres,
+        offeneDesBetriebs: p.karte!.offeneImMahnbereich,
+        rechnungenDesJahres: p.karte!.rechnungenDesJahres,
       );
-      if (erg.druckPdf != null) {
-        final name = betrieb.name.replaceAll(RegExp(r'[^A-Za-z0-9ÄÖÜäöüéè]+'), '_');
-        await oeffnePdfImNeuenTab(erg.druckPdf!, 'Mahnung_$name.pdf');
+      if (erg.druckPdf != null && mounted) {
+        // Nicht automatisch öffnen: Der Browser blockiert Tabs, die nicht
+        // direkt aus einem Klick entstehen. Die Bytes bleiben hier, bis
+        // Daniel «Druck-PDF öffnen» tippt (Review 23.09.2026, I-2).
+        setState(() {
+          _druckPdf = erg.druckPdf;
+          _druckName =
+              'Mahnung_${betrieb.name.replaceAll(RegExp(r'[^A-Za-z0-9ÄÖÜäöüéè]+'), '_')}.pdf';
+        });
       }
-      if (mounted) {
-        await _ergebnisZeigen(erg);
-      }
+      if (mounted) await _ergebnisZeigen(erg);
     } on MahnlaufFehler catch (f) {
       if (mounted) await _fehlerZeigen(f);
     } catch (e) {
@@ -519,6 +554,12 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
         });
       }
     }
+  }
+
+  void _druckPdfOeffnen() {
+    final bytes = _druckPdf;
+    if (bytes == null) return;
+    oeffnePdfImNeuenTab(bytes, _druckName ?? 'Mahnung.pdf');
   }
 
   Future<void> _ergebnisZeigen(MahnlaufErgebnis erg) => showDialog<void>(
@@ -536,7 +577,7 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
               if (erg.druckPdf != null)
                 const Padding(
                   padding: EdgeInsets.only(top: 6),
-                  child: Text('Das Druck-PDF ist in einem neuen Tab geöffnet.'),
+                  child: Text('Druck-PDF bereit (auch später oben auf der Seite).'),
                 ),
               if (erg.fehlendeAnhaenge.isNotEmpty)
                 Padding(
@@ -549,7 +590,13 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
             ],
           ),
           actions: [
-            TapKnopf(text: 'OK', onTap: () => Navigator.pop(ctx)),
+            if (erg.druckPdf != null)
+              TapKnopf(
+                text: 'Druck-PDF öffnen',
+                icon: Icons.picture_as_pdf,
+                onTap: _druckPdfOeffnen,
+              ),
+            TapKnopf(text: 'OK', primaer: false, onTap: () => Navigator.pop(ctx)),
           ],
         ),
       );
@@ -689,6 +736,12 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
 
 String _datum(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+String _kanalText(MahnKanal k) => switch (k.kanal) {
+      'mail' => 'Mail',
+      'mail_und_druck' => 'Mail + PDF zum Einschreiben',
+      _ => 'Druck — keine Mailadresse',
+    };
 
 String _statusText(String s) => switch (s) {
       'erinnert' => 'Erinnert',

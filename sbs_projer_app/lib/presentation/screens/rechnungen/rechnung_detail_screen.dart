@@ -78,6 +78,9 @@ class _RechnungDetailContentState
   BetriebRechnungsadresseLocal? _betriebRa;
   bool _loadingPositionen = true;
 
+  /// Neuer Key = Mahnverlauf lädt neu (nach «Jetzt mahnen», M-5).
+  Key _verlaufKey = UniqueKey();
+
   @override
   void initState() {
     super.initState();
@@ -422,6 +425,7 @@ class _RechnungDetailContentState
 
           // Mahnverlauf aus dem Protokoll (v0.134.0) — mit «Zurücknehmen».
           Mahnverlauf(
+            key: _verlaufKey,
             rechnungId: _rechnung.id,
             altEintraege: [
               if (_rechnung.erinnerungAm != null)
@@ -483,7 +487,13 @@ class _RechnungDetailContentState
             if (imMahnbereich(_rechnung) && istZugestellt(_rechnung))
               _tapButton(
                 'Jetzt mahnen',
-                () => context.push('/rechnungen/mahnlauf?rechnung=${_rechnung.id}'),
+                () async {
+                  await context.push('/rechnungen/mahnlauf?rechnung=${_rechnung.id}');
+                  // Zurück aus dem Mahnlauf: Stufe und Verlauf neu laden,
+                  // sonst zeigt die Seite den Stand vor der Mahnung.
+                  await _reloadRechnung();
+                  if (mounted) setState(() => _verlaufKey = UniqueKey());
+                },
                 icon: Icons.notifications_active_outlined,
               ),
           ],

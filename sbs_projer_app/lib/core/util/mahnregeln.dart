@@ -248,7 +248,17 @@ typedef AuszugInfo = ({
   double? schlusssaldo,
 });
 
-/// Lücke in der Kette der Bankauszüge seit dem Mahnstart — oder null.
+/// Ergebnis der Auszugsketten-Prüfung.
+/// - [AuszugKette.luecke]: fehlende Tage oder Saldosprung — SPERRT den Lauf.
+/// - [AuszugKette.ungeprueft]: nahtloser Anschluss, aber ein Saldo fehlt
+///   (ältere Importe ohne OPBD/CLBD) — Vollständigkeit nicht belegbar,
+///   nur ein Hinweis (Review 23.09.2026, M-1). Eine Sperre hier würde den
+///   Mahnlauf wegen alter Importe dauerhaft blockieren.
+enum AuszugKette { ok, ungeprueft, luecke }
+
+typedef AuszugKettenBefund = ({AuszugKette status, String? text});
+
+/// Prüft die Kette der Bankauszüge seit dem Mahnstart.
 ///
 /// WARUM: Fehlt ein Stück Kontoauszug, fehlen womöglich genau die Zahlungen,
 /// die eine Mahnung verhindern würden — auch wenn der letzte Auszug aktuell
@@ -257,32 +267,63 @@ typedef AuszugInfo = ({
 /// bisher abgedeckten Zeitraum und dem nächsten Auszug, und bei nahtlosem
 /// Anschluss OPBD ≠ CLBD (Saldosprung). Überlappungen sind harmlos. Nur
 /// Auszüge, die in den Mahnbereich reichen, zählen — eine alte Lücke von
-/// 2025 darf den Mahnlauf nicht dauerhaft sperren.
-String? auszugKettenLuecke(List<AuszugInfo> auszuege) {
+/// 2025 darf den Mahnlauf nicht dauerhaft sperren. Eine Lücke geht immer
+/// vor «ungeprüft».
+AuszugKettenBefund pruefeAuszugKette(List<AuszugInfo> auszuege) {
   final l = auszuege.where((a) => !_tag(a.bis).isBefore(kMahnStart)).toList()
     ..sort((a, b) => a.von.compareTo(b.von));
-  if (l.length < 2) return null;
+  if (l.length < 2) return (status: AuszugKette.ok, text: null);
   var abgedecktBis = l.first.bis;
   var abgedecktSaldo = l.first.schlusssaldo;
+  var ungeprueft = false;
   for (var i = 1; i < l.length; i++) {
     final c = l[i];
     final luecke = BankWaechter.luecke(letztesBis: abgedecktBis, neuesVon: c.von);
-    if (luecke != null) return luecke;
+    if (luecke != null) return (status: AuszugKette.luecke, text: luecke);
     final nahtlos = _tag(c.von).difference(_tag(abgedecktBis)).inDays == 1;
     final opbd = c.anfangssaldo;
-    if (nahtlos &&
-        opbd != null &&
-        abgedecktSaldo != null &&
-        (opbd - abgedecktSaldo).abs() > 0.005) {
-      return 'Saldosprung zwischen zwei Auszügen '
-          '(${abgedecktSaldo.toStringAsFixed(2)} → ${opbd.toStringAsFixed(2)})';
+    if (nahtlos && (opbd == null || abgedecktSaldo == null)) {
+      ungeprueft = true;
+    } else if (nahtlos && (opbd! - abgedecktSaldo!).abs() > 0.005) {
+      return (
+        status: AuszugKette.luecke,
+        text: 'Saldosprung zwischen zwei Auszügen '
+            '(${abgedecktSaldo.toStringAsFixed(2)} → ${opbd.toStringAsFixed(2)})',
+      );
     }
     if (c.bis.isAfter(abgedecktBis)) {
       abgedecktBis = c.bis;
       abgedecktSaldo = c.schlusssaldo;
     }
   }
-  return null;
+  return ungeprueft
+      ? (
+          status: AuszugKette.ungeprueft,
+          text: 'Saldo einer Auszugsdatei fehlt — Vollständigkeit ungeprüft',
+        )
+      : (status: AuszugKette.ok, text: null);
+}
+
+/// Kanal eines Mahnschreibens: [mail] ist die Adresse, an die es geht
+/// (Rechnungsadresse vor Betrieb, wie die Rechnung), [druck], ob zusätzlich
+/// bzw. nur ein PDF zum Ausdrucken entsteht.
+typedef MahnKanal = ({String kanal, String? mail, bool druck});
+
+/// EINE Regel für Vorschau, Karte und Versand (Review 23.09.2026, M-3) —
+/// sonst zeigt die Vorschau einen anderen Kanal, als der Service wählt.
+/// Die letzte Mahnung geht IMMER zusätzlich als Druck (Einschreiben,
+/// Beweismittel für eine Betreibung).
+MahnKanal mahnKanal({
+  required String? raMail,
+  required String? betriebMail,
+  required MahnStufe stufe,
+}) {
+  final ra = (raMail ?? '').trim();
+  final b = (betriebMail ?? '').trim();
+  final mail = ra.isNotEmpty ? ra : (b.isNotEmpty ? b : null);
+  if (mail == null) return (kanal: 'druck', mail: null, druck: true);
+  final druck = stufe == MahnStufe.letzte;
+  return (kanal: druck ? 'mail_und_druck' : 'mail', mail: mail, druck: druck);
 }
 
 MahnStufe hoechsteStufe(Iterable<MahnStufe> stufen) {

@@ -22,9 +22,9 @@ class Mahnverlauf extends StatefulWidget {
   final VoidCallback onGeaendert;
 
   /// Mahnungen aus der Zeit VOR dem Protokoll (bis v0.133, einzeln über
-  /// die alte Eskalation erstellt): Stufe und Datum aus der Rechnung. Nur
-  /// angezeigt, wenn es kein Protokoll gibt — sonst stünde jede neue Stufe
-  /// doppelt da.
+  /// die alte Eskalation erstellt): Stufe und Datum aus der Rechnung. Eine
+  /// Stufe, die schon im Protokoll steht, wird ausgeblendet
+  /// ([sichtbareAltEintraege]) — sonst stünde sie doppelt da.
   final List<({int stufe, DateTime datum})> altEintraege;
 
   const Mahnverlauf({
@@ -66,7 +66,8 @@ class _MahnverlaufState extends State<Mahnverlauf> {
           );
         }
         final liste = snap.data ?? const <Mahnschreiben>[];
-        if (liste.isEmpty && widget.altEintraege.isEmpty) {
+        final alt = sichtbareAltEintraege(widget.altEintraege, liste);
+        if (liste.isEmpty && alt.isEmpty) {
           return const SizedBox.shrink();
         }
         return Container(
@@ -87,8 +88,7 @@ class _MahnverlaufState extends State<Mahnverlauf> {
               ),
               const SizedBox(height: 8),
               for (final m in liste) _zeile(m),
-              if (liste.isEmpty)
-                for (final a in widget.altEintraege) _altZeile(a.stufe, a.datum),
+              for (final a in alt) _altZeile(a.stufe, a.datum),
             ],
           ),
         );
@@ -144,6 +144,26 @@ class _MahnverlaufState extends State<Mahnverlauf> {
                             fontWeight: m.test ? FontWeight.w600 : null,
                           ),
                         ),
+                        // Mail + Druck: Die Zeile öffnet das Mahnschreiben
+                        // der Mail; das Einschreiben-PDF liegt daneben als
+                        // druck.pdf (Review 23.09.2026, I-2).
+                        if (m.kanal == 'mail_und_druck')
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _pdfOeffnen(m, datei: 'druck.pdf'),
+                            child: const Padding(
+                              padding: EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Druck-PDF öffnen',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -206,11 +226,11 @@ class _MahnverlaufState extends State<Mahnverlauf> {
     }
   }
 
-  Future<void> _pdfOeffnen(Mahnschreiben m) async {
+  Future<void> _pdfOeffnen(Mahnschreiben m, {String? datei}) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final datei = m.pdfPfad!.split('/').last;
-      final url = await RechnungPdfStorage.getMahnlaufSignedUrl(m.id, datei);
+      final name = datei ?? m.pdfPfad!.split('/').last;
+      final url = await RechnungPdfStorage.getMahnlaufSignedUrl(m.id, name);
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
       messenger.showSnackBar(
@@ -248,15 +268,9 @@ Future<bool> mahnungZuruecknehmen(BuildContext context, Mahnschreiben m) async {
   final messenger = ScaffoldMessenger.of(context);
   try {
     final erg = await MahnlaufService.zuruecknehmen(m);
-    final gruende = erg.uebersprungen.map((u) => u.grund).toSet().join(', ');
     messenger.showSnackBar(SnackBar(
-      duration: const Duration(seconds: 6),
-      content: Text(
-        erg.nichtsZurueckgesetzt
-            ? 'Nichts zurückgesetzt ($gruende) — das Schreiben gilt weiter.'
-            : '${erg.zurueckgesetzt.length} Rechnung(en) zurückgesetzt'
-                '${erg.uebersprungen.isEmpty ? '' : ', ${erg.uebersprungen.length} übersprungen ($gruende)'}.',
-      ),
+      duration: const Duration(seconds: 8),
+      content: Text(zuruecknehmenMeldung(erg)),
     ));
     return !erg.nichtsZurueckgesetzt;
   } on MahnlaufFehler catch (f) {
@@ -268,4 +282,30 @@ Future<bool> mahnungZuruecknehmen(BuildContext context, Mahnschreiben m) async {
     );
     return false;
   }
+}
+
+/// Alte Mahnverlauf-Einträge (aus den Datumsfeldern der Rechnung, vor dem
+/// Protokoll) — nur die, deren Stufe NICHT schon im Protokoll steht
+/// (Review 23.09.2026, M-4). Sonst verschwände eine alte Erinnerung, sobald
+/// die 1. Mahnung über den Mahnlauf protokolliert ist.
+List<({int stufe, DateTime datum})> sichtbareAltEintraege(
+  List<({int stufe, DateTime datum})> alt,
+  List<Mahnschreiben> protokoll,
+) {
+  final protokolliert = {for (final m in protokoll) m.stufe};
+  return [for (final a in alt) if (!protokolliert.contains(a.stufe)) a];
+}
+
+/// Rückmeldung nach dem Zurücknehmen — mit Rechnungsnummer je
+/// übersprungener Rechnung (Review 23.09.2026, M-7): «2 übersprungen» allein
+/// sagt nicht, WELCHE Rechnung noch gemahnt dasteht.
+String zuruecknehmenMeldung(MahnlaufZuruecknehmenErgebnis erg) {
+  final details = [
+    for (final u in erg.uebersprungen) '${u.rechnungsnummer ?? u.rechnungId}: ${u.grund}',
+  ].join('; ');
+  if (erg.nichtsZurueckgesetzt) {
+    return 'Nichts zurückgesetzt ($details) — das Schreiben gilt weiter.';
+  }
+  final basis = '${erg.zurueckgesetzt.length} Rechnung(en) zurückgesetzt';
+  return erg.uebersprungen.isEmpty ? '$basis.' : '$basis; nicht zurückgesetzt: $details.';
 }

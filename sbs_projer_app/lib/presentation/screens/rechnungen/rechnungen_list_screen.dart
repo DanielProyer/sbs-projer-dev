@@ -709,6 +709,17 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
               ),
             ],
           ),
+          // Der Filter misst an heute; gemahnt wird nur im Mahnlauf, der den
+          // Bankauszug als Stichtag nimmt — sonst wundert sich Daniel, warum
+          // dort weniger steht (Review 23.09.2026, M-8).
+          if (_statusFilter == 'mahnfaellig')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+              child: Text(
+                'gemessen an heute — der Mahnlauf prüft zusätzlich den Bankauszug',
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ),
           // Frühwarnung: erzeugte, aber nicht versendete Mail-/Post-Rechnungen
           if (nichtVersendetCount > 0 && _statusFilter != 'nicht_versendet')
             Padding(

@@ -311,7 +311,7 @@ void main() {
     });
   });
 
-  group('auszugKettenLuecke', () {
+  group('pruefeAuszugKette', () {
     ({DateTime von, DateTime bis, double? anfangssaldo, double? schlusssaldo}) a(
       DateTime von,
       DateTime bis, {
@@ -320,50 +320,92 @@ void main() {
     }) =>
         (von: von, bis: bis, anfangssaldo: opbd, schlusssaldo: clbd);
 
-    test('lückenlose Kette mit passenden Saldi: keine Lücke', () {
-      expect(
-        auszugKettenLuecke([
-          a(d(2026, 8, 1), d(2026, 8, 31), opbd: 100, clbd: 200),
-          a(d(2026, 9, 1), d(2026, 9, 20), opbd: 200, clbd: 250),
-        ]),
-        isNull,
-      );
+    test('lückenlose Kette mit passenden Saldi: ok', () {
+      final b = pruefeAuszugKette([
+        a(d(2026, 8, 1), d(2026, 8, 31), opbd: 100, clbd: 200),
+        a(d(2026, 9, 1), d(2026, 9, 20), opbd: 200, clbd: 250),
+      ]);
+      expect(b.status, AuszugKette.ok);
+      expect(b.text, isNull);
     });
     test('fehlende Tage zwischen zwei Auszügen: Lücke', () {
-      expect(
-        auszugKettenLuecke([
-          a(d(2026, 8, 1), d(2026, 8, 20)),
-          a(d(2026, 9, 1), d(2026, 9, 20)),
-        ]),
-        isNotNull,
-      );
+      final b = pruefeAuszugKette([
+        a(d(2026, 8, 1), d(2026, 8, 20)),
+        a(d(2026, 9, 1), d(2026, 9, 20)),
+      ]);
+      expect(b.status, AuszugKette.luecke);
+      expect(b.text, isNotNull);
     });
     test('nahtlos, aber Saldosprung (OPBD ≠ CLBD): Lücke', () {
       expect(
-        auszugKettenLuecke([
+        pruefeAuszugKette([
           a(d(2026, 8, 1), d(2026, 8, 31), opbd: 100, clbd: 200),
           a(d(2026, 9, 1), d(2026, 9, 20), opbd: 150, clbd: 250),
-        ]),
-        isNotNull,
+        ]).status,
+        AuszugKette.luecke,
+      );
+    });
+    test('nahtlos, aber ein Saldo fehlt: ungeprüft (keine Sperre)', () {
+      expect(
+        pruefeAuszugKette([
+          a(d(2026, 8, 1), d(2026, 8, 31), opbd: 100),
+          a(d(2026, 9, 1), d(2026, 9, 20), opbd: 200, clbd: 250),
+        ]).status,
+        AuszugKette.ungeprueft,
+      );
+    });
+    test('Lücke geht vor «ungeprüft»', () {
+      expect(
+        pruefeAuszugKette([
+          a(d(2026, 7, 1), d(2026, 7, 31)),
+          a(d(2026, 8, 1), d(2026, 8, 20), clbd: 1),
+          a(d(2026, 9, 1), d(2026, 9, 20)),
+        ]).status,
+        AuszugKette.luecke,
       );
     });
     test('Überlappung ist harmlos; Reihenfolge der Eingabe egal', () {
       expect(
-        auszugKettenLuecke([
+        pruefeAuszugKette([
           a(d(2026, 9, 10), d(2026, 9, 22)),
           a(d(2026, 8, 1), d(2026, 9, 15)),
-        ]),
-        isNull,
+        ]).status,
+        AuszugKette.ok,
       );
     });
     test('Auszüge vor dem Mahnstart zählen nicht (alte Lücken sperren nie)', () {
       expect(
-        auszugKettenLuecke([
+        pruefeAuszugKette([
           a(d(2025, 1, 1), d(2025, 3, 31)),
           a(d(2026, 3, 11), d(2026, 9, 22)),
-        ]),
-        isNull,
+        ]).status,
+        AuszugKette.ok,
       );
+    });
+  });
+
+  group('mahnKanal (eine Regel für Vorschau und Versand)', () {
+    test('Mailadresse der Rechnungsadresse geht vor der des Betriebs', () {
+      final k = mahnKanal(raMail: ' ra@x.ch ', betriebMail: 'b@x.ch', stufe: MahnStufe.erinnerung);
+      expect(k.mail, 'ra@x.ch');
+      expect(k.kanal, 'mail');
+      expect(k.druck, isFalse);
+    });
+    test('ohne Rechnungsadress-Mail: Betrieb', () {
+      final k = mahnKanal(raMail: '  ', betriebMail: 'b@x.ch', stufe: MahnStufe.mahnung1);
+      expect(k.mail, 'b@x.ch');
+      expect(k.kanal, 'mail');
+    });
+    test('keine Mailadresse: Druck', () {
+      final k = mahnKanal(raMail: null, betriebMail: '', stufe: MahnStufe.erinnerung);
+      expect(k.mail, isNull);
+      expect(k.kanal, 'druck');
+      expect(k.druck, isTrue);
+    });
+    test('letzte Mahnung: immer zusätzlich Druck (Einschreiben)', () {
+      final k = mahnKanal(raMail: 'ra@x.ch', betriebMail: null, stufe: MahnStufe.letzte);
+      expect(k.kanal, 'mail_und_druck');
+      expect(k.druck, isTrue);
     });
   });
 

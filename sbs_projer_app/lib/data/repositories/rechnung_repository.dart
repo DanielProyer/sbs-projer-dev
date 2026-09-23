@@ -196,6 +196,53 @@ class RechnungRepository {
     await SupabaseService.client.from('rechnungen').update(fields).eq('id', id);
   }
 
+  /// Update nur, wenn `zahlungsstatus` noch [erwarteterStatus] ist
+  /// (optimistisches Sperren für den Mahnlauf). `false` = keine Zeile
+  /// getroffen, die Rechnung wurde inzwischen geändert.
+  static Future<bool> updateWennStatus(
+    String id,
+    Map<String, dynamic> fields, {
+    required String erwarteterStatus,
+  }) async {
+    final rows = await SupabaseService.client
+        .from('rechnungen')
+        .update(fields)
+        .eq('id', id)
+        .eq('zahlungsstatus', erwarteterStatus)
+        .select('id');
+    return rows.isNotEmpty;
+  }
+
+  /// Alle Kunden- und Jahresrechnungen ab [ab] (alle Status, auch bezahlte —
+  /// der Kontoauszug braucht sie) — die schlanke Quelle des Mahnlaufs statt
+  /// aller Rechnungen seit 2019. Optional nur eines Betriebs.
+  static Future<List<Rechnung>> getKundenrechnungenAb(
+    DateTime ab, {
+    String? betriebId,
+  }) async {
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    var from = 0;
+    final abStr = ab.toIso8601String().split('T').first;
+    while (true) {
+      var q = SupabaseService.client
+          .from('rechnungen')
+          .select()
+          .eq('user_id', _userId)
+          .gte('rechnungsdatum', abStr)
+          .inFilter('rechnungstyp', ['kundenrechnung', 'jahresrechnung']);
+      if (betriebId != null) q = q.eq('betrieb_id', betriebId);
+      final rows = await q
+          .order('rechnungsdatum')
+          .order('id') // stabile Pagination
+          .range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all.map((r) => Rechnung.fromJson(r)).toList();
+  }
+
   static Future<void> delete(String id) async {
     await SupabaseService.client.from('rechnungen').delete().eq('id', id);
   }

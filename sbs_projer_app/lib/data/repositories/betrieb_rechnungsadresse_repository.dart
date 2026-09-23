@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
@@ -19,6 +20,36 @@ class BetriebRechnungsadresseRepository {
           BetriebRechnungsadresse.fromJson(rows.first));
     }
     return IsarService.rechnungsadresseFindByBetrieb(betriebId);
+  }
+
+  /// Mailadresse der Rechnungsadresse je Betrieb (nur Betriebe mit
+  /// Adresse) — für den Kanal im Mahnlauf, ohne je Betrieb eine Anfrage.
+  /// In Blöcken zu [kInFilterBlock] Ids (URL-Länge, siehe anfrage_bloecke).
+  static Future<Map<String, String?>> getMailadressen(List<String> betriebIds) async {
+    final ergebnis = <String, String?>{};
+    if (betriebIds.isEmpty) return ergebnis;
+    if (kIsWeb) {
+      for (var i = 0; i < betriebIds.length; i += kInFilterBlock) {
+        final block = betriebIds.sublist(
+          i,
+          i + kInFilterBlock > betriebIds.length ? betriebIds.length : i + kInFilterBlock,
+        );
+        final rows = await SupabaseService.client
+            .from('betrieb_rechnungsadressen')
+            .select('betrieb_id, email')
+            .eq('user_id', _userId)
+            .inFilter('betrieb_id', block);
+        for (final r in rows) {
+          ergebnis[r['betrieb_id'] as String] = r['email'] as String?;
+        }
+      }
+      return ergebnis;
+    }
+    for (final id in betriebIds) {
+      final ra = await getByBetrieb(id);
+      if (ra != null) ergebnis[id] = ra.email;
+    }
+    return ergebnis;
   }
 
   static Stream<List<BetriebRechnungsadresseLocal>> watchByBetrieb(String betriebId) {

@@ -64,7 +64,7 @@ class MahnlaufErgebnis {
 /// (siehe [MahnlaufService.darfZuruecksetzen]).
 class MahnlaufZuruecknehmenErgebnis {
   final List<String> zurueckgesetzt;
-  final List<({String rechnungId, String grund})> uebersprungen;
+  final List<Uebersprungen> uebersprungen;
 
   MahnlaufZuruecknehmenErgebnis({
     required this.zurueckgesetzt,
@@ -75,6 +75,10 @@ class MahnlaufZuruecknehmenErgebnis {
   /// zurückgenommen markiert); die Gründe stehen in [uebersprungen].
   bool get nichtsZurueckgesetzt => zurueckgesetzt.isEmpty;
 }
+
+/// Beim Zurücknehmen übersprungene Rechnung — mit Nummer, damit die
+/// Rückmeldung sagt, WELCHE Rechnung stehen blieb (Review 23.09.2026, M-7).
+typedef Uebersprungen = ({String rechnungId, String? rechnungsnummer, String grund});
 
 /// Ob eine Rechnung beim Zurücknehmen zurückgesetzt werden darf, plus Grund
 /// bei Ablehnung.
@@ -152,18 +156,15 @@ class MahnlaufService {
       if (raLocal != null) {
         ra = BetriebRechnungsadresseMapper.toDto(raLocal, betriebId: betriebId);
       }
-      final raEmail = (ra?.email ?? '').trim();
-      final betriebEmail = (betrieb.email ?? '').trim();
-      final mailadresse = raEmail.isNotEmpty
-          ? raEmail
-          : (betriebEmail.isNotEmpty ? betriebEmail : null);
+      // Kanal über die gemeinsame Regel (`mahnKanal`) — dieselbe, die die
+      // Vorschau zeigt. Letzte Mahnung wird IMMER zusätzlich gedruckt.
+      final k = mahnKanal(raMail: ra?.email, betriebMail: betrieb.email, stufe: stufe);
+      final mailadresse = k.mail;
 
       final beilegen = offeneDesBetriebs.length > 1;
       final hatMail = mailadresse != null;
-      // Letzte Mahnung wird IMMER zusätzlich gedruckt — Beweismittel für eine
-      // allfällige Betreibung, unabhängig davon, ob die Mail rausging.
-      final druckNoetig = !hatMail || stufe == MahnStufe.letzte;
-      final kanal = hatMail ? (druckNoetig ? 'mail_und_druck' : 'mail') : 'druck';
+      final druckNoetig = k.druck;
+      final kanal = k.kanal;
 
       // Update- und Vorher-Stand je Rechnung EINMAL berechnen — dieselbe Map
       // geht ins Protokoll (`nachher`) UND in die tatsächlichen Updates;
@@ -264,9 +265,7 @@ class MahnlaufService {
         });
         protokolliert = true;
 
-        for (final p in postenKorrigiert) {
-          await RechnungRepository.update(p.rechnung.id, updates[p.rechnung.id]!);
-        }
+        await _stufenSetzen(postenKorrigiert, updates, vorherMap);
 
         final zusatzPdfs = <Map<String, dynamic>>[
           {
@@ -335,9 +334,7 @@ class MahnlaufService {
         });
         protokolliert = true;
 
-        for (final p in postenKorrigiert) {
-          await RechnungRepository.update(p.rechnung.id, updates[p.rechnung.id]!);
-        }
+        await _stufenSetzen(postenKorrigiert, updates, vorherMap);
       }
 
       return MahnlaufErgebnis(
@@ -351,13 +348,40 @@ class MahnlaufService {
       // `kurzeFehlermeldung`). Steht das Protokoll schon, bekommt der Fehler
       // die Id mit — der Screen bietet dann «zurücknehmen» an, statt nur zu
       // scheitern (die Mahnstufen stehen in dem Fall bereits).
+      // Eigene Meldungen (z. B. «inzwischen geändert») ungekürzt weitergeben.
+      final text = e is MahnlaufFehler ? e.meldung : kurzeFehlermeldung(e);
       throw MahnlaufFehler(
         protokolliert
-            ? '${kurzeFehlermeldung(e)} — die Mahnung ist protokolliert und '
+            ? '$text — die Mahnung ist protokolliert und '
                 'kann im Rechnungsdetail zurückgenommen werden.'
-            : kurzeFehlermeldung(e),
+            : text,
         mahnschreibenId: protokolliert ? mahnschreibenId : null,
       );
+    }
+  }
+
+  /// Setzt die Stufen — aber nur, wo der Status noch der beim Erstellen
+  /// gelesene ist (optimistisches Sperren, Review 23.09.2026, M-2). Hat
+  /// inzwischen jemand die Rechnung bezahlt gesetzt oder ein zweiter Lauf
+  /// (anderes Gerät) gemahnt, trifft das Update keine Zeile: Abbruch, statt
+  /// den neueren Stand zu überschreiben.
+  static Future<void> _stufenSetzen(
+    List<MahnPosten> posten,
+    Map<String, Map<String, dynamic>> updates,
+    Map<String, Map<String, dynamic>> vorher,
+  ) async {
+    for (final p in posten) {
+      final id = p.rechnung.id;
+      final ok = await RechnungRepository.updateWennStatus(
+        id,
+        updates[id]!,
+        erwarteterStatus: vorher[id]!['zahlungsstatus'] as String,
+      );
+      if (!ok) {
+        throw MahnlaufFehler(
+          'Rechnung ${p.rechnung.rechnungsnummer ?? id} wurde inzwischen geändert',
+        );
+      }
     }
   }
 
@@ -374,44 +398,67 @@ class MahnlaufService {
     }
 
     final zurueckgesetzt = <String>[];
-    final uebersprungen = <({String rechnungId, String grund})>[];
+    final uebersprungen = <Uebersprungen>[];
 
     try {
       for (final id in m.rechnungIds) {
+        // Frisch aus der DB laden — der Zustand in [m] ist der von der
+        // ERSTELLUNG, nicht zwingend der aktuelle (der ganze Zweck der
+        // Prüfung). Zuerst, damit jede Rückmeldung die Rechnungsnummer trägt.
+        final aktuelleRechnung = await RechnungRepository.getById(id);
+        if (aktuelleRechnung == null) {
+          uebersprungen.add((rechnungId: id, rechnungsnummer: null, grund: 'Rechnung nicht gefunden'));
+          continue;
+        }
+        final nr = aktuelleRechnung.rechnungsnummer;
+
         // Nur das JÜNGSTE noch gültige Schreiben einer Rechnung darf sie
         // zurücksetzen: Sein `vorher` ist der Stand vor der letzten Stufe.
         // Das `vorher` eines älteren Schreibens würde eine spätere Mahnung
         // stillschweigend mit auslöschen (Review 23.09.2026).
         final alle = await MahnschreibenRepository.getByRechnung(id);
         if (!istJuengstesSchreiben(alle, rechnungId: id, kandidat: m)) {
-          uebersprungen.add((rechnungId: id, grund: 'es gibt ein neueres Mahnschreiben'));
-          continue;
-        }
-
-        // Frisch aus der DB laden — der Zustand in [m] ist der von der
-        // ERSTELLUNG, nicht zwingend der aktuelle (der ganze Zweck der Prüfung).
-        final aktuelleRechnung = await RechnungRepository.getById(id);
-        if (aktuelleRechnung == null) {
-          uebersprungen.add((rechnungId: id, grund: 'Rechnung nicht gefunden'));
+          uebersprungen.add((
+            rechnungId: id,
+            rechnungsnummer: nr,
+            grund: 'es gibt ein neueres Mahnschreiben',
+          ));
           continue;
         }
 
         final nachherRoh = m.nachher[id];
-        final pruefung = darfZuruecksetzen(
-          _vergleichsStand(aktuelleRechnung),
-          nachherRoh is Map ? Map<String, dynamic>.from(nachherRoh) : null,
-        );
+        final nachher =
+            nachherRoh is Map ? Map<String, dynamic>.from(nachherRoh) : null;
+        final pruefung = darfZuruecksetzen(_vergleichsStand(aktuelleRechnung), nachher);
         if (!pruefung.erlaubt) {
-          uebersprungen.add((rechnungId: id, grund: pruefung.grund ?? 'geändert'));
+          uebersprungen.add((
+            rechnungId: id,
+            rechnungsnummer: nr,
+            grund: pruefung.grund ?? 'geändert',
+          ));
           continue;
         }
 
         final vorher = m.vorher[id];
         if (vorher is! Map) {
-          uebersprungen.add((rechnungId: id, grund: 'kein gespeicherter Vorher-Zustand'));
+          uebersprungen.add((
+            rechnungId: id,
+            rechnungsnummer: nr,
+            grund: 'kein gespeicherter Vorher-Zustand',
+          ));
           continue;
         }
-        await RechnungRepository.update(id, Map<String, dynamic>.from(vorher));
+        // Auch hier optimistisch: Zwischen Prüfung und Update kann eine
+        // Zahlung eingetragen werden — dann trifft das Update keine Zeile.
+        final ok = await RechnungRepository.updateWennStatus(
+          id,
+          Map<String, dynamic>.from(vorher),
+          erwarteterStatus: nachher!['zahlungsstatus'] as String,
+        );
+        if (!ok) {
+          uebersprungen.add((rechnungId: id, rechnungsnummer: nr, grund: 'inzwischen geändert'));
+          continue;
+        }
         zurueckgesetzt.add(id);
       }
 
