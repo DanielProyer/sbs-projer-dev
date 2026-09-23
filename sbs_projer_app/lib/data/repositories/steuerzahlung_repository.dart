@@ -1,14 +1,14 @@
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
-/// Steuerzahlungen = Buchungen mit 8900/2208 im Soll oder Haben sowie
-/// ESTV-Zahlungen über 2202 gegen Bank/Kasse.
+/// Steuerzahlungen = Buchungen mit 8900/2208/6281 (Steuerbussen) im Soll oder
+/// Haben sowie ESTV-Zahlungen über 2202 gegen Bank/Kasse.
 class SteuerzahlungRepository {
   static String get _userId => SupabaseService.dataUserId;
 
   /// Die Konten, auf denen Steuern geführt werden — Einzelquelle für den
   /// Query-Filter unten und für Aufrufer, die dieselbe Liste brauchen.
-  static const steuerKonten = [8900, 2208, 2202];
+  static const steuerKonten = [8900, 2208, 2202, 6281];
   static final _steuerKontenListe = steuerKonten.join(',');
 
   /// Geldkonten (Bank/Kasse) — dieselben wie in `view_steuerjahr_zahlungen`.

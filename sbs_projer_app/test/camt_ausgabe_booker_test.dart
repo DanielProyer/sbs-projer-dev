@@ -30,7 +30,9 @@ void main() {
     test('Bund/Kanton mit Rückstellung → 2208, ohne → 8900; Busse → 8900; MWST → 2202', () {
       expect(steuerKontoFuer(steuerart: 'bund', hatRueckstellung: true), 2208);
       expect(steuerKontoFuer(steuerart: 'kanton', hatRueckstellung: false), 8900);
-      expect(steuerKontoFuer(steuerart: 'busse', hatRueckstellung: true), 8900);
+      expect(steuerKontoFuer(steuerart: 'busse', hatRueckstellung: true), 6281);
+      expect(istSteuerKonto(6281), isTrue);
+      expect(istSteuerKonto(6280), isFalse);
       expect(steuerKontoFuer(steuerart: 'mwst', hatRueckstellung: true), 2202);
     });
 

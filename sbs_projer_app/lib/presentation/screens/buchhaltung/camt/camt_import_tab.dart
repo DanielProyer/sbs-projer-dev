@@ -689,7 +689,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
             ),
             if (_vorschlaege.isNotEmpty) ...[
               // Einmalige Warnung statt einer pro Zeile — und nur dort, wo sie
-              // zutrifft: MWST (2202) und Bussen (8900) kennen gar keine
+              // zutrifft: MWST (2202) und Bussen (6281) kennen gar keine
               // Rückstellung, dort widerspräche sie dem Zielkonto-Hinweis.
               if (_rueckstellungFehler &&
                   _steuer.values.any(
@@ -803,7 +803,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     return teile.isEmpty ? null : teile.join(' · ');
   }
 
-  /// Zahlt dieser Vorschlag auf ein Steuerkonto (8900/2208/2202)? Dann sind
+  /// Zahlt dieser Vorschlag auf ein Steuerkonto (8900/2208/2202/6281)? Dann sind
   /// Steuerjahr und Steuerart zu erfassen, sonst fehlen sie im Steuer-Screen.
   bool _istSteuerVorschlag(CamtVorschlag v) {
     if (v.typ != CamtVorschlagTyp.ausgabe || v.vorlage == null) return false;
@@ -875,7 +875,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       hatRueckstellung: z.hatRueckstellung,
     );
     if (gebuchtesKonto != 2208) {
-      return; // 8900/2202 rühren die Rückstellung nicht an
+      return; // 8900/2202/6281 rühren die Rückstellung nicht an
     }
     // Vorzeichen aus derselben Quelle wie die Seitenwahl beim Buchen (die
     // Bankseite), nicht aus der camt-Richtung — eine als «Bank an 2208»
@@ -1026,6 +1026,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     const kontoText = {
       2208: '→ 2208 Rückstellung',
       8900: '→ 8900 Steueraufwand',
+      6281: '→ 6281 Übrige Bussen',
       2202: '→ 2202 MWST',
     };
     return Padding(

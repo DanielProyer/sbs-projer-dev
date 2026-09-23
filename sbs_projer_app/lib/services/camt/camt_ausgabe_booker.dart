@@ -86,14 +86,22 @@ class SteuerZuordnung {
 }
 
 /// Vorlagen mit diesem Soll-Konto sind Steuerzahlungen → Zuordnung anbieten.
+/// 6281 «Übrige Bussen» zählt dazu: Steuerbussen tragen Steuerjahr/-art.
 bool istSteuerKonto(int konto) =>
-    konto == 8900 || konto == 2208 || konto == 2202;
+    konto == 8900 || konto == 2208 || konto == 2202 || konto == kBussenKonto;
+
+/// Konto für Steuer-/MWST-Bussen. Nicht 8900: direkte Steuern darf die GmbH
+/// vom Gewinn abziehen, Bussen nicht — auf 8900 wären sie still als
+/// Steueraufwand abgezogen worden (Entscheid 23.09.2026, Konten getrennt:
+/// 6280 Verkehrsbussen, 6281 Übrige Bussen).
+const kBussenKonto = 6281;
 
 /// Gewinn-/Kapitalsteuer gegen die Rückstellung, sofern eine gebildet wurde;
-/// Bussen sind nie zurückgestellt; MWST läuft über das Abrechnungskonto.
+/// Bussen sind nie zurückgestellt und gehen auf 6281 (nicht abzugsfähig);
+/// MWST läuft über das Abrechnungskonto.
 int steuerKontoFuer({required String steuerart, required bool hatRueckstellung}) {
   if (steuerart == 'mwst') return 2202;
-  if (steuerart == 'busse') return 8900;
+  if (steuerart == 'busse') return kBussenKonto;
   return hatRueckstellung ? 2208 : 8900;
 }
 
