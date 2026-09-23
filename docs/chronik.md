@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 23.09.2026 — v0.133.2 Zeitauswahl überall 24 h
 - 23.09.2026 — v0.133.1 Pikett mit KW
 - 22.09.2026 — v0.133.0 Suche
 - 22.09.2026 — v0.132.0 Rechnungs-Bereich, Event-Karte
@@ -14,6 +15,17 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 23.09.2026 — v0.133.2 Zeitauswahl überall 24 h
+
+- Die Saison-Abmachung (Termin für Eröffnungs-/Endreinigung) rief den
+  Flutter-Zeitdialog direkt auf und zeigte je nach Gerät AM/PM. Jetzt über
+  `zeigeZeitauswahl` wie alle anderen Zeitfelder (Wunsch Daniel).
+- Neuer Wächter `test/zeitauswahl_waechter_test.dart`: `showTimePicker(`
+  ausserhalb von `zeit_auswahl.dart` bricht den Test ab — gilt auch für
+  künftige Zeitfelder. 1910 Tests grün.
 
 ---
 

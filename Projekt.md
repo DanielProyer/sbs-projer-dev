@@ -4,7 +4,7 @@
 (Heineken-Franchise, Graubünden) — Planung, Einsätze, Rechnungen und
 Buchhaltung in einer App.
 **Wer:** Daniel Projer, Einzelbetrieb; entwickelt mit Claude.
-**Stand:** 22.09.2026 · **v0.133.1** live · 1908 Tests grün · Migrationen bis 199.
+**Stand:** 22.09.2026 · **v0.133.2** live · 1910 Tests grün · Migrationen bis 199.
 
 > **Wo was steht**
 > - **Diese Datei:** was die App heute kann und wie sie gebaut ist. Wird bei
@@ -130,7 +130,7 @@ Die verbindlichen Regeln stehen in `CLAUDE.md`, hier nur die Landkarte:
   Preis-Trigger, Rechnungsnummer-Sequenz, CHECK-Constraints auf den Status.
 - **Wächter-Tests** halten die Lehren aus Vorfällen fest: stabile Pagination
   (`.order('id')`), Unicode-PDF (`pdfDokument()`), CanvasKit-sichere Knöpfe,
-  keine rohen Ausnahmen auf dem Bildschirm, `kAppVersion` = `pubspec.yaml`.
+  keine rohen Ausnahmen auf dem Bildschirm, Zeitauswahl nur 24 h, `kAppVersion` = `pubspec.yaml`.
 - **Die Version steht in der App**, damit sich ein Feldbefund einer Fassung
   zuordnen lässt.
 

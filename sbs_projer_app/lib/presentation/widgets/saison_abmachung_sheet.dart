@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_saison_historie_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 final _ddMMyyyy = DateFormat('dd.MM.yyyy');
 
@@ -342,9 +343,11 @@ class _SaisonAbmachungSheetState extends State<_SaisonAbmachungSheet> {
   Widget _zeit(String label, TimeOfDay? wert, ValueChanged<TimeOfDay?> onNeu) =>
       InkWell(
         onTap: () async {
-          final t = await showTimePicker(
-            context: context,
-            initialTime: wert ?? const TimeOfDay(hour: 8, minute: 0),
+          // Über die gemeinsame Zeitauswahl (24 Stunden): Der direkte
+          // Flutter-Dialog zeigte hier AM/PM (Daniel 23.09.2026).
+          final t = await zeigeZeitauswahl(
+            context,
+            initial: wert ?? const TimeOfDay(hour: 8, minute: 0),
           );
           if (t != null) onNeu(t);
         },
