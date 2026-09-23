@@ -247,7 +247,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode, pdfPath, markiereVersandt } = await req.json();
+    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode, pdfPath, markiereVersandt, zusatzPdfs } = await req.json();
 
     if (!to || !subject) {
       return new Response(
@@ -344,6 +344,26 @@ Deno.serve(async (req: Request) => {
         });
       } else {
         console.warn(`Protokoll-Foto nicht gefunden: ${protokollFotoPfad}`);
+      }
+    }
+
+    // 3. Zusätzliche PDFs aus dem Bucket rechnung-pdfs (Mahnwesen, v0.134.0):
+    //    Mahnschreiben, Kontoauszug, Rechnungskopien. Nur Pfade des eigenen
+    //    Benutzers — sonst liesse sich jedes PDF im Bucket anhängen.
+    if (Array.isArray(zusatzPdfs)) {
+      for (const z of zusatzPdfs) {
+        const pfad = typeof z?.pfad === "string" ? z.pfad : "";
+        const name = typeof z?.dateiname === "string" && z.dateiname ? z.dateiname : "Dokument.pdf";
+        if (!pfad.startsWith(`${userId}/`) || pfad.includes("..")) {
+          console.warn(`Zusatz-PDF abgelehnt (fremder Pfad): ${pfad}`);
+          continue;
+        }
+        const daten = await downloadFromStorage("rechnung-pdfs", pfad);
+        if (daten) {
+          attachments.push({ filename: name, contentType: "application/pdf", data: daten });
+        } else {
+          console.warn(`Zusatz-PDF nicht gefunden: ${pfad}`);
+        }
       }
     }
 
