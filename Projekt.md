@@ -4,7 +4,7 @@
 (Heineken-Franchise, Graubünden) — Planung, Einsätze, Rechnungen und
 Buchhaltung in einer App.
 **Wer:** Daniel Projer, Einzelbetrieb; entwickelt mit Claude.
-**Stand:** 22.09.2026 · **v0.133.0** live · 1905 Tests grün · Migrationen bis 199.
+**Stand:** 22.09.2026 · **v0.133.1** live · 1908 Tests grün · Migrationen bis 199.
 
 > **Wo was steht**
 > - **Diese Datei:** was die App heute kann und wie sie gebaut ist. Wird bei

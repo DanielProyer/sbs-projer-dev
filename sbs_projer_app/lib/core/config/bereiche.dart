@@ -366,6 +366,21 @@ const kBereichBuchhaltung = Bereich(
   ],
 );
 
+/// Ziele, die nur die Suche kennt — keine eigene Zeile auf Mehr, weil sie
+/// ein Filter eines Leisten-Ziels sind. «Pikett-Dienste» stand bis v0.130.0
+/// in der «Weitere»-Liste und ist seit v0.131.0 ein Typ-Filter der
+/// Einsätze; ohne diesen Eintrag fand die Suche das Wort «pikett» nicht
+/// (Daniel 23.09.2026).
+const kSuchZusatzZiele = [
+  BereichEintrag(
+    titel: 'Pikett-Dienste',
+    untertitel: 'Einsätze, gefiltert auf Pikett',
+    icon: Icons.nightlight_round,
+    ziel: '/einsaetze?typ=pikett',
+    stichwoerter: ['pikett', 'bereitschaft', 'wochenenddienst'],
+  ),
+];
+
 const kAlleBereiche = [
   kBereichMehr,
   kBereichBank,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/core/util/kalenderwoche.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
@@ -50,7 +51,7 @@ class _PikettDetailContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pikett KW ${_kw(pikett.datumStart)}'),
+        title: Text('Pikett KW ${kalenderwoche(pikett.datumStart)}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
@@ -116,7 +117,7 @@ class _PikettDetailContent extends ConsumerWidget {
             title: 'Einsatzzeiten',
             icon: Icons.schedule,
             children: [
-              _InfoRow('Kalenderwoche', 'KW ${_kw(pikett.datumStart)}'),
+              _InfoRow('Kalenderwoche', 'KW ${kalenderwoche(pikett.datumStart)}'),
               _InfoRow(
                 'Freitag',
                 '${_formatDate(pikett.datumStart)}, 17:00 – 22:00',
@@ -233,7 +234,7 @@ class _PikettDetailContent extends ConsumerWidget {
     );
 
     try {
-      final kw = _kw(pikett.datumStart);
+      final kw = kalenderwoche(pikett.datumStart);
       final year = pikett.datumStart.year;
 
       final pdfBytes = await HeinekenRapportService.generatePikett(
@@ -298,15 +299,6 @@ class _PikettDetailContent extends ConsumerWidget {
       }
     }
   }
-}
-
-int _kw(DateTime date) {
-  // ISO 8601: KW wird über den Donnerstag der Woche bestimmt
-  // UTC verwenden um DST-Probleme bei Duration.inDays zu vermeiden
-  final d = DateTime.utc(date.year, date.month, date.day);
-  final thursday = d.add(Duration(days: DateTime.thursday - d.weekday));
-  final jan1 = DateTime.utc(thursday.year, 1, 1);
-  return (thursday.difference(jan1).inDays / 7).floor() + 1;
 }
 
 String _formatDate(DateTime date) {

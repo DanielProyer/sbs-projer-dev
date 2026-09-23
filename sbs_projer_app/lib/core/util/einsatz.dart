@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
+import 'package:sbs_projer_app/core/util/kalenderwoche.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
@@ -269,7 +270,9 @@ Einsatz einsatzAusPikett(PikettDienstLocal p) {
     typLabel: 'Pikett',
     routeId: p.routeId,
     betriebId: null,
-    betriebName: 'Pikettdienst',
+    // Die KW ist beim Pikett die gebräuchliche Bezeichnung (Detailseite:
+    // «Pikett KW 38») — in der Liste stand bis 23.09.2026 nur «Pikettdienst».
+    betriebName: 'Pikettdienst KW ${kalenderwoche(p.datumStart)}',
     betriebOrt: null,
     betriebNr: null,
     regionId: null,

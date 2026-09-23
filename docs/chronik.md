@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 23.09.2026 — v0.133.1 Pikett mit KW
 - 22.09.2026 — v0.133.0 Suche
 - 22.09.2026 — v0.132.0 Rechnungs-Bereich, Event-Karte
 - 22.09.2026 — v0.131.0 Navigation «Mehr»
@@ -13,6 +14,18 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 23.09.2026 — v0.133.1 Pikett mit KW
+
+- Pikett-Dienste heissen in der Einsätze-Liste «Pikettdienst KW 38» statt nur
+  «Pikettdienst» (Wunsch Daniel).
+- Die Suche findet «pikett» (auch «bereitschaft») und öffnet die Einsätze,
+  gefiltert auf Pikett. Seit v0.131.0 hatte es keinen eigenen Eintrag mehr.
+- `kalenderwoche()` liegt jetzt einmal in `lib/core/util/kalenderwoche.dart`;
+  Tourenplan-Wochenleiste, Einsätze und Pikett-Detail nutzen dieselbe
+  ISO-Rechnung. 1908 Tests grün.
 
 ---
 

@@ -53,6 +53,15 @@ final suchEingabeProvider = Provider<SuchEingabe>((ref) {
       stichwoerter: const <String>[],
     ));
   }
+  for (final e in kSuchZusatzZiele) {
+    neu((
+      titel: e.titel,
+      untertitel: e.untertitel,
+      gruppe: 'Einsätze',
+      ziel: e.ziel,
+      stichwoerter: e.stichwoerter,
+    ));
+  }
   for (final b in kAlleBereiche) {
     for (final g in b.gruppen) {
       for (final e in g.eintraege) {

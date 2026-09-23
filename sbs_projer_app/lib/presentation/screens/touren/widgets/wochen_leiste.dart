@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/kalenderwoche.dart';
+
+export 'package:sbs_projer_app/core/util/kalenderwoche.dart' show kalenderwoche;
 
 /// Wochenwechsel und Tageswahl in **einer** Zeile (B5, v0.113.0).
 ///
@@ -118,22 +121,6 @@ String wochenTitel(DateTime weekStart) {
       ? monate[ende.month]
       : '${monate[weekStart.month]}/${monate[ende.month]}';
   return 'KW ${kalenderwoche(weekStart)} · $monat ${ende.year}';
-}
-
-/// Kalenderwoche nach ISO 8601 (Woche 1 enthält den ersten Donnerstag).
-///
-/// Die frühere Rechnung im Screen zählte ab dem 1. Januar und lag deshalb am
-/// Jahreswechsel daneben.
-int kalenderwoche(DateTime datum) {
-  // In UTC rechnen. `difference().inDays` auf lokalen Daten verliert über
-  // einen Sommerzeit-Wechsel eine Stunde und damit einen ganzen Tag: Vom
-  // 1. Januar zum 17. September 2026 ergäbe das 258 statt 259 Tage — und
-  // damit KW 37 statt 38. Der Fehler zeigt sich nur im Sommerhalbjahr.
-  final tag = DateTime.utc(datum.year, datum.month, datum.day);
-  // Donnerstag derselben Woche: Montag (1) + 3, Sonntag (7) − 3.
-  final donnerstag = tag.add(Duration(days: 4 - tag.weekday));
-  final jahresbeginn = DateTime.utc(donnerstag.year, 1, 1);
-  return (donnerstag.difference(jahresbeginn).inDays / 7).floor() + 1;
 }
 
 /// Schmale Tap-Fläche für den Wochenwechsel — ein voller `IconButton`

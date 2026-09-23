@@ -3,6 +3,7 @@ import 'package:sbs_projer_app/core/util/einsatz.dart';
 import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
+import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/models/termin.dart';
@@ -301,6 +302,25 @@ void main() {
         ).first.betriebName,
         'Calanda',
       );
+    });
+  });
+
+  group('einsatzAusPikett', () {
+    test('zeigt die Kalenderwoche im Namen (Daniel 23.09.2026)', () {
+      final p = PikettDienstLocal()
+        ..userId = 'u'
+        // Freitag 18.09.2026 bis Sonntag 20.09.2026 = KW 38
+        ..datumStart = DateTime(2026, 9, 18)
+        ..datumEnde = DateTime(2026, 9, 20);
+      expect(einsatzAusPikett(p).betriebName, 'Pikettdienst KW 38');
+    });
+
+    test('KW am Jahreswechsel nach ISO (Fr 01.01.2027 = KW 53)', () {
+      final p = PikettDienstLocal()
+        ..userId = 'u'
+        ..datumStart = DateTime(2027, 1, 1)
+        ..datumEnde = DateTime(2027, 1, 3);
+      expect(einsatzAusPikett(p).betriebName, 'Pikettdienst KW 53');
     });
   });
 }

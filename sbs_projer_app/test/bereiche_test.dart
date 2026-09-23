@@ -145,4 +145,10 @@ void main() {
       }
     });
   });
+
+  test('Suche findet die Pikett-Dienste ueber «pikett» (23.09.2026)', () {
+    final pikett = kSuchZusatzZiele.where((e) => e.ziel == '/einsaetze?typ=pikett');
+    expect(pikett, hasLength(1));
+    expect(pikett.single.stichwoerter, contains('pikett'));
+  });
 }
