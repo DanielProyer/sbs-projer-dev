@@ -84,3 +84,25 @@ MahnHinweis mahnHinweis({
     ersteMahnungAm: erste,
   );
 }
+
+/// Mahnfälle, die nach einer Barzahlung abgeschlossen werden können: Der Fall
+/// enthält mindestens eine eben kassierte Rechnung ([kassierteIds]), und
+/// alle seine Rechnungen sind bezahlt oder abgeschrieben. Fehlt eine
+/// Rechnung des Falls in [rechnungen], gilt der Fall als NICHT erledigt.
+/// Der Abschluss selbst bleibt Daniels Entscheid (Mahnfall-Seite).
+List<String> abschliessbareMahnfaelle({
+  required Iterable<({String id, List<String> rechnungIds})> faelle,
+  required List<Rechnung> rechnungen,
+  required Set<String> kassierteIds,
+}) {
+  final status = {for (final r in rechnungen) r.id: r.zahlungsstatus};
+  bool erledigt(String id) =>
+      status[id] == 'bezahlt' || status[id] == 'abgeschrieben';
+  return [
+    for (final f in faelle)
+      if (f.rechnungIds.any(kassierteIds.contains) &&
+          f.rechnungIds.isNotEmpty &&
+          f.rechnungIds.every(erledigt))
+        f.id,
+  ];
+}

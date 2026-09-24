@@ -45,6 +45,7 @@ import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_qr_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
+import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -1774,6 +1775,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
               // Saisondaten fehlen — jetzt ist der Wirt greifbar.
               _saisonBand(),
+
+              // Gemahnte Rechnungen — vor Ort bar einkassieren (Mahnwesen Teil 3).
+              MahnHinweisBand(betriebId: _betrieb?.serverId),
 
               // === Heineken-Monteur Switch ===
               _buildHeinekenMonteurSwitch(),

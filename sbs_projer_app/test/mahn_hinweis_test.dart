@@ -29,6 +29,7 @@ Rechnung _r({
     });
 
 void main() {
+  _abschliessbarTests();
   final d = DateTime.utc;
 
   test('keine Mahnung -> keine', () {
@@ -100,5 +101,29 @@ void main() {
     expect(h.stufe, MahnHinweisStufe.keine);
     expect(h.offene, isEmpty);
     expect(h.summeOffen, 0);
+  });
+}
+
+void _abschliessbarTests() {
+  final d = DateTime.utc;
+  group('abschliessbareMahnfaelle', () {
+    test('Fall, dessen Rechnungen alle bezahlt sind und der eine kassierte enthaelt', () {
+      final ids = abschliessbareMahnfaelle(
+        faelle: [
+          (id: 'f1', rechnungIds: ['a', 'b']),
+          (id: 'f2', rechnungIds: ['c']),
+          (id: 'f3', rechnungIds: ['x']),
+        ],
+        rechnungen: [
+          _r(id: 'a', datum: d(2026, 5, 1), status: 'bezahlt'),
+          _r(id: 'b', datum: d(2026, 5, 2), status: 'bezahlt'),
+          _r(id: 'c', datum: d(2026, 5, 3), status: 'mahnung_2'),
+          _r(id: 'x', datum: d(2026, 5, 3), status: 'bezahlt'),
+        ],
+        kassierteIds: {'a', 'c'},
+      );
+      // f2: c noch offen; f3: nichts kassiert
+      expect(ids, ['f1']);
+    });
   });
 }

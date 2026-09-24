@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
+import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class StoerungFormScreen extends ConsumerStatefulWidget {
@@ -795,6 +796,11 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
                 _sectionTitle(context, 'Betrieb'),
                 const SizedBox(height: 8),
                 _buildBetriebField(),
+                // Gemahnte Rechnungen — vor Ort bar einkassieren (Mahnwesen Teil 3).
+                MahnHinweisBand(
+                  betriebId: _betriebId,
+                  padding: const EdgeInsets.only(top: 8),
+                ),
                 const SizedBox(height: 16),
 
                 // === Anlagentyp ===
