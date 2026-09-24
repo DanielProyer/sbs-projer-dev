@@ -49,6 +49,36 @@ class MahnfallRepository {
     return Mahnfall.fromJson(row);
   }
 
+  /// Protokoll-Pfade (Bucket `reinigung-fotos`) ALLER Reinigungspositionen
+  /// einer Rechnung — Weg wie `_findProtokollPfad` im Rechnungsdetail
+  /// (`rechnungs_positionen.service_id` → `reinigungen.protokoll_foto_pfad`),
+  /// aber nicht nur die erste Position: Eine Jahres-/Sammelrechnung trägt
+  /// mehrere Reinigungen, und bei einem Rechtsvorschlag zählt jedes Protokoll.
+  static Future<List<String>> protokollPfadeZuRechnung(String rechnungId) async {
+    final pos = await SupabaseService.client
+        .from('rechnungs_positionen')
+        .select('service_id')
+        .eq('rechnung_id', rechnungId)
+        .eq('service_typ', 'reinigung')
+        .order('id');
+    final ids = <String>{
+      for (final p in pos)
+        if ((p['service_id']?.toString() ?? '').isNotEmpty) p['service_id'].toString(),
+    };
+    if (ids.isEmpty) return const [];
+    final rein = await SupabaseService.client
+        .from('reinigungen')
+        .select('id, datum, protokoll_foto_pfad')
+        .inFilter('id', ids.toList())
+        .order('datum')
+        .order('id');
+    return [
+      for (final r in rein)
+        if ((r['protokoll_foto_pfad']?.toString() ?? '').isNotEmpty)
+          r['protokoll_foto_pfad'].toString(),
+    ];
+  }
+
   /// Nur für den Testmodus: einen frisch eröffneten Fall ohne Ergebnis
   /// wieder entfernen (siehe MahnfallService.zuruecknehmen).
   static Future<void> delete(String id) async {

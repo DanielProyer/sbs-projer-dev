@@ -1,4 +1,6 @@
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
+import 'package:sbs_projer_app/data/models/mahnfall.dart';
+import 'package:sbs_projer_app/data/models/rechnung.dart';
 
 /// Reine Regeln der Eskalation (Mahnwesen Teil 2, Spec §5). Keine DB, keine
 /// Widgets — alles hier ist mit Tests abgesichert.
@@ -103,4 +105,40 @@ List<Aufgabe> mahnfallAufgaben({
       }
   }
   return a;
+}
+
+String _datumText(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+/// Status eines Mahnfalls als Text — zentral, damit Mahnlauf, Mahnverlauf
+/// und Fall-Arbeitsblatt dasselbe sagen.
+String mahnfallStatusText(Mahnfall f) => switch (f.status) {
+      'heineken' => 'Bei Heineken',
+      'heineken_frist' => f.heinekenFristBis != null
+          ? 'Kunde zahlt bis ${_datumText(f.heinekenFristBis!)}'
+          : 'Kunde zahlt bis …',
+      'betreibung' => 'Betreibung',
+      'erledigt' => switch (f.erledigung) {
+          'bezahlt' => 'Erledigt: bezahlt',
+          'abgeschrieben' => 'Erledigt: abgeschrieben',
+          'zurueckgezogen' => 'Erledigt: Betreibung zurückgezogen',
+          'uebernommen' => 'Erledigt: Heineken übernimmt',
+          _ => 'Erledigt',
+        },
+      _ => f.status,
+    };
+
+/// Beginn des Verzugszinses im Betreibungsbegehren: Datum der
+/// Zahlungserinnerung der ältesten Rechnung (nach Rechnungsdatum). Hat die
+/// älteste keine vermerkte Erinnerung, gilt die früheste vermerkte
+/// Erinnerung des Falls; `null`, wenn es gar keine gibt.
+DateTime? zinsSeit(List<Rechnung> rechnungen) {
+  if (rechnungen.isEmpty) return null;
+  final sortiert = [...rechnungen]
+    ..sort((a, b) => a.rechnungsdatum.compareTo(b.rechnungsdatum));
+  final aelteste = sortiert.first.erinnerungAm;
+  if (aelteste != null) return _tag(aelteste);
+  final alle = rechnungen.map((r) => r.erinnerungAm).whereType<DateTime>().toList()
+    ..sort();
+  return alle.isEmpty ? null : _tag(alle.first);
 }

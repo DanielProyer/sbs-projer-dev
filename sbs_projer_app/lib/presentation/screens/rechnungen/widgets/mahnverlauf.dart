@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/mahnschreiben.dart';
+import 'package:sbs_projer_app/presentation/providers/mahnfall_providers.dart';
 import 'package:sbs_projer_app/data/repositories/mahnschreiben_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
@@ -15,7 +20,7 @@ import 'package:sbs_projer_app/services/rechnung/mahnlauf_service.dart';
 ///
 /// CanvasKit: Zeilen aus GestureDetector + Container + Row, «Zurücknehmen»
 /// als `TapKnopf(gefahr: true)` (CLAUDE.md, Wächter).
-class Mahnverlauf extends StatefulWidget {
+class Mahnverlauf extends ConsumerStatefulWidget {
   final String rechnungId;
 
   /// Nach einem Zurücknehmen — der Aufrufer lädt die Rechnung neu.
@@ -35,10 +40,10 @@ class Mahnverlauf extends StatefulWidget {
   });
 
   @override
-  State<Mahnverlauf> createState() => _MahnverlaufState();
+  ConsumerState<Mahnverlauf> createState() => _MahnverlaufState();
 }
 
-class _MahnverlaufState extends State<Mahnverlauf> {
+class _MahnverlaufState extends ConsumerState<Mahnverlauf> {
   late Future<List<Mahnschreiben>> _laden;
 
   @override
@@ -53,6 +58,10 @@ class _MahnverlaufState extends State<Mahnverlauf> {
 
   @override
   Widget build(BuildContext context) {
+    // Fehler beim Laden der Fälle blendet nur die Fall-Zeile aus — der
+    // Verlauf selbst bleibt sichtbar.
+    final faelle = ref.watch(mahnfaelleZuRechnungProvider(widget.rechnungId)).valueOrNull ??
+        const <Mahnfall>[];
     return FutureBuilder<List<Mahnschreiben>>(
       future: _laden,
       builder: (context, snap) {
@@ -67,7 +76,7 @@ class _MahnverlaufState extends State<Mahnverlauf> {
         }
         final liste = snap.data ?? const <Mahnschreiben>[];
         final alt = sichtbareAltEintraege(widget.altEintraege, liste);
-        if (liste.isEmpty && alt.isEmpty) {
+        if (liste.isEmpty && alt.isEmpty && faelle.isEmpty) {
           return const SizedBox.shrink();
         }
         return Container(
@@ -87,6 +96,7 @@ class _MahnverlaufState extends State<Mahnverlauf> {
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               ),
               const SizedBox(height: 8),
+              for (final f in faelle) _fallZeile(f),
               for (final m in liste) _zeile(m),
               for (final a in alt) _altZeile(a.stufe, a.datum),
             ],
@@ -95,6 +105,37 @@ class _MahnverlaufState extends State<Mahnverlauf> {
       },
     );
   }
+
+  /// «Im Mahnfall seit … · Status» — Tap öffnet das Arbeitsblatt des Falls.
+  Widget _fallZeile(Mahnfall f) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => context.push('/rechnungen/mahnfall/${f.id}'),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: (f.offen ? AppColors.warning : AppColors.divider).withAlpha(30),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: f.offen ? AppColors.warning.withAlpha(120) : AppColors.divider,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.gavel, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Im Mahnfall seit ${_datum(f.eroeffnetAm)} · ${mahnfallStatusText(f)}'
+                  '${f.test ? ' · TEST' : ''}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 18),
+            ],
+          ),
+        ),
+      );
 
   Widget _zeile(Mahnschreiben m) {
     final stufe = MahnStufe.values[m.stufe.clamp(0, MahnStufe.values.length - 1)];

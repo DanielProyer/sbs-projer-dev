@@ -161,4 +161,25 @@ void main() {
       );
     });
   });
+
+  group('notizZusammenfuehren (notizSpeichern)', () {
+    const m = MahnfallService.kUebernahmeOffen;
+
+    test('ohne Markierung: Text getrimmt, leer → null', () {
+      expect(MahnfallService.notizZusammenfuehren('alt', ' neu '), 'neu');
+      expect(MahnfallService.notizZusammenfuehren('alt', '  '), isNull);
+      expect(MahnfallService.notizZusammenfuehren(null, null), isNull);
+    });
+
+    test('Markierung der alten Notiz bleibt erhalten', () {
+      expect(MahnfallService.notizZusammenfuehren('x\n$m', 'Telefon mit Heineken'),
+          'Telefon mit Heineken\n$m');
+      expect(MahnfallService.notizZusammenfuehren(m, ''), m,
+          reason: 'leeres Textfeld darf die Übernahme-Aufgabe nicht löschen');
+    });
+
+    test('Markierung kann nicht über das Textfeld neu entstehen', () {
+      expect(MahnfallService.notizZusammenfuehren(null, 'a $m'), 'a');
+    });
+  });
 }

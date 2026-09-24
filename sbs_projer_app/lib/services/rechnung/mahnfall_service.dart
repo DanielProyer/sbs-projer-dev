@@ -458,6 +458,21 @@ class MahnfallService {
     }
   }
 
+  /// Notiz des Falls speichern — in jedem Status (auch erledigt), anders als
+  /// [betreibungSpeichern], das bewusst nur in der Betreibung schreibt.
+  /// Die Markierung [kUebernahmeOffen] bleibt erhalten, auch wenn das
+  /// Textfeld sie nicht zeigt ([notizZusammenfuehren]) — sonst verschwände
+  /// die Glocken-Aufgabe «Übernahme verbuchen» mit dem Speichern der Notiz.
+  static Future<Mahnfall> notizSpeichern(Mahnfall fall, String? notiz) async {
+    try {
+      return await MahnfallRepository.update(fall.id, {
+        'notiz': notizZusammenfuehren(fall.notiz, notiz),
+      });
+    } catch (e) {
+      throw MahnfallFehler(kurzeFehlermeldung(e), fallId: fall.id);
+    }
+  }
+
   /// Markierung [kUebernahmeOffen] entfernen, sobald Daniel verbucht hat.
   static Future<Mahnfall> uebernahmeVerbucht(Mahnfall fall) async {
     try {
@@ -591,6 +606,15 @@ class MahnfallService {
   static String? notizOhneUebernahme(String? notiz) {
     final n = (notiz ?? '').replaceAll(kUebernahmeOffen, '').trim();
     return n.isEmpty ? null : n;
+  }
+
+  /// Neue Notiz aus dem Textfeld (das die Markierung nicht zeigt) mit der
+  /// alten zusammenführen: Trug die alte [kUebernahmeOffen], trägt sie auch
+  /// die neue. Leer → `null` (bzw. nur die Markierung).
+  static String? notizZusammenfuehren(String? alt, String? neu) {
+    final text = notizOhneUebernahme(neu);
+    if ((alt ?? '').contains(kUebernahmeOffen)) return notizMitUebernahme(text);
+    return text;
   }
 
   /// Nur erlaubte Betreibungsfelder; `DateTime` → 'YYYY-MM-DD', leere

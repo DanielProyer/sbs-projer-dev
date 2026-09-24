@@ -6,12 +6,14 @@ import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/mahnschreiben_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -22,6 +24,7 @@ import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/pdf/mahnschreiben_pdf_service.dart'
     show MahnPosten;
 import 'package:sbs_projer_app/services/pdf/pdf_tab_oeffner_export.dart';
+import 'package:sbs_projer_app/services/rechnung/mahnfall_service.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnlauf_service.dart';
 
 /// Mahnlauf (v0.134.0, Spec docs/superpowers/specs/2026-09-23-mahnwesen-design.md
@@ -843,28 +846,158 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
             if (!b.gesperrt)
               Padding(
                 padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Eröffnen folgt in der nächsten Version',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ),
-                    // Verdrahtung mit MahnfallService.eroeffnen folgt (Plan
-                    // Mahnwesen Teil 2, Task 5/6) — bis dahin ohne Funktion.
-                    const TapKnopf(
-                      text: 'Mahnfall eröffnen',
-                      icon: Icons.gavel,
-                      primaer: true,
-                      onTap: null,
-                    ),
-                  ],
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TapKnopf(
+                    text: 'Mahnfall eröffnen',
+                    icon: Icons.gavel,
+                    primaer: true,
+                    laeuft: _laeuftFuer == b.betriebId,
+                    onTap: _laeuftFuer != null ? null : () => _fallVorschau(b),
+                  ),
                 ),
               ),
           ],
         ),
       );
+
+  /// Vorschau «Mahnfall eröffnen»: Empfänger (Heineken-Kontakt «Mahnwesen»),
+  /// Testmodus, Rechnungen mit Total — erst der zweite Klick eröffnet.
+  Future<void> _fallVorschau(MahnBetrieb b) async {
+    final rechnungen = b.faellig.map((p) => p.rechnung).toList();
+    if (rechnungen.isEmpty) return;
+    setState(() => _laeuftFuer = b.betriebId);
+    BetriebLocal? betrieb;
+    String? kontaktMail;
+    String? kontaktName;
+    try {
+      betrieb = await BetriebRepository.getByServerId(b.betriebId);
+      final k = await KontaktRepository.getHeinekenZuweisung('mahnwesen');
+      final m = k?.email?.trim() ?? '';
+      kontaktMail = m.isEmpty ? null : m;
+      if (k != null) kontaktName = '${k.vorname} ${k.nachname ?? ''}'.trim();
+    } catch (e) {
+      _meldung('Vorschau nicht möglich: ${kurzeFehlermeldung(e)}');
+      return;
+    } finally {
+      if (mounted) setState(() => _laeuftFuer = null);
+    }
+    if (betrieb == null) {
+      _meldung('Betrieb nicht gefunden.');
+      return;
+    }
+    if (!mounted) return;
+    final test = !MailConfig.istScharf('mahnwesen');
+    final total = rechnungen.fold(0.0, (s, r) => s + r.betragBrutto);
+
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mahnfall eröffnen — ${b.anzeige}',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              _vorschauZeile(
+                'Empfänger',
+                kontaktMail == null
+                    ? 'Kein Heineken-Kontakt «Mahnwesen» hinterlegt — unter '
+                        'Heineken → Zuweisungen erfassen'
+                    : '${kontaktName != null && kontaktName.isNotEmpty ? '$kontaktName, ' : ''}'
+                        '$kontaktMail (Heineken)',
+              ),
+              if (test && kontaktMail != null)
+                _vorschauZeile('', 'Testmodus: geht an ${MailConfig.testEmpfaenger}'),
+              _vorschauZeile(
+                'Beilagen',
+                'Kontoauszug ${DateTime.now().year} · ${rechnungen.length} Rechnungskopie(n)',
+              ),
+              const SizedBox(height: 8),
+              const Text('Rechnungen', style: TextStyle(fontWeight: FontWeight.w600)),
+              for (final r in rechnungen)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${r.rechnungsnummer ?? '—'} · ${_datum(r.rechnungsdatum)} · '
+                    'CHF ${r.betragBrutto.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Total CHF ${total.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  TapKnopf(
+                    text: 'Abbrechen',
+                    primaer: false,
+                    onTap: () => Navigator.pop(ctx, false),
+                  ),
+                  TapKnopf(
+                    text: 'Mahnfall eröffnen',
+                    primaer: true,
+                    onTap: kontaktMail == null ? null : () => Navigator.pop(ctx, true),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (ok == true) await _fallEroeffnen(b, betrieb, rechnungen);
+  }
+
+  Future<void> _fallEroeffnen(
+    MahnBetrieb b,
+    BetriebLocal betrieb,
+    List<Rechnung> rechnungen,
+  ) async {
+    setState(() => _laeuftFuer = b.betriebId);
+    try {
+      final fall = await MahnfallService.eroeffnen(betrieb: betrieb, rechnungen: rechnungen);
+      if (mounted) await context.push('/rechnungen/mahnfall/${fall.id}');
+    } on MahnfallFehler catch (f) {
+      if (!mounted) return;
+      final fallId = f.fallId;
+      final zumFall = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(fallId != null ? 'Mahnfall angelegt, Mail fehlgeschlagen' : 'Kein Mahnfall eröffnet'),
+          content: Text(f.meldung),
+          actions: [
+            if (fallId != null)
+              TapKnopf(text: 'Zum Fall', onTap: () => Navigator.pop(ctx, true)),
+            TapKnopf(text: 'Schliessen', primaer: false, onTap: () => Navigator.pop(ctx, false)),
+          ],
+        ),
+      );
+      if (zumFall == true && fallId != null && mounted) {
+        await context.push('/rechnungen/mahnfall/$fallId?mailFehler=1');
+      }
+    } catch (e) {
+      _meldung('Mahnfall fehlgeschlagen: ${kurzeFehlermeldung(e)}');
+    } finally {
+      if (mounted) {
+        setState(() => _laeuftFuer = null);
+        ref.invalidate(mahnlaufProvider);
+      }
+    }
+  }
 
   /// Zeile eines offenen Mahnfalls: Betrieb, Status, Anzahl, Summe der noch
   /// offenen Fall-Rechnungen. Tap öffnet das Arbeitsblatt des Falls.
@@ -962,18 +1095,6 @@ String _kanalText(MahnKanal k) => switch (k.kanal) {
       'mail' => 'Mail',
       'mail_und_druck' => 'Mail + PDF zum Einschreiben',
       _ => 'Druck — keine Mailadresse',
-    };
-
-/// Status eines Mahnfalls als Text — zentral, damit Mahnlauf und
-/// Fall-Arbeitsblatt dasselbe sagen.
-String mahnfallStatusText(Mahnfall f) => switch (f.status) {
-      'heineken' => 'Bei Heineken',
-      'heineken_frist' => f.heinekenFristBis != null
-          ? 'Kunde zahlt bis ${_datum(f.heinekenFristBis!)}'
-          : 'Kunde zahlt bis …',
-      'betreibung' => 'Betreibung',
-      'erledigt' => 'Erledigt',
-      _ => f.status,
     };
 
 String _statusText(String s) => switch (s) {

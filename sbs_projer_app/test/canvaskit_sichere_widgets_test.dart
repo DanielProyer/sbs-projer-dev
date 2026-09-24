@@ -78,6 +78,7 @@ void main() {
       'lib/presentation/screens/suche/suche_screen.dart',
       'lib/presentation/screens/rechnungen/mahnlauf_screen.dart',
       'lib/presentation/screens/rechnungen/widgets/mahnverlauf.dart',
+      'lib/presentation/screens/rechnungen/mahnfall_screen.dart',
     ]) {
       final datei = File(pfad);
       expect(

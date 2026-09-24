@@ -29,6 +29,7 @@ import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_betrie
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/stoerungen/stoerung_form_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnungen_list_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/rechnungen/mahnfall_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/mahnlauf_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/offen_pro_betrieb_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/rechnung_detail_screen.dart';
@@ -517,6 +518,15 @@ final router = GoRouter(
       path: '/rechnungen/mahnlauf',
       builder: (context, state) => MahnlaufScreen(
         rechnungId: state.uri.queryParameters['rechnung'],
+      ),
+    ),
+    // Arbeitsblatt eines Mahnfalls (Mahnwesen Teil 2). ?mailFehler=1 = aus
+    // dem Mahnlauf nach gescheiterter Heineken-Mail.
+    GoRoute(
+      path: '/rechnungen/mahnfall/:id',
+      builder: (context, state) => MahnfallScreen(
+        id: state.pathParameters['id']!,
+        mailFehler: state.uri.queryParameters['mailFehler'] == '1',
       ),
     ),
     GoRoute(
