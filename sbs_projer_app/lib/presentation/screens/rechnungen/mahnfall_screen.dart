@@ -329,7 +329,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
           const SizedBox(height: 8),
           _knopfSpalte([
             _knopf('vermittelt', 'Vermittelt — Kunde zahlt',
-                icon: Icons.handshake,
+                icon: Icons.check,
                 onTap: () => _ergebnis(
                       f,
                       'vermittelt',
@@ -351,7 +351,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
                       knopf: 'Heineken übernimmt',
                     )),
             _knopf('konkurs', 'Kunde in Konkurs — abschreiben',
-                icon: Icons.money_off,
+                icon: Icons.remove_circle_outline,
                 gefahr: true,
                 onTap: () => _ergebnis(
                       f,
@@ -606,7 +606,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
                         'Nur möglich, wenn alle Rechnungen als bezahlt erfasst sind.',
                       )),
               _knopf('erl_abgeschrieben', 'Erledigt: abgeschrieben',
-                  icon: Icons.money_off,
+                  icon: Icons.remove_circle_outline,
                   gefahr: true,
                   onTap: () => _erledigen(
                         f,

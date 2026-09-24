@@ -81,8 +81,9 @@ Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.
   Versand per Mail, Tresen-Übergabe, Abschreibung;
 - **Mahnlauf** (seit v0.134.0): Erinnerung / 1. / 2. Mahnung ab Rechnungen
   2026, je Betrieb ein Schreiben mit QR je Rechnung und Kontoauszug, Mail oder
-  Druck; Bank- und Gutschrift-Sperre, Protokoll mit Zurücknehmen. Heineken-
-  Schritt und Betreibung folgen (Teil 2).
+  Druck; Bank- und Gutschrift-Sperre, Protokoll mit Zurücknehmen. Seit
+  v0.135.0 Mahnfall: Heineken einschalten, vier Ergebnisse, Betreibung mit
+  EasyGov-Datenblatt und Fristen (Teil 3 «beim Service» folgt).
   Jahresrechnungen für Betriebe mit jährlicher Abrechnung (`jahresrechnung/`).
 - **Pro Betrieb:** offene und alle Rechnungen je Jahr mit Zustellweg,
   Kontoauszug-PDF mit QR-Schein, Reinigungsprotokolle als PDF (einzeln oder

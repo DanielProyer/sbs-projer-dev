@@ -190,6 +190,12 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.135.0** — Mahnfall am Handy: sobald ein echter Fall ansteht (letzte
+  Mahnung + Frist + 5 Tage), Vorschau «Mahnfall eröffnen» ansehen. Offen: das
+  Ergebnis «Heineken übernimmt» — Buchung und Position auf der
+  Heineken-Monatsrechnung (ohne MWST) beim ersten echten Fall gemeinsam
+  festlegen.
+
 - **v0.134.0** — Mahnlauf am Handy: Rechnungen → Karte «Mahnlauf», einen
   Betrieb aufklappen, Vorschau (nicht erstellen); Rechnungsdetail zeigt
   «Jetzt mahnen» und Mahnverlauf. Vor dem **ersten echten** Mahnlauf: aktuellen

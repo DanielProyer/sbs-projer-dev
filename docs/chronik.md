@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 24.09.2026 — v0.135.0 Mahnwesen Teil 2: Mahnfall (Heineken, Betreibung)
 - 24.09.2026 — v0.134.1 Mahnlauf-Sperre unverknüpfte Zahlung
 - 24.09.2026 — v0.134.0 Mahnwesen Teil 1: Mahnlauf
 - 23.09.2026 — v0.133.3 Telefon-Eingabe, Betrieb mit Ort
@@ -18,6 +19,34 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 24.09.2026 — v0.135.0 Mahnwesen Teil 2: Mahnfall (Heineken, Betreibung)
+
+Plan `docs/superpowers/plans/2026-09-24-mahnwesen-teil2.md`, Migration 204.
+
+- **Mahnfall** (`mahnfaelle`, Screen `/rechnungen/mahnfall/:id`): Ist die
+  Frist der letzten Mahnung + 5 Tage vorbei, zeigt der Mahnlauf die Sektion
+  «Heineken einschalten». «Mahnfall eröffnen» prüft frisch (Bank-, Zahlungs-,
+  Gutschrift-Sperre) und schickt Heineken (Zuweisung «Mahnwesen» = Markus
+  Scherrer) eine Mail mit Kontoauszug je Jahr und Rechnungskopien.
+- **Vier Ergebnisse:** vermittelt (Frist +20 Tage), Heineken übernimmt (nur
+  erfasst + dringende Aufgabe «mit Daniel prüfen», keine Buchung), Konkurs
+  (Einzelabschreibung, Hinweis Konkursamt), Betreibung.
+- **Betreibung:** Datenblatt für EasyGov (Schuldner aus Rechnungsadresse,
+  Rechtsform, Betreibungsamt), Forderung je Rechnung «nebst 5 % Zins seit
+  Erinnerung», Kostenvorschuss nach GebV SchKG Art. 16, Schritte mit Datum,
+  Fortsetzungsfenster (SchKG 88), bei Rechtsvorschlag Protokoll-Links.
+- **Sicherungen:** Fall-Rechnungen sind im Mahnlauf und bei «Jetzt mahnen»
+  eingefroren (auch nach Übernahme/Rückzug); Abschreiben bricht bei gebuchter
+  Zahlung ab, bucht zuerst und nie doppelt; Status-Updates nur gegen den
+  DB-Stand. Glocke: Heineken 20 Tage ohne Ergebnis, Frist abgelaufen,
+  Fortsetzung möglich, Verwirkung, Übernahme verbuchen.
+- Testmodus bleibt: Heineken-Mail «TEST an: …» an Daniel (Wächter erweitert).
+- Geprüft im Browser (360 px): Test-Fall Hemingway eröffnet, Mail nur an
+  Daniel, Betreibung mit Datenblatt/Zins/Kostenvorschuss 20.00/Protokoll-Links;
+  danach Fall gelöscht und Rechnungen zurückgesetzt. 2115 Tests.
 
 ---
 
