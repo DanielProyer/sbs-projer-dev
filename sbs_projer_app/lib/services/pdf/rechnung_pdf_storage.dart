@@ -109,6 +109,30 @@ class RechnungPdfStorage {
         );
   }
 
+  /// Mahnfall-PDF hochladen (v0.135.0): Kontoauszug-Beilage der Mail an
+  /// Heineken. Gleiches Präfix `dataUserId` wie [uploadMahnlaufPdf] (sonst
+  /// lehnt `send-rechnung-mail` den Anhang ab), Ordner `mahnfaelle`.
+  static Future<void> uploadMahnfallPdf(
+      String fallId, String datei, Uint8List bytes) async {
+    final path = '${SupabaseService.dataUserId}/mahnfaelle/$fallId/$datei';
+    await SupabaseService.client.storage.from(_bucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'application/pdf',
+            upsert: true,
+          ),
+        );
+  }
+
+  /// Signed URL für ein Mahnfall-PDF (z. B. den Kontoauszug an Heineken).
+  static Future<String> getMahnfallSignedUrl(String fallId, String datei) async {
+    final path = '${SupabaseService.dataUserId}/mahnfaelle/$fallId/$datei';
+    return await SupabaseService.client.storage
+        .from(_bucket)
+        .createSignedUrl(path, 3600);
+  }
+
   /// Signed URL für ein Mahnlauf-PDF (Mahnschreiben, Kontoauszug oder Druck).
   static Future<String> getMahnlaufSignedUrl(
       String mahnschreibenId, String datei) async {

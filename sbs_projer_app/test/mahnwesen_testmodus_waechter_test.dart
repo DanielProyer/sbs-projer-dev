@@ -40,4 +40,22 @@ void main() {
           'beginnen.',
     );
   });
+
+  test('Mahnfall: Heineken-Mail über MailConfig (bereich mahnwesen), TEST im Betreff', () {
+    final service =
+        File('lib/services/rechnung/mahnfall_service.dart').readAsStringSync();
+    expect(
+      RegExp(r"MailConfig\.empfaenger\([^)]*bereich:\s*'mahnwesen'")
+          .hasMatch(service),
+      isTrue,
+      reason: 'Der Empfänger der Heineken-Mail muss über '
+          "MailConfig.empfaenger(…, bereich: 'mahnwesen') laufen.",
+    );
+    expect(
+      service.contains("'TEST an: "),
+      isTrue,
+      reason: 'Im Testmodus muss der Betreff der Heineken-Mail mit '
+          '«TEST an: <echte Adresse>» beginnen.',
+    );
+  });
 }
