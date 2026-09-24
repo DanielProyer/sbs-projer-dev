@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 24.09.2026 — v0.136.0 Mahnwesen Teil 3: Hinweis beim Service, bar einkassieren
 - 24.09.2026 — v0.135.0 Mahnwesen Teil 2: Mahnfall (Heineken, Betreibung)
 - 24.09.2026 — v0.134.1 Mahnlauf-Sperre unverknüpfte Zahlung
 - 24.09.2026 — v0.134.0 Mahnwesen Teil 1: Mahnlauf
@@ -19,6 +20,28 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 24.09.2026 — v0.136.0 Mahnwesen Teil 3: Hinweis beim Service, bar einkassieren
+
+Plan `docs/superpowers/plans/2026-09-24-mahnwesen-teil3.md`. Entscheid Daniel:
+kein TWINT (Geschäftskonto hat keines) — vor Ort nur bar (Kasse 1000), sonst
+QR-Rechnung per E-Banking.
+
+- **Band** in Reinigung, Störung und Montage: orange «N Rechnungen gemahnt,
+  CHF … offen (1. Mahnung vom …)», rot bei Mahnfall «— nur gegen Barzahlung».
+  Nur Hinweis, blockiert das Formular nie.
+- **Sheet:** offene Rechnungen (ab 2026) mit Häkchen, «QR zeigen» (Rechnungs-
+  PDF), «Bar einkassieren» → Soll 1000 / Haben 1100 je Rechnung (5 Rappen),
+  Rechnung bezahlt gegen den DB-Stand, Vorher-Stand in der Buchungsnotiz.
+  Teilfehler melden «X von Y kassiert». Nach Kassieren eines ganzen Mahnfalls
+  Hinweis «Mahnfall abschliessen». Glocke während Sheet/Dialog ausgeblendet.
+- **Rechnungsdetail:** «Barzahlung rückgängig» (nur laufendes Jahr, stellt den
+  Mahnstand wieder her); «Kassenbuchung entfernen» für einen halben Zustand.
+- Geprüft im Browser (360 px): Band, Sheet, Kassieren 94.05 (Buchung
+  1000/1100 in der DB), Rückgängig (Mahnstand zurück, Buchung weg); Test-
+  Rechnung danach zurückgesetzt. 2150 Tests.
 
 ---
 

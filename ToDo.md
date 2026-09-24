@@ -190,6 +190,11 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.136.0** — Bei einem Betrieb mit gemahnter Rechnung neue Reinigung
+  öffnen: Band sichtbar, antippen, «QR zeigen» öffnet die Rechnung mit QR
+  (auch auf dem iPhone? Popup-Blocker). Bar einkassieren erst beim ersten
+  echten Fall.
+
 - **v0.135.0** — Mahnfall am Handy: sobald ein echter Fall ansteht (letzte
   Mahnung + Frist + 5 Tage), Vorschau «Mahnfall eröffnen» ansehen. Offen: das
   Ergebnis «Heineken übernimmt» — Buchung und Position auf der

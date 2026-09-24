@@ -83,7 +83,8 @@ Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.
   2026, je Betrieb ein Schreiben mit QR je Rechnung und Kontoauszug, Mail oder
   Druck; Bank- und Gutschrift-Sperre, Protokoll mit Zurücknehmen. Seit
   v0.135.0 Mahnfall: Heineken einschalten, vier Ergebnisse, Betreibung mit
-  EasyGov-Datenblatt und Fristen (Teil 3 «beim Service» folgt).
+  EasyGov-Datenblatt und Fristen. Seit v0.136.0 Hinweis-Band beim Service
+  mit «bar einkassieren» (Kasse 1000) und «QR zeigen».
   Jahresrechnungen für Betriebe mit jährlicher Abrechnung (`jahresrechnung/`).
 - **Pro Betrieb:** offene und alle Rechnungen je Jahr mit Zustellweg,
   Kontoauszug-PDF mit QR-Schein, Reinigungsprotokolle als PDF (einzeln oder
