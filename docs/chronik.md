@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 24.09.2026 — v0.134.0 Mahnwesen Teil 1: Mahnlauf
 - 23.09.2026 — v0.133.3 Telefon-Eingabe, Betrieb mit Ort
 - 23.09.2026 — v0.133.2 Zeitauswahl überall 24 h
 - 23.09.2026 — v0.133.1 Pikett mit KW
@@ -16,6 +17,37 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 24.09.2026 — v0.134.0 Mahnwesen Teil 1: Mahnlauf
+
+Spec `docs/superpowers/specs/2026-09-23-mahnwesen-design.md`, Plan
+`docs/superpowers/plans/2026-09-23-mahnwesen-teil1.md`, Recherche
+`docs/buchhaltung/mahnwesen-recherche-2026-09-23.md`. Migrationen 200–203.
+
+- **Mahnlauf-Seite** (Rechnungen → Kunden → Karte «Mahnlauf», Glocke):
+  Stufen Zahlungserinnerung / 1. / 2. Mahnung, nur Rechnungen ab 01.01.2026,
+  zugestellt (Mail oder Tresen-Übergabe). Ein Schreiben je Betrieb mit einem
+  QR-Einzahlungsschein je Rechnung; bei mehreren Rechnungen zusätzlich der
+  Kontoauszug des laufenden Jahres. Kanal Mail oder Druck-PDF.
+- **Kein Mahnen bezahlter Rechnungen:** Bank-Sperre (Auszug älter als 2 Tage
+  oder Lücke in der Auszugskette), Gutschrift-Sperre (offene Gutschrift in
+  der Prüfliste, deren Betrag/Name passt), frische Prüfung aus der DB direkt
+  vor dem Erstellen, optimistische Sperre beim Hochstufen.
+- **Protokoll** `mahnschreiben` mit Vorher/Nachher, **Zurücknehmen** nur für
+  das jüngste Schreiben und nur, wenn sich seither nichts geändert hat.
+  Mahnverlauf im Rechnungsdetail, «Jetzt mahnen» für eine einzelne Rechnung.
+- **Testmodus:** Mails nur an Daniel (Betreff «TEST an: …»), PDFs mit MUSTER.
+- Edge Function `send-rechnung-mail` v23: Zusatz-PDFs mit strenger
+  Pfadprüfung. Alte Eskalationslogik (forderung_service) entfernt.
+- **Bussenkonten:** 6280 Verkehrsbussen, neu 6281 Übrige Bussen;
+  Steuerbussen aus dem camt-Import gehen auf 6281 statt 8900 (Migration 203).
+- **Datenkorrektur 24.09.:** 30 Rechnungen waren laut Excel (Spalte
+  Einzahlung) bezahlt, standen aber auf «offen» — der erste Mahnlauf hätte
+  8 Betriebe zu Unrecht gemahnt. Auf bezahlt gesetzt; Ursache siehe ToDo.
+- Geprüft: Test-Mahnung Hemingway (5 Rechnungen) kam nur bei Daniel an mit
+  allen Anhängen; Zurücknehmen stellte alle 5 wieder auf «offen». 2036 Tests.
 
 ---
 

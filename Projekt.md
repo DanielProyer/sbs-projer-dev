@@ -78,7 +78,11 @@ Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.
 ### Büro: Rechnungen und Forderungen
 
 - **Kundenrechnungen** (`rechnungen/`): PDF mit QR-Einzahlungsschein,
-  Versand per Mail, Tresen-Übergabe, Mahnstufen, Abschreibung;
+  Versand per Mail, Tresen-Übergabe, Abschreibung;
+- **Mahnlauf** (seit v0.134.0): Erinnerung / 1. / 2. Mahnung ab Rechnungen
+  2026, je Betrieb ein Schreiben mit QR je Rechnung und Kontoauszug, Mail oder
+  Druck; Bank- und Gutschrift-Sperre, Protokoll mit Zurücknehmen. Heineken-
+  Schritt und Betreibung folgen (Teil 2).
   Jahresrechnungen für Betriebe mit jährlicher Abrechnung (`jahresrechnung/`).
 - **Pro Betrieb:** offene und alle Rechnungen je Jahr mit Zustellweg,
   Kontoauszug-PDF mit QR-Schein, Reinigungsprotokolle als PDF (einzeln oder

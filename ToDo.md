@@ -61,6 +61,17 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 💰 Forderungen und Daten
 
+- **⚠️ Excel-Zahlungen nicht mit App-Rechnungen verknüpft (24.09.2026) — als
+  Nächstes anschauen (Daniel).** Zahlungen bis 11.03.2026 kamen aus dem Excel
+  (Belegnr. `020_…`) ohne `beleg_id`, der Rechnungsstatus blieb teils «offen».
+  30 Fälle per Excel-Spalte «Einzahlung» auf bezahlt gesetzt (u. a. Gemsli,
+  Alpina, Obertor, Calanda, Surselva, Center Fontauna; 3 davon mit ±1 Tag
+  Datumsversatz App↔Excel). Offen: **Blockhuus 011_2025_11_17_0080** (Zahlung
+  05.12.2025 74.60 mit Beleg `…_XXX_…`, im Excel keiner Rechnung zugeordnet).
+  Zu klären: Warum griff die Zuordnung vom 28.07. hier nicht, sollen die
+  Buchungen per `beleg_id` verknüpft werden, und braucht der Mahnlauf eine
+  zusätzliche Sperre «unverknüpfte Zahlung beim Betrieb»?
+
 - **Chesa Davos Dorf: Guthaben 30.00 verrechnen (23.09.2026).** Hotels by HR
   Seehof zahlte am 16.09. 173.75 auf 2026-04-0513 (143.75) — 30.00 zu viel,
   gebucht auf neues Konto **2030 Kundenguthaben**, Notiz am Betrieb. Nächste
@@ -176,6 +187,13 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.134.0** — Mahnlauf am Handy: Rechnungen → Karte «Mahnlauf», einen
+  Betrieb aufklappen, Vorschau (nicht erstellen); Rechnungsdetail zeigt
+  «Jetzt mahnen» und Mahnverlauf. Vor dem **ersten echten** Mahnlauf: aktuellen
+  Bankauszug einlesen, Prüfliste leer, dann Testmodus in `mail_config.dart`
+  aufheben (eigene Rückfrage). AGB-Klausel zu Mahngebühren/Verzugszins ab 2027
+  mit Fachperson klären.
 
 - **v0.133.3** — **nicht im Browser geprüft, zuerst am Handy:** Person
   bearbeiten → Telefon «0791234567» tippen (erscheint «079 123 45 67»), eine
