@@ -61,16 +61,18 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 💰 Forderungen und Daten
 
-- **⚠️ Excel-Zahlungen nicht mit App-Rechnungen verknüpft (24.09.2026) — als
-  Nächstes anschauen (Daniel).** Zahlungen bis 11.03.2026 kamen aus dem Excel
-  (Belegnr. `020_…`) ohne `beleg_id`, der Rechnungsstatus blieb teils «offen».
-  30 Fälle per Excel-Spalte «Einzahlung» auf bezahlt gesetzt (u. a. Gemsli,
-  Alpina, Obertor, Calanda, Surselva, Center Fontauna; 3 davon mit ±1 Tag
-  Datumsversatz App↔Excel). Offen: **Blockhuus 011_2025_11_17_0080** (Zahlung
-  05.12.2025 74.60 mit Beleg `…_XXX_…`, im Excel keiner Rechnung zugeordnet).
-  Zu klären: Warum griff die Zuordnung vom 28.07. hier nicht, sollen die
-  Buchungen per `beleg_id` verknüpft werden, und braucht der Mahnlauf eine
-  zusätzliche Sperre «unverknüpfte Zahlung beim Betrieb»?
+- **✅ Excel-Zahlungen mit Rechnungen verknüpft (24.09.2026).** Zahlungen bis
+  11.03.2026 kamen aus dem Excel ohne `beleg_id`; 30 Rechnungen standen deshalb
+  trotz Zahlung auf «offen» (u. a. Gemsli, Alpina, Obertor, Calanda). Erledigt:
+  30 + Blockhuus auf bezahlt; **3181 Excel-Zahlungen per `beleg_id` verknüpft**
+  (Rückweg `import.excel_link_plan`); Triel 2026-04-0168 Minderzahlung 3.00
+  abgeschrieben (3805, 24.09., fliesst in Ziff. 235 Q3). Bewusst nicht
+  verknüpft: 63 Sammelzahlungen 2019–2025 (nicht aufgeteilt, abgeschlossene
+  Jahre), 11 Sammel mit Betragsabweichung, 46 Excel-Belege mit anders
+  benannter Buchung — alle zugehörigen Rechnungen sind bezahlt. Ohne
+  App-Rechnung (nur Info): Seeblick Sufers 23.12.2025 (Tresen 74.60, bezahlt
+  31.12.), Jodys Excel-Kürzel 0566 ≠ App 0573. Mahnlauf-Sperre «unverknüpfte
+  Kundenzahlung» folgt in v0.134.1.
 
 - **Chesa Davos Dorf: Guthaben 30.00 verrechnen (23.09.2026).** Hotels by HR
   Seehof zahlte am 16.09. 173.75 auf 2026-04-0513 (143.75) — 30.00 zu viel,
