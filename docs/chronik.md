@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 24.09.2026 — v0.134.1 Mahnlauf-Sperre unverknüpfte Zahlung
 - 24.09.2026 — v0.134.0 Mahnwesen Teil 1: Mahnlauf
 - 23.09.2026 — v0.133.3 Telefon-Eingabe, Betrieb mit Ort
 - 23.09.2026 — v0.133.2 Zeitauswahl überall 24 h
@@ -17,6 +18,19 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 24.09.2026 — v0.134.1 Mahnlauf-Sperre unverknüpfte Zahlung
+
+- **Neue Sperre:** Eine Kundenzahlung ab 01.01.2026 ohne Verknüpfung zu einer
+  Rechnung (Buchung 1020/1100 ohne `beleg_id`) sperrt den Betrieb (Kürzel in
+  der Belegnummer) oder, wenn nicht zuordenbar, den ganzen Mahnlauf.
+  Heineken-Zahlungen zählen nicht. `unverknuepfteZahlungenAuswerten` in
+  `mahnregeln.dart`, 10 Tests (2046 grün).
+- **Datenarbeit dazu:** 3181 Excel-Zahlungen (2019–03/2026) per `beleg_id`
+  mit ihrer Rechnung verknüpft (Rückweg `import.excel_link_plan`), Triel
+  3.00 abgeschrieben, Blockhuus zugeordnet — Einzelheiten in ToDo.md.
 
 ---
 
