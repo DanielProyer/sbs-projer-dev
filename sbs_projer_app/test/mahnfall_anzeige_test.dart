@@ -50,30 +50,41 @@ void main() {
     });
   });
 
-  group('zinsSeit', () {
-    test('Erinnerung der ältesten Rechnung', () {
-      expect(
-        zinsSeit([
-          r('b', DateTime.utc(2026, 4, 1), erinnerung: DateTime.utc(2026, 6, 1)),
-          r('a', DateTime.utc(2026, 3, 1), erinnerung: DateTime.utc(2026, 5, 2)),
-        ]),
-        DateTime.utc(2026, 5, 2),
-      );
+  group('zinsZeile (M-1: je Rechnung)', () {
+    test('mit Erinnerung dieser Rechnung', () {
+      expect(zinsZeile(r('a', DateTime.utc(2026, 3, 1), erinnerung: DateTime.utc(2026, 5, 2))),
+          'nebst 5 % Zins seit 02.05.2026');
     });
-
-    test('älteste ohne Erinnerung → früheste vermerkte', () {
-      expect(
-        zinsSeit([
-          r('a', DateTime.utc(2026, 3, 1)),
-          r('b', DateTime.utc(2026, 4, 1), erinnerung: DateTime.utc(2026, 6, 1)),
-        ]),
-        DateTime.utc(2026, 6, 1),
-      );
+    test('ohne Erinnerung ein Hinweis', () {
+      expect(zinsZeile(r('a', DateTime.utc(2026, 3, 1))), contains('nicht vermerkt'));
     });
+  });
 
-    test('keine Erinnerung oder keine Rechnung → null', () {
-      expect(zinsSeit([r('a', DateTime.utc(2026, 3, 1))]), isNull);
-      expect(zinsSeit(const []), isNull);
+  group('sperrtRechnungen (I-3)', () {
+    test('offene Fälle sperren', () {
+      expect(sperrtRechnungen(fall('heineken')), isTrue);
+      expect(sperrtRechnungen(fall('betreibung')), isTrue);
+    });
+    test('übernommen / zurückgezogen sperren weiter', () {
+      expect(sperrtRechnungen(fall('erledigt', erledigung: 'uebernommen')), isTrue);
+      expect(sperrtRechnungen(fall('erledigt', erledigung: 'zurueckgezogen')), isTrue);
+    });
+    test('bezahlt / abgeschrieben geben frei', () {
+      expect(sperrtRechnungen(fall('erledigt', erledigung: 'bezahlt')), isFalse);
+      expect(sperrtRechnungen(fall('erledigt', erledigung: 'abgeschrieben')), isFalse);
+    });
+  });
+
+  group('kontoauszugJahre (I-5)', () {
+    test('ein Jahr', () {
+      expect(kontoauszugJahre([r('a', DateTime.utc(2026, 3, 1)), r('b', DateTime.utc(2026, 7, 1))]),
+          [2026]);
+    });
+    test('über den Jahreswechsel: je Jahr aufsteigend', () {
+      expect(
+        kontoauszugJahre([r('b', DateTime.utc(2026, 1, 5)), r('a', DateTime.utc(2025, 11, 3))]),
+        [2025, 2026],
+      );
     });
   });
 }

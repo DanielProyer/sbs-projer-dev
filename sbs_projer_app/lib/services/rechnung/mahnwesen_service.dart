@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
 
@@ -15,23 +16,36 @@ class MahnwesenService {
   /// Rechnung abschreiben + Debitorenverlust korrekt buchen (netto + MWST-Rückholung).
   /// [heute] nur für Tests; sonst der laufende Tag. Zum Datum und zu den
   /// Beträgen siehe [einzelAbschreibung].
+  ///
+  /// Reihenfolge (Review Mahnwesen Teil 2, I-2): ZUERST buchen, DANN den
+  /// Status setzen. Umgekehrt stand nach einem Abbruch eine «abgeschriebene»
+  /// Rechnung ohne Buchung da — unsichtbar, weil nichts mehr sie anbietet.
+  /// So bleibt im Fehlerfall die Rechnung offen, und der zweite Versuch
+  /// erkennt die schon gebuchte Abschreibung ([abschreibungSchonGebucht])
+  /// und zieht nur den Status nach.
   static Future<void> abschreiben(Rechnung rechnung, {DateTime? heute}) async {
     final a = einzelAbschreibung(rechnung, heute: heute ?? DateTime.now());
+    final schon = abschreibungSchonGebucht(await BuchungRepository.getByBeleg(rechnung.id));
+    if (!schon) {
+      await AbschreibungService.abschreiben(
+        brutto: a.brutto,
+        // Steuer der Rechnung, nicht Satz des Datums (Altjahrgänge!).
+        mwst: a.mwst,
+        datum: a.datum,
+        beschreibung: a.beschreibung,
+        belegnummer: rechnung.rechnungsnummer,
+        belegId: rechnung.id,
+      );
+    }
     await RechnungRepository.update(rechnung.id, {
       'zahlungsstatus': 'abgeschrieben',
     });
-    await AbschreibungService.abschreiben(
-      brutto: a.brutto,
-      // Steuer der Rechnung, nicht Satz des Datums (Altjahrgänge!).
-      mwst: a.mwst,
-      datum: a.datum,
-      beschreibung: a.beschreibung,
-      belegnummer: rechnung.rechnungsnummer,
-      belegId: rechnung.id,
-    );
     debugPrint(
-      '[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben '
-      '(${a.netto} + ${a.mwst} MWST, per ${a.datum.toIso8601String().split('T').first})',
+      schon
+          ? '[Mahnwesen] Rechnung ${rechnung.rechnungsnummer}: Abschreibung war schon '
+              'gebucht — nur Status nachgezogen'
+          : '[Mahnwesen] Rechnung ${rechnung.rechnungsnummer} abgeschrieben '
+              '(${a.netto} + ${a.mwst} MWST, per ${a.datum.toIso8601String().split('T').first})',
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
 import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -12,6 +13,7 @@ import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
+import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/mahnfall_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
@@ -49,7 +51,9 @@ class MahnfallService {
   static const _ergebnisse = {'vermittelt', 'uebernommen', 'konkurs', 'betreibung'};
   static const _erledigungen = {'bezahlt', 'abgeschrieben', 'zurueckgezogen'};
 
-  /// Felder, die das Betreibungs-Datenblatt schreiben darf.
+  /// Felder, die das Betreibungs-Datenblatt schreiben darf. Die Notiz gehört
+  /// NICHT dazu (Review Teil 2, M-5): Sie läuft nur über [notizSpeichern],
+  /// das die Markierung [kUebernahmeOffen] erhält.
   static const _betreibungsFelder = {
     'schuldner_name',
     'schuldner_adresse',
@@ -60,14 +64,13 @@ class MahnfallService {
     'rechtsvorschlag',
     'fortsetzung_am',
     'kosten_vorschuss',
-    'notiz',
   };
 
   // ─── Fall eröffnen ───────────────────────────────────────────────────────
 
   /// Fall eröffnen + Heineken-Mail. Prüft vorher frisch aus der DB, dass jede
   /// Rechnung noch `mahnung_2` und im Mahnbereich ist, und dass keine der
-  /// Rechnungen schon in einem offenen Fall steckt.
+  /// Rechnungen schon in einem sperrenden Fall steckt ([sperrtRechnungen]).
   ///
   /// Der Fall wird VOR der Mail angelegt (Protokoll, wie beim Mahnlauf):
   /// Scheitert die Mail, bleibt der Fall stehen und der Fehler trägt die
@@ -103,14 +106,15 @@ class MahnfallService {
         frisch.add(db);
       }
       final ids = {for (final r in frisch) r.id};
-      final offene = await MahnfallRepository.getOffene();
-      for (final f in offene) {
+      // Sperrende Fälle: offen, oder erledigt nach Übernahme/Rückzug (I-3).
+      final sperrend = await MahnfallRepository.getSperrendeFaelle();
+      for (final f in sperrend) {
         final doppelt = f.rechnungIds.where(ids.contains);
         if (doppelt.isNotEmpty) {
           final nr = frisch.firstWhere((r) => r.id == doppelt.first).rechnungsnummer;
           throw MahnfallFehler(
-            'Rechnung ${nr ?? doppelt.first} steckt schon in einem offenen '
-            'Mahnfall — kein Fall eröffnet',
+            'Rechnung ${nr ?? doppelt.first} steckt schon in einem Mahnfall '
+            '(${mahnfallStatusText(f)}) — kein Fall eröffnet',
           );
         }
       }
@@ -177,6 +181,16 @@ class MahnfallService {
     if (fall.status != 'heineken' || fall.heinekenErgebnis != null) {
       throw MahnfallFehler('Heineken hat bereits ein Ergebnis — keine neue Mail', fallId: fall.id);
     }
+    // Review Teil 2, M-3: Ein im Testmodus eröffneter Fall darf nach dem
+    // Scharfstellen keine echte Mail an Heineken auslösen — er war nie für
+    // Heineken gedacht (MUSTER-Kontoauszug, Test-Betreff).
+    if (fall.test && MailConfig.istScharf('mahnwesen')) {
+      throw MahnfallFehler(
+        'Testfall — seit dem Scharfstellen keine Mail mehr. Fall zurücknehmen '
+        'und neu eröffnen.',
+        fallId: fall.id,
+      );
+    }
     final datum = heute ?? DateTime.now();
     try {
       final betrieb = await BetriebRepository.getById(fall.betriebId);
@@ -211,7 +225,7 @@ class MahnfallService {
     }
   }
 
-  /// Kontoauszug des laufenden Jahres erzeugen, ablegen und die Mail an
+  /// Kontoauszüge (je Jahr der Fall-Rechnungen) erzeugen, ablegen und die Mail an
   /// Heineken senden. KEIN `rechnungId`/`markiereVersandt` im Aufruf — der
   /// Versandvermerk der Rechnungen darf nicht überschrieben werden
   /// (`versandvermerk_waechter_test`).
@@ -233,26 +247,34 @@ class MahnfallService {
       ra = BetriebRechnungsadresseMapper.toDto(raLocal, betriebId: betriebId);
     }
 
-    // Alle Kunden-/Jahresrechnungen des Betriebs im laufenden Jahr, frisch
-    // geladen, INKLUSIVE bezahlter — ein Kontoauszug ohne Zahlungen wäre
-    // keiner (wie `MahnBetrieb.rechnungenDesJahres`).
-    final jahr = datum.year;
-    final desJahres = (await RechnungRepository.getKundenrechnungenAb(
-      DateTime.utc(jahr, 1, 1),
+    // Je Jahr, in dem eine Fall-Rechnung liegt, ein Kontoauszug (Review
+    // Teil 2, I-5): Der Auszug des laufenden Jahres enthielt bei einem Fall
+    // über den Jahreswechsel die gemahnten Rechnungen gar nicht. Inhalt:
+    // alle Kunden-/Jahresrechnungen des Betriebs im Jahr, frisch geladen,
+    // INKLUSIVE bezahlter — ein Kontoauszug ohne Zahlungen wäre keiner.
+    final jahre = kontoauszugJahre(rechnungen);
+    final alle = await RechnungRepository.getKundenrechnungenAb(
+      DateTime.utc(jahre.first, 1, 1),
       betriebId: betriebId,
-    ))
-        .where((r) => r.rechnungsdatum.year == jahr)
-        .toList();
-
-    final kontoauszug = await KontoauszugPdfService.generate(
-      betrieb: betrieb,
-      rechnungen: desJahres,
-      rechnungsadresse: ra,
-      jahr: jahr,
-      muster: muster,
-      mitZahlteil: false,
     );
-    await RechnungPdfStorage.uploadMahnfallPdf(fall.id, 'kontoauszug.pdf', kontoauszug);
+    final auszuege = <Map<String, dynamic>>[];
+    for (final jahr in jahre) {
+      final kontoauszug = await KontoauszugPdfService.generate(
+        betrieb: betrieb,
+        rechnungen: alle.where((r) => r.rechnungsdatum.year == jahr).toList(),
+        rechnungsadresse: ra,
+        jahr: jahr,
+        muster: muster,
+        mitZahlteil: false,
+      );
+      final datei = 'kontoauszug_$jahr.pdf';
+      await RechnungPdfStorage.uploadMahnfallPdf(fall.id, datei, kontoauszug);
+      auszuege.add({
+        'pfad': '$uid/mahnfaelle/${fall.id}/$datei',
+        'dateiname': 'Kontoauszug_$jahr.pdf',
+        'pflicht': true,
+      });
+    }
 
     final empfaenger = MailConfig.empfaenger(kontaktEmail, bereich: 'mahnwesen');
     var subject = 'Offene Rechnungen ${betriebMitOrt(betrieb.name, betrieb.ort)} — '
@@ -270,11 +292,7 @@ class MahnfallService {
         ),
         'userId': uid,
         'zusatzPdfs': [
-          {
-            'pfad': '$uid/mahnfaelle/${fall.id}/kontoauszug.pdf',
-            'dateiname': 'Kontoauszug.pdf',
-            'pflicht': true,
-          },
+          ...auszuege,
           for (final r in rechnungen)
             {
               'pfad': '$uid/${r.id}/rechnung.pdf',
@@ -296,8 +314,15 @@ class MahnfallService {
 
   // ─── Rückweg ─────────────────────────────────────────────────────────────
 
-  /// Nur bei status 'heineken' ohne Ergebnis: Fall löschen (Testmodus-Rückweg).
+  /// Nur bei status 'heineken' ohne Ergebnis und nur für Testfälle: Fall
+  /// löschen (Testmodus-Rückweg). Ein echter Fall ist Protokoll — ihn zu
+  /// löschen hiesse, die Mail an Heineken aus der Akte zu streichen
+  /// (Review Teil 2, M-4: die Prüfung gehört in den Service, nicht nur in
+  /// die Oberfläche).
   static Future<void> zuruecknehmen(Mahnfall fall) async {
+    if (!fall.test) {
+      throw MahnfallFehler('Nur ein Testfall kann zurückgenommen werden', fallId: fall.id);
+    }
     if (fall.status != 'heineken' || fall.heinekenErgebnis != null) {
       throw MahnfallFehler(
         'Nur ein Fall ohne Heineken-Ergebnis kann zurückgenommen werden',
@@ -325,10 +350,13 @@ class MahnfallService {
   ///
   /// Erlaubt aus 'heineken' und — nach «vermittelt» ohne Zahlung — aus
   /// 'heineken_frist' (dort ist 'vermittelt' nicht nochmals möglich).
-  static Future<Mahnfall> ergebnis(Mahnfall fall, String ergebnis, {DateTime? heute}) async {
+  static Future<Mahnfall> ergebnis(Mahnfall alt, String ergebnis, {DateTime? heute}) async {
     if (!_ergebnisse.contains(ergebnis)) {
-      throw MahnfallFehler('Unbekanntes Ergebnis «$ergebnis»', fallId: fall.id);
+      throw MahnfallFehler('Unbekanntes Ergebnis «$ergebnis»', fallId: alt.id);
     }
+    // Review Teil 2, M-2: Stand der DB, nicht der Seite — zwei Tabs oder
+    // eine veraltete Seite dürfen kein zweites Ergebnis erfassen.
+    final fall = await _frisch(alt);
     final erlaubt = fall.status == 'heineken' ||
         (fall.status == 'heineken_frist' && ergebnis != 'vermittelt');
     if (!erlaubt) {
@@ -349,13 +377,13 @@ class MahnfallService {
         case 'vermittelt':
           final bis = DateTime.utc(datum.year, datum.month, datum.day)
               .add(const Duration(days: kVermittlungsFristTage));
-          return await MahnfallRepository.update(fall.id, {
+          return await _setzen(fall, {
             ...basis,
             'status': 'heineken_frist',
             'heineken_frist_bis': MahnfallRepository.dateStr(bis),
           });
         case 'uebernommen':
-          return await MahnfallRepository.update(fall.id, {
+          return await _setzen(fall, {
             ...basis,
             'status': 'erledigt',
             'erledigung': 'uebernommen',
@@ -364,7 +392,7 @@ class MahnfallService {
           });
         case 'konkurs':
           await _offeneAbschreiben(fall, datum);
-          return await MahnfallRepository.update(fall.id, {
+          return await _setzen(fall, {
             ...basis,
             'status': 'erledigt',
             'erledigung': 'abgeschrieben',
@@ -388,7 +416,7 @@ class MahnfallService {
               felder['schuldner_adresse'] = s.adresse;
             }
           }
-          return await MahnfallRepository.update(fall.id, felder);
+          return await _setzen(fall, felder);
       }
     } catch (e) {
       if (e is MahnfallFehler) rethrow;
@@ -425,10 +453,12 @@ class MahnfallService {
   ///   stünde ein erledigter Fall neben offenen Rechnungen.
   /// - 'abgeschrieben' schreibt die noch offenen Rechnungen über
   ///   `MahnwesenService.abschreiben` ab (wie beim Konkurs) — mit Buchung.
-  static Future<Mahnfall> erledigen(Mahnfall fall, String erledigung, {DateTime? heute}) async {
+  static Future<Mahnfall> erledigen(Mahnfall alt, String erledigung, {DateTime? heute}) async {
     if (!_erledigungen.contains(erledigung)) {
-      throw MahnfallFehler('Unbekannte Erledigung «$erledigung»', fallId: fall.id);
+      throw MahnfallFehler('Unbekannte Erledigung «$erledigung»', fallId: alt.id);
     }
+    // Review Teil 2, M-2: Stand der DB, nicht der Seite.
+    final fall = await _frisch(alt);
     if (!fall.offen) {
       throw MahnfallFehler('Der Fall ist bereits erledigt', fallId: fall.id);
     }
@@ -447,7 +477,7 @@ class MahnfallService {
       } else if (erledigung == 'abgeschrieben') {
         await _offeneAbschreiben(fall, datum);
       }
-      return await MahnfallRepository.update(fall.id, {
+      return await _setzen(fall, {
         'status': 'erledigt',
         'erledigung': erledigung,
         'erledigt_am': MahnfallRepository.dateStr(datum),
@@ -496,11 +526,54 @@ class MahnfallService {
     return out;
   }
 
+  /// Fall frisch aus der DB (Review Teil 2, M-2). Fehlt er, wurde er
+  /// inzwischen zurückgenommen.
+  static Future<Mahnfall> _frisch(Mahnfall alt) async {
+    final Mahnfall? f;
+    try {
+      f = await MahnfallRepository.getById(alt.id);
+    } catch (e) {
+      throw MahnfallFehler(kurzeFehlermeldung(e), fallId: alt.id);
+    }
+    if (f == null) {
+      throw MahnfallFehler('Fall wurde inzwischen geändert — nicht mehr vorhanden');
+    }
+    return f;
+  }
+
+  /// Status-Übergang nur, wenn der Fall in der DB noch den Status hat, den
+  /// [fall] trägt (optimistische Sperre, Review Teil 2, M-2).
+  static Future<Mahnfall> _setzen(Mahnfall fall, Map<String, dynamic> felder) async {
+    final neu = await MahnfallRepository.updateWennStatus(fall.id, fall.status, felder);
+    if (neu == null) {
+      throw MahnfallFehler('Fall wurde inzwischen geändert — bitte neu laden', fallId: fall.id);
+    }
+    return neu;
+  }
+
   /// Frisch laden, nur noch offene (weder bezahlt noch abgeschrieben)
   /// abschreiben — eine inzwischen bezahlte Rechnung nie abschreiben.
+  ///
+  /// Review Teil 2, I-1: ZUERST alle offenen Rechnungen auf eine gebuchte
+  /// Zahlung prüfen ([zahlungGebucht]) — auch eine Teilzahlung heisst
+  /// «Status hinkt nach», und Abschreiben würde einen bezahlten Betrag als
+  /// Verlust buchen. Dann wird GAR NICHTS abgeschrieben, nicht nur diese
+  /// Rechnung übersprungen: Ein halb abgeschriebener Fall wäre schlimmer.
   static Future<void> _offeneAbschreiben(Mahnfall fall, DateTime datum) async {
-    for (final r in await _laden(fall)) {
-      if (r.zahlungsstatus == 'bezahlt' || r.zahlungsstatus == 'abgeschrieben') continue;
+    final offen = [
+      for (final r in await _laden(fall))
+        if (r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben') r,
+    ];
+    for (final r in offen) {
+      if (zahlungGebucht(await BuchungRepository.getByBeleg(r.id))) {
+        throw MahnfallFehler(
+          'Rechnung ${r.rechnungsnummer ?? r.id} hat eine gebuchte Zahlung — '
+          'zuerst Status prüfen. Nichts abgeschrieben.',
+          fallId: fall.id,
+        );
+      }
+    }
+    for (final r in offen) {
       await MahnwesenService.abschreiben(r, heute: datum);
     }
   }
@@ -567,7 +640,7 @@ class MahnfallService {
       ..writeln('Total offen: CHF ${chf(total)}')
       ..writeln()
       ..writeln('Könnt ihr mit dem Betrieb Kontakt aufnehmen? Im Anhang findet '
-          'ihr den Kontoauszug des laufenden Jahres und die Rechnungskopien.')
+          'ihr den Kontoauszug und die Rechnungskopien.')
       ..writeln()
       ..writeln('Besten Dank und Gruss')
       ..writeln('Daniel Projer, SBS Projer GmbH');

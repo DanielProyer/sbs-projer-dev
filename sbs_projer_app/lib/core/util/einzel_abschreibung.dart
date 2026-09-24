@@ -1,6 +1,8 @@
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 
 /// Was eine einzelne Abschreibung bucht (Mahnwesen-Weg, eine Rechnung).
 ///
@@ -51,3 +53,24 @@ EinzelAbschreibung einzelAbschreibung(Rechnung r, {required DateTime heute}) {
         '(Rechnung vom ${_ddMMyyyy.format(r.rechnungsdatum)}, abgeschrieben)',
   );
 }
+
+/// Buchungen, die für eine Rechnung zählen (nicht storniert, kein Storno).
+Iterable<Buchung> _zaehlend(Iterable<Buchung> buchungen) => buchungen.where(
+    (b) => zaehltFuerSaldo(istStorniert: b.istStorniert, stornoVonId: b.stornoVonId));
+
+/// Steht für die Rechnung schon eine Abschreibung im Journal
+/// (`beleg_typ = 'abschreibung'`, nicht storniert)?
+///
+/// WARUM (Review Mahnwesen Teil 2, I-2): `MahnwesenService.abschreiben`
+/// bucht zuerst und setzt danach den Status. Bricht es dazwischen ab, steht
+/// die Buchung, der Status aber nicht — ein zweiter Versuch darf dann nur
+/// noch den Status nachziehen, nie ein zweites Mal buchen.
+bool abschreibungSchonGebucht(Iterable<Buchung> buchungenDerRechnung) =>
+    _zaehlend(buchungenDerRechnung).any((b) => b.belegTyp == 'abschreibung');
+
+/// Ist auf die Rechnung ein Zahlungseingang gebucht (Haben 1100, nicht
+/// storniert)? Eine Abschreibung bucht ebenfalls Haben 1100 — sie ist keine
+/// Zahlung und zählt hier nicht. Jede Zahlung, auch eine Teilzahlung,
+/// sperrt das Abschreiben (Review Mahnwesen Teil 2, I-1).
+bool zahlungGebucht(Iterable<Buchung> buchungenDerRechnung) => _zaehlend(buchungenDerRechnung)
+    .any((b) => b.habenKonto == 1100 && b.belegTyp != 'abschreibung');

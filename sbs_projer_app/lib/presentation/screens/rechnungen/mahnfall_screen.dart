@@ -459,7 +459,6 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
         .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
         .toList();
     final summe = offen.fold(0.0, (s, r) => s + r.betragBrutto);
-    final zins = zinsSeit(offen);
     final fenster = f.zahlungsbefehlAm == null ? null : fortsetzungsFenster(f.zahlungsbefehlAm!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -515,16 +514,16 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
         _karte(
           titel: 'Forderung',
           children: [
-            for (final r in offen)
+            // Zins je Forderung ab der Erinnerung DIESER Rechnung (M-1).
+            for (final r in offen) ...[
               _zeile(r.rechnungsnummer ?? '—', 'CHF ${r.betragBrutto.toStringAsFixed(2)}'),
+              Padding(
+                padding: const EdgeInsets.only(left: 110, bottom: 6),
+                child: Text(zinsZeile(r),
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              ),
+            ],
             _zeile('Total', 'CHF ${summe.toStringAsFixed(2)}'),
-            const SizedBox(height: 4),
-            Text(
-              zins != null
-                  ? 'nebst Zins zu 5 % seit ${_datum(zins)}'
-                  : 'nebst Zins zu 5 % seit der Zahlungserinnerung (Datum nicht vermerkt)',
-              style: const TextStyle(fontSize: 13),
-            ),
             const SizedBox(height: 10),
             GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -553,9 +552,14 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
             _datumSchritt(f, 'Eingereicht am', 'eingereicht_am', f.eingereichtAm),
             _datumSchritt(f, 'Zahlungsbefehl zugestellt am', 'zahlungsbefehl_am',
                 f.zahlungsbefehlAm),
-            if (fenster != null)
+            // Fortsetzung nur ohne Rechtsvorschlag (M-6, wie die Glocken-
+            // Aufgabe 'fortsetzung'); mit Rechtsvorschlag erst Rechtsöffnung.
+            if (fenster != null && f.rechtsvorschlag == false)
               _hinweis('Fortsetzung möglich ab ${_datum(fenster.ab)}, '
                   'spätestens bis ${_datum(fenster.bis)}.'),
+            if (fenster != null && f.rechtsvorschlag == true)
+              _hinweis('Rechtsvorschlag erhoben — zuerst Rechtsöffnung, erst dann '
+                  'Fortsetzung (spätestens bis ${_datum(fenster.bis)}).'),
             const SizedBox(height: 6),
             const Text('Rechtsvorschlag', style: TextStyle(fontSize: 13)),
             const SizedBox(height: 6),

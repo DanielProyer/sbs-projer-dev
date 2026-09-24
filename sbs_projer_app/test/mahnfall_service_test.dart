@@ -154,6 +154,13 @@ void main() {
       expect(m['kosten_vorschuss'], 60.0);
     });
 
+    test('notiz ist kein Betreibungsfeld (M-5, nur über notizSpeichern)', () {
+      expect(
+        () => MahnfallService.betreibungsFelderBereinigen({'notiz': 'x'}),
+        throwsArgumentError,
+      );
+    });
+
     test('fremde Felder (z. B. status) werden abgelehnt', () {
       expect(
         () => MahnfallService.betreibungsFelderBereinigen({'status': 'erledigt'}),

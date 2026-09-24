@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -27,6 +28,36 @@ class MahnfallRepository {
         .order('eroeffnet_am', ascending: false)
         .order('id');
     return rows.map((r) => Mahnfall.fromJson(r)).where((f) => f.offen).toList();
+  }
+
+  /// Fälle, die ihre Rechnungen sperren (`sperrtRechnungen`: offen, oder
+  /// erledigt nach Heineken-Übernahme bzw. zurückgezogener Betreibung —
+  /// Review Teil 2, I-3). Filter in Dart (NULL-Falle bei `erledigung`).
+  static Future<List<Mahnfall>> getSperrendeFaelle() async {
+    final rows = await SupabaseService.client
+        .from(_tabelle)
+        .select()
+        .order('eroeffnet_am', ascending: false)
+        .order('id');
+    return rows.map((r) => Mahnfall.fromJson(r)).where(sperrtRechnungen).toList();
+  }
+
+  /// Update nur, wenn der Fall in der DB noch [alterStatus] hat
+  /// (Review Teil 2, M-2: optimistische Sperre gegen zwei Tabs / veraltete
+  /// Seite). `null`, wenn keine Zeile getroffen wurde.
+  static Future<Mahnfall?> updateWennStatus(
+    String id,
+    String alterStatus,
+    Map<String, dynamic> felder,
+  ) async {
+    final row = await SupabaseService.client
+        .from(_tabelle)
+        .update({...felder, 'aktualisiert_am': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', id)
+        .eq('status', alterStatus)
+        .select()
+        .maybeSingle();
+    return row == null ? null : Mahnfall.fromJson(row);
   }
 
   /// Erledigte Fälle mit noch offener Heineken-Übernahme (Notiz trägt die

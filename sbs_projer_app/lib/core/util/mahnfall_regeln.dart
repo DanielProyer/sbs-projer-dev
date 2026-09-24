@@ -128,17 +128,27 @@ String mahnfallStatusText(Mahnfall f) => switch (f.status) {
       _ => f.status,
     };
 
-/// Beginn des Verzugszinses im Betreibungsbegehren: Datum der
-/// Zahlungserinnerung der ältesten Rechnung (nach Rechnungsdatum). Hat die
-/// älteste keine vermerkte Erinnerung, gilt die früheste vermerkte
-/// Erinnerung des Falls; `null`, wenn es gar keine gibt.
-DateTime? zinsSeit(List<Rechnung> rechnungen) {
-  if (rechnungen.isEmpty) return null;
-  final sortiert = [...rechnungen]
-    ..sort((a, b) => a.rechnungsdatum.compareTo(b.rechnungsdatum));
-  final aelteste = sortiert.first.erinnerungAm;
-  if (aelteste != null) return _tag(aelteste);
-  final alle = rechnungen.map((r) => r.erinnerungAm).whereType<DateTime>().toList()
-    ..sort();
-  return alle.isEmpty ? null : _tag(alle.first);
-}
+/// Zinszeile einer Forderung im Betreibungsbegehren: «nebst 5 % Zins seit
+/// ‹Erinnerung DIESER Rechnung›» (Review Teil 2, M-1 — nicht pauschal ab
+/// der ältesten). Ohne vermerkte Erinnerung ein Hinweis statt eines Datums.
+String zinsZeile(Rechnung r) => r.erinnerungAm != null
+    ? 'nebst 5 % Zins seit ${_datumText(r.erinnerungAm!)}'
+    : 'nebst 5 % Zins seit der Zahlungserinnerung (Datum nicht vermerkt)';
+
+/// Sperrt dieser Fall seine Rechnungen für Mahnlauf und neue Eskalation?
+///
+/// Offene Fälle immer. Erledigte, wenn Heineken übernommen hat oder die
+/// Betreibung zurückgezogen wurde (Review Teil 2, I-3, Entscheid
+/// Controller): Dieselbe Rechnung soll danach nicht still wieder unter
+/// «Heineken einschalten» auftauchen — ein neuer Fall ist bewusste
+/// Handarbeit. Bezahlt/abgeschrieben sperrt nicht: Diese Rechnungen sind
+/// ohnehin aus dem Mahnbereich.
+bool sperrtRechnungen(Mahnfall f) =>
+    f.offen || f.erledigung == 'uebernommen' || f.erledigung == 'zurueckgezogen';
+
+/// Jahre der Kontoauszüge an Heineken (Review Teil 2, I-5): je Jahr, in dem
+/// eine Fall-Rechnung liegt, ein Auszug — aufsteigend. Ein Fall über den
+/// Jahreswechsel bekäme sonst nur den Auszug des laufenden Jahres, in dem
+/// die gemahnten Rechnungen gar nicht stehen.
+List<int> kontoauszugJahre(List<Rechnung> rechnungen) =>
+    ({for (final r in rechnungen) r.rechnungsdatum.year}.toList()..sort());

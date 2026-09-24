@@ -162,6 +162,14 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
                   _titel('Offene Mahnfälle', daten.offeneFaelle.length),
                   for (final f in daten.offeneFaelle) _fallZeile(f, daten.imFall),
                 ],
+                if (daten.eingefroreneFaelle.isNotEmpty) ...[
+                  _titel('Erledigt, Rechnungen gesperrt', daten.eingefroreneFaelle.length),
+                  _hinweis(
+                    'Nach Heineken-Übernahme oder zurückgezogener Betreibung '
+                    'werden diese Rechnungen weder gemahnt noch neu eskaliert.',
+                  ),
+                  for (final f in daten.eingefroreneFaelle) _fallZeile(f, daten.imFall),
+                ],
                 if (daten.zahlungGebucht.isNotEmpty) ...[
                   _titel('Zahlung gebucht — Status prüfen', daten.zahlungGebucht.length),
                   _hinweis(
@@ -314,7 +322,7 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     String text;
     if (_einzel) {
       if (d.imFall.isNotEmpty) {
-        text = 'Diese Rechnung ist in einem offenen Mahnfall — dort weiterführen, '
+        text = 'Diese Rechnung steht in einem Mahnfall — dort weiterführen, '
             'nicht erneut mahnen.';
       } else if (d.eskalation.isNotEmpty) {
         text = 'Die letzte Mahnung ist abgelaufen — nächster Schritt: '
@@ -916,7 +924,8 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
                 _vorschauZeile('', 'Testmodus: geht an ${MailConfig.testEmpfaenger}'),
               _vorschauZeile(
                 'Beilagen',
-                'Kontoauszug ${DateTime.now().year} · ${rechnungen.length} Rechnungskopie(n)',
+                '${kontoauszugJahre(rechnungen).map((j) => 'Kontoauszug $j').join(' · ')} · '
+                '${rechnungen.length} Rechnungskopie(n)',
               ),
               const SizedBox(height: 8),
               const Text('Rechnungen', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -969,7 +978,28 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
   ) async {
     setState(() => _laeuftFuer = b.betriebId);
     try {
-      final fall = await MahnfallService.eroeffnen(betrieb: betrieb, rechnungen: rechnungen);
+      // Review Teil 2, I-4: wie beim Erstellen einer Mahnung den Mahnlauf
+      // frisch aus der DB bauen und prüfen — zwischen Vorschau und Klick
+      // kann ein Auszug eingelesen oder eine Zahlung gebucht worden sein.
+      _neuLaden();
+      final frisch = await ref.read(mahnlaufProvider.future);
+      final p = pruefeVorEskalation(
+        frisch: frisch,
+        betriebId: b.betriebId,
+        rechnungIds: [for (final r in rechnungen) r.id],
+      );
+      if (p.fehler != null) {
+        _meldung(p.fehler!);
+        return;
+      }
+      final ids = {for (final r in rechnungen) r.id};
+      final fall = await MahnfallService.eroeffnen(
+        betrieb: betrieb,
+        rechnungen: [
+          for (final x in p.karte!.faellig)
+            if (ids.contains(x.rechnung.id)) x.rechnung,
+        ],
+      );
       if (mounted) await context.push('/rechnungen/mahnfall/${fall.id}');
     } on MahnfallFehler catch (f) {
       if (!mounted) return;

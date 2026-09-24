@@ -79,11 +79,21 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('Datenblatt zum Abtippen in EasyGov'), findsOneWidget);
     expect(find.textContaining('Wohnsitz des Inhabers'), findsOneWidget);
-    expect(find.text('nebst Zins zu 5 % seit 02.05.2026'), findsOneWidget);
-    expect(find.text('Fortsetzung möglich ab 10.12.2026, spätestens bis 20.11.2027.'),
-        findsOneWidget);
+    expect(find.text('nebst 5 % Zins seit 02.05.2026'), findsNWidgets(2),
+        reason: 'Zinszeile je Forderung (M-1)');
+    expect(find.textContaining('zuerst Rechtsöffnung'), findsOneWidget);
+    expect(find.textContaining('Fortsetzung möglich ab'), findsNothing,
+        reason: 'mit Rechtsvorschlag kein Fortsetzungsfenster (M-6)');
     expect(find.text('Protokoll 2'), findsNWidgets(2));
     expect(find.text('Erledigt: abgeschrieben'), findsOneWidget);
+  });
+
+  testWidgets('ohne Rechtsvorschlag: Fortsetzungsfenster (M-6)', (t) async {
+    await zeige(t, fall('betreibung', rechtsvorschlag: false), [r('1', 'mahnung_2')]);
+    expect(t.takeException(), isNull);
+    expect(find.text('Fortsetzung möglich ab 10.12.2026, spätestens bis 20.11.2027.'),
+        findsOneWidget);
+    expect(find.textContaining('zuerst Rechtsöffnung'), findsNothing);
   });
 
   testWidgets('erledigt, Übernahme offen: orange Karte, kein Abschluss, Notiz ohne Markierung', (t) async {

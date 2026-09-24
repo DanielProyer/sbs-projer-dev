@@ -332,6 +332,62 @@ void main() {
       expect(m.betriebe, isEmpty);
     });
 
+    group('pruefeVorEskalation (I-4)', () {
+      test('unverändert: frische Karte', () {
+        final p = pruefeVorEskalation(
+            frisch: bau([letzte('m2'), letzte('m3')]), betriebId: 'b1', rechnungIds: ['m2', 'm3']);
+        expect(p.fehler, isNull);
+        expect(p.karte!.faellig.map((x) => x.rechnung.id), unorderedEquals(['m2', 'm3']));
+      });
+
+      test('inzwischen Zahlung gebucht: Abbruch mit Rechnungsnummer', () {
+        final p = pruefeVorEskalation(
+          frisch: bau([letzte('m2'), letzte('m3')], mitGebuchterZahlung: {'m3'}),
+          betriebId: 'b1',
+          rechnungIds: ['m2', 'm3'],
+        );
+        expect(p.fehler, contains('NR-m3'));
+        expect(p.karte, isNull);
+      });
+
+      test('inzwischen in einem Fall: Abbruch', () {
+        final p = pruefeVorEskalation(
+          frisch: bau([letzte('m2')], faelleRechnungIds: {'m2'}),
+          betriebId: 'b1',
+          rechnungIds: ['m2'],
+        );
+        expect(p.fehler, isNotNull);
+      });
+
+      test('Bank gesperrt / Gutschrift ungeklärt: Abbruch', () {
+        expect(
+          pruefeVorEskalation(
+            frisch: bau([letzte('m2')], ohneAuszug: true),
+            betriebId: 'b1',
+            rechnungIds: ['m2'],
+          ).fehler,
+          contains('Bankauszug'),
+        );
+        expect(
+          pruefeVorEskalation(
+            frisch: bau([letzte('m2')],
+                gutschriften: [(partei: 'Rössli', betrag: 94.05, datum: d(2026, 9, 20))]),
+            betriebId: 'b1',
+            rechnungIds: ['m2'],
+          ).fehler,
+          contains('Zahlung ungeklärt'),
+        );
+      });
+
+      test('keine Rechnung gewählt: Abbruch', () {
+        expect(
+          pruefeVorEskalation(frisch: bau([letzte('m2')]), betriebId: 'b1', rechnungIds: const [])
+              .fehler,
+          isNotNull,
+        );
+      });
+    });
+
     test('mahnung_2 mit laufender Frist bleibt in Frist', () {
       final m = bau([letzte('m2', frist: d(2026, 9, 20))]);
       expect(m.eskalation, isEmpty);

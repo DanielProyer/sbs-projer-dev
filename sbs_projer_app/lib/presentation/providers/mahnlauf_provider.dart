@@ -127,12 +127,19 @@ class MahnlaufDaten {
   /// [betriebe], bei Bank- oder Zahlungssperre leer.
   final List<MahnBetrieb> eskalation;
 
-  /// Rechnungen in einem offenen Mahnfall — eingefroren: weder mahnbar
-  /// noch eskalierbar, bis der Fall erledigt ist.
+  /// Rechnungen in einem sperrenden Mahnfall (offen, oder erledigt nach
+  /// Übernahme/Rückzug — `sperrtRechnungen`) — eingefroren: weder mahnbar
+  /// noch eskalierbar.
   final List<Rechnung> imFall;
 
   /// Offene Mahnfälle für die Sektion «Offene Mahnfälle».
   final List<Mahnfall> offeneFaelle;
+
+  /// Erledigte Fälle, die ihre Rechnungen weiter sperren (Heineken hat
+  /// übernommen, Betreibung zurückgezogen — `sperrtRechnungen`, Review
+  /// Teil 2, I-3). Eigene Sektion, damit sichtbar bleibt, WARUM eine
+  /// Rechnung nicht mehr unter «Heineken einschalten» steht.
+  final List<Mahnfall> eingefroreneFaelle;
 
   MahnlaufDaten({
     required this.letzterAuszug,
@@ -149,6 +156,7 @@ class MahnlaufDaten {
     this.eskalation = const [],
     this.imFall = const [],
     this.offeneFaelle = const [],
+    this.eingefroreneFaelle = const [],
   });
 }
 
@@ -171,6 +179,7 @@ MahnlaufDaten baueMahnlauf({
   ),
   Set<String> faelleRechnungIds = const {},
   List<Mahnfall> offeneFaelle = const [],
+  List<Mahnfall> eingefroreneFaelle = const [],
 }) {
   final luecke = auszugKette.status == AuszugKette.luecke;
   final gesperrt = bankSperre(letzterAuszug, heute: heute, auszugLuecke: luecke);
@@ -344,6 +353,7 @@ MahnlaufDaten baueMahnlauf({
     eskalation: eskalation,
     imFall: imFall,
     offeneFaelle: offeneFaelle,
+    eingefroreneFaelle: eingefroreneFaelle,
   );
 }
 
@@ -374,6 +384,9 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
     imFall: daten.imFall.where(betrifft).toList(),
     offeneFaelle:
         daten.offeneFaelle.where((f) => f.rechnungIds.contains(rechnungId)).toList(),
+    eingefroreneFaelle: daten.eingefroreneFaelle
+        .where((f) => f.rechnungIds.contains(rechnungId))
+        .toList(),
   );
 }
 
@@ -401,7 +414,7 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
   final imFall = {for (final r in frisch.imFall) r.id};
   for (final g in gewaehlt) {
     if (imFall.contains(g.rechnung.id)) {
-      return nein('${g.rechnung.rechnungsnummer ?? 'Rechnung'} ist in einem offenen Mahnfall');
+      return nein('${g.rechnung.rechnungsnummer ?? 'Rechnung'} steht in einem Mahnfall');
     }
   }
   final karte = frisch.betriebe.where((k) => k.betriebId == betriebId).firstOrNull;
@@ -417,6 +430,35 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
     posten.add(f);
   }
   return (karte: karte, posten: posten, fehler: null);
+}
+
+/// Prüft direkt vor «Mahnfall eröffnen», ob die Karte «Heineken einschalten»
+/// noch stimmt (Review Teil 2, I-4) — Gegenstück zu [pruefeVorErstellen].
+/// [frisch] ist frisch aus der Datenbank gebaut. Abbruch, wenn die Bank
+/// oder eine unverknüpfte Zahlung sperrt, der Betrieb gesperrt ist oder
+/// eine der gewählten Rechnungen nicht mehr zur Eskalation ansteht
+/// (bezahlt, Zahlung gebucht, inzwischen in einem Fall …).
+({MahnBetrieb? karte, String? fehler}) pruefeVorEskalation({
+  required MahnlaufDaten frisch,
+  required String betriebId,
+  required List<String> rechnungIds,
+}) {
+  ({MahnBetrieb? karte, String? fehler}) nein(String grund) =>
+      (karte: null, fehler: 'Daten haben sich geändert — kein Fall eröffnet ($grund).');
+  if (rechnungIds.isEmpty) return nein('keine Rechnung gewählt');
+  if (frisch.bankGesperrt) return nein('Bankauszug');
+  if (frisch.zahlungsSperreGrund != null) return nein('unverknüpfte Kundenzahlung');
+  final karte = frisch.eskalation.where((k) => k.betriebId == betriebId).firstOrNull;
+  if (karte == null) return nein('nichts mehr zur Eskalation fällig');
+  if (karte.gesperrt) return nein(karte.sperrgrund!);
+  final ids = {for (final p in karte.faellig) p.rechnung.id};
+  for (final id in rechnungIds) {
+    if (!ids.contains(id)) {
+      final r = [...frisch.imFall, ...frisch.zahlungGebucht].where((x) => x.id == id).firstOrNull;
+      return nein('${r?.rechnungsnummer ?? 'Rechnung'} steht nicht mehr zur Eskalation an');
+    }
+  }
+  return (karte: karte, fehler: null);
 }
 
 /// Rechnungs-Ids, auf die ein Zahlungseingang gebucht ist: Haben 1100 mit
@@ -457,8 +499,9 @@ final mahnlaufProvider = FutureProvider.autoDispose<MahnlaufDaten>((ref) async {
     BuchungRepository.getUnverknuepfteZahlungseingaengeAb(kMahnStart),
     CamtPrueflisteRepository.getOffen(),
     CamtDateiRepository.getAll(),
-    // Offene Mahnfälle (Teil 2): ihre Rechnungen sind eingefroren.
-    MahnfallRepository.getOffene(),
+    // Sperrende Mahnfälle (Teil 2, I-3): offene und erledigte nach
+    // Übernahme/Rückzug — ihre Rechnungen sind eingefroren.
+    MahnfallRepository.getSperrendeFaelle(),
   ).wait;
   // Erst warten, bis die Betriebe geladen sind — sonst stünde jede Karte
   // kurz als «Betrieb nicht gefunden» gesperrt da.
@@ -529,7 +572,8 @@ final mahnlaufProvider = FutureProvider.autoDispose<MahnlaufDaten>((ref) async {
       ab: kMahnStart,
     ),
     faelleRechnungIds: {for (final f in faelle) ...f.rechnungIds},
-    offeneFaelle: faelle,
+    offeneFaelle: faelle.where((f) => f.offen).toList(),
+    eingefroreneFaelle: faelle.where((f) => !f.offen).toList(),
     heute: DateTime.now(),
   );
 });
