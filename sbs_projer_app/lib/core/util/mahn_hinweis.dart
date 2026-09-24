@@ -40,6 +40,13 @@ class MahnHinweis {
   /// [MahnHinweisStufe.keine].
   String get text {
     if (stufe == MahnHinweisStufe.keine) return '';
+    if (stufe == MahnHinweisStufe.mahnfall && anzahlGemahnt == 0) {
+      // Review Teil 3 (g): Mahnfall, aber keine Rechnung (mehr) in
+      // 1./letzter Mahnung — «0 Rechnungen gemahnt» wäre irreführend.
+      final n = offene.length;
+      return 'Mahnfall: $n ${n == 1 ? 'Rechnung' : 'Rechnungen'} offen, '
+          'CHF ${chf(summeOffen)} — nur gegen Barzahlung';
+    }
     final wort = anzahlGemahnt == 1 ? 'Rechnung' : 'Rechnungen';
     final b = StringBuffer('$anzahlGemahnt $wort gemahnt, CHF ${chf(summeOffen)} offen');
     if (ersteMahnungAm != null) {

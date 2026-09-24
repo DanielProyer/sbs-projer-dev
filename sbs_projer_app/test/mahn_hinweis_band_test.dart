@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/mahn_hinweis.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/presentation/providers/mahn_hinweis_provider.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgaben_glocke.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 
 Rechnung _r() => Rechnung.fromJson({
@@ -44,6 +45,7 @@ Future<void> _pump(WidgetTester tester, MahnHinweis h, {String? betriebId = 'b1'
 }
 
 void main() {
+  _glockeTests();
   final gemahnt = mahnHinweis(rechnungen: [_r()], imMahnfall: const {});
   const keine = MahnHinweis(
     stufe: MahnHinweisStufe.keine,
@@ -76,5 +78,19 @@ void main() {
   testWidgets('ohne Betrieb: nichts gerendert', (tester) async {
     await _pump(tester, gemahnt, betriebId: null);
     expect(find.textContaining('gemahnt'), findsNothing);
+  });
+}
+
+void _glockeTests() {
+  final gemahnt = mahnHinweis(rechnungen: [_r()], imMahnfall: const {});
+  testWidgets('offenes Sheet blendet die Glocke aus (Minor i)', (tester) async {
+    expect(glockeVerbergen.value, 0);
+    await _pump(tester, gemahnt);
+    await tester.tap(find.byType(MahnHinweisBand));
+    await tester.pumpAndSettle();
+    expect(glockeVerbergen.value, 1);
+    Navigator.of(tester.element(find.text('Offene Rechnungen'))).pop();
+    await tester.pumpAndSettle();
+    expect(glockeVerbergen.value, 0);
   });
 }

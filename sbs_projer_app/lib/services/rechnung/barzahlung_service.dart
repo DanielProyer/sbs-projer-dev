@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
@@ -9,9 +11,19 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnlauf_service.dart';
 
+/// Eine erfolgreich kassierte Rechnung (für Teilfehler-Meldungen).
+typedef Kassiert = ({String nummer, double betrag});
+
 class BarzahlungFehler implements Exception {
+  /// «Rechnung N: Grund» bzw. ein allgemeiner Grund.
   final String meldung;
-  BarzahlungFehler(this.meldung);
+
+  /// Rechnungen, die VOR dem Fehler im selben Aufruf schon kassiert wurden
+  /// (Review Teil 3, I-1) — sie bleiben korrekt bezahlt.
+  final List<Kassiert> kassiert;
+
+  BarzahlungFehler(this.meldung, {this.kassiert = const []});
+
   @override
   String toString() => meldung;
 }
@@ -43,33 +55,90 @@ class BarzahlungService {
 
   static String _datumStr(DateTime d) => d.toIso8601String().split('T').first;
 
+  static String _nr(Rechnung r) => r.rechnungsnummer ?? r.id.substring(0, 8);
+
   /// Heute (bzw. [d]) als UTC-Tag — Datum der Buchung und des Zahlungseingangs.
   static DateTime kassierDatum([DateTime? d]) {
     final x = d ?? DateTime.now();
     return DateTime.utc(x.year, x.month, x.day);
   }
 
+  /// Betrag der Barzahlung: Rechnungsbrutto auf 5 Rappen, wie der Bankweg
+  /// (`ZahlungsdifferenzService`, Review Teil 3 Minor c).
+  static double kassierBetrag(double brutto) => rundeAuf5Rappen(brutto);
+
+  /// Rein: Warum darf auf diese Rechnung NICHT bar kassiert werden — oder
+  /// null, wenn sie frei ist. Unterscheidet «schon erledigt» vom halben
+  /// Zustand «Zahlung gebucht, Status nicht nachgezogen» (Review I-2).
+  static String? kassierSperre(Rechnung r, {required bool hatZahlung}) {
+    if (r.zahlungsstatus == 'bezahlt' || r.zahlungsstatus == 'abgeschrieben') {
+      return 'bereits bezahlt/abgeschrieben';
+    }
+    if (hatZahlung) {
+      return 'Zahlung bereits gebucht (Rechnung noch nicht bezahlt) — '
+          'im Rechnungsdetail prüfen';
+    }
+    if (r.zahlungEingegangenAm != null || (r.zahlungBetrag ?? 0) != 0) {
+      return 'Zahlungseingang bereits vermerkt (Rechnung noch nicht bezahlt) — '
+          'im Rechnungsdetail prüfen';
+    }
+    return null;
+  }
+
   /// Rein: Darf auf diese Rechnung bar kassiert werden?
-  /// Nein bei bezahlt/abgeschrieben, gebuchter Zahlung oder bereits
-  /// vermerktem Zahlungseingang.
   static bool darfKassieren(Rechnung r, {required bool hatZahlung}) =>
-      r.zahlungsstatus != 'bezahlt' &&
-      r.zahlungsstatus != 'abgeschrieben' &&
-      !hatZahlung &&
-      r.zahlungEingegangenAm == null &&
-      (r.zahlungBetrag ?? 0) == 0;
+      kassierSperre(r, hatZahlung: hatZahlung) == null;
+
+  /// Rein: Meldung für die Oberfläche. Bei einem Teilfehler
+  /// «X von Y kassiert (CHF …) — Rechnung N: Grund» (Review I-1).
+  static String fehlerText(BarzahlungFehler f, {required int gesamt}) {
+    if (f.kassiert.isEmpty) return f.meldung;
+    final summe = f.kassiert.fold(0.0, (s, k) => s + k.betrag);
+    return '${f.kassiert.length} von $gesamt kassiert (CHF ${chf(summe)}) — ${f.meldung}';
+  }
+
+  /// Rein: Fehlertext für eine Snackbar. Eigene Meldungen ungekürzt (sie
+  /// sagen, was zu tun ist), alles andere über `kurzeFehlermeldung`.
+  static String meldungFuer(Object e) =>
+      e is BarzahlungFehler ? e.meldung : kurzeFehlermeldung(e);
+
+  static bool _istBarzahlung(Buchung b) =>
+      b.sollKonto == kKasse &&
+      b.habenKonto == kDebitoren &&
+      b.zahlungsweg == 'kasse' &&
+      b.belegTyp == 'zahlung' &&
+      zaehltFuerSaldo(istStorniert: b.istStorniert, stornoVonId: b.stornoVonId);
 
   /// Rein: Aktive Barzahlungs-Buchung (Soll 1000, Haben 1100, Zahlungsweg
   /// Kasse, nicht storniert, kein Storno) unter den Buchungen der Rechnung.
   static Buchung? barzahlungAus(Iterable<Buchung> buchungenDerRechnung) {
     for (final b in buchungenDerRechnung) {
-      if (b.sollKonto == kKasse &&
-          b.habenKonto == kDebitoren &&
-          b.zahlungsweg == 'kasse' &&
-          b.belegTyp == 'zahlung' &&
-          zaehltFuerSaldo(istStorniert: b.istStorniert, stornoVonId: b.stornoVonId)) {
-        return b;
-      }
+      if (_istBarzahlung(b)) return b;
+    }
+    return null;
+  }
+
+  /// Rein: Warum darf die Barzahlung [bar] NICHT zurückgenommen werden —
+  /// oder null. [buchungen] = alle Buchungen der Rechnung.
+  /// - weitere aktive Zahlung (Minor a): sonst stünde die Rechnung offen,
+  ///   obwohl Geld gebucht ist;
+  /// - Vorjahr (Minor b): abgeschlossenes Jahr nie still verändern;
+  /// - Rechnung nicht mehr bezahlt.
+  static String? rueckgaengigSperre({
+    required Buchung bar,
+    required List<Buchung> buchungen,
+    required String status,
+    required DateTime heute,
+  }) {
+    if (status != 'bezahlt') {
+      return 'Rechnung ist nicht mehr bezahlt — nichts geändert';
+    }
+    if (bar.geschaeftsjahr != heute.year) {
+      return 'Barzahlung aus abgeschlossenem Jahr — Storno von Hand in der Buchhaltung';
+    }
+    if (zahlungGebucht(buchungen.where((b) => b.id != bar.id))) {
+      return 'Neben der Barzahlung ist eine weitere Zahlung gebucht — '
+          'im Journal prüfen, nichts geändert';
     }
     return null;
   }
@@ -98,14 +167,16 @@ class BarzahlungService {
     };
   }
 
-  /// Je Rechnung: frisch laden; abbrechen (nichts buchen), wenn eine schon
-  /// bezahlt/abgeschrieben ist oder eine Zahlung gebucht hat. Dann je
-  /// Rechnung Buchung Soll 1000 / Haben 1100 und Rechnung bezahlt — gegen
-  /// den geladenen Status. Ändert sich eine Rechnung zwischen Laden und
-  /// Setzen, wird deren Buchung wieder gelöscht und [BarzahlungFehler]
-  /// geworfen (vorher kassierte Rechnungen bleiben korrekt bezahlt).
-  static Future<void> kassieren(List<Rechnung> rechnungen, {DateTime? datum}) async {
-    if (rechnungen.isEmpty) return;
+  /// Je Rechnung: frisch laden; abbrechen (nichts buchen), wenn eine nicht
+  /// kassierbar ist ([kassierSperre]). Dann je Rechnung Buchung Soll 1000 /
+  /// Haben 1100 und Rechnung bezahlt — gegen den geladenen Status.
+  ///
+  /// Gibt die Ids der kassierten Rechnungen zurück. Scheitert eine Rechnung
+  /// unterwegs, wird deren Buchung wieder gelöscht und [BarzahlungFehler]
+  /// mit den bis dahin kassierten Rechnungen geworfen (die korrekt bezahlt
+  /// bleiben, Review I-1).
+  static Future<List<String>> kassieren(List<Rechnung> rechnungen, {DateTime? datum}) async {
+    if (rechnungen.isEmpty) return const [];
     final tag = kassierDatum(datum);
     final tagStr = _datumStr(tag);
 
@@ -113,58 +184,70 @@ class BarzahlungService {
     final frische = <Rechnung>[];
     for (final r in rechnungen) {
       final f = await RechnungRepository.getById(r.id);
-      final nr = r.rechnungsnummer ?? r.id.substring(0, 8);
-      if (f == null) throw BarzahlungFehler('Rechnung $nr nicht gefunden');
+      if (f == null) throw BarzahlungFehler('Rechnung ${_nr(r)}: nicht gefunden');
       final buchungen = await BuchungRepository.getByBeleg(f.id);
-      if (!darfKassieren(f, hatZahlung: zahlungGebucht(buchungen))) {
-        throw BarzahlungFehler(
-          'Rechnung $nr ist bereits bezahlt oder abgeschrieben — nichts gebucht',
-        );
+      final sperre = kassierSperre(f, hatZahlung: zahlungGebucht(buchungen));
+      if (sperre != null) {
+        throw BarzahlungFehler('Rechnung ${_nr(f)}: $sperre — nichts gebucht');
       }
       frische.add(f);
     }
 
     // 2. Buchen und bezahlt setzen.
+    final kassiert = <Kassiert>[];
+    final ids = <String>[];
     for (final f in frische) {
-      final nr = f.rechnungsnummer ?? f.id.substring(0, 8);
-      final betrag = rundeAufRappen(f.betragBrutto);
-      final buchung = await BuchungRepository.create({
-        'datum': tagStr,
-        'belegnummer': f.rechnungsnummer ?? '',
-        'soll_konto': kKasse,
-        'haben_konto': kDebitoren,
-        'betrag_netto': betrag,
-        'mwst_satz': 0,
-        'mwst_betrag': 0,
-        'betrag_brutto': betrag,
-        'beschreibung': 'Barzahlung $nr (vor Ort)',
-        'zahlungsweg': 'kasse',
-        'beleg_typ': 'zahlung',
-        'beleg_id': f.id,
-        'geschaeftsjahr': tag.year,
-        'notizen': jsonEncode(MahnlaufService.vorherStand(f)),
-      });
-      bool gesetzt;
+      final nr = _nr(f);
+      final betrag = kassierBetrag(f.betragBrutto);
       try {
-        gesetzt = await RechnungRepository.updateWennStatus(
-          f.id,
-          {
-            'zahlungsstatus': 'bezahlt',
-            'zahlung_eingegangen_am': tagStr,
-            'zahlung_betrag': betrag,
-          },
-          erwarteterStatus: f.zahlungsstatus,
-          nurOhneZahlung: true,
-        );
-      } catch (_) {
-        await BuchungRepository.delete(buchung.id);
+        final buchung = await BuchungRepository.create({
+          'datum': tagStr,
+          'belegnummer': f.rechnungsnummer ?? '',
+          'soll_konto': kKasse,
+          'haben_konto': kDebitoren,
+          'betrag_netto': betrag,
+          'mwst_satz': 0,
+          'mwst_betrag': 0,
+          'betrag_brutto': betrag,
+          'beschreibung': 'Barzahlung $nr (vor Ort)',
+          'zahlungsweg': 'kasse',
+          'beleg_typ': 'zahlung',
+          'beleg_id': f.id,
+          'geschaeftsjahr': tag.year,
+          'notizen': jsonEncode(MahnlaufService.vorherStand(f)),
+        });
+        bool gesetzt;
+        try {
+          gesetzt = await RechnungRepository.updateWennStatus(
+            f.id,
+            {
+              'zahlungsstatus': 'bezahlt',
+              'zahlung_eingegangen_am': tagStr,
+              'zahlung_betrag': betrag,
+            },
+            erwarteterStatus: f.zahlungsstatus,
+            nurOhneZahlung: true,
+          );
+        } catch (_) {
+          await BuchungRepository.delete(buchung.id);
+          rethrow;
+        }
+        if (!gesetzt) {
+          await BuchungRepository.delete(buchung.id);
+          throw BarzahlungFehler('Rechnung $nr: wurde inzwischen geändert — nicht kassiert',
+              kassiert: List.of(kassiert));
+        }
+      } on BarzahlungFehler {
         rethrow;
+      } catch (e) {
+        if (kassiert.isEmpty) rethrow;
+        throw BarzahlungFehler('Rechnung $nr: ${kurzeFehlermeldung(e)}',
+            kassiert: List.of(kassiert));
       }
-      if (!gesetzt) {
-        await BuchungRepository.delete(buchung.id);
-        throw BarzahlungFehler('Rechnung $nr wurde inzwischen geändert — nicht kassiert');
-      }
+      kassiert.add((nummer: nr, betrag: betrag));
+      ids.add(f.id);
     }
+    return ids;
   }
 
   /// Aktive Barzahlungs-Buchung der Rechnung oder null.
@@ -173,20 +256,26 @@ class BarzahlungService {
 
   /// Löscht die Barzahlungs-Buchung und setzt die Rechnung auf den in
   /// `notizen` gespeicherten Vorher-Stand zurück (Fallback: 'offen',
-  /// Zahlungsfelder null). Nur wenn die Rechnung noch 'bezahlt' ist.
-  static Future<void> rueckgaengig(Rechnung rechnung) async {
-    final nr = rechnung.rechnungsnummer ?? rechnung.id.substring(0, 8);
-    final buchung = await barzahlungZu(rechnung.id);
+  /// Zahlungsfelder null). Nur wenn [rueckgaengigSperre] frei ist.
+  static Future<void> rueckgaengig(Rechnung rechnung, {DateTime? heute}) async {
+    final nr = _nr(rechnung);
+    final frisch = await RechnungRepository.getById(rechnung.id);
+    if (frisch == null) throw BarzahlungFehler('Rechnung $nr: nicht gefunden');
+    final buchungen = await BuchungRepository.getByBeleg(rechnung.id);
+    final buchung = barzahlungAus(buchungen);
     if (buchung == null) throw BarzahlungFehler('Keine Barzahlung zu Rechnung $nr gefunden');
+    final sperre = rueckgaengigSperre(
+      bar: buchung,
+      buchungen: buchungen,
+      status: frisch.zahlungsstatus,
+      heute: heute ?? DateTime.now(),
+    );
+    if (sperre != null) throw BarzahlungFehler(sperre);
+
     final vorher = vorherAusNotiz(buchung.notizen) ?? {'zahlungsstatus': 'offen'};
-    final felder = <String, dynamic>{
-      ...vorher,
-      'zahlung_eingegangen_am': null,
-      'zahlung_betrag': null,
-    };
     final gesetzt = await RechnungRepository.updateWennStatus(
       rechnung.id,
-      felder,
+      {...vorher, 'zahlung_eingegangen_am': null, 'zahlung_betrag': null},
       erwarteterStatus: 'bezahlt',
     );
     if (!gesetzt) {
@@ -194,19 +283,48 @@ class BarzahlungService {
     }
     try {
       await BuchungRepository.delete(buchung.id);
-    } catch (_) {
+    } catch (e) {
       // Buchung steht noch → Rechnung wieder bezahlt, sonst stimmen Kasse
-      // und Rechnungsstatus nicht mehr überein.
-      await RechnungRepository.updateWennStatus(
-        rechnung.id,
-        {
-          'zahlungsstatus': 'bezahlt',
-          'zahlung_eingegangen_am': _datumStr(buchung.datum),
-          'zahlung_betrag': buchung.betragBrutto,
-        },
-        erwarteterStatus: vorher['zahlungsstatus'] as String,
-      );
-      rethrow;
+      // und Rechnungsstatus nicht mehr überein. Scheitert auch das, beide
+      // Fehler nennen (Review Minor d).
+      try {
+        await RechnungRepository.updateWennStatus(
+          rechnung.id,
+          {
+            'zahlungsstatus': 'bezahlt',
+            'zahlung_eingegangen_am': _datumStr(buchung.datum),
+            'zahlung_betrag': buchung.betragBrutto,
+          },
+          erwarteterStatus: vorher['zahlungsstatus'] as String,
+        );
+      } catch (e2) {
+        throw BarzahlungFehler(
+          'Buchung nicht gelöscht (${kurzeFehlermeldung(e)}) und Rechnung $nr '
+          'nicht wieder auf bezahlt gesetzt (${kurzeFehlermeldung(e2)}) — '
+          'Rechnung steht offen, Kassenbuchung besteht: im Rechnungsdetail prüfen',
+        );
+      }
+      throw BarzahlungFehler(
+          'Buchung nicht gelöscht (${kurzeFehlermeldung(e)}) — Rechnung bleibt bezahlt');
     }
+  }
+
+  /// Halber Zustand (Review I-2): Kassenbuchung vorhanden, Rechnung aber
+  /// NICHT bezahlt. Löscht nur diese Buchung, der Status bleibt.
+  static Future<void> kassenbuchungEntfernen(Rechnung rechnung) async {
+    final nr = _nr(rechnung);
+    final frisch = await RechnungRepository.getById(rechnung.id);
+    if (frisch == null) throw BarzahlungFehler('Rechnung $nr: nicht gefunden');
+    if (frisch.zahlungsstatus == 'bezahlt') {
+      throw BarzahlungFehler(
+          'Rechnung $nr ist bezahlt — «Barzahlung rückgängig» verwenden');
+    }
+    final buchung = await barzahlungZu(rechnung.id);
+    if (buchung == null) throw BarzahlungFehler('Keine Kassenbuchung zu Rechnung $nr gefunden');
+    if (buchung.geschaeftsjahr != DateTime.now().year) {
+      throw BarzahlungFehler(
+          'Kassenbuchung aus abgeschlossenem Jahr — Storno von Hand in der Buchhaltung');
+    }
+    await BuchungRepository.delete(buchung.id);
   }
 }

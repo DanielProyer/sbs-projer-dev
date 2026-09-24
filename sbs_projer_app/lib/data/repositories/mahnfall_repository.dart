@@ -19,6 +19,19 @@ class MahnfallRepository {
     return row == null ? null : Mahnfall.fromJson(row);
   }
 
+  /// Alle Fälle eines Betriebs (offen und erledigt) — gezielt per
+  /// `betrieb_id` statt alle Fälle zu laden (Review Teil 3, Minor f).
+  /// Status-Filter macht der Aufrufer in Dart (NULL-Falle, CLAUDE.md).
+  static Future<List<Mahnfall>> getByBetrieb(String betriebId) async {
+    final rows = await SupabaseService.client
+        .from(_tabelle)
+        .select()
+        .eq('betrieb_id', betriebId)
+        .order('eroeffnet_am', ascending: false)
+        .order('id');
+    return rows.map((r) => Mahnfall.fromJson(r)).toList();
+  }
+
   /// Offene Fälle (status != erledigt). Wenige Zeilen — Filter in Dart,
   /// nicht per .neq() (NULL-Falle, CLAUDE.md), eindeutig sortiert.
   static Future<List<Mahnfall>> getOffene() async {

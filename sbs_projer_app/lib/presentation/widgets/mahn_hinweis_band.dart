@@ -7,13 +7,16 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/mahn_hinweis.dart';
+import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/mahnfall_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/mahn_hinweis_provider.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgaben_glocke.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/rechnung/barzahlung_service.dart';
@@ -21,13 +24,13 @@ import 'package:sbs_projer_app/services/rechnung/barzahlung_service.dart';
 final _ddMMyyyy = DateFormat('dd.MM.yyyy');
 
 String _statusText(String s) => switch (s) {
-      'offen' => 'Offen',
-      'gesendet' => 'Gesendet',
-      'erinnert' => 'Erinnert',
-      'mahnung_1' => '1. Mahnung',
-      'mahnung_2' => 'Letzte Mahnung',
-      _ => s,
-    };
+  'offen' => 'Offen',
+  'gesendet' => 'Gesendet',
+  'erinnert' => 'Erinnert',
+  'mahnung_1' => '1. Mahnung',
+  'mahnung_2' => 'Letzte Mahnung',
+  _ => s,
+};
 
 /// Hinweis beim Service (Mahnwesen Teil 3, Spec §6): Band oben in Reinigung,
 /// Störung und Montage, sobald der Betrieb gemahnte Rechnungen hat — orange
@@ -56,8 +59,9 @@ class MahnHinweisBand extends ConsumerWidget {
     if (hinweis == null || hinweis.stufe == MahnHinweisStufe.keine) {
       return const SizedBox.shrink();
     }
-    final farbe =
-        hinweis.stufe == MahnHinweisStufe.mahnfall ? AppColors.error : AppColors.warning;
+    final farbe = hinweis.stufe == MahnHinweisStufe.mahnfall
+        ? AppColors.error
+        : AppColors.warning;
     return Padding(
       padding: padding,
       child: InkWell(
@@ -76,7 +80,10 @@ class MahnHinweisBand extends ConsumerWidget {
               Expanded(
                 child: Text(
                   hinweis.text,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Icon(Icons.chevron_right, color: farbe, size: 18),
@@ -87,26 +94,40 @@ class MahnHinweisBand extends ConsumerWidget {
     );
   }
 
-  Future<void> _zeigeSheet(BuildContext context, String id, MahnHinweis hinweis) =>
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        builder: (ctx) => _OffeneRechnungenSheet(betriebId: id, hinweis: hinweis),
-      );
+  // ohneGlocke: Die Glocke läge sonst über dem Sheet und verdeckte das
+  // unterste Häkchen (Review Teil 3, Minor i).
+  Future<void> _zeigeSheet(
+    BuildContext context,
+    String id,
+    MahnHinweis hinweis,
+  ) => ohneGlocke(
+    () => showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => _OffeneRechnungenSheet(betriebId: id, hinweis: hinweis),
+    ),
+  );
 }
 
 class _OffeneRechnungenSheet extends ConsumerStatefulWidget {
   final String betriebId;
   final MahnHinweis hinweis;
-  const _OffeneRechnungenSheet({required this.betriebId, required this.hinweis});
+  const _OffeneRechnungenSheet({
+    required this.betriebId,
+    required this.hinweis,
+  });
 
   @override
-  ConsumerState<_OffeneRechnungenSheet> createState() => _OffeneRechnungenSheetState();
+  ConsumerState<_OffeneRechnungenSheet> createState() =>
+      _OffeneRechnungenSheetState();
 }
 
-class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> {
-  late final Set<String> _gewaehlt = {for (final r in widget.hinweis.offene) r.id};
+class _OffeneRechnungenSheetState
+    extends ConsumerState<_OffeneRechnungenSheet> {
+  late final Set<String> _gewaehlt = {
+    for (final r in widget.hinweis.offene) r.id,
+  };
   bool _laeuft = false;
 
   /// Nach dem Einkassieren: Mahnfälle, deren Rechnungen jetzt alle bezahlt
@@ -116,11 +137,23 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
   List<Rechnung> get _auswahl =>
       widget.hinweis.offene.where((r) => _gewaehlt.contains(r.id)).toList();
 
-  double get _total => rundeAufRappen(_auswahl.fold(0.0, (s, r) => s + r.betragBrutto));
+  /// Summe wie gebucht: je Rechnung auf 5 Rappen (Review Minor c).
+  double get _total => rundeAufRappen(
+    _auswahl.fold(
+      0.0,
+      (s, r) => s + BarzahlungService.kassierBetrag(r.betragBrutto),
+    ),
+  );
 
   void _meldung(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  void _invalidieren() {
+    ref.invalidate(mahnHinweisProvider(widget.betriebId));
+    ref.invalidate(rechnungenStreamProvider);
+    ref.invalidate(buchungenStreamProvider);
   }
 
   Future<void> _qrZeigen(Rechnung r) async {
@@ -136,26 +169,28 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
     final auswahl = _auswahl;
     if (auswahl.isEmpty) return;
     final total = _total;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('CHF ${chf(total)} bar erhalten?'),
-        content: Text(
-          '${auswahl.length} Rechnung${auswahl.length == 1 ? '' : 'en'} '
-          'werden als bar bezahlt verbucht (Kasse).',
+    final ok = await ohneGlocke(
+      () => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('CHF ${chf(total)} bar erhalten?'),
+          content: Text(
+            '${auswahl.length} Rechnung${auswahl.length == 1 ? '' : 'en'} '
+            'werden als bar bezahlt verbucht (Kasse).',
+          ),
+          actions: [
+            TapKnopf(
+              text: 'Abbrechen',
+              primaer: false,
+              onTap: () => Navigator.pop(ctx, false),
+            ),
+            TapKnopf(
+              text: 'Bar erhalten',
+              icon: Icons.check,
+              onTap: () => Navigator.pop(ctx, true),
+            ),
+          ],
         ),
-        actions: [
-          TapKnopf(
-            text: 'Abbrechen',
-            primaer: false,
-            onTap: () => Navigator.pop(ctx, false),
-          ),
-          TapKnopf(
-            text: 'Bar erhalten',
-            icon: Icons.check,
-            onTap: () => Navigator.pop(ctx, true),
-          ),
-        ],
       ),
     );
     if (ok != true || !mounted) return;
@@ -163,19 +198,24 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
     try {
       await BarzahlungService.kassieren(auswahl);
     } catch (e) {
-      ref.invalidate(mahnHinweisProvider(widget.betriebId));
-      if (mounted) setState(() => _laeuft = false);
-      _meldung('Nicht kassiert: ${kurzeFehlermeldung(e)}');
+      // Review Teil 3, I-1: Bei einem Teilfehler sind einige Rechnungen
+      // schon bezahlt — Liste neu laden (Sheet zu, Band lädt neu), damit
+      // nichts doppelt angehakt bleibt, und sagen, was durchging.
+      _invalidieren();
+      final text = e is BarzahlungFehler
+          ? BarzahlungService.fehlerText(e, gesamt: auswahl.length)
+          : 'Nicht kassiert: ${kurzeFehlermeldung(e)}';
+      _meldung(text);
+      if (mounted) Navigator.of(context).pop();
       return;
     }
-    ref.invalidate(mahnHinweisProvider(widget.betriebId));
-    ref.invalidate(rechnungenStreamProvider);
+    _invalidieren();
     _meldung('Bar verbucht (Kasse): CHF ${chf(total)}');
 
     var abschliessbar = const <String>[];
     try {
-      final faelle = (await MahnfallRepository.getSperrendeFaelle())
-          .where((f) => f.betriebId == widget.betriebId)
+      final faelle = (await MahnfallRepository.getByBetrieb(widget.betriebId))
+          .where(sperrtRechnungen)
           .map((f) => (id: f.id, rechnungIds: f.rechnungIds))
           .toList();
       if (faelle.isNotEmpty) {
@@ -214,7 +254,12 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
     final mahnfall = widget.hinweis.stufe == MahnHinweisStufe.mahnfall;
     final abschliessbar = _abschliessbar;
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -228,7 +273,10 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
               const SizedBox(height: 4),
               const Text(
                 'Mahnfall — Service nur gegen Barzahlung.',
-                style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
             const SizedBox(height: 12),
@@ -256,7 +304,11 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
                             ),
                           ),
                         ),
-                        Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
                       ],
                     ),
                   ),
@@ -273,7 +325,10 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
               Row(
                 children: [
                   const Expanded(
-                    child: Text('Total', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(
+                      'Total',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                   Text(
                     'CHF ${chf(_total)}',
@@ -311,7 +366,9 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
               behavior: HitTestBehavior.opaque,
               onTap: _laeuft
                   ? null
-                  : () => setState(() => an ? _gewaehlt.remove(r.id) : _gewaehlt.add(r.id)),
+                  : () => setState(
+                      () => an ? _gewaehlt.remove(r.id) : _gewaehlt.add(r.id),
+                    ),
               child: Row(
                 children: [
                   Icon(
@@ -331,12 +388,17 @@ class _OffeneRechnungenSheetState extends ConsumerState<_OffeneRechnungenSheet> 
                         Text(
                           '${_ddMMyyyy.format(r.rechnungsdatum)} · '
                           '${_statusText(r.zahlungsstatus)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Text('CHF ${chf(r.betragBrutto)}'),
+                  Text(
+                    'CHF ${chf(BarzahlungService.kassierBetrag(r.betragBrutto))}',
+                  ),
                 ],
               ),
             ),

@@ -56,6 +56,8 @@ Buchung _b({
     });
 
 void main() {
+  _meldungTests();
+  _nachbesserungTests();
   group('vorherAusNotiz', () {
     test('gueltiges JSON aus vorherStand', () {
       final notiz = jsonEncode({
@@ -129,5 +131,106 @@ void main() {
   test('kassierDatum ist ein UTC-Tag', () {
     final d = BarzahlungService.kassierDatum(DateTime(2026, 9, 24, 23, 30));
     expect(d, DateTime.utc(2026, 9, 24));
+  });
+}
+
+void _nachbesserungTests() {
+  group('kassierSperre (I-2)', () {
+    test('bezahlt/abgeschrieben', () {
+      expect(BarzahlungService.kassierSperre(_r(status: 'bezahlt'), hatZahlung: false),
+          contains('bereits bezahlt/abgeschrieben'));
+      expect(BarzahlungService.kassierSperre(_r(status: 'abgeschrieben'), hatZahlung: true),
+          contains('bereits bezahlt/abgeschrieben'));
+    });
+    test('Zahlung gebucht, Rechnung nicht bezahlt -> Hinweis aufs Rechnungsdetail', () {
+      expect(BarzahlungService.kassierSperre(_r(), hatZahlung: true),
+          'Zahlung bereits gebucht (Rechnung noch nicht bezahlt) — im Rechnungsdetail prüfen');
+    });
+    test('vermerkter Zahlungseingang', () {
+      expect(
+          BarzahlungService.kassierSperre(_r(zahlungEingegangen: '2026-09-01'),
+              hatZahlung: false),
+          contains('im Rechnungsdetail prüfen'));
+    });
+    test('frei -> null', () {
+      expect(BarzahlungService.kassierSperre(_r(), hatZahlung: false), isNull);
+    });
+  });
+
+  test('kassierBetrag auf 5 Rappen (wie der Bankweg)', () {
+    expect(BarzahlungService.kassierBetrag(94.07), 94.05);
+    expect(BarzahlungService.kassierBetrag(94.08), 94.10);
+  });
+
+  group('fehlerText (I-1)', () {
+    test('Teilfehler: X von Y kassiert (CHF …) — Grund', () {
+      final f = BarzahlungFehler('Rechnung 2026-05-0002: wurde inzwischen geändert',
+          kassiert: const [(nummer: '2026-05-0001', betrag: 1094.05)]);
+      expect(BarzahlungService.fehlerText(f, gesamt: 3),
+          "1 von 3 kassiert (CHF 1'094.05) — Rechnung 2026-05-0002: wurde inzwischen geändert");
+    });
+    test('nichts kassiert: nur der Grund', () {
+      final f = BarzahlungFehler('Rechnung X: bereits bezahlt/abgeschrieben');
+      expect(BarzahlungService.fehlerText(f, gesamt: 2),
+          'Rechnung X: bereits bezahlt/abgeschrieben');
+    });
+  });
+
+  group('rueckgaengigSperre (Minor a/b)', () {
+    final heute = DateTime(2026, 9, 24);
+    test('nur die Barzahlung, laufendes Jahr, bezahlt -> null', () {
+      final bar = _b();
+      expect(
+          BarzahlungService.rueckgaengigSperre(
+              bar: bar, buchungen: [bar], status: 'bezahlt', heute: heute),
+          isNull);
+    });
+    test('weitere aktive Zahlung -> Sperre', () {
+      final bar = _b();
+      expect(
+          BarzahlungService.rueckgaengigSperre(
+              bar: bar,
+              buchungen: [bar, _b(id: 'bank', soll: 1020, weg: 'bank')],
+              status: 'bezahlt',
+              heute: heute),
+          contains('weitere Zahlung'));
+    });
+    test('stornierte weitere Zahlung und Abschreibung sperren nicht', () {
+      final bar = _b();
+      expect(
+          BarzahlungService.rueckgaengigSperre(
+              bar: bar,
+              buchungen: [
+                bar,
+                _b(id: 's', soll: 1020, weg: 'bank', storniert: true),
+                _b(id: 'a', soll: 3805, typ: 'abschreibung', weg: 'intern'),
+              ],
+              status: 'bezahlt',
+              heute: heute),
+          isNull);
+    });
+    test('Vorjahr -> Storno von Hand', () {
+      final bar = _b();
+      expect(
+          BarzahlungService.rueckgaengigSperre(
+              bar: bar, buchungen: [bar], status: 'bezahlt', heute: DateTime(2027, 1, 3)),
+          'Barzahlung aus abgeschlossenem Jahr — Storno von Hand in der Buchhaltung');
+    });
+    test('nicht mehr bezahlt -> Sperre', () {
+      final bar = _b();
+      expect(
+          BarzahlungService.rueckgaengigSperre(
+              bar: bar, buchungen: [bar], status: 'mahnung_1', heute: heute),
+          contains('nicht mehr bezahlt'));
+    });
+  });
+}
+
+void _meldungTests() {
+  test('meldungFuer: BarzahlungFehler ungekuerzt, sonst kurzeFehlermeldung', () {
+    final lang = 'x' * 120;
+    expect(BarzahlungService.meldungFuer(BarzahlungFehler(lang)), lang);
+    expect(BarzahlungService.meldungFuer(Exception('ClientException: Failed to fetch')),
+        'keine Verbindung');
   });
 }

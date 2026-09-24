@@ -29,6 +29,7 @@ Rechnung _r({
     });
 
 void main() {
+  _mahnfallOhneMahnungTests();
   _abschliessbarTests();
   final d = DateTime.utc;
 
@@ -125,5 +126,19 @@ void _abschliessbarTests() {
       // f2: c noch offen; f3: nichts kassiert
       expect(ids, ['f1']);
     });
+  });
+}
+
+void _mahnfallOhneMahnungTests() {
+  test('Mahnfall ohne gemahnte Rechnung (g)', () {
+    final h = mahnHinweis(
+      rechnungen: [
+        _r(id: 'a', datum: DateTime.utc(2026, 5, 1), status: 'erinnert'),
+        _r(id: 'b', datum: DateTime.utc(2026, 5, 2), status: 'offen', brutto: 100),
+      ],
+      imMahnfall: const {'a'},
+    );
+    expect(h.stufe, MahnHinweisStufe.mahnfall);
+    expect(h.text, 'Mahnfall: 2 Rechnungen offen, CHF 194.05 — nur gegen Barzahlung');
   });
 }

@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/mahnfall_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
@@ -84,6 +85,10 @@ class _RechnungDetailContentState
   /// Barzahlung vor Ort (Mahnwesen Teil 3) — null, wenn keine gebucht ist.
   Buchung? _barzahlung;
 
+  /// Steckt die Rechnung in einem erledigten Mahnfall? (Hinweis im
+  /// Rückgängig-Dialog, Review Teil 3 Minor h.)
+  bool _mahnfallErledigt = false;
+
   /// Neuer Key = Mahnverlauf lädt neu (nach «Jetzt mahnen», M-5).
   Key _verlaufKey = UniqueKey();
 
@@ -98,10 +103,69 @@ class _RechnungDetailContentState
   Future<void> _ladeBarzahlung() async {
     try {
       final b = await BarzahlungService.barzahlungZu(_rechnung.id);
-      if (mounted) setState(() => _barzahlung = b);
+      var erledigt = false;
+      final betriebId = _rechnung.betriebId;
+      if (b != null && betriebId != null) {
+        try {
+          erledigt = (await MahnfallRepository.getByBetrieb(betriebId))
+              .any((f) => !f.offen && f.rechnungIds.contains(_rechnung.id));
+        } catch (_) {
+          // Nur ein Zusatzhinweis im Dialog.
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _barzahlung = b;
+          _mahnfallErledigt = erledigt;
+        });
+      }
     } catch (_) {
       // Anzeige-Zusatz: ohne Barzahlungs-Info bleibt die Seite benutzbar.
     }
+  }
+
+  /// Halber Zustand (Review Teil 3, I-2): Kassenbuchung steht, Rechnung ist
+  /// aber nicht bezahlt. Entfernt nur die Buchung, der Status bleibt.
+  Future<void> _kassenbuchungEntfernen() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kassenbuchung entfernen?'),
+        content: const Text(
+          'Die Barzahlungs-Buchung (Kasse 1000 an Debitoren 1100) wird '
+          'gelöscht. Der Rechnungsstatus bleibt, wie er ist.',
+        ),
+        actions: [
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
+          ),
+          TapKnopf(
+            text: 'Entfernen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await BarzahlungService.kassenbuchungEntfernen(_rechnung);
+      ref.invalidate(buchungenStreamProvider);
+      ref.invalidate(rechnungenStreamProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kassenbuchung entfernt.')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${BarzahlungService.meldungFuer(e)}')),
+        );
+      }
+    }
+    await _reloadRechnung();
   }
 
   /// «Barzahlung rückgängig»: löscht die Kassen-Buchung und setzt die
@@ -111,9 +175,11 @@ class _RechnungDetailContentState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Barzahlung rückgängig machen?'),
-        content: const Text(
+        content: Text(
           'Die Kassen-Buchung wird gelöscht und die Rechnung wieder auf den '
-          'Stand vor der Barzahlung gesetzt (inkl. Mahnstufe).',
+          'Stand vor der Barzahlung gesetzt (inkl. Mahnstufe).'
+          '${_mahnfallErledigt ? '\n\nMahnfall ist bereits abgeschlossen — '
+              'die Rechnung taucht danach nicht automatisch wieder darin auf.' : ''}',
         ),
         actions: [
           TapKnopf(
@@ -150,10 +216,10 @@ class _RechnungDetailContentState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+          SnackBar(content: Text('Fehler: ${BarzahlungService.meldungFuer(e)}')),
         );
       }
-      await _ladeBarzahlung();
+      await _reloadRechnung();
     }
   }
 
@@ -359,6 +425,35 @@ class _RechnungDetailContentState
                     onPressed: _zahlungRueckgaengig,
                     icon: const Icon(Icons.undo, size: 16),
                     label: const Text('Zahlung rückgängig (Bankabgleich)'),
+                  ),
+                ),
+              ],
+              // Halber Zustand (Review Teil 3, I-2): Kassenbuchung ohne
+              // bezahlten Status — z. B. nach einem Abbruch beim Kassieren.
+              if (_barzahlung != null && _rechnung.zahlungsstatus != 'bezahlt') ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withAlpha(30),
+                    border: Border.all(color: AppColors.warning.withAlpha(100)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Kassenbuchung ohne bezahlten Status (Barzahlung vom '
+                    '${_formatDate(_barzahlung!.datum)}, CHF '
+                    '${_barzahlung!.betragBrutto.toStringAsFixed(2)}).',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TapKnopf(
+                    text: 'Kassenbuchung entfernen',
+                    icon: Icons.delete_outline,
+                    gefahr: true,
+                    onTap: _kassenbuchungEntfernen,
                   ),
                 ),
               ],
