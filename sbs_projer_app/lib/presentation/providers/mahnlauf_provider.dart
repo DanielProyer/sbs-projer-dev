@@ -89,6 +89,15 @@ class MahnlaufDaten {
   /// Text der roten Bankkarte (null, wenn frei).
   final String? bankSperrgrund;
 
+  /// Text der roten Karte «unverknüpfte Kundenzahlung» (null, wenn frei) —
+  /// analog zur Bank-Sperre (24.09.2026): eine Zahlung ohne eindeutigen
+  /// Betrieb sperrt den GANZEN Mahnlauf, bis sie zugeordnet ist.
+  final String? zahlungsSperreGrund;
+
+  /// Die Zahlungen, die die Sperre auslösen — für die Karte (Datum, Betrag,
+  /// Beschreibung).
+  final List<UnverknuepfteZahlung> zahlungsSperreZahlungen;
+
   /// Betriebe mit Fälligem, sortiert: höchste Stufe, dann ältestes Datum.
   final List<MahnBetrieb> betriebe;
 
@@ -120,6 +129,8 @@ class MahnlaufDaten {
     required this.zahlungGebucht,
     this.betriebeHinterBanksperre = 0,
     this.auszugHinweis,
+    this.zahlungsSperreGrund,
+    this.zahlungsSperreZahlungen = const [],
   });
 }
 
@@ -136,6 +147,10 @@ MahnlaufDaten baueMahnlauf({
   required DateTime heute,
   AuszugKettenBefund auszugKette = (status: AuszugKette.ok, text: null),
   Set<String> mitGebuchterZahlung = const {},
+  ZahlungsSperren zahlungsSperren = const (
+    betriebsSperren: <String, String>{},
+    ungeklaert: <UnverknuepfteZahlung>[],
+  ),
 }) {
   final luecke = auszugKette.status == AuszugKette.luecke;
   final gesperrt = bankSperre(letzterAuszug, heute: heute, auszugLuecke: luecke);
@@ -152,6 +167,16 @@ MahnlaufDaten baueMahnlauf({
     bankGrund = null;
   }
 
+  // Unverknüpfte Kundenzahlung ohne eindeutigen Betrieb sperrt den GANZEN
+  // Mahnlauf (24.09.2026) — analog zur Bank-Sperre: lieber zu vorsichtig als
+  // eine Mahnung für Bezahltes.
+  final zahlungGesperrt = zahlungsSperren.ungeklaert.isNotEmpty;
+  final zahlungGrund = zahlungGesperrt
+      ? 'Unverknüpfte Kundenzahlung${zahlungsSperren.ungeklaert.length > 1 ? "en" : ""} '
+          'ohne eindeutigen Betrieb — zuerst in der Buchhaltung zuordnen'
+      : null;
+  final gesamtGesperrt = gesperrt || zahlungGesperrt;
+
   final imBereich = rechnungen.where(imMahnbereich).toList();
   final zahlungGebucht =
       imBereich.where((r) => mitGebuchterZahlung.contains(r.id)).toList();
@@ -165,7 +190,7 @@ MahnlaufDaten baueMahnlauf({
 
   final faelligJeBetrieb = <String, List<MahnPosten>>{};
   final faelligeIds = <String>{};
-  if (!gesperrt) {
+  if (!gesamtGesperrt) {
     for (final r in kandidaten) {
       final stufe = faelligeStufe(r, stichtag: letzterAuszug!);
       if (stufe == null) continue;
@@ -174,9 +199,9 @@ MahnlaufDaten baueMahnlauf({
     }
   }
 
-  // Bei gesperrter Bank trotzdem zählen, was fällig WÄRE — nur für den
-  // Hinweis in der Glocke, nie für eine Karte.
-  final hinterSperre = !gesperrt
+  // Bei gesperrter Bank (oder unverknüpfter Zahlung) trotzdem zählen, was
+  // fällig WÄRE — nur für den Hinweis in der Glocke, nie für eine Karte.
+  final hinterSperre = !gesamtGesperrt
       ? 0
       : {
           for (final r in kandidaten)
@@ -200,6 +225,11 @@ MahnlaufDaten baueMahnlauf({
     String? grund;
     if (stamm == null) {
       grund = 'Betrieb nicht gefunden — Rechnung prüfen';
+    } else if (zahlungsSperren.betriebsSperren[id] != null) {
+      // Unverknüpfte Kundenzahlung, eindeutig diesem Betrieb zugeordnet
+      // (Kürzel in der Belegnummer) — dieselbe Vorsicht wie bei der
+      // Gutschrift-Sperre, aber ein bestätigter Treffer statt einer Vermutung.
+      grund = zahlungsSperren.betriebsSperren[id];
     } else {
       final t = passendeGutschrift(
         betriebName: stamm.name,
@@ -266,6 +296,8 @@ MahnlaufDaten baueMahnlauf({
     betriebeHinterBanksperre: hinterSperre,
     auszugHinweis:
         auszugKette.status == AuszugKette.ungeprueft ? auszugKette.text : null,
+    zahlungsSperreGrund: zahlungGrund,
+    zahlungsSperreZahlungen: zahlungsSperren.ungeklaert,
   );
 }
 
@@ -287,6 +319,8 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
     erstZustellen: daten.erstZustellen.where(betrifft).toList(),
     zahlungGebucht: daten.zahlungGebucht.where(betrifft).toList(),
     auszugHinweis: daten.auszugHinweis,
+    zahlungsSperreGrund: daten.zahlungsSperreGrund,
+    zahlungsSperreZahlungen: daten.zahlungsSperreZahlungen,
   );
 }
 
@@ -308,6 +342,7 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
       (karte: null, posten: const <MahnPosten>[], fehler: '$geaendert ($grund).');
 
   if (frisch.bankGesperrt) return nein('Bankauszug');
+  if (frisch.zahlungsSperreGrund != null) return nein('unverknüpfte Kundenzahlung');
   final karte = frisch.betriebe.where((k) => k.betriebId == betriebId).firstOrNull;
   if (karte == null) return nein('nichts mehr fällig');
   if (karte.gesperrt) return nein(karte.sperrgrund!);
@@ -350,11 +385,15 @@ Set<String> rechnungenMitGebuchterZahlung(Iterable<Buchung> buchungen) => {
 /// nur Kunden-/Jahresrechnungen ab dem Mahnstart statt aller seit 2019.
 /// `autoDispose`: beim nächsten Öffnen frisch (neu eingelesene Auszüge).
 final mahnlaufProvider = FutureProvider.autoDispose<MahnlaufDaten>((ref) async {
-  final (rechnungen, buchungen, pruefliste, dateien) = await (
+  final (rechnungen, buchungen, unverknuepft, pruefliste, dateien) = await (
     RechnungRepository.getKundenrechnungenAb(kMahnStart),
     // Gezielt nur die Zahlungseingänge seit dem Mahnstart, nicht das ganze
     // Journal.
     BuchungRepository.getZahlungseingaengeAb(kMahnStart),
+    // Zahlungseingänge OHNE Beleg — Sperre «unverknüpfte Kundenzahlung»
+    // (24.09.2026): eine Zahlung ohne `beleg_id` heisst, der Rechnungs-
+    // status könnte nachhinken, ohne dass irgendetwas anderes das anzeigt.
+    BuchungRepository.getUnverknuepfteZahlungseingaengeAb(kMahnStart),
     CamtPrueflisteRepository.getOffen(),
     CamtDateiRepository.getAll(),
   ).wait;
@@ -410,6 +449,22 @@ final mahnlaufProvider = FutureProvider.autoDispose<MahnlaufDaten>((ref) async {
           ),
     ]),
     mitGebuchterZahlung: rechnungenMitGebuchterZahlung(buchungen),
+    zahlungsSperren: unverknuepfteZahlungenAuswerten(
+      zahlungen: [
+        for (final b in unverknuepft)
+          (
+            datum: b.datum,
+            betrag: b.betragBrutto,
+            belegnummer: b.belegnummer,
+            beschreibung: b.beschreibung,
+          ),
+      ],
+      betriebe: [
+        for (final b in betriebe)
+          if (b.serverId != null) (id: b.serverId!, heinekenNr: b.betriebNr),
+      ],
+      ab: kMahnStart,
+    ),
     heute: DateTime.now(),
   );
 });

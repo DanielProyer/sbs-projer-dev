@@ -337,3 +337,93 @@ MahnStufe hoechsteStufe(Iterable<MahnStufe> stufen) {
 }
 
 DateTime mahnFrist(DateTime versand) => _plus(versand, kMahnFristTage);
+
+/// Eine noch nicht mit einer Rechnung verknüpfte Kundenzahlung (Buchung
+/// Soll 1000/1020, Haben 1100, ohne `beleg_id`) — Eingabe für
+/// [unverknuepfteZahlungenAuswerten].
+///
+/// WARUM diese Sperre: Excel-Importzahlungen (bis 11.03.2026) landeten ohne
+/// `beleg_id` in der Buchhaltung; der Rechnungsstatus blieb «offen». Ohne
+/// diese Prüfung hätte der Mahnlauf am 24.09.2026 8 bereits bezahlte
+/// Betriebe gemahnt.
+typedef UnverknuepfteZahlung = ({
+  DateTime datum,
+  double betrag,
+  String? belegnummer,
+  String beschreibung,
+});
+
+/// Betrieb, soweit die Zuordnung unverknüpfter Zahlungen ihn braucht.
+typedef ZahlungsBetrieb = ({String id, String? heinekenNr});
+
+/// Ergebnis von [unverknuepfteZahlungenAuswerten]:
+/// - [betriebsSperren]: Betrieb-Id → Sperrgrund, wenn genau ein Betrieb per
+///   Kürzel in der Belegnummer getroffen wurde (analog zur Gutschrift-Sperre).
+/// - [ungeklaert]: Zahlungen ohne eindeutigen Betrieb — sperren den GANZEN
+///   Mahnlauf (analog zur Bank-Sperre, Sicherheit vor Bequemlichkeit).
+typedef ZahlungsSperren = ({
+  Map<String, String> betriebsSperren,
+  List<UnverknuepfteZahlung> ungeklaert,
+});
+
+/// Heineken-Zahlungen laufen über einen eigenen, geprüften Weg (Belegnummer
+/// `022_...` bzw. Beschreibung «Zahlungseingang Heineken…») — nie eine
+/// Kundenzahlungs-Sperre.
+bool _istHeinekenZahlung(UnverknuepfteZahlung z) =>
+    (z.belegnummer ?? '').startsWith('022_') ||
+    z.beschreibung.startsWith('Zahlungseingang Heineken');
+
+/// Kürzel aus der Belegnummer `020_JJJJ_MM_TT_KKKK_BETRAG` (5. Segment,
+/// Index 4) — oder null, wenn das Format nicht passt (z. B. `XXX`).
+String? _kuerzelAusBelegnummer(String? belegnummer) {
+  final teile = (belegnummer ?? '').split('_');
+  if (teile.length < 5) return null;
+  final kuerzel = teile[4];
+  return kuerzel.isEmpty ? null : kuerzel;
+}
+
+String _datumMahnPunkt(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+/// Wertet unverknüpfte Kundenzahlungen ab [ab] (Default [kMahnStart]) aus.
+///
+/// Für jede Zahlung wird über das Kürzel im 5. Segment der Belegnummer
+/// versucht, GENAU EINEN Betrieb zu finden (`betriebe.heinekenNr`). Gelingt
+/// das, wird nur dieser Betrieb gesperrt. Gelingt es nicht (kein/ungültiges
+/// Kürzel, kein oder mehr als ein passender Betrieb), sperrt die Zahlung den
+/// ganzen Mahnlauf — lieber zu vorsichtig als eine Mahnung für Bezahltes.
+ZahlungsSperren unverknuepfteZahlungenAuswerten({
+  required List<UnverknuepfteZahlung> zahlungen,
+  required List<ZahlungsBetrieb> betriebe,
+  DateTime? ab,
+}) {
+  final start = _tag(ab ?? kMahnStart);
+  final relevante = zahlungen
+      .where((z) => !_tag(z.datum).isBefore(start))
+      .where((z) => !_istHeinekenZahlung(z));
+
+  final nachKuerzel = <String, List<ZahlungsBetrieb>>{};
+  for (final b in betriebe) {
+    final nr = b.heinekenNr;
+    if (nr == null || nr.isEmpty) continue;
+    (nachKuerzel[nr] ??= []).add(b);
+  }
+
+  final betriebsSperren = <String, String>{};
+  final ungeklaert = <UnverknuepfteZahlung>[];
+
+  for (final z in relevante) {
+    final kuerzel = _kuerzelAusBelegnummer(z.belegnummer);
+    final treffer = kuerzel == null ? null : nachKuerzel[kuerzel];
+    if (treffer == null || treffer.length != 1) {
+      ungeklaert.add(z);
+      continue;
+    }
+    betriebsSperren[treffer.single.id] =
+        'Zahlung vom ${_datumMahnPunkt(z.datum)} über '
+        'CHF ${z.betrag.toStringAsFixed(2)} ist keiner Rechnung zugeordnet '
+        '— zuerst zuordnen';
+  }
+
+  return (betriebsSperren: betriebsSperren, ungeklaert: ungeklaert);
+}

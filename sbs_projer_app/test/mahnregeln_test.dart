@@ -426,4 +426,127 @@ void main() {
       expect(MahnStufe.letzte.titel, 'Letzte Mahnung');
     });
   });
+
+  group('unverknuepfteZahlungenAuswerten (24.09.2026)', () {
+    UnverknuepfteZahlung z({
+      DateTime? datum,
+      double betrag = 94.05,
+      String? belegnummer,
+      String beschreibung = 'Zahlung',
+    }) =>
+        (
+          datum: datum ?? d(2026, 1, 15),
+          betrag: betrag,
+          belegnummer: belegnummer,
+          beschreibung: beschreibung,
+        );
+
+    const betriebe = [
+      (id: 'b1', heinekenNr: '1234'),
+      (id: 'b2', heinekenNr: '5678'),
+    ];
+
+    test('Heineken-Zahlung (022_-Belegnummer) sperrt nie', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [z(belegnummer: '022_2026_01_30_ZeHe_00889166')],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren, isEmpty);
+      expect(erg.ungeklaert, isEmpty);
+    });
+
+    test('Heineken-Zahlung per Beschreibung sperrt nie', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [
+          z(belegnummer: '999_egal', beschreibung: 'Zahlungseingang Heineken März'),
+        ],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren, isEmpty);
+      expect(erg.ungeklaert, isEmpty);
+    });
+
+    test('bekanntes Kürzel sperrt genau den Betrieb', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [z(datum: d(2026, 1, 15), betrag: 94.05, belegnummer: '020_2026_01_15_1234_94.05')],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren.keys, ['b1']);
+      expect(erg.betriebsSperren['b1'], contains('15.01.2026'));
+      expect(erg.betriebsSperren['b1'], contains('94.05'));
+      expect(erg.betriebsSperren['b1'], contains('zuerst zuordnen'));
+      expect(erg.ungeklaert, isEmpty);
+    });
+
+    test('ungültiges Kürzel (kein passender Betrieb) sperrt global', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [z(belegnummer: '020_2026_01_15_XXX_94.05')],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren, isEmpty);
+      expect(erg.ungeklaert, hasLength(1));
+    });
+
+    test('Belegnummer ohne das Format (zu wenige Segmente) sperrt global', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [z(belegnummer: 'XXX')],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren, isEmpty);
+      expect(erg.ungeklaert, hasLength(1));
+    });
+
+    test('keine Belegnummer sperrt global', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [z(belegnummer: null)],
+        betriebe: betriebe,
+      );
+      expect(erg.ungeklaert, hasLength(1));
+    });
+
+    test('mehrdeutiges Kürzel (zwei Betriebe mit derselben Nummer) sperrt global', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [z(belegnummer: '020_2026_01_15_1234_94.05')],
+        betriebe: const [
+          (id: 'b1', heinekenNr: '1234'),
+          (id: 'b3', heinekenNr: '1234'),
+        ],
+      );
+      expect(erg.betriebsSperren, isEmpty);
+      expect(erg.ungeklaert, hasLength(1));
+    });
+
+    test('Zahlungen vor kMahnStart werden ignoriert', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [z(datum: d(2025, 12, 31), belegnummer: '020_2025_12_31_XXX_1.00')],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren, isEmpty);
+      expect(erg.ungeklaert, isEmpty);
+    });
+
+    test('Stand 24.09.2026: nur die 2 Heineken-Zahlungen — keine Sperre', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [
+          z(datum: d(2026, 1, 30), belegnummer: '022_2026_01_30_ZeHe_00889166'),
+          z(datum: d(2026, 3, 2), belegnummer: '022_2026_03_02_ZeHe_00730691'),
+        ],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren, isEmpty);
+      expect(erg.ungeklaert, isEmpty);
+    });
+
+    test('mehrere Zahlungen: eine trifft Betrieb, eine bleibt ungeklärt', () {
+      final erg = unverknuepfteZahlungenAuswerten(
+        zahlungen: [
+          z(belegnummer: '020_2026_01_15_1234_94.05'),
+          z(belegnummer: '020_2026_02_01_XXX_50.00'),
+        ],
+        betriebe: betriebe,
+      );
+      expect(erg.betriebsSperren.keys, ['b1']);
+      expect(erg.ungeklaert, hasLength(1));
+    });
+  });
 }

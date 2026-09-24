@@ -56,6 +56,41 @@ class BuchungRepository {
     return all.map((r) => Buchung.fromJson(r)).toList();
   }
 
+  /// Zahlungseingänge auf Debitoren (Haben 1100) OHNE Beleg ab [ab] — für
+  /// die Mahnlauf-Sperre «unverknüpfte Kundenzahlung» (24.09.2026): Eine
+  /// Zahlung ohne `beleg_id` ist keiner Rechnung zugeordnet, der
+  /// Rechnungsstatus hinkt also womöglich nach.
+  ///
+  /// ACHTUNG NULL-Falle: `beleg_id` und `storno_von_id` sind nullbar —
+  /// `.neq()` würde alle NULL-Zeilen stillschweigend wegfiltern. Deshalb
+  /// hier `.isFilter(..., null)` statt `.neq()`.
+  static Future<List<Buchung>> getUnverknuepfteZahlungseingaengeAb(
+    DateTime ab,
+  ) async {
+    final all = <Map<String, dynamic>>[];
+    const pageSize = 1000;
+    var from = 0;
+    final abStr = ab.toIso8601String().split('T').first;
+    while (true) {
+      final rows = await SupabaseService.client
+          .from('buchungen')
+          .select()
+          .eq('user_id', _userId)
+          .eq('haben_konto', 1100)
+          .inFilter('soll_konto', const [1000, 1020])
+          .isFilter('beleg_id', null)
+          .eq('ist_storniert', false)
+          .isFilter('storno_von_id', null)
+          .gte('datum', abStr)
+          .order('id') // stabile Pagination
+          .range(from, from + pageSize - 1);
+      all.addAll(rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all.map((r) => Buchung.fromJson(r)).toList();
+  }
+
   static Stream<List<Buchung>> watchAll() {
     return Stream.fromFuture(getAll());
   }

@@ -103,6 +103,11 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 _bankKarte(daten),
+                if (daten.zahlungsSperreGrund != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _zahlungsSperreKarte(daten),
+                  ),
                 if (daten.auszugHinweis != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -232,6 +237,52 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     );
   }
 
+  /// Rote Karte «unverknüpfte Kundenzahlung» (24.09.2026) — analog zur
+  /// Bankkarte: sperrt den GANZEN Mahnlauf, bis die Zahlung(en) zugeordnet
+  /// sind. Betriebe, die per Kürzel eindeutig getroffen wurden, sperren
+  /// stattdessen nur ihre eigene Karte (siehe `_betriebKarte`).
+  Widget _zahlungsSperreKarte(MahnlaufDaten d) => _kasten(
+        farbe: AppColors.error,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.block, color: AppColors.error, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    d.zahlungsSperreGrund!,
+                    style: const TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            for (final z in d.zahlungsSperreZahlungen)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '${_datum(z.datum)} · CHF ${z.betrag.toStringAsFixed(2)} · '
+                  '${z.beschreibung}${z.belegnummer != null ? ' (${z.belegnummer})' : ''}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            const SizedBox(height: 10),
+            TapKnopf(
+              text: 'Buchungen öffnen',
+              icon: Icons.receipt_long,
+              onTap: () async {
+                await context.push('/buchhaltung/buchungen');
+                if (mounted) _neuLaden();
+              },
+            ),
+          ],
+        ),
+      );
+
   Widget _testmodusZeile() => Padding(
         padding: const EdgeInsets.only(top: 8),
         child: _kasten(
@@ -252,16 +303,20 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
         text = 'Diese Rechnung ist nicht nachweislich zugestellt.';
       } else if (d.bankGesperrt) {
         text = 'Erst nach dem Einlesen des aktuellen Bankauszugs prüfbar.';
+      } else if (d.zahlungsSperreGrund != null) {
+        text = 'Erst nach dem Zuordnen der unverknüpften Zahlung prüfbar.';
       } else if (d.inFrist.isNotEmpty) {
         text = 'Die Frist der letzten Mahnung läuft noch.';
       } else {
         text = 'Diese Rechnung ist derzeit nicht mahnfällig '
             '(Fälligkeit + $kErinnerungNachTagen Tage, gemessen am Bankauszug).';
       }
+    } else if (d.bankGesperrt) {
+      text = 'Erst nach dem Einlesen des aktuellen Bankauszugs prüfbar.';
+    } else if (d.zahlungsSperreGrund != null) {
+      text = 'Erst nach dem Zuordnen der unverknüpften Zahlung prüfbar.';
     } else {
-      text = d.bankGesperrt
-          ? 'Erst nach dem Einlesen des aktuellen Bankauszugs prüfbar.'
-          : 'Nichts mahnfällig.';
+      text = 'Nichts mahnfällig.';
     }
     return _hinweis(text);
   }
