@@ -37,6 +37,7 @@ void main() {
     List<Map<String, dynamic>> zeilen = const [],
     List<TerminDto> termine = const [],
     int vorschlaege = 0,
+    List<Aufgabe> mahnfaelle = const [],
   }) => [
     stoerungenProvider.overrideWithValue(stoerungen),
     montagenProvider.overrideWithValue(const []),
@@ -47,6 +48,7 @@ void main() {
     offeneVorschlaegeAnzahlProvider.overrideWithValue(vorschlaege),
     aufgabenDetektorenProvider.overrideWith((ref) async => detektoren),
     mahnlaufAufgabeProvider.overrideWith((ref) async => const []),
+    mahnfallAufgabenProvider.overrideWith((ref) async => mahnfaelle),
     aufgabenZeilenProvider.overrideWith((ref) async => zeilen),
   ];
 
@@ -192,4 +194,30 @@ void main() {
       'Störung Calanda',
     );
   });
+
+  test(
+    'mahnfallAufgabenProvider-Aufgabe erscheint in der Liste (Task 7)',
+    () async {
+      final container = ProviderContainer(
+        overrides: basis(
+          mahnfaelle: const [
+            Aufgabe(
+              key: 'mahnfall:f1:heineken',
+              titel: 'Mahnfall Calanda: Heineken seit 20 Tagen ohne Ergebnis',
+              route: '/rechnungen/mahnfall/f1',
+            ),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+
+      final liste = await container.read(aufgabenListeProvider.future);
+      expect(
+        liste.any(
+          (e) => e.titel == 'Mahnfall Calanda: Heineken seit 20 Tagen ohne Ergebnis',
+        ),
+        isTrue,
+      );
+    },
+  );
 }

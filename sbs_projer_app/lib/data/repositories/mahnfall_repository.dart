@@ -29,6 +29,23 @@ class MahnfallRepository {
     return rows.map((r) => Mahnfall.fromJson(r)).where((f) => f.offen).toList();
   }
 
+  /// Erledigte Fälle mit noch offener Heineken-Übernahme (Notiz trägt die
+  /// Markierung `MahnfallService.kUebernahmeOffen`) — für die Glocke
+  /// (Task 7). Alle Zeilen laden und in Dart filtern (kleine Tabelle,
+  /// Notiz-Filter geht nicht per Spaltenvergleich), eindeutig sortiert.
+  static Future<List<Mahnfall>> getMitOffenerUebernahme() async {
+    final rows = await SupabaseService.client
+        .from(_tabelle)
+        .select()
+        .order('eroeffnet_am', ascending: false)
+        .order('id');
+    return rows
+        .map((r) => Mahnfall.fromJson(r))
+        .where((f) =>
+            !f.offen && (f.notiz ?? '').contains('[UEBERNAHME OFFEN]'))
+        .toList();
+  }
+
   static Future<List<Mahnfall>> getByRechnung(String rechnungId) async {
     final rows = await SupabaseService.client
         .from(_tabelle)

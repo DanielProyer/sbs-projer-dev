@@ -9,7 +9,10 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/monats_pruef_service.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
+import 'package:sbs_projer_app/data/repositories/mahnfall_repository.dart';
+import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Ist ein Nutzer angemeldet? Im VM-Test ohne `Supabase.initialize()` wirft
@@ -211,6 +214,44 @@ final mahnlaufAufgabeProvider = FutureProvider<List<Aufgabe>>((ref) async {
     ];
   } catch (e) {
     debugPrint('[Aufgaben] Mahnlauf-Detektor: $e');
+    return const [];
+  }
+});
+
+/// Mahnfall-Fristen in der Glocke (v0.135.0, Task 7): offene Fälle
+/// (`MahnfallRepository.getOffene`) und erledigte Fälle mit noch offener
+/// Heineken-Übernahme (`getMitOffenerUebernahme`, Notiz-Markierung
+/// `[UEBERNAHME OFFEN]`, siehe `MahnfallService.kUebernahmeOffen`) — je Fall
+/// über `mahnfallAufgaben(...)`. Eigener Provider wie
+/// [mahnlaufAufgabeProvider]: eine eigene DB-Abfrage, die nicht bei jedem
+/// Neuladen der übrigen Detektoren mitläuft.
+final mahnfallAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
+  if (!_eingeloggt()) return const [];
+  try {
+    final heute = DateTime.now();
+    final betriebe = ref.watch(betriebAnzeigeMapProvider);
+    final offene = await MahnfallRepository.getOffene();
+    final uebernahmeOffen = await MahnfallRepository.getMitOffenerUebernahme();
+    final faelle = [...offene, ...uebernahmeOffen];
+    final aufgaben = <Aufgabe>[];
+    for (final f in faelle) {
+      aufgaben.addAll(mahnfallAufgaben(
+        fallId: f.id,
+        betrieb: betriebe[f.betriebId] ?? 'Unbekannter Betrieb',
+        status: f.status,
+        heinekenKontaktAm: f.heinekenKontaktAm,
+        heinekenFristBis: f.heinekenFristBis,
+        zahlungsbefehlAm: f.zahlungsbefehlAm,
+        rechtsvorschlag: f.rechtsvorschlag,
+        fortsetzungAm: f.fortsetzungAm,
+        erledigung: f.erledigung,
+        uebernahmeVerbucht: false,
+        heute: heute,
+      ));
+    }
+    return aufgaben;
+  } catch (e) {
+    debugPrint('[Aufgaben] Mahnfall-Detektor: $e');
     return const [];
   }
 });

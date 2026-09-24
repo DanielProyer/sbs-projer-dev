@@ -30,14 +30,15 @@ final aufgabenListeProvider = FutureProvider<List<AufgabenEintrag>>((
   final heuteTag = DateTime(heute.year, heute.month, heute.day);
   final betriebe = ref.watch(betriebLookupProvider);
 
-  // Beide zuerst anstossen, dann gemeinsam abwarten — der Mahnlauf lädt
-  // aus der DB und soll die übrigen Detektoren nicht hintereinander
-  // verzögern (Review N-4).
-  final (mahnlauf, ohneMahnlauf) = await (
+  // Alle drei zuerst anstossen, dann gemeinsam abwarten — Mahnlauf und
+  // Mahnfälle laden je eigens aus der DB und sollen die übrigen Detektoren
+  // nicht hintereinander verzögern (Review N-4, Task 7).
+  final (mahnlauf, mahnfaelle, ohneMahnlauf) = await (
     ref.watch(mahnlaufAufgabeProvider.future),
+    ref.watch(mahnfallAufgabenProvider.future),
     ref.watch(aufgabenDetektorenProvider.future),
   ).wait;
-  final detektoren = [...ohneMahnlauf, ...mahnlauf];
+  final detektoren = [...ohneMahnlauf, ...mahnlauf, ...mahnfaelle];
   final zeilen = await ref.watch(aufgabenZeilenProvider.future);
   final termine = await ref.watch(offeneTermineProvider.future);
 
