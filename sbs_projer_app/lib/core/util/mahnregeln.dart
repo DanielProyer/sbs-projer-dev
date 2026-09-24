@@ -119,6 +119,19 @@ MahnStufe? faelligeStufe(Rechnung r, {required DateTime stichtag}) {
   }
 }
 
+/// Ist die Frist der letzten Mahnung + [kNaechsteStufeNachFrist] Tage vor dem
+/// Puffer-Stichtag vorbei? Dann schlägt die App vor, Heineken einzuschalten
+/// (Mahnwesen Teil 2, Spec §2/§5). Gleicher Stichtag wie [faelligeStufe]:
+/// Ende des letzten Bankauszugs, nicht heute.
+bool eskalationFaellig(Rechnung r, {required DateTime stichtag}) {
+  if (!imMahnbereich(r) || r.zahlungsstatus != 'mahnung_2') return false;
+  final frist = r.mahnFristBis ??
+      (r.mahnung2Am != null ? _plus(r.mahnung2Am!, kMahnFristTage) : null);
+  if (frist == null) return false;
+  final grenze = _plus(stichtag, -kPufferVorStichtagTage);
+  return !_plus(frist, kNaechsteStufeNachFrist).isAfter(grenze);
+}
+
 bool bankSperre(
   DateTime? letzterAuszug, {
   required DateTime heute,

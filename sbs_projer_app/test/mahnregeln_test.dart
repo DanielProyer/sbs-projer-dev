@@ -549,4 +549,32 @@ void main() {
       expect(erg.ungeklaert, hasLength(1));
     });
   });
+
+  group('eskalationFaellig', () {
+    test('mahnung_2, Frist + 5 Tage vor dem Puffer-Stichtag → true', () {
+      final r = _r(
+          datum: DateTime.utc(2026, 6, 1),
+          status: 'mahnung_2',
+          mahnung2: DateTime.utc(2026, 9, 1),
+          frist: DateTime.utc(2026, 9, 11));
+      // Frist 11.09. + 5 = 16.09.; Stichtag 19.09. − 3 = 16.09. → erreicht
+      expect(eskalationFaellig(r, stichtag: DateTime.utc(2026, 9, 19)), isTrue);
+      expect(eskalationFaellig(r, stichtag: DateTime.utc(2026, 9, 18)), isFalse);
+    });
+    test('ohne mahn_frist_bis zählt mahnung_2_am + 10', () {
+      final r = _r(
+          datum: DateTime.utc(2026, 6, 1),
+          status: 'mahnung_2',
+          mahnung2: DateTime.utc(2026, 9, 1));
+      expect(eskalationFaellig(r, stichtag: DateTime.utc(2026, 9, 19)), isTrue);
+    });
+    test('andere Stufe oder bezahlt → false', () {
+      final r = _r(datum: DateTime.utc(2026, 6, 1), status: 'mahnung_1',
+          mahnung1: DateTime.utc(2026, 8, 1));
+      expect(eskalationFaellig(r, stichtag: DateTime.utc(2026, 12, 1)), isFalse);
+      final b = _r(datum: DateTime.utc(2026, 6, 1), status: 'mahnung_2',
+          mahnung2: DateTime.utc(2026, 8, 1), zahlungEingegangen: DateTime.utc(2026, 8, 5));
+      expect(eskalationFaellig(b, stichtag: DateTime.utc(2026, 12, 1)), isFalse);
+    });
+  });
 }
