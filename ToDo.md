@@ -39,7 +39,7 @@ damit beantwortet sich, ob der August ein Einzelfall war.
 
 | | Frist | Stand |
 |---|---|---|
-| **Steuererklärung 2025** | **30.09.2026** | Lohnausweis und Jahresrechnung liegen in der App. **Es fehlt nur der GKB Zins-/Kapitalausweis per 31.12.2025** — bei der Bank holen. Dann Formular 11a (Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht». |
+| **Steuererklärung 2025** | **30.09.2026** | Lohnausweis und Jahresrechnung liegen in der App. **Es fehlt nur der GKB Zins-/Kapitalausweis per 31.12.2025** — bei der Bank holen. Dann Formular 11a (Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht». **Bussen 2025 aufrechnen: 320.00** (120.00 Verkehrsbusse Bern auf 6280 + 200.00 Steuerbusse, damals auf 8900 gebucht) — Bussen sind nicht abzugsfähig (Befund 23.09.). |
 | **AXA-Zahlung** | überfällig | Vorgesehen 4'467.90, **offen 8'935.80** (Q1+Q2/2026). |
 | **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | **Zwei Zeilen**, seit 20.09. beide in der App unter Buchhaltung → MwSt-Abrechnung → Q3: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90** (Abschreibung Jahrgang 2019) und **69.00 netto in Zeile 303 (8.1 %) → 5.60** (Einzelabschreibung Dischma). Zusammen 2'145.00 netto → **165.50**. Im Portal prüfen, ob die Zeilen eine reduzierende Eingabe annehmen; sonst ESTV-Hotline. |
 
@@ -60,6 +60,20 @@ Die zu tiefe SVA-Meldung erzeugt Mahnungen und Verzugszinsen, die zu hohe SUVA-M
 kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 💰 Forderungen und Daten
+
+- **Chesa Davos Dorf: Guthaben 30.00 verrechnen (23.09.2026).** Hotels by HR
+  Seehof zahlte am 16.09. 173.75 auf 2026-04-0513 (143.75) — 30.00 zu viel,
+  gebucht auf neues Konto **2030 Kundenguthaben**, Notiz am Betrieb. Nächste
+  Reinigung Ende November: Rechnung «abzüglich Guthaben 30.00» ausweisen; zahlt
+  Chesa 113.75, die 30.00 per 2030 an 1100 umbuchen. Die App kennt noch kein
+  Kundenguthaben → **bauen** (Guthaben am Betrieb, Abzug auf der Rechnung,
+  Mahnlauf berücksichtigt es), sonst mahnt der Mahnlauf die 30.00 Differenz.
+  Hotels by HR zahlt für Chesa **und** Seehof Davos, Mitteilung
+  «Datum Kundennr+Reinigungsdatum» (z. B. `0362150426`).
+- **Bussenkonten getrennt (23.09.2026):** 6280 Verkehrsbussen, 6281 Übrige
+  Bussen (Steuer/MWST). Steuerbussen aus dem camt-Import gehen neu auf 6281
+  (Migration 203, Commit d30bec95). Alte Steuerbussen auf 8900 (2022: 550,
+  2025: 200) bewusst nicht umgebucht.
 
 - **Blue Cinema Chur — ENTSCHIEDEN 20.09.2026: nichts nachsenden.** Die frühere
   Notiz («eine Zahlung in vier Jahren») war irreführend. Tatsächlich: Die
