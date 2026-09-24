@@ -191,6 +191,14 @@ void main() {
       expect(mahnlaufAufgabe(0, bankGesperrt: true), isNull);
       expect(saisondatenAufgabe(0), isNull);
     });
+    test('Eskalation: eigene Aufgabe «Heineken einschalten»', () {
+      expect(eskalationAufgabe(0), isNull);
+      final a = eskalationAufgabe(2)!;
+      expect(a.key, 'mahnlauf:eskalation');
+      expect(a.titel, 'Mahnlauf: 2 Betriebe — Heineken einschalten');
+      expect(a.route, '/rechnungen/mahnlauf');
+      expect(eskalationAufgabe(1)!.titel, 'Mahnlauf: 1 Betrieb — Heineken einschalten');
+    });
   });
 
   group('Snooze + eigene + Sortierung', () {

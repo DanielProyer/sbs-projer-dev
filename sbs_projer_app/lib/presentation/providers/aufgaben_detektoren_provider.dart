@@ -193,15 +193,24 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
 /// I-3). So trifft es nur diese Aufgabe; die Liste setzt sich daraus neu
 /// zusammen. Dieselbe Aufbereitung wie die Seite (Stichtag = Bankauszug,
 /// Sperren), gezählt je Betrieb.
-final mahnlaufAufgabeProvider = FutureProvider<Aufgabe?>((ref) async {
-  if (!_eingeloggt()) return null;
+///
+/// Seit v0.135.0 eine Liste: neben «N Betriebe fällig» steht die eigene
+/// Aufgabe «Heineken einschalten» (`eskalationAufgabe`), sobald die letzte
+/// Mahnung samt Frist abgelaufen ist.
+final mahnlaufAufgabeProvider = FutureProvider<List<Aufgabe>>((ref) async {
+  if (!_eingeloggt()) return const [];
   try {
     final m = await ref.watch(mahnlaufProvider.future);
-    return m.bankGesperrt
+    final mahnlauf = m.bankGesperrt
         ? mahnlaufAufgabe(m.betriebeHinterBanksperre, bankGesperrt: true)
         : mahnlaufAufgabe(m.betriebe.length);
+    final eskalation = eskalationAufgabe(m.eskalation.length);
+    return [
+      if (mahnlauf != null) mahnlauf,
+      if (eskalation != null) eskalation,
+    ];
   } catch (e) {
     debugPrint('[Aufgaben] Mahnlauf-Detektor: $e');
-    return null;
+    return const [];
   }
 });

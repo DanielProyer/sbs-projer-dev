@@ -17,6 +17,8 @@ Rechnung _r({
   String? versandart = 'rechnung_mail',
   double brutto = 94.05,
   DateTime? erinnerung,
+  DateTime? mahnung1,
+  DateTime? mahnung2,
   DateTime? frist,
   DateTime? zahlungAm,
   double? zahlungBetrag,
@@ -34,6 +36,8 @@ Rechnung _r({
       versandart: versandart,
       versendetAm: versendet,
       erinnerungAm: erinnerung,
+      mahnung1Am: mahnung1,
+      mahnung2Am: mahnung2,
       mahnFristBis: frist,
       zahlungEingegangenAm: zahlungAm,
       zahlungBetrag: zahlungBetrag,
@@ -60,6 +64,7 @@ void main() {
     bool ohneAuszug = false,
     AuszugKettenBefund kette = (status: AuszugKette.ok, text: null),
     Set<String> mitGebuchterZahlung = const {},
+    Set<String> faelleRechnungIds = const {},
   }) =>
       baueMahnlauf(
         rechnungen: rechnungen,
@@ -68,6 +73,7 @@ void main() {
         letzterAuszug: ohneAuszug ? null : (letzterAuszug ?? auszug),
         auszugKette: kette,
         mitGebuchterZahlung: mitGebuchterZahlung,
+        faelleRechnungIds: faelleRechnungIds,
         heute: heute,
       );
 
@@ -301,6 +307,102 @@ void main() {
       final jung = _r(id: 'j1', datum: d(2026, 9, 1), versendet: d(2026, 9, 1));
       final e = fuerEinzelmahnung(bau([jung, faellig('r2', betrieb: 'b2')]), 'j1');
       expect(e.betriebe, isEmpty);
+    });
+  });
+
+  group('Eskalation und Mahnfälle (Teil 2)', () {
+    // Letzte Mahnung am 01.09., Frist 11.09. → +5 = 16.09. ≤ Stichtag 22.09. − 3.
+    Rechnung letzte(String id, {String betrieb = 'b1', DateTime? frist}) => _r(
+          id: id,
+          betrieb: betrieb,
+          datum: d(2026, 6, 1),
+          versendet: d(2026, 6, 1),
+          status: 'mahnung_2',
+          mahnung2: d(2026, 9, 1),
+          frist: frist ?? d(2026, 9, 11),
+        );
+
+    test('mahnung_2 mit abgelaufener Frist+5 → eskalation, nicht in Frist', () {
+      final m = bau([letzte('m2')]);
+      expect(m.eskalation, hasLength(1));
+      expect(m.eskalation.single.betriebId, 'b1');
+      expect(m.eskalation.single.faellig.map((p) => p.rechnung.id), ['m2']);
+      expect(m.eskalation.single.gesperrt, isFalse);
+      expect(m.inFrist, isEmpty);
+      expect(m.betriebe, isEmpty);
+    });
+
+    test('mahnung_2 mit laufender Frist bleibt in Frist', () {
+      final m = bau([letzte('m2', frist: d(2026, 9, 20))]);
+      expect(m.eskalation, isEmpty);
+      expect(m.inFrist.map((r) => r.id), ['m2']);
+    });
+
+    test('Rechnung eines offenen Falls → nur in imFall', () {
+      final m = bau([letzte('m2')], faelleRechnungIds: {'m2'});
+      expect(m.eskalation, isEmpty);
+      expect(m.betriebe, isEmpty);
+      expect(m.inFrist, isEmpty);
+      expect(m.erstZustellen, isEmpty);
+      expect(m.imFall.map((r) => r.id), ['m2']);
+    });
+
+    test('ein Fall friert auch mahnung_1-Rechnungen ein', () {
+      final m1 = _r(
+        id: 'm1',
+        datum: d(2026, 5, 1),
+        versendet: d(2026, 5, 1),
+        status: 'mahnung_1',
+        mahnung1: d(2026, 8, 1),
+        frist: d(2026, 8, 11),
+      );
+      // Ohne Fall wäre sie als letzte Mahnung fällig.
+      expect(bau([m1]).betriebe, hasLength(1));
+      final m = bau([m1, faellig('r1')], faelleRechnungIds: {'m1'});
+      expect(m.imFall.map((r) => r.id), ['m1']);
+      expect(m.betriebe.single.faellig.map((p) => p.rechnung.id), ['r1']);
+      expect(m.inFrist, isEmpty);
+    });
+
+    test('Bank-Sperre gilt auch für die Eskalation', () {
+      final m = bau([letzte('m2')], letzterAuszug: d(2026, 9, 10));
+      expect(m.bankGesperrt, isTrue);
+      expect(m.eskalation, isEmpty);
+      expect(m.betriebe, isEmpty);
+    });
+
+    test('Gutschrift-Sperre gilt auch für die Eskalation', () {
+      final m = bau(
+        [letzte('m2')],
+        gutschriften: [(partei: 'Rössli', betrag: 94.05, datum: d(2026, 9, 20))],
+      );
+      expect(m.eskalation.single.gesperrt, isTrue);
+      expect(m.eskalation.single.sperrgrund, contains('Zahlung ungeklärt'));
+    });
+
+    test('gebuchte Zahlung → keine Eskalation', () {
+      final m = bau([letzte('m2')], mitGebuchterZahlung: {'m2'});
+      expect(m.eskalation, isEmpty);
+      expect(m.zahlungGebucht.map((r) => r.id), ['m2']);
+    });
+
+    test('Einzelmahnung: Fall-Rechnung bekommt keine Karte', () {
+      final m = bau([faellig('r1'), faellig('r2')], faelleRechnungIds: {'r1'});
+      final e = fuerEinzelmahnung(m, 'r1');
+      expect(e.betriebe, isEmpty);
+      expect(e.eskalation, isEmpty);
+      expect(e.imFall.map((r) => r.id), ['r1']);
+    });
+
+    test('pruefeVorErstellen: Rechnung inzwischen in einem Fall → Abbruch', () {
+      final vorschau = bau([faellig('r1'), faellig('r2')]);
+      final p = pruefeVorErstellen(
+        frisch: bau([faellig('r1'), faellig('r2')], faelleRechnungIds: {'r2'}),
+        betriebId: 'b1',
+        gewaehlt: vorschau.betriebe.single.faellig,
+      );
+      expect(p.fehler, contains('Mahnfall'));
+      expect(p.posten, isEmpty);
     });
   });
 

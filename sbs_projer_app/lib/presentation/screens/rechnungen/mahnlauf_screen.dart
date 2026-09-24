@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
+import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
@@ -146,6 +147,18 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
                 _titel('Mahnfällig', daten.betriebe.length),
                 if (daten.betriebe.isEmpty) _leerHinweis(daten),
                 for (final b in daten.betriebe) _betriebKarte(b),
+                if (daten.eskalation.isNotEmpty) ...[
+                  _titel('Heineken einschalten', daten.eskalation.length),
+                  _hinweis(
+                    'Die letzte Mahnung samt Frist ist abgelaufen. Nächster '
+                    'Schritt: Mahnfall eröffnen und Heineken einschalten.',
+                  ),
+                  for (final b in daten.eskalation) _eskalationKarte(b),
+                ],
+                if (daten.offeneFaelle.isNotEmpty) ...[
+                  _titel('Offene Mahnfälle', daten.offeneFaelle.length),
+                  for (final f in daten.offeneFaelle) _fallZeile(f, daten.imFall),
+                ],
                 if (daten.zahlungGebucht.isNotEmpty) ...[
                   _titel('Zahlung gebucht — Status prüfen', daten.zahlungGebucht.length),
                   _hinweis(
@@ -297,7 +310,13 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
   Widget _leerHinweis(MahnlaufDaten d) {
     String text;
     if (_einzel) {
-      if (d.zahlungGebucht.isNotEmpty) {
+      if (d.imFall.isNotEmpty) {
+        text = 'Diese Rechnung ist in einem offenen Mahnfall — dort weiterführen, '
+            'nicht erneut mahnen.';
+      } else if (d.eskalation.isNotEmpty) {
+        text = 'Die letzte Mahnung ist abgelaufen — nächster Schritt: '
+            'Heineken einschalten (unten).';
+      } else if (d.zahlungGebucht.isNotEmpty) {
         text = 'Auf diese Rechnung ist eine Zahlung gebucht — nicht mahnen.';
       } else if (d.erstZustellen.isNotEmpty) {
         text = 'Diese Rechnung ist nicht nachweislich zugestellt.';
@@ -754,6 +773,142 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     );
   }
 
+  // ─── Eskalation (Mahnwesen Teil 2) ───
+
+  /// Karte «Heineken einschalten»: Betrieb, abgelaufene letzte Mahnungen,
+  /// Knopf «Mahnfall eröffnen». Gesperrte Betriebe zeigen den Grund wie bei
+  /// «Mahnfällig» und keinen Knopf.
+  Widget _eskalationKarte(MahnBetrieb b) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: b.gesperrt ? AppColors.error.withAlpha(120) : AppColors.divider,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(b.anzeige, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${b.faellig.length} Rechnung(en) · '
+                    'CHF ${b.summeFaellig.toStringAsFixed(2)} · letzte Mahnung abgelaufen',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            if (b.gesperrt)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Text(
+                  b.sperrgrund!,
+                  style: const TextStyle(color: AppColors.error, fontSize: 13),
+                ),
+              ),
+            for (final p in b.faellig)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => context.push('/rechnungen/${p.rechnung.id}'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: AppColors.divider)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${p.rechnung.rechnungsnummer ?? '—'} · '
+                          '${_datum(p.rechnung.rechnungsdatum)}'
+                          '${p.rechnung.mahnFristBis != null ? ' · Frist bis ${_datum(p.rechnung.mahnFristBis!)}' : ''}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        'CHF ${p.rechnung.betragBrutto.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (!b.gesperrt)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Eröffnen folgt in der nächsten Version',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ),
+                    // Verdrahtung mit MahnfallService.eroeffnen folgt (Plan
+                    // Mahnwesen Teil 2, Task 5/6) — bis dahin ohne Funktion.
+                    const TapKnopf(
+                      text: 'Mahnfall eröffnen',
+                      icon: Icons.gavel,
+                      primaer: true,
+                      onTap: null,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+
+  /// Zeile eines offenen Mahnfalls: Betrieb, Status, Anzahl, Summe der noch
+  /// offenen Fall-Rechnungen. Tap öffnet das Arbeitsblatt des Falls.
+  Widget _fallZeile(Mahnfall f, List<Rechnung> imFall) {
+    final anzeige = ref.watch(betriebAnzeigeMapProvider)[f.betriebId] ?? '—';
+    final summe = imFall
+        .where((r) => f.rechnungIds.contains(r.id))
+        .fold(0.0, (s, r) => s + r.betragBrutto);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.push('/rechnungen/mahnfall/${f.id}'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$anzeige${f.test ? ' · TEST' : ''}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    '${mahnfallStatusText(f)} · ${f.rechnungIds.length} Rechnung(en) · '
+                    'CHF ${summe.toStringAsFixed(2)} offen',
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Bausteine ───
 
   Widget _titel(String text, int anzahl) => Padding(
@@ -807,6 +962,18 @@ String _kanalText(MahnKanal k) => switch (k.kanal) {
       'mail' => 'Mail',
       'mail_und_druck' => 'Mail + PDF zum Einschreiben',
       _ => 'Druck — keine Mailadresse',
+    };
+
+/// Status eines Mahnfalls als Text — zentral, damit Mahnlauf und
+/// Fall-Arbeitsblatt dasselbe sagen.
+String mahnfallStatusText(Mahnfall f) => switch (f.status) {
+      'heineken' => 'Bei Heineken',
+      'heineken_frist' => f.heinekenFristBis != null
+          ? 'Kunde zahlt bis ${_datum(f.heinekenFristBis!)}'
+          : 'Kunde zahlt bis …',
+      'betreibung' => 'Betreibung',
+      'erledigt' => 'Erledigt',
+      _ => f.status,
     };
 
 String _statusText(String s) => switch (s) {

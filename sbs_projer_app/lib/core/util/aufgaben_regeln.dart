@@ -128,6 +128,18 @@ Aufgabe? mahnlaufAufgabe(int betriebe, {bool bankGesperrt = false}) =>
             route: '/rechnungen/mahnlauf',
           );
 
+/// Eskalation (Mahnwesen Teil 2, v0.135.0): [betriebe] Betriebe, deren
+/// letzte Mahnung samt Frist abgelaufen ist — jetzt Heineken einschalten.
+/// Eigener Schlüssel neben `mahnlauf`, damit beide gleichzeitig stehen können.
+Aufgabe? eskalationAufgabe(int betriebe) => betriebe <= 0
+    ? null
+    : Aufgabe(
+        key: 'mahnlauf:eskalation',
+        titel: 'Mahnlauf: $betriebe ${betriebe == 1 ? 'Betrieb' : 'Betriebe'} '
+            '— Heineken einschalten',
+        route: '/rechnungen/mahnlauf',
+      );
+
 Aufgabe? saisondatenAufgabe(int anzahl) => anzahl <= 0
     ? null
     : Aufgabe(

@@ -37,7 +37,7 @@ final aufgabenListeProvider = FutureProvider<List<AufgabenEintrag>>((
     ref.watch(mahnlaufAufgabeProvider.future),
     ref.watch(aufgabenDetektorenProvider.future),
   ).wait;
-  final detektoren = [...ohneMahnlauf, if (mahnlauf != null) mahnlauf];
+  final detektoren = [...ohneMahnlauf, ...mahnlauf];
   final zeilen = await ref.watch(aufgabenZeilenProvider.future);
   final termine = await ref.watch(offeneTermineProvider.future);
 

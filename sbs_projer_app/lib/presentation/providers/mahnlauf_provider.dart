@@ -2,11 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_pruefliste_repository.dart';
+import 'package:sbs_projer_app/data/repositories/mahnfall_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
@@ -119,6 +121,19 @@ class MahnlaufDaten {
   /// einlesen» — ohne sie bliebe die Glocke bei altem Auszug einfach still.
   final int betriebeHinterBanksperre;
 
+  /// Betriebe, deren letzte Mahnung samt Frist abgelaufen ist — «Heineken
+  /// einschalten» (Mahnwesen Teil 2). [MahnBetrieb.faellig] trägt die
+  /// Rechnungen mit Stufe [MahnStufe.letzte]; dieselben Sperren wie
+  /// [betriebe], bei Bank- oder Zahlungssperre leer.
+  final List<MahnBetrieb> eskalation;
+
+  /// Rechnungen in einem offenen Mahnfall — eingefroren: weder mahnbar
+  /// noch eskalierbar, bis der Fall erledigt ist.
+  final List<Rechnung> imFall;
+
+  /// Offene Mahnfälle für die Sektion «Offene Mahnfälle».
+  final List<Mahnfall> offeneFaelle;
+
   MahnlaufDaten({
     required this.letzterAuszug,
     required this.bankGesperrt,
@@ -131,6 +146,9 @@ class MahnlaufDaten {
     this.auszugHinweis,
     this.zahlungsSperreGrund,
     this.zahlungsSperreZahlungen = const [],
+    this.eskalation = const [],
+    this.imFall = const [],
+    this.offeneFaelle = const [],
   });
 }
 
@@ -151,6 +169,8 @@ MahnlaufDaten baueMahnlauf({
     betriebsSperren: <String, String>{},
     ungeklaert: <UnverknuepfteZahlung>[],
   ),
+  Set<String> faelleRechnungIds = const {},
+  List<Mahnfall> offeneFaelle = const [],
 }) {
   final luecke = auszugKette.status == AuszugKette.luecke;
   final gesperrt = bankSperre(letzterAuszug, heute: heute, auszugLuecke: luecke);
@@ -183,19 +203,33 @@ MahnlaufDaten baueMahnlauf({
   // Ab hier nur noch Rechnungen OHNE gebuchten Zahlungseingang: Eine
   // gebuchte Zahlung heisst «bezahlt, Status hinkt nach» — genau der Fall,
   // der nie gemahnt werden darf (Review 23.09.2026).
-  final kandidaten =
+  final ohneZahlung =
       imBereich.where((r) => !mitGebuchterZahlung.contains(r.id)).toList();
+  // Rechnungen eines offenen Mahnfalls sind eingefroren (Mahnwesen Teil 2):
+  // Der Fall führt sie weiter — eine erneute Mahnung oder ein zweiter Fall
+  // wäre ein Widerspruch zu dem, was Heineken bzw. das Betreibungsamt schon
+  // in der Hand hat.
+  final imFall =
+      ohneZahlung.where((r) => faelleRechnungIds.contains(r.id)).toList();
+  final kandidaten =
+      ohneZahlung.where((r) => !faelleRechnungIds.contains(r.id)).toList();
 
   final erstZustellen = kandidaten.where((r) => !istZugestellt(r)).toList();
 
   final faelligJeBetrieb = <String, List<MahnPosten>>{};
+  final eskalationJeBetrieb = <String, List<MahnPosten>>{};
   final faelligeIds = <String>{};
   if (!gesamtGesperrt) {
     for (final r in kandidaten) {
       final stufe = faelligeStufe(r, stichtag: letzterAuszug!);
-      if (stufe == null) continue;
-      faelligeIds.add(r.id);
-      (faelligJeBetrieb[r.betriebId ?? ''] ??= []).add((rechnung: r, stufe: stufe));
+      if (stufe != null) {
+        faelligeIds.add(r.id);
+        (faelligJeBetrieb[r.betriebId ?? ''] ??= []).add((rechnung: r, stufe: stufe));
+      } else if (istZugestellt(r) && eskalationFaellig(r, stichtag: letzterAuszug)) {
+        faelligeIds.add(r.id);
+        (eskalationJeBetrieb[r.betriebId ?? ''] ??= [])
+            .add((rechnung: r, stufe: MahnStufe.letzte));
+      }
     }
   }
 
@@ -205,7 +239,10 @@ MahnlaufDaten baueMahnlauf({
       ? 0
       : {
           for (final r in kandidaten)
-            if (faelligeStufe(r, stichtag: letzterAuszug ?? heute) != null) r.betriebId,
+            if (faelligeStufe(r, stichtag: letzterAuszug ?? heute) != null ||
+                (istZugestellt(r) &&
+                    eskalationFaellig(r, stichtag: letzterAuszug ?? heute)))
+              r.betriebId,
         }.length;
 
   final inFrist = kandidaten
@@ -217,11 +254,11 @@ MahnlaufDaten baueMahnlauf({
 
   final gs = [for (final g in gutschriften) (partei: g.partei, betrag: g.betrag)];
 
-  final karten = <MahnBetrieb>[];
-  for (final e in faelligJeBetrieb.entries) {
-    final id = e.key;
+  MahnBetrieb karte(String id, List<MahnPosten> eintraege) {
     final stamm = betriebe[id];
-    final offene = kandidaten.where((r) => r.betriebId == id).toList();
+    // Auch Fall-Rechnungen sind offen — sie zählen für die Kontoauszug-
+    // Beilage und die Gutschrift-Prüfung mit.
+    final offene = ohneZahlung.where((r) => r.betriebId == id).toList();
     String? grund;
     if (stamm == null) {
       grund = 'Betrieb nicht gefunden — Rechnung prüfen';
@@ -260,9 +297,9 @@ MahnlaufDaten baueMahnlauf({
       }
     }
 
-    final posten = e.value
+    final posten = eintraege
       ..sort((a, b) => a.rechnung.rechnungsdatum.compareTo(b.rechnung.rechnungsdatum));
-    karten.add(MahnBetrieb(
+    return MahnBetrieb(
       betriebId: id,
       anzeige: stamm == null ? 'Unbekannter Betrieb' : betriebMitOrt(stamm.name, stamm.ort),
       faellig: posten,
@@ -278,12 +315,18 @@ MahnlaufDaten baueMahnlauf({
         betriebMail: stamm?.betriebMail,
         stufe: hoechsteStufe(posten.map((p) => p.stufe)),
       ),
-    ));
+    );
   }
-  karten.sort((a, b) {
-    final s = b.hoechste.index.compareTo(a.hoechste.index);
-    return s != 0 ? s : a.aeltestesDatum.compareTo(b.aeltestesDatum);
-  });
+
+  final karten = [
+    for (final e in faelligJeBetrieb.entries) karte(e.key, e.value),
+  ]..sort((a, b) {
+      final s = b.hoechste.index.compareTo(a.hoechste.index);
+      return s != 0 ? s : a.aeltestesDatum.compareTo(b.aeltestesDatum);
+    });
+  final eskalation = [
+    for (final e in eskalationJeBetrieb.entries) karte(e.key, e.value),
+  ]..sort((a, b) => a.aeltestesDatum.compareTo(b.aeltestesDatum));
 
   return MahnlaufDaten(
     letzterAuszug: letzterAuszug,
@@ -298,6 +341,9 @@ MahnlaufDaten baueMahnlauf({
         auszugKette.status == AuszugKette.ungeprueft ? auszugKette.text : null,
     zahlungsSperreGrund: zahlungGrund,
     zahlungsSperreZahlungen: zahlungsSperren.ungeklaert,
+    eskalation: eskalation,
+    imFall: imFall,
+    offeneFaelle: offeneFaelle,
   );
 }
 
@@ -305,10 +351,13 @@ MahnlaufDaten baueMahnlauf({
 /// Rechnung — und nur, wenn sie selbst fällig ist. Alle Sicherungen sind
 /// schon in [daten] eingerechnet (Bank, Gutschrift, gebuchte Zahlung); die
 /// Einzelmahnung ist bewusst KEIN Umweg daran vorbei.
+///
+/// Rechnungen eines offenen Mahnfalls stehen nie in [MahnlaufDaten.betriebe]
+/// (siehe [baueMahnlauf]) — «Jetzt mahnen» aus der Rechnung führt bei ihnen
+/// also zu keiner Karte, nur zum Hinweis auf den Fall.
 MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
-  final karte = daten.betriebe
-      .where((b) => b.faellig.any((p) => p.rechnung.id == rechnungId))
-      .toList();
+  bool enthaelt(MahnBetrieb b) => b.faellig.any((p) => p.rechnung.id == rechnungId);
+  final karte = daten.betriebe.where(enthaelt).toList();
   bool betrifft(Rechnung r) => r.id == rechnungId;
   return MahnlaufDaten(
     letzterAuszug: daten.letzterAuszug,
@@ -321,6 +370,10 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
     auszugHinweis: daten.auszugHinweis,
     zahlungsSperreGrund: daten.zahlungsSperreGrund,
     zahlungsSperreZahlungen: daten.zahlungsSperreZahlungen,
+    eskalation: daten.eskalation.where(enthaelt).toList(),
+    imFall: daten.imFall.where(betrifft).toList(),
+    offeneFaelle:
+        daten.offeneFaelle.where((f) => f.rechnungIds.contains(rechnungId)).toList(),
   );
 }
 
@@ -343,6 +396,14 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
 
   if (frisch.bankGesperrt) return nein('Bankauszug');
   if (frisch.zahlungsSperreGrund != null) return nein('unverknüpfte Kundenzahlung');
+  // Inzwischen in einem Mahnfall (Teil 2): Der Fall führt die Rechnung
+  // weiter — nie zusätzlich mahnen.
+  final imFall = {for (final r in frisch.imFall) r.id};
+  for (final g in gewaehlt) {
+    if (imFall.contains(g.rechnung.id)) {
+      return nein('${g.rechnung.rechnungsnummer ?? 'Rechnung'} ist in einem offenen Mahnfall');
+    }
+  }
   final karte = frisch.betriebe.where((k) => k.betriebId == betriebId).firstOrNull;
   if (karte == null) return nein('nichts mehr fällig');
   if (karte.gesperrt) return nein(karte.sperrgrund!);
@@ -385,7 +446,7 @@ Set<String> rechnungenMitGebuchterZahlung(Iterable<Buchung> buchungen) => {
 /// nur Kunden-/Jahresrechnungen ab dem Mahnstart statt aller seit 2019.
 /// `autoDispose`: beim nächsten Öffnen frisch (neu eingelesene Auszüge).
 final mahnlaufProvider = FutureProvider.autoDispose<MahnlaufDaten>((ref) async {
-  final (rechnungen, buchungen, unverknuepft, pruefliste, dateien) = await (
+  final (rechnungen, buchungen, unverknuepft, pruefliste, dateien, faelle) = await (
     RechnungRepository.getKundenrechnungenAb(kMahnStart),
     // Gezielt nur die Zahlungseingänge seit dem Mahnstart, nicht das ganze
     // Journal.
@@ -396,6 +457,8 @@ final mahnlaufProvider = FutureProvider.autoDispose<MahnlaufDaten>((ref) async {
     BuchungRepository.getUnverknuepfteZahlungseingaengeAb(kMahnStart),
     CamtPrueflisteRepository.getOffen(),
     CamtDateiRepository.getAll(),
+    // Offene Mahnfälle (Teil 2): ihre Rechnungen sind eingefroren.
+    MahnfallRepository.getOffene(),
   ).wait;
   // Erst warten, bis die Betriebe geladen sind — sonst stünde jede Karte
   // kurz als «Betrieb nicht gefunden» gesperrt da.
@@ -465,6 +528,8 @@ final mahnlaufProvider = FutureProvider.autoDispose<MahnlaufDaten>((ref) async {
       ],
       ab: kMahnStart,
     ),
+    faelleRechnungIds: {for (final f in faelle) ...f.rechnungIds},
+    offeneFaelle: faelle,
     heute: DateTime.now(),
   );
 });
