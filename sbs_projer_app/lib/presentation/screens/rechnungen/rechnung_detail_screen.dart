@@ -23,6 +23,9 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
+import 'package:sbs_projer_app/services/rechnung/barzahlung_service.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/mahnverlauf.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
@@ -78,6 +81,9 @@ class _RechnungDetailContentState
   BetriebRechnungsadresseLocal? _betriebRa;
   bool _loadingPositionen = true;
 
+  /// Barzahlung vor Ort (Mahnwesen Teil 3) — null, wenn keine gebucht ist.
+  Buchung? _barzahlung;
+
   /// Neuer Key = Mahnverlauf lädt neu (nach «Jetzt mahnen», M-5).
   Key _verlaufKey = UniqueKey();
 
@@ -86,6 +92,69 @@ class _RechnungDetailContentState
     super.initState();
     _rechnung = widget.rechnung;
     _loadDetails();
+    _ladeBarzahlung();
+  }
+
+  Future<void> _ladeBarzahlung() async {
+    try {
+      final b = await BarzahlungService.barzahlungZu(_rechnung.id);
+      if (mounted) setState(() => _barzahlung = b);
+    } catch (_) {
+      // Anzeige-Zusatz: ohne Barzahlungs-Info bleibt die Seite benutzbar.
+    }
+  }
+
+  /// «Barzahlung rückgängig»: löscht die Kassen-Buchung und setzt die
+  /// Rechnung auf den Mahn-Stand vor der Zahlung zurück.
+  Future<void> _barzahlungRueckgaengig() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Barzahlung rückgängig machen?'),
+        content: const Text(
+          'Die Kassen-Buchung wird gelöscht und die Rechnung wieder auf den '
+          'Stand vor der Barzahlung gesetzt (inkl. Mahnstufe).',
+        ),
+        actions: [
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
+          ),
+          TapKnopf(
+            text: 'Rückgängig machen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await BarzahlungService.rueckgaengig(_rechnung);
+      final frisch = await RechnungRepository.getById(_rechnung.id);
+      ref.invalidate(rechnungenStreamProvider);
+      ref.invalidate(buchungenStreamProvider);
+      if (!mounted) return;
+      setState(() {
+        if (frisch != null) _rechnung = frisch;
+        _barzahlung = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Barzahlung rückgängig — Rechnung wieder ${_rechnung.zahlungsstatus}.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
+      }
+      await _ladeBarzahlung();
+    }
   }
 
   Future<void> _loadDetails() async {
@@ -269,6 +338,21 @@ class _RechnungDetailContentState
                     'Zahlung eingegangen',
                     _formatDate(_rechnung.zahlungEingegangenAm!),
                   ),
+                // Barzahlung vor Ort: eigener Rückweg (Kassen-Buchung,
+                // Mahn-Stand zurück) statt des Bankabgleich-Knopfs.
+                if (_barzahlung != null) ...[
+                  _InfoRow('Bar bezahlt am', _formatDate(_barzahlung!.datum)),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TapKnopf(
+                      text: 'Barzahlung rückgängig',
+                      icon: Icons.undo,
+                      gefahr: true,
+                      onTap: _barzahlungRueckgaengig,
+                    ),
+                  ),
+                ] else
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
@@ -767,6 +851,7 @@ class _RechnungDetailContentState
   Future<void> _reloadRechnung() async {
     final r = await RechnungRepository.getById(_rechnung.id);
     if (r != null && mounted) setState(() => _rechnung = r);
+    await _ladeBarzahlung();
   }
 
   Future<void> _showPdf(BuildContext context) async {
