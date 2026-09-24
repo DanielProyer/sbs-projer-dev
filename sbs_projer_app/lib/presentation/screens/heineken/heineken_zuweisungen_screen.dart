@@ -26,6 +26,7 @@ class _HeinekenZuweisungenScreenState
     ('heigenie_service', 'Heigenie Service', Icons.build),
     ('materialbestellung', 'Materialbestellung', Icons.inventory),
     ('rsl', 'RSL (Anlagen-Steckbrief)', Icons.person_pin),
+    ('mahnwesen', 'Mahnwesen', Icons.gavel),
   ];
 
   @override
