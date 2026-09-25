@@ -140,6 +140,7 @@ const kBereichMehr = Bereich(
           titel: 'Spesen',
           icon: Icons.receipt_long,
           ziel: '/spesen',
+          stichwoerter: ['beleg', 'quittung', 'tanken', 'benzin', 'material', 'scanner'],
         ),
         BereichEintrag(
           titel: 'Material',

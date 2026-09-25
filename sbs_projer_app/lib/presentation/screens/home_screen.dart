@@ -63,10 +63,29 @@ class HomeScreen extends StatelessWidget {
       // liegt IMMER über dem Inhalt, ohne den seit Task 10 (13.09.2026)
       // bewusst scrollenden Startbildschirm durch zusätzliche Leisten
       // zusätzlich zu verkleinern.
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => zeigeDiktatSheet(context),
-        icon: const Icon(Icons.mic),
-        label: const Text('Diktieren'),
+      //
+      // Seit v0.138.0 (25.09.2026) daneben «Beleg»: öffnet den Spesen-Scanner,
+      // der sofort die Kamera startet — Tanken, Material, Essen mit einem
+      // Tipp erfassen, statt über Mehr → Unterwegs → Spesen. Zwei FABs im
+      // selben Scaffold brauchen eigene heroTags, sonst wirft Flutter beim
+      // Seitenwechsel («multiple heroes share the same tag»).
+      floatingActionButton: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'heute-diktieren',
+            onPressed: () => zeigeDiktatSheet(context),
+            icon: const Icon(Icons.mic),
+            label: const Text('Diktieren'),
+          ),
+          const SizedBox(width: 12),
+          FloatingActionButton.extended(
+            heroTag: 'heute-beleg',
+            onPressed: () => context.push('/spesen'),
+            icon: const Icon(Icons.photo_camera),
+            label: const Text('Beleg'),
+          ),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );

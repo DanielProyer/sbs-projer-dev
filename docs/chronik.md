@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 25.09.2026 — v0.138.0 «Beleg»-Knopf auf Heute (Spesen-Scanner direkt)
 - 25.09.2026 — Edge Function send-rechnung-mail v24: JWT-Pflicht, Pfadprüfung
 - 25.09.2026 — v0.137.0 Kundenguthaben (Verrechnung mit der nächsten Rechnung)
 - 24.09.2026 — v0.136.0 Mahnwesen Teil 3: Hinweis beim Service, bar einkassieren
@@ -22,6 +23,18 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 25.09.2026 — v0.138.0 «Beleg»-Knopf auf Heute (Spesen-Scanner direkt)
+
+- Neben «Diktieren» ein zweiter schwebender Knopf **«Beleg»** (Kamera) →
+  `/spesen`; der Scanner öffnet sofort die Kamera, die KI erkennt Tanken
+  (6200), Material (4004), Essen usw. und den Zahlungsweg wie bisher.
+  Entscheid Daniel: nur Bar-/Karten-Belege, Lieferantenrechnungen weiterhin
+  über Eingangsrechnungen (PDF). Suche findet den Scanner neu auch unter
+  beleg/quittung/tanken/benzin/material/scanner. Zwei FABs mit eigenen
+  `heroTag`s. Geprüft im Browser (360 px). 2234 Tests.
 
 ---
 

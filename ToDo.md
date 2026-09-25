@@ -190,6 +190,10 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.138.0** — Heute → «Beleg»: Kamera geht direkt auf? Nach «Fertig»
+  wieder auf Heute? Später vielleicht: Foto einer Lieferantenrechnung
+  erkennen und als Eingangsrechnung ablegen statt sofort buchen.
+
 - **v0.137.0** — Ende November bei der Chesa-Reinigung: Rechnung prüfen (PDF
   «abzüglich Kundenguthaben 30.00 / Zu zahlen 113.75», QR 113.75); beim
   Zahlungseingang im Bankabgleich «Kundenguthaben wird verrechnet (2030)».
@@ -587,6 +591,11 @@ false`, `preis_brutto > 0` und den Ausschluss der Heineken-Betriebe. Ohne diese
 vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 
 ### 🔭 Beobachten
+
+- **Konsole beim Laden von Heute (25.09.2026, lokal v0.138.0):** einmal «Null
+  check operator used on a null value» nach einem 403/400 einer Ressource —
+  sichtbar nichts kaputt. Beim nächsten Mal mit Source-Map nachsehen, welcher
+  Provider das wirft (Kandidat: Google-Kalender/Kontakte-Status ohne Token).
 
 - ✅ **Function v22 hält — Punkt erledigt (20.09.2026).** Belegt statt vermutet:
   Von den Mail-Rechnungen seit 01.03.2026 tragen **122 von 122** ein
