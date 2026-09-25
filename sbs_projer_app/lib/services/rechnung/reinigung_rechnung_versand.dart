@@ -3,6 +3,7 @@ import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -77,6 +78,38 @@ class ReinigungRechnungVersand {
     bool pdfFehlt,
   ) =>
       pdfFehlt ? e.mitPdfHinweis() : e;
+
+  /// Hält den erfolgten Versand fest: `versendet_am` immer, den Status nur
+  /// `offen` → `gesendet` (R4, Analyse 25.09.2026).
+  ///
+  /// WARUM zwei Schritte: Früher setzte ein Update pauschal `gesendet` — ein
+  /// Neuversand hätte eine bezahlte, gemahnte oder mit Guthaben gedeckte
+  /// Rechnung zurückgedreht. Der Status-Schritt läuft deshalb mit
+  /// `.eq(zahlungsstatus, offen)` gegen den DB-Stand, nicht gegen den
+  /// (vielleicht veralteten) Stand im Speicher. Dieselbe Regel gilt
+  /// serverseitig in `send-rechnung-mail`.
+  static Future<void> vermerkeVersand(Rechnung rechnung) async {
+    await RechnungRepository.update(rechnung.id, {
+      'versendet_am': DateTime.now().toIso8601String().split('T').first,
+    });
+    await hebeStatusNachVersand(rechnung);
+  }
+
+  /// Nur der Status-Schritt von [vermerkeVersand]: `offen` → `gesendet`,
+  /// abgesichert gegen den DB-Stand. Für Aufrufer, die `versendet_am` selbst
+  /// schreiben (Neuversand im Rechnungsdetail).
+  static Future<void> hebeStatusNachVersand(Rechnung rechnung) async {
+    final ziel = statusNachVersand(
+      rechnung.zahlungsstatus,
+      vollMitGuthabenGedeckt: istVollMitGuthabenGedeckt(rechnung),
+    );
+    if (ziel == rechnung.zahlungsstatus) return;
+    await RechnungRepository.updateWennStatus(
+      rechnung.id,
+      {'zahlungsstatus': ziel},
+      erwarteterStatus: 'offen',
+    );
+  }
 
   /// Erstellt die Rechnung falls noch keine existiert und versendet sie.
   static Future<ReinigungVersandErgebnis> erstelleUndSende(
@@ -184,11 +217,7 @@ class ReinigungRechnungVersand {
       // gleichem Ergebnis nichts Neues). Kommt die Antwort an, ist der Status
       // ohnehin schon gesetzt; kommt sie nicht an, hat der Server ihn.
       if (MailConfig.istScharf('reinigung')) {
-        await RechnungRepository.update(rechnung.id, {
-          // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
-          if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
-          'versendet_am': DateTime.now().toIso8601String().split('T').first,
-        });
+        await vermerkeVersand(rechnung);
       }
 
       return _mitPdfStand(
@@ -230,11 +259,7 @@ class ReinigungRechnungVersand {
       );
 
       // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
-      await RechnungRepository.update(rechnung.id, {
-        // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
-        if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
-        'versendet_am': DateTime.now().toIso8601String().split('T').first,
-      });
+      await vermerkeVersand(rechnung);
 
       return _mitPdfStand(
         ReinigungVersandErgebnis(

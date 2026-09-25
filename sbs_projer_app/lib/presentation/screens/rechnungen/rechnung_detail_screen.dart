@@ -26,6 +26,7 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/services/rechnung/barzahlung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/mahnverlauf.dart';
@@ -272,13 +273,15 @@ class _RechnungDetailContentState
           'Nur für falsch zugeordnete Zahlungen gedacht.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Rückgängig machen'),
+          TapKnopf(
+            text: 'Rückgängig machen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -422,10 +425,13 @@ class _RechnungDetailContentState
                 ] else
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: _zahlungRueckgaengig,
-                    icon: const Icon(Icons.undo, size: 16),
-                    label: const Text('Zahlung rückgängig (Bankabgleich)'),
+                  // Löscht Buchungen: roter TapKnopf (CanvasKit-sicher), nicht
+                  // TextButton — wie «Barzahlung rückgängig» daneben.
+                  child: TapKnopf(
+                    text: 'Zahlung rückgängig (Bankabgleich)',
+                    icon: Icons.undo,
+                    gefahr: true,
+                    onTap: _zahlungRueckgaengig,
                   ),
                 ),
               ],
@@ -847,6 +853,10 @@ class _RechnungDetailContentState
           'versendet_am': DateTime.now().toIso8601String().split('T').first,
           'versandart': 'rechnung_mail',
         });
+        // Status nur offen → gesendet (R4): Ein Neuversand dreht eine
+        // bezahlte oder gemahnte Rechnung nicht zurück. Geprüft gegen den
+        // DB-Stand, wie serverseitig in send-rechnung-mail.
+        await ReinigungRechnungVersand.hebeStatusNachVersand(_rechnung);
         await _reloadRechnung();
       }
       ref.invalidate(rechnungenStreamProvider);

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
@@ -1033,14 +1033,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 // Status/versendet_am NUR bei scharfem Versand setzen — im
                 // Testmodus ging die Mail an den Test-Empfänger, nicht an den Kunden.
                 if (MailConfig.istScharf('reinigung')) {
-                  await RechnungRepository.update(rechnung.id, {
-                    // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
-                    if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
-                    'versendet_am': DateTime.now()
-                        .toIso8601String()
-                        .split('T')
-                        .first,
-                  });
+                  // Status nur offen → gesendet; bezahlt/gemahnt bleibt (R4).
+                  await ReinigungRechnungVersand.vermerkeVersand(rechnung);
                 }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1120,14 +1114,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                   },
                 );
                 // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
-                await RechnungRepository.update(rechnung.id, {
-                  // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
-                  if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
-                  'versendet_am': DateTime.now()
-                      .toIso8601String()
-                      .split('T')
-                      .first,
-                });
+                // Status nur offen → gesendet; bezahlt/gemahnt bleibt (R4).
+                await ReinigungRechnungVersand.vermerkeVersand(rechnung);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
