@@ -216,7 +216,10 @@ class BarzahlungService {
       final verrechnung = verrechnungFuer(f);
       Buchung? verrechnungsBuchung;
       try {
-        final buchung = await BuchungRepository.create({
+        // Nichts zu zahlen (Guthaben deckt alles): keine Kassenbuchung über 0.
+        final buchung = betrag < 0.005
+            ? null
+            : await BuchungRepository.create({
           'datum': tagStr,
           'belegnummer': f.rechnungsnummer ?? '',
           'soll_konto': kKasse,
@@ -265,14 +268,14 @@ class BarzahlungService {
           if (verrechnungsBuchung != null) {
             await BuchungRepository.delete(verrechnungsBuchung.id);
           }
-          await BuchungRepository.delete(buchung.id);
+          if (buchung != null) await BuchungRepository.delete(buchung.id);
           rethrow;
         }
         if (!gesetzt) {
           if (verrechnungsBuchung != null) {
             await BuchungRepository.delete(verrechnungsBuchung.id);
           }
-          await BuchungRepository.delete(buchung.id);
+          if (buchung != null) await BuchungRepository.delete(buchung.id);
           throw BarzahlungFehler('Rechnung $nr: wurde inzwischen geändert — nicht kassiert',
               kassiert: List.of(kassiert));
         }

@@ -15,6 +15,11 @@ typedef EinzelAbschreibung = ({
   double netto,
   double mwst,
   String beschreibung,
+
+  /// Verrechnetes Kundenguthaben der Rechnung: wird VOR der Abschreibung
+  /// als Soll 2030 / Haben 1100 gebucht (falls noch nicht geschehen) —
+  /// abgeschrieben wird nur «zu zahlen» (Review Kundenguthaben I3).
+  double guthaben,
 });
 
 final DateFormat _ddMMyyyy = DateFormat('dd.MM.yyyy');
@@ -38,11 +43,18 @@ final DateFormat _ddMMyyyy = DateFormat('dd.MM.yyyy');
 /// gegen 1100 immer exakt auf, auch wenn `betrag_netto` einer Altrechnung
 /// nicht genau dazu passt.
 EinzelAbschreibung einzelAbschreibung(Rechnung r, {required DateTime heute}) {
-  final brutto = rundeAufRappen(r.betragBrutto);
+  final voll = rundeAufRappen(r.betragBrutto);
+  // Mit Guthaben: nur «zu zahlen» abschreiben, die MWST anteilig
+  // (mwst × zuZahlen / brutto) — der Rest ist durch das Guthaben gedeckt.
+  final guthaben = r.guthabenVerrechnet > 0 ? rundeAufRappen(r.guthabenVerrechnet) : 0.0;
+  final brutto = guthaben > 0 ? rundeAufRappen(r.zuZahlen) : voll;
   // Unsinnige Steuerbeträge (negativ, oder grösser als das Brutto) würden
   // ein negatives Netto buchen. Dann lieber alles als Aufwand.
   final roh = r.mwstBetrag;
-  final mwst = (roh <= 0 || roh > brutto) ? 0.0 : rundeAufRappen(roh);
+  final mwstVoll = (roh <= 0 || roh > voll) ? 0.0 : roh;
+  final mwst = (guthaben > 0 && voll > 0)
+      ? rundeAufRappen(mwstVoll * brutto / voll)
+      : rundeAufRappen(mwstVoll);
   return (
     datum: DateTime(heute.year, heute.month, heute.day),
     brutto: brutto,
@@ -51,6 +63,7 @@ EinzelAbschreibung einzelAbschreibung(Rechnung r, {required DateTime heute}) {
     beschreibung:
         'Debitorenverlust ${r.rechnungsnummer ?? r.id.substring(0, 8)} '
         '(Rechnung vom ${_ddMMyyyy.format(r.rechnungsdatum)}, abgeschrieben)',
+    guthaben: guthaben,
   );
 }
 
@@ -72,5 +85,9 @@ bool abschreibungSchonGebucht(Iterable<Buchung> buchungenDerRechnung) =>
 /// storniert)? Eine Abschreibung bucht ebenfalls Haben 1100 — sie ist keine
 /// Zahlung und zählt hier nicht. Jede Zahlung, auch eine Teilzahlung,
 /// sperrt das Abschreiben (Review Mahnwesen Teil 2, I-1).
-bool zahlungGebucht(Iterable<Buchung> buchungenDerRechnung) => _zaehlend(buchungenDerRechnung)
-    .any((b) => b.habenKonto == 1100 && b.belegTyp != 'abschreibung');
+bool zahlungGebucht(Iterable<Buchung> buchungenDerRechnung) =>
+    _zaehlend(buchungenDerRechnung).any((b) =>
+        b.habenKonto == 1100 &&
+        b.belegTyp != 'abschreibung' &&
+        // Guthaben-Verrechnung (2030/1100) ist keine Zahlung (Review I3).
+        !(b.sollKonto == 2030 && b.belegTyp == 'sonstiges'));

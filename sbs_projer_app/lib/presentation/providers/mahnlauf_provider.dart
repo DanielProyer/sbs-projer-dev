@@ -225,16 +225,18 @@ MahnlaufDaten baueMahnlauf({
   // Der Fall führt sie weiter — eine erneute Mahnung oder ein zweiter Fall
   // wäre ein Widerspruch zu dem, was Heineken bzw. das Betreibungsamt schon
   // in der Hand hat.
-  final imFall =
-      ohneZahlung.where((r) => faelleRechnungIds.contains(r.id)).toList();
-  final ausserhalbFall =
-      ohneZahlung.where((r) => !faelleRechnungIds.contains(r.id)).toList();
-  // Verrechnetes Kundenguthaben: nie mahnen, nie eskalieren — eigene Liste
-  // «manuell prüfen» (Plan Kundenguthaben, schlanke Variante).
+  //
+  // Verrechnetes Kundenguthaben: nie mahnen, nie eskalieren, auch nicht im
+  // Fall weiterführen — eigene Liste «manuell prüfen» (Plan
+  // Kundenguthaben, schlanke Variante; Review M4: auch vor dem Fall-Filter).
   final mitGuthaben =
-      ausserhalbFall.where((r) => r.guthabenVerrechnet > 0).toList();
+      ohneZahlung.where((r) => r.guthabenVerrechnet > 0).toList();
+  final ohneGuthaben =
+      ohneZahlung.where((r) => r.guthabenVerrechnet <= 0).toList();
+  final imFall =
+      ohneGuthaben.where((r) => faelleRechnungIds.contains(r.id)).toList();
   final kandidaten =
-      ausserhalbFall.where((r) => r.guthabenVerrechnet <= 0).toList();
+      ohneGuthaben.where((r) => !faelleRechnungIds.contains(r.id)).toList();
 
   final erstZustellen = kandidaten.where((r) => !istZugestellt(r)).toList();
 

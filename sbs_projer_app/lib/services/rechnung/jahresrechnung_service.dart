@@ -179,7 +179,7 @@ class JahresrechnungService {
     final faelligkeitsdatum = DateTime(jahr + 1, 1, 30);
 
     // Rechnung in DB erstellen
-    final rechnung = await RechnungRepository.create({
+    final angelegt = await RechnungRepository.create({
       'rechnungsnummer': rechnungsnummer,
       'rechnungstyp': 'jahresrechnung',
       'betrieb_id': betrieb.serverId,
@@ -192,6 +192,8 @@ class JahresrechnungService {
       'zahlungsstatus': 'offen',
       'versandart': 'jahresrechnung',
     });
+    // Nichts zu zahlen (Guthaben deckt alles)? Sofort verrechnen + bezahlt.
+    final rechnung = await RechnungService.guthabenVollVerrechnen(angelegt);
 
     // Positionen erstellen
     for (final p in positionen) {

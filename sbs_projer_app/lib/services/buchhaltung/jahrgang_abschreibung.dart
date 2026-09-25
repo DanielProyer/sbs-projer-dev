@@ -194,6 +194,12 @@ String? _ausschlussGrund(Rechnung r) {
     return 'Zahlung vermerkt — zuerst klären, dann bezahlt setzen';
   }
   if (r.betragBrutto <= 0) return 'Betrag 0';
+  // Die Datenbank-Funktion des Jahrgangs schreibt das volle Brutto ab und
+  // kennt die Guthaben-Verrechnung (2030/1100) nicht — solche Rechnungen
+  // einzeln über das Mahnwesen abschreiben (Review Kundenguthaben I3).
+  if (r.guthabenVerrechnet > 0) {
+    return 'Kundenguthaben verrechnet — einzeln abschreiben (Rechnungsliste)';
+  }
   if ((r.betragBrutto - r.betragNetto - r.mwstBetrag).abs() > 0.011) {
     return 'Netto + MWST ergibt nicht Brutto — Rechnung prüfen';
   }

@@ -99,4 +99,54 @@ void main() {
     final a = einzelAbschreibung(_rg(nummer: null), heute: heute);
     expect(a.beschreibung, contains('abcdef12'));
   });
+
+  group('mit Kundenguthaben (Review I3)', () {
+    Rechnung mitGuthaben() => Rechnung(
+          id: 'abcdef1234567890',
+          userId: 'u',
+          rechnungsnummer: '2026-11-0001',
+          rechnungstyp: 'kundenrechnung',
+          betriebId: 'b',
+          rechnungsdatum: DateTime(2026, 11, 20),
+          faelligkeitsdatum: DateTime(2026, 12, 20),
+          betragNetto: 132.95,
+          mwstBetrag: 10.80,
+          betragBrutto: 143.75,
+          guthabenVerrechnet: 30,
+        );
+
+    test('abgeschrieben wird nur «zu zahlen», MWST anteilig', () {
+      final a = einzelAbschreibung(mitGuthaben(), heute: heute);
+      expect(a.brutto, 113.75);
+      // 10.80 × 113.75 / 143.75 = 8.546… → 8.55
+      expect(a.mwst, 8.55);
+      expect(a.netto, 105.20);
+      expect(a.guthaben, 30);
+    });
+
+    test('ohne Guthaben unverändert, guthaben 0', () {
+      final a = einzelAbschreibung(_rg(), heute: heute);
+      expect(a.guthaben, 0);
+      expect(a.brutto, 74.60);
+    });
+
+    test('ganz durch Guthaben gedeckt: nichts abzuschreiben', () {
+      final r = Rechnung(
+        id: 'abcdef1234567890',
+        userId: 'u',
+        rechnungstyp: 'kundenrechnung',
+        rechnungsdatum: DateTime(2026, 11, 20),
+        faelligkeitsdatum: DateTime(2026, 12, 20),
+        betragNetto: 18.50,
+        mwstBetrag: 1.50,
+        betragBrutto: 20,
+        guthabenVerrechnet: 20,
+      );
+      final a = einzelAbschreibung(r, heute: heute);
+      expect(a.brutto, 0);
+      expect(a.mwst, 0);
+      expect(a.netto, 0);
+      expect(a.guthaben, 20);
+    });
+  });
 }

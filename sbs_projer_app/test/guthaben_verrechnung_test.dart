@@ -122,20 +122,102 @@ void main() {
     });
   });
 
-  group('guthabenWirdVerrechnet', () {
+  group('guthabenWirdVerrechnet (Review I1: Grenze = Brutto − 0.05)', () {
     test('ohne Guthaben nie', () {
-      expect(guthabenWirdVerrechnet(zahlung: 10, summeZuZahlen: 10, summeGuthaben: 0),
+      expect(
+          guthabenWirdVerrechnet(
+              zahlung: 10, summeBrutto: 10, summeGuthaben: 0),
           isFalse);
     });
-    test('Zahlung bis zu zahlen + 0.05', () {
-      expect(
-          guthabenWirdVerrechnet(
-              zahlung: 113.80, summeZuZahlen: 113.75, summeGuthaben: 30),
-          isTrue);
-      expect(
-          guthabenWirdVerrechnet(
-              zahlung: 113.85, summeZuZahlen: 113.75, summeGuthaben: 30),
-          isFalse);
+    test('verrechnet, solange Zahlung < Brutto − 0.05', () {
+      for (final z in [113.75, 113.85, 120.0, 143.65]) {
+        expect(
+            guthabenWirdVerrechnet(
+                zahlung: z, summeBrutto: 143.75, summeGuthaben: 30),
+            isTrue,
+            reason: 'Zahlung $z');
+      }
+    });
+    test('ab Brutto − 0.05 nicht verrechnet', () {
+      for (final z in [143.70, 143.75, 150.0]) {
+        expect(
+            guthabenWirdVerrechnet(
+                zahlung: z, summeBrutto: 143.75, summeGuthaben: 30),
+            isFalse,
+            reason: 'Zahlung $z');
+      }
+    });
+  });
+
+  group('Review I1: Zwischenbeträge', () {
+    test('120 bei 143.75 / Guthaben 30 → 113.75 + 30 verrechnet + 6.25 Mehrzahlung', () {
+      final p = differenzPlan([_rg('a', 143.75, guthaben: 30)], 120);
+      expect(p.guthabenVerrechnet, isTrue);
+      expect(p.zeilen.single.bank, 113.75);
+      expect(p.zeilen.single.verrechnung, 30);
+      expect(p.differenz, 6.25);
+    });
+    test('143.70 → nicht verrechnet, Minderzahlung 0.05, Guthaben bleibt', () {
+      final p = differenzPlan([_rg('a', 143.75, guthaben: 30)], 143.70);
+      expect(p.guthabenVerrechnet, isFalse);
+      expect(p.guthabenZuruecksetzen, isTrue);
+      expect(p.zeilen.single.verrechnung, 0);
+      expect(p.zeilen.single.bank, 143.70);
+      expect(p.differenz, -0.05);
+      expect(p.zeilen.single.guthabenVorher, 30);
+    });
+    test('113.75 → verrechnet, keine Differenz', () {
+      final p = differenzPlan([_rg('a', 143.75, guthaben: 30)], 113.75);
+      expect(p.differenz, 0);
+      expect(p.zeilen.single.verrechnung, 30);
+      expect(p.zeilen.single.guthabenVorher, 0);
+    });
+    test('143.75 → nicht verrechnet, keine Differenz', () {
+      final p = differenzPlan([_rg('a', 143.75, guthaben: 30)], 143.75);
+      expect(p.differenz, 0);
+      expect(p.guthabenVerrechnet, isFalse);
+      expect(p.zeilen.single.bank, 143.75);
+    });
+  });
+
+  group('Review I4: Kürzung von hinten verteilen', () {
+    test('[a 100, b 30 mit Guthaben 30], Zahlung 95 → Bank 95', () {
+      final p = differenzPlan(
+          [_rg('a', 100), _rg('b', 30, guthaben: 30)], 95);
+      expect(p.guthabenVerrechnet, isTrue);
+      expect(p.differenz, -5);
+      expect(p.zeilen[0].bank, 95);
+      expect(p.zeilen[1].bank, 0);
+      expect(p.zeilen[1].verrechnung, 30);
+      final bank = p.zeilen.fold<double>(0, (s, z) => s + z.bank);
+      expect(bank, 95);
+    });
+    test('Verlust grösser als die letzte Zeile → auf mehrere verteilt', () {
+      final p = differenzPlan([_rg('a', 100), _rg('b', 10)], 80);
+      expect(p.differenz, -30);
+      expect(p.zeilen[1].bank, 0);
+      expect(p.zeilen[0].bank, 80);
+    });
+  });
+
+  group('Review I5: Guthaben-Stand in der Notiz', () {
+    test('Notiz hin und zurück', () {
+      expect(guthabenAusNotiz(guthabenNotiz(30)), 30);
+    });
+    test('fremde oder leere Notiz → null', () {
+      expect(guthabenAusNotiz(null), isNull);
+      expect(guthabenAusNotiz(''), isNull);
+      expect(guthabenAusNotiz('Phase2c Abschreibung'), isNull);
+      expect(guthabenAusNotiz('{"zahlungsstatus":"offen"}'), isNull);
+      expect(guthabenAusNotiz('{"guthaben_verrechnet":-3}'), isNull);
+    });
+  });
+
+  group('Review I2: ganz durch Guthaben gedeckt', () {
+    test('zu zahlen 0 → voll gedeckt', () {
+      expect(istVollMitGuthabenGedeckt(_rg('a', 20, guthaben: 20)), isTrue);
+      expect(istVollMitGuthabenGedeckt(_rg('a', 20, guthaben: 10)), isFalse);
+      expect(istVollMitGuthabenGedeckt(_rg('a', 20)), isFalse);
     });
   });
 

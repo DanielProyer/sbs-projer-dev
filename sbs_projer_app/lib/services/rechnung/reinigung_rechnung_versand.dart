@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
@@ -184,7 +185,8 @@ class ReinigungRechnungVersand {
       // ohnehin schon gesetzt; kommt sie nicht an, hat der Server ihn.
       if (MailConfig.istScharf('reinigung')) {
         await RechnungRepository.update(rechnung.id, {
-          'zahlungsstatus': 'gesendet',
+          // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
+          if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
           'versendet_am': DateTime.now().toIso8601String().split('T').first,
         });
       }
@@ -229,7 +231,8 @@ class ReinigungRechnungVersand {
 
       // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
       await RechnungRepository.update(rechnung.id, {
-        'zahlungsstatus': 'gesendet',
+        // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
+        if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
         'versendet_am': DateTime.now().toIso8601String().split('T').first,
       });
 

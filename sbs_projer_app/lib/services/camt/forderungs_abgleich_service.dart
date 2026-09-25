@@ -331,25 +331,31 @@ class ForderungsAbgleichService {
   /// Liefert die Anzahl gelöschter Buchungen (0 = war keine camt-Zahlung).
   static Future<int> zahlungRueckgaengig(Rechnung r) async {
     final ids = await BuchungRepository.getAktiveCamtZahlungsIds(r.id);
+    if (ids.isEmpty) return 0;
+    final alle = await BuchungRepository.getByBeleg(r.id);
+    // Wurde beim Verbuchen `guthaben_verrechnet` auf 0 gesetzt (voll
+    // bezahlt trotz Guthaben), steht der alte Wert in der Notiz der
+    // Zahlungsbuchung (Review I5) — er kommt zurück auf die Rechnung.
+    double? guthabenVorher;
+    for (final b in alle) {
+      if (!ids.contains(b.id)) continue;
+      guthabenVorher ??= guthabenAusNotiz(b.notizen);
+    }
     for (final id in ids) {
       await BuchungRepository.delete(id);
     }
     // Die Guthaben-Verrechnung (2030/1100, Belegtyp 'sonstiges') entstand
     // mit dieser Zahlung — sie muss mit weg, sonst wäre das Guthaben
     // verbraucht, ohne dass die Rechnung bezahlt ist.
-    if (ids.isNotEmpty) {
-      final alle = await BuchungRepository.getByBeleg(r.id);
-      for (final b in alle.where(istGuthabenVerrechnung)) {
-        await BuchungRepository.delete(b.id);
-      }
+    for (final b in alle.where(istGuthabenVerrechnung)) {
+      await BuchungRepository.delete(b.id);
     }
-    if (ids.isNotEmpty) {
-      await RechnungRepository.update(r.id, {
-        'zahlungsstatus': r.versendetAm != null ? 'gesendet' : 'offen',
-        'zahlung_eingegangen_am': null,
-        'zahlung_betrag': null,
-      });
-    }
+    await RechnungRepository.update(r.id, {
+      'zahlungsstatus': r.versendetAm != null ? 'gesendet' : 'offen',
+      'zahlung_eingegangen_am': null,
+      'zahlung_betrag': null,
+      if (guthabenVorher != null) 'guthaben_verrechnet': guthabenVorher,
+    });
     return ids.length;
   }
 }

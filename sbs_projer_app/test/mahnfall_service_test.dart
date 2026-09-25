@@ -84,6 +84,18 @@ void main() {
       );
       expect(t, contains("CHF 1'234.50"));
     });
+
+    test('mit Kundenguthaben: offen ist «zu zahlen» (Review M4)', () {
+      final t = MahnfallService.heinekenMailText(
+        betrieb: 'X',
+        rechnungen: [
+          r('c', 'N1', DateTime.utc(2026, 1, 5), 143.75)
+              .copyWith(guthabenVerrechnet: 30),
+        ],
+      );
+      expect(t, contains('CHF 113.75'));
+      expect(t, isNot(contains('143.75')));
+    });
   });
 
   group('schuldnerVorbelegung', () {

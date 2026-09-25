@@ -67,4 +67,8 @@ void main() {
       );
     });
   });
+
+  test('Guthaben-Verrechnung (2030/1100) ist keine Zahlung (Review I3)', () {
+    expect(zahlungGebucht([b(soll: 2030, typ: 'sonstiges')]), isFalse);
+  });
 }

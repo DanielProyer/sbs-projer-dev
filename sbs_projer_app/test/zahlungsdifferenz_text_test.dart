@@ -121,6 +121,19 @@ void main() {
       expect(d.text, contains('bleibt bestehen'));
       expect(d.text, isNot(contains('wird verrechnet')));
     });
+    test('Review I1: 120 → verrechnet + Mehrzahlung 6.25', () {
+      final d = bewerteDifferenz(120, 113.75, guthaben: 30);
+      expect(d.art, DifferenzArt.mehr);
+      expect(d.betrag, 6.25);
+      expect(d.text, contains('wird verrechnet'));
+      expect(d.text, contains('8000'));
+    });
+    test('Review I1: 143.70 → nicht verrechnet, Minderzahlung 0.05', () {
+      final d = bewerteDifferenz(143.70, 113.75, guthaben: 30);
+      expect(d.art, DifferenzArt.minder);
+      expect(d.betrag, 0.05);
+      expect(d.text, contains('bleibt bestehen'));
+    });
     test('ohne Guthaben und ohne Differenz nichts zeigen', () {
       final d = bewerteDifferenz(74.60, 74.60);
       expect(d.zeigen, isFalse);

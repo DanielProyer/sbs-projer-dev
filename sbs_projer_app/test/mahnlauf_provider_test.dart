@@ -334,6 +334,13 @@ void main() {
       expect(m.betriebe.single.gesperrt, isTrue);
     });
 
+    test('Rechnung im Mahnfall mit Guthaben → nur «mit Guthaben» (Review M4)',
+        () {
+      final m = bau([mitGuthaben(faellig('g1'))], faelleRechnungIds: {'g1'});
+      expect(m.imFall, isEmpty);
+      expect(m.mitGuthaben.map((r) => r.id), ['g1']);
+    });
+
     test('Einzelmahnung filtert die Liste mit', () {
       final m = bau([mitGuthaben(faellig('g1')), faellig('r2')]);
       expect(fuerEinzelmahnung(m, 'r2').mitGuthaben, isEmpty);

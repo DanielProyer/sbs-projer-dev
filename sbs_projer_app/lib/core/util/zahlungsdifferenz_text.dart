@@ -80,7 +80,7 @@ const double kBagatellGrenze = 1.00;
 ///
 /// [forderung] = Summe «zu zahlen» der gewählten Rechnungen, [guthaben] =
 /// Summe ihres verrechneten Kundenguthabens. Zahlt der Kunde trotz Guthaben
-/// den vollen Betrag, wird nicht verrechnet und gegen das Brutto verglichen
+/// den vollen Betrag (≥ Brutto − 0.05), wird nicht verrechnet und gegen das Brutto verglichen
 /// — dieselbe Regel wie beim Buchen ([guthabenWirdVerrechnet]).
 DifferenzInfo bewerteDifferenz(double zahlung, double forderung,
     {double guthaben = 0}) {
@@ -92,7 +92,9 @@ DifferenzInfo bewerteDifferenz(double zahlung, double forderung,
   if (guthaben > 0) {
     final g = guthaben.toStringAsFixed(2);
     if (guthabenWirdVerrechnet(
-        zahlung: zahlung, summeZuZahlen: forderung, summeGuthaben: guthaben)) {
+        zahlung: zahlung,
+        summeBrutto: forderung + guthaben,
+        summeGuthaben: guthaben)) {
       hinweis = 'Kundenguthaben CHF $g wird verrechnet '
           '($kKontoKundenguthaben)';
     } else {

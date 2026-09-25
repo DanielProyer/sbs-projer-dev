@@ -136,6 +136,15 @@ void main() {
       expect(gruende['g'], contains('0'));
     });
 
+    test('mit Kundenguthaben → ausgeschlossen, einzeln abschreiben (Review I3)',
+        () {
+      final r = _rg(id: 'k', datum: DateTime(2020, 5, 1))
+          .copyWith(guthabenVerrechnet: 30);
+      final a = auswahlFuer([r], geschaeftsjahr: 2026, betriebNamen: _namen);
+      expect(a.positionen, isEmpty);
+      expect(a.ausgeschlossen.single.grund, contains('Kundenguthaben'));
+    });
+
     test('Heineken und bezahlte bleiben stumm draussen', () {
       final a = auswahlFuer(offene, geschaeftsjahr: 2026, betriebNamen: _namen);
       final alle = [

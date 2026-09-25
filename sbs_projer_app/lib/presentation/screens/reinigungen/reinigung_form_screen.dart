@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
@@ -1033,7 +1034,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 // Testmodus ging die Mail an den Test-Empfänger, nicht an den Kunden.
                 if (MailConfig.istScharf('reinigung')) {
                   await RechnungRepository.update(rechnung.id, {
-                    'zahlungsstatus': 'gesendet',
+                    // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
+                    if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
                     'versendet_am': DateTime.now()
                         .toIso8601String()
                         .split('T')
@@ -1119,7 +1121,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 );
                 // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
                 await RechnungRepository.update(rechnung.id, {
-                  'zahlungsstatus': 'gesendet',
+                  // Ganz mit Guthaben verrechnet = schon bezahlt, Status nicht zurückdrehen.
+                  if (!istVollMitGuthabenGedeckt(rechnung)) 'zahlungsstatus': 'gesendet',
                   'versendet_am': DateTime.now()
                       .toIso8601String()
                       .split('T')

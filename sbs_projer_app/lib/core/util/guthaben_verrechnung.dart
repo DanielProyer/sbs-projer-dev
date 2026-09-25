@@ -7,11 +7,15 @@
 /// so ist der Debitor ausgeglichen, ohne dass die Differenz als Verlust 3805
 /// endet (Plan 2026-09-25-kundenguthaben, Task 3).
 ///
-/// Zahlt der Kunde trotz Guthaben den vollen Betrag (Zahlung >
-/// zu zahlen + 5 Rappen), wird NICHT verrechnet: Die Zahlung gilt gegen das
+/// Zahlt der Kunde trotz Guthaben (praktisch) den vollen Betrag — Zahlung ≥
+/// Brutto − 5 Rappen —, wird NICHT verrechnet: Die Zahlung gilt gegen das
 /// Brutto, `guthaben_verrechnet` der Rechnung geht auf 0 zurück und das
-/// Guthaben bleibt auf 2030 für die nächste Rechnung stehen.
+/// Guthaben bleibt auf 2030 für die nächste Rechnung stehen. Alles darunter
+/// verrechnet das Guthaben; ein Rest über «zu zahlen» ist Mehrzahlung
+/// (Review I1: 120 bei 143.75 / Guthaben 30 → 113.75 + 30 + 6.25 auf 8000).
 library;
+
+import 'dart:convert';
 
 import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
@@ -19,20 +23,25 @@ import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 
-/// Toleranz, bis zu der eine Zahlung noch als «zu zahlen» gilt.
+/// Toleranz unter dem Brutto, ab der eine Zahlung als «voll bezahlt» gilt.
 const double kGuthabenToleranz = 0.05;
 
 /// Wird das Guthaben verrechnet? Nur wenn Guthaben da ist und die Zahlung
-/// höchstens «zu zahlen» + 5 Rappen beträgt (alles 5-Rappen-gerundet).
+/// unter Brutto − 5 Rappen liegt (alles 5-Rappen-gerundet).
 bool guthabenWirdVerrechnet({
   required double zahlung,
-  required double summeZuZahlen,
+  required double summeBrutto,
   required double summeGuthaben,
 }) {
   if (rundeAuf5Rappen(summeGuthaben) <= 0) return false;
-  return rundeAuf5Rappen(zahlung) <=
-      rundeAuf5Rappen(summeZuZahlen) + kGuthabenToleranz + 1e-9;
+  return rundeAuf5Rappen(zahlung) <
+      rundeAuf5Rappen(summeBrutto) - kGuthabenToleranz - 1e-9;
 }
+
+/// Ganz durch Guthaben gedeckt: nichts zu zahlen (Review I2). Solche
+/// Rechnungen werden beim Anlegen sofort verrechnet und bezahlt gesetzt.
+bool istVollMitGuthabenGedeckt(Rechnung r) =>
+    r.guthabenVerrechnet > 0 && r.zuZahlen < 0.005;
 
 /// Eine Rechnung im Buchungsplan.
 class ZahlungsPlanZeile {
@@ -44,7 +53,13 @@ class ZahlungsPlanZeile {
   /// Verrechnung Soll 2030 / Haben 1100. 0 = keine Zeile.
   final double verrechnung;
 
-  const ZahlungsPlanZeile(this.rechnung, this.bank, this.verrechnung);
+  /// Wird `guthaben_verrechnet` auf 0 zurückgesetzt: der alte Wert (für die
+  /// Notiz der Zahlungsbuchung, damit «Zahlung rückgängig» ihn
+  /// zurückschreiben kann — Review I5). Sonst 0.
+  final double guthabenVorher;
+
+  const ZahlungsPlanZeile(this.rechnung, this.bank, this.verrechnung,
+      {this.guthabenVorher = 0});
 }
 
 /// Was beim Zuordnen einer Zahlung gebucht wird.
@@ -76,7 +91,7 @@ class DifferenzPlan {
       zeilen.fold<double>(0, (s, z) => s + z.verrechnung));
 
   /// `zahlung_betrag` der Rechnung beim Setzen auf bezahlt: was der Kunde
-  /// für diese Rechnung tatsächlich zu zahlen hatte.
+  /// für diese Rechnung zu zahlen hatte.
   double gezahltFuer(Rechnung r) =>
       guthabenVerrechnet ? r.zuZahlen : r.betragBrutto;
 }
@@ -84,23 +99,24 @@ class DifferenzPlan {
 /// Plant die Buchungen einer (Sammel-)Zahlung über [rechnungen].
 ///
 /// - Hauptzeile je Rechnung = «zu zahlen» (bzw. Brutto ohne Verrechnung),
-///   5-Rappen-gerundet; bei erlassener Minderzahlung wird die LETZTE Zeile
-///   um den Verlust gekürzt (Bank erhält nur den Zahlbetrag).
+///   5-Rappen-gerundet. Bei erlassener Minderzahlung wird der Verlust von
+///   HINTEN über die Hauptzeilen verteilt (je höchstens deren Basis) — die
+///   Bank erhält genau den Zahlbetrag (Review I4).
 /// - Verrechnungszeile je Rechnung mit Guthaben (nur wenn verrechnet).
 /// - Differenz gegen die Summe der Hauptzeilen-Basis.
 DifferenzPlan differenzPlan(List<Rechnung> rechnungen, double zahlbetrag) {
   final zahlung = rundeAuf5Rappen(zahlbetrag);
-  var summeZuZahlen = 0.0;
+  var summeBrutto = 0.0;
   var summeGuthaben = 0.0;
   for (final r in rechnungen) {
-    summeZuZahlen += rundeAuf5Rappen(r.zuZahlen);
+    summeBrutto += rundeAuf5Rappen(r.betragBrutto);
     summeGuthaben += r.guthabenVerrechnet > 0
         ? rundeAuf5Rappen(r.guthabenVerrechnet)
         : 0;
   }
   final verrechnen = guthabenWirdVerrechnet(
     zahlung: zahlung,
-    summeZuZahlen: summeZuZahlen,
+    summeBrutto: summeBrutto,
     summeGuthaben: summeGuthaben,
   );
   final zuruecksetzen = !verrechnen && rundeAuf5Rappen(summeGuthaben) > 0;
@@ -108,28 +124,32 @@ DifferenzPlan differenzPlan(List<Rechnung> rechnungen, double zahlbetrag) {
   double basis(Rechnung r) =>
       rundeAuf5Rappen(verrechnen ? r.zuZahlen : r.betragBrutto);
 
-  var summeBasis = 0.0;
-  for (final r in rechnungen) {
-    summeBasis += basis(r);
-  }
-  summeBasis = rundeAuf5Rappen(summeBasis);
+  final basen = [for (final r in rechnungen) basis(r)];
+  final summeBasis =
+      rundeAuf5Rappen(basen.fold<double>(0, (s, b) => s + b));
   final differenz = rundeAuf5Rappen(zahlung - summeBasis);
 
-  final kuerzung = (differenz < 0 &&
-          rechnungen.isNotEmpty &&
-          differenz.abs() < basis(rechnungen.last))
-      ? rundeAuf5Rappen(differenz.abs())
-      : 0.0;
+  // Verlust von hinten verteilen.
+  final bank = List<double>.of(basen);
+  if (differenz < 0) {
+    var rest = differenz.abs();
+    for (var i = bank.length - 1; i >= 0 && rest > 0.001; i--) {
+      final k = rest < bank[i] ? rest : bank[i];
+      bank[i] = rundeAuf5Rappen(bank[i] - k);
+      rest = rundeAuf5Rappen(rest - k);
+    }
+  }
 
   final zeilen = <ZahlungsPlanZeile>[
     for (var i = 0; i < rechnungen.length; i++)
       ZahlungsPlanZeile(
         rechnungen[i],
-        i == rechnungen.length - 1
-            ? rundeAuf5Rappen(basis(rechnungen[i]) - kuerzung)
-            : basis(rechnungen[i]),
+        bank[i],
         verrechnen && rechnungen[i].guthabenVerrechnet > 0
             ? rundeAuf5Rappen(rechnungen[i].guthabenVerrechnet)
+            : 0,
+        guthabenVorher: zuruecksetzen && rechnungen[i].guthabenVerrechnet > 0
+            ? rechnungen[i].guthabenVerrechnet
             : 0,
       ),
   ];
@@ -153,6 +173,28 @@ bool istGuthabenVerrechnung(Buchung b) =>
     b.habenKonto == 1100 &&
     b.belegTyp == 'sonstiges' &&
     zaehltFuerSaldo(istStorniert: b.istStorniert, stornoVonId: b.stornoVonId);
+
+const _notizSchluessel = 'guthaben_verrechnet';
+
+/// Notiz der Zahlungsbuchung, wenn `guthaben_verrechnet` beim Verbuchen auf
+/// 0 gesetzt wurde — «Zahlung rückgängig» schreibt den Wert zurück (I5).
+String guthabenNotiz(double vorher) => jsonEncode({_notizSchluessel: vorher});
+
+/// Gesicherter `guthaben_verrechnet`-Wert aus einer Buchungsnotiz, oder
+/// null (robust gegen fremde Notizen und Unsinn).
+double? guthabenAusNotiz(String? notizen) {
+  if (notizen == null || notizen.trim().isEmpty) return null;
+  Object? roh;
+  try {
+    roh = jsonDecode(notizen);
+  } catch (_) {
+    return null;
+  }
+  if (roh is! Map) return null;
+  final w = roh[_notizSchluessel];
+  if (w is! num || w <= 0) return null;
+  return w.toDouble();
+}
 
 /// Betrag einer Forderung für Abgleich-Listen: «zu zahlen», bei Guthaben
 /// mit Hinweis.

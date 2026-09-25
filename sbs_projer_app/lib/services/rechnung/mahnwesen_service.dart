@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 
 /// Abschreiben einer einzelnen Rechnung.
 ///
@@ -25,8 +27,16 @@ class MahnwesenService {
   /// und zieht nur den Status nach.
   static Future<void> abschreiben(Rechnung rechnung, {DateTime? heute}) async {
     final a = einzelAbschreibung(rechnung, heute: heute ?? DateTime.now());
-    final schon = abschreibungSchonGebucht(await BuchungRepository.getByBeleg(rechnung.id));
-    if (!schon) {
+    final buchungen = await BuchungRepository.getByBeleg(rechnung.id);
+    // Verrechnetes Kundenguthaben zuerst ausbuchen (2030/1100), dann nur
+    // «zu zahlen» abschreiben (Review Kundenguthaben I3). Steht die
+    // Verrechnung schon (Abbruch beim ersten Versuch), nicht doppelt.
+    if (a.guthaben > 0 && !buchungen.any(istGuthabenVerrechnung)) {
+      await ZahlungsdifferenzService.verrechnungBuchen(
+          rechnung, a.guthaben, a.datum);
+    }
+    final schon = abschreibungSchonGebucht(buchungen);
+    if (!schon && a.brutto >= 0.005) {
       await AbschreibungService.abschreiben(
         brutto: a.brutto,
         // Steuer der Rechnung, nicht Satz des Datums (Altjahrgänge!).

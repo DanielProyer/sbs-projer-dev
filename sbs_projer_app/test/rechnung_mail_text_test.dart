@@ -29,4 +29,12 @@ void main() {
       'mit dem beiliegenden Einzahlungsschein zu begleichen.',
     );
   });
+
+  test('ganz mit Guthaben gedeckt: nichts zu zahlen, kein Einzahlungsschein', () {
+    expect(
+      zahlungsSatzMail(_r(guthaben: 143.75)),
+      'Der Betrag wurde vollständig mit Ihrem Guthaben verrechnet — '
+      'es ist nichts zu zahlen.',
+    );
+  });
 }

@@ -1,6 +1,9 @@
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/guthaben.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Kundenguthaben (Konto 2030) je Betrieb — Supabase-only.
@@ -9,9 +12,11 @@ class GuthabenRepository {
 
   /// Offenes Guthaben aller Betriebe (Schlüssel `''` = Buchungen ohne
   /// zuordenbare Rechnung).
-  static Future<Map<String, double>> offenesGuthabenAlle() async {
-    // Seitenweise, `.order('id')` — siehe BuchungRepository.getByKonto.
-    final buchungen = await BuchungRepository.getByKonto(kKontoKundenguthaben);
+  static Future<Map<String, double>> offenesGuthabenAlle() async =>
+      // Seitenweise, `.order('id')` — siehe BuchungRepository.getByKonto.
+      _jeBetrieb(await BuchungRepository.getByKonto(kKontoKundenguthaben));
+
+  static Future<Map<String, double>> _jeBetrieb(List<Buchung> buchungen) async {
     final rechnungIds = buchungen
         .map((b) => b.belegId)
         .whereType<String>()
@@ -38,9 +43,19 @@ class GuthabenRepository {
     return offenesGuthabenJeBetrieb(buchungen, betriebVonRechnung);
   }
 
-  /// Offenes Guthaben eines Betriebs (0, wenn keines).
+  /// Für eine NEUE Rechnung verfügbares Guthaben eines Betriebs (0, wenn
+  /// keines): Saldo 2030 minus das, was offene Rechnungen schon verrechnet,
+  /// aber noch nicht gebucht haben ([verfuegbaresGuthaben], Review C1).
   static Future<double> offenesGuthaben(String betriebId) async {
-    final alle = await offenesGuthabenAlle();
-    return alle[betriebId] ?? 0;
+    final buchungen = await BuchungRepository.getByKonto(kKontoKundenguthaben);
+    final alle = await _jeBetrieb(buchungen);
+    final saldo = alle[betriebId] ?? 0;
+    if (saldo <= 0) return 0;
+    final verrechnet = <String>{
+      for (final b in buchungen)
+        if (istGuthabenVerrechnung(b) && b.belegId != null) b.belegId!,
+    };
+    final rechnungen = await RechnungRepository.getByBetrieb(betriebId);
+    return verfuegbaresGuthaben(saldo, rechnungen, verrechnet);
   }
 }

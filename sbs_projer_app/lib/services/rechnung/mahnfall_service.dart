@@ -402,7 +402,7 @@ class MahnfallService {
           final rechnungen = await _laden(fall);
           final offen = rechnungen
               .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
-              .fold<double>(0, (s, r) => s + r.betragBrutto);
+              .fold<double>(0, (s, r) => s + r.zuZahlen);
           final felder = <String, dynamic>{
             ...basis,
             'status': 'betreibung',
@@ -625,9 +625,9 @@ class MahnfallService {
       ..writeln();
     var total = 0.0;
     for (final r in rechnungen) {
-      total += r.betragBrutto;
+      total += r.zuZahlen;
       b.writeln('- Rechnung ${r.rechnungsnummer ?? '(ohne Nummer)'} vom '
-          '${_datum(r.rechnungsdatum)}: CHF ${chf(r.betragBrutto)}');
+          '${_datum(r.rechnungsdatum)}: CHF ${chf(r.zuZahlen)}');
       final verlauf = [
         if (r.erinnerungAm != null) 'Erinnerung ${_datum(r.erinnerungAm!)}',
         if (r.mahnung1Am != null) '1. Mahnung ${_datum(r.mahnung1Am!)}',

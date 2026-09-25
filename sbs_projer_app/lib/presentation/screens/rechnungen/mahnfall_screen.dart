@@ -199,7 +199,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
   // ─── Rechnungen ───
 
   Widget _rechnungenBlock(Mahnfall f, List<Rechnung> rechnungen) {
-    final total = rechnungen.fold(0.0, (s, r) => s + r.betragBrutto);
+    final total = rechnungen.fold(0.0, (s, r) => s + r.zuZahlen);
     final bezahlt = rechnungen.length == f.rechnungIds.length &&
         alleBezahlt(rechnungen.map((r) => r.zahlungsstatus).toList());
     return _karte(
@@ -232,7 +232,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
                     ),
                   ),
                   Text(
-                    'CHF ${r.betragBrutto.toStringAsFixed(2)}',
+                    'CHF ${r.zuZahlen.toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
@@ -458,7 +458,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
     final offen = rechnungen
         .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
         .toList();
-    final summe = offen.fold(0.0, (s, r) => s + r.betragBrutto);
+    final summe = offen.fold(0.0, (s, r) => s + r.zuZahlen);
     final fenster = f.zahlungsbefehlAm == null ? null : fortsetzungsFenster(f.zahlungsbefehlAm!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -516,7 +516,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
           children: [
             // Zins je Forderung ab der Erinnerung DIESER Rechnung (M-1).
             for (final r in offen) ...[
-              _zeile(r.rechnungsnummer ?? '—', 'CHF ${r.betragBrutto.toStringAsFixed(2)}'),
+              _zeile(r.rechnungsnummer ?? '—', 'CHF ${r.zuZahlen.toStringAsFixed(2)}'),
               Padding(
                 padding: const EdgeInsets.only(left: 110, bottom: 6),
                 child: Text(zinsZeile(r),

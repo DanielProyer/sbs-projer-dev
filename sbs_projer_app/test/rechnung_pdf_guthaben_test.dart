@@ -81,4 +81,33 @@ void main() {
     );
     expect(bytes.length, greaterThan(1000));
   });
+
+  group('ganz mit Guthaben gedeckt (Review I2)', () {
+    test('kein Zahlteil, Hinweissatz', () {
+      final r = _rechnung(guthaben: 143.75);
+      expect(RechnungPdfService.mitZahlteil(r), isFalse);
+      expect(RechnungPdfService.guthabenHinweis(r),
+          'Vollständig mit Ihrem Guthaben verrechnet — nichts zu zahlen.');
+    });
+    test('teilweise gedeckt: Zahlteil und bisheriger Satz', () {
+      final r = _rechnung(guthaben: 30);
+      expect(RechnungPdfService.mitZahlteil(r), isTrue);
+      expect(RechnungPdfService.guthabenHinweis(r),
+          'Ihr Guthaben aus der Überzahlung wurde verrechnet.');
+      expect(RechnungPdfService.guthabenHinweis(_rechnung()), isNull);
+      expect(RechnungPdfService.mitZahlteil(_rechnung()), isTrue);
+    });
+    test('PDF ohne Zahlteil wird erzeugt (Smoke)', () async {
+      final betrieb = BetriebLocal()
+        ..serverId = 'b1'
+        ..name = 'Chesa'
+        ..ort = 'Davos Platz';
+      final bytes = await RechnungPdfService.generate(
+        rechnung: _rechnung(guthaben: 143.75),
+        positionen: const [],
+        betrieb: betrieb,
+      );
+      expect(bytes.length, greaterThan(1000));
+    });
+  });
 }

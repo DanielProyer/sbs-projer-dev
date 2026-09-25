@@ -20,8 +20,9 @@ class ZahlungsdifferenzService {
   static bool _hatZahlung(List<Buchung> existing) => existing.any((b) =>
       b.belegTyp == 'zahlung' && !b.istStorniert && b.stornoVonId == null);
 
-  /// Verrechnungsbuchung Soll 2030 / Haben 1100 über das Guthaben der Rechnung.
-  static Future<Buchung> _verrechnung(
+  /// Verrechnungsbuchung Soll 2030 / Haben 1100 über das Guthaben der Rechnung
+  /// (auch vom Anlegen einer ganz gedeckten Rechnung und vom Abschreiben).
+  static Future<Buchung> verrechnungBuchen(
       Rechnung rechnung, double betrag, DateTime datum) {
     final rgNr = rechnung.rechnungsnummer ?? '';
     return BuchungRepository.create({
@@ -69,7 +70,7 @@ class ZahlungsdifferenzService {
     DateTime datumFuer(Rechnung r) => datumProRechnung?[r.id] ?? standard;
 
     // Erlassene Minderzahlung: Die Bank erhält nur den Zahlbetrag — die
-    // Hauptzeile der LETZTEN Rechnung wird um den Verlust gekürzt (der
+    // Hauptzeilen werden von hinten um den Verlust gekürzt (der
     // Debitor gleicht über die 3805-Verlustzeile trotzdem exakt aus).
     // Vorher buchte jede Hauptzeile das volle Rechnungsbrutto auf 1020 →
     // Bank überschoss um den erlassenen Betrag (Befund Nachhol-Import
@@ -106,12 +107,15 @@ class ZahlungsdifferenzService {
           'beleg_typ': 'zahlung',
           'beleg_id': rechnung.id,
           'geschaeftsjahr': rechnungDatum.year,
+          // Guthaben nicht verrechnet → alten Stand sichern (Review I5).
+          if (zeile.guthabenVorher > 0)
+            'notizen': guthabenNotiz(zeile.guthabenVorher),
         });
         erstellteBuchungen.add(buchung);
       }
       if (zeile.verrechnung >= 0.005) {
         erstellteBuchungen.add(
-            await _verrechnung(rechnung, zeile.verrechnung, rechnungDatum));
+            await verrechnungBuchen(rechnung, zeile.verrechnung, rechnungDatum));
       }
     }
     if (plan.guthabenZuruecksetzen) {
@@ -209,11 +213,13 @@ class ZahlungsdifferenzService {
           'beleg_typ': 'zahlung',
           'beleg_id': rechnung.id,
           'geschaeftsjahr': tag.year,
+          if (zeile.guthabenVorher > 0)
+            'notizen': guthabenNotiz(zeile.guthabenVorher),
         }));
       }
       if (zeile.verrechnung >= 0.005) {
         erstellteBuchungen
-            .add(await _verrechnung(rechnung, zeile.verrechnung, tag));
+            .add(await verrechnungBuchen(rechnung, zeile.verrechnung, tag));
       }
       if (plan.guthabenZuruecksetzen) {
         await _guthabenZuruecksetzen([rechnung]);

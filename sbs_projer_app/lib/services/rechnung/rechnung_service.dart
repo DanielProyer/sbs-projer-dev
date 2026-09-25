@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/util/guthaben.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
+import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/repositories/guthaben_repository.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -69,6 +71,35 @@ class RechnungService {
     }
   }
 
+  /// Ganz durch Guthaben gedeckte Rechnung (zu zahlen = 0, Review I2):
+  /// sofort Soll 2030 / Haben 1100 buchen und die Rechnung bezahlt setzen
+  /// (`zahlung_betrag` 0, Eingang = Rechnungsdatum). Sonst stünde sie mit
+  /// 0.00 im Mahnlauf, und das Guthaben bliebe bis zu einem Zahlungseingang
+  /// reserviert, der nie kommt.
+  ///
+  /// **Wirft nie** (wie [guthabenFuerNeueRechnung]) — scheitert es, bleibt
+  /// die Rechnung offen und erscheint im Mahnlauf unter «Mit Guthaben
+  /// verrechnet — manuell prüfen». Gibt die (ggf. bezahlte) Rechnung zurück.
+  static Future<Rechnung> guthabenVollVerrechnen(Rechnung rechnung) async {
+    if (!istVollMitGuthabenGedeckt(rechnung)) return rechnung;
+    try {
+      final datum = rechnung.rechnungsdatum;
+      await ZahlungsdifferenzService.verrechnungBuchen(
+          rechnung, rundeAuf5Rappen(rechnung.guthabenVerrechnet), datum);
+      final tag = datum.toIso8601String().split('T').first;
+      await RechnungRepository.update(rechnung.id, {
+        'zahlungsstatus': 'bezahlt',
+        'zahlung_betrag': 0,
+        'zahlung_eingegangen_am': tag,
+      });
+      return (await RechnungRepository.getById(rechnung.id)) ?? rechnung;
+    } catch (e) {
+      debugPrint('Guthaben-Vollverrechnung fehlgeschlagen '
+          '(${rechnung.rechnungsnummer}): $e');
+      return rechnung;
+    }
+  }
+
   static double _nettoSumme(List<Map<String, dynamic>> positionen) {
     var netto = 0.0;
     for (final p in positionen) {
@@ -118,7 +149,7 @@ class RechnungService {
           await guthabenFuerNeueRechnung(betrieb.serverId, brutto);
 
       // 3. Rechnung erstellen
-      final rechnung = await RechnungRepository.create({
+      final angelegt = await RechnungRepository.create({
         'rechnungsnummer': rechnungsnummer,
         'rechnungstyp': 'kundenrechnung',
         'betrieb_id': betrieb.serverId,
@@ -135,6 +166,8 @@ class RechnungService {
         'zahlungsstatus': 'offen',
         'versandart': art,
       });
+      // Nichts zu zahlen? Dann sofort verrechnen und bezahlt setzen.
+      final rechnung = await guthabenVollVerrechnen(angelegt);
 
       // 4. Positionen mit rechnung_id erstellen
       for (final p in positionen) {

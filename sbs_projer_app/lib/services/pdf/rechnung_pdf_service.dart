@@ -97,24 +97,30 @@ class RechnungPdfService {
                     pw.SizedBox(height: 16),
                     _buildSummen(rechnung),
                     pw.SizedBox(height: 20),
-                    _buildZahlungsInfo(),
+                    if (mitZahlteil(rechnung)) _buildZahlungsInfo(),
                   ],
                 ),
               ),
 
               pw.Spacer(),
 
-              if (rechnung.guthabenVerrechnet > 0)
+              if (guthabenHinweis(rechnung) != null)
                 pw.Padding(
-                  padding: const pw.EdgeInsets.fromLTRB(50, 0, 50, 8),
+                  padding: pw.EdgeInsets.fromLTRB(
+                      50, 0, 50, mitZahlteil(rechnung) ? 8 : 40),
                   child: pw.Text(
-                    'Ihr Guthaben aus der Überzahlung wurde verrechnet.',
-                    style: const pw.TextStyle(fontSize: 9, color: _grey),
+                    guthabenHinweis(rechnung)!,
+                    style: mitZahlteil(rechnung)
+                        ? const pw.TextStyle(fontSize: 9, color: _grey)
+                        : pw.TextStyle(
+                            fontSize: 11, fontWeight: pw.FontWeight.bold),
                   ),
                 ),
 
-              // === QR-ZAHLTEIL (untere 105mm) ===
-              QrZahlteil.bauen(
+              // === QR-ZAHLTEIL (untere 105mm) — entfällt, wenn das
+              // Guthaben alles deckt (Review I2) ===
+              if (mitZahlteil(rechnung))
+                QrZahlteil.bauen(
                 zahlBetrag,
                 kundeAddr,
                 mitteilung:
@@ -351,6 +357,19 @@ class RechnungPdfService {
   /// eines Kundenguthabens), auf 5 Rappen.
   static double qrBetrag(Rechnung rechnung) =>
       _roundTo5Rappen(rechnung.zuZahlen);
+
+  /// Zahlteil nur, wenn etwas zu zahlen ist — deckt das Guthaben alles,
+  /// wäre ein Einzahlungsschein über 0.00 verwirrend (Review I2).
+  static bool mitZahlteil(Rechnung rechnung) =>
+      !(rechnung.guthabenVerrechnet > 0 && qrBetrag(rechnung) < 0.005);
+
+  /// Satz über dem Zahlteil bei verrechnetem Guthaben, sonst null.
+  static String? guthabenHinweis(Rechnung rechnung) {
+    if (rechnung.guthabenVerrechnet <= 0) return null;
+    return mitZahlteil(rechnung)
+        ? 'Ihr Guthaben aus der Überzahlung wurde verrechnet.'
+        : 'Vollständig mit Ihrem Guthaben verrechnet — nichts zu zahlen.';
+  }
 
   /// Zeilen des Summenblocks. Bei verrechnetem Guthaben folgen auf «Total»
   /// der Abzug und fett «Zu zahlen» — Betrag, Ertrag und MWST der Rechnung
