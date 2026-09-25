@@ -15,12 +15,10 @@
  * - Kein `%` (verhindert Doppel-Kodierungstricks), kein `\`, kein führender
  *   `/`, keine leeren Segmente (z. B. durch `//`).
  *
- * WICHTIG — was das NICHT ist: Diese Function läuft ohne JWT-Prüfung,
- * `userId` kommt ungeprüft aus dem Request-Body. Diese Prüfung verhindert
- * NUR, dass ein Pfad aus dem eigenen Benutzer-Ordner ausbricht oder sich als
- * fremder Pfad tarnt — sie ersetzt KEINE Authentifizierung. Mittelfristig
- * bräuchte diese Function eine echte JWT-Prüfung (`Authorization`-Header
- * gegen Supabase Auth verifizieren); das ist hier bewusst NICHT umgesetzt.
+ * Seit v24 (25.09.2026) kommt `userId` aus dem geprüften JWT
+ * (`ermittleUserId` in index.ts), nicht mehr aus dem Body. Diese Prüfung
+ * verhindert zusätzlich, dass ein Pfad aus dem eigenen Benutzer-Ordner
+ * ausbricht oder sich als fremder Pfad tarnt.
  */
 export function zusatzPdfPfadErlaubt(pfad: unknown, userId: string): pfad is string {
   if (typeof pfad !== "string" || pfad.length === 0) return false;
@@ -38,6 +36,36 @@ export function zusatzPdfPfadErlaubt(pfad: unknown, userId: string): pfad is str
     if (!gueltig.test(s)) return false;
   }
   return true;
+}
+
+/**
+ * UUID (v4-artig, wie Supabase sie vergibt) — für `rechnungId`/`bestellungId`,
+ * die direkt in einen Storage-Pfad eingebaut werden (v24: vorher ungeprüft).
+ */
+export function istUuid(wert: unknown): wert is string {
+  return typeof wert === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wert);
+}
+
+/**
+ * Dateiname des Rechnungs-/Mahnungs-PDFs (`pdfPath`): genau EIN Segment,
+ * `.pdf`, nur `[A-Za-z0-9_-]` davor — kein `/`, kein `..`, kein `%`.
+ * Erlaubt damit `rechnung.pdf` und `mahnung_1.pdf`, nichts, was den Ordner
+ * `<userId>/<rechnungId>/` verlässt.
+ */
+export function pdfDateinameErlaubt(wert: unknown): wert is string {
+  return typeof wert === "string" && /^[A-Za-z0-9_-]{1,80}\.pdf$/.test(wert);
+}
+
+/**
+ * Pfad des Protokoll-Fotos im Bucket `reinigung-fotos`: gleiche Regeln wie
+ * [zusatzPdfPfadErlaubt] (erstes Segment = userId), zusätzlich muss die
+ * Endung eine der bekannten sein — sonst würde ein beliebiger Bucket-Inhalt
+ * als «Reinigungsprotokoll» verschickt.
+ */
+export function protokollPfadErlaubt(pfad: unknown, userId: string): pfad is string {
+  if (!zusatzPdfPfadErlaubt(pfad, userId)) return false;
+  return /\.(pdf|jpe?g|png|webp)$/i.test(pfad);
 }
 
 /**

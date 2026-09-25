@@ -1,13 +1,43 @@
 // Supabase Edge Function: send-rechnung-mail
 // Sendet E-Mail mit PDF-Anhängen (Rechnung + Protokoll) via Gmail API.
-// Deploy: supabase functions deploy send-rechnung-mail --no-verify-jwt
+// Deploy: supabase functions deploy send-rechnung-mail   (verify_jwt = true, siehe config.toml)
 // Secrets: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN
+//
+// Sicherheit (v24, 25.09.2026): Die Function prüft das User-JWT SELBST
+// (`ermittleUserId`) und nimmt `userId` nicht mehr aus dem Body — vorher
+// konnte jeder mit der Anon-Key-URL Mails über Daniels Gmail verschicken und
+// beliebige Storage-Pfade unter einer fremden userId lesen. Alle Pfadteile
+// aus dem Body (rechnungId, bestellungId, pdfPath, protokollFotoPfad,
+// zusatzPdfs) werden streng geprüft (pfad_pruefung.ts).
 
 import {
   bereinigeDateiname,
+  istUuid,
   kodierePfad,
+  pdfDateinameErlaubt,
+  protokollPfadErlaubt,
   zusatzPdfPfadErlaubt,
 } from "./pfad_pruefung.ts";
+
+/**
+ * Liest den angemeldeten Benutzer aus dem `Authorization: Bearer <JWT>`-Header
+ * über die Auth-API (`/auth/v1/user`). Gibt null zurück, wenn kein oder ein
+ * ungültiges Token mitkommt. Die App schickt das JWT automatisch über
+ * `functions.invoke`; das Gateway prüft es zusätzlich (verify_jwt = true).
+ */
+async function ermittleUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY not configured");
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": auth },
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0 ? user.id : null;
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -253,11 +283,45 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId, testMode, pdfPath, markiereVersandt, zusatzPdfs } = await req.json();
+    // 0. Wer ruft? Ohne gültiges JWT geht gar nichts — auch keine Test-Mail
+    //    (sonst wäre die Function ein offener Mailversand über Daniels Gmail).
+    const userId = await ermittleUserId(req);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "unauthorized" }),
+        { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { to, subject, bodyText, rechnungId, protokollFotoPfad, bestellungId, userId: bodyUserId, testMode, pdfPath, markiereVersandt, zusatzPdfs } = await req.json();
+
+    // Der Body darf keine andere userId behaupten als das Token belegt.
+    if (bodyUserId !== undefined && bodyUserId !== userId) {
+      return new Response(
+        JSON.stringify({ error: "userId passt nicht zum angemeldeten Benutzer" }),
+        { status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+      );
+    }
 
     if (!to || !subject) {
       return new Response(
         JSON.stringify({ error: "to, subject are required" }),
+        { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Pfadteile aus dem Body streng prüfen, BEVOR irgendetwas aus dem
+    // Storage geladen wird.
+    const ungueltig: string[] = [];
+    if (rechnungId !== undefined && rechnungId !== null && !istUuid(rechnungId)) ungueltig.push("rechnungId");
+    if (bestellungId !== undefined && bestellungId !== null && !istUuid(bestellungId)) ungueltig.push("bestellungId");
+    if (pdfPath !== undefined && pdfPath !== null && !pdfDateinameErlaubt(pdfPath)) ungueltig.push("pdfPath");
+    if (protokollFotoPfad !== undefined && protokollFotoPfad !== null && !protokollPfadErlaubt(protokollFotoPfad, userId)) {
+      ungueltig.push("protokollFotoPfad");
+    }
+    if (ungueltig.length > 0) {
+      return new Response(
+        JSON.stringify({ error: `ungültige Angabe: ${ungueltig.join(", ")}` }),
         { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
@@ -289,13 +353,6 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ success: true, messageId: result.id, test: true }),
         { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
-      );
-    }
-
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: "userId is required" }),
-        { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
 

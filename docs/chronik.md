@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 25.09.2026 — Edge Function send-rechnung-mail v24: JWT-Pflicht, Pfadprüfung
 - 25.09.2026 — v0.137.0 Kundenguthaben (Verrechnung mit der nächsten Rechnung)
 - 24.09.2026 — v0.136.0 Mahnwesen Teil 3: Hinweis beim Service, bar einkassieren
 - 24.09.2026 — v0.135.0 Mahnwesen Teil 2: Mahnfall (Heineken, Betreibung)
@@ -21,6 +22,18 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 25.09.2026 — Edge Function send-rechnung-mail v24: JWT-Pflicht, Pfadprüfung
+
+- Befund 23.09.: Function lief ohne JWT-Prüfung, `userId` und alle
+  Storage-Pfade kamen ungeprüft aus dem Body — offener Mailversand über
+  Daniels Gmail und Lesezugriff auf fremde Pfade möglich.
+- Neu: `verify_jwt = true` (config.toml + Deploy), `ermittleUserId` prüft das
+  Token selbst, Body-`userId` muss dazu passen; `istUuid`, `pdfDateinameErlaubt`,
+  `protokollPfadErlaubt` in `pfad_pruefung.ts` (20 Deno-Tests). Test-Modus
+  ebenfalls nur mit Token. Ohne Token/nur Anon-Key: 401 (curl-geprüft).
 
 ---
 

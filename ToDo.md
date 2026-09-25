@@ -272,6 +272,15 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 🔨 Bauen, wenn wieder Zeit ist
 
+- ✅ **Edge Function `send-rechnung-mail` abgesichert (v24, 25.09.2026):**
+  JWT-Pflicht (Gateway `verify_jwt = true` + eigene Prüfung `/auth/v1/user`),
+  `userId` kommt aus dem Token, nicht mehr aus dem Body; `rechnungId`/
+  `bestellungId` müssen UUIDs sein, `pdfPath` ein einzelner `.pdf`-Name,
+  `protokollFotoPfad` im eigenen Ordner mit Bild-/PDF-Endung. Ohne Token und
+  mit blossem Anon-Key: 401 (geprüft per curl). **Offen: Positiv-Probe** —
+  nach dem Login eine Rechnung erneut senden oder eine Test-Mahnung, damit
+  sicher ist, dass der App-Aufruf mit JWT weiterhin durchgeht.
+
 Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
 «Jahrgang abschreiben» seit v0.116.0 gebaut. Was bleibt:
 

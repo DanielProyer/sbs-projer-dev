@@ -1,12 +1,45 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   bereinigeDateiname,
+  istUuid,
   kodierePfad,
+  pdfDateinameErlaubt,
+  protokollPfadErlaubt,
   zusatzPdfPfadErlaubt,
 } from "./pfad_pruefung.ts";
 
 const USER = "11111111-1111-1111-1111-111111111111";
 const RECHNUNG = "22222222-2222-2222-2222-222222222222";
+
+Deno.test("istUuid: echte UUID ja, alles andere nein", () => {
+  assertEquals(istUuid(RECHNUNG), true);
+  assertEquals(istUuid(RECHNUNG.toUpperCase()), true);
+  assertEquals(istUuid(`${RECHNUNG}/../x`), false);
+  assertEquals(istUuid("..") , false);
+  assertEquals(istUuid(""), false);
+  assertEquals(istUuid(null), false);
+  assertEquals(istUuid(42), false);
+});
+
+Deno.test("pdfDateinameErlaubt: nur ein Segment mit .pdf", () => {
+  assertEquals(pdfDateinameErlaubt("rechnung.pdf"), true);
+  assertEquals(pdfDateinameErlaubt("mahnung_2.pdf"), true);
+  assertEquals(pdfDateinameErlaubt("../x/rechnung.pdf"), false);
+  assertEquals(pdfDateinameErlaubt("rechnung.pdf/../../y.pdf"), false);
+  assertEquals(pdfDateinameErlaubt("rechnung.PDF"), false);
+  assertEquals(pdfDateinameErlaubt("rechnung.exe"), false);
+  assertEquals(pdfDateinameErlaubt("%2e%2e.pdf"), false);
+  assertEquals(pdfDateinameErlaubt(undefined), false);
+});
+
+Deno.test("protokollPfadErlaubt: eigener Pfad mit Bild-/PDF-Endung", () => {
+  assertEquals(protokollPfadErlaubt(`${USER}/${RECHNUNG}/1790321845952.pdf`, USER), true);
+  assertEquals(protokollPfadErlaubt(`${USER}/${RECHNUNG}/foto.JPG`, USER), true);
+  assertEquals(protokollPfadErlaubt(`anderer/${RECHNUNG}/foto.jpg`, USER), false);
+  assertEquals(protokollPfadErlaubt(`${USER}/../x/foto.jpg`, USER), false);
+  assertEquals(protokollPfadErlaubt(`${USER}/${RECHNUNG}/geheim.txt`, USER), false);
+  assertEquals(protokollPfadErlaubt(null, USER), false);
+});
 
 Deno.test("zusatzPdfPfadErlaubt: gewöhnlicher eigener Pfad ist erlaubt", () => {
   assertEquals(

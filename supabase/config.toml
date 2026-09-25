@@ -405,3 +405,9 @@ verify_jwt = true
 
 [functions.typenschild-lesen]
 verify_jwt = true
+
+# Mailversand über Daniels Gmail: ohne JWT-Prüfung wäre das ein offener
+# Mailserver plus Lesezugriff auf fremde Storage-Pfade (Befund 23.09.2026,
+# behoben v24 am 25.09.2026). Die Function prüft das Token zusätzlich selbst.
+[functions.send-rechnung-mail]
+verify_jwt = true
