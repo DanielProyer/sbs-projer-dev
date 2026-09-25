@@ -61,6 +61,16 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 💰 Forderungen und Daten
 
+- **Debitoren 1100 vs. offene Rechnungen: Rest −3'674.70 (Stand 25.09.2026 nach
+  Runde 1).** Von den −13'776.86 aus der Analyse waren 10'102.16 die fehlende
+  Ertragsbuchung der Heineken-Rechnung Juli 2026 (2026-08-1370) — am 25.09.
+  über den neuen Knopf «Ertragsbuchung nachholen» gebucht (1100/3400,
+  Netto 9'345.20, MWST 756.96, Datum 31.07. → zählt in Q3/2026). Der Rest
+  stammt aus den Excel-Jahren 2020–2025 (1100 wurde dort nie je Rechnung
+  geführt; Altlast-Rechnungen offen > Konto). **Entscheid Daniel:** bei der
+  Jahrgangs-Abschreibung 2020+2021 im Abschluss 2026 mit ausbuchen oder als
+  Eröffnungs-Korrektur? Kleinere Reste 2026: 2026-04-0249 Minderzahlung 2.20
+  ohne 3805; 2026-08-1386 «bezahlt» ohne Zahlungsbuchung (von Hand gesetzt?).
 - **✅ Excel-Zahlungen mit Rechnungen verknüpft (24.09.2026).** Zahlungen bis
   11.03.2026 kamen aus dem Excel ohne `beleg_id`; 30 Rechnungen standen deshalb
   trotz Zahlung auf «offen» (u. a. Gemsli, Alpina, Obertor, Calanda). Erledigt:
