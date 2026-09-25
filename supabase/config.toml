@@ -416,3 +416,46 @@ verify_jwt = true
 # (Analyse 5); seit v2 JWT-Pflicht + eigene Prüfung + Header-Schutz.
 [functions.send-pdf-mail]
 verify_jwt = true
+
+# Ab 25.09.2026 (Analyse R11/Q3): JEDE Function hat hier einen Eintrag —
+# supabase/functions/_waechter_test.ts bricht sonst ab. verify_jwt = true
+# lässt den öffentlichen Anon-Key durch (er ist ein gültiges JWT); die
+# eigentliche Prüfung macht jede Function selbst (auth.getUser /
+# ermittleUserId, beim Nacht-Cron x-cron-secret).
+[functions.parse-einsatz]
+verify_jwt = true
+
+[functions.parse-oeffnungszeiten]
+verify_jwt = true
+
+[functions.parse-protokoll]
+verify_jwt = true
+
+[functions.betrieb-google-lookup]
+verify_jwt = true
+
+[functions.betrieb-google-abgleich]
+verify_jwt = true
+
+# Nacht-Cron (Migration 162/206) schickt den Anon-Key als Bearer fürs
+# Gateway und das CRON_SECRET im Header x-cron-secret.
+[functions.betriebsdaten-abgleich]
+verify_jwt = true
+
+[functions.anfahrt-google]
+verify_jwt = true
+
+[functions.fahrzeit-route]
+verify_jwt = true
+
+[functions.google-oauth-exchange]
+verify_jwt = true
+
+[functions.google-calendar-sync]
+verify_jwt = true
+
+[functions.google-calendar-disconnect]
+verify_jwt = true
+
+[functions.google-contacts-sync]
+verify_jwt = true

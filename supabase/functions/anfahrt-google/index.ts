@@ -6,9 +6,16 @@
 // hält beide Werte nebeneinander; `minuten` bevorzugt Google (Migration 157).
 //
 // Zwei Betriebsarten:
-//   POST {}                    -> alle Betriebe mit GPS (Einmal-Lauf)
+//   POST {}                    -> Voll-Lauf: Betriebe mit GPS, seitenweise
+//   POST {"limit": 200, "offset": 200}  (limit hoechstens 200, sortiert nach id)
 //   POST {"betriebId": "..."}  -> nur dieser Betrieb (neuer Betrieb aus dem
 //                                 Formular, direkt nach «aus Google übernehmen»)
+//
+// Zugang (seit 25.09.2026, Analyse R11): nur angemeldete Benutzer, und nur
+// deren eigene Betriebe. Vorher genuegte der Anon-Key fuer einen Voll-Lauf
+// ueber alle Betriebe (Google-Kosten) plus Upsert in `anfahrtszeiten`; die
+// user_id der Zeilen wurde aus «irgendeiner» bestehenden Zeile geraten —
+// jetzt ist es der angemeldete Benutzer.
 //
 // Secret: GOOGLE_PLACES_KEY (derselbe Key wie betrieb-google-lookup — die
 // Routes API muss im Google-Cloud-Projekt aktiviert sein; ohne sie liefert
@@ -23,12 +30,39 @@ const STARTORTE = [
 
 // computeRouteMatrix: origins × destinations ≤ 625 pro Anfrage.
 const CHUNK = 300;
+// Voll-Lauf seitenweise: begrenzt die Google-Kosten je Aufruf.
+const MAX_LIMIT = 200;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Die App ruft die Function aus dem Browser auf (Web-Build) — ohne CORS
+// scheitert dort schon der Preflight.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
+}
+
+/** Angemeldeter Benutzer aus dem Bearer-JWT (Auth-API), sonst null. */
+async function ermittleUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY not configured");
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": auth },
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0 ? user.id : null;
 }
 
 /// OSRM-Fallback: eine Strecke Startort -> Betrieb. `null` bei jedem Fehler
@@ -60,7 +94,16 @@ async function osrmStrecke(
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ error: "POST erwartet" }, 405);
+
+  let userId: string | null;
+  try {
+    userId = await ermittleUserId(req);
+  } catch (e) {
+    return json({ error: (e as Error).message }, 500);
+  }
+  if (!userId) return json({ error: "unauthorized" }, 401);
 
   const apiKey = Deno.env.get("GOOGLE_PLACES_KEY");
 
@@ -71,31 +114,46 @@ Deno.serve(async (req) => {
 
   // Optionaler Einzelbetrieb (Aufruf aus dem Betriebs-Formular).
   let nurBetriebId: string | null = null;
+  let limit = MAX_LIMIT;
+  let offset = 0;
+  // deno-lint-ignore no-explicit-any
+  let body: any = {};
   try {
-    const body = await req.json();
-    if (typeof body?.betriebId === "string") nurBetriebId = body.betriebId;
+    body = await req.json();
   } catch (_) {
-    // leerer Body = Voll-Lauf
+    // leerer Body = Voll-Lauf (erste Seite)
+  }
+  if (body?.betriebId !== undefined) {
+    if (typeof body.betriebId !== "string" || !UUID_RE.test(body.betriebId)) {
+      return json({ error: "betriebId muss eine UUID sein" }, 400);
+    }
+    nurBetriebId = body.betriebId;
+  }
+  if (typeof body?.limit === "number" && Number.isFinite(body.limit) && body.limit > 0) {
+    limit = Math.min(Math.floor(body.limit), MAX_LIMIT);
+  }
+  if (typeof body?.offset === "number" && Number.isFinite(body.offset) && body.offset > 0) {
+    offset = Math.floor(body.offset);
   }
 
   let query = supabase
     .from("betriebe")
     .select("id, latitude, longitude")
+    .eq("user_id", userId)
     .not("latitude", "is", null)
     .not("longitude", "is", null);
-  if (nurBetriebId) query = query.eq("id", nurBetriebId);
+  if (nurBetriebId) {
+    query = query.eq("id", nurBetriebId);
+  } else {
+    query = query.order("id").range(offset, offset + limit - 1);
+  }
 
-  const { data: betriebe, error } = await query;
+  const { data, error } = await query;
+  const betriebe = (data ?? []) as { id: string; latitude: number; longitude: number }[];
   if (error) return json({ error: error.message }, 500);
-  if (!betriebe?.length) return json({ error: "keine Betriebe mit GPS" }, 400);
-
-  // user_id für die Zeilen: derselbe Nutzer wie die bestehenden Einträge.
-  const { data: vorhanden } = await supabase
-    .from("anfahrtszeiten")
-    .select("user_id")
-    .limit(1);
-  const userId = vorhanden?.[0]?.user_id;
-  if (!userId) return json({ error: "keine user_id ermittelbar" }, 400);
+  if (!betriebe.length) return json({ error: "keine Betriebe mit GPS" }, 400);
+  // Voll-Lauf: Hinweis fuer die naechste Seite (null = fertig).
+  const naechsterOffset = !nurBetriebId && betriebe.length === limit ? offset + limit : null;
 
   let geschrieben = 0;
   let osrmGeschrieben = 0;
@@ -141,6 +199,7 @@ Deno.serve(async (req) => {
       geschrieben,
       osrmGeschrieben,
       betriebe: betriebe.length,
+      naechsterOffset,
       fehler: [...fehler, "GOOGLE_PLACES_KEY fehlt — nur OSRM"],
     });
   }
@@ -234,6 +293,7 @@ Deno.serve(async (req) => {
     geschrieben,
     osrmGeschrieben,
     betriebe: betriebe.length,
+    naechsterOffset,
     fehler,
   });
 });

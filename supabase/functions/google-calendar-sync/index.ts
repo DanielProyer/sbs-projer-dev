@@ -284,15 +284,18 @@ function buildEvent(entityType: string, row: Any): Any | null {
   return null;
 }
 
-async function loadEntity(admin: Any, entityType: string, entityId: string): Promise<Any> {
+// Liest per Service-Role — darum IMMER mit user_id-Filter (Analyse
+// 25.09.2026: vorher liess sich mit einer fremden entity_id jede Zeile aus
+// sechs Tabellen in den eigenen Kalender spiegeln; relevant bei Multi-Tenant).
+async function loadEntity(admin: Any, userId: string, entityType: string, entityId: string): Promise<Any> {
   if (entityType === "aufgabe") {
-    const { data } = await admin.from("aufgaben").select("*").eq("id", entityId).maybeSingle();
+    const { data } = await admin.from("aufgaben").select("*").eq("id", entityId).eq("user_id", userId).maybeSingle();
     return data;
   }
   if (entityType === "termin") {
-    const { data } = await admin.from("termine").select("*").eq("id", entityId).maybeSingle();
+    const { data } = await admin.from("termine").select("*").eq("id", entityId).eq("user_id", userId).maybeSingle();
     if (data && data.betrieb_id) {
-      const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).maybeSingle();
+      const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).eq("user_id", userId).maybeSingle();
       data.betrieb_name = b?.name ?? "";
     }
     return data;
@@ -307,20 +310,20 @@ async function loadEntity(admin: Any, entityType: string, entityId: string): Pro
     const rawId = entityId.substring(sep + 1);
     const table = art === "stoerung" ? "stoerungen" : art === "montage" ? "montagen" : null;
     if (!table) return null;
-    const { data } = await admin.from(table).select("*").eq("id", rawId).maybeSingle();
+    const { data } = await admin.from(table).select("*").eq("id", rawId).eq("user_id", userId).maybeSingle();
     if (!data) return null;
     data.einsatz_art = art;
     if (data.betrieb_id) {
-      const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).maybeSingle();
+      const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).eq("user_id", userId).maybeSingle();
       data.betrieb_name = b?.name ?? "";
     }
     return data;
   }
   const table = entityType === "pikett" ? "pikett_dienste" : entityType === "event" ? "events" : null;
   if (!table) return null;
-  const { data } = await admin.from(table).select("*").eq("id", entityId).maybeSingle();
+  const { data } = await admin.from(table).select("*").eq("id", entityId).eq("user_id", userId).maybeSingle();
   if (data && entityType === "event" && data.betrieb_id) {
-    const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).maybeSingle();
+    const { data: b } = await admin.from("betriebe").select("name").eq("id", data.betrieb_id).eq("user_id", userId).maybeSingle();
     data.betrieb_name = b?.name ?? "";
   }
   return data;
@@ -378,7 +381,7 @@ async function deleteMapping(admin: Any, token: string, mapping: Any) {
 async function pushOne(
   admin: Any, token: string, userId: string, entityType: string, entityId: string,
 ) {
-  const row = await loadEntity(admin, entityType, entityId);
+  const row = await loadEntity(admin, userId, entityType, entityId);
   const ev = row ? buildEvent(entityType, row) : null;
   if (!ev) {
     const { data: mapping } = await admin.from("google_calendar_events").select("*")

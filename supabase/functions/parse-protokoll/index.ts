@@ -1,7 +1,28 @@
 // Supabase Edge Function: parse-protokoll
 // Analysiert fotografierte Reinigungsprotokolle via Claude Sonnet 4.5 und extrahiert Positionen + Preis.
-// Deploy: supabase functions deploy parse-protokoll --no-verify-jwt
+// Deploy: supabase functions deploy parse-protokoll (verify_jwt=true via config.toml)
 // Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//
+// Stand 25.09.2026 (Analyse R11): In sbs_projer_app/lib gibt es KEINEN
+// Aufrufer mehr (das Protokoll ist das abfotografierte Papier, keine
+// Positions-Erkennung). Bis Daniel über das Löschen entscheidet, ist die
+// Function wenigstens kein frei nutzbarer Claude-Proxy auf seinem Key mehr:
+// nur angemeldete Benutzer.
+
+/** Angemeldeter Benutzer aus dem Bearer-JWT (Auth-API), sonst null. */
+async function ermittleUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY not configured");
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": auth },
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0 ? user.id : null;
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +38,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const userId = await ermittleUserId(req);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "unauthorized" }),
+        { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+      );
+    }
+
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       return new Response(

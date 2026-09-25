@@ -9,14 +9,24 @@
 // Aufruf:
 //   POST {}                       -> die 10 am laengsten nicht geprueften
 //                                     aktiven Betriebe (Vorgabe: limit=10)
-//   POST {"limit": 25}            -> abweichende Anzahl
-//   POST {"betriebIds": ["..."]}  -> genau diese Betriebe (z.B. manueller Test)
+//   POST {"limit": 25}            -> abweichende Anzahl (hoechstens 200)
+//   POST {"betriebIds": ["..."]}  -> genau diese Betriebe (UUIDs, hoechstens 200)
 //
-// Deploy: supabase functions deploy betriebsdaten-abgleich --no-verify-jwt
-// Secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (Standard-Secrets der
-//          Edge-Function-Runtime), GOOGLE_PLACES_KEY + ANTHROPIC_API_KEY
-//          (werden von den aufgerufenen Functions betrieb-google-abgleich
-//          und parse-oeffnungszeiten benoetigt, nicht direkt von hier)
+// Zugang (seit 25.09.2026, Analyse R11 — vorher oeffentlich ausloesbar,
+// `limit` ohne Obergrenze = Kostenlawine bei Google und Anthropic):
+//   - pg_cron (Migration 162/206): Header `x-cron-secret` == CRON_SECRET,
+//     dazu ein gueltiges JWT (Anon-Key) fuer das Gateway (verify_jwt=true).
+//     Laeuft ueber alle Betriebe.
+//   - angemeldeter Benutzer: nur seine eigenen Betriebe (user_id-Filter).
+// Die beiden Quell-Functions werden im Cron-Lauf mit demselben Secret
+// aufgerufen, im Benutzer-Lauf mit dem JWT des Benutzers.
+//
+// Deploy: supabase functions deploy betriebsdaten-abgleich (verify_jwt=true via config.toml)
+// Secrets: CRON_SECRET (NEU, mind. 16 Zeichen, identisch im Vault fuer den
+//          Cron), SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+//          (Standard-Secrets der Edge-Function-Runtime), GOOGLE_PLACES_KEY +
+//          ANTHROPIC_API_KEY (werden von den aufgerufenen Functions
+//          betrieb-google-abgleich und parse-oeffnungszeiten benoetigt)
 //
 // Ablauf je Betrieb (sequenziell, NICHT parallel -- Rate-Limits Google/
 // Anthropic):
@@ -32,6 +42,35 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+/** Angemeldeter Benutzer aus dem Bearer-JWT (Auth-API), sonst null. */
+async function ermittleUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY not configured");
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": auth },
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0 ? user.id : null;
+}
+
+/** Interner Aufruf (Cron/Orchestrator): Header x-cron-secret == CRON_SECRET. */
+function cronSecretGueltig(req: Request): boolean {
+  const erwartet = Deno.env.get("CRON_SECRET") ?? "";
+  const erhalten = req.headers.get("x-cron-secret") ?? "";
+  if (erwartet.length < 16 || erhalten.length !== erwartet.length) return false;
+  let diff = 0;
+  for (let i = 0; i < erwartet.length; i++) {
+    diff |= erwartet.charCodeAt(i) ^ erhalten.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -40,6 +79,7 @@ const CORS_HEADERS = {
 };
 
 const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 200;
 const MIN_KONFIDENZ = 0.6;
 // Google Places liefert keine eigene Konfidenz -- die Daten sind strukturiert
 // und nicht LLM-geraten, darum ein fixer, hoher Wert.
@@ -225,22 +265,19 @@ interface VerarbeitungsErgebnis {
 async function verarbeiteBetrieb(
   supabase: any,
   supabaseUrl: string,
-  serviceKey: string,
+  authHeaders: Record<string, string>,
   betrieb: BetriebRow,
 ): Promise<VerarbeitungsErgebnis> {
   const fehler: string[] = [];
-  const authHeaders = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${serviceKey}`,
-    apikey: serviceKey,
-  };
 
   // ── Google-Quelle ──
   let google: GoogleErgebnis | null = null;
   try {
     const res = await rufeFunctionAuf<GoogleErgebnis>(
       `${supabaseUrl}/functions/v1/betrieb-google-abgleich`,
-      { betriebId: betrieb.id },
+      // userId zaehlt nur beim internen Aufruf (x-cron-secret); im
+      // Benutzer-Lauf nimmt die Function den Benutzer aus dem JWT.
+      { betriebId: betrieb.id, userId: betrieb.user_id },
       authHeaders,
     );
     if (res.error) {
@@ -485,9 +522,34 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !serviceKey) {
-      return json({ error: "SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY fehlen" }, 500);
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !serviceKey || !anonKey) {
+      return json({ error: "SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY fehlen" }, 500);
     }
+
+    // ── Zugang: Cron-Secret ODER angemeldeter Benutzer ──
+    const istCron = cronSecretGueltig(req);
+    let nurUserId: string | null = null;
+    let authHeaders: Record<string, string>;
+    if (istCron) {
+      authHeaders = {
+        "Content-Type": "application/json",
+        // Anon-Key als JWT fuers Gateway (verify_jwt); die eigentliche
+        // Berechtigung ist das Secret.
+        Authorization: `Bearer ${anonKey}`,
+        apikey: anonKey,
+        "x-cron-secret": Deno.env.get("CRON_SECRET")!,
+      };
+    } else {
+      nurUserId = await ermittleUserId(req);
+      if (!nurUserId) return json({ error: "unauthorized" }, 401);
+      authHeaders = {
+        "Content-Type": "application/json",
+        Authorization: req.headers.get("Authorization")!,
+        apikey: anonKey,
+      };
+    }
+
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // deno-lint-ignore no-explicit-any
@@ -497,12 +559,19 @@ Deno.serve(async (req: Request) => {
     } catch (_) {
       // leerer Body = Standardlauf (limit=10)
     }
-    const limit = typeof body.limit === "number" && body.limit > 0
-      ? Math.floor(body.limit)
+    const limit = typeof body.limit === "number" && Number.isFinite(body.limit) && body.limit > 0
+      ? Math.min(Math.floor(body.limit), MAX_LIMIT)
       : DEFAULT_LIMIT;
-    const betriebIds: string[] | null = Array.isArray(body.betriebIds) && body.betriebIds.length > 0
-      ? body.betriebIds
-      : null;
+    let betriebIds: string[] | null = null;
+    if (body.betriebIds !== undefined) {
+      if (
+        !Array.isArray(body.betriebIds) || body.betriebIds.length > MAX_LIMIT ||
+        !body.betriebIds.every((id: unknown) => typeof id === "string" && UUID_RE.test(id))
+      ) {
+        return json({ error: `betriebIds muss eine Liste von hoechstens ${MAX_LIMIT} UUIDs sein` }, 400);
+      }
+      if (body.betriebIds.length > 0) betriebIds = body.betriebIds;
+    }
 
     const spalten = "id, user_id, name, strasse, nr, plz, ort, website, status, ruhetage, " +
       "oeffnungszeiten, google_place_id, keine_betriebsferien, ist_saisonbetrieb, " +
@@ -510,6 +579,7 @@ Deno.serve(async (req: Request) => {
       "winter_saison_aktiv, winter_start_datum, winter_ende_datum";
 
     let query = supabase.from("betriebe").select(spalten);
+    if (nurUserId) query = query.eq("user_id", nurUserId);
     if (betriebIds) {
       query = query.in("id", betriebIds);
     } else {
@@ -533,7 +603,7 @@ Deno.serve(async (req: Request) => {
     for (const betrieb of betriebe as BetriebRow[]) {
       let ergebnis: VerarbeitungsErgebnis;
       try {
-        ergebnis = await verarbeiteBetrieb(supabase, supabaseUrl, serviceKey, betrieb);
+        ergebnis = await verarbeiteBetrieb(supabase, supabaseUrl, authHeaders, betrieb);
       } catch (e) {
         ergebnis = { vorschlaege: 0, fehler: [`unerwarteter Fehler: ${(e as Error).message}`] };
       }
@@ -546,7 +616,8 @@ Deno.serve(async (req: Request) => {
       const { error: updErr } = await supabase
         .from("betriebe")
         .update({ oeffnungszeiten_geprueft_am: new Date().toISOString() })
-        .eq("id", betrieb.id);
+        .eq("id", betrieb.id)
+        .eq("user_id", betrieb.user_id);
       if (updErr) {
         fehlerGesamt.push(`${betrieb.name} (${betrieb.id}): geprueft_am nicht gesetzt: ${updErr.message}`);
       }

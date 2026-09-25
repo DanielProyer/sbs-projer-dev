@@ -1,8 +1,44 @@
 // Supabase Edge Function: parse-oeffnungszeiten
 // Liest die Website eines Betriebs (Startseite + Kontakt-/Öffnungszeiten-Unterseiten)
 // und extrahiert via Claude die Öffnungszeiten + Ruhetage im App-Format.
-// Deploy: supabase functions deploy parse-oeffnungszeiten --no-verify-jwt
-// Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+// Deploy: supabase functions deploy parse-oeffnungszeiten (verify_jwt=true via config.toml)
+// Secrets: ANTHROPIC_API_KEY, CRON_SECRET (für den internen Aufruf aus
+//          betriebsdaten-abgleich), SUPABASE_URL/SUPABASE_ANON_KEY (Standard)
+//
+// Zugang (seit 25.09.2026, Analyse R11): angemeldeter Benutzer ODER interner
+// Aufruf mit `x-cron-secret`. Vorher war das ein offener Claude-Proxy auf
+// Daniels Key plus SSRF: die `url` aus dem Body wurde ohne Host-Prüfung
+// geladen. Jetzt prüft `pruefeUrl` Schema, Länge und Host — auch für jede
+// Weiterleitung und jede Unterseite.
+
+import { pruefeUrl } from "./url_pruefung.ts";
+
+/** Angemeldeter Benutzer aus dem Bearer-JWT (Auth-API), sonst null. */
+async function ermittleUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY not configured");
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": auth },
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0 ? user.id : null;
+}
+
+/** Interner Aufruf (Orchestrator): Header x-cron-secret == CRON_SECRET. */
+function cronSecretGueltig(req: Request): boolean {
+  const erwartet = Deno.env.get("CRON_SECRET") ?? "";
+  const erhalten = req.headers.get("x-cron-secret") ?? "";
+  if (erwartet.length < 16 || erhalten.length !== erwartet.length) return false;
+  let diff = 0;
+  for (let i = 0; i < erwartet.length; i++) {
+    diff |= erwartet.charCodeAt(i) ^ erhalten.charCodeAt(i);
+  }
+  return diff === 0;
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -29,24 +65,37 @@ const LINK_KEYWORDS = [
   "info",
 ];
 
-function normalizeUrl(u: string): string {
-  let s = u.trim();
-  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
-  return s;
-}
+const MAX_WEITERLEITUNGEN = 3;
 
+/**
+ * Lädt eine Seite als Text. Weiterleitungen werden von Hand verfolgt, damit
+ * jedes Ziel dieselbe Host-Prüfung durchläuft (sonst leitet eine öffentliche
+ * Seite einfach auf 127.0.0.1 oder 169.254.169.254 weiter).
+ */
 async function fetchText(url: string, timeoutMs = 12000): Promise<string> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": UA, "Accept-Language": "de,en" },
-      signal: controller.signal,
-    });
-    if (!res.ok) return "";
-    const ct = res.headers.get("content-type") ?? "";
-    if (!ct.includes("text/html") && !ct.includes("text/")) return "";
-    return await res.text();
+    let ziel: string | null = pruefeUrl(url);
+    for (let hop = 0; ziel && hop <= MAX_WEITERLEITUNGEN; hop++) {
+      const res = await fetch(ziel, {
+        headers: { "User-Agent": UA, "Accept-Language": "de,en" },
+        signal: controller.signal,
+        redirect: "manual",
+      });
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        await res.body?.cancel();
+        if (!location) return "";
+        ziel = pruefeUrl(new URL(location, ziel).toString());
+        continue;
+      }
+      if (!res.ok) return "";
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("text/html") && !ct.includes("text/")) return "";
+      return await res.text();
+    }
+    return "";
   } catch (_) {
     return "";
   } finally {
@@ -84,7 +133,8 @@ function findCandidateLinks(html: string, baseUrl: string): string[] {
       const abs = new URL(href, baseUrl);
       if (abs.host !== base.host) continue;
       abs.hash = "";
-      out.add(abs.toString());
+      const geprueft = pruefeUrl(abs.toString());
+      if (geprueft) out.add(geprueft);
     } catch (_) {
       // ignore malformed href
     }
@@ -104,6 +154,11 @@ Deno.serve(async (req: Request) => {
     });
 
   try {
+    if (!cronSecretGueltig(req)) {
+      const userId = await ermittleUserId(req);
+      if (!userId) return json({ error: "unauthorized" }, 401);
+    }
+
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) return json({ error: "ANTHROPIC_API_KEY not configured" }, 500);
 
@@ -111,7 +166,12 @@ Deno.serve(async (req: Request) => {
     if (!url || typeof url !== "string" || url.trim().length === 0) {
       return json({ error: "url is required" }, 400);
     }
-    const startUrl = normalizeUrl(url);
+    const startUrl = pruefeUrl(url);
+    if (!startUrl) {
+      return json({ error: "url nicht erlaubt (nur http/https, öffentlicher Host, max. 2000 Zeichen)" }, 400);
+    }
+    // Der Name landet im Prompt — Länge begrenzen.
+    const betriebName = typeof name === "string" ? name.slice(0, 200) : "";
 
     const homepage = await fetchText(startUrl);
     if (!homepage) {
@@ -126,7 +186,7 @@ Deno.serve(async (req: Request) => {
 
     const prompt =
       `Du erhältst den Textinhalt der Website eines Gastronomiebetriebs${
-        name ? ` ("${name}")` : ""
+        betriebName ? ` ("${betriebName}")` : ""
       } (Startseite + evtl. Kontakt-/Öffnungszeiten-Unterseiten). Extrahiere die regulären ÖFFNUNGSZEITEN und die RUHETAGE (geschlossene Wochentage).
 
 Antworte NUR mit validem JSON (kein Markdown, keine Erklärung) in genau diesem Format:

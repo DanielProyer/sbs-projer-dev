@@ -11,12 +11,50 @@
 //   POST {"name": "...", "adresse": "...", "placeId"?}  -> Ad-hoc-Abfrage
 //        ohne DB-Schreibzugriff (z.B. fuer manuelle Tests)
 //
-// Deploy: supabase functions deploy betrieb-google-abgleich --no-verify-jwt
-// Secrets: GOOGLE_PLACES_KEY (wie betrieb-google-lookup),
-//          SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (Standard-Secrets der Edge
-//          Function Runtime, kein manuelles Setzen noetig)
+// Deploy: supabase functions deploy betrieb-google-abgleich (verify_jwt=true via config.toml)
+// Secrets: GOOGLE_PLACES_KEY (wie betrieb-google-lookup), CRON_SECRET,
+//          SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+//          (Standard-Secrets der Edge Function Runtime)
+//
+// Zugang (seit 25.09.2026, Analyse R11): angemeldeter Benutzer ODER interner
+// Aufruf aus betriebsdaten-abgleich mit `x-cron-secret` + `userId` im Body.
+// Vorher las (und schrieb) die Function per Service-Role jeden Betrieb, dessen
+// ID im Body stand — für jeden, der den Anon-Key kannte. Jetzt: `betriebId`
+// muss eine UUID sein, SELECT und UPDATE laufen mit `user_id = <uid>`, und
+// `placeId` wird vor dem Einbau in die Google-URL geprüft.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+/** Angemeldeter Benutzer aus dem Bearer-JWT (Auth-API), sonst null. */
+async function ermittleUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY not configured");
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": auth },
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0 ? user.id : null;
+}
+
+/** Interner Aufruf (Cron/Orchestrator): Header x-cron-secret == CRON_SECRET. */
+function cronSecretGueltig(req: Request): boolean {
+  const erwartet = Deno.env.get("CRON_SECRET") ?? "";
+  const erhalten = req.headers.get("x-cron-secret") ?? "";
+  if (erwartet.length < 16 || erhalten.length !== erwartet.length) return false;
+  let diff = 0;
+  for (let i = 0; i < erwartet.length; i++) {
+    diff |= erwartet.charCodeAt(i) ^ erhalten.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Google Place-IDs: URL-sicheres Base64-artiges Alphabet.
+const PLACE_ID_RE = /^[A-Za-z0-9_-]{1,300}$/;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -168,16 +206,49 @@ Deno.serve(async (req: Request) => {
     });
 
   try {
-    const apiKey = Deno.env.get("GOOGLE_PLACES_KEY");
-    if (!apiKey) return json({ error: "GOOGLE_PLACES_KEY not configured" }, 500);
-
     const body = await req.json().catch(() => ({}));
-    const { betriebId, name: nameInput, adresse: adresseInput, placeId: placeIdInput } = body as {
+    const {
+      betriebId,
+      name: nameInput,
+      adresse: adresseInput,
+      placeId: placeIdInput,
+      userId: userIdInput,
+    } = body as {
       betriebId?: string;
       name?: string;
       adresse?: string;
       placeId?: string;
+      userId?: string;
     };
+
+    // Zugang: interner Aufruf traegt den Besitzer im Body (vom Orchestrator
+    // aus betriebe.user_id), sonst zaehlt nur der angemeldete Benutzer.
+    let userId: string | null;
+    if (cronSecretGueltig(req)) {
+      if (typeof userIdInput !== "string" || !UUID_RE.test(userIdInput)) {
+        return json({ error: "userId (UUID) fehlt beim internen Aufruf" }, 400);
+      }
+      userId = userIdInput;
+    } else {
+      userId = await ermittleUserId(req);
+      if (!userId) return json({ error: "unauthorized" }, 401);
+    }
+
+    if (betriebId !== undefined && (typeof betriebId !== "string" || !UUID_RE.test(betriebId))) {
+      return json({ error: "betriebId muss eine UUID sein" }, 400);
+    }
+    if (placeIdInput !== undefined && (typeof placeIdInput !== "string" || !PLACE_ID_RE.test(placeIdInput))) {
+      return json({ error: "placeId ungueltig" }, 400);
+    }
+    if (typeof nameInput === "string" && nameInput.length > 300) {
+      return json({ error: "name zu lang" }, 400);
+    }
+    if (typeof adresseInput === "string" && adresseInput.length > 300) {
+      return json({ error: "adresse zu lang" }, 400);
+    }
+
+    const apiKey = Deno.env.get("GOOGLE_PLACES_KEY");
+    if (!apiKey) return json({ error: "GOOGLE_PLACES_KEY not configured" }, 500);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -195,6 +266,7 @@ Deno.serve(async (req: Request) => {
         .from("betriebe")
         .select("id, name, strasse, nr, plz, ort, google_place_id")
         .eq("id", betriebId)
+        .eq("user_id", userId)
         .maybeSingle();
       if (selErr) return json({ error: selErr.message }, 500);
       if (!betrieb) return json({ error: "Betrieb nicht gefunden" }, 404);
@@ -202,6 +274,7 @@ Deno.serve(async (req: Request) => {
       queryName = betrieb.name;
       queryAdresse = buildAdresse(betrieb);
       placeId = betrieb.google_place_id ?? placeId;
+      if (placeId && !PLACE_ID_RE.test(placeId)) placeId = null; // kaputter DB-Wert -> neu suchen
     } else if (nameInput && nameInput.trim().length > 0) {
       queryName = nameInput.trim();
       queryAdresse = adresseInput ?? "";
@@ -234,13 +307,15 @@ Deno.serve(async (req: Request) => {
       const searchData = await searchRes.json();
       const place = Array.isArray(searchData.places) ? searchData.places[0] : null;
       if (!place?.id) return json({ error: "no_result" }, 200);
+      if (!PLACE_ID_RE.test(String(place.id))) return json({ error: "no_result" }, 200);
       placeId = place.id;
 
       if (betriebId && supabase) {
         const { error: updErr } = await supabase
           .from("betriebe")
           .update({ google_place_id: placeId })
-          .eq("id", betriebId);
+          .eq("id", betriebId)
+          .eq("user_id", userId);
         // Speicherfehler soll den Abgleich selbst nicht verhindern -- der
         // naechste Lauf sucht einfach erneut.
         if (updErr) console.error(`google_place_id nicht gespeichert: ${updErr.message}`);

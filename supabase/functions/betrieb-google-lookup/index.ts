@@ -1,8 +1,25 @@
 // Supabase Edge Function: betrieb-google-lookup
 // Sucht einen Betrieb via Google Places API (New) Text Search und gibt das
 // beste rohe Place-Objekt zurueck. Der API-Key bleibt server-seitig.
-// Deploy: supabase functions deploy betrieb-google-lookup --no-verify-jwt
+// Deploy: supabase functions deploy betrieb-google-lookup (verify_jwt=true via config.toml)
 // Secret: supabase secrets set GOOGLE_PLACES_KEY=...
+// Zugang: nur angemeldete Benutzer (seit 25.09.2026, Analyse R11 — vorher
+// konnte jeder mit dem Anon-Key Places-Suchen auf Daniels Rechnung auslösen).
+
+/** Angemeldeter Benutzer aus dem Bearer-JWT (Auth-API), sonst null. */
+async function ermittleUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY not configured");
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { "apikey": anonKey, "Authorization": auth },
+  });
+  if (!res.ok) return null;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0 ? user.id : null;
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +52,9 @@ Deno.serve(async (req: Request) => {
     });
 
   try {
+    const userId = await ermittleUserId(req);
+    if (!userId) return json({ error: "unauthorized" }, 401);
+
     const apiKey = Deno.env.get("GOOGLE_PLACES_KEY");
     if (!apiKey) {
       return json({ error: "GOOGLE_PLACES_KEY not configured" }, 500);
@@ -44,6 +64,7 @@ Deno.serve(async (req: Request) => {
     if (!query || typeof query !== "string" || query.trim().length === 0) {
       return json({ error: "query is required" }, 400);
     }
+    if (query.length > 300) return json({ error: "query zu lang" }, 400);
 
     const response = await fetch(
       "https://places.googleapis.com/v1/places:searchText",
