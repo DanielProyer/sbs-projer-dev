@@ -26,6 +26,7 @@ import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
+import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
@@ -336,8 +337,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                     _TagesplanHeader(
                       datum: _selectedDate,
                       readOnly: istVergangenTag,
-                      onLeeren: () =>
-                          ref.read(tagesplanProvider.notifier).leeren(),
+                      onLeeren: _tagesplanLeeren,
                       onAusFaelligBefuellen: () =>
                           _faelligeAlleUebernehmen(angezeigtFaellig),
                       onPlanUebernehmen: _planVonDatumUebernehmen,
@@ -871,6 +871,25 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     );
   }
 
+  /// «Leeren» wirft den ganzen Tagesplan weg und speichert sofort (Auto-Save
+  /// im Provider) — ein Fehltipp in der engen Kopfzeile kostete bisher den
+  /// ganzen Tag. Deshalb erst nachfragen (R6, 25.09.2026).
+  Future<void> _tagesplanLeeren() async {
+    final anzahl = ref.read(tagesplanProvider).length;
+    if (anzahl == 0) return;
+    final ok = await gefahrRueckfrage(
+      context,
+      titel: 'Tagesplan leeren?',
+      text:
+          'Alle $anzahl ${anzahl == 1 ? 'Eintrag wird' : 'Einträge werden'} '
+          'aus dem Plan dieses Tages entfernt. Das lässt sich nicht '
+          'rückgängig machen.',
+      bestaetigen: 'Leeren',
+    );
+    if (!ok || !mounted) return;
+    ref.read(tagesplanProvider.notifier).leeren();
+  }
+
   /// Menüpunkt „Reinigungen eines Tages übernehmen": die TATSÄCHLICH
   /// abgeschlossenen Reinigungen des Quelltags (ohne Störungen/Montagen) in
   /// ihrer echten Reihenfolge an den aktuellen Plan anhängen — nicht den
@@ -1088,15 +1107,15 @@ class _TagesplanHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
-            TextButton.icon(
+            // Nur ein Symbol: der Klick fragt erst nach (_tagesplanLeeren),
+            // die rote Bestätigung sitzt im Dialog als TapKnopf(gefahr).
+            IconButton(
               onPressed: onLeeren,
-              icon: const Icon(Icons.clear_all, size: 18),
-              label: const Text('Leeren', style: TextStyle(fontSize: 12)),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: AppColors.error,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
+              icon: const Icon(Icons.clear_all, size: 20),
+              color: AppColors.error,
+              tooltip: 'Tagesplan leeren',
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
             ),
           ],
         ],

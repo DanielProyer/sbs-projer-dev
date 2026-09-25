@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_ser
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/sync/sync_service_export.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class EinstellungenScreen extends ConsumerStatefulWidget {
@@ -316,11 +317,23 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              icon: const Icon(Icons.link_off, size: 18),
-              label: const Text('Trennen'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              onPressed: () async {
+            // Trennen ohne Rückfrage kostete bei einem Fehltipp die
+            // Kalender-Anbindung samt Neu-Autorisierung (R6, 25.09.2026).
+            child: TapKnopf(
+              text: 'Trennen',
+              icon: Icons.link_off,
+              gefahr: true,
+              onTap: () async {
+                final ok = await gefahrRueckfrage(
+                  context,
+                  titel: 'Google Kalender trennen?',
+                  text:
+                      'Die App schreibt danach keine Termine mehr in den '
+                      'Kalender. Zum Wiederverbinden musst du den Zugriff '
+                      'bei Google neu erteilen.',
+                  bestaetigen: 'Trennen',
+                );
+                if (!ok) return;
                 await GoogleCalendarAuthService.trennen();
                 ref.invalidate(googleCalendarStatusProvider);
               },
@@ -542,7 +555,9 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
                 onTap: () async {
                   final messenger = ScaffoldMessenger.of(context);
                   messenger.showSnackBar(
-                    const SnackBar(content: Text('Synchronisierung gestartet...')),
+                    const SnackBar(
+                      content: Text('Synchronisierung gestartet...'),
+                    ),
                   );
                   final r = await SyncService.syncAll();
                   final m = syncMeldung(
@@ -582,4 +597,3 @@ class _EinstellungenScreenState extends ConsumerState<EinstellungenScreen> {
     );
   }
 }
-
