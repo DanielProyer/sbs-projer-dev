@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
@@ -31,16 +32,9 @@ Future<void> showKundenzahlungZuordnenDialog(
   final List<Rechnung> offene;
   try {
     final alle = await RechnungRepository.getAll();
-    offene =
-        alle
-            .where(
-              (r) =>
-                  r.rechnungstyp == 'kundenrechnung' &&
-                  (r.zahlungsstatus == 'offen' ||
-                      r.zahlungsstatus == 'gesendet'),
-            )
-            .toList()
-          ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
+    // Kunden- und Jahresrechnungen, auch gemahnte (R2, 25.09.2026).
+    offene = alle.where(istZahlbar).toList()
+      ..sort((a, b) => b.rechnungsdatum.compareTo(a.rechnungsdatum));
   } catch (err) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

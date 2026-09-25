@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/abgleich_fenster.dart';
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
@@ -472,13 +473,9 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
           )
           .toList();
       final alleRechnungen = await RechnungRepository.getAll();
-      final alleOffenen = alleRechnungen
-          .where(
-            (r) =>
-                r.rechnungstyp == 'kundenrechnung' &&
-                (r.zahlungsstatus == 'offen' || r.zahlungsstatus == 'gesendet'),
-          )
-          .toList();
+      // Kunden- UND Jahresrechnungen, auch gemahnte (R2, 25.09.2026) — sonst
+      // bliebe die Zahlung auf eine Mahnung als «unbekannte Gutschrift» liegen.
+      final alleOffenen = alleRechnungen.where(istZahlbar).toList();
       // Nur Forderungen bis ein Jahr zurück (Regel Daniel 28.07.2026) — ältere
       // stammen aus der Zeit ohne Rechnungsversand, werden abgeschrieben und
       // würden im Abgleich nur Fehlgriffe provozieren.

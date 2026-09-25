@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -47,12 +48,16 @@ class ForderungsAbgleichService {
     required List<Rechnung> offeneForderungen,
     required List<Map<String, String>> betriebe,
   }) {
+    // Nur zahlbare Forderungen (R2, 25.09.2026) — auch wenn der Aufrufer mehr
+    // übergibt: eine bezahlte, abgeschriebene oder Heineken-Rechnung darf hier
+    // nie eine Kundenzahlung anziehen.
+    final zahlbar = offeneForderungen.where(istZahlbar).toList();
     // STUFE 1: deterministischer QR-/SCOR-Referenz-Match (vor der Gruppierung).
     final refTreffer = <AutoTreffer>[];
     final verbrauchteGuts = <CamtTransaction>{};
     final verbrauchteFordIds = <String>{};
     final refIndex = <String, Rechnung>{};
-    for (final r in offeneForderungen) {
+    for (final r in zahlbar) {
       final ref = r.qrReferenz;
       if (ref != null && ref.trim().isNotEmpty) {
         refIndex[scorRefNorm(ref)] = r;
@@ -75,7 +80,7 @@ class ForderungsAbgleichService {
     // 8000). Einzelne Nummern laufen wie bisher übers Routing + Betrags-Match
     // (Sammelzahler bleiben dort bewusst manuell).
     final fordByNrAlle = <String, Rechnung>{
-      for (final r in offeneForderungen)
+      for (final r in zahlbar)
         if ((r.rechnungsnummer ?? '').isNotEmpty && r.betriebId != null)
           r.rechnungsnummer!: r
     };
@@ -107,7 +112,7 @@ class ForderungsAbgleichService {
 
     final gutschriftenAktiv =
         gutschriften.where((g) => !verbrauchteGuts.contains(g)).toList();
-    final offeneAktiv = offeneForderungen
+    final offeneAktiv = zahlbar
         .where((r) => !verbrauchteFordIds.contains(r.id))
         .toList();
 
@@ -266,13 +271,15 @@ class ForderungsAbgleichService {
     final bereitsBezahlt = <String>[];
     for (final r in forderungen) {
       final frisch = await RechnungRepository.getById(r.id);
-      if (frisch != null && frisch.zahlungsstatus == 'bezahlt') {
+      // Auch «abgeschrieben» sperrt: Eine Bankzahlung auf eine ausgebuchte
+      // Forderung braucht zuerst die Rücknahme der Abschreibung.
+      if (frisch != null && kErledigteStatus.contains(frisch.zahlungsstatus)) {
         bereitsBezahlt.add(frisch.rechnungsnummer ?? frisch.id);
       }
     }
     if (bereitsBezahlt.isNotEmpty) {
       throw Exception(
-          'Bereits bezahlt: ${bereitsBezahlt.join(', ')} — Zuordnung '
+          'Bereits bezahlt oder abgeschrieben: ${bereitsBezahlt.join(', ')} — Zuordnung '
           'abgebrochen. Bitte Liste aktualisieren.');
     }
 

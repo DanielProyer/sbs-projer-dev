@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
@@ -66,7 +67,9 @@ class CamtAutoBooker {
 
           case TxKategorie.kundenzahlung:
             final offen =
-                offeneRechnungen.where((r) => r.betriebId == betriebId).toList();
+                offeneRechnungen
+                .where((r) => r.betriebId == betriebId && istZahlbar(r))
+                .toList();
             final m = RechnungMatcher.match(
                 zahlbetrag: tx.amount, offeneRechnungen: offen);
             if (m.eindeutig) {

@@ -7,7 +7,14 @@
 /// bei ihm angekommen ist.
 library;
 
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
+
+// `istOffen`/`kErledigteStatus` leben seit 25.09.2026 in rechnung_status.dart —
+// eine Quelle zusammen mit `istZahlbar` (Bankabgleich). Hier weitergereicht,
+// damit bestehende Aufrufer unverändert bleiben.
+export 'package:sbs_projer_app/core/util/rechnung_status.dart'
+    show istOffen, kErledigteStatus;
 
 /// Welche Rechnungen sollen in die Auswertung?
 enum RechnungsAuswahl {
@@ -17,13 +24,6 @@ enum RechnungsAuswahl {
   /// Auch bezahlte und abgeschriebene — die Jahresübersicht je Kunde.
   alle,
 }
-
-/// Gilt eine Rechnung als offen? Bewusst als Negativliste: Jeder neue
-/// Zwischenstatus (erinnert, mahnung_1, …) zählt automatisch als offen, statt
-/// still aus der Liste zu fallen.
-const kErledigteStatus = {'bezahlt', 'abgeschrieben'};
-
-bool istOffen(Rechnung r) => !kErledigteStatus.contains(r.zahlungsstatus);
 
 /// Ein Betrieb mit seinen Rechnungen.
 class BetriebRechnungen {
