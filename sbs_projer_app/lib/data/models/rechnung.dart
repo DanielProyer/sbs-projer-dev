@@ -34,6 +34,10 @@ class Rechnung {
   /// nachname, strasse, nr, plz, ort, email.
   final Map<String, dynamic>? rechnungsadresse;
   final String? notizen;
+
+  /// Aus Konto 2030 verrechnetes Kundenguthaben (Migration 205).
+  /// Die Rechnung behält Betrag, Ertrag und MWST; der Kunde zahlt [zuZahlen].
+  final double guthabenVerrechnet;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -66,9 +70,17 @@ class Rechnung {
     this.qrReferenz,
     this.rechnungsadresse,
     this.notizen,
+    this.guthabenVerrechnet = 0,
     this.createdAt,
     this.updatedAt,
   });
+
+  /// Was der Kunde tatsächlich zahlt: Brutto abzüglich verrechnetem
+  /// Guthaben, nie negativ.
+  double get zuZahlen {
+    final z = betragBrutto - guthabenVerrechnet;
+    return z < 0 ? 0 : z;
+  }
 
   factory Rechnung.fromJson(Map<String, dynamic> json) {
     return Rechnung(
@@ -120,6 +132,7 @@ class Rechnung {
           ? Map<String, dynamic>.from(json['rechnungsadresse'])
           : null,
       notizen: json['notizen'],
+      guthabenVerrechnet: _d(json['guthaben_verrechnet'], 0),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,
@@ -162,13 +175,18 @@ class Rechnung {
       'qr_referenz': qrReferenz,
       'rechnungsadresse': rechnungsadresse,
       'notizen': notizen,
+      'guthaben_verrechnet': guthabenVerrechnet,
     };
   }
 
   /// Erzeugt eine Kopie mit einzeln überschreibbaren Feldern.
   /// Aktuell genutzt, um für die PDF-Generierung ein abweichendes
   /// Fälligkeitsdatum zu setzen, ohne die DB-Rechnung zu verändern.
-  Rechnung copyWith({DateTime? rechnungsdatum, DateTime? faelligkeitsdatum}) {
+  Rechnung copyWith({
+    DateTime? rechnungsdatum,
+    DateTime? faelligkeitsdatum,
+    double? guthabenVerrechnet,
+  }) {
     return Rechnung(
       id: id,
       userId: userId,
@@ -198,6 +216,7 @@ class Rechnung {
       qrReferenz: qrReferenz,
       rechnungsadresse: rechnungsadresse,
       notizen: notizen,
+      guthabenVerrechnet: guthabenVerrechnet ?? this.guthabenVerrechnet,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

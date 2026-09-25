@@ -741,6 +741,7 @@ class MahnlaufService {
         qrReferenz: ref,
         rechnungsadresse: r.rechnungsadresse,
         notizen: r.notizen,
+        guthabenVerrechnet: r.guthabenVerrechnet,
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
       );
