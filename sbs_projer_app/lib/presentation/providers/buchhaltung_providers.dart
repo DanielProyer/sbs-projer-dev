@@ -12,7 +12,10 @@ import 'package:sbs_projer_app/data/repositories/konto_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
+import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/abschluss_regeln.dart'
+    show offeneForderungenSumme, zaehltAlsForderung;
 import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
@@ -207,6 +210,34 @@ final abschlussPruefungProvider =
       // betrag nicht auf den Rappen genau.
       if (e.value >= bruttoJeRechnung[e.key]! - 0.05) e.key,
   };
+  // Q5: Kundenguthaben je Betrieb für «2030 = offenes Guthaben». Der Betrieb
+  // hängt an der Rechnung im beleg_id; die meisten stehen schon in `offene`,
+  // den Rest (bezahlte Rechnungen) einzeln nachladen — auf 2030 stehen nur
+  // wenige Buchungen. Scheitert das Laden, meldet die Regel gelb.
+  Map<String, double>? kundenguthaben;
+  try {
+    final auf2030 = buchungen
+        .where((b) =>
+            b.sollKonto == kKontoKundenguthaben ||
+            b.habenKonto == kKontoKundenguthaben)
+        .toList();
+    final betriebVon = <String, String>{
+      for (final r in offene)
+        if (r.betriebId != null) r.id: r.betriebId!,
+    };
+    final fehlend = {
+      for (final b in auf2030)
+        if (b.belegId != null && !betriebVon.containsKey(b.belegId))
+          b.belegId!,
+    };
+    for (final id in fehlend) {
+      final r = await RechnungRepository.getById(id);
+      if (r?.betriebId != null) betriebVon[id] = r!.betriebId!;
+    }
+    kundenguthaben = offenesGuthabenJeBetrieb(auf2030, betriebVon);
+  } catch (_) {
+    kundenguthaben = null;
+  }
   return AbschlussPruefService.pruefe(AbschlussKontext(
     jahr: jahr,
     heute: DateTime.now(),
@@ -249,6 +280,10 @@ final abschlussPruefungProvider =
               !b.istStorniert && b.datum.year != b.geschaeftsjahr,
         )
         .length,
+    // Q5: 1100 gegen die offenen Rechnungen (Stand heute).
+    offeneForderungen: offeneForderungenSumme(offene, buchungen),
+    offeneForderungenAnzahl: offene.where(zaehltAlsForderung).length,
+    kundenguthabenJeBetrieb: kundenguthaben,
   ));
 });
 

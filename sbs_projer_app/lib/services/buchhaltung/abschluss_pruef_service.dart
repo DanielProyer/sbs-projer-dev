@@ -80,6 +80,17 @@ class AbschlussKontext {
   /// Buchungen, deren `geschaeftsjahr` nicht zum Jahr des Datums passt.
   final int buchungenFalschesJahr;
 
+  /// Σ offener Rest aller Forderungs-Rechnungen (`offeneForderungenSumme`),
+  /// Stand heute. `null` = nicht geladen → Regel meldet gelb statt falsch
+  /// rot.
+  final double? offeneForderungen;
+  final int offeneForderungenAnzahl;
+
+  /// Offenes Kundenguthaben je Betrieb (`offenesGuthabenJeBetrieb`), inkl.
+  /// Schlüssel `''` für Buchungen ohne auflösbaren Betrieb. `null` = nicht
+  /// geladen.
+  final Map<String, double>? kundenguthabenJeBetrieb;
+
   AbschlussKontext({
     required this.jahr,
     required this.heute,
@@ -93,6 +104,9 @@ class AbschlussKontext {
     required this.offeneRechnungenMitZahlung,
     this.unverbuchteReinigungen = const [],
     this.buchungenFalschesJahr = 0,
+    this.offeneForderungen,
+    this.offeneForderungenAnzahl = 0,
+    this.kundenguthabenJeBetrieb,
   });
 
   bool get jahrAbgeschlossen => jahr < heute.year;
@@ -108,6 +122,10 @@ class AbschlussKontext {
   late final Map<int, double> saldi = saldiPer(stichtag);
 
   double saldo(int konto) => saldi[konto] ?? 0;
+
+  /// Saldi über das ganze Journal (Stand heute, ohne Stichtag) — für Regeln,
+  /// die gegen einen heutigen Bestand halten (offene Rechnungen, Guthaben).
+  late final Map<int, double> saldiAktuell = saldiPer(DateTime(9999, 12, 31));
 
   final Map<DateTime, Map<int, double>> _saldiCache = {};
 

@@ -2,7 +2,10 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 
 /// Rundungsdifferenzen unter einem halben Zehnrappen sind kein Befund
 /// (5-Rappen-Rundung der Kundenrechnungen).
@@ -377,6 +380,172 @@ class DebitorenStatusRegel extends AbschlussRegel {
   }
 }
 
+/// Zählt die Rechnung als Forderung auf 1100?
+///
+/// Kunden- und Jahresrechnungen, solange weder bezahlt noch abgeschrieben —
+/// ihr Debitor entsteht mit der Ertragsbuchung. Heineken-Monatsrechnungen
+/// erst **ab `freigegeben`**: Vorher ist bewusst noch nichts gebucht
+/// (die Freigabe bucht 1100/3400); `bezahlt` ist erledigt.
+bool zaehltAlsForderung(Rechnung r) {
+  if (r.zahlungsstatus == 'bezahlt' || r.zahlungsstatus == 'abgeschrieben') {
+    return false;
+  }
+  if (r.rechnungstyp == 'heineken_monat') {
+    return r.zahlungsstatus == 'freigegeben';
+  }
+  return true;
+}
+
+/// Was 1100 laut Rechnungen heute tragen muss: je Forderungs-Rechnung das
+/// Brutto minus die schon gebuchten Eingänge (Haben 1100 mit `beleg_id` =
+/// Rechnung, nicht storniert — Teilzahlung, Guthaben-Verrechnung 2030/1100).
+///
+/// WARUM nicht `zuZahlen`: Ein bei der Rechnung reserviertes Guthaben
+/// verlässt 1100 erst mit der Verrechnungsbuchung beim Zahlungseingang
+/// (`guthaben.dart`, `verfuegbaresGuthaben`). Bis dahin trägt 1100 das volle
+/// Brutto; `zuZahlen` meldete genau diesen Betrag als Scheindifferenz.
+double offeneForderungenSumme(
+  List<Rechnung> rechnungen,
+  List<Buchung> buchungen,
+) {
+  final forderungen = {
+    for (final r in rechnungen)
+      if (zaehltAlsForderung(r)) r.id: r.betragBrutto,
+  };
+  var summe = forderungen.values.fold(0.0, (s, v) => s + v);
+  for (final b in buchungen) {
+    if (b.habenKonto != 1100) continue;
+    if (b.belegId == null || !forderungen.containsKey(b.belegId)) continue;
+    if (!zaehltFuerSaldo(
+      istStorniert: b.istStorniert,
+      stornoVonId: b.stornoVonId,
+    )) {
+      continue;
+    }
+    summe -= b.betragBrutto;
+  }
+  return rundeAufRappen(summe);
+}
+
+/// Q5: Debitoren 1100 = offene Rechnungen. Am 25.09.2026 stand 1100 bei
+/// 117'416.58, die offenen Rechnungen bei 131'193.44 — die −13'776.86
+/// meldete keine Regel; der Debitoren-Header nannte sie «historischer
+/// Aggregat». Seit der Voll-Übernahme ist jede Forderung eine Rechnung,
+/// eine Differenz ist deshalb ein Fehler und kein Posten.
+class DebitorenOffeneRechnungenRegel extends AbschlussRegel {
+  @override
+  String get id => 'debitoren_offene_rechnungen';
+  @override
+  String get gruppe => 'Debitoren';
+  @override
+  String get titel => 'Debitoren 1100 = offene Rechnungen';
+  @override
+  Pruefbefund pruefe(AbschlussKontext k) {
+    const route = '/rechnungen';
+    final soll = k.offeneForderungen;
+    // Stand heute, nicht per Stichtag: Die offenen Rechnungen sind ein
+    // heutiger Bestand — gegen einen Vorjahres-Saldo gehalten, meldete jede
+    // seither bezahlte Rechnung eine Scheindifferenz.
+    final ist = k.saldiAktuell[1100] ?? 0;
+    if (soll == null) {
+      return befund(
+        PruefStatus.gelb,
+        ist: chf(ist),
+        hinweis: 'Offene Rechnungen nicht geladen — Prüfung neu starten.',
+        route: route,
+      );
+    }
+    final diff = ist - soll;
+    if (diff.abs() <= _toleranz) {
+      return befund(
+        PruefStatus.gruen,
+        ist: chf(ist),
+        soll: chf(soll),
+        hinweis: 'Stand heute, ${k.offeneForderungenAnzahl} offene Rechnungen',
+        route: route,
+      );
+    }
+    return befund(
+      PruefStatus.rot,
+      ist: chf(ist),
+      soll: chf(soll),
+      hinweis:
+          'Stand heute: 1100 ${chf(ist)}, offene Rechnungen ${chf(soll)}, '
+          'Differenz ${chf(diff)}. Differenz klären: Rechnungen ohne '
+          'Buchung / Buchungen ohne Rechnung.',
+      route: route,
+    );
+  }
+}
+
+/// Q5: Konto 2030 = Σ offenes Kundenguthaben aller Betriebe (inkl. der
+/// Buchungen ohne auflösbaren Betrieb). Guthaben entsteht nur von Hand —
+/// eine Fehlzuordnung ist deshalb wahrscheinlicher als anderswo.
+class Kundenguthaben2030Regel extends AbschlussRegel {
+  @override
+  String get id => 'kundenguthaben_2030';
+  @override
+  String get gruppe => 'Debitoren';
+  @override
+  String get titel => 'Konto 2030 = offenes Kundenguthaben';
+  @override
+  Pruefbefund pruefe(AbschlussKontext k) {
+    const route = '/buchhaltung/buchungen';
+    // Passivkonto: Guthaben steht im Haben, der Roh-Saldo ist negativ.
+    final ist = -(k.saldiAktuell[2030] ?? 0);
+    final je = k.kundenguthabenJeBetrieb;
+    if (je == null) {
+      return befund(
+        PruefStatus.gelb,
+        ist: chf(ist),
+        hinweis: 'Kundenguthaben nicht geladen — Prüfung neu starten.',
+        route: route,
+      );
+    }
+    final soll = je.values.fold(0.0, (s, v) => s + v);
+    final diff = ist - soll;
+    if (diff.abs() > _toleranz) {
+      return befund(
+        PruefStatus.rot,
+        ist: chf(ist),
+        soll: chf(soll),
+        hinweis:
+            'Stand heute: 2030 ${chf(ist)}, Guthaben der Betriebe '
+            '${chf(soll)}, Differenz ${chf(diff)} — Buchungen auf 2030 '
+            'prüfen (MWST-Konto oder Storno?).',
+        route: route,
+      );
+    }
+    final ohneBetrieb = je[''] ?? 0;
+    if (ohneBetrieb.abs() > 0.005) {
+      return befund(
+        PruefStatus.gelb,
+        ist: chf(ist),
+        soll: chf(soll),
+        hinweis:
+            '${chf(ohneBetrieb)} Guthaben ohne Betrieb — Buchung auf 2030 '
+            'ohne Rechnungsbezug; kann keinem Kunden verrechnet werden.',
+        route: route,
+      );
+    }
+    final negativ = je.entries
+        .where((e) => e.key.isNotEmpty && e.value < -0.005)
+        .length;
+    if (negativ > 0) {
+      return befund(
+        PruefStatus.gelb,
+        ist: chf(ist),
+        soll: chf(soll),
+        hinweis:
+            'Guthaben bei $negativ Betrieb${negativ == 1 ? '' : 'en'} '
+            'negativ — mehr verrechnet als entstanden.',
+        route: route,
+      );
+    }
+    return befund(PruefStatus.gruen, ist: chf(ist), soll: chf(soll));
+  }
+}
+
 class RueckstellungRegel extends AbschlussRegel {
   @override
   String get id => 'rueckstellung';
@@ -656,6 +825,8 @@ List<AbschlussRegel> alleAbschlussRegeln() => [
   DebitorenVerjaehrtRegel(),
   DelkredereRegel(),
   DebitorenStatusRegel(),
+  DebitorenOffeneRechnungenRegel(),
+  Kundenguthaben2030Regel(),
   RueckstellungRegel(),
   NegativeSaldenRegel(),
   LohnkontenRegel(),
