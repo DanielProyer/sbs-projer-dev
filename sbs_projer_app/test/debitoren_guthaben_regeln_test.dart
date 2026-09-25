@@ -42,6 +42,7 @@ Buchung bu(
   int haben,
   double brutto, {
   String? beleg,
+  String? belegTyp,
   bool storniert = false,
 }) => Buchung(
   id: 'b$soll-$haben-$brutto-$beleg',
@@ -53,6 +54,7 @@ Buchung bu(
   betragBrutto: brutto,
   beschreibung: 'x',
   belegId: beleg,
+  belegTyp: belegTyp,
   geschaeftsjahr: 2026,
   istStorniert: storniert,
 );
@@ -60,6 +62,7 @@ Buchung bu(
 AbschlussKontext kx({
   List<BuchungSaldo> buchungen = const [],
   double? offeneForderungen,
+  double jahreskunden = 0,
   int offeneForderungenAnzahl = 0,
   Map<String, double>? kundenguthaben,
   int jahr = 2026,
@@ -74,6 +77,7 @@ AbschlussKontext kx({
   dokumentTypen: const {},
   offeneRechnungenMitZahlung: const {},
   offeneForderungen: offeneForderungen,
+  jahreskundenUnverrechnet: jahreskunden,
   offeneForderungenAnzahl: offeneForderungenAnzahl,
   kundenguthabenJeBetrieb: kundenguthaben,
 );
@@ -156,7 +160,7 @@ void main() {
         'debitoren_offene_rechnungen',
         kx(
           buchungen: [bs(1100, 3400, 150)],
-          offeneForderungen: 150.03,
+          offeneForderungen: 150.45,
           offeneForderungenAnzahl: 2,
         ),
       );
@@ -205,6 +209,61 @@ void main() {
       final b = lauf('debitoren_offene_rechnungen', kx());
       expect(b.status, PruefStatus.gelb);
     });
+  });
+
+  group('jahreskundenOhneRechnung (I1)', () {
+    test('Debitorbuchungen unverrechneter Jahres-Reinigungen zählen', () {
+      final s = jahreskundenOhneRechnung(
+        [
+          bu(1100, 3400, 94.05, beleg: 'r1', belegTyp: 'rechnung'),
+          bu(1100, 3400, 50, beleg: 'r2', belegTyp: 'rechnung'),
+          // schon in einer Jahresrechnung → nicht in der Menge
+          bu(1100, 3400, 70, beleg: 'r3', belegTyp: 'rechnung'),
+          // Bar (1000) und Storno zählen nicht
+          bu(1000, 3400, 20, beleg: 'r1', belegTyp: 'rechnung'),
+          bu(1100, 3400, 99, beleg: 'r2', belegTyp: 'rechnung',
+              storniert: true),
+          // Zahlung auf die Reinigung ist keine Debitorbuchung
+          bu(1100, 3400, 5, beleg: 'r1', belegTyp: 'zahlung'),
+        ],
+        {'r1', 'r2'},
+      );
+      expect(s, closeTo(144.05, 0.001));
+    });
+
+    test('die Regel rechnet sie ins Soll', () {
+      final b = lauf(
+        'debitoren_offene_rechnungen',
+        kx(
+          buchungen: [bs(1100, 3400, 244.05)],
+          offeneForderungen: 100,
+          jahreskunden: 144.05,
+        ),
+      );
+      expect(b.status, PruefStatus.gruen);
+      expect(b.soll, '244.05');
+    });
+  });
+
+  group('Toleranz 1100 (±0.50)', () {
+    test('Titel nennt die Toleranz', () {
+      expect(lauf('debitoren_offene_rechnungen', kx()).titel,
+          contains('±0.50'));
+    });
+    test('0.55 Abweichung ist rot', () {
+      final b = lauf(
+        'debitoren_offene_rechnungen',
+        kx(buchungen: [bs(1100, 3400, 150)], offeneForderungen: 150.55),
+      );
+      expect(b.status, PruefStatus.rot);
+    });
+  });
+
+  test('2030-Regel: Titel sagt, was sie wirklich prüft (M6)', () {
+    expect(
+      lauf('kundenguthaben_2030', kx()).titel,
+      '2030: Guthaben je Betrieb zuordenbar',
+    );
   });
 
   group('kundenguthaben_2030', () {

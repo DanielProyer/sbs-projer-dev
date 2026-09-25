@@ -14,6 +14,14 @@ import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 import 'package:sbs_projer_app/core/util/zahlung_paarung.dart';
 
 /// Ein eindeutiger Auto-Treffer: eine Gutschrift schliesst eine/mehrere Forderungen.
+/// Frisch gelesene Rechnung vor dem Zuordnen einer Zahlung: gesperrt, wenn
+/// sie weg ist oder nicht mehr zahlbar (`istZahlbar` — bezahlt,
+/// abgeschrieben, Heineken, unbekannter Status). Vorher sperrte nur
+/// «bezahlt/abgeschrieben»; eine zwischenzeitlich zur Heineken- oder
+/// Fremdrechnung gewordene Zeile rutschte durch (Review R3, M3).
+bool zuordnungGesperrt(Rechnung? frisch) =>
+    frisch == null || !istZahlbar(frisch);
+
 class AutoTreffer {
   final CamtTransaction gutschrift;
   final List<Rechnung> forderungen;
@@ -273,14 +281,15 @@ class ForderungsAbgleichService {
       final frisch = await RechnungRepository.getById(r.id);
       // Auch «abgeschrieben» sperrt: Eine Bankzahlung auf eine ausgebuchte
       // Forderung braucht zuerst die Rücknahme der Abschreibung.
-      if (frisch != null && kErledigteStatus.contains(frisch.zahlungsstatus)) {
-        bereitsBezahlt.add(frisch.rechnungsnummer ?? frisch.id);
+      if (zuordnungGesperrt(frisch)) {
+        bereitsBezahlt.add(frisch?.rechnungsnummer ?? r.rechnungsnummer ?? r.id);
       }
     }
     if (bereitsBezahlt.isNotEmpty) {
       throw Exception(
-          'Bereits bezahlt oder abgeschrieben: ${bereitsBezahlt.join(', ')} — Zuordnung '
-          'abgebrochen. Bitte Liste aktualisieren.');
+          'Nicht mehr zahlbar (bezahlt, abgeschrieben oder geändert): '
+          '${bereitsBezahlt.join(', ')} — Zuordnung abgebrochen. Bitte Liste '
+          'aktualisieren.');
     }
 
     // Paarung nur nötig, wenn mehrere Zahlungen im Spiel sind.

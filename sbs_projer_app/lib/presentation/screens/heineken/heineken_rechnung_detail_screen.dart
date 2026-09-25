@@ -41,6 +41,7 @@ class _HeinekenRechnungDetailScreenState
   /// (dann kein Nachhol-Knopf, statt auf Verdacht zu alarmieren).
   bool? _ertragGebucht;
   bool _nachholLaeuft = false;
+  bool _freigabeLaeuft = false;
 
   static final _monatFormat = DateFormat('MMMM yyyy', 'de_CH');
   static final _dateFormat = DateFormat('dd.MM.yyyy');
@@ -228,6 +229,20 @@ class _HeinekenRechnungDetailScreenState
     }
   }
 
+  /// Sperre um die ganze Freigabe (Prüfung, Dialog, Buchung, Status): Ein
+  /// zweiter Tipp während der Prüfung startete sonst eine zweite Freigabe —
+  /// zwei parallele `createFromRechnung` sehen beide «noch keine Buchung»
+  /// und buchen den Ertrag doppelt (Review R3, I2).
+  Future<void> _freigebenMitPruefung() async {
+    if (_freigabeLaeuft) return;
+    setState(() => _freigabeLaeuft = true);
+    try {
+      await _freigebenMitPruefungIntern();
+    } finally {
+      if (mounted) setState(() => _freigabeLaeuft = false);
+    }
+  }
+
   /// Wächter vor der Freigabe: rechnet die Positionen aus den Quelldaten neu
   /// und hält sie gegen die gespeicherten.
   ///
@@ -240,7 +255,7 @@ class _HeinekenRechnungDetailScreenState
   /// nach dem Versand ändern (bei der August-Rechnung wurde eine Störung
   /// nachträglich auf zwei Bereiche korrigiert, die Rechnung blieb bewusst auf
   /// dem PDF-Wert). Der Dialog entscheidet deshalb nicht, er legt vor.
-  Future<void> _freigebenMitPruefung() async {
+  Future<void> _freigebenMitPruefungIntern() async {
     final r = _rechnung;
     if (r == null) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -280,7 +295,7 @@ class _HeinekenRechnungDetailScreenState
     final sauber =
         pruefFehler == null && abw.isEmpty && kopfDiff.abs() <= kPruefToleranz;
     if (sauber) {
-      await _updateStatus('freigegeben');
+      await _freigeben();
       return;
     }
 
@@ -343,7 +358,7 @@ class _HeinekenRechnungDetailScreenState
         ],
       ),
     );
-    if (ok == true) await _updateStatus('freigegeben');
+    if (ok == true) await _freigeben();
   }
 
   /// Freigabe: erst Ertragsbuchung, dann Status (R3). Scheitert die
@@ -414,7 +429,37 @@ class _HeinekenRechnungDetailScreenState
   }
 
   Future<void> _updateStatus(String newStatus) async {
-    if (newStatus == 'freigegeben') return _freigeben();
+    if (newStatus == 'freigegeben') return _freigebenMitPruefung();
+    // M5: Zurück auf «gesendet» nur ohne aktive Ertragsbuchung — sonst stünde
+    // ein Ertrag 1100/3400 ohne Forderung da (Regel 1100 meldete Differenz).
+    if (newStatus == 'gesendet' && _rechnung?.zahlungsstatus == 'freigegeben') {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        final buchungen = await BuchungRepository.getByBeleg(widget.rechnungId);
+        if (hatHeinekenErtragsbuchung(buchungen, widget.rechnungId)) {
+          messenger.showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 8),
+              content: Text(
+                'Nicht zurückgesetzt: Die Ertragsbuchung steht noch — '
+                'zuerst Ertragsbuchung stornieren (Journal).',
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Buchungen nicht geprüft, nicht zurückgesetzt: '
+              '${kurzeFehlermeldung(e)}',
+            ),
+          ),
+        );
+        return;
+      }
+    }
     await RechnungRepository.update(widget.rechnungId, {
       'zahlungsstatus': newStatus,
       if (newStatus == 'bezahlt')
@@ -732,17 +777,20 @@ class _HeinekenRechnungDetailScreenState
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: r.zahlungsstatus == 'gesendet'
+            // TapKnopf statt FilledButton: Die Freigabe bucht — ein auf
+            // CanvasKit toter Knopf wäre hier teuer (CLAUDE.md). `laeuft`
+            // sperrt ihn, bis die Freigabe durch ist (I2).
+            child: TapKnopf(
+              onTap: r.zahlungsstatus == 'gesendet'
                   ? _freigebenMitPruefung
                   : null,
-              icon: const Icon(Icons.task_alt),
-              label: Text(
-                r.zahlungsstatus == 'freigegeben' ||
-                        r.zahlungsstatus == 'bezahlt'
-                    ? 'Freigegeben'
-                    : 'Als freigegeben markieren',
-              ),
+              laeuft: _freigabeLaeuft,
+              icon: Icons.task_alt,
+              text:
+                  r.zahlungsstatus == 'freigegeben' ||
+                      r.zahlungsstatus == 'bezahlt'
+                  ? 'Freigegeben'
+                  : 'Als freigegeben markieren',
             ),
           ),
           const SizedBox(height: 12),

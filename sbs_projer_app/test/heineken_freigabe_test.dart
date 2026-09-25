@@ -3,6 +3,8 @@ import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/camt/heineken_matcher.dart';
+import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart'
+    show zuordnungGesperrt;
 
 /// R3 (App-Analyse 25.09.2026): Die Heineken-Freigabe darf nicht übersprungen
 /// werden — sonst fehlt die Ertragsbuchung 1100/3400 für immer.
@@ -66,6 +68,40 @@ void main() {
     test('Kundenrechnung ist nie eine zahlbare Heineken-Rechnung', () {
       expect(heinekenZahlbar(hr('freigegeben', typ: 'kundenrechnung')),
           isFalse);
+    });
+  });
+
+  group('heinekenSperrgrund (M2, frisch gelesen vor dem Buchen)', () {
+    test('freigegeben → kein Sperrgrund', () {
+      expect(heinekenSperrgrund(hr('freigegeben')), isNull);
+    });
+    test('gesendet → gesperrt, Meldung nennt Freigabe', () {
+      expect(heinekenSperrgrund(hr('gesendet')), contains('nicht freigegeben'));
+    });
+    test('bezahlt → gesperrt', () {
+      expect(heinekenSperrgrund(hr('bezahlt')), contains('schon bezahlt'));
+    });
+    test('gelöscht → gesperrt', () {
+      expect(heinekenSperrgrund(null), isNotNull);
+    });
+  });
+
+  group('zuordnungGesperrt (M3, Frisch-Prüfung im Forderungsabgleich)', () {
+    test('offene Kundenrechnung ist frei', () {
+      expect(zuordnungGesperrt(hr('offen', typ: 'kundenrechnung')), isFalse);
+      expect(
+        zuordnungGesperrt(hr('mahnung_1', typ: 'jahresrechnung')),
+        isFalse,
+      );
+    });
+    test('bezahlt, abgeschrieben, weg oder Heineken → gesperrt', () {
+      expect(zuordnungGesperrt(hr('bezahlt', typ: 'kundenrechnung')), isTrue);
+      expect(
+        zuordnungGesperrt(hr('abgeschrieben', typ: 'kundenrechnung')),
+        isTrue,
+      );
+      expect(zuordnungGesperrt(null), isTrue);
+      expect(zuordnungGesperrt(hr('freigegeben')), isTrue);
     });
   });
 

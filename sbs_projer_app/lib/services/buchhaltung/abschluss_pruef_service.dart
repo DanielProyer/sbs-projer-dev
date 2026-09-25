@@ -86,6 +86,12 @@ class AbschlussKontext {
   final double? offeneForderungen;
   final int offeneForderungenAnzahl;
 
+  /// Brutto der Debitorbuchungen (Soll 1100) abgeschlossener Reinigungen
+  /// von Jahreskunden, die noch in keiner Jahresrechnung stecken
+  /// (`jahreskundenOhneRechnung`) — ihr Debitor steht schon, die Rechnung
+  /// kommt erst am Jahresende.
+  final double jahreskundenUnverrechnet;
+
   /// Offenes Kundenguthaben je Betrieb (`offenesGuthabenJeBetrieb`), inkl.
   /// Schlüssel `''` für Buchungen ohne auflösbaren Betrieb. `null` = nicht
   /// geladen.
@@ -106,6 +112,7 @@ class AbschlussKontext {
     this.buchungenFalschesJahr = 0,
     this.offeneForderungen,
     this.offeneForderungenAnzahl = 0,
+    this.jahreskundenUnverrechnet = 0,
     this.kundenguthabenJeBetrieb,
   });
 

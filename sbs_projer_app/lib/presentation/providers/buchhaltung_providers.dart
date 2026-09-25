@@ -12,10 +12,11 @@ import 'package:sbs_projer_app/data/repositories/konto_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_regeln.dart'
-    show offeneForderungenSumme, zaehltAlsForderung;
+    show jahreskundenOhneRechnung, offeneForderungenSumme, zaehltAlsForderung;
 import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/erfolgsrechnung_service.dart';
@@ -238,6 +239,16 @@ final abschlussPruefungProvider =
   } catch (_) {
     kundenguthaben = null;
   }
+  // I1: Jahreskunden-Reinigungen tragen ihren Debitor schon, stehen aber auf
+  // keiner Rechnung. Scheitert das Laden, zählen sie 0 — die Regel meldet
+  // dann eher zu rot als zu grün.
+  var jahreskunden = 0.0;
+  try {
+    jahreskunden = jahreskundenOhneRechnung(
+      buchungen,
+      await _unverrechneteJahresReinigungen(DateTime.now().year),
+    );
+  } catch (_) {}
   return AbschlussPruefService.pruefe(AbschlussKontext(
     jahr: jahr,
     heute: DateTime.now(),
@@ -283,9 +294,66 @@ final abschlussPruefungProvider =
     // Q5: 1100 gegen die offenen Rechnungen (Stand heute).
     offeneForderungen: offeneForderungenSumme(offene, buchungen),
     offeneForderungenAnzahl: offene.where(zaehltAlsForderung).length,
+    jahreskundenUnverrechnet: jahreskunden,
     kundenguthabenJeBetrieb: kundenguthaben,
   ));
 });
+
+/// Abgeschlossene Reinigungen des Jahres [jahr] mit Zahlungsart
+/// `jahresrechnung` (Reinigung, sonst Betrieb — wie `resolveZahlungsart`),
+/// die noch in keiner Rechnungsposition (`service_id`) stecken.
+Future<Set<String>> _unverrechneteJahresReinigungen(int jahr) async {
+  final client = SupabaseService.client;
+  final uid = SupabaseService.dataUserId;
+  final jahresBetriebe = {
+    for (final r in await client
+        .from('betriebe')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('rechnungsstellung', 'jahresrechnung'))
+      r['id'].toString(),
+  };
+  final kandidaten = <String>[];
+  for (int from = 0;; from += 1000) {
+    final page = await client
+        .from('reinigungen')
+        .select('id, zahlungsart, betrieb_id')
+        .eq('user_id', uid)
+        .eq('status', 'abgeschlossen')
+        .gte('datum', '$jahr-01-01')
+        .lte('datum', '$jahr-12-31')
+        .order('id') // eindeutig sortieren, sonst verliert die Pagination Zeilen
+        .range(from, from + 999);
+    for (final r in page) {
+      final eigene = (r['zahlungsart'] as String?) ?? '';
+      final art = eigene.isNotEmpty
+          ? eigene
+          : (jahresBetriebe.contains(r['betrieb_id']?.toString())
+                ? 'jahresrechnung'
+                : '');
+      if (art == 'jahresrechnung') kandidaten.add(r['id'].toString());
+    }
+    if (page.length < 1000) break;
+  }
+  final verrechnet = <String>{};
+  for (var i = 0; i < kandidaten.length; i += kInFilterBlock) {
+    final block = kandidaten.sublist(
+      i,
+      i + kInFilterBlock > kandidaten.length
+          ? kandidaten.length
+          : i + kInFilterBlock,
+    );
+    final rows = await client
+        .from('rechnungs_positionen')
+        .select('service_id')
+        .inFilter('service_id', block);
+    for (final r in rows) {
+      final id = r['service_id']?.toString();
+      if (id != null) verrechnet.add(id);
+    }
+  }
+  return kandidaten.toSet().difference(verrechnet);
+}
 
 /// Debitoren-Übersicht: Gesamtsaldo 1100, native offene Rechnungen,
 /// historischer Aggregat und Delkredere (1109).

@@ -204,12 +204,9 @@ void main() {
 /// Dateien, die bei der Schärfung (25.09.2026) parallel in anderen
 /// Arbeitssträngen umgebaut wurden. Ihre Treffer sind bekannt und werden
 /// dort nachgezogen — danach den Eintrag hier streichen.
-const _ausgenommen = <String>[
-  // «Löschen» einer camt-Regel (FilledButton im Dialog)
-  'screens/buchhaltung/camt/camt_regeln_tab.dart',
-  // «Rückgängig machen» der Zahlung + «Zahlung rückgängig (Bankabgleich)»
-  'screens/rechnungen/rechnung_detail_screen.dart',
-];
+/// Leer seit 25.09.2026 (camt_regeln_tab und rechnung_detail_screen
+/// umgestellt).
+const _ausgenommen = <String>[];
 
 final _knopf = RegExp(
   r'\b(FilledButton|ElevatedButton|OutlinedButton|TextButton)'

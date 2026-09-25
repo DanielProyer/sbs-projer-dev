@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/services/camt/camt_ausgabe_booker.dart';
 import 'package:sbs_projer_app/services/camt/pruefliste_buchung.dart';
 import 'package:sbs_projer_app/services/camt/regel_matcher.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Dialog zum Anlegen einer neuen camt-Regel.
 ///
@@ -244,9 +245,10 @@ class CamtRegelnTab extends ConsumerWidget {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
       ),

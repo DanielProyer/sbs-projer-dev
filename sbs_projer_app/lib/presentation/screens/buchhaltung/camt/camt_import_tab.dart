@@ -38,6 +38,7 @@ import 'package:sbs_projer_app/services/camt/file_picker_export.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/services/camt/heineken_matcher.dart' show heinekenZahlbar;
 
 class CamtImportTab extends ConsumerStatefulWidget {
   final VoidCallback? onZurPruefliste;
@@ -485,13 +486,10 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
           .toList();
       final ausgeblendeteAltposten =
           alleOffenen.length - offeneRechnungen.length;
-      final heinekenRechnungen = alleRechnungen
-          .where(
-            (r) =>
-                r.rechnungstyp == 'heineken_monat' &&
-                r.zahlungsstatus != 'bezahlt',
-          )
-          .toList();
+      // Nur freigegebene Monatsrechnungen: eine erst gesendete darf nicht
+      // per Bank auf «bezahlt» gehen, sonst fehlt die Ertragsbuchung (R3).
+      final heinekenRechnungen =
+          alleRechnungen.where(heinekenZahlbar).toList();
       // Gebuchte TX + erledigte/ignorierte Prüflisten-Einträge blockieren.
       // OFFENE Prüflisten-Einträge werden bewusst neu bewertet (Upsert
       // verhindert Duplikate; nach einer Buchung wird der Eintrag gelöscht).

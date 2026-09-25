@@ -12,6 +12,19 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 bool heinekenZahlbar(Rechnung r) =>
     r.rechnungstyp == 'heineken_monat' && r.zahlungsstatus == 'freigegeben';
 
+/// Warum eine Bankzahlung die (frisch gelesene) Heineken-Rechnung [r]
+/// NICHT auf «bezahlt» setzen darf — `null` = darf.
+String? heinekenSperrgrund(Rechnung? r) {
+  if (r == null) return 'Heineken-Rechnung nicht mehr vorhanden — nicht gebucht.';
+  if (heinekenZahlbar(r)) return null;
+  final nr = r.rechnungsnummer ?? r.id;
+  if (r.zahlungsstatus == 'bezahlt') {
+    return 'Heineken-Rechnung $nr ist schon bezahlt — nicht gebucht.';
+  }
+  return 'Heineken-Rechnung $nr ist nicht freigegeben '
+      '(Status «${r.zahlungsstatus}») — erst freigeben, dann Zahlung buchen.';
+}
+
 class HeinekenMatcher {
   /// Liefert die eindeutige zahlbare Heineken-Monatsrechnung
   /// ([heinekenZahlbar]) mit passendem Bruttobetrag, sonst null (→ Prüfliste).
@@ -27,4 +40,14 @@ class HeinekenMatcher {
         .toList();
     return passende.length == 1 ? passende.first : null;
   }
+}
+
+/// Abbruch, wenn eine bestätigte Heineken-Zahlung beim Buchen nicht mehr
+/// zahlbar ist. `toString` ist die Meldung selbst — sie landet über
+/// `kurzeFehlermeldung` direkt in der Snackbar, ohne «Bad state:».
+class HeinekenZahlungGesperrt implements Exception {
+  final String grund;
+  const HeinekenZahlungGesperrt(this.grund);
+  @override
+  String toString() => grund;
 }

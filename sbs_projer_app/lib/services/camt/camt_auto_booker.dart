@@ -270,6 +270,13 @@ class CamtAutoBooker {
         await CamtAusgabeBooker.book(v.tx, v.vorlage!, steuer: steuer);
         break;
       case CamtVorschlagTyp.heineken:
+        // Zwischen Vorschlag und Bestätigung kann der Status gewechselt
+        // haben (z. B. im Detail auf «gesendet» zurückgesetzt) — frisch
+        // lesen, sonst ginge eine nicht freigegebene Rechnung auf «bezahlt».
+        final frisch =
+            await RechnungRepository.getById(v.heinekenRechnung!.id);
+        final sperre = heinekenSperrgrund(frisch);
+        if (sperre != null) throw HeinekenZahlungGesperrt(sperre);
         final b = await HeinekenBuchungService.createZahlungseingang(
             v.heinekenRechnung!,
             datum: v.tx.bookingDate);

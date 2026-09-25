@@ -427,6 +427,38 @@ double offeneForderungenSumme(
   return rundeAufRappen(summe);
 }
 
+/// Debitor, der schon steht, aber noch auf keiner Rechnung: abgeschlossene
+/// Reinigungen von Jahreskunden. Die Reinigung bucht sofort Soll 1100 /
+/// Haben 3400 (`beleg_typ` 'rechnung', `beleg_id` = Reinigung); die
+/// Jahresrechnung entsteht erst am Jahresende. [reinigungIds] = Reinigungen
+/// mit Zahlungsart `jahresrechnung`, die in keiner `rechnungs_positionen.
+/// service_id` vorkommen.
+double jahreskundenOhneRechnung(
+  List<Buchung> buchungen,
+  Set<String> reinigungIds,
+) {
+  var summe = 0.0;
+  for (final b in buchungen) {
+    if (b.sollKonto != 1100 || b.belegTyp != 'rechnung') continue;
+    if (b.belegId == null || !reinigungIds.contains(b.belegId)) continue;
+    if (!zaehltFuerSaldo(
+      istStorniert: b.istStorniert,
+      stornoVonId: b.stornoVonId,
+    )) {
+      continue;
+    }
+    summe += b.betragBrutto;
+  }
+  return rundeAufRappen(summe);
+}
+
+/// Toleranz der Regel 1100: Ertragsbuchung (Satz aus der Vorlage, 5-Rappen-
+/// Rundung je Reinigung) und Rechnung (Satz aus der Preisliste) rechnen
+/// getrennt. Live 25.09.2026: 1 von 89 Rechnungen seit Juli wich um 0.05 ab
+/// — über ein Jahr summiert sich das auf einige Zehnrappen, 0.05 gäbe einen
+/// Dauer-Fehlalarm.
+const _toleranz1100 = 0.50;
+
 /// Q5: Debitoren 1100 = offene Rechnungen. Am 25.09.2026 stand 1100 bei
 /// 117'416.58, die offenen Rechnungen bei 131'193.44 — die −13'776.86
 /// meldete keine Regel; der Debitoren-Header nannte sie «historischer
@@ -438,11 +470,12 @@ class DebitorenOffeneRechnungenRegel extends AbschlussRegel {
   @override
   String get gruppe => 'Debitoren';
   @override
-  String get titel => 'Debitoren 1100 = offene Rechnungen';
+  String get titel => 'Debitoren 1100 = offene Rechnungen (±0.50)';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
     const route = '/rechnungen';
-    final soll = k.offeneForderungen;
+    final offen = k.offeneForderungen;
+    final soll = offen == null ? null : offen + k.jahreskundenUnverrechnet;
     // Stand heute, nicht per Stichtag: Die offenen Rechnungen sind ein
     // heutiger Bestand — gegen einen Vorjahres-Saldo gehalten, meldete jede
     // seither bezahlte Rechnung eine Scheindifferenz.
@@ -456,12 +489,18 @@ class DebitorenOffeneRechnungenRegel extends AbschlussRegel {
       );
     }
     final diff = ist - soll;
-    if (diff.abs() <= _toleranz) {
+    final jahr = k.jahreskundenUnverrechnet;
+    final jahrText = jahr.abs() > 0.005
+        ? ' (inkl. ${chf(jahr)} Jahreskunden noch ohne Jahresrechnung)'
+        : '';
+    if (diff.abs() <= _toleranz1100) {
       return befund(
         PruefStatus.gruen,
         ist: chf(ist),
         soll: chf(soll),
-        hinweis: 'Stand heute, ${k.offeneForderungenAnzahl} offene Rechnungen',
+        hinweis:
+            'Stand heute, ${k.offeneForderungenAnzahl} offene Rechnungen'
+            '$jahrText',
         route: route,
       );
     }
@@ -470,24 +509,30 @@ class DebitorenOffeneRechnungenRegel extends AbschlussRegel {
       ist: chf(ist),
       soll: chf(soll),
       hinweis:
-          'Stand heute: 1100 ${chf(ist)}, offene Rechnungen ${chf(soll)}, '
-          'Differenz ${chf(diff)}. Differenz klären: Rechnungen ohne '
-          'Buchung / Buchungen ohne Rechnung.',
+          'Stand heute: 1100 ${chf(ist)}, offene Rechnungen ${chf(soll)}'
+          '$jahrText, Differenz ${chf(diff)}. Differenz klären: Rechnungen '
+          'ohne Buchung / Buchungen ohne Rechnung.',
       route: route,
     );
   }
 }
 
-/// Q5: Konto 2030 = Σ offenes Kundenguthaben aller Betriebe (inkl. der
-/// Buchungen ohne auflösbaren Betrieb). Guthaben entsteht nur von Hand —
-/// eine Fehlzuordnung ist deshalb wahrscheinlicher als anderswo.
+/// Q5: Ist jedes Guthaben auf 2030 einem Betrieb zuordenbar?
+///
+/// Ehrlich gesagt: Der Vergleich «Saldo 2030 = Σ Guthaben je Betrieb» ist
+/// weitgehend tautologisch — beide Seiten entstehen aus denselben Buchungen.
+/// Der eigentliche Befund sind Guthaben ohne Betrieb (Schlüssel `''`) und
+/// negatives Guthaben eines Betriebs (beides gelb). Die rote Abweichung
+/// bleibt als Sicherheitsnetz: Sie schlägt an, wenn eine Buchung auf 2030
+/// ein MWST-Konto trägt (Saldo-Aufteilung ≠ Brutto) oder die Storno-Logik
+/// der beiden Rechenwege auseinanderläuft.
 class Kundenguthaben2030Regel extends AbschlussRegel {
   @override
   String get id => 'kundenguthaben_2030';
   @override
   String get gruppe => 'Debitoren';
   @override
-  String get titel => 'Konto 2030 = offenes Kundenguthaben';
+  String get titel => '2030: Guthaben je Betrieb zuordenbar';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
     const route = '/buchhaltung/buchungen';
