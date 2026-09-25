@@ -30,6 +30,9 @@ MonatsKontext kontext({
   List<Einsatz> einsaetze = const [],
   int mailRechnungenOffen = 0,
   String? heinekenStatus = 'freigegeben',
+  bool heinekenErtragGebucht = true,
+  String? heinekenRechnungId = 'h1',
+  String? heinekenRechnungsnummer = 'RE-2026-0815',
   Set<String> bergTage = const {},
   Set<String> pauschalenTage = const {},
   List<({DateTime von, DateTime bis})>? camtDeckung,
@@ -44,6 +47,9 @@ MonatsKontext kontext({
   einsaetze: einsaetze,
   mailRechnungenOffen: mailRechnungenOffen,
   heinekenStatus: heinekenStatus,
+  heinekenErtragGebucht: heinekenErtragGebucht,
+  heinekenRechnungId: heinekenRechnungId,
+  heinekenRechnungsnummer: heinekenRechnungsnummer,
   bergTage: bergTage,
   pauschalenTage: pauschalenTage,
   camtDeckung:
@@ -228,6 +234,29 @@ void main() {
       );
       expect(b.status, PruefStatus.gelb);
       expect(b.hinweis, contains('Ertrag'));
+    });
+    test('freigegeben/bezahlt OHNE Ertragsbuchung ist rot (R3)', () {
+      for (final s in ['freigegeben', 'bezahlt']) {
+        final b = lauf(
+          'heineken_freigegeben',
+          kontext(heinekenStatus: s, heinekenErtragGebucht: false),
+        );
+        expect(b.status, PruefStatus.rot, reason: s);
+        expect(b.ist, 'ohne Ertragsbuchung');
+        expect(
+          b.hinweis,
+          contains('Heineken-Rechnung RE-2026-0815 ohne Ertragsbuchung'),
+        );
+        // Führt zum Nachhol-Knopf im Detail der Rechnung.
+        expect(b.aktionRoute, '/heineken/h1');
+      }
+    });
+    test('gesendet ohne Buchung bleibt gelb — dort ist keine faellig', () {
+      final b = lauf(
+        'heineken_freigegeben',
+        kontext(heinekenStatus: 'gesendet', heinekenErtragGebucht: false),
+      );
+      expect(b.status, PruefStatus.gelb);
     });
   });
 

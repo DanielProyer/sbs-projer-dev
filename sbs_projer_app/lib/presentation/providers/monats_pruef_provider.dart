@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/monats_pruef_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -97,16 +98,30 @@ final monatsPruefungProvider = FutureProvider.autoDispose
       }
 
       String? heinekenStatus;
+      String? heinekenId;
+      String? heinekenNr;
+      var heinekenErtragGebucht = true;
       try {
         final rows = await client
             .from('rechnungen')
-            .select('zahlungsstatus')
+            .select('id, rechnungsnummer, zahlungsstatus')
             .eq('user_id', uid)
             .eq('rechnungstyp', 'heineken_monat')
             .eq('heineken_monat', vonStr)
             .limit(1);
         if (rows.isNotEmpty) {
           heinekenStatus = rows.first['zahlungsstatus'] as String?;
+          heinekenId = rows.first['id']?.toString();
+          heinekenNr = rows.first['rechnungsnummer'] as String?;
+          // Ab «freigegeben» muss die Ertragsbuchung stehen (R3) — der
+          // Status allein beweist es nicht.
+          if (heinekenId != null) {
+            final buchungen = await BuchungRepository.getByBeleg(heinekenId);
+            heinekenErtragGebucht = hatHeinekenErtragsbuchung(
+              buchungen,
+              heinekenId,
+            );
+          }
         }
       } catch (e) {
         debugPrint('[Monatsabschluss] Heineken-Rechnung: $e');
@@ -180,6 +195,9 @@ final monatsPruefungProvider = FutureProvider.autoDispose
           einsaetze: einsaetze,
           mailRechnungenOffen: mailRechnungenOffen,
           heinekenStatus: heinekenStatus,
+          heinekenErtragGebucht: heinekenErtragGebucht,
+          heinekenRechnungId: heinekenId,
+          heinekenRechnungsnummer: heinekenNr,
           bergTage: bergTage,
           pauschalenTage: pauschalenTage,
           camtDeckung: camtDeckung,

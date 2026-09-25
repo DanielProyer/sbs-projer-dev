@@ -4,11 +4,56 @@ import 'package:sbs_projer_app/core/util/heineken_buchung_betraege.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
+import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
+
+/// Steht zur Heineken-Rechnung [rechnungId] die Ertragsbuchung aus der
+/// Freigabe (beleg_typ `rechnung`, Haben 3400), nicht storniert?
+///
+/// Ab `freigegeben` MUSS sie da sein — sonst fehlt der Monatsertrag in der
+/// Erfolgsrechnung, und die Zahlung (Haben 1100) treibt 1100 ins Minus (R3).
+bool hatHeinekenErtragsbuchung(List<Buchung> buchungen, String rechnungId) =>
+    buchungen.any(
+      (b) =>
+          b.belegId == rechnungId &&
+          b.belegTyp == 'rechnung' &&
+          b.habenKonto == 3400 &&
+          zaehltFuerSaldo(
+            istStorniert: b.istStorniert,
+            stornoVonId: b.stornoVonId,
+          ),
+    );
 
 /// Erstellt Buchhaltungs-Buchungen für den Heineken-Rechnungsworkflow.
 /// - Freigabe → Debitoren-Buchung (Soll 1100 / Haben 3400) + MwSt
 /// - Bezahlt → Zahlungseingang (Soll 1020 / Haben 1100)
 class HeinekenBuchungService {
+  /// Gibt die Rechnung frei: **erst** die Ertragsbuchung, **dann** der
+  /// Status.
+  ///
+  /// WARUM diese Reihenfolge: Bis v0.138 setzte der Detail-Screen zuerst
+  /// «freigegeben» und buchte danach. Brach die Buchung ab (Netz weg,
+  /// Handy weggesteckt), stand eine freigegebene Rechnung ohne Ertrag da —
+  /// und die Monatsprüfung zeigte grün (R3). Jetzt wirft ein Buchungsfehler,
+  /// bevor der Status angefasst wird; die Rechnung bleibt «gesendet» und
+  /// die Freigabe lässt sich einfach wiederholen.
+  ///
+  /// `null` von [buchen] heisst: Die Buchung existiert schon — dann wird
+  /// nur noch der Status nachgezogen. [buchen]/[statusSetzen] sind nur für
+  /// Tests austauschbar.
+  static Future<Buchung?> freigeben(
+    Rechnung rechnung, {
+    Future<Buchung?> Function(Rechnung r)? buchen,
+    Future<void> Function(String id, Map<String, dynamic> daten)?
+        statusSetzen,
+  }) async {
+    final buchung = await (buchen ?? createFromRechnung)(rechnung);
+    await (statusSetzen ?? RechnungRepository.update)(rechnung.id, {
+      'zahlungsstatus': 'freigegeben',
+    });
+    return buchung;
+  }
+
   /// Erstellt Buchung wenn Heineken-Rechnung freigegeben wird.
   /// Soll 1100 (Debitoren) / Haben 3400 (Dienstleistungsertrag)
   /// + MwSt-Buchung: Soll 3400 / Haben 2200 (Geschuldete MwSt)

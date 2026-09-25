@@ -37,6 +37,11 @@ class _HeinekenRechnungDetailScreenState
   List<RechnungsPosition> _positionen = [];
   bool _loading = true;
 
+  /// Steht die Ertragsbuchung aus der Freigabe? `null` = nicht geladen
+  /// (dann kein Nachhol-Knopf, statt auf Verdacht zu alarmieren).
+  bool? _ertragGebucht;
+  bool _nachholLaeuft = false;
+
   static final _monatFormat = DateFormat('MMMM yyyy', 'de_CH');
   static final _dateFormat = DateFormat('dd.MM.yyyy');
 
@@ -50,12 +55,23 @@ class _HeinekenRechnungDetailScreenState
     try {
       final rechnung = await RechnungRepository.getById(widget.rechnungId);
       List<RechnungsPosition> pos = [];
+      bool? ertrag;
       if (rechnung != null) {
         pos = await RechnungsPositionRepository.getByRechnung(rechnung.id);
+        try {
+          ertrag = hatHeinekenErtragsbuchung(
+            await BuchungRepository.getByBeleg(rechnung.id),
+            rechnung.id,
+          );
+        } catch (_) {
+          ertrag = null;
+        }
       }
+      if (!mounted) return;
       setState(() {
         _rechnung = rechnung;
         _positionen = pos;
+        _ertragGebucht = ertrag;
         _loading = false;
       });
     } catch (e) {
@@ -330,7 +346,75 @@ class _HeinekenRechnungDetailScreenState
     if (ok == true) await _updateStatus('freigegeben');
   }
 
+  /// Freigabe: erst Ertragsbuchung, dann Status (R3). Scheitert die
+  /// Buchung, bleibt die Rechnung «gesendet» — nichts Halbes bleibt stehen.
+  Future<void> _freigeben() async {
+    final r = _rechnung;
+    if (r == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final buchung = await HeinekenBuchungService.freigeben(r);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            buchung != null
+                ? 'Freigegeben — Buchung erstellt (Debitoren/Ertrag)'
+                : 'Freigegeben — Buchung bestand schon',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 8),
+          content: Text(
+            'Nicht freigegeben — die Ertragsbuchung ist fehlgeschlagen: '
+            '${kurzeFehlermeldung(e)}. Status bleibt «gesendet».',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+    ref.invalidate(buchungenStreamProvider);
+    ref.invalidate(heinekenRechnungenProvider);
+    _load();
+  }
+
+  /// Holt die fehlende Ertragsbuchung einer bereits freigegebenen oder
+  /// bezahlten Rechnung nach — der Fall aus R3 (Freigabe übersprungen oder
+  /// Buchung nach dem Status abgebrochen). `createFromRechnung` prüft selbst
+  /// auf eine bestehende Hauptbuchung, doppelt entsteht nichts.
+  Future<void> _ertragNachholen() async {
+    final r = _rechnung;
+    if (r == null || _nachholLaeuft) return;
+    setState(() => _nachholLaeuft = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final b = await HeinekenBuchungService.createFromRechnung(r);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            b != null
+                ? 'Ertragsbuchung nachgeholt (1100/3400)'
+                : 'Ertragsbuchung bestand schon',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Nachholen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
+    }
+    ref.invalidate(buchungenStreamProvider);
+    if (mounted) setState(() => _nachholLaeuft = false);
+    _load();
+  }
+
   Future<void> _updateStatus(String newStatus) async {
+    if (newStatus == 'freigegeben') return _freigeben();
     await RechnungRepository.update(widget.rechnungId, {
       'zahlungsstatus': newStatus,
       if (newStatus == 'bezahlt')
@@ -339,31 +423,6 @@ class _HeinekenRechnungDetailScreenState
             .split('T')
             .first,
     });
-
-    // Buchung (Debitoren/Ertrag) beim Wechsel auf 'freigegeben' erstellen
-    if (newStatus == 'freigegeben' && _rechnung != null) {
-      try {
-        final buchung = await HeinekenBuchungService.createFromRechnung(
-          _rechnung!,
-        );
-        if (buchung != null && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Buchung erstellt (Debitoren/Ertrag)'),
-            ),
-          );
-        }
-        ref.invalidate(buchungenStreamProvider);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Buchung fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
-            ),
-          );
-        }
-      }
-    }
 
     // Zahlungseingang bei Bezahlt erstellen
     if (newStatus == 'bezahlt' && _rechnung != null) {
@@ -534,6 +593,48 @@ class _HeinekenRechnungDetailScreenState
           // Status-Banner
           _StatusBanner(status: r.zahlungsstatus),
           const SizedBox(height: 16),
+
+          // R3: freigegeben/bezahlt, aber die Ertragsbuchung fehlt —
+          // Monatsprüfung meldet es rot und führt hierher.
+          if (_ertragGebucht == false &&
+              (r.zahlungsstatus == 'freigegeben' ||
+                  r.zahlungsstatus == 'bezahlt')) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.error.withAlpha(60)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Ertragsbuchung fehlt',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Die Rechnung steht auf freigegeben/bezahlt, aber '
+                    'Debitor und Ertrag (1100/3400) wurden nie gebucht. '
+                    'Der Monatsertrag fehlt in der Erfolgsrechnung.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  TapKnopf(
+                    text: 'Ertragsbuchung nachholen',
+                    icon: Icons.post_add,
+                    laeuft: _nachholLaeuft,
+                    onTap: _ertragNachholen,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Info-Karte
           Card(

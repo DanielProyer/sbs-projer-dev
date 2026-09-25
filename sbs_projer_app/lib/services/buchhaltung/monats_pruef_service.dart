@@ -24,6 +24,16 @@ class MonatsKontext {
   /// `zahlungsstatus` der Heineken-Monatsrechnung; `null` = keine Rechnung.
   final String? heinekenStatus;
 
+  /// Steht die Ertragsbuchung der Freigabe (1100/3400) zur Heineken-
+  /// Rechnung? Vorgabe `true`, damit ein Ladefehler keinen roten Alarm
+  /// erzeugt; nur ab `freigegeben` von Belang (R3).
+  final bool heinekenErtragGebucht;
+
+  /// Id und Nummer der Heineken-Rechnung — für Hinweis und Sprung zum
+  /// Nachhol-Knopf im Detail.
+  final String? heinekenRechnungId;
+  final String? heinekenRechnungsnummer;
+
   /// Tage mit mindestens einer abgeschlossenen Reinigung bei einem
   /// Bergkunden, als `betriebId|yyyy-MM-dd` — die Pauschale gilt pro Betrieb
   /// und Tag, nicht pro Anlage (180 CHF je Besuch).
@@ -48,6 +58,9 @@ class MonatsKontext {
     required this.einsaetze,
     required this.mailRechnungenOffen,
     required this.heinekenStatus,
+    this.heinekenErtragGebucht = true,
+    this.heinekenRechnungId,
+    this.heinekenRechnungsnummer,
     required this.bergTage,
     required this.pauschalenTage,
     required this.camtDeckung,

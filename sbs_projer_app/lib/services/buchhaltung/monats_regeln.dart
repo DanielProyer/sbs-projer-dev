@@ -221,6 +221,24 @@ class HeinekenFreigegebenRegel extends MonatsRegel {
   @override
   Pruefbefund pruefe(MonatsKontext k) {
     if (_mindestens(k.heinekenStatus, 'freigegeben')) {
+      // Der Status allein genügt nicht (R3): Bis v0.138 konnte der
+      // Bankabgleich eine erst gesendete Rechnung direkt auf «bezahlt»
+      // setzen, und der Detail-Screen setzte den Status vor der Buchung.
+      // In beiden Fällen stand «freigegeben/bezahlt» ohne Ertrag da.
+      if (!k.heinekenErtragGebucht) {
+        final nr = k.heinekenRechnungsnummer ?? k.monatName;
+        return befund(
+          PruefStatus.rot,
+          ist: 'ohne Ertragsbuchung',
+          soll: 'Buchung 1100/3400',
+          hinweis:
+              'Heineken-Rechnung $nr ohne Ertragsbuchung — der Monatsertrag '
+              'fehlt. Im Detail der Rechnung nachholen.',
+          route: k.heinekenRechnungId != null
+              ? '/heineken/${k.heinekenRechnungId}'
+              : '/heineken',
+        );
+      }
       return befund(PruefStatus.gruen, ist: 'freigegeben');
     }
     if (k.heinekenStatus == null) {
