@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 25.09.2026 — v0.139.0 Analyse-Runde 1 «Sicherheit der Zahlen» (R2/R3/R4/R6/R11/Q1/Q3/Q5, R9 geklärt)
 - 25.09.2026 — Edge Function send-pdf-mail v15: JWT-Pflicht, Header-Schutz; Ferien nachgetragen
 - 25.09.2026 — v0.138.0 «Beleg»-Knopf auf Heute (Spesen-Scanner direkt)
 - 25.09.2026 — Edge Function send-rechnung-mail v24: JWT-Pflicht, Pfadprüfung
@@ -24,6 +25,47 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 25.09.2026 — v0.139.0 Analyse-Runde 1 «Sicherheit der Zahlen»
+
+Erste Runde aus `docs/app-analyse-2026-09-25.md` (§6). Migration 207.
+
+- **R2 `istZahlbar`** (`core/util/rechnung_status.dart`): Bankabgleich und
+  Zuordnen-Dialog nehmen jetzt auch gemahnte Rechnungen (`erinnert`,
+  `mahnung_1/2`) und Jahresrechnungen; Heineken-Monatsrechnungen nur ab
+  `freigegeben` (`heinekenZahlbar`). Wächter `zahlbar_waechter_test.dart`.
+- **R3 Heineken:** Detail bucht **erst** 1100/3400, **dann** setzt es
+  `freigegeben` (`HeinekenBuchungService.freigeben`, Doppeltipp gesperrt);
+  Bankmatcher setzt eine nur `gesendet`e Rechnung nicht mehr auf `bezahlt`
+  (`HeinekenZahlungGesperrt`, Sperrgrund im Abgleich sichtbar). Monatsregel
+  «freigegeben ohne Ertragsbuchung» + Band «Ertragsbuchung nachholen» im
+  Detail. **Migration 207:** Unique-Teilindex «eine aktive Ertragsbuchung je
+  Rechnungsbeleg» (vorher 0 Duplikate geprüft).
+- **R4 Versand:** Mail-Rückfall hebt den Status nur noch von `offen` auf
+  `gesendet` (`hebeStatusNachVersand`, 4 Stellen), bezahlt/gemahnt bleibt.
+  Wächter `versand_status_waechter_test.dart`.
+- **R6 Rückfragen:** «Tagesplan leeren» und «Google trennen» fragen über
+  `gefahrRueckfrage()` nach (im Browser geprüft: Dialog, roter TapKnopf,
+  Abbrechen).
+- **R11 / Q3 Edge Functions:** alle Functions prüfen den Benutzer selbst
+  (`ermittleUserId`), `parse-oeffnungszeiten` mit URL-Filter (SSRF),
+  `betriebsdaten-abgleich` nur mit `x-cron-secret` (Vault, Migration 206,
+  `limit` ≤ 200), `anfahrt-google` seitenweise, `google-calendar-sync` nur
+  eigene Zeilen, `send-raster-mail` ins Repo geholt (v15, siehe unten);
+  `config.toml` vollständig, `_waechter_test.ts` (61 Deno-Tests) prüft
+  getUser-Aufruf, Ordner je `invoke`-Name und verify_jwt.
+- **Q1 Gefahr-Wächter** geschärft (`X.icon(`, `Colors.red`, ungefärbte
+  Lösch-Knöpfe); 21 Bestätigungen auf `TapKnopf(gefahr: true)`, Ausnahmeliste
+  leer.
+- **Q5 Prüfregeln:** «Debitoren 1100 = offene Rechnungen − Guthaben»
+  (Jahreskunden ohne Rechnung berücksichtigt, Toleranz 0.50) und
+  «Kundenguthaben 2030 = Guthaben je Betrieb» in der Abschlussprüfung.
+- **R9 geklärt:** −13'776.86 = fehlende Ertragsbuchung Heineken Juli 2026
+  (10'102.16, am 25.09. über den neuen Knopf nachgebucht) + Excel-Altbestand
+  −3'674.70 (Entscheid Daniel offen, ToDo).
+- 2301 Tests grün, `flutter analyze` 56 (unverändert).
 
 ---
 

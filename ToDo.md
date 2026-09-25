@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.133.3 live** (Navigation «Mehr», Rechnungs-Bereich, Suche) · Edge Functions `send-rechnung-mail` **v22**, `parse-einsatz` **v9** · Migrationen bis **199** · **1918 Tests grün**.
+**Stand:** **v0.139.0 live** (Analyse-Runde 1 «Sicherheit der Zahlen») · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **207** · **2301 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -199,6 +199,13 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.139.0** — Tour → Symbol «Tagesplan leeren» (rot, rechts in der
+  Kopfzeile): fragt nach, «Abbrechen» lässt den Plan stehen. Einstellungen →
+  «Google trennen»: fragt nach. Buchhaltung → Abschlussprüfung: neue Regeln
+  «Debitoren 1100» (zeigt −3'674.70 Excel-Altbestand, erwartet) und
+  «Kundenguthaben 2030» (Chesa 30.00, grün). Heineken September-Rechnung
+  freigeben: Knopf bucht erst, dann Status — ein Tipp genügt.
 
 - **v0.138.0** — Heute → «Beleg»: Kamera geht direkt auf? Nach «Fertig»
   wieder auf Heute? Später vielleicht: Foto einer Lieferantenrechnung
