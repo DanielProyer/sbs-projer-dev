@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 25.09.2026 — Edge Function send-pdf-mail v15: JWT-Pflicht, Header-Schutz; Ferien nachgetragen
 - 25.09.2026 — v0.138.0 «Beleg»-Knopf auf Heute (Spesen-Scanner direkt)
 - 25.09.2026 — Edge Function send-rechnung-mail v24: JWT-Pflicht, Pfadprüfung
 - 25.09.2026 — v0.137.0 Kundenguthaben (Verrechnung mit der nächsten Rechnung)
@@ -23,6 +24,22 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 25.09.2026 — Edge Function send-pdf-mail v15: JWT-Pflicht, Header-Schutz; Ferien nachgetragen
+
+- **send-pdf-mail** (Berichte, Anlagen-Steckbrief, Event-Abschluss) lief ohne
+  jede Auth-Prüfung — offenes Mail-Relay über Daniels Gmail (Analyse 5,
+  25.09.). Neu wie send-rechnung-mail v24: `verify_jwt = true`, eigene
+  Token-Prüfung, kein CR/LF in `to`/`subject` (Header-Injection), Dateiname
+  bereinigt, PDF-Grösse gedeckelt. Geprüft: ohne Token 401, mit Token 200
+  (Test-Mail an Daniel), Bcc-Injection 400.
+- **Ferien-Lücke** (Analyse 6): Das Betriebsformular schreibt nur die alten
+  Spalten `ferien*_start/ende`, Tourenplan und Heineken-Raster lesen seit
+  Migration 160 nur `betrieb_ferien`. Drei künftige Perioden nachgetragen
+  (Surselva Disentis 11.10.–04.11., Posta Veglia Flond 02.–23.11., Edelweiss
+  Vals 01.–26.12.). Reparatur des Formulars offen (ToDo).
 
 ---
 
