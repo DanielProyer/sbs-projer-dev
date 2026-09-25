@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
+import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 
 class JahresrechnungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
@@ -166,6 +167,11 @@ class JahresrechnungService {
     // exakt das Brutto (Differenz bis 1 Rappen).
     final bruttoTotal = bruttoKundenrechnung(totalNetto, _mwstFaktor);
     final mwstTotal = _round2(bruttoTotal - totalNetto);
+    // Offenes Kundenguthaben (2030) verrechnen — wirft nie.
+    final guthaben = await RechnungService.guthabenFuerNeueRechnung(
+      betrieb.serverId,
+      bruttoTotal,
+    );
 
     // Rechnungsdatum: 31.12. des Jahres
     final rechnungsdatum = DateTime(jahr, 12, 31);
@@ -182,6 +188,7 @@ class JahresrechnungService {
       'betrag_netto': totalNetto,
       'mwst_betrag': mwstTotal,
       'betrag_brutto': bruttoTotal,
+      'guthaben_verrechnet': guthaben,
       'zahlungsstatus': 'offen',
       'versandart': 'jahresrechnung',
     });

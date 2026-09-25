@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
@@ -583,6 +584,17 @@ class _RechnungDetailContentState
                 (_rechnung.betragBrutto * 20).roundToDouble() / 20,
                 bold: true,
               ),
+              if (_rechnung.guthabenVerrechnet > 0) ...[
+                _SummenRow(
+                  'Guthaben verrechnet',
+                  -_rechnung.guthabenVerrechnet,
+                ),
+                _SummenRow(
+                  'Zu zahlen CHF',
+                  (_rechnung.zuZahlen * 20).roundToDouble() / 20,
+                  bold: true,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -802,8 +814,6 @@ class _RechnungDetailContentState
       final betriebLabel = (betrieb.ort != null && betrieb.ort!.isNotEmpty)
           ? '${betrieb.name} ${betrieb.ort}'
           : betrieb.name;
-      final betragStr = ((_rechnung.betragBrutto * 20).roundToDouble() / 20)
-          .toStringAsFixed(2);
       await SupabaseService.client.functions.invoke(
         'send-rechnung-mail',
         body: {
@@ -814,8 +824,7 @@ class _RechnungDetailContentState
               'Guten Tag\n\n'
               'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
               'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
-              'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
-              'mit dem beiliegenden Einzahlungsschein zu begleichen.\n\n'
+              '${zahlungsSatzMail(_rechnung)}\n\n'
               'Mit freundlichen Grüssen\n\n'
               'Daniel Projer\n\n'
               'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',

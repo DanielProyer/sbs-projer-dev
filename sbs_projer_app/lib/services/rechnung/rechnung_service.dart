@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
+import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
+import 'package:sbs_projer_app/data/repositories/guthaben_repository.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -48,6 +50,25 @@ class RechnungService {
         _mwstFaktor);
   }
 
+  /// Kundenguthaben (Konto 2030), das auf eine neue Rechnung dieses Betriebs
+  /// verrechnet wird: min(Guthaben, Brutto), auf 5 Rappen.
+  ///
+  /// **Wirft nie.** Eine Rechnung darf nicht am Guthaben scheitern — schlägt
+  /// das Laden fehl, wird nichts verrechnet (Guthaben bleibt stehen).
+  static Future<double> guthabenFuerNeueRechnung(
+    String? betriebId,
+    double brutto,
+  ) async {
+    if (betriebId == null || betriebId.isEmpty || brutto <= 0) return 0;
+    try {
+      final guthaben = await GuthabenRepository.offenesGuthaben(betriebId);
+      return guthabenAbzug(guthaben: guthaben, brutto: brutto);
+    } catch (e) {
+      debugPrint('Kundenguthaben nicht geladen (nicht verrechnet): $e');
+      return 0;
+    }
+  }
+
   static double _nettoSumme(List<Map<String, dynamic>> positionen) {
     var netto = 0.0;
     for (final p in positionen) {
@@ -93,6 +114,8 @@ class RechnungService {
       final netto = _nettoSumme(positionen);
       final brutto = bruttoKundenrechnung(netto, _mwstFaktor);
       final mwst = _round2(brutto - netto);
+      final guthaben =
+          await guthabenFuerNeueRechnung(betrieb.serverId, brutto);
 
       // 3. Rechnung erstellen
       final rechnung = await RechnungRepository.create({
@@ -108,6 +131,7 @@ class RechnungService {
         'betrag_netto': netto,
         'mwst_betrag': mwst,
         'betrag_brutto': brutto,
+        'guthaben_verrechnet': guthaben,
         'zahlungsstatus': 'offen',
         'versandart': art,
       });

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/presentation/widgets/saison_abmachung_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
@@ -994,9 +995,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                     betrieb.ort != null && betrieb.ort!.isNotEmpty
                     ? '${betrieb.name} ${betrieb.ort}'
                     : betrieb.name;
-                final betragRounded =
-                    (rechnung.betragBrutto * 20).roundToDouble() / 20;
-                final betragStr = betragRounded.toStringAsFixed(2);
                 final response = await SupabaseService.client.functions.invoke(
                   'send-rechnung-mail',
                   body: {
@@ -1007,8 +1005,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                         'Guten Tag\n\n'
                         'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
                         'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
-                        'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
-                        'mit dem beiliegenden Einzahlungsschein zu begleichen.\n\n'
+                        '${zahlungsSatzMail(rechnung)}\n\n'
                         'Mit freundlichen Grüssen\n\n'
                         'Daniel Projer\n\n'
                         'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',

@@ -12,6 +12,23 @@ import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 
+/// Eine Zeile im Summenblock der Rechnung (rein, testbar).
+class SummenZeile {
+  final String label;
+  final double betrag;
+  final bool fett;
+
+  /// Trennlinie über der Zeile.
+  final bool linieDavor;
+
+  const SummenZeile(
+    this.label,
+    this.betrag, {
+    this.fett = false,
+    this.linieDavor = false,
+  });
+}
+
 class RechnungPdfService {
   static const _darkBlue = PdfColor.fromInt(0xFF1A3A5C);
   static const _grey = PdfColor.fromInt(0xFF666666);
@@ -42,7 +59,7 @@ class RechnungPdfService {
   }) async {
     final pdf = await pdfDokument();
     final dateFormat = DateFormat('dd.MM.yyyy');
-    final brutto = _roundTo5Rappen(rechnung.betragBrutto);
+    final zahlBetrag = qrBetrag(rechnung);
 
     // Positionen aufsteigend nach Position sortieren
     positionen = List.of(positionen)
@@ -87,9 +104,18 @@ class RechnungPdfService {
 
               pw.Spacer(),
 
+              if (rechnung.guthabenVerrechnet > 0)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.fromLTRB(50, 0, 50, 8),
+                  child: pw.Text(
+                    'Ihr Guthaben aus der Überzahlung wurde verrechnet.',
+                    style: const pw.TextStyle(fontSize: 9, color: _grey),
+                  ),
+                ),
+
               // === QR-ZAHLTEIL (untere 105mm) ===
               QrZahlteil.bauen(
-                brutto,
+                zahlBetrag,
                 kundeAddr,
                 mitteilung:
                     mitteilung ??
@@ -321,45 +347,74 @@ class RechnungPdfService {
 
   // ─── SUMMEN ───
 
+  /// Betrag auf dem QR-Zahlteil: was der Kunde zahlt (nach Verrechnung
+  /// eines Kundenguthabens), auf 5 Rappen.
+  static double qrBetrag(Rechnung rechnung) =>
+      _roundTo5Rappen(rechnung.zuZahlen);
+
+  /// Zeilen des Summenblocks. Bei verrechnetem Guthaben folgen auf «Total»
+  /// der Abzug und fett «Zu zahlen» — Betrag, Ertrag und MWST der Rechnung
+  /// bleiben unverändert.
+  static List<SummenZeile> summenZeilen(Rechnung rechnung) {
+    final satz = rechnung.betragNetto > 0
+        ? (rechnung.mwstBetrag / rechnung.betragNetto * 100).toStringAsFixed(1)
+        : '8.1';
+    final zeilen = <SummenZeile>[
+      SummenZeile('Netto', rechnung.betragNetto),
+      SummenZeile('MwSt $satz%', rechnung.mwstBetrag),
+      SummenZeile(
+        'Total CHF',
+        _roundTo5Rappen(rechnung.betragBrutto),
+        fett: true,
+        linieDavor: true,
+      ),
+    ];
+    if (rechnung.guthabenVerrechnet > 0) {
+      zeilen.add(
+        SummenZeile('abzüglich Kundenguthaben', -rechnung.guthabenVerrechnet),
+      );
+      zeilen.add(
+        SummenZeile(
+          'Zu zahlen CHF',
+          qrBetrag(rechnung),
+          fett: true,
+          linieDavor: true,
+        ),
+      );
+    }
+    return zeilen;
+  }
+
   static pw.Widget _buildSummen(Rechnung rechnung) {
-    final brutto = _roundTo5Rappen(rechnung.betragBrutto);
+    final kinder = <pw.Widget>[];
+    for (final z in summenZeilen(rechnung)) {
+      if (kinder.isNotEmpty) {
+        if (z.linieDavor) {
+          kinder.add(pw.SizedBox(height: 4));
+          kinder.add(pw.Container(height: 1, color: _lineGrey));
+          kinder.add(pw.SizedBox(height: 4));
+        } else {
+          kinder.add(pw.SizedBox(height: 3));
+        }
+      }
+      if (z.fett) {
+        final stil = pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold);
+        kinder.add(
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(z.label, style: stil),
+              pw.Text(_chf(z.betrag), style: stil),
+            ],
+          ),
+        );
+      } else {
+        kinder.add(_summenRow(z.label, _chf(z.betrag)));
+      }
+    }
     return pw.Container(
       alignment: pw.Alignment.centerRight,
-      child: pw.SizedBox(
-        width: 200,
-        child: pw.Column(
-          children: [
-            _summenRow('Netto', _chf(rechnung.betragNetto)),
-            pw.SizedBox(height: 3),
-            _summenRow(
-              'MwSt ${rechnung.betragNetto > 0 ? (rechnung.mwstBetrag / rechnung.betragNetto * 100).toStringAsFixed(1) : '8.1'}%',
-              _chf(rechnung.mwstBetrag),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Container(height: 1, color: _lineGrey),
-            pw.SizedBox(height: 4),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'Total CHF',
-                  style: pw.TextStyle(
-                    fontSize: 11,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-                pw.Text(
-                  _chf(brutto),
-                  style: pw.TextStyle(
-                    fontSize: 11,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      child: pw.SizedBox(width: 200, child: pw.Column(children: kinder)),
     );
   }
 

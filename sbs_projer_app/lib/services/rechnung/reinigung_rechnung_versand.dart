@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
+import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -146,8 +147,6 @@ class ReinigungRechnungVersand {
         kundenEmail,
         bereich: 'reinigung',
       );
-      final betragRounded = (rechnung.betragBrutto * 20).roundToDouble() / 20;
-      final betragStr = betragRounded.toStringAsFixed(2);
 
       await SupabaseService.client.functions.invoke(
         'send-rechnung-mail',
@@ -159,8 +158,7 @@ class ReinigungRechnungVersand {
               'Guten Tag\n\n'
               'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
               'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
-              'Ich bitte Sie den offenen Betrag von CHF $betragStr innerhalb von 30 Tagen '
-              'mit dem beiliegenden Einzahlungsschein zu begleichen.\n\n'
+              '${zahlungsSatzMail(rechnung)}\n\n'
               'Mit freundlichen Grüssen\n\n'
               'Daniel Projer\n\n'
               'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
