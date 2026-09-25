@@ -74,7 +74,7 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   31.12.), Jodys Excel-Kürzel 0566 ≠ App 0573. Mahnlauf-Sperre «unverknüpfte
   Kundenzahlung» folgt in v0.134.1.
 
-- **Chesa Davos Dorf: Guthaben 30.00 verrechnen (23.09.2026).** Hotels by HR
+- ✅ **Chesa Davos Dorf: Guthaben 30.00 (23.09.2026) — App verrechnet es seit v0.137.0 automatisch mit der nächsten Rechnung.** Offen bleibt nur: Jahrgangs-Abschreibung (SQL-Funktion 194) schliesst Rechnungen mit Guthaben aus → einzeln abschreiben. Ursprünglich: Hotels by HR
   Seehof zahlte am 16.09. 173.75 auf 2026-04-0513 (143.75) — 30.00 zu viel,
   gebucht auf neues Konto **2030 Kundenguthaben**, Notiz am Betrieb. Nächste
   Reinigung Ende November: Rechnung «abzüglich Guthaben 30.00» ausweisen; zahlt
@@ -189,6 +189,10 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.137.0** — Ende November bei der Chesa-Reinigung: Rechnung prüfen (PDF
+  «abzüglich Kundenguthaben 30.00 / Zu zahlen 113.75», QR 113.75); beim
+  Zahlungseingang im Bankabgleich «Kundenguthaben wird verrechnet (2030)».
 
 - **v0.136.0** — Bei einem Betrieb mit gemahnter Rechnung neue Reinigung
   öffnen: Band sichtbar, antippen, «QR zeigen» öffnet die Rechnung mit QR

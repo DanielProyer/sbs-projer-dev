@@ -86,6 +86,8 @@ Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.
   EasyGov-Datenblatt und Fristen. Seit v0.136.0 Hinweis-Band beim Service
   mit «bar einkassieren» (Kasse 1000) und «QR zeigen».
   Jahresrechnungen für Betriebe mit jährlicher Abrechnung (`jahresrechnung/`).
+- **Kundenguthaben** (seit v0.137.0): Überzahlungen auf Konto 2030 werden mit
+  der nächsten Rechnung verrechnet (PDF/QR «zu zahlen», Bankabgleich 2030 an 1100).
 - **Pro Betrieb:** offene und alle Rechnungen je Jahr mit Zustellweg,
   Kontoauszug-PDF mit QR-Schein, Reinigungsprotokolle als PDF (einzeln oder
   Jahresbündel).

@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 25.09.2026 — v0.137.0 Kundenguthaben (Verrechnung mit der nächsten Rechnung)
 - 24.09.2026 — v0.136.0 Mahnwesen Teil 3: Hinweis beim Service, bar einkassieren
 - 24.09.2026 — v0.135.0 Mahnwesen Teil 2: Mahnfall (Heineken, Betreibung)
 - 24.09.2026 — v0.134.1 Mahnlauf-Sperre unverknüpfte Zahlung
@@ -20,6 +21,29 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 25.09.2026 — v0.137.0 Kundenguthaben (Verrechnung mit der nächsten Rechnung)
+
+Plan `docs/superpowers/plans/2026-09-25-kundenguthaben.md`, Migration 205
+(`rechnungen.guthaben_verrechnet`). Entscheid Daniel: schlanke Variante.
+
+- **Guthaben** = Saldo Konto 2030 je Betrieb (Überzahlung 1020/2030 mit
+  `beleg_id` = überzahlte Rechnung) minus bereits reservierte Abzüge auf
+  offenen Rechnungen (keine Doppelverrechnung).
+- **Nächste Kundenrechnung/Jahresrechnung:** Abzug wird gesetzt; PDF zeigt
+  «abzüglich Kundenguthaben» und «Zu zahlen», QR-Schein und Mail nennen den
+  reduzierten Betrag. Deckt das Guthaben alles, wird sofort verrechnet und die
+  Rechnung ist bezahlt (PDF ohne Zahlteil).
+- **Zahlungseingang** (Bank oder bar): Verrechnung 2030 an 1100 statt Verlust
+  3805; Regel: Zahlung < Brutto − 0.05 → verrechnen (Zwischenbeträge = Mehr-
+  zahlung 8000), voller Betrag → Guthaben bleibt. «Zahlung rückgängig» stellt
+  den Abzug wieder her. Abschreibung: nur «zu zahlen», MWST anteilig.
+- **Mahnlauf:** solche Rechnungen in eigener Sektion «Mit Guthaben verrechnet —
+  manuell prüfen»; Kontoauszug mit Zeile «Verrechnung Guthaben».
+- Geprüft im Browser (360 px): Rechnungsdetail mit Guthaben-Zeilen, Mahnlauf-
+  Sektion; Testwert danach zurückgesetzt. 2234 Tests.
 
 ---
 
