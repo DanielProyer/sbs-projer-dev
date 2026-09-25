@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
+import 'package:sbs_projer_app/core/util/guthaben.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -66,6 +68,15 @@ class BarzahlungService {
   /// Betrag der Barzahlung: Rechnungsbrutto auf 5 Rappen, wie der Bankweg
   /// (`ZahlungsdifferenzService`, Review Teil 3 Minor c).
   static double kassierBetrag(double brutto) => rundeAuf5Rappen(brutto);
+
+  /// Bar kassiert wird «zu zahlen» — Brutto abzüglich verrechnetem
+  /// Kundenguthaben (v0.137.0), auf 5 Rappen.
+  static double kassierBetragFuer(Rechnung r) => kassierBetrag(r.zuZahlen);
+
+  /// Rein: Verrechnung Soll 2030 / Haben 1100 neben der Barzahlung (0 =
+  /// keine) — dieselbe Planfunktion wie der Bankweg.
+  static double verrechnungFuer(Rechnung r) =>
+      differenzPlan([r], kassierBetragFuer(r)).zeilen.single.verrechnung;
 
   /// Rein: Warum darf auf diese Rechnung NICHT bar kassiert werden — oder
   /// null, wenn sie frei ist. Unterscheidet «schon erledigt» vom halben
@@ -136,7 +147,10 @@ class BarzahlungService {
     if (bar.geschaeftsjahr != heute.year) {
       return 'Barzahlung aus abgeschlossenem Jahr — Storno von Hand in der Buchhaltung';
     }
-    if (zahlungGebucht(buchungen.where((b) => b.id != bar.id))) {
+    // Die Guthaben-Verrechnung (2030/1100) gehört zur Barzahlung und wird
+    // mit ihr zurückgenommen — sie ist keine «weitere Zahlung».
+    if (zahlungGebucht(buchungen
+        .where((b) => b.id != bar.id && !istGuthabenVerrechnung(b)))) {
       return 'Neben der Barzahlung ist eine weitere Zahlung gebucht — '
           'im Journal prüfen, nichts geändert';
     }
@@ -198,7 +212,9 @@ class BarzahlungService {
     final ids = <String>[];
     for (final f in frische) {
       final nr = _nr(f);
-      final betrag = kassierBetrag(f.betragBrutto);
+      final betrag = kassierBetragFuer(f);
+      final verrechnung = verrechnungFuer(f);
+      Buchung? verrechnungsBuchung;
       try {
         final buchung = await BuchungRepository.create({
           'datum': tagStr,
@@ -218,6 +234,23 @@ class BarzahlungService {
         });
         bool gesetzt;
         try {
+          if (verrechnung >= 0.005) {
+            verrechnungsBuchung = await BuchungRepository.create({
+              'datum': tagStr,
+              'belegnummer': f.rechnungsnummer ?? '',
+              'soll_konto': kKontoKundenguthaben,
+              'haben_konto': kDebitoren,
+              'betrag_netto': verrechnung,
+              'mwst_satz': 0,
+              'mwst_betrag': 0,
+              'betrag_brutto': verrechnung,
+              'beschreibung': 'Verrechnung Kundenguthaben $nr',
+              'zahlungsweg': 'intern',
+              'beleg_typ': 'sonstiges',
+              'beleg_id': f.id,
+              'geschaeftsjahr': tag.year,
+            });
+          }
           gesetzt = await RechnungRepository.updateWennStatus(
             f.id,
             {
@@ -229,10 +262,16 @@ class BarzahlungService {
             nurOhneZahlung: true,
           );
         } catch (_) {
+          if (verrechnungsBuchung != null) {
+            await BuchungRepository.delete(verrechnungsBuchung.id);
+          }
           await BuchungRepository.delete(buchung.id);
           rethrow;
         }
         if (!gesetzt) {
+          if (verrechnungsBuchung != null) {
+            await BuchungRepository.delete(verrechnungsBuchung.id);
+          }
           await BuchungRepository.delete(buchung.id);
           throw BarzahlungFehler('Rechnung $nr: wurde inzwischen geändert — nicht kassiert',
               kassiert: List.of(kassiert));
@@ -307,6 +346,23 @@ class BarzahlungService {
       throw BarzahlungFehler(
           'Buchung nicht gelöscht (${kurzeFehlermeldung(e)}) — Rechnung bleibt bezahlt');
     }
+    await _verrechnungEntfernen(buchungen, nr);
+  }
+
+  /// Guthaben-Verrechnung (2030/1100) der Rechnung löschen — sie entstand
+  /// mit der Barzahlung und geht mit ihr (sonst wäre das Guthaben
+  /// verbraucht, obwohl die Rechnung wieder offen ist).
+  static Future<void> _verrechnungEntfernen(
+      List<Buchung> buchungen, String nr) async {
+    for (final v in buchungen.where(istGuthabenVerrechnung)) {
+      try {
+        await BuchungRepository.delete(v.id);
+      } catch (e) {
+        throw BarzahlungFehler(
+            'Barzahlung zurückgenommen, aber Guthaben-Verrechnung zu Rechnung '
+            '$nr nicht gelöscht (${kurzeFehlermeldung(e)}) — im Journal prüfen');
+      }
+    }
   }
 
   /// Halber Zustand (Review I-2): Kassenbuchung vorhanden, Rechnung aber
@@ -319,12 +375,14 @@ class BarzahlungService {
       throw BarzahlungFehler(
           'Rechnung $nr ist bezahlt — «Barzahlung rückgängig» verwenden');
     }
-    final buchung = await barzahlungZu(rechnung.id);
+    final buchungen = await BuchungRepository.getByBeleg(rechnung.id);
+    final buchung = barzahlungAus(buchungen);
     if (buchung == null) throw BarzahlungFehler('Keine Kassenbuchung zu Rechnung $nr gefunden');
     if (buchung.geschaeftsjahr != DateTime.now().year) {
       throw BarzahlungFehler(
           'Kassenbuchung aus abgeschlossenem Jahr — Storno von Hand in der Buchhaltung');
     }
     await BuchungRepository.delete(buchung.id);
+    await _verrechnungEntfernen(buchungen, nr);
   }
 }

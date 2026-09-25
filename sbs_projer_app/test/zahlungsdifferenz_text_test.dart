@@ -98,4 +98,33 @@ void main() {
       expect(bewerteDifferenz(0, 74.60).art, DifferenzArt.keine);
     });
   });
+
+  group('bewerteDifferenz mit Kundenguthaben', () {
+    test('Zahlung = zu zahlen -> keine Differenz, Guthaben-Hinweis', () {
+      final d = bewerteDifferenz(113.75, 113.75, guthaben: 30);
+      expect(d.art, DifferenzArt.keine);
+      expect(d.zeigen, isTrue);
+      expect(d.text,
+          contains('Kundenguthaben CHF 30.00 wird verrechnet (2030)'));
+    });
+    test('Minderzahlung gegen zu zahlen + Guthaben-Hinweis', () {
+      final d = bewerteDifferenz(110, 113.75, guthaben: 30);
+      expect(d.art, DifferenzArt.minder);
+      expect(d.betrag, 3.75);
+      expect(d.text, contains('Minderzahlung CHF 3.75'));
+      expect(d.text, contains('Kundenguthaben CHF 30.00 wird verrechnet'));
+    });
+    test('voller Betrag trotz Guthaben -> gegen Brutto, Guthaben bleibt', () {
+      final d = bewerteDifferenz(143.75, 113.75, guthaben: 30);
+      expect(d.art, DifferenzArt.keine);
+      expect(d.zeigen, isTrue);
+      expect(d.text, contains('bleibt bestehen'));
+      expect(d.text, isNot(contains('wird verrechnet')));
+    });
+    test('ohne Guthaben und ohne Differenz nichts zeigen', () {
+      final d = bewerteDifferenz(74.60, 74.60);
+      expect(d.zeigen, isFalse);
+      expect(d.text, isEmpty);
+    });
+  });
 }

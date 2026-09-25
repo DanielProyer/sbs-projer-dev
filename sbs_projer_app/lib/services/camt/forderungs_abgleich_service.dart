@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
@@ -94,7 +95,7 @@ class ForderungsAbgleichService {
         fords.add(r);
       }
       if (!alleOffen) continue;
-      final summe = fords.fold<double>(0, (sum, r) => sum + r.betragBrutto);
+      final summe = fords.fold<double>(0, (sum, r) => sum + r.zuZahlen);
       if ((summe - g.amount).abs() > 0.005) continue;
       refTreffer.add(AutoTreffer(g, fords,
           grund: 'Rechnungsnummern im Vermerk · Betrag passt'));
@@ -289,7 +290,7 @@ class ForderungsAbgleichService {
                 (
                   id: r.id,
                   rechnungsdatum: r.rechnungsdatum,
-                  betrag: r.betragBrutto
+                  betrag: r.zuZahlen
                 )
             ],
           );
@@ -308,12 +309,15 @@ class ForderungsAbgleichService {
       final key = paarung[b.belegId]?.txKey ?? camtTxKey;
       if (key != null) await BuchungRepository.setCamtTxKey(b.id, key);
     }
+    // Tatsächlich gezahlt: «zu zahlen», wenn das Guthaben verrechnet wurde,
+    // sonst Brutto (dieselbe Entscheidung wie in verbuchenSammel).
+    final plan = differenzPlan(forderungen, zahlbetrag);
     for (final r in forderungen) {
       final eingang = paarung[r.id]?.bookingDate ?? datum;
       await RechnungRepository.update(r.id, {
         'zahlungsstatus': 'bezahlt',
         'zahlung_eingegangen_am': eingang.toIso8601String().split('T').first,
-        'zahlung_betrag': r.betragBrutto,
+        'zahlung_betrag': plan.gezahltFuer(r),
       });
     }
   }
@@ -329,6 +333,15 @@ class ForderungsAbgleichService {
     final ids = await BuchungRepository.getAktiveCamtZahlungsIds(r.id);
     for (final id in ids) {
       await BuchungRepository.delete(id);
+    }
+    // Die Guthaben-Verrechnung (2030/1100, Belegtyp 'sonstiges') entstand
+    // mit dieser Zahlung — sie muss mit weg, sonst wäre das Guthaben
+    // verbraucht, ohne dass die Rechnung bezahlt ist.
+    if (ids.isNotEmpty) {
+      final alle = await BuchungRepository.getByBeleg(r.id);
+      for (final b in alle.where(istGuthabenVerrechnung)) {
+        await BuchungRepository.delete(b.id);
+      }
     }
     if (ids.isNotEmpty) {
       await RechnungRepository.update(r.id, {

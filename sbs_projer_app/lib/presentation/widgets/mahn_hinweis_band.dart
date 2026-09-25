@@ -141,7 +141,7 @@ class _OffeneRechnungenSheetState
   double get _total => rundeAufRappen(
     _auswahl.fold(
       0.0,
-      (s, r) => s + BarzahlungService.kassierBetrag(r.betragBrutto),
+      (s, r) => s + BarzahlungService.kassierBetragFuer(r),
     ),
   );
 
@@ -397,7 +397,7 @@ class _OffeneRechnungenSheetState
                     ),
                   ),
                   Text(
-                    'CHF ${chf(BarzahlungService.kassierBetrag(r.betragBrutto))}',
+                    'CHF ${chf(BarzahlungService.kassierBetragFuer(r))}',
                   ),
                 ],
               ),

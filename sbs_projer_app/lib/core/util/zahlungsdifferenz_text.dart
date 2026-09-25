@@ -1,3 +1,6 @@
+import 'package:sbs_projer_app/core/util/guthaben.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
+
 // Plausibilitätsprüfungen einer Zahlungszuordnung im camt-Abgleich:
 // Betragsdifferenz (Minder-/Mehrzahlung) und Datumsfolge.
 
@@ -30,12 +33,26 @@ class DifferenzInfo {
   /// Kleinbetrag, den Daniel nicht nachfordert (Rundung, Spesenabzug).
   final bool istBagatelle;
 
-  const DifferenzInfo(this.art, this.betrag, this.istBagatelle);
+  /// Hinweis zum Kundenguthaben (Konto 2030) oder leer (v0.137.0).
+  final String guthabenHinweis;
+
+  const DifferenzInfo(this.art, this.betrag, this.istBagatelle,
+      {this.guthabenHinweis = ''});
 
   bool get istMinder => art == DifferenzArt.minder;
   bool get istKeine => art == DifferenzArt.keine;
 
+  /// Etwas anzuzeigen? Auch ohne Differenz, wenn Guthaben im Spiel ist.
+  bool get zeigen => !istKeine || guthabenHinweis.isNotEmpty;
+
   String get text {
+    final diff = _differenzText;
+    if (guthabenHinweis.isEmpty) return diff;
+    if (diff.isEmpty) return guthabenHinweis;
+    return '$diff. $guthabenHinweis';
+  }
+
+  String get _differenzText {
     switch (art) {
       case DifferenzArt.keine:
         return '';
@@ -60,19 +77,42 @@ const double kBagatellGrenze = 1.00;
 /// Ohne zugeordnete Forderung gibt es **keine** Differenz: Solange nichts
 /// angehakt ist, wäre die Zahlung sonst als Mehrzahlung in voller Höhe
 /// ausgewiesen (gemeldet Daniel 28.07.2026, Fall Sartons 74.30).
-DifferenzInfo bewerteDifferenz(double zahlung, double forderung) {
+///
+/// [forderung] = Summe «zu zahlen» der gewählten Rechnungen, [guthaben] =
+/// Summe ihres verrechneten Kundenguthabens. Zahlt der Kunde trotz Guthaben
+/// den vollen Betrag, wird nicht verrechnet und gegen das Brutto verglichen
+/// — dieselbe Regel wie beim Buchen ([guthabenWirdVerrechnet]).
+DifferenzInfo bewerteDifferenz(double zahlung, double forderung,
+    {double guthaben = 0}) {
   if (forderung <= 0 || zahlung <= 0) {
     return const DifferenzInfo(DifferenzArt.keine, 0, false);
   }
-  final diff = ((zahlung - forderung) * 20).roundToDouble() / 20;
+  var hinweis = '';
+  var vergleich = forderung;
+  if (guthaben > 0) {
+    final g = guthaben.toStringAsFixed(2);
+    if (guthabenWirdVerrechnet(
+        zahlung: zahlung, summeZuZahlen: forderung, summeGuthaben: guthaben)) {
+      hinweis = 'Kundenguthaben CHF $g wird verrechnet '
+          '($kKontoKundenguthaben)';
+    } else {
+      vergleich = forderung + guthaben;
+      hinweis = 'Zahlung deckt den vollen Betrag — Kundenguthaben CHF $g '
+          'wird nicht verrechnet und bleibt bestehen';
+    }
+  }
+  final diff = ((zahlung - vergleich) * 20).roundToDouble() / 20;
   if (diff.abs() < 0.01) {
-    return const DifferenzInfo(DifferenzArt.keine, 0, false);
+    return DifferenzInfo(DifferenzArt.keine, 0, false,
+        guthabenHinweis: hinweis);
   }
   if (diff < 0) {
     final betrag = double.parse(diff.abs().toStringAsFixed(2));
     return DifferenzInfo(
-        DifferenzArt.minder, betrag, betrag <= kBagatellGrenze);
+        DifferenzArt.minder, betrag, betrag <= kBagatellGrenze,
+        guthabenHinweis: hinweis);
   }
   return DifferenzInfo(
-      DifferenzArt.mehr, double.parse(diff.toStringAsFixed(2)), false);
+      DifferenzArt.mehr, double.parse(diff.toStringAsFixed(2)), false,
+      guthabenHinweis: hinweis);
 }

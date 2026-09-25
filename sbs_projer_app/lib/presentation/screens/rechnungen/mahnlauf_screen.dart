@@ -191,6 +191,16 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
                   ),
                   for (final r in daten.erstZustellen) _rechnungZeile(r),
                 ],
+                if (daten.mitGuthaben.isNotEmpty) ...[
+                  _titel('Mit Guthaben verrechnet — manuell prüfen',
+                      daten.mitGuthaben.length),
+                  _hinweis(
+                    'Auf diesen Rechnungen ist ein Kundenguthaben verrechnet — '
+                    'der Kunde schuldet nur «zu zahlen». Sie werden nie '
+                    'automatisch gemahnt; bei Bedarf von Hand nachfassen.',
+                  ),
+                  for (final r in daten.mitGuthaben) _rechnungZeile(r),
+                ],
               ],
             ),
           );
@@ -331,6 +341,9 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
         text = 'Auf diese Rechnung ist eine Zahlung gebucht — nicht mahnen.';
       } else if (d.erstZustellen.isNotEmpty) {
         text = 'Diese Rechnung ist nicht nachweislich zugestellt.';
+      } else if (d.mitGuthaben.isNotEmpty) {
+        text = 'Auf dieser Rechnung ist ein Kundenguthaben verrechnet — '
+            'nicht automatisch mahnen, von Hand prüfen.';
       } else if (d.bankGesperrt) {
         text = 'Erst nach dem Einlesen des aktuellen Bankauszugs prüfbar.';
       } else if (d.zahlungsSperreGrund != null) {
@@ -748,7 +761,11 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     final fristBis = r.mahnFristBis;
     final zusatz = frist
         ? '${_statusText(r.zahlungsstatus)}${fristBis != null ? ' · Frist bis ${_datum(fristBis)}' : ''}'
-        : '${_datum(r.rechnungsdatum)} · CHF ${r.betragBrutto.toStringAsFixed(2)}';
+        : r.guthabenVerrechnet > 0
+            ? '${_datum(r.rechnungsdatum)} · zu zahlen CHF '
+                '${r.zuZahlen.toStringAsFixed(2)} (Guthaben '
+                '${r.guthabenVerrechnet.toStringAsFixed(2)} verrechnet)'
+            : '${_datum(r.rechnungsdatum)} · CHF ${r.betragBrutto.toStringAsFixed(2)}';
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => context.push('/rechnungen/${r.id}'),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -73,9 +74,14 @@ Future<void> showKundenzahlungZuordnenDialog(
         }).toList();
         final fordSumme = gewaehlt.fold<double>(
           0,
-          (s, r) => s + r.betragBrutto,
+          (s, r) => s + r.zuZahlen,
         );
-        final info = bewerteDifferenz(e.betrag, fordSumme);
+        final guthaben = gewaehlt.fold<double>(
+          0,
+          (s, r) => s + r.guthabenVerrechnet,
+        );
+        final info =
+            bewerteDifferenz(e.betrag, fordSumme, guthaben: guthaben);
         return AlertDialog(
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -144,7 +150,7 @@ Future<void> showKundenzahlungZuordnenDialog(
                           value: gewaehlt.contains(r),
                           title: Text(
                             '${dateFormat.format(r.rechnungsdatum)} — '
-                            '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                            '${forderungBetragText(r)}',
                           ),
                           subtitle: Text(
                             'Rechnung ${r.rechnungsnummer ?? '?'} · '
@@ -174,7 +180,7 @@ Future<void> showKundenzahlungZuordnenDialog(
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (!info.istKeine && gewaehlt.isNotEmpty)
+                if (info.zeigen && gewaehlt.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(

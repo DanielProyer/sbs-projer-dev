@@ -290,6 +290,57 @@ void main() {
     });
   });
 
+  group('Kundenguthaben verrechnet (v0.137.0)', () {
+    Rechnung mitGuthaben(Rechnung r) => r.copyWith(guthabenVerrechnet: 30);
+
+    test('fällige Rechnung mit Guthaben → nicht fällig, eigene Liste', () {
+      final m = bau([mitGuthaben(faellig('g1')), faellig('r2')]);
+      expect(m.betriebe.single.faellig.map((p) => p.rechnung.id), ['r2']);
+      expect(m.mitGuthaben.map((r) => r.id), ['g1']);
+    });
+
+    test('gemahnt in Frist bzw. Eskalation → nur unter «mit Guthaben»', () {
+      final inFrist = _r(
+          id: 'f1',
+          datum: d(2026, 6, 1),
+          versendet: d(2026, 6, 1),
+          status: 'erinnert',
+          erinnerung: d(2026, 9, 20),
+          frist: d(2026, 10, 10));
+      final eskaliert = _r(
+          id: 'e1',
+          datum: d(2026, 3, 1),
+          versendet: d(2026, 3, 1),
+          status: 'mahnung_2',
+          erinnerung: d(2026, 5, 1),
+          mahnung1: d(2026, 6, 1),
+          mahnung2: d(2026, 7, 1),
+          frist: d(2026, 7, 20));
+      // Gegenprobe: ohne Guthaben stünden sie in Frist bzw. Eskalation.
+      expect(bau([inFrist]).inFrist.map((r) => r.id), ['f1']);
+      expect(bau([eskaliert]).eskalation, isNotEmpty);
+      final m = bau([mitGuthaben(inFrist), mitGuthaben(eskaliert)]);
+      expect(m.inFrist, isEmpty);
+      expect(m.eskalation, isEmpty);
+      expect(m.betriebe, isEmpty);
+      expect(m.mitGuthaben.map((r) => r.id).toSet(), {'f1', 'e1'});
+    });
+
+    test('ungeklärte Gutschrift über «zu zahlen» sperrt den Betrieb', () {
+      final m = bau(
+        [mitGuthaben(faellig('g1', brutto: 143.75)), faellig('r2')],
+        gutschriften: [(partei: 'Unbekannt', betrag: 113.75, datum: d(2026, 9, 20))],
+      );
+      expect(m.betriebe.single.gesperrt, isTrue);
+    });
+
+    test('Einzelmahnung filtert die Liste mit', () {
+      final m = bau([mitGuthaben(faellig('g1')), faellig('r2')]);
+      expect(fuerEinzelmahnung(m, 'r2').mitGuthaben, isEmpty);
+      expect(fuerEinzelmahnung(m, 'g1').mitGuthaben.map((r) => r.id), ['g1']);
+    });
+  });
+
   group('Einzelmahnung', () {
     test('nur der Betrieb der Rechnung, Sicherungen bleiben', () {
       final m = bau(

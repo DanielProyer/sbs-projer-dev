@@ -112,6 +112,12 @@ class MahnlaufDaten {
   /// Zahlungseingang gebucht, Status aber noch offen/gemahnt — Status prüfen.
   final List<Rechnung> zahlungGebucht;
 
+  /// Rechnungen mit verrechnetem Kundenguthaben (v0.137.0): Das Mahnwesen
+  /// rechnet mit dem Brutto, der Kunde schuldet aber nur «zu zahlen» —
+  /// darum nie automatisch gemahnt, sondern manuell zu prüfen
+  /// (Entscheid Daniel 25.09.2026, schlanke Variante).
+  final List<Rechnung> mitGuthaben;
+
   /// Hinweis ohne Sperre, z. B. «Saldo einer Auszugsdatei fehlt —
   /// Vollständigkeit ungeprüft» (gelb auf der Bankkarte).
   final String? auszugHinweis;
@@ -149,6 +155,7 @@ class MahnlaufDaten {
     required this.inFrist,
     required this.erstZustellen,
     required this.zahlungGebucht,
+    this.mitGuthaben = const [],
     this.betriebeHinterBanksperre = 0,
     this.auszugHinweis,
     this.zahlungsSperreGrund,
@@ -220,8 +227,14 @@ MahnlaufDaten baueMahnlauf({
   // in der Hand hat.
   final imFall =
       ohneZahlung.where((r) => faelleRechnungIds.contains(r.id)).toList();
-  final kandidaten =
+  final ausserhalbFall =
       ohneZahlung.where((r) => !faelleRechnungIds.contains(r.id)).toList();
+  // Verrechnetes Kundenguthaben: nie mahnen, nie eskalieren — eigene Liste
+  // «manuell prüfen» (Plan Kundenguthaben, schlanke Variante).
+  final mitGuthaben =
+      ausserhalbFall.where((r) => r.guthabenVerrechnet > 0).toList();
+  final kandidaten =
+      ausserhalbFall.where((r) => r.guthabenVerrechnet <= 0).toList();
 
   final erstZustellen = kandidaten.where((r) => !istZugestellt(r)).toList();
 
@@ -280,7 +293,14 @@ MahnlaufDaten baueMahnlauf({
       final t = passendeGutschrift(
         betriebName: stamm.name,
         aliase: stamm.aliase,
-        offeneBetraege: offene.map((r) => r.betragBrutto).toList(),
+        // «Zu zahlen» — bei verrechnetem Guthaben zusätzlich das Brutto:
+        // zahlt der Kunde trotz Guthaben voll, soll auch das sperren.
+        offeneBetraege: [
+          for (final r in offene) ...[
+            r.zuZahlen,
+            if (r.guthabenVerrechnet > 0) r.betragBrutto,
+          ],
+        ],
         gutschriften: gs,
       );
       if (t != null) {
@@ -345,6 +365,7 @@ MahnlaufDaten baueMahnlauf({
     inFrist: inFrist,
     erstZustellen: erstZustellen,
     zahlungGebucht: zahlungGebucht,
+    mitGuthaben: mitGuthaben,
     betriebeHinterBanksperre: hinterSperre,
     auszugHinweis:
         auszugKette.status == AuszugKette.ungeprueft ? auszugKette.text : null,
@@ -377,6 +398,7 @@ MahnlaufDaten fuerEinzelmahnung(MahnlaufDaten daten, String rechnungId) {
     inFrist: daten.inFrist.where(betrifft).toList(),
     erstZustellen: daten.erstZustellen.where(betrifft).toList(),
     zahlungGebucht: daten.zahlungGebucht.where(betrifft).toList(),
+    mitGuthaben: daten.mitGuthaben.where(betrifft).toList(),
     auszugHinweis: daten.auszugHinweis,
     zahlungsSperreGrund: daten.zahlungsSperreGrund,
     zahlungsSperreZahlungen: daten.zahlungsSperreZahlungen,

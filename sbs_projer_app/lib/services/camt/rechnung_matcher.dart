@@ -11,12 +11,15 @@ class RechnungMatcher {
 
   /// Findet die eindeutige Teilmenge offener Rechnungen, deren Summe dem
   /// Zahlbetrag entspricht. Eindeutig = genau eine Kombination passt.
+  ///
+  /// Verglichen wird «zu zahlen» (Brutto abzüglich verrechnetem
+  /// Kundenguthaben, v0.137.0) — das ist der Betrag auf dem QR-Schein.
   static MatchErgebnis match({
     required double zahlbetrag,
     required List<Rechnung> offeneRechnungen,
   }) {
     final ziel = _cents(zahlbetrag);
-    final items = offeneRechnungen.where((r) => r.betragBrutto > 0).take(20).toList(); // Schutz gegen Kombinatorik
+    final items = offeneRechnungen.where((r) => r.zuZahlen > 0).take(20).toList(); // Schutz gegen Kombinatorik
     final treffer = <List<Rechnung>>[];
 
     void suche(int start, List<Rechnung> akku, int summe) {
@@ -24,7 +27,7 @@ class RechnungMatcher {
       if (summe > ziel || akku.length >= 4) return;
       for (var i = start; i < items.length; i++) {
         akku.add(items[i]);
-        suche(i + 1, akku, summe + _cents(items[i].betragBrutto));
+        suche(i + 1, akku, summe + _cents(items[i].zuZahlen));
         akku.removeLast();
       }
     }

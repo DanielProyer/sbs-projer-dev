@@ -176,6 +176,31 @@ void _nachbesserungTests() {
     });
   });
 
+  group('Kundenguthaben (v0.137.0)', () {
+    Rechnung mitGuthaben(double g) => Rechnung.fromJson({
+          'id': 'r1',
+          'user_id': 'u',
+          'rechnungsnummer': '2026-11-0001',
+          'rechnungstyp': 'kundenrechnung',
+          'betrieb_id': 'b1',
+          'rechnungsdatum': '2026-11-20',
+          'faelligkeitsdatum': '2026-12-20',
+          'betrag_brutto': 143.75,
+          'zahlungsstatus': 'offen',
+          'guthaben_verrechnet': g,
+        });
+    test('kassiert wird «zu zahlen», Rest als Verrechnung', () {
+      final r = mitGuthaben(30);
+      expect(BarzahlungService.kassierBetragFuer(r), 113.75);
+      expect(BarzahlungService.verrechnungFuer(r), 30);
+    });
+    test('ohne Guthaben: Brutto, keine Verrechnung', () {
+      final r = mitGuthaben(0);
+      expect(BarzahlungService.kassierBetragFuer(r), 143.75);
+      expect(BarzahlungService.verrechnungFuer(r), 0);
+    });
+  });
+
   group('rueckgaengigSperre (Minor a/b)', () {
     final heute = DateTime(2026, 9, 24);
     test('nur die Barzahlung, laufendes Jahr, bezahlt -> null', () {
@@ -215,6 +240,19 @@ void _nachbesserungTests() {
           BarzahlungService.rueckgaengigSperre(
               bar: bar, buchungen: [bar], status: 'bezahlt', heute: DateTime(2027, 1, 3)),
           'Barzahlung aus abgeschlossenem Jahr — Storno von Hand in der Buchhaltung');
+    });
+    test('Guthaben-Verrechnung (2030/1100) sperrt nicht', () {
+      final bar = _b();
+      expect(
+          BarzahlungService.rueckgaengigSperre(
+              bar: bar,
+              buchungen: [
+                bar,
+                _b(id: 'v', soll: 2030, typ: 'sonstiges', weg: 'intern'),
+              ],
+              status: 'bezahlt',
+              heute: heute),
+          isNull);
     });
     test('nicht mehr bezahlt -> Sperre', () {
       final bar = _b();

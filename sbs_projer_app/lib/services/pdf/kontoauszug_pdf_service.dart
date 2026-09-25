@@ -94,6 +94,99 @@ class KontoauszugPdfService {
       ? rechnungen
       : rechnungen.where((r) => r.rechnungsdatum.year == jahr).toList();
 
+  /// Bewegungen samt Summen (rein). Je Rechnung eine Soll-Zeile; Zahlung
+  /// bzw. Abschreibung als Haben-Zeile am jeweiligen Datum; verrechnetes
+  /// Kundenguthaben (v0.137.0) als eigene Haben-Zeile am Rechnungsdatum.
+  static ({
+    List<_Bewegung> bewegungen,
+    double fakturiert,
+    double zahlungen,
+    double verrechnet,
+    double abgeschrieben,
+  }) _aufstellung(List<Rechnung> gefiltert, DateFormat dateFormat) {
+    final bewegungen = <_Bewegung>[];
+    double totalFakturiert = 0,
+        totalZahlungen = 0,
+        totalVerrechnet = 0,
+        totalAbgeschrieben = 0;
+    for (final r in gefiltert) {
+      final nr = r.rechnungsnummer ?? '-';
+      bewegungen.add(
+        _Bewegung(
+          datum: r.rechnungsdatum,
+          vorgang: 'Rechnung',
+          beleg: nr,
+          soll: r.betragBrutto,
+          status: _statusLabel(r),
+          zustellung: zustellungKurz(r, dateFormat),
+        ),
+      );
+      totalFakturiert += r.betragBrutto;
+      if (r.guthabenVerrechnet > 0) {
+        bewegungen.add(
+          _Bewegung(
+            datum: r.rechnungsdatum,
+            vorgang: 'Verrechnung Guthaben',
+            beleg: nr,
+            haben: r.guthabenVerrechnet,
+          ),
+        );
+        totalVerrechnet += r.guthabenVerrechnet;
+      }
+      if (r.zahlungsstatus == 'bezahlt') {
+        final zBetrag = r.zahlungBetrag ?? r.zuZahlen;
+        bewegungen.add(
+          _Bewegung(
+            datum: r.zahlungEingegangenAm ?? r.rechnungsdatum,
+            vorgang: 'Zahlung',
+            beleg: nr,
+            haben: zBetrag,
+          ),
+        );
+        totalZahlungen += zBetrag;
+      } else if (r.zahlungsstatus == 'abgeschrieben') {
+        bewegungen.add(
+          _Bewegung(
+            datum: r.rechnungsdatum,
+            vorgang: 'Abschreibung',
+            beleg: nr,
+            haben: r.zuZahlen,
+          ),
+        );
+        totalAbgeschrieben += r.zuZahlen;
+      }
+    }
+    bewegungen.sort((a, b) {
+      final d = a.datum.compareTo(b.datum);
+      if (d != 0) return d;
+      // Gleicher Tag: Rechnung vor Zahlung.
+      return b.soll.compareTo(a.soll);
+    });
+    return (
+      bewegungen: bewegungen,
+      fakturiert: totalFakturiert,
+      zahlungen: totalZahlungen,
+      verrechnet: totalVerrechnet,
+      abgeschrieben: totalAbgeschrieben,
+    );
+  }
+
+  /// Rein, für Tests: die Zeilen des Auszugs (Vorgang, Soll, Haben) und der
+  /// offene Saldo.
+  static ({
+    List<({String vorgang, double soll, double haben})> zeilen,
+    double offen,
+  }) auszugZeilen(List<Rechnung> rechnungen, {int? jahr}) {
+    final a = _aufstellung(fuerJahr(rechnungen, jahr), DateFormat('dd.MM.yyyy'));
+    return (
+      zeilen: [
+        for (final b in a.bewegungen)
+          (vorgang: b.vorgang, soll: b.soll, haben: b.haben),
+      ],
+      offen: a.fakturiert - a.zahlungen - a.verrechnet - a.abgeschrieben,
+    );
+  }
+
   /// [jahr] grenzt den Auszug auf ein Kalenderjahr ein (nach `rechnungsdatum`).
   /// null = alles. Aufrufer: die Betriebsseite (eigenständiger Auszug) UND
   /// `MahnlaufService` (Beilage zur Mahn-Mail, mit `muster`/`mitZahlteil:
@@ -169,54 +262,16 @@ class KontoauszugPdfService {
 
     final gefiltert = fuerJahr(rechnungen, jahr);
 
-    // Bewegungen aufbauen: je Rechnung eine Soll-Zeile; Zahlung bzw.
-    // Abschreibung als Haben-Zeile am jeweiligen Datum.
-    final bewegungen = <_Bewegung>[];
-    double totalFakturiert = 0, totalZahlungen = 0, totalAbgeschrieben = 0;
-    for (final r in gefiltert) {
-      final nr = r.rechnungsnummer ?? '-';
-      bewegungen.add(
-        _Bewegung(
-          datum: r.rechnungsdatum,
-          vorgang: 'Rechnung',
-          beleg: nr,
-          soll: r.betragBrutto,
-          status: _statusLabel(r),
-          zustellung: zustellungKurz(r, dateFormat),
-        ),
-      );
-      totalFakturiert += r.betragBrutto;
-      if (r.zahlungsstatus == 'bezahlt') {
-        final zBetrag = r.zahlungBetrag ?? r.betragBrutto;
-        bewegungen.add(
-          _Bewegung(
-            datum: r.zahlungEingegangenAm ?? r.rechnungsdatum,
-            vorgang: 'Zahlung',
-            beleg: nr,
-            haben: zBetrag,
-          ),
-        );
-        totalZahlungen += zBetrag;
-      } else if (r.zahlungsstatus == 'abgeschrieben') {
-        bewegungen.add(
-          _Bewegung(
-            datum: r.rechnungsdatum,
-            vorgang: 'Abschreibung',
-            beleg: nr,
-            haben: r.betragBrutto,
-          ),
-        );
-        totalAbgeschrieben += r.betragBrutto;
-      }
-    }
-    bewegungen.sort((a, b) {
-      final d = a.datum.compareTo(b.datum);
-      if (d != 0) return d;
-      // Gleicher Tag: Rechnung vor Zahlung.
-      return b.soll.compareTo(a.soll);
-    });
+    // Bewegungen aufbauen (rein, siehe [_aufstellung]).
+    final auf = _aufstellung(gefiltert, dateFormat);
+    final bewegungen = auf.bewegungen;
+    final totalFakturiert = auf.fakturiert;
+    final totalZahlungen = auf.zahlungen;
+    final totalVerrechnet = auf.verrechnet;
+    final totalAbgeschrieben = auf.abgeschrieben;
 
-    final offenerSaldo = totalFakturiert - totalZahlungen - totalAbgeschrieben;
+    final offenerSaldo =
+        totalFakturiert - totalZahlungen - totalVerrechnet - totalAbgeschrieben;
     // Über `gefiltert`, nicht über `rechnungen`: Sonst nennt die Kachel
     // «OFFENER SALDO (n RG)» beim Jahresauszug die Anzahl ALLER offenen
     // Rechnungen, während der Betrag daneben nur das Jahr umfasst — zwei
@@ -281,6 +336,7 @@ class KontoauszugPdfService {
             totalAbgeschrieben,
             offenerSaldo,
             offeneAnzahl,
+            verrechnet: totalVerrechnet,
           ),
           pw.SizedBox(height: 16),
           _tabelle(bewegungen, salden, dateFormat),
@@ -496,8 +552,9 @@ class KontoauszugPdfService {
     double zahlungen,
     double abgeschrieben,
     double offen,
-    int offeneAnzahl,
-  ) {
+    int offeneAnzahl, {
+    double verrechnet = 0,
+  }) {
     pw.Widget kachel(
       String label,
       String wert, {
@@ -542,6 +599,9 @@ class KontoauszugPdfService {
       children: [
         kachel('TOTAL FAKTURIERT', 'CHF ${_fmt(fakturiert)}'),
         kachel('TOTAL ZAHLUNGEN', 'CHF ${_fmt(zahlungen)}', farbe: _gruen),
+        if (verrechnet > 0)
+          kachel('GUTHABEN VERRECHNET', 'CHF ${_fmt(verrechnet)}',
+              farbe: _gruen),
         if (abgeschrieben > 0)
           kachel('ABSCHREIBUNGEN', 'CHF ${_fmt(abgeschrieben)}'),
         kachel(

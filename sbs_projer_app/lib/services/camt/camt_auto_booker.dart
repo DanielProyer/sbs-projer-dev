@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/camt_pruefliste_eintrag.dart';
 import 'package:sbs_projer_app/data/models/camt_regel.dart';
@@ -81,11 +82,14 @@ class CamtAutoBooker {
                 for (final b in buchungen) {
                   await BuchungRepository.setCamtTxKey(b.id, tx.txKey);
                 }
+                // Tatsächlich gezahlt: «zu zahlen» bei verrechnetem
+                // Kundenguthaben, sonst Brutto (wie verbuchenSammel).
+                final plan = differenzPlan(m.rechnungen, tx.amount);
                 for (final r in m.rechnungen) {
                   await RechnungRepository.update(r.id, {
                     'zahlungsstatus': 'bezahlt',
                     'zahlung_eingegangen_am': datumStr,
-                    'zahlung_betrag': r.betragBrutto,
+                    'zahlung_betrag': plan.gezahltFuer(r),
                   });
                 }
                 res.gebucht++;

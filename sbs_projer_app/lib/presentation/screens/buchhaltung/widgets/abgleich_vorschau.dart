@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/abgleich_fenster.dart';
@@ -224,7 +225,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       for (final r in t.forderungen)
         'Rechnung ${r.rechnungsnummer ?? '?'} vom '
             '${_dateFormat.format(r.rechnungsdatum)} — '
-            '${r.betragBrutto.toStringAsFixed(2)} CHF',
+            '${forderungBetragText(r)}',
       if (remit != null && remit.isNotEmpty) 'Bemerkung: $remit',
     ].join('\n');
     return AutoMatchTile(
@@ -319,7 +320,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       betragVon: (g) => g.amount,
       forderungen: [
         for (final r in forderungen)
-          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto),
+          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.zuZahlen),
       ],
     );
     final zeilen = <String>[];
@@ -438,7 +439,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       betragVon: (g) => g.amount,
       forderungen: [
         for (final r in gewaehlteForderungen)
-          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.betragBrutto),
+          (id: r.id, rechnungsdatum: r.rechnungsdatum, betrag: r.zuZahlen),
       ],
     );
     return (
@@ -633,7 +634,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       }
       if (treffer.isEmpty) {
         treffer = f.forderungen
-            .where((r) => (r.betragBrutto - g.amount).abs() < 0.005)
+            .where((r) => (r.zuZahlen - g.amount).abs() < 0.005)
             .toList();
       }
       if (treffer.length == 1 && !vorschlagFordIds.contains(treffer.first.id)) {
@@ -655,9 +656,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             );
             final fordSumme = gewaehlteForderungen.fold<double>(
               0,
-              (s, r) => s + r.betragBrutto,
+              (s, r) => s + r.zuZahlen,
             );
-            final info = bewerteDifferenz(zahlSumme, fordSumme);
+            final guthaben = gewaehlteForderungen.fold<double>(
+              0,
+              (s, r) => s + r.guthabenVerrechnet,
+            );
+            final info =
+                bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
             final kannVerbuchen =
                 gewaehlteGutschriften.isNotEmpty &&
                 gewaehlteForderungen.isNotEmpty;
@@ -755,7 +761,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           title: _mitPaarBadge(
                             badges.ford[r.id],
                             '${_dateFormat.format(r.rechnungsdatum)} — '
-                            '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                            '${forderungBetragText(r)}',
                           ),
                           subtitle: Text(
                             vorschlagFordIds.contains(r.id)
@@ -797,7 +803,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
                         style: const TextStyle(fontSize: 13),
                       ),
-                      if (!info.istKeine) ...[
+                      if (info.zeigen) ...[
                         const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.all(10),
@@ -969,7 +975,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         .length;
     // Exakte Betrags-Treffer nach oben + markieren — bei Sammelzahlern ohne
     // Vermerk (Goodfast) ist der Betrag das beste Signal für die Handarbeit.
-    bool passtBetrag(Rechnung r) => (r.betragBrutto - g.amount).abs() < 0.005;
+    bool passtBetrag(Rechnung r) => (r.zuZahlen - g.amount).abs() < 0.005;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -995,9 +1001,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           final zahlSumme = g.amount;
           final fordSumme = gewaehlt.fold<double>(
             0,
-            (s, r) => s + r.betragBrutto,
+            (s, r) => s + r.zuZahlen,
           );
-          final info = bewerteDifferenz(zahlSumme, fordSumme);
+          final guthaben = gewaehlt.fold<double>(
+            0,
+            (s, r) => s + r.guthabenVerrechnet,
+          );
+          final info =
+              bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
           return AlertDialog(
             title: Text(
               'Zahlung zuordnen — ${g.amount.toStringAsFixed(2)} CHF',
@@ -1067,7 +1078,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                                 : null,
                             title: Text(
                               '${_dateFormat.format(r.rechnungsdatum)} — '
-                              '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                              '${forderungBetragText(r)}',
                             ),
                             subtitle: Text(
                               'Rechnung ${r.rechnungsnummer ?? '?'} · '
@@ -1087,7 +1098,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if (!info.istKeine)
+                  if (info.zeigen)
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -1514,7 +1525,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         '?';
     // Betrags-Treffer gegen IRGENDEINE Zahlung der Gruppe nach oben + markieren.
     bool passtBetrag(Rechnung r) =>
-        guts.any((g) => (r.betragBrutto - g.amount).abs() < 0.005);
+        guts.any((g) => (r.zuZahlen - g.amount).abs() < 0.005);
 
     final ok = await showDialog<bool>(
       context: context,
@@ -1544,9 +1555,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           );
           final fordSumme = gewaehlteForderungen.fold<double>(
             0,
-            (s, r) => s + r.betragBrutto,
+            (s, r) => s + r.zuZahlen,
           );
-          final info = bewerteDifferenz(zahlSumme, fordSumme);
+          final guthaben = gewaehlteForderungen.fold<double>(
+            0,
+            (s, r) => s + r.guthabenVerrechnet,
+          );
+          final info =
+              bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
           final kannVerbuchen =
               gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
           final badges = _paarNummern(
@@ -1624,7 +1640,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         title: _mitPaarBadge(
                           badges.ford[r.id],
                           '${_dateFormat.format(r.rechnungsdatum)} — '
-                          '${r.betragBrutto.toStringAsFixed(2)} CHF',
+                          '${forderungBetragText(r)}',
                         ),
                         subtitle: Text(
                           'Rechnung ${r.rechnungsnummer ?? '?'} · '
@@ -1665,7 +1681,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                       'Forderung: CHF ${fordSumme.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 13),
                     ),
-                    if (!info.istKeine)
+                    if (info.zeigen)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
