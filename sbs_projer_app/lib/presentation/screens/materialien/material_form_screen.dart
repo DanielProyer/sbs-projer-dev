@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
@@ -328,14 +329,11 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
                 const SizedBox(height: 32),
                 const Divider(),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _confirmDelete,
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Material löschen'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                  ),
+                TapKnopf(
+                  text: 'Material löschen',
+                  icon: Icons.delete_outline,
+                  gefahr: true,
+                  onTap: _isLoading ? null : _confirmDelete,
                 ),
               ],
             ],
@@ -352,15 +350,12 @@ class _MaterialFormScreenState extends ConsumerState<MaterialFormScreen>
         title: const Text('Material löschen?'),
         content: Text('«${_nameController.text}» wirklich löschen?'),
         actions: [
-          TextButton(
-            onPressed: () => ctx.pop(false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => ctx.pop(false),
           ),
-          FilledButton(
-            onPressed: () => ctx.pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );

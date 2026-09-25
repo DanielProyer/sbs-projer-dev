@@ -1201,14 +1201,12 @@ class _BierleitungRow extends StatelessWidget {
           'Leitung ${leitung.leitungsNummer}${leitung.biersorte != null ? ' (${leitung.biersorte})' : ''} wirklich löschen?',
         ),
         actions: [
-          TextButton(
-            onPressed: () => ctx.pop(false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => ctx.pop(false),
           ),
-          FilledButton(
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );

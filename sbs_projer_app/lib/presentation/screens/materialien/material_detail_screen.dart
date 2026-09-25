@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
@@ -454,14 +455,12 @@ class _MaterialDetailContentState
       builder: (ctx) => AlertDialog(
         title: const Text('Manual löschen?'),
         actions: [
-          TextButton(
-            onPressed: () => ctx.pop(false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => ctx.pop(false),
           ),
-          FilledButton(
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );
@@ -565,13 +564,11 @@ class _MaterialDetailContentState
                     icon: const Icon(Icons.camera_alt, size: 16),
                     label: const Text('Ändern'),
                   ),
-                  TextButton.icon(
-                    onPressed: _deleteFoto,
-                    icon: Icon(Icons.delete, size: 16, color: AppColors.error),
-                    label: Text(
-                      'Löschen',
-                      style: TextStyle(color: AppColors.error),
-                    ),
+                  TapKnopf(
+                    text: 'Löschen',
+                    icon: Icons.delete,
+                    gefahr: true,
+                    onTap: _deleteFoto,
                   ),
                 ],
               ),
@@ -705,14 +702,12 @@ class _MaterialDetailContentState
       builder: (ctx) => AlertDialog(
         title: const Text('Foto löschen?'),
         actions: [
-          TextButton(
-            onPressed: () => ctx.pop(false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => ctx.pop(false),
           ),
-          FilledButton(
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );

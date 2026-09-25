@@ -1719,14 +1719,11 @@ class _StandCardState extends ConsumerState<_StandCard> {
                         onPressed: widget.onEdit,
                       ),
                       const SizedBox(width: 4),
-                      TextButton.icon(
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          foregroundColor: AppColors.error,
-                        ),
-                        icon: const Icon(Icons.delete_outline, size: 16),
-                        label: const Text('Löschen'),
-                        onPressed: widget.onDelete,
+                      TapKnopf(
+                        text: 'Löschen',
+                        icon: Icons.delete_outline,
+                        gefahr: true,
+                        onTap: widget.onDelete,
                       ),
                     ],
                   ),

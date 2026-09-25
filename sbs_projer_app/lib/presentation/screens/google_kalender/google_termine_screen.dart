@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/google_termin_match.dart';
@@ -142,12 +143,16 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
             'Entfernt Farbe, Erinnerung und Betrieb-Tag von ALLEN per K2 '
             'getaggten Google-Terminen. Titel/Notizen bleiben unberührt.'),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Entfernen')),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
+          ),
+          TapKnopf(
+            text: 'Entfernen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
+          ),
         ],
       ),
     );
@@ -187,10 +192,12 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
       appBar: AppBar(
         title: const Text('Google-Termine zuordnen'),
         actions: [
-          TextButton(
+          // Symbol statt Text-Knopf: Material-Buttons in der AppBar reagierten
+          // auf CanvasKit nicht zuverlässig; die Rückfrage folgt im Dialog.
+          IconButton(
             onPressed: _tagge ? null : _tagsEntfernen,
-            child: const Text('Tags entfernen',
-                style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.label_off_outlined),
+            tooltip: 'K2-Tags entfernen',
           ),
         ],
       ),

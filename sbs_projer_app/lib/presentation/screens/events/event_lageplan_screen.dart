@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -235,13 +236,15 @@ class _EventLageplanScreenState extends ConsumerState<EventLageplanScreen> {
           'bleiben unverändert.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Entfernen'),
+          TapKnopf(
+            text: 'Entfernen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),

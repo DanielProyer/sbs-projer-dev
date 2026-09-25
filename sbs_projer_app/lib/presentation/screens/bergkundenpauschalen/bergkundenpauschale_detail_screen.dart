@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -178,14 +179,12 @@ class _BergkundenpauschaleDetailScreenState
           'Soll diese Bergkundenpauschale wirklich gelöscht werden?',
         ),
         actions: [
-          TextButton(
-            onPressed: () => ctx.pop(false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => ctx.pop(false),
           ),
-          FilledButton(
-            onPressed: () => ctx.pop(true),
-            child: const Text('Löschen'),
-          ),
+          TapKnopf(text: 'Löschen', gefahr: true, onTap: () => ctx.pop(true)),
         ],
       ),
     );

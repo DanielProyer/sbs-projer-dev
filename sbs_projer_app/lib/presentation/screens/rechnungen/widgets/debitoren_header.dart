@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
@@ -39,10 +40,11 @@ class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
                 ),
                 _zeileCard('Delkredere (1109)', d['delkredere']!),
                 const SizedBox(height: 16),
-                FilledButton.icon(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  label: const Text('Historische Sammel-Abschreibung'),
-                  onPressed: () => _sammelDialog(d['historisch_aggregat']!),
+                TapKnopf(
+                  text: 'Historische Sammel-Abschreibung',
+                  icon: Icons.remove_circle_outline,
+                  gefahr: true,
+                  onTap: () => _sammelDialog(d['historisch_aggregat']!),
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
@@ -142,13 +144,15 @@ class _DebitorenHeaderState extends ConsumerState<DebitorenHeader> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen'),
+            TapKnopf(
+              text: 'Abbrechen',
+              primaer: false,
+              onTap: () => Navigator.pop(ctx, false),
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Abschreiben'),
+            TapKnopf(
+              text: 'Abschreiben',
+              gefahr: true,
+              onTap: () => Navigator.pop(ctx, true),
             ),
           ],
         ),

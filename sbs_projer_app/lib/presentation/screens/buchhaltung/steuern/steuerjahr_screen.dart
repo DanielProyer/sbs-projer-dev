@@ -101,13 +101,15 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
             'Die Veranlagung wurde geändert, aber nicht gespeichert.',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Weiter bearbeiten'),
+            TapKnopf(
+              text: 'Weiter bearbeiten',
+              primaer: false,
+              onTap: () => Navigator.pop(ctx, false),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Verwerfen'),
+            TapKnopf(
+              text: 'Verwerfen',
+              gefahr: true,
+              onTap: () => Navigator.pop(ctx, true),
             ),
           ],
         ),

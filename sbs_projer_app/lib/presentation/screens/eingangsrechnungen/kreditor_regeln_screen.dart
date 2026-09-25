@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -36,13 +37,15 @@ class KreditorRegelnScreen extends ConsumerWidget {
         title: const Text('Regel löschen?'),
         content: Text('„${regel.lieferantNamePattern}“ wirklich löschen?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.of(ctx).pop(false),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
       ),

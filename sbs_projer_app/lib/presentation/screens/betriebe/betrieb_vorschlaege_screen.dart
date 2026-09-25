@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -240,16 +241,12 @@ class _VorschlagKarte extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
-                  onPressed: onVerwerfen,
-                  child: const Text('Verwerfen'),
-                ),
-                const SizedBox(width: 4),
+                // Verwerfen greift ohne Rückfrage (Durchsicht reihum) — deshalb
+                // rot und in der Bauart, die auf CanvasKit sicher rendert.
+                TapKnopf(text: 'Verwerfen', gefahr: true, onTap: onVerwerfen),
+                const SizedBox(width: 8),
                 if (!istStatus)
-                  FilledButton(
-                    onPressed: onUebernehmen,
-                    child: const Text('Übernehmen'),
-                  ),
+                  TapKnopf(text: 'Übernehmen', onTap: onUebernehmen),
               ],
             ),
           ],

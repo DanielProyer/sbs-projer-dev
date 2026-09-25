@@ -100,14 +100,16 @@ Future<bool> showSteuerZuordnungDialog(
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx),
           ),
           if (istZugeordnet)
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, _Aktion.entfernen),
-              child: const Text('Zuordnung entfernen'),
+            TapKnopf(
+              text: 'Zuordnung entfernen',
+              gefahr: true,
+              onTap: () => Navigator.pop(ctx, _Aktion.entfernen),
             ),
           TapKnopf(
             text: 'Zuordnen',

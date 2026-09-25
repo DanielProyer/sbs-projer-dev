@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -143,13 +144,15 @@ class _MaterialBestellungenScreenState
           'und die Bestellung geht zurück auf „gesendet".',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Rückgängig'),
+          TapKnopf(
+            text: 'Rückgängig',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),

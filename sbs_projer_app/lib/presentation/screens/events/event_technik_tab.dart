@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_technik.dart';
@@ -783,13 +784,15 @@ class _GeraetCardState extends ConsumerState<_GeraetCard> {
           '${!istAnstich && anzahl > 0 ? '\n\n$anzahl Leitungen verlieren ihre Kühler-Zuordnung.' : ''}',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -1318,13 +1321,15 @@ class _LeitungFormSheetState extends ConsumerState<_LeitungFormSheet> {
         title: const Text('Leitung löschen'),
         content: Text('Leitung ${l.nummer} wirklich löschen?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),

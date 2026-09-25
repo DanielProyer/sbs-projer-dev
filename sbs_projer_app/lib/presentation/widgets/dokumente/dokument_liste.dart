@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/dokument.dart';
@@ -179,13 +180,15 @@ class DokumentListe extends StatelessWidget {
         title: const Text('Dokument löschen?'),
         content: Text(d.titel),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Löschen'),
+          TapKnopf(
+            text: 'Löschen',
+            gefahr: true,
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
