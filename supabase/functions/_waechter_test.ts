@@ -27,10 +27,7 @@ const AUTH_MUSTER = ["auth.getUser(", "ermittleUserId(", "x-cron-secret"];
  * Test fehl, bis der Eintrag hier entfernt ist.
  */
 const BEKANNT_OHNE_QUELLE: Record<string, string> = {
-  // Nur deployed (v14, verify_jwt=false, 10.05.2026) — nie ins Repo
-  // eingecheckt. Aufrufer: heineken_raster_screen.dart. Entscheid offen:
-  // Quelle aus dem Dashboard holen und härten, oder auf send-pdf-mail umstellen.
-  "send-raster-mail": "Quelle fehlt im Repo (Analyse 25.09.2026)",
+  // leer seit 25.09.2026: send-raster-mail ist jetzt im Repo (v15)
 };
 
 function functionNamen(): string[] {
