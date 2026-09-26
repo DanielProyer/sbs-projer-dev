@@ -288,6 +288,8 @@ const Object _unveraendert = Object();
 /// Der Filterzustand des Screens. Unveränderlich, damit er sich testen und
 /// in der URL abbilden lässt.
 class EinsatzFilter {
+  /// 0 = alle Jahre (nur mit [betriebId] sinnvoll: die Akte eines Betriebs
+  /// reicht über Jahre, der Screen lädt dann nur diesen Betrieb).
   final int jahr;
   final int monat; // 0 = alle
   final Set<EinsatzTyp> typen; // leer = alle
@@ -300,6 +302,10 @@ class EinsatzFilter {
   final String kmFilter; // 'alle' | 'mit' | 'ohne'
   final int? bereich; // 1..5
 
+  /// Nur die Einsätze dieses Betriebs (`/einsaetze?betrieb=<id>`, aus der
+  /// Betriebsseite). null = alle Betriebe.
+  final String? betriebId;
+
   const EinsatzFilter({
     required this.jahr,
     this.monat = 0,
@@ -310,6 +316,7 @@ class EinsatzFilter {
     this.anlageTyp,
     this.kmFilter = 'alle',
     this.bereich,
+    this.betriebId,
   });
 
   bool get nurStoerung =>
@@ -325,6 +332,7 @@ class EinsatzFilter {
     Object? anlageTyp = _unveraendert,
     String? kmFilter,
     Object? bereich = _unveraendert,
+    Object? betriebId = _unveraendert,
   }) => EinsatzFilter(
     jahr: jahr ?? this.jahr,
     monat: monat ?? this.monat,
@@ -337,13 +345,17 @@ class EinsatzFilter {
         : anlageTyp as String?,
     kmFilter: kmFilter ?? this.kmFilter,
     bereich: bereich == _unveraendert ? this.bereich : bereich as int?,
+    betriebId: betriebId == _unveraendert
+        ? this.betriebId
+        : betriebId as String?,
   );
 }
 
 /// Reine Filterfunktion — der Screen ruft sie mit seinem Zustand auf.
 List<Einsatz> filtereEinsaetze(List<Einsatz> alle, EinsatzFilter f) {
   final gefiltert = alle.where((e) {
-    if (e.datum.year != f.jahr) return false;
+    if (f.jahr != 0 && e.datum.year != f.jahr) return false;
+    if (f.betriebId != null && e.betriebId != f.betriebId) return false;
     if (f.monat != 0 && e.datum.month != f.monat) return false;
     if (f.typen.isNotEmpty && !f.typen.contains(e.typ)) return false;
     if (f.status.isNotEmpty && !f.status.contains(e.status)) return false;

@@ -15,16 +15,11 @@ import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_rechnungsadresse_local_export.dart';
-import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
-import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/region_repository.dart';
-import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
-import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -32,6 +27,8 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
 import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
+import 'package:sbs_projer_app/presentation/widgets/betrieb/betrieb_geld_block.dart';
+import 'package:sbs_projer_app/presentation/widgets/betrieb/einsaetze_akte_karte.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:intl/intl.dart';
@@ -123,6 +120,13 @@ class _BetriebDetailContent extends ConsumerWidget {
           // Status & Badges
           _StatusRow(betrieb: betrieb),
           const SizedBox(height: 16),
+
+          // Geld: offener Saldo, Mahnstufe, Guthaben (Akte, T10; nur Web)
+          if (betrieb.serverId != null)
+            BetriebGeldBlock(
+              betriebId: betrieb.serverId!,
+              betriebName: betrieb.name,
+            ),
 
           // Adresse
           DetailKarte(
@@ -371,15 +375,9 @@ class _BetriebDetailContent extends ConsumerWidget {
           // Geplanter Service
           if (betrieb.serverId != null) _ServiceTerminSection(betrieb: betrieb),
 
-          // Reinigungen
-          if (betrieb.serverId != null) _ReinigungenSection(betrieb: betrieb),
-
-          // Störungen
-          if (betrieb.serverId != null) _StoerungenSection(betrieb: betrieb),
-
-          // Eigenaufträge
+          // Einsätze: alle Typen in einer Liste, Montagen inklusive (T10)
           if (betrieb.serverId != null)
-            _EigenauftraegeSection(betrieb: betrieb),
+            EinsaetzeAkteKarte(betriebId: betrieb.serverId!),
 
           // Sync-Info
           if (!betrieb.isSynced)
@@ -1281,320 +1279,6 @@ class _ServiceTerminSection extends ConsumerWidget {
 
 final _terminDatum = DateFormat('dd.MM.yyyy');
 
-class _StoerungenSection extends StatelessWidget {
-  final BetriebLocal betrieb;
-
-  const _StoerungenSection({required this.betrieb});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<StoerungLocal>>(
-      stream: StoerungRepository.watchByBetrieb(betrieb.serverId!),
-      builder: (context, snapshot) {
-        final stoerungen = snapshot.data ?? [];
-        final sorted = List<StoerungLocal>.from(stoerungen)
-          ..sort((a, b) => b.datum.compareTo(a.datum));
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Störungen (${stoerungen.length})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (!SupabaseService.isGuest)
-                      TextButton.icon(
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Neue Störung'),
-                        onPressed: () => context.push(
-                          '/stoerungen/neu?betriebId=${betrieb.serverId}',
-                        ),
-                      ),
-                  ],
-                ),
-                if (sorted.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...sorted.take(5).map((s) => _StoerungRow(stoerung: s)),
-                  if (sorted.length > 5)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '+ ${sorted.length - 5} weitere',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                ],
-                if (stoerungen.isEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Noch keine Störungen erfasst',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StoerungRow extends StatelessWidget {
-  final StoerungLocal stoerung;
-
-  const _StoerungRow({required this.stoerung});
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = switch (stoerung.status) {
-      'offen' => AppColors.warning,
-      'behoben' => AppColors.success,
-      'nicht_behebbar' => AppColors.inaktiv,
-      _ => AppColors.textSecondary,
-    };
-
-    return InkWell(
-      onTap: () => context.push('/stoerungen/${stoerung.routeId}'),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: statusColor.withAlpha(25),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.warning_amber, size: 16, color: statusColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    stoerung.stoerungsnummer ?? 'Störung',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    [
-                      if (stoerung.referenzNr != null)
-                        'HN-${stoerung.referenzNr}',
-                      _formatDate(stoerung.datum),
-                      stoerung.status,
-                    ].join(' · '),
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: AppColors.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EigenauftraegeSection extends StatelessWidget {
-  final BetriebLocal betrieb;
-
-  const _EigenauftraegeSection({required this.betrieb});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<EigenauftragLocal>>(
-      stream: EigenauftragRepository.watchByBetrieb(betrieb.serverId!),
-      builder: (context, snapshot) {
-        final eigenauftraege = snapshot.data ?? [];
-        final sorted = List<EigenauftragLocal>.from(eigenauftraege)
-          ..sort((a, b) => b.datum.compareTo(a.datum));
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.build_circle_outlined,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Eigenaufträge (${eigenauftraege.length})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (!SupabaseService.isGuest)
-                      TextButton.icon(
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Neuer Eigenauftrag'),
-                        onPressed: () => context.push(
-                          '/eigenauftraege/neu?betriebId=${betrieb.serverId}',
-                        ),
-                      ),
-                  ],
-                ),
-                if (sorted.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...sorted
-                      .take(5)
-                      .map((e) => _EigenauftragRow(eigenauftrag: e)),
-                  if (sorted.length > 5)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '+ ${sorted.length - 5} weitere',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                ],
-                if (eigenauftraege.isEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Noch keine Eigenaufträge erfasst',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _EigenauftragRow extends StatelessWidget {
-  final EigenauftragLocal eigenauftrag;
-
-  const _EigenauftragRow({required this.eigenauftrag});
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = switch (eigenauftrag.status) {
-      'behoben' => AppColors.success,
-      'nicht_behebbar' => AppColors.inaktiv,
-      'nachbearbeitung_noetig' => AppColors.warning,
-      _ => AppColors.textSecondary,
-    };
-
-    return InkWell(
-      onTap: () => context.push('/eigenauftraege/${eigenauftrag.routeId}'),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: statusColor.withAlpha(25),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.build_circle_outlined,
-                size: 16,
-                color: statusColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    eigenauftrag.stoerungsnummer,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    [
-                      _formatDate(eigenauftrag.datum),
-                      if (eigenauftrag.pauschale != null)
-                        '${eigenauftrag.pauschale!.toStringAsFixed(2)} CHF',
-                      eigenauftrag.status,
-                    ].join(' · '),
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: AppColors.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _AnlageRow extends StatelessWidget {
   final AnlageLocal anlage;
 
@@ -1665,167 +1349,6 @@ class _AnlageRow extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ReinigungenSection extends StatefulWidget {
-  final BetriebLocal betrieb;
-
-  const _ReinigungenSection({required this.betrieb});
-
-  @override
-  State<_ReinigungenSection> createState() => _ReinigungenSectionState();
-}
-
-class _ReinigungenSectionState extends State<_ReinigungenSection> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final betrieb = widget.betrieb;
-    return StreamBuilder<List<ReinigungLocal>>(
-      stream: ReinigungRepository.watchByBetrieb(betrieb.serverId!),
-      builder: (context, snapshot) {
-        final reinigungen = snapshot.data ?? [];
-        reinigungen.sort((a, b) => b.datum.compareTo(a.datum));
-        final display = _expanded ? reinigungen : reinigungen.take(5).toList();
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.cleaning_services,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Reinigungen',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${reinigungen.length}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Kein anlageIds hier: auf der Betriebsseite ist noch nicht
-                    // entschieden, welche Anlagen gemeint sind — das Formular
-                    // zeigt sie zur Auswahl (bei einer neuen Reinigung sind dort
-                    // ohnehin alle Anlagen des Betriebs vorausgewählt). Der
-                    // Tourenplan-Block kennt die Bündelung dagegen schon.
-                    if (!SupabaseService.isGuest)
-                      TextButton.icon(
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Neue Reinigung'),
-                        onPressed: () => context.push(
-                          '/reinigungen/neu?betriebId=${betrieb.serverId}',
-                        ),
-                      ),
-                  ],
-                ),
-                if (display.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ...display.map(
-                    (r) => InkWell(
-                      onTap: () => context.push('/reinigungen/${r.routeId}'),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            Icon(
-                              r.status == 'abgeschlossen'
-                                  ? Icons.check_circle
-                                  : Icons.hourglass_top,
-                              size: 18,
-                              color: r.status == 'abgeschlossen'
-                                  ? AppColors.success
-                                  : AppColors.warning,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                            if (r.preisBrutto != null)
-                              Text(
-                                '${r.preisBrutto!.toStringAsFixed(2)} CHF',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.chevron_right,
-                              size: 18,
-                              color: AppColors.textSecondary,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (reinigungen.length > 5)
-                    InkWell(
-                      onTap: () => setState(() => _expanded = !_expanded),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _expanded ? Icons.expand_less : Icons.expand_more,
-                              size: 18,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _expanded
-                                  ? 'Weniger anzeigen'
-                                  : 'Alle ${reinigungen.length} anzeigen',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-                if (display.isEmpty) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Noch keine Reinigungen',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

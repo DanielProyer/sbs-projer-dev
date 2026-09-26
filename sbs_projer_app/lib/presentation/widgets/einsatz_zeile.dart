@@ -88,7 +88,17 @@ class StatusBadge extends StatelessWidget {
 class EinsatzZeile extends StatelessWidget {
   final Einsatz einsatz;
   final VoidCallback onTap;
-  const EinsatzZeile({super.key, required this.einsatz, required this.onTap});
+
+  /// In der Akte eines Betriebs (Betriebs-/Anlagenseite, `/einsaetze?betrieb=`):
+  /// Der Betriebsname stünde in jeder Zeile gleich da, und die Liste reicht
+  /// über Jahre — also Typ als Titel und Datum mit Jahr.
+  final bool imBetrieb;
+  const EinsatzZeile({
+    super.key,
+    required this.einsatz,
+    required this.onTap,
+    this.imBetrieb = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -96,10 +106,12 @@ class EinsatzZeile extends StatelessWidget {
     final datum =
         '${_wochentage[e.datum.weekday - 1]} '
         '${e.datum.day.toString().padLeft(2, '0')}.'
-        '${e.datum.month.toString().padLeft(2, '0')}.';
+        '${e.datum.month.toString().padLeft(2, '0')}.'
+        '${imBetrieb ? e.datum.year : ''}';
     final zweiteZeile = [
-      e.typLabel,
-      if (e.betriebOrt != null && e.betriebOrt!.isNotEmpty) e.betriebOrt!,
+      if (!imBetrieb) e.typLabel,
+      if (!imBetrieb && e.betriebOrt != null && e.betriebOrt!.isNotEmpty)
+        e.betriebOrt!,
       if (e.zeit != null) '$datum ${e.zeit}' else datum,
       if (e.beschreibung != null && e.beschreibung!.isNotEmpty) e.beschreibung!,
     ].join(' · ');
@@ -124,7 +136,7 @@ class EinsatzZeile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    e.betriebName,
+                    imBetrieb ? e.typLabel : e.betriebName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

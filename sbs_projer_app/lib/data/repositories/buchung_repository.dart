@@ -239,6 +239,46 @@ class BuchungRepository {
     return ids;
   }
 
+  /// Welche der [belegIds] haben eine nicht stornierte Ertragsbuchung?
+  /// Dieselben Filter wie [belegIdsMitBuchung], aber ohne Zeitraum — für die
+  /// Betriebsakte, deren Reinigungen über viele Jahre reichen (T10). In
+  /// Paketen zu 100 Ids, damit die URL kurz bleibt.
+  static Future<Set<String>> belegIdsMitBuchungAus(
+    Iterable<String> belegIds,
+  ) async {
+    final alle = belegIds.toSet().toList();
+    final ids = <String>{};
+    const paket = 100;
+    for (var i = 0; i < alle.length; i += paket) {
+      final teil = alle.sublist(
+        i,
+        i + paket > alle.length ? alle.length : i + paket,
+      );
+      // Eine Reinigung hat mehrere Buchungszeilen — auch ein Paket kann über
+      // 1000 Zeilen kommen, also seitenweise (CLAUDE.md, `.order('id')`).
+      const seite = 1000;
+      var von = 0;
+      while (true) {
+        final rows = await SupabaseService.client
+            .from('buchungen')
+            .select('beleg_id')
+            .eq('user_id', _userId)
+            .eq('beleg_typ', 'rechnung')
+            .eq('ist_storniert', false)
+            .isFilter('storno_von_id', null)
+            .inFilter('beleg_id', teil)
+            .order('id')
+            .range(von, von + seite - 1);
+        for (final r in rows) {
+          ids.add(r['beleg_id'] as String);
+        }
+        if (rows.length < seite) break;
+        von += seite;
+      }
+    }
+    return ids;
+  }
+
   static Future<int> count() async {
     final res = await SupabaseService.client
         .from('buchungen')

@@ -14,17 +14,14 @@ import 'package:sbs_projer_app/data/models/anlage_foto.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_foto_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
-import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
-import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
-import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
-import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_steckbrief_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
+import 'package:sbs_projer_app/presentation/widgets/betrieb/einsaetze_akte_karte.dart';
 
 class AnlageDetailScreen extends ConsumerWidget {
   final String anlageId;
@@ -172,11 +169,13 @@ class _AnlageDetailContent extends ConsumerWidget {
           // Bierleitungen
           if (anlage.serverId != null) _BierleitungenSection(anlage: anlage),
 
-          // Reinigungen
-          if (anlage.serverId != null) _ReinigungenSection(anlage: anlage),
-
-          // Störungen
-          if (anlage.serverId != null) _StoerungenSection(anlage: anlage),
+          // Einsätze dieser Anlage: Reinigungen, Störungen, Montagen,
+          // Eigenaufträge in einer Liste (Akte, T10)
+          if (anlage.serverId != null && anlage.betriebId.isNotEmpty)
+            EinsaetzeAkteKarte(
+              betriebId: anlage.betriebId,
+              anlageId: anlage.serverId,
+            ),
 
           // Notizen
           if (anlage.notizen != null)
@@ -708,278 +707,6 @@ class _FotosSectionState extends State<_FotosSection> {
             Text(
               'Hinzufügen',
               style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReinigungenSection extends StatelessWidget {
-  final AnlageLocal anlage;
-
-  const _ReinigungenSection({required this.anlage});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<ReinigungLocal>>(
-      stream: ReinigungRepository.watchByAnlage(anlage.serverId!),
-      builder: (context, snapshot) {
-        final reinigungen = snapshot.data ?? [];
-        // Sortieren: neueste zuerst, max 5 anzeigen
-        reinigungen.sort((a, b) => b.datum.compareTo(a.datum));
-        final display = reinigungen.take(5).toList();
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.cleaning_services,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Reinigungen (${reinigungen.length})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const Spacer(),
-                  ],
-                ),
-                if (display.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...display.map((r) => _ReinigungRow(reinigung: r)),
-                  if (reinigungen.length > 5)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '+ ${reinigungen.length - 5} weitere',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                ],
-                if (display.isEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Noch keine Reinigungen erfasst',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ReinigungRow extends StatelessWidget {
-  final ReinigungLocal reinigung;
-
-  const _ReinigungRow({required this.reinigung});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/reinigungen/${reinigung.routeId}'),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(
-              reinigung.status == 'abgeschlossen'
-                  ? Icons.check_circle
-                  : Icons.hourglass_top,
-              size: 18,
-              color: reinigung.status == 'abgeschlossen'
-                  ? AppColors.success
-                  : AppColors.warning,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '${reinigung.datum.day.toString().padLeft(2, '0')}.${reinigung.datum.month.toString().padLeft(2, '0')}.${reinigung.datum.year}',
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-            Text(
-              reinigung.status,
-              style: TextStyle(
-                fontSize: 12,
-                color: reinigung.status == 'abgeschlossen'
-                    ? AppColors.success
-                    : AppColors.warning,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: AppColors.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StoerungenSection extends StatelessWidget {
-  final AnlageLocal anlage;
-
-  const _StoerungenSection({required this.anlage});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<StoerungLocal>>(
-      stream: StoerungRepository.watchByAnlage(anlage.serverId!),
-      builder: (context, snapshot) {
-        final stoerungen = snapshot.data ?? [];
-        // Sortieren: neueste zuerst, max 5 anzeigen
-        stoerungen.sort((a, b) => b.datum.compareTo(a.datum));
-        final display = stoerungen.take(5).toList();
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Störungen (${stoerungen.length})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton.icon(
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Neue Störung'),
-                      onPressed: () => context.push(
-                        '/stoerungen/neu?anlageId=${anlage.serverId}&betriebId=${anlage.betriebId}',
-                      ),
-                    ),
-                  ],
-                ),
-                if (display.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...display.map((s) => _StoerungRow(stoerung: s)),
-                  if (stoerungen.length > 5)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '+ ${stoerungen.length - 5} weitere',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                ],
-                if (display.isEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Noch keine Störungen erfasst',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StoerungRow extends StatelessWidget {
-  final StoerungLocal stoerung;
-
-  const _StoerungRow({required this.stoerung});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/stoerungen/${stoerung.routeId}'),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(
-              stoerung.status == 'abgeschlossen'
-                  ? Icons.check_circle
-                  : Icons.warning_amber,
-              size: 18,
-              color: stoerung.status == 'abgeschlossen'
-                  ? AppColors.success
-                  : AppColors.warning,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Störung ${stoerung.datum.day.toString().padLeft(2, '0')}.${stoerung.datum.month.toString().padLeft(2, '0')}.${stoerung.datum.year}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  if (stoerung.referenzNr != null)
-                    Text(
-                      'HN-${stoerung.referenzNr}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Text(
-              stoerung.status,
-              style: TextStyle(
-                fontSize: 12,
-                color: stoerung.status == 'abgeschlossen'
-                    ? AppColors.success
-                    : AppColors.warning,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: AppColors.textSecondary,
             ),
           ],
         ),
