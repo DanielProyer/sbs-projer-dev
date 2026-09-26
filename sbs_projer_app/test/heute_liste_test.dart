@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/presentation/providers/heute_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/heute_liste.dart';
 
@@ -295,5 +298,49 @@ void main() {
           'verworfene Kuerzung mit Scrollbalken - und faengt auf dem Handy '
           'die Wischgeste der Startseite ab.',
     );
+  });
+
+  // D1 (Review 26.09.2026): Der Tagesplan-Provider reicht Ladefehler seit
+  // v0.145.x durch, statt sie als «kein Plan» zu melden. Die Karte darf den
+  // Fehler nicht verschlucken (vorher: SizedBox.shrink).
+  testWidgets('Ladefehler: Hinweis mit «Erneut laden», passt auf 360 px',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        heuteOffeneStoppsProvider.overrideWith(
+          (ref) => AsyncValue<List<TourEintrag>>.error(
+            Exception('offline'),
+            StackTrace.empty,
+          ),
+        ),
+        heuteZaehlerProvider.overrideWith((ref) => null),
+        tagesUebersichtProvider.overrideWith(
+          (ref) => const TagesUebersichtData(
+            reinigungen: [],
+            stoerungen: [],
+            montagen: [],
+            eigenauftraege: [],
+            eroeffnungen: [],
+            bergkundenpauschalen: [],
+            totalCHF: 0,
+            monatsUmsatzCHF: 0,
+          ),
+        ),
+      ],
+      child: rahmen(const HeuteListe()),
+    ));
+
+    expect(find.text('Tagesplan nicht geladen'), findsOneWidget);
+    expect(find.text('Erneut laden'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Erneut laden'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 }

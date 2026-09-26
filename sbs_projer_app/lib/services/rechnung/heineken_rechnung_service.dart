@@ -37,6 +37,23 @@ class HeinekenRechnungService {
     poNummer: preis?.heinekenPoNummer ?? kHeinekenPoNummerFallback,
   );
 
+  /// PO-Nummer für ein NEU generiertes PDF einer bestehenden Rechnung: die
+  /// an der Rechnung gespeicherte gewinnt, die aktuelle aus der Preisliste
+  /// ist nur Rückfall (Altzeilen ohne Wert).
+  ///
+  /// Warum: [regenerierePdf] sammelt die Monatsdaten neu — mit der HEUTIGEN
+  /// Preisliste. Hat Heineken die PO inzwischen geändert, trüge das PDF eine
+  /// andere Nummer als die Rechnungszeile und die bereits versendete
+  /// Rechnung (Review 26.09.2026).
+  @visibleForTesting
+  static String poNummerFuerPdf({
+    required String? gespeichert,
+    required String aktuell,
+  }) {
+    final g = gespeichert?.trim();
+    return (g == null || g.isEmpty) ? aktuell : g;
+  }
+
   static String get _userId => SupabaseService.dataUserId;
 
   /// Sammelt alle Heineken-relevanten Daten für den gegebenen Monat.
@@ -283,7 +300,10 @@ class HeinekenRechnungService {
     pdf.addPage(HeinekenPdfService.buildUebersichtPage(
         daten, rechnung.rechnungsnummer,
         logoBytes: logoBytes,
-        poNummer: daten.poNummer,
+        poNummer: poNummerFuerPdf(
+          gespeichert: rechnung.heinekenPoNummer,
+          aktuell: daten.poNummer,
+        ),
         mwstLabel: daten.mwstLabel,
         geschaeft: await GeschaeftRepository.getOderFallback()));
     final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);

@@ -1216,6 +1216,23 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
   DateTime? _datum;
   DateTime? get datum => _datum;
 
+  /// Gehört der State dem Kalendertag [tag]? Vor dem ersten Laden: nein.
+  ///
+  /// Zwischen dem Tipp auf einen anderen Tag und dem Eintreffen seines Plans
+  /// hält der Notifier noch den Plan des VORIGEN Tages. Bis v0.145.0 zeigte
+  /// die Zeitachse ihn in diesem Fenster unter dem neuen Datum, «Übernehmen»
+  /// legte Einträge dort ab, und das Verschieben hängte die Stopps des
+  /// vorigen Tages am Zieltag an, ohne sie irgendwo zu entfernen — sie
+  /// standen doppelt (Review 26.09.2026). Der Screen gibt Plan-Aktionen
+  /// deshalb erst frei, wenn diese Prüfung für den angezeigten Tag stimmt.
+  bool gehoertZu(DateTime tag) {
+    final d = _datum;
+    return d != null &&
+        d.year == tag.year &&
+        d.month == tag.month &&
+        d.day == tag.day;
+  }
+
   /// Speichert den aktuellen Stand entprellt für den Tag, dem der State
   /// gehört ([_datum]).
   void _scheduleSave() {
@@ -1342,6 +1359,28 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
   }
 }
 
+/// Was der Tagesplan-Tab im Tourenplan zeigt.
+enum TagesplanAnsicht { plan, laedt, ladefehler }
+
+/// Regel für den Tagesplan-Tab: Zeitachse und Plan-Aktionen erst, wenn der
+/// Notifier dem angezeigten Tag gehört ([TagesplanNotifier.gehoertZu]) —
+/// siehe dort, was im Lade-Fenster vorher schiefging.
+///
+/// [nurIst]: vergangener oder mit Feierabend abgeschlossener Tag. Dort zeigt
+/// der Tab die tatsächlichen Reinigungen und braucht den Plan nicht.
+///
+/// [ladefehler]: der gespeicherte Plan liess sich nicht laden. Das ist NICHT
+/// «kein Plan»: bis v0.145.0 startete der Tag dann leer, und die nächste
+/// Änderung überschrieb den echten Plan in der Datenbank.
+TagesplanAnsicht tagesplanAnsicht({
+  required bool nurIst,
+  required bool planGehoertZumTag,
+  required bool ladefehler,
+}) {
+  if (nurIst || planGehoertZumTag) return TagesplanAnsicht.plan;
+  return ladefehler ? TagesplanAnsicht.ladefehler : TagesplanAnsicht.laedt;
+}
+
 // ─── Tagesplan Persistierung (Supabase) ───
 
 /// Sichtbar für Tests (`test/tour_eintrag_json_test.dart`) — deckt die
@@ -1442,6 +1481,14 @@ typedef GespeicherterTagesplan = ({
   String? pauseStart,
 });
 
+/// Der gespeicherte Plan eines Tages — `null` heisst: für den Tag gibt es
+/// keine Zeile (gültiger Zustand, der Tag startet leer).
+///
+/// Ein Ladefehler wird NICHT geschluckt, sondern landet als `AsyncError` beim
+/// Leser. Bis v0.145.0 kam er als `null` an: der Tourenplan behandelte den
+/// Tag als «kein Plan», startete leer, und die nächste Änderung überschrieb
+/// den echten Plan in der Datenbank (Review 26.09.2026). Ebenso schrieb
+/// [einsatzInTagesplanAufnehmen] dann nur den einen neuen Eintrag zurück.
 final gespeicherterTagesplanProvider =
     FutureProvider.family<GespeicherterTagesplan?, DateTime>((
       ref,
@@ -1476,7 +1523,7 @@ final gespeicherterTagesplanProvider =
         );
       } catch (e) {
         debugPrint('[Tagesplan] Laden fehlgeschlagen: $e');
-        return null;
+        rethrow;
       }
     });
 
@@ -1594,6 +1641,9 @@ Future<void> einsatzInTagesplanAufnehmen(
     }
     return;
   }
+  // Ein Ladefehler wirft und bricht ab. `null` heisst nur noch «keine Zeile»
+  // — als der Provider Fehler zu `null` machte, ersetzte der eine neue
+  // Eintrag hier den ganzen Plan des Tages.
   final gespeichert = await ref.read(
     gespeicherterTagesplanProvider(tagOhneZeit).future,
   );
@@ -1707,19 +1757,15 @@ Future<void> eintraegeAusTagesplanEntfernen(
 }
 
 /// Liegt der In-Memory-Plan ([TagesplanNotifier]) gerade auf [tag]?
-bool _notifierAufTag(TagesplanNotifier notifier, DateTime tag) {
-  final aktiv = notifier.datum;
-  return aktiv != null &&
-      aktiv.year == tag.year &&
-      aktiv.month == tag.month &&
-      aktiv.day == tag.day;
-}
+bool _notifierAufTag(TagesplanNotifier notifier, DateTime tag) =>
+    notifier.gehoertZu(tag);
 
-/// Einträge des gespeicherten Plans von [tag], frisch und direkt geladen —
-/// `null`, wenn es für den Tag keine Zeile gibt. Ein Ladefehler wird
-/// geworfen, NICHT geschluckt wie in [gespeicherterTagesplanProvider]: beim
-/// Verschieben hiesse «leer» sonst, der bestehende Plan des Zieltags würde
-/// überschrieben bzw. ein nicht entfernter Stopp als verschoben gemeldet.
+/// Einträge des gespeicherten Plans von [tag], frisch und direkt geladen
+/// (am Cache von [gespeicherterTagesplanProvider] vorbei) — `null`, wenn es
+/// für den Tag keine Zeile gibt. Ein Ladefehler wird geworfen, nie
+/// geschluckt: beim Verschieben hiesse «leer» sonst, der bestehende Plan des
+/// Zieltags würde überschrieben bzw. ein nicht entfernter Stopp als
+/// verschoben gemeldet.
 Future<List<TourEintrag>?> _gespeicherteEintraegeLaden(DateTime tag) async {
   final datumStr =
       '${tag.year}-${tag.month.toString().padLeft(2, '0')}-${tag.day.toString().padLeft(2, '0')}';
@@ -1772,6 +1818,8 @@ Future<void> einsatzAusTagesplanEntfernen(
     notifier.entfernen(eintragId);
     return;
   }
+  // Ein Ladefehler wirft (der Eintrag bleibt dann stehen); `null` heisst
+  // «keine Zeile», dann gibt es nichts zu entfernen.
   final gespeichert = await ref.read(
     gespeicherterTagesplanProvider(tagOhneZeit).future,
   );

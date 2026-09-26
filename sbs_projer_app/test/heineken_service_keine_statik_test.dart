@@ -105,4 +105,55 @@ void main() {
       expect(w.poNummer, '6100259429');
     });
   });
+
+  // D2 (Review 26.09.2026): `regenerierePdf` sammelt die Monatsdaten mit der
+  // HEUTIGEN Preisliste neu. Das neue PDF muss trotzdem die PO-Nummer der
+  // gespeicherten Rechnungszeile tragen, nicht eine inzwischen geänderte.
+  group('HeinekenRechnungService.poNummerFuerPdf', () {
+    test('gespeicherte PO gewinnt über die aktuelle Preisliste', () {
+      expect(
+        HeinekenRechnungService.poNummerFuerPdf(
+          gespeichert: '6100111111',
+          aktuell: '6100999999',
+        ),
+        '6100111111',
+      );
+    });
+
+    test('Altzeile ohne PO → aktuelle aus der Preisliste', () {
+      expect(
+        HeinekenRechnungService.poNummerFuerPdf(
+          gespeichert: null,
+          aktuell: '6100999999',
+        ),
+        '6100999999',
+      );
+    });
+
+    test('leere bzw. nur Leerzeichen gelten als fehlend', () {
+      for (final leer in ['', '   ']) {
+        expect(
+          HeinekenRechnungService.poNummerFuerPdf(
+            gespeichert: leer,
+            aktuell: '6100999999',
+          ),
+          '6100999999',
+          reason: '«$leer»',
+        );
+      }
+    });
+
+    test('regenerierePdf nutzt die Regel', () {
+      final quelle = File(
+        'lib/services/rechnung/heineken_rechnung_service.dart',
+      ).readAsStringSync();
+      final start = quelle.indexOf('static Future<void> regenerierePdf(');
+      expect(start, greaterThanOrEqualTo(0));
+      final ende = quelle.indexOf('\n  }\n', start);
+      final rumpf = quelle.substring(start, ende);
+      expect(rumpf, contains('poNummerFuerPdf('));
+      expect(rumpf, contains('rechnung.heinekenPoNummer'));
+      expect(rumpf, isNot(contains('poNummer: daten.poNummer')));
+    });
+  });
 }

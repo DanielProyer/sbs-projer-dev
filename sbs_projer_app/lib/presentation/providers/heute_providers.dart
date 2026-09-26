@@ -74,6 +74,8 @@ final erledigteEinsatzIdsProvider = Provider<Set<String>>((ref) {
 ///
 /// Fehlt der gespeicherte Plan (z.B. noch nie im Tourenplan geöffnet), ist
 /// die Liste leer statt eines Fehlers — «kein Plan» ist ein gültiger Zustand.
+/// Ein Ladefehler dagegen bleibt ein `AsyncError` (die Heute-Liste zeigt ihn
+/// mit «Erneut laden»).
 final heuteOffeneStoppsProvider = Provider<AsyncValue<List<TourEintrag>>>((
   ref,
 ) {

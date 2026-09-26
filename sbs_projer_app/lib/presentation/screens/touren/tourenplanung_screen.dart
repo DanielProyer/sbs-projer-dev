@@ -205,9 +205,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           if (_loadedForDate != tag) anwenden(gespeichert);
         },
         loading: () {},
-        error: (_, _) {
-          if (_loadedForDate != tag) anwenden(null);
-        },
+        // Ladefehler ist NICHT «kein Plan»: kein resetLeer — sonst startete
+        // der Tag leer, und die nächste Änderung überschriebe den echten
+        // Plan in der DB (Review 26.09.2026). Der Tab zeigt den Fehler mit
+        // «Erneut laden»; bis dahin bleiben die Plan-Aktionen gesperrt.
+        error: (_, _) {},
       );
     }
 
@@ -259,7 +261,22 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         : tagesplan;
     final angezeigtFaellig = faelligeEintraege.where(passesFilter).toList();
 
-    final bereitsImPlan = tagesplan.map((e) => e.id).toSet();
+    // Lade-Fenster: Der Kopf zeigt den neuen Tag sofort, der Notifier hält
+    // aber bis zum Eintreffen des Plans noch den des vorigen Tages. Solange
+    // bleiben Zeitachse und Plan-Aktionen gesperrt (Review 26.09.2026).
+    // `ref.watch(tagesplanProvider)` oben baut neu, sobald der Plan kommt.
+    final planGehoertZumTag = ref
+        .read(tagesplanProvider.notifier)
+        .gehoertZu(_selectedDate);
+    final ansicht = tagesplanAnsicht(
+      nurIst: istVergangenTag,
+      planGehoertZumTag: planGehoertZumTag,
+      ladefehler: gespeichertAsync.hasError && !gespeichertAsync.isLoading,
+    );
+
+    final bereitsImPlan = planGehoertZumTag
+        ? tagesplan.map((e) => e.id).toSet()
+        : const <String>{};
 
     return Scaffold(
       appBar: AppBar(
@@ -323,7 +340,12 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
           TabBar(
             controller: _tabController,
             tabs: [
-              Tab(text: 'Tagesplan (${angezeigtTagesplan.length})'),
+              // Im Lade-Fenster keine Zahl — es wäre die des vorigen Tages.
+              Tab(
+                text: ansicht == TagesplanAnsicht.plan
+                    ? 'Tagesplan (${angezeigtTagesplan.length})'
+                    : 'Tagesplan',
+              ),
               Tab(text: 'Fällig (${angezeigtFaellig.length})'),
             ],
           ),
@@ -347,6 +369,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                     _TagesplanHeader(
                       datum: _selectedDate,
                       readOnly: istVergangenTag,
+                      gesperrt: !planGehoertZumTag,
                       onLeeren: _tagesplanLeeren,
                       onTagVerschieben: _ganzenTagVerschieben,
                       onAusFaelligBefuellen: () =>
@@ -363,10 +386,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                     if (autoTermine.isNotEmpty)
                       SaisonTermineSektion(
                         eintraege: autoTermine,
-                        onUebernehmen: (e) => ref
-                            .read(tagesplanProvider.notifier)
-                            .hinzufuegen(e.alsPlanEintrag()),
+                        onUebernehmen: (e) {
+                          if (!_planBereit()) return;
+                          ref
+                              .read(tagesplanProvider.notifier)
+                              .hinzufuegen(e.alsPlanEintrag());
+                        },
                         onAlleUebernehmen: () {
+                          if (!_planBereit()) return;
                           final notifier = ref.read(tagesplanProvider.notifier);
                           for (final e in autoTermine) {
                             notifier.hinzufuegen(e.alsPlanEintrag());
@@ -375,7 +402,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                         onTap: _navigateToDetail,
                       ),
                     Expanded(
-                      child: angezeigtTagesplan.isEmpty
+                      child: ansicht == TagesplanAnsicht.laedt
+                          ? _planLaedtHinweis()
+                          : ansicht == TagesplanAnsicht.ladefehler
+                          ? _planLadefehler(gespeichertAsync.error)
+                          : angezeigtTagesplan.isEmpty
                           ? _buildEmpty(
                               istVergangenTag
                                   ? 'Keine Reinigungen'
@@ -684,6 +715,100 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     );
   }
 
+  /// Statt der Zeitachse, solange der Plan des Tages noch unterwegs ist —
+  /// die Zeitachse zeigte in diesem Fenster den Plan des vorigen Tages.
+  Widget _planLaedtHinweis() {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 12),
+          Text(
+            'Plan wird geladen…',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Der Plan liess sich nicht laden. Bewusst kein leerer Plan: dessen
+  /// nächste Änderung würde den echten Plan in der DB überschreiben.
+  Widget _planLadefehler(Object? fehler) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, size: 48, color: AppColors.error),
+            const SizedBox(height: 12),
+            const Text(
+              'Plan konnte nicht geladen werden',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            if (fehler != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                kurzeFehlermeldung(fehler),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            TapKnopf(
+              text: 'Erneut laden',
+              icon: Icons.refresh,
+              onTap: () => ref.invalidate(
+                gespeicherterTagesplanProvider(_selectedDate),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Plan-Aktionen nur, wenn der In-Memory-Plan dem angezeigten Tag gehört
+  /// ([TagesplanNotifier.gehoertZu]) — sonst landeten sie im Plan des
+  /// vorigen Tages. Meldet sich kurz, statt wortlos nichts zu tun.
+  bool _planBereit() {
+    if (ref.read(tagesplanProvider.notifier).gehoertZu(_selectedDate)) {
+      return true;
+    }
+    final laden = ref.read(gespeicherterTagesplanProvider(_selectedDate));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 3),
+        content: Text(
+          laden.hasError && !laden.isLoading
+              ? 'Plan konnte nicht geladen werden — zuerst «Erneut laden»'
+              : 'Plan wird noch geladen — bitte gleich nochmals',
+        ),
+      ),
+    );
+    return false;
+  }
+
+  /// Nach einem Dialog bzw. Warten: Zeigt der Screen noch [plantag], und
+  /// gehört ihm der Plan noch? Sonst abbrechen — Verschieben/Leeren träfen
+  /// sonst den Plan eines anderen Tages.
+  bool _planNochAufTag(DateTime plantag) {
+    if (gleicherTag(_selectedDate, plantag) &&
+        ref.read(tagesplanProvider.notifier).gehoertZu(plantag)) {
+      return true;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Plan hat gewechselt — bitte erneut')),
+    );
+    return false;
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
@@ -696,6 +821,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   /// nicht fällige Anlagen durch — Spec §1 verlangt aber ausdrücklich nur
   /// die heute FÄLLIGEN Geschwister (Review 29.07.2026).
   void _faelligEintragUebernehmen(TourEintrag eintrag) {
+    if (!_planBereit()) return;
     final notifier = ref.read(tagesplanProvider.notifier);
     final planVorher = ref.read(tagesplanProvider);
     final betriebId = eintrag.betriebId;
@@ -733,6 +859,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   /// Anhängen der Fällig-Einträge liess die Bündelung aus — Sunset-Fall,
   /// 31.07.2026).
   void _faelligeAlleUebernehmen(List<TourEintrag> faellige) {
+    if (!_planBereit()) return;
     var plan = ref.read(tagesplanProvider);
     final vorhandene = plan.map((e) => e.id).toSet();
     final faelligeAnlagen = ref.read(faelligeAnlagenProvider(_selectedDate));
@@ -759,6 +886,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   /// die bessere; es kann also nie verschlechtern (siehe
   /// `routen_optimierung.dart`).
   void _reihenfolgeOptimieren() {
+    if (!_planBereit()) return;
     final plan = ref.read(tagesplanProvider);
     if (plan.length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -888,6 +1016,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   /// im Provider) — ein Fehltipp in der engen Kopfzeile kostete bisher den
   /// ganzen Tag. Deshalb erst nachfragen (R6, 25.09.2026).
   Future<void> _tagesplanLeeren() async {
+    final plantag = _selectedDate;
+    if (!_planBereit()) return;
     final anzahl = ref.read(tagesplanProvider).length;
     if (anzahl == 0) return;
     final ok = await gefahrRueckfrage(
@@ -900,6 +1030,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       bestaetigen: 'Leeren',
     );
     if (!ok || !mounted) return;
+    if (!_planNochAufTag(plantag)) return;
     ref.read(tagesplanProvider.notifier).leeren();
   }
 
@@ -956,6 +1087,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   /// Rückfrage — ausser der Betrieb hat am Zieltag Ruhetag.
   Future<void> _stoppVerschieben(String eintragId) async {
     final plantag = _selectedDate;
+    // Gehört der Plan noch dem vorigen Tag, hinge dessen Stopp am Zieltag an
+    // und würde hier (im Plan von [plantag]) nicht entfernt — doppelt.
+    if (!_planBereit()) return;
     final treffer = ref
         .read(tagesplanProvider)
         .where((e) => e.id == eintragId);
@@ -970,6 +1104,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       );
       if (!ok || !mounted) return;
     }
+    if (!_planNochAufTag(plantag)) return;
     await _aufTagVerschieben(plantag, [eintrag], ziel);
   }
 
@@ -980,6 +1115,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   /// unberührt.
   Future<void> _ganzenTagVerschieben() async {
     final plantag = _selectedDate;
+    // Siehe _stoppVerschieben: im Lade-Fenster wäre `plan` der des vorigen
+    // Tages.
+    if (!_planBereit()) return;
     final plan = ref.read(tagesplanProvider);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -1053,12 +1191,26 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     if (ziel == null || !mounted) return;
     // `refresh` statt `read`: der Cache des Zieltags kann veraltet sein
     // (z. B. auf einem anderen Gerät geändert) — die Rückfrage soll die
-    // wirkliche Zahl nennen.
-    final schonDort =
-        (await ref.refresh(
-          gespeicherterTagesplanProvider(ziel).future,
-        ))?.eintraege.length ??
-        0;
+    // wirkliche Zahl nennen. Ein Ladefehler bricht ab, statt «0 Einträge
+    // dort» zu behaupten.
+    final int schonDort;
+    try {
+      schonDort =
+          (await ref.refresh(
+            gespeicherterTagesplanProvider(ziel).future,
+          ))?.eintraege.length ??
+          0;
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Plan vom ${kurzTag(ziel)} nicht geladen — Verschieben '
+            'abgebrochen (${kurzeFehlermeldung(e)})',
+          ),
+        ),
+      );
+      return;
+    }
     if (!mounted) return;
     final ok = await _verschiebenBestaetigen(
       titel: 'Tag verschieben?',
@@ -1072,6 +1224,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       ),
     );
     if (!ok || !mounted) return;
+    // Zwischen dem Lesen von `plan` und hier lagen mehrere Wartezeiten, in
+    // denen die Wochenleiste bedienbar war.
+    if (!_planNochAufTag(plantag)) return;
     await _aufTagVerschieben(plantag, verschiebbar, ziel);
   }
 
@@ -1176,6 +1331,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   /// nicht dupliziert; Besuche, deren Betrieb heute keine fällige Anlage
   /// hat, kommen als `uebernommen = true` (graue Darstellung) mit.
   Future<void> _planVonDatumUebernehmen() async {
+    final plantag = _selectedDate;
+    if (!_planBereit()) return;
     final heuteReal = DateTime.now();
     final heuteDatum = DateTime(heuteReal.year, heuteReal.month, heuteReal.day);
     final gewaehlt = await zeigeDatumsauswahl(
@@ -1186,6 +1343,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       hilfetext: 'Reinigungen von welchem Tag übernehmen?',
     );
     if (gewaehlt == null || !mounted) return;
+    if (!_planNochAufTag(plantag)) return;
     final quelltag = DateTime(gewaehlt.year, gewaehlt.month, gewaehlt.day);
 
     final quellEintraege = ref.read(
@@ -1305,6 +1463,11 @@ class _TagesplanHeader extends StatelessWidget {
   /// Vergangener Tag: zeigt die tatsächlichen Reinigungen — Plan-Aktionen
   /// (Übernehmen/Leeren) sind dort sinnlos und ausgeblendet.
   final bool readOnly;
+
+  /// Plan des Tages noch nicht geladen (oder Ladefehler): Übernehmen, Menü
+  /// mit Optimieren/Verschieben/Leeren gesperrt — sie träfen sonst den Plan
+  /// des vorigen Tages ([TagesplanNotifier.gehoertZu]).
+  final bool gesperrt;
   final VoidCallback onLeeren;
   final VoidCallback onTagVerschieben;
   final VoidCallback onAusFaelligBefuellen;
@@ -1315,6 +1478,7 @@ class _TagesplanHeader extends StatelessWidget {
   const _TagesplanHeader({
     required this.datum,
     required this.readOnly,
+    required this.gesperrt,
     required this.onLeeren,
     required this.onTagVerschieben,
     required this.onAusFaelligBefuellen,
@@ -1361,7 +1525,7 @@ class _TagesplanHeader extends StatelessWidget {
             )
           else ...[
             TextButton.icon(
-              onPressed: onAusFaelligBefuellen,
+              onPressed: gesperrt ? null : onAusFaelligBefuellen,
               icon: const Icon(Icons.playlist_add, size: 18),
               label: const Text(
                 'Fällige übernehmen',
@@ -1378,6 +1542,7 @@ class _TagesplanHeader extends StatelessWidget {
             // _tagesplanLeeren); die rote Bestätigung fürs Leeren sitzt im
             // Dialog als TapKnopf(gefahr).
             PopupMenuButton<String>(
+              enabled: !gesperrt,
               icon: const Icon(Icons.more_vert, size: 20),
               tooltip: 'Weitere Aktionen',
               padding: EdgeInsets.zero,
