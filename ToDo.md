@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.140.0 live** (Analyse-Runde 2 Teil 1: eine Abschlusskette) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **207** · **2337 Tests grün**.
+**Stand:** **v0.141.0 live** (Analyse-Runde 2 komplett: eine Abschlusskette, Ferien aus der Tabelle) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **208** · **2347 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -199,6 +199,17 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.141.0** — Betrieb → Bearbeiten → Betriebsferien: «+ Ferien» anlegen,
+  Zeile erscheint, Papierkorb → Rückfrage → weg. Tourenplan zeigt den Betrieb
+  im Fenster als Ferien. Beim Speichern mit künftigen Ferien: Kalender-Dialog
+  (Eröffnung/Endreinigung) — im Google-Kalender darf kein doppelter Eintrag
+  entstehen. **Offen (Folgearbeit):** Altspalten `ferien*_start/ende`
+  entfernen (Model, Mapper, Local, Web-Stub, `build_runner`, Migration
+  `ALTER TABLE betriebe DROP COLUMN …`) — erst wenn alle `getById`-Leser
+  (`core/util/betrieb_reinigung.dart`-Aufrufer) die Tabelle setzen; bis dahin
+  sind die Spalten eingefroren (Stand 31.07.2026). `SaisonReinigungDialog`
+  nutzt noch Material-Buttons (CanvasKit-Risiko).
 
 - **v0.140.0** — Reinigung abschliessen wie gewohnt (Knopf ist jetzt
   TapKnopf, kein «Ende»-Feld mehr): Foto aufnehmen → Balken → «Hochgeladen ✓»

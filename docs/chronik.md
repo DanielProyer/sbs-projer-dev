@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 26.09.2026 — v0.141.0 Betriebsferien aus der Tabelle (R7), Kalender-Schlüssel nach Datum
 - 26.09.2026 — v0.140.0 Analyse-Runde 2 Teil 1: eine Abschlusskette (R1, T1, T5, T6)
 - 25.09.2026 — v0.139.0 Analyse-Runde 1 «Sicherheit der Zahlen» (R2/R3/R4/R6/R11/Q1/Q3/Q5, R9 geklärt)
 - 25.09.2026 — Edge Function send-pdf-mail v15: JWT-Pflicht, Header-Schutz; Ferien nachgetragen
@@ -26,6 +27,35 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 26.09.2026 — v0.141.0 Betriebsferien aus der Tabelle (R7), Kalender-Schlüssel nach Datum
+
+Runde 2 Teil 2. Migration 208, Edge Function `google-calendar-sync` neu deployed.
+
+- **Befund (Erkundung 26.09.):** Das Betriebsformular schrieb die fünf
+  Altspalten `ferien*_start/ende`, Tourenplan/Vorjahreshinweis lasen die
+  Tabelle `betrieb_ferien` — und entgegen der Analyse lasen auch **Detail und
+  Heineken-Raster noch die Altspalten** (Laden über `getById`/`getAll` statt
+  `betriebeProvider`). Ein UI zum Pflegen der Tabelle gab es nicht.
+- **Neu:** Widget `BetriebFerienListe` (widgets/) — Liste (künftige zuerst),
+  «+ Ferien» mit Von/Bis-Dialog, Löschen mit `gefahrRueckfrage`; schreibt
+  direkt in `betrieb_ferien` (Quelle `kunde`). Formular, Detail (lesend) und
+  Raster nutzen die Tabelle; das Formular schreibt die Altspalten nicht mehr
+  (sie frieren auf dem Stand 31.07. ein — Entfernen siehe ToDo). Schalter
+  «Keine Betriebsferien» wirkt jetzt überall (`wirksameFerienSlots`), vorher
+  ignorierte ihn der Tourenplan. Wächter `ferien_quelle_waechter_test.dart`.
+- **Kalender-Schlüssel (Review):** Eröffnungs-/Endreinigungen im Google-
+  Kalender hiessen `ferienN_…` nach Listenindex — mit pflegbaren Perioden
+  wären Einträge doppelt oder verwaist entstanden. Neu `ferien_<von>_…`
+  (`ferienSlotKey`), die App schickt `alle_ferien_keys`, die Edge Function
+  räumt veraltete Zuordnungen samt Kalendereintrag weg
+  (`ferien_keys.ts`, 64 Deno-Tests). Migration 208 schreibt die 9
+  bestehenden Zuordnungen um.
+- Browser geprüft (Surselva): Detail zeigt Tabelle; Formular: Periode
+  anlegen → Liste → löschen mit Rückfrage; DB danach unverändert.
+- 2347 Tests grün, `flutter analyze` 56.
 
 ---
 
