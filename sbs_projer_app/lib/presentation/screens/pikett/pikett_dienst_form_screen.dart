@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/kalenderwoche.dart';
 import 'package:sbs_projer_app/data/local/pikett_dienst_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/pikett_dienst_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/pikett_providers.dart';
@@ -43,8 +44,9 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _jahr = now.year;
-    _kw = _isoKw(now);
+    // Jahr der KW, nicht Kalenderjahr: Am 29.12.2025 ist KW 1/2026.
+    _jahr = isoWochenjahr(now);
+    _kw = kalenderwoche(now);
 
     _loadPauschale();
     if (_isEdit) {
@@ -54,11 +56,17 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
     }
   }
 
-  /// Prüft die gesamte KW (Mo–So) auf Feiertage
-  void _berechneFeiertage() {
-    final montag = _montagOfKw(_jahr, _kw);
+  /// Feiertage der gesamten KW (Mo–So).
+  List<Feiertag> _feiertageDerKw(int jahr, int kw) {
+    final montag = _montagOfKw(jahr, kw);
     final sonntag = montag.add(const Duration(days: 6));
-    final feiertage = SchweizerFeiertage.feiertageImZeitraum(montag, sonntag);
+    return SchweizerFeiertage.feiertageImZeitraum(montag, sonntag);
+  }
+
+  /// Neue KW (neuer Dienst oder Jahr/KW-Wechsel durch den Nutzer): Feiertage
+  /// erkennen UND die Anzahl daraus neu vorbelegen.
+  void _berechneFeiertage() {
+    final feiertage = _feiertageDerKw(_jahr, _kw);
     setState(() {
       _erkanneFeiertage = feiertage;
       _anzahlFeiertage = feiertage.length;
@@ -91,14 +99,20 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
     final p = await PikettDienstRepository.getById(widget.pikettId!);
     if (p == null || !mounted) return;
 
+    final jahr = isoWochenjahr(p.datumStart);
+    final kw = kalenderwoche(p.datumStart);
     setState(() {
       _existing = p;
-      _kw = _isoKw(p.datumStart);
-      _jahr = p.datumStart.year;
+      _kw = kw;
+      _jahr = jahr;
       _pauschale = p.pauschale ?? 80.0;
+      // Die gespeicherte Anzahl gilt — sie kann bewusst von den erkannten
+      // Feiertagen abweichen (Auswahl «Feiertage»). Bis 26.09.2026 zählte
+      // das blosse Öffnen zum Bearbeiten sie neu und überschrieb sie still.
+      // Neu gezählt wird nur, wenn der Nutzer Jahr oder KW wechselt.
       _anzahlFeiertage = p.anzahlFeiertage;
+      _erkanneFeiertage = _feiertageDerKw(jahr, kw);
     });
-    _berechneFeiertage();
   }
 
   /// Montag der gewählten KW berechnen (ISO 8601)
@@ -477,14 +491,5 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
   static String _wochentagName(int weekday) {
     const namen = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     return namen[weekday - 1];
-  }
-
-  static int _isoKw(DateTime date) {
-    // ISO 8601: KW wird über den Donnerstag der Woche bestimmt
-    // UTC verwenden um DST-Probleme bei Duration.inDays zu vermeiden
-    final d = DateTime.utc(date.year, date.month, date.day);
-    final thursday = d.add(Duration(days: DateTime.thursday - d.weekday));
-    final jan1 = DateTime.utc(thursday.year, 1, 1);
-    return (thursday.difference(jan1).inDays / 7).floor() + 1;
   }
 }
