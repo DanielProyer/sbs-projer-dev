@@ -67,17 +67,26 @@ AS $$
   );
 $$;
 
--- Geschäftsjahr abgeschlossen = es gibt eine Buchung mit beleg_typ 'abschluss'
--- in diesem Jahr (dieselbe Regel wie BuchungNachholService.nachbuchGrenze).
+-- Geschäftsjahr abgeschlossen — Regel wie BuchungNachholService.nachbuchGrenze:
+-- Jahre vor dem Vorjahr sind immer abgeschlossen; das Vorjahr, sobald eine
+-- Abschlussbuchung (beleg_typ 'abschluss') bis 31.12. existiert; das laufende
+-- Jahr nie. (Erste Fassung prüfte «Abschlussbuchung IM Jahr» — die JA2025-
+-- Buchungen liegen aber teils im Folgejahr (JA2025_C2 01.01.2026, D_U1/U2
+-- April/Mai 2026), damit galt 2026 als abgeschlossen. Korrigiert beim
+-- Anwenden 26.09.2026 als 209b.)
 CREATE OR REPLACE FUNCTION geschaeftsjahr_abgeschlossen(p_user UUID, p_jahr INTEGER)
 RETURNS BOOLEAN LANGUAGE sql STABLE
 SET search_path = public
 AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM buchungen
-    WHERE user_id = p_user AND beleg_typ = 'abschluss'
-      AND datum BETWEEN make_date(p_jahr, 1, 1) AND make_date(p_jahr, 12, 31)
-  );
+  SELECT CASE
+    WHEN p_jahr >= EXTRACT(YEAR FROM current_date)::int THEN false
+    WHEN p_jahr < EXTRACT(YEAR FROM current_date)::int - 1 THEN true
+    ELSE EXISTS (
+      SELECT 1 FROM buchungen
+      WHERE user_id = p_user AND beleg_typ = 'abschluss'
+        AND datum <= make_date(p_jahr, 12, 31)
+    )
+  END;
 $$;
 
 -- p_buchungen: JSON-Array von Buchungszeilen (Felder wie beim Insert: datum,
