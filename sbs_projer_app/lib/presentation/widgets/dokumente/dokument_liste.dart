@@ -122,10 +122,15 @@ class DokumentListe extends StatelessWidget {
   /// PDF im neuen Browser-Tab, Bild im Dialog.
   static Future<void> oeffnen(BuildContext context, Dokument d) async {
     final messenger = ScaffoldMessenger.of(context);
+    // Den Tab SOFORT öffnen, noch vor dem ersten await: Nach dem Download
+    // gilt `window.open` nicht mehr als Folge des Tippens — iOS-Safari
+    // blockiert es immer, Chrome nach rund fünf Sekunden.
+    // Wächter: test/pdf_tab_vorbereiten_waechter_test.dart.
+    final tab = d.istPdf ? pdfTabVorbereiten() : null;
     try {
       if (d.istPdf) {
         final bytes = await DokumentRepository.download(d.storagePfad);
-        await oeffnePdfImNeuenTab(bytes, d.dateiname);
+        await zeigePdfImTab(tab, bytes, d.dateiname);
       } else {
         final url = await DokumentRepository.signedUrl(d.storagePfad);
         if (!context.mounted) return;
@@ -165,6 +170,8 @@ class DokumentListe extends StatelessWidget {
         );
       }
     } catch (e) {
+      // Den leeren Vorab-Tab nicht offen stehen lassen.
+      tab?.close();
       messenger.showSnackBar(
         SnackBar(
           content: Text('Öffnen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
