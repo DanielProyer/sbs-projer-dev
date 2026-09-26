@@ -24,6 +24,7 @@ import 'package:sbs_projer_app/services/camt/vermerk_parser.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 
 /// Wiederverwendbare Ergebnis-Vorschau für den camt-Forderungsabgleich:
 /// Kopf-Übersicht (KPIs) + vier klappbare Gruppen (🟢 Auto / 🟡 Manuell /
@@ -519,7 +520,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
         Navigator.of(context, rootNavigator: true).pop(); // Fortschritt zu
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}'),
+            content: Text('Verbuchungs-Fehler: ${ZahlungKern.meldung(e)}'),
           ),
         );
       }
@@ -550,7 +551,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           );
           verbuchteTreffer.add(t);
         } catch (e) {
-          fehler.add('${t.gutschrift.amount.toStringAsFixed(2)} CHF: $e');
+          fehler.add('${t.gutschrift.amount.toStringAsFixed(2)} CHF: ${ZahlungKern.meldung(e)}');
         }
         stand.value++;
       }
@@ -879,7 +880,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}',
+                                    'Verbuchungs-Fehler: ${ZahlungKern.meldung(e)}',
                                   ),
                                 ),
                               );
@@ -1159,7 +1160,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  'Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}',
+                                  'Verbuchungs-Fehler: ${ZahlungKern.meldung(e)}',
                                 ),
                               ),
                             );
@@ -1726,7 +1727,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  'Verbuchungs-Fehler: ${kurzeFehlermeldung(e)}',
+                                  'Verbuchungs-Fehler: ${ZahlungKern.meldung(e)}',
                                 ),
                               ),
                             );

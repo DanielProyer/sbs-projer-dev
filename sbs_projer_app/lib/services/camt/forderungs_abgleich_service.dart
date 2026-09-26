@@ -4,7 +4,7 @@ import 'package:sbs_projer_app/data/models/camt_transaction.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
-import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/services/camt/camt_betrieb_matcher.dart';
 import 'package:sbs_projer_app/services/camt/sammelzahler.dart';
 import 'package:sbs_projer_app/services/camt/rechnung_matcher.dart';
@@ -253,21 +253,27 @@ class ForderungsAbgleichService {
     return AbgleichErgebnis([...refTreffer, ...auto], manuell, keineZahlung, unbekannt);
   }
 
-  /// Verbucht eine Zahlung gegen die gewählten Forderungen + markiert sie bezahlt.
-  /// Nutzt die bestehende Sammel-Verbuchung (Bank 1020 ← Debitoren 1100 + Differenz).
+  /// Verbucht eine Zahlung gegen die gewählten Forderungen + markiert sie
+  /// bezahlt — atomar über [ZahlungKern] (Runde 3): Bank 1020 ← Debitoren
+  /// 1100, Guthaben-Verrechnung und Differenz in EINER Transaktion.
   /// [camtTxKey] markiert die erzeugten Buchungen → identifizierbar/reversibel.
+  /// [mehrzahlung] wählt das Ziel einer Mehrzahlung (null = Standard nach
+  /// Betrag, siehe `mehrzahlungStandard`).
   ///
   /// [gutschriften] sind die zugeordneten Zahlungseingänge. Sind es mehrere,
   /// werden sie paarweise verteilt — neueste Zahlung auf neueste Forderung
   /// (Regel Daniel 28.07.2026) —, damit jede Rechnung das Datum und den
   /// camt-Schlüssel *ihrer* Zahlung trägt. Vorher bekamen alle Rechnungen
   /// pauschal die Werte der ersten Gutschrift.
+  ///
+  /// Wirft [ZahlungGesperrt], wenn die DB die Zahlung ablehnt.
   static Future<void> verbuche({
     required double zahlbetrag,
     required DateTime datum,
     required List<Rechnung> forderungen,
     String? camtTxKey,
     List<CamtTransaction> gutschriften = const [],
+    MehrzahlungZiel? mehrzahlung,
   }) async {
     if (forderungen.isEmpty) return;
 
@@ -276,13 +282,17 @@ class ForderungsAbgleichService {
     // eine Forderung zwischenzeitlich anderswo zugeordnet — anderer Fall,
     // zweiter Tab, Doppeltipp —, darf sie nicht ein zweites Mal verbucht
     // werden, sonst entstünde eine Doppelzahlung auf demselben Debitor.
+    // (Die DB prüft in `zahlung_erfassen` noch einmal unter Zeilensperre.)
     final bereitsBezahlt = <String>[];
+    final frische = <Rechnung>[];
     for (final r in forderungen) {
       final frisch = await RechnungRepository.getById(r.id);
       // Auch «abgeschrieben» sperrt: Eine Bankzahlung auf eine ausgebuchte
       // Forderung braucht zuerst die Rücknahme der Abschreibung.
       if (zuordnungGesperrt(frisch)) {
         bereitsBezahlt.add(frisch?.rechnungsnummer ?? r.rechnungsnummer ?? r.id);
+      } else {
+        frische.add(frisch!);
       }
     }
     if (bereitsBezahlt.isNotEmpty) {
@@ -302,7 +312,7 @@ class ForderungsAbgleichService {
             datumVon: (g) => g.bookingDate,
             betragVon: (g) => g.amount,
             forderungen: [
-              for (final r in forderungen)
+              for (final r in frische)
                 (
                   id: r.id,
                   rechnungsdatum: r.rechnungsdatum,
@@ -311,31 +321,24 @@ class ForderungsAbgleichService {
             ],
           );
 
-    final buchungen = await ZahlungsdifferenzService.verbuchenSammel(
-      rechnungen: forderungen,
-      zahlungBetrag: zahlbetrag,
+    // Frische Stände übergeben: Status (erwartet), Mahnstufe (vorher) und
+    // Guthaben stammen aus der DB, nicht aus der Bildschirmliste. Jede
+    // Buchung trägt Datum und Schlüssel *ihrer* Zahlung — sonst hinge sie
+    // beim Rückgängigmachen an der falschen Transaktion.
+    await ZahlungKern.erfassen(
+      rechnungen: frische,
+      betrag: zahlbetrag,
       datum: datum,
+      weg: ZahlungWeg.bank,
       datumProRechnung: {
         for (final e in paarung.entries) e.key: e.value.bookingDate,
       },
+      camtTxKeyProRechnung: {
+        for (final e in paarung.entries) e.key: e.value.txKey,
+      },
+      camtTxKey: camtTxKey,
+      mehrzahlung: mehrzahlung,
     );
-    // Jede Buchung trägt den Schlüssel *ihrer* Zahlung — sonst hinge die
-    // Buchung beim Rückgängigmachen an der falschen Transaktion.
-    for (final b in buchungen) {
-      final key = paarung[b.belegId]?.txKey ?? camtTxKey;
-      if (key != null) await BuchungRepository.setCamtTxKey(b.id, key);
-    }
-    // Tatsächlich gezahlt: «zu zahlen», wenn das Guthaben verrechnet wurde,
-    // sonst Brutto (dieselbe Entscheidung wie in verbuchenSammel).
-    final plan = differenzPlan(forderungen, zahlbetrag);
-    for (final r in forderungen) {
-      final eingang = paarung[r.id]?.bookingDate ?? datum;
-      await RechnungRepository.update(r.id, {
-        'zahlungsstatus': 'bezahlt',
-        'zahlung_eingegangen_am': eingang.toIso8601String().split('T').first,
-        'zahlung_betrag': plan.gezahltFuer(r),
-      });
-    }
   }
 
   /// Macht eine per camt-Abgleich verbuchte Kundenzahlung rückgängig

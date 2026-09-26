@@ -6,6 +6,8 @@
 /// in Dart und getestet; die DB prüft nur Sperren und schreibt.
 library;
 
+import 'dart:convert';
+
 import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
@@ -73,6 +75,66 @@ double mwstAnteil(Rechnung r, double brutto) {
   return rundeAufRappen(brutto * r.mwstBetrag / r.betragBrutto);
 }
 
+const String kRechnungstypHeineken = 'heineken_monat';
+
+/// Heineken-Monatsrechnung: Heineken fakturiert UNGERUNDET (Befund B2
+/// 06.08.2026) und zahlt genau das Brutto — KEINE 5-Rappen-Rundung, sonst
+/// blieben auf 1100 Rappenreste stehen und 1020 wiche vom Kontoauszug ab.
+/// Kein Guthaben, keine Differenzbuchung: Weicht der Betrag ab, ist das kein
+/// Heineken-Treffer — dann wird nichts geplant (Fehler).
+ZahlungKernPlan _heinekenPlan(List<Rechnung> rechnungen, double betrag,
+    DateTime datum, ZahlungWeg weg, String? camtTxKey) {
+  if (rechnungen.length != 1) {
+    throw ArgumentError(
+        'Heineken-Rechnungen werden einzeln bezahlt, nie gemischt oder gesammelt');
+  }
+  if (weg != ZahlungWeg.bank) {
+    throw ArgumentError('Heineken zahlt nur per Bank');
+  }
+  final r = rechnungen.single;
+  final brutto = rundeAufRappen(r.betragBrutto);
+  if ((rundeAufRappen(betrag) - brutto).abs() >= 0.005) {
+    throw ArgumentError('Heineken-Zahlung ${rundeAufRappen(betrag)} ≠ '
+        'Rechnungsbetrag $brutto — nichts gebucht');
+  }
+  final m = r.heinekenMonat;
+  final monat =
+      m == null ? '?' : '${m.month.toString().padLeft(2, '0')}/${m.year}';
+  return ZahlungKernPlan(
+    buchungen: [
+      {
+        'datum': _tag(datum),
+        'belegnummer': r.rechnungsnummer ?? '',
+        'soll_konto': 1020,
+        'haben_konto': 1100,
+        'betrag_netto': brutto,
+        'mwst_satz': 0,
+        'mwst_betrag': 0,
+        'betrag_brutto': brutto,
+        'beschreibung': 'Zahlungseingang Heineken $monat',
+        'zahlungsweg': 'bank',
+        'beleg_typ': 'zahlung',
+        'beleg_id': r.id,
+        'geschaeftsjahr': datum.year,
+        if (camtTxKey != null) 'camt_tx_key': camtTxKey,
+      },
+    ],
+    updates: {
+      r.id: {'zahlung_betrag': brutto, 'zahlung_eingegangen_am': _tag(datum)},
+    },
+    vorher: {
+      r.id: {
+        ...MahnlaufService.vorherStand(r),
+        'guthaben_verrechnet': r.guthabenVerrechnet,
+      },
+    },
+    erwartet: {r.id: r.zahlungsstatus},
+    camtTxKeys: [if (camtTxKey != null) camtTxKey],
+    differenz: 0,
+    mehrzahlungZiel: null,
+  );
+}
+
 ZahlungKernPlan zahlungKernPlan({
   required List<Rechnung> rechnungen,
   required double betrag,
@@ -83,6 +145,9 @@ ZahlungKernPlan zahlungKernPlan({
   String? camtTxKey,
   MehrzahlungZiel? mehrzahlung,
 }) {
+  if (rechnungen.any((r) => r.rechnungstyp == kRechnungstypHeineken)) {
+    return _heinekenPlan(rechnungen, betrag, datum, weg, camtTxKey);
+  }
   final plan = differenzPlan(rechnungen, betrag);
   final buchungen = <Map<String, dynamic>>[];
   final updates = <String, Map<String, dynamic>>{};
@@ -121,7 +186,12 @@ ZahlungKernPlan zahlungKernPlan({
         'beleg_typ': 'zahlung',
         'beleg_id': r.id,
         'geschaeftsjahr': d.year,
-        if (z.guthabenVorher > 0) 'notizen': guthabenNotiz(z.guthabenVorher),
+        if (z.guthabenVorher > 0)
+          'notizen': guthabenNotiz(z.guthabenVorher)
+        // Barzahlung: Mahn-Stand vor der Zahlung in der Notiz — «Barzahlung
+        // rückgängig» (BarzahlungService.rueckgaengig) liest ihn dort.
+        else if (weg == ZahlungWeg.kasse)
+          'notizen': jsonEncode(MahnlaufService.vorherStand(r)),
         if (key != null) 'camt_tx_key': key,
       });
     }

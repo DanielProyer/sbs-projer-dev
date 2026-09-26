@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
-import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/repositories/guthaben_repository.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -83,15 +83,15 @@ class RechnungService {
   static Future<Rechnung> guthabenVollVerrechnen(Rechnung rechnung) async {
     if (!istVollMitGuthabenGedeckt(rechnung)) return rechnung;
     try {
-      final datum = rechnung.rechnungsdatum;
-      await ZahlungsdifferenzService.verrechnungBuchen(
-          rechnung, rundeAuf5Rappen(rechnung.guthabenVerrechnet), datum);
-      final tag = datum.toIso8601String().split('T').first;
-      await RechnungRepository.update(rechnung.id, {
-        'zahlungsstatus': 'bezahlt',
-        'zahlung_betrag': 0,
-        'zahlung_eingegangen_am': tag,
-      });
+      // Verrechnung 2030/1100 + «bezahlt» atomar (ZahlungKern, Runde 3) —
+      // vorher zwei Schritte: brach der zweite ab, war das Guthaben
+      // verbraucht und die Rechnung trotzdem offen.
+      await ZahlungKern.erfassen(
+        rechnungen: [rechnung],
+        betrag: 0,
+        datum: rechnung.rechnungsdatum,
+        weg: ZahlungWeg.verrechnung,
+      );
       return (await RechnungRepository.getById(rechnung.id)) ?? rechnung;
     } catch (e) {
       debugPrint('Guthaben-Vollverrechnung fehlgeschlagen '

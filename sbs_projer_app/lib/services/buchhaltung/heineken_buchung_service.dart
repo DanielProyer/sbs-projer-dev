@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 
 /// Steht zur Heineken-Rechnung [rechnungId] die Ertragsbuchung aus der
 /// Freigabe (beleg_typ `rechnung`, Haben 3400), nicht storniert?
@@ -118,48 +119,21 @@ class HeinekenBuchungService {
     }
   }
 
-  /// Erstellt Zahlungseingang-Buchung wenn bezahlt markiert.
-  /// Soll 1020 (Bank) / Haben 1100 (Debitoren).
+  /// Zahlungseingang Soll 1020 / Haben 1100 und Rechnung «bezahlt» — atomar
+  /// über [ZahlungKern] (Runde 3). Die Sperren (nicht freigegeben, schon
+  /// bezahlt, Zahlung schon gebucht) prüft die DB und wirft
+  /// [ZahlungGesperrt]. Liefert die Id der Zahlungsgruppe.
   /// [datum] = tatsächliches Zahlungs-/Einzahlungsdatum (NICHT das Einlesedatum).
-  static Future<Buchung?> createZahlungseingang(Rechnung rechnung,
-      {DateTime? datum}) async {
-    // Duplikat-Check: schon Zahlungseingang gebucht?
-    final existing = await BuchungRepository.getByBeleg(rechnung.id);
-    final hatZahlung = existing.any((b) =>
-        b.belegTyp == 'zahlung' && !b.istStorniert && b.stornoVonId == null);
-    if (hatZahlung) {
-      debugPrint('[HeiBuch] Zahlungseingang existiert bereits für ${rechnung.id}');
-      return null;
-    }
-
-    final monatLabel = rechnung.heinekenMonat != null
-        ? DateFormat('MM/yyyy').format(rechnung.heinekenMonat!)
-        : '?';
-    final effDatum = datum ?? DateTime.now();
-    final datumStr = effDatum.toIso8601String().split('T').first;
-
-    try {
-      final buchung = await BuchungRepository.create({
-        'datum': datumStr,
-        'belegnummer': rechnung.rechnungsnummer,
-        'soll_konto': 1020, // Bank
-        'haben_konto': 1100, // Debitoren
-        'betrag_netto': rechnung.betragBrutto,
-        'mwst_satz': 0,
-        'mwst_betrag': 0,
-        'betrag_brutto': rechnung.betragBrutto,
-        'beschreibung': 'Zahlungseingang Heineken $monatLabel',
-        'zahlungsweg': 'bank',
-        'beleg_typ': 'zahlung',
-        'beleg_id': rechnung.id,
-        'geschaeftsjahr': effDatum.year,
-      });
-
-      debugPrint('[HeiBuch] Zahlungseingang: ${rechnung.betragBrutto} CHF');
-      return buchung;
-    } catch (e) {
-      debugPrint('[HeiBuch] Zahlungseingang-Buchung fehlgeschlagen: $e');
-      rethrow;
-    }
+  static Future<String> createZahlungseingang(Rechnung rechnung,
+      {DateTime? datum, String? camtTxKey}) async {
+    final erg = await ZahlungKern.erfassen(
+      rechnungen: [rechnung],
+      betrag: rechnung.betragBrutto,
+      datum: datum ?? DateTime.now(),
+      weg: ZahlungWeg.bank,
+      camtTxKey: camtTxKey,
+    );
+    debugPrint('[HeiBuch] Zahlungseingang: ${rechnung.betragBrutto} CHF');
+    return erg.gruppeId;
   }
 }

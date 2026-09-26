@@ -39,6 +39,7 @@ import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/services/camt/heineken_matcher.dart' show heinekenZahlbar;
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 
 class CamtImportTab extends ConsumerStatefulWidget {
   final VoidCallback? onZurPruefliste;
@@ -1098,7 +1099,7 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Buchungs-Fehler: ${kurzeFehlermeldung(e)}')),
+          SnackBar(content: Text('Buchungs-Fehler: ${ZahlungKern.meldung(e)}')),
         );
       }
     }

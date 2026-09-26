@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -460,42 +461,40 @@ class _HeinekenRechnungDetailScreenState
         return;
       }
     }
-    await RechnungRepository.update(widget.rechnungId, {
-      'zahlungsstatus': newStatus,
-      if (newStatus == 'bezahlt')
-        'zahlung_eingegangen_am': DateTime.now()
-            .toIso8601String()
-            .split('T')
-            .first,
-    });
-
-    // Zahlungseingang bei Bezahlt erstellen
-    if (newStatus == 'bezahlt' && _rechnung != null) {
+    if (newStatus == 'bezahlt') {
+      // Runde 3: Status + Zahlungseingang atomar über ZahlungKern — die DB
+      // setzt «bezahlt» nur zusammen mit der Buchung (vorher zwei Schritte:
+      // Status zuerst, Buchung danach; brach die ab, stand «bezahlt» ohne
+      // Zahlung da).
       try {
         final aktuell = await RechnungRepository.getById(widget.rechnungId);
-        if (aktuell != null) {
-          final buchung = await HeinekenBuchungService.createZahlungseingang(
-            aktuell,
-            datum: aktuell.zahlungEingegangenAm,
+        if (aktuell == null) throw Exception('Rechnung nicht gefunden');
+        await HeinekenBuchungService.createZahlungseingang(
+          aktuell,
+          datum: DateTime.now(),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Zahlungseingang gebucht')),
           );
-          if (buchung != null && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Zahlungseingang gebucht')),
-            );
-          }
-          ref.invalidate(buchungenStreamProvider);
         }
+        ref.invalidate(buchungenStreamProvider);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
+              duration: const Duration(seconds: 8),
               content: Text(
-                'Zahlungseingang-Buchung fehlgeschlagen: ${kurzeFehlermeldung(e)}',
+                'Nicht bezahlt gesetzt: ${ZahlungKern.meldung(e)}',
               ),
             ),
           );
         }
       }
+    } else {
+      await RechnungRepository.update(widget.rechnungId, {
+        'zahlungsstatus': newStatus,
+      });
     }
 
     ref.invalidate(heinekenRechnungenProvider);

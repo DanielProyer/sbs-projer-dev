@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/providers/camt_pruefliste_providers.
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 
 /// Ordnet eine in der Prüfliste geparkte **Kundenzahlung** (Kategorie
 /// `kundenzahlung`, Gutschrift) offenen Rechnungen zu und verbucht sie —
@@ -212,7 +213,7 @@ Future<void> showKundenzahlungZuordnenDialog(
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Verbuchungs-Fehler: ${kurzeFehlermeldung(err)}',
+                                'Verbuchungs-Fehler: ${ZahlungKern.meldung(err)}',
                               ),
                             ),
                           );

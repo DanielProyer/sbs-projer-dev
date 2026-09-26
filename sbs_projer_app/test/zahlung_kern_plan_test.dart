@@ -42,6 +42,8 @@ void main() {
         rechnungen: [_r('a', 94.05)], betrag: 94.05, datum: tag, weg: ZahlungWeg.kasse);
     expect(p.buchungen.single['soll_konto'], 1000);
     expect(p.buchungen.single['zahlungsweg'], 'kasse');
+    // Mahn-Stand in der Notiz (BarzahlungService.vorherAusNotiz liest ihn).
+    expect(p.buchungen.single['notizen'], contains('"zahlungsstatus":"gesendet"'));
   });
 
   test('Minderzahlung: 3805 netto + 2200 MWST im Satz der Rechnung, Bank gekuerzt', () {
@@ -140,5 +142,47 @@ void main() {
     expect(p.vorher['a']!['mahnung_stufe'], 2);
     expect(p.vorher['a']!.containsKey('mahn_frist_bis'), isTrue);
     expect(p.vorher['a']!['guthaben_verrechnet'], 0);
+  });
+
+  group('Heineken (ungerundet, Befund B2)', () {
+    Rechnung hei(double brutto) => Rechnung.fromJson({
+          'id': 'h',
+          'user_id': 'u',
+          'rechnungsnummer': 'HEI-1',
+          'rechnungstyp': 'heineken_monat',
+          'rechnungsdatum': '2026-08-31',
+          'faelligkeitsdatum': '2026-09-30',
+          'heineken_monat': '2026-08-01',
+          'betrag_netto': 1000,
+          'mwst_betrag': brutto - 1000,
+          'betrag_brutto': brutto,
+          'zahlungsstatus': 'freigegeben',
+        });
+
+    test('exakt auf den Rappen, keine 5-Rappen-Rundung, keine Differenz', () {
+      final p = zahlungKernPlan(
+          rechnungen: [hei(1081.02)], betrag: 1081.02, datum: tag,
+          weg: ZahlungWeg.bank, camtTxKey: 'tx1');
+      expect(p.buchungen.length, 1);
+      final b = p.buchungen.single;
+      expect(b['betrag_brutto'], 1081.02);
+      expect(b['soll_konto'], 1020);
+      expect(b['haben_konto'], 1100);
+      expect(b['beschreibung'], 'Zahlungseingang Heineken 08/2026');
+      expect(b['camt_tx_key'], 'tx1');
+      expect(p.updates['h']!['zahlung_betrag'], 1081.02);
+      expect(p.erwartet['h'], 'freigegeben');
+      expect(p.camtTxKeys, ['tx1']);
+      expect(p.differenz, 0);
+    });
+
+    test('abweichender Betrag, Sammlung oder Kasse: Fehler statt Plan', () {
+      expect(() => zahlungKernPlan(rechnungen: [hei(1081.02)], betrag: 1081.00,
+          datum: tag, weg: ZahlungWeg.bank), throwsArgumentError);
+      expect(() => zahlungKernPlan(rechnungen: [hei(1081.02), _r('a', 10)],
+          betrag: 1091.02, datum: tag, weg: ZahlungWeg.bank), throwsArgumentError);
+      expect(() => zahlungKernPlan(rechnungen: [hei(1081.02)], betrag: 1081.02,
+          datum: tag, weg: ZahlungWeg.kasse), throwsArgumentError);
+    });
   });
 }

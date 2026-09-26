@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
-import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
@@ -11,7 +10,7 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
-import 'package:sbs_projer_app/services/rechnung/mahnlauf_service.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 
 /// Eine erfolgreich kassierte Rechnung (für Teilfehler-Meldungen).
 typedef Kassiert = ({String nummer, double betrag});
@@ -21,7 +20,8 @@ class BarzahlungFehler implements Exception {
   final String meldung;
 
   /// Rechnungen, die VOR dem Fehler im selben Aufruf schon kassiert wurden
-  /// (Review Teil 3, I-1) — sie bleiben korrekt bezahlt.
+  /// (Review Teil 3, I-1). Seit Runde 3 (ZahlungKern, alles oder nichts)
+  /// immer leer — Feld bleibt für [BarzahlungService.fehlerText].
   final List<Kassiert> kassiert;
 
   BarzahlungFehler(this.meldung, {this.kassiert = const []});
@@ -182,17 +182,16 @@ class BarzahlungService {
   }
 
   /// Je Rechnung: frisch laden; abbrechen (nichts buchen), wenn eine nicht
-  /// kassierbar ist ([kassierSperre]). Dann je Rechnung Buchung Soll 1000 /
-  /// Haben 1100 und Rechnung bezahlt — gegen den geladenen Status.
+  /// kassierbar ist ([kassierSperre]). Dann EIN Aufruf [ZahlungKern.erfassen]
+  /// (Weg Kasse, Soll 1000 / Haben 1100): Buchungen und «bezahlt» aller
+  /// Rechnungen atomar — alles oder nichts (Runde 3; vorher je Rechnung
+  /// einzeln, mit Teilfehlern und eigenem Rückbau).
   ///
-  /// Gibt die Ids der kassierten Rechnungen zurück. Scheitert eine Rechnung
-  /// unterwegs, wird deren Buchung wieder gelöscht und [BarzahlungFehler]
-  /// mit den bis dahin kassierten Rechnungen geworfen (die korrekt bezahlt
-  /// bleiben, Review I-1).
+  /// Gibt die Ids der kassierten Rechnungen zurück. Lehnt die DB ab, wird
+  /// [BarzahlungFehler] mit ihrem Text geworfen (nichts gebucht).
   static Future<List<String>> kassieren(List<Rechnung> rechnungen, {DateTime? datum}) async {
     if (rechnungen.isEmpty) return const [];
     final tag = kassierDatum(datum);
-    final tagStr = _datumStr(tag);
 
     // 1. Alles prüfen, bevor irgendetwas gebucht wird.
     final frische = <Rechnung>[];
@@ -207,89 +206,21 @@ class BarzahlungService {
       frische.add(f);
     }
 
-    // 2. Buchen und bezahlt setzen.
-    final kassiert = <Kassiert>[];
-    final ids = <String>[];
-    for (final f in frische) {
-      final nr = _nr(f);
-      final betrag = kassierBetragFuer(f);
-      final verrechnung = verrechnungFuer(f);
-      Buchung? verrechnungsBuchung;
-      try {
-        // Nichts zu zahlen (Guthaben deckt alles): keine Kassenbuchung über 0.
-        final buchung = betrag < 0.005
-            ? null
-            : await BuchungRepository.create({
-          'datum': tagStr,
-          'belegnummer': f.rechnungsnummer ?? '',
-          'soll_konto': kKasse,
-          'haben_konto': kDebitoren,
-          'betrag_netto': betrag,
-          'mwst_satz': 0,
-          'mwst_betrag': 0,
-          'betrag_brutto': betrag,
-          'beschreibung': 'Barzahlung $nr (vor Ort)',
-          'zahlungsweg': 'kasse',
-          'beleg_typ': 'zahlung',
-          'beleg_id': f.id,
-          'geschaeftsjahr': tag.year,
-          'notizen': jsonEncode(MahnlaufService.vorherStand(f)),
-        });
-        bool gesetzt;
-        try {
-          if (verrechnung >= 0.005) {
-            verrechnungsBuchung = await BuchungRepository.create({
-              'datum': tagStr,
-              'belegnummer': f.rechnungsnummer ?? '',
-              'soll_konto': kKontoKundenguthaben,
-              'haben_konto': kDebitoren,
-              'betrag_netto': verrechnung,
-              'mwst_satz': 0,
-              'mwst_betrag': 0,
-              'betrag_brutto': verrechnung,
-              'beschreibung': 'Verrechnung Kundenguthaben $nr',
-              'zahlungsweg': 'intern',
-              'beleg_typ': 'sonstiges',
-              'beleg_id': f.id,
-              'geschaeftsjahr': tag.year,
-            });
-          }
-          gesetzt = await RechnungRepository.updateWennStatus(
-            f.id,
-            {
-              'zahlungsstatus': 'bezahlt',
-              'zahlung_eingegangen_am': tagStr,
-              'zahlung_betrag': betrag,
-            },
-            erwarteterStatus: f.zahlungsstatus,
-            nurOhneZahlung: true,
-          );
-        } catch (_) {
-          if (verrechnungsBuchung != null) {
-            await BuchungRepository.delete(verrechnungsBuchung.id);
-          }
-          if (buchung != null) await BuchungRepository.delete(buchung.id);
-          rethrow;
-        }
-        if (!gesetzt) {
-          if (verrechnungsBuchung != null) {
-            await BuchungRepository.delete(verrechnungsBuchung.id);
-          }
-          if (buchung != null) await BuchungRepository.delete(buchung.id);
-          throw BarzahlungFehler('Rechnung $nr: wurde inzwischen geändert — nicht kassiert',
-              kassiert: List.of(kassiert));
-        }
-      } on BarzahlungFehler {
-        rethrow;
-      } catch (e) {
-        if (kassiert.isEmpty) rethrow;
-        throw BarzahlungFehler('Rechnung $nr: ${kurzeFehlermeldung(e)}',
-            kassiert: List.of(kassiert));
-      }
-      kassiert.add((nummer: nr, betrag: betrag));
-      ids.add(f.id);
+    // 2. Atomar buchen und bezahlt setzen (die DB prüft noch einmal unter
+    //    Zeilensperre).
+    final summe = rundeAufRappen(
+        frische.fold<double>(0, (s, f) => s + kassierBetragFuer(f)));
+    try {
+      await ZahlungKern.erfassen(
+        rechnungen: frische,
+        betrag: summe,
+        datum: tag,
+        weg: ZahlungWeg.kasse,
+      );
+    } on ZahlungGesperrt catch (e) {
+      throw BarzahlungFehler(e.text);
     }
-    return ids;
+    return [for (final f in frische) f.id];
   }
 
   /// Aktive Barzahlungs-Buchung der Rechnung oder null.
@@ -333,7 +264,9 @@ class BarzahlungService {
         await RechnungRepository.updateWennStatus(
           rechnung.id,
           {
-            'zahlungsstatus': 'bezahlt',
+            // = 'bezahlt' (rueckgaengigSperre verlangt es); Rückbau des
+            // Statuswechsels, keine neue Zahlung — Task 4 ersetzt den Weg.
+            'zahlungsstatus': frisch.zahlungsstatus,
             'zahlung_eingegangen_am': _datumStr(buchung.datum),
             'zahlung_betrag': buchung.betragBrutto,
           },
