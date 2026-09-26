@@ -366,6 +366,16 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 🔨 Bauen, wenn wieder Zeit ist
 
+- **Fahrten aus der Kette (Stufe 1 Fahrtenerkennung, 2–3 Tage, Web-tauglich):**
+  Bewertung und Plan in `docs/analyse-2026-09-26-fahrtenerkennung.md`
+  (Entscheid Daniel 26.09.: keine gekaufte Bibliothek, selber bauen). Halte =
+  Einsätze + Startort, Fahrten = Lücken, km aus `anfahrtszeiten.distanz_km` +
+  OSRM Betrieb→Betrieb (`fahrzeiten` um `distanz_km` erweitern), Tages-km
+  gegen `km_stand − km_start` als Befund, Tabelle `fahrten` (herkunft
+  kette|gps|hand, privat, bestätigt_am). Stufe 2 (Android-Spur, gemeinsames
+  Paket `fahrten_kern` mit v2) erst danach. **Offener Entscheid Daniel:**
+  Fahrtenbuch als Steuerbeleg (ESTV, lückenlos, manipulationssicher) ja/nein?
+
 - ✅ **Edge Function `send-rechnung-mail` abgesichert (v24, 25.09.2026):**
   JWT-Pflicht (Gateway `verify_jwt = true` + eigene Prüfung `/auth/v1/user`),
   `userId` kommt aus dem Token, nicht mehr aus dem Body; `rechnungId`/
