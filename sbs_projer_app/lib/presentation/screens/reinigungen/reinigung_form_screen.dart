@@ -52,13 +52,31 @@ class ReinigungFormScreen extends ConsumerStatefulWidget {
   final List<String> anlageIds; // für neue Reinigung (gebündelter Besuch)
   final String? betriebId; // für neue Reinigung
 
+  /// Vorgabe aus dem Tagesplan (Saison-Stopp, V4) — nur bei neuer Reinigung
+  /// und nur, wenn der Wert im Service-Art-Dropdown vorkommt.
+  final String? serviceArt;
+
+  /// Vorbelegte Notiz (Diktat, V10) — nur bei neuer Reinigung.
+  final String? notiz;
+
   const ReinigungFormScreen({
     super.key,
     this.reinigungId,
     this.anlageId,
     this.anlageIds = const [],
     this.betriebId,
+    this.serviceArt,
+    this.notiz,
   });
+
+  /// Werte des Service-Art-Dropdowns (siehe `build`). Eine Vorgabe von
+  /// aussen, die hier fehlt, wird ignoriert — sonst stürzte das Dropdown mit
+  /// «kein Eintrag mit diesem Wert» ab.
+  static const serviceArten = [
+    'standardservice',
+    'endreinigung',
+    'eroeffnungsservice',
+  ];
 
   @override
   ConsumerState<ReinigungFormScreen> createState() =>
@@ -155,6 +173,26 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         _betrieb = match;
         _rechnungsstellung = match.rechnungsstellung;
         _istBergkunde = match.istBergkunde;
+      }
+    }
+    if (!_isEdit) {
+      final vorgabeArt = widget.serviceArt;
+      if (vorgabeArt != null &&
+          ReinigungFormScreen.serviceArten.contains(vorgabeArt)) {
+        _serviceArt = vorgabeArt;
+      }
+      final vorgabeNotiz = widget.notiz?.trim() ?? '';
+      if (vorgabeNotiz.isNotEmpty) {
+        _notizenController.text = vorgabeNotiz;
+        // Eine vorbelegte Notiz ist Daniels Eingabe (das Diktat), keine
+        // Vorgabe aus Stammdaten: Ohne «geändert» liesse der Zurück-Schutz
+        // das Formular kommentarlos schliessen und das Diktat wäre weg —
+        // genau der Verlust, den V10 beheben soll. Die Service-Art dagegen
+        // ist eine Plan-Vorgabe wie der Betrieb und markiert nichts.
+        // Nach dem ersten Frame, weil `markiereGeaendert` setState ruft.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) markiereGeaendert();
+        });
       }
     }
     if (_isEdit) {

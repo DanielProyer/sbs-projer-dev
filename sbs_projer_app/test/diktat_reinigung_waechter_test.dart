@@ -54,12 +54,17 @@ void main() {
       );
     }
 
+    // Seit Runde 5 (V10) über `startRoute` — die Route geht damit sicher
+    // nach `/reinigungen/neu` (Typ reinigung) und trägt die Notiz mit.
     expect(
-      code.contains("router.push('/reinigungen/neu"),
+      code.contains('router.push(startRoute(') &&
+          code.contains('TourEintragTyp.reinigung') &&
+          code.contains('notiz: beschreibung'),
       isTrue,
       reason:
           'Der Zweig soll das Reinigungsformular mit vorausgewaehltem '
-          'Betrieb oeffnen — sonst tut er gar nichts.',
+          'Betrieb und dem Diktat als Notiz oeffnen — sonst tut er gar '
+          'nichts oder das Diktat geht verloren.',
     );
   });
 }

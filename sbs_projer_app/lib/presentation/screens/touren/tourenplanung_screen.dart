@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/besuch_buendelung.dart';
 import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
+import 'package:sbs_projer_app/core/util/einsatz_start.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
@@ -1880,47 +1881,29 @@ class _BlockSheet extends ConsumerWidget {
               // laufen technisch über die Montage-Route (siehe
               // `_navigateToDetail` oben), deshalb hier wie `montage`
               // behandelt.
-              if (eintrag.typ == TourEintragTyp.reinigung &&
-                  eintrag.betriebId != null)
+              //
+              // Route über `startRoute` (V3): eine geplante Störung/Montage
+              // öffnet den Einsatz selbst («Arbeit beginnen») statt ein
+              // neues Formular — sonst entstand ein Doppel und der Stopp
+              // blieb offen.
+              if (eintrag.betriebId != null ||
+                  geplanteEinsatzId(eintrag) != null)
                 _SheetAktion(
                   icon: Icons.play_arrow,
-                  text: 'Reinigung beginnen',
-                  onTap: () {
-                    final ids = eintrag.anlageIds.isNotEmpty
-                        ? eintrag.anlageIds
-                        : [if (eintrag.anlageId != null) eintrag.anlageId!];
-                    Navigator.pop(context);
-                    context.push(
-                      '/reinigungen/neu?betriebId=${eintrag.betriebId}'
-                      '&anlageIds=${ids.join(',')}',
-                    );
+                  text: switch (eintrag.typ) {
+                    TourEintragTyp.reinigung => 'Reinigung beginnen',
+                    TourEintragTyp.stoerung =>
+                      geplanteEinsatzId(eintrag) != null
+                          ? 'Störung öffnen'
+                          : 'Störung erfassen',
+                    TourEintragTyp.montage || TourEintragTyp.heigenie =>
+                      geplanteEinsatzId(eintrag) != null
+                          ? 'Montage öffnen'
+                          : 'Montage erfassen',
                   },
-                ),
-              if (eintrag.typ == TourEintragTyp.stoerung &&
-                  eintrag.betriebId != null)
-                _SheetAktion(
-                  icon: Icons.play_arrow,
-                  text: 'Störung erfassen',
                   onTap: () {
                     Navigator.pop(context);
-                    context.push(
-                      '/stoerungen/neu?betriebId=${eintrag.betriebId}'
-                      '${eintrag.anlageId != null ? '&anlageId=${eintrag.anlageId}' : ''}',
-                    );
-                  },
-                ),
-              if ((eintrag.typ == TourEintragTyp.montage ||
-                      eintrag.typ == TourEintragTyp.heigenie) &&
-                  eintrag.betriebId != null)
-                _SheetAktion(
-                  icon: Icons.play_arrow,
-                  text: 'Montage erfassen',
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.push(
-                      '/montagen/neu?betriebId=${eintrag.betriebId}'
-                      '${eintrag.anlageId != null ? '&anlageId=${eintrag.anlageId}' : ''}',
-                    );
+                    context.push(startRoute(eintrag));
                   },
                 ),
               if (betrieb != null)

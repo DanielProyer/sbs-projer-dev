@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/einsatz_start.dart';
 import 'package:sbs_projer_app/presentation/providers/heute_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
@@ -431,21 +432,10 @@ class HeuteListe extends ConsumerWidget {
     );
   }
 
+  /// Ein Start-Weg für alle Stopps (V3): eine geplante Störung/Montage öffnet
+  /// den Einsatz selbst, eine Saison-Reinigung bringt ihre Service-Art mit.
   void _starte(BuildContext context, TourEintrag e) {
-    if (e.betriebId == null) return;
-    switch (e.typ) {
-      case TourEintragTyp.reinigung:
-        final ids = e.anlageIds.isNotEmpty
-            ? e.anlageIds
-            : [if (e.anlageId != null) e.anlageId!];
-        context.push(
-          '/reinigungen/neu?betriebId=${e.betriebId}&anlageIds=${ids.join(',')}',
-        );
-      case TourEintragTyp.stoerung:
-        context.push('/stoerungen/neu?betriebId=${e.betriebId}');
-      case TourEintragTyp.montage:
-      case TourEintragTyp.heigenie:
-        context.push('/montagen/neu?betriebId=${e.betriebId}');
-    }
+    if (e.betriebId == null && geplanteEinsatzId(e) == null) return;
+    context.push(startRoute(e));
   }
 }

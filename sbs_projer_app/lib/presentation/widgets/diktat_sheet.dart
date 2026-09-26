@@ -16,7 +16,10 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
+import 'package:sbs_projer_app/core/util/einsatz_start.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/heute_providers.dart'
+    show tagHeute;
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
@@ -294,23 +297,39 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
     // vorausgewähltem Betrieb. Eine abgeschlossene Reinigung zieht Rechnung,
     // Ertragsbuchung und Mail an den Kunden nach sich — das darf nicht an
     // einer Spracherkennung hängen. Was diktiert wurde, wandert als Notiz
-    // mit, damit beim Ausfüllen nichts verloren geht.
+    // mit (`&notiz=`, V10 — bis v0.143.0 stand es nur 6 s in einer
+    // Snackbar), damit beim Ausfüllen nichts verloren geht.
     if (_art == 'reinigung') {
       final beschreibung = _beschreibungCtrl.text.trim();
-      // Router und Messenger VOR dem Schliessen greifen — danach gehört der
-      // Kontext dieses Sheets keinem Navigator mehr.
+      // Steht der Betrieb im heutigen Tagesplan, startet derselbe Stopp wie
+      // aus Heute: mit den gebündelten Anlagen und der Service-Art eines
+      // Saison-Stopps. Sonst ein Eintrag nur mit dem Betrieb. Bewusst nur
+      // der schon geladene Plan (die Heute-Karte hält ihn): hier wird nichts
+      // abgewartet (`diktat_reinigung_waechter_test`), und ohne Plan öffnet
+      // das Formular eben mit allen Anlagen des Betriebs.
+      final plan = ref
+          .read(gespeicherterTagesplanProvider(tagHeute()))
+          .valueOrNull;
+      final ausPlan = plan?.eintraege
+          .where(
+            (e) =>
+                e.typ == TourEintragTyp.reinigung && e.betriebId == _betriebId,
+          )
+          .firstOrNull;
+      final eintrag =
+          ausPlan ??
+          TourEintrag(
+            typ: TourEintragTyp.reinigung,
+            id: '',
+            betriebId: _betriebId,
+            betriebName: _betriebName ?? '',
+            beschreibung: '',
+          );
+      // Router VOR dem Schliessen greifen — danach gehört der Kontext dieses
+      // Sheets keinem Navigator mehr.
       final router = GoRouter.of(context);
-      final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
-      router.push('/reinigungen/neu?betriebId=$_betriebId');
-      if (beschreibung.isNotEmpty) {
-        messenger.showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 6),
-            content: Text('Diktiert: $beschreibung'),
-          ),
-        );
-      }
+      router.push(startRoute(eintrag, notiz: beschreibung));
       return;
     }
     setState(() => _loading = true);

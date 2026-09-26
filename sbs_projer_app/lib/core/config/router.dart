@@ -330,10 +330,15 @@ final router = GoRouter(
           return const ReinigungBetriebAuswahlScreen();
         }
         final anlageIds = anlageIdsAusQuery(state.uri.queryParameters);
+        // `serviceArt` (Saison-Stopp) und `notiz` (Diktat) kommen aus
+        // `startRoute` (core/util/einsatz_start.dart); das Formular prüft
+        // den Wert selbst gegen sein Dropdown.
         return ReinigungFormScreen(
           betriebId: betriebId,
           anlageId: anlageIds.isNotEmpty ? anlageIds.first : null,
           anlageIds: anlageIds,
+          serviceArt: state.uri.queryParameters['serviceArt'],
+          notiz: state.uri.queryParameters['notiz'],
         );
       },
     ),
