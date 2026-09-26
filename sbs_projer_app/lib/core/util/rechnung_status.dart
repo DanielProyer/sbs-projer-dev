@@ -7,22 +7,23 @@
 /// liegen geblieben — ausgerechnet nach dem ersten Mahnlauf.
 library;
 
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
 /// Erledigt — hier fliesst kein Geld mehr. Negativliste für [istOffen]:
 /// Jeder neue Zwischenstatus zählt automatisch als offen, statt still aus
 /// Listen zu fallen.
-const kErledigteStatus = {'bezahlt', 'abgeschrieben'};
+const kErledigteStatus = Zahlungsstatus.erledigt;
 
 /// Status, in denen eine Kunden- oder Jahresrechnung eine Zahlung erwartet.
 /// Bewusst Positivliste: `freigegeben` gehört zur Heineken-Monatsrechnung, und
 /// ein unbekannter Wert soll keine Bankzahlung anziehen.
 const kZahlbareStatus = {
-  'offen',
-  'gesendet',
-  'erinnert',
-  'mahnung_1',
-  'mahnung_2',
+  Zahlungsstatus.offen,
+  Zahlungsstatus.gesendet,
+  Zahlungsstatus.erinnert,
+  Zahlungsstatus.mahnung1,
+  Zahlungsstatus.mahnung2,
 };
 
 /// Rechnungstypen, die über den Kunden-Bankabgleich bezahlt werden. Die
@@ -53,5 +54,5 @@ String statusNachVersand(
   bool vollMitGuthabenGedeckt = false,
 }) {
   if (vollMitGuthabenGedeckt) return aktuell;
-  return aktuell == 'offen' ? 'gesendet' : aktuell;
+  return aktuell == Zahlungsstatus.offen ? Zahlungsstatus.gesendet : aktuell;
 }
