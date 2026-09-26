@@ -1289,14 +1289,15 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen'),
+            TapKnopf(
+              text: 'Abbrechen',
+              primaer: false,
+              onTap: () => Navigator.pop(ctx, false),
             ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(ctx, true),
-              icon: const Icon(Icons.check_circle, size: 18),
-              label: const Text('Abschliessen'),
+            TapKnopf(
+              text: 'Abschliessen',
+              icon: Icons.check_circle,
+              onTap: () => Navigator.pop(ctx, true),
             ),
           ],
         ),
@@ -1563,18 +1564,23 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                         textInputAction: TextInputAction.next,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _uhrzeitEndeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Ende',
-                          isDense: true,
+                    // Ende nur beim Bearbeiten zeigen: Beim Abschluss setzt
+                    // _save das Ende selbst (r.uhrzeitEnde ??= …); die
+                    // Eingabe beim Start war reine Ablenkung (T6).
+                    if (_isEdit) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 3,
+                        child: TextFormField(
+                          controller: _uhrzeitEndeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Ende',
+                            isDense: true,
+                          ),
+                          textInputAction: TextInputAction.next,
                         ),
-                        textInputAction: TextInputAction.next,
                       ),
-                    ),
+                    ],
                   ],
                 ],
               ),
@@ -1609,18 +1615,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                   onChanged: (v) {
                     if (v != null) setState(() => _serviceArt = v);
                   },
-                ),
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  value: _wasserKuehlerGewechselt,
-                  onChanged: (v) {
-                    markiereGeaendert();
-                    setState(() => _wasserKuehlerGewechselt = v ?? false);
-                  },
-                  title: const Text('Wasser im Kühler gewechselt'),
-                  secondary: const Icon(Icons.water_drop),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
                 ),
                 const SizedBox(height: 24),
 
@@ -1664,30 +1658,19 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                   Row(
                     children: [
                       Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: FilledButton.icon(
-                            onPressed: _fotoUploading ? null : _takePhoto,
-                            icon: const Icon(Icons.document_scanner, size: 24),
-                            label: const Text(
-                              'Digitalisieren',
-                              style: TextStyle(fontSize: 15),
-                            ),
-                          ),
+                        child: TapKnopf(
+                          text: 'Digitalisieren',
+                          icon: Icons.document_scanner,
+                          onTap: _fotoUploading ? null : _takePhoto,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: OutlinedButton.icon(
-                            onPressed: _fotoUploading ? null : _pickPhoto,
-                            icon: const Icon(Icons.upload_file, size: 24),
-                            label: const Text(
-                              'Hochladen',
-                              style: TextStyle(fontSize: 15),
-                            ),
-                          ),
+                        child: TapKnopf(
+                          text: 'Hochladen',
+                          icon: Icons.upload_file,
+                          primaer: false,
+                          onTap: _fotoUploading ? null : _pickPhoto,
                         ),
                       ),
                     ],
@@ -1729,39 +1712,29 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
               // === Aktionen ===
               if (_isEdit) ...[
-                FilledButton(
-                  onPressed: _isLoading ? null : () => _save(),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Speichern'),
+                TapKnopf(
+                  text: 'Speichern',
+                  icon: Icons.save,
+                  laeuft: _isLoading,
+                  onTap: _isLoading ? null : () => _save(),
                 ),
                 if (_status == 'offen') ...[
                   const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _showAbschlussDialog,
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text('Reinigung abschliessen'),
+                  TapKnopf(
+                    text: 'Reinigung abschliessen',
+                    icon: Icons.check_circle,
+                    primaer: false,
+                    onTap: _isLoading ? null : _showAbschlussDialog,
                   ),
                 ],
               ] else
-                FilledButton.icon(
-                  onPressed: _isLoading ? null : _showAbschlussDialog,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check_circle),
-                  label: Text(
-                    _istHeinekenMonteur
-                        ? 'Heineken-Monteur erfassen'
-                        : 'Reinigung abschliessen',
-                  ),
+                TapKnopf(
+                  text: _istHeinekenMonteur
+                      ? 'Heineken-Monteur erfassen'
+                      : 'Reinigung abschliessen',
+                  icon: Icons.check_circle,
+                  laeuft: _isLoading,
+                  onTap: _isLoading ? null : _showAbschlussDialog,
                 ),
               const SizedBox(height: 32),
             ],
@@ -2044,13 +2017,13 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                         ),
                         const SizedBox(height: 8),
                         if (snapshot.hasData)
-                          FilledButton.icon(
-                            onPressed: () => launchUrl(
+                          TapKnopf(
+                            text: 'PDF öffnen',
+                            icon: Icons.open_in_new,
+                            onTap: () => launchUrl(
                               Uri.parse(snapshot.data!),
                               mode: LaunchMode.externalApplication,
                             ),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: const Text('PDF öffnen'),
                           )
                         else
                           const SizedBox(
@@ -2124,45 +2097,24 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _fotoUploading ? null : _takePhoto,
-                icon: const Icon(Icons.camera_alt),
-                label: Text(
-                  _fotoBytes != null || _existingFotoPfad != null
-                      ? 'Neues Foto'
-                      : 'Protokoll fotografieren',
-                ),
+              child: TapKnopf(
+                text: _fotoBytes != null || _existingFotoPfad != null
+                    ? 'Neues Foto'
+                    : 'Protokoll fotografieren',
+                icon: Icons.camera_alt,
+                primaer: false,
+                onTap: _fotoUploading ? null : _takePhoto,
               ),
             ),
             const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _fotoUploading ? null : _pickPhoto,
-              icon: const Icon(Icons.photo_library),
-              label: const Text('Galerie'),
+            TapKnopf(
+              text: 'Galerie',
+              icon: Icons.photo_library,
+              primaer: false,
+              onTap: _fotoUploading ? null : _pickPhoto,
             ),
           ],
         ),
-        if (_fotoUploading)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Foto wird hochgeladen...',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
       ],
     );
   }
@@ -2276,10 +2228,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
           // QR-Zahlung (Firmenkonto-QR, Betrag vorbefüllt aus Brutto)
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _zeigeQrZahlung,
-            icon: const Icon(Icons.qr_code_2),
-            label: const Text('QR-Zahlung'),
+          TapKnopf(
+            text: 'QR-Zahlung',
+            icon: Icons.qr_code_2,
+            primaer: false,
+            onTap: _zeigeQrZahlung,
           ),
         ],
       ),
