@@ -41,6 +41,9 @@ import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
+import 'package:sbs_projer_app/services/storage/reinigung_entwurf_speicher.dart';
+import 'package:sbs_projer_app/core/util/reinigung_entwurf.dart';
+import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
@@ -157,6 +160,32 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
   bool get _isEdit => widget.reinigungId != null;
 
+  // Entwurf der laufenden Reinigung (V2) — nur bei neuer Reinigung.
+  /// Gedrosseltes Sichern: jede Änderung startet den Timer neu, nach 2 s
+  /// Ruhe wird der dann aktuelle Stand geschrieben (letzter Stand gewinnt).
+  Timer? _entwurfTimer;
+
+  /// Letzter angestossener Schreibvorgang — das Löschen nach dem Speichern
+  /// hängt sich dahinter, damit kein verspätetes Sichern den Entwurf
+  /// wiederbelebt.
+  Future<void>? _laufendeSicherung;
+
+  /// Erst nach der Prüfung auf einen vorhandenen Entwurf darf gesichert
+  /// werden — sonst überschriebe die Vorbelegung den alten Entwurf, bevor
+  /// Daniel ihn überhaupt angeboten bekommt.
+  bool _entwurfGeprueft = false;
+
+  /// Vorhandener Entwurf, über den noch nicht entschieden ist (Band oben).
+  /// Solange er angeboten wird, sichert das Formular nichts.
+  ReinigungEntwurf? _angebotenerEntwurf;
+
+  /// Reinigung gespeichert — ab jetzt nie mehr sichern.
+  bool _entwurfErledigt = false;
+
+  /// Wird beim Fortsetzen hochgezählt: Die Dropdowns übernehmen ihren Wert
+  /// nur beim Aufbau (`initialValue`) und brauchen einen neuen Key.
+  int _entwurfRunde = 0;
+
   @override
   void initState() {
     super.initState();
@@ -198,8 +227,238 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     if (_isEdit) {
       _loadReinigung();
     } else {
-      _loadPreisData();
+      _vorbelegen();
     }
+  }
+
+  /// Vorbelegung laden, DANN nach einem Entwurf schauen: Die Vorbelegung
+  /// (Anlagen, Hähne der letzten Reinigung, Kulanz-Merker) setzt Felder
+  /// asynchron — liefe sie nach einem «Fortsetzen», überschriebe sie den
+  /// Entwurf.
+  Future<void> _vorbelegen() async {
+    try {
+      await _loadPreisData();
+    } finally {
+      await _entwurfPruefen();
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Entwurf der laufenden Reinigung (V2)
+  // ---------------------------------------------------------------------
+
+  String? get _entwurfBetriebId {
+    final id = widget.betriebId;
+    return id == null || id.isEmpty ? null : id;
+  }
+
+  bool get _entwurfErlaubt =>
+      !_isEdit &&
+      mounted &&
+      _entwurfBetriebId != null &&
+      _entwurfGeprueft &&
+      _angebotenerEntwurf == null &&
+      !_entwurfErledigt;
+
+  /// Jede Änderung meldet sich hier (Form.onChanged, Schalter, Auswahl,
+  /// Zähler, Datum, Foto) — und löst damit auch das Sichern des Entwurfs aus.
+  @override
+  void markiereGeaendert() {
+    super.markiereGeaendert();
+    _entwurfVormerken();
+  }
+
+  void _entwurfVormerken() {
+    if (!_entwurfErlaubt) return;
+    _entwurfTimer?.cancel();
+    _entwurfTimer = Timer(const Duration(seconds: 2), _entwurfSichern);
+  }
+
+  /// Sofort schreiben — vor dem Öffnen der Kamera (danach kann der Tab weg
+  /// sein) und nach dem Foto-Upload. Nie awaited: Das Sichern darf keinen
+  /// Ablauf aufhalten.
+  void _entwurfSichern() {
+    _entwurfTimer?.cancel();
+    _entwurfTimer = null;
+    if (!_entwurfErlaubt) return;
+    _laufendeSicherung = ReinigungEntwurfSpeicher.speichern(_entwurfBauen());
+  }
+
+  ReinigungEntwurf _entwurfBauen() => ReinigungEntwurf(
+    betriebId: _entwurfBetriebId!,
+    anlageIds: _selectedAnlageIds.toList(),
+    datum: _datum,
+    uhrzeitStart: _emptyToNull(_uhrzeitStartController.text),
+    serviceArt: _serviceArt,
+    serviceTyp: _serviceTyp,
+    anzahlHaehneEigen: _anzahlHaehneEigen,
+    anzahlHaehneOrion: _anzahlHaehneOrion,
+    anzahlHaehneFremd: _anzahlHaehneFremd,
+    anzahlHaehneWein: _anzahlHaehneWein,
+    anzahlHaehneAndererStandort: _anzahlHaehneAndererStandort,
+    istKulanz: _istKulanz,
+    istBergkunde: _istBergkunde,
+    notizen: _emptyToNull(_notizenController.text),
+    protokollFotoPfad: _hochgeladenerPfad,
+    fotoReinigungId: _fotoReinigungId,
+    gespeichertAm: DateTime.now(),
+  );
+
+  /// Entwurf entfernen (nach dem Speichern oder auf Wunsch). Hängt sich
+  /// hinter ein evtl. noch laufendes Sichern und wird nie awaited.
+  void _entwurfEntfernen() {
+    _entwurfTimer?.cancel();
+    _entwurfTimer = null;
+    final id = _entwurfBetriebId;
+    if (id == null) return;
+    final vorher = _laufendeSicherung ?? Future<void>.value();
+    unawaited(vorher.then((_) => ReinigungEntwurfSpeicher.loeschen(id)));
+  }
+
+  Future<void> _entwurfPruefen() async {
+    final id = _entwurfBetriebId;
+    if (_isEdit || id == null) return;
+    final entwurf = await ReinigungEntwurfSpeicher.laden(id);
+    if (!mounted) return;
+    setState(() {
+      _angebotenerEntwurf = entwurf;
+      _entwurfGeprueft = true;
+    });
+    // Schon vor der Prüfung getippt (oder Diktat-Notiz)? Jetzt nachholen.
+    if (geaendert) _entwurfVormerken();
+  }
+
+  void _entwurfFortsetzen() {
+    final e = _angebotenerEntwurf;
+    if (e == null) return;
+    // Nur Anlagen übernehmen, die (noch) zu diesem Betrieb gehören — wie
+    // bei der Vorauswahl aus dem Tourenplan. Sind die Anlagen nicht geladen
+    // (Netzfehler), zählt der Entwurf.
+    final gueltig = {
+      for (final a in _anlagenDesBetrieb) ...[
+        if (a.serverId != null) a.serverId!,
+        a.routeId,
+      ],
+    };
+    final anlagen = _anlagenDesBetrieb.isEmpty
+        ? e.anlageIds.toSet()
+        : e.anlageIds.where(gueltig.contains).toSet();
+    const serviceTypen = {
+      'reinigung_bier',
+      'reinigung_orion',
+      'heigenie',
+      'reinigung_fremd',
+      'wein',
+    };
+    setState(() {
+      if (anlagen.isNotEmpty) _selectedAnlageIds = anlagen;
+      _datum = e.datum;
+      if (e.uhrzeitStart != null) _uhrzeitStartController.text = e.uhrzeitStart!;
+      if (ReinigungFormScreen.serviceArten.contains(e.serviceArt)) {
+        _serviceArt = e.serviceArt;
+      }
+      if (e.serviceTyp == null || serviceTypen.contains(e.serviceTyp)) {
+        _serviceTyp = e.serviceTyp;
+      }
+      _anzahlHaehneEigen = e.anzahlHaehneEigen;
+      _anzahlHaehneOrion = e.anzahlHaehneOrion;
+      _anzahlHaehneFremd = e.anzahlHaehneFremd;
+      _anzahlHaehneWein = e.anzahlHaehneWein;
+      _anzahlHaehneAndererStandort = e.anzahlHaehneAndererStandort;
+      _istKulanz = e.istKulanz;
+      if (_istKulanz) _istHeinekenMonteur = false;
+      _istBergkunde = e.istBergkunde;
+      _notizenController.text = e.notizen ?? '';
+      // Das Foto liegt schon im Speicher, im Ordner der vorab erzeugten
+      // Reinigungs-ID — die ID MUSS mitkommen, sonst zeigte die Reinigung
+      // auf einen fremden Ordner. Angezeigt wird es wie ein bestehendes
+      // Protokoll; `_save` übernimmt den Pfad über `_existingFotoPfad`.
+      if (e.fotoReinigungId != null) {
+        _fotoReinigungId = e.fotoReinigungId;
+        if (e.protokollFotoPfad != null) {
+          _fotoBytes = null;
+          _hochgeladenerPfad = e.protokollFotoPfad;
+          _existingFotoPfad = e.protokollFotoPfad;
+        }
+      }
+      _angebotenerEntwurf = null;
+      _entwurfRunde++;
+    });
+    // Der Stand ist ungespeichert — der Zurück-Schutz soll fragen.
+    markiereGeaendert();
+  }
+
+  Future<void> _entwurfVerwerfen() async {
+    final e = _angebotenerEntwurf;
+    if (e == null) return;
+    final ok = await gefahrRueckfrage(
+      context,
+      titel: 'Entwurf verwerfen?',
+      text:
+          'Die angefangene Reinigung von ${e.kurzText()} wird gelöscht'
+          '${e.protokollFotoPfad != null ? ' (das hochgeladene Foto bleibt im Speicher liegen)' : ''}.',
+      bestaetigen: 'Verwerfen',
+    );
+    if (!ok || !mounted) return;
+    setState(() => _angebotenerEntwurf = null);
+    unawaited(ReinigungEntwurfSpeicher.loeschen(e.betriebId));
+    // Wurde inzwischen schon getippt, ab jetzt dieses Formular sichern.
+    if (geaendert) _entwurfVormerken();
+  }
+
+  /// Band «Angefangene Reinigung von 09:12 — Fortsetzen / Verwerfen».
+  /// Container + TapKnopf (CanvasKit-Regel, CLAUDE.md).
+  Widget _entwurfBand() {
+    final e = _angebotenerEntwurf;
+    if (e == null) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.info.withAlpha(25),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.info.withAlpha(120)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.restore, size: 20, color: AppColors.info),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Angefangene Reinigung von ${e.kurzText()}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TapKnopf(
+                  text: 'Fortsetzen',
+                  icon: Icons.play_arrow,
+                  onTap: _entwurfFortsetzen,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TapKnopf(
+                  text: 'Verwerfen',
+                  icon: Icons.delete_outline,
+                  primaer: false,
+                  onTap: _entwurfVerwerfen,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   /// Anlagen der aktuellen Auswahl — eine Reinigung kann mehrere umfassen.
@@ -584,6 +843,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
   }
 
   Future<void> _takePhoto() async {
+    // Die Kamera schiebt den Browser in den Hintergrund — Android verwirft
+    // den Tab dabei gern. Vorher den Stand sichern, nicht erst nach 2 s.
+    _entwurfSichern();
     final picker = ImagePicker();
     final image = await picker.pickImage(
       source: ImageSource.camera,
@@ -597,6 +859,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
   }
 
   Future<void> _pickPhoto() async {
+    _entwurfSichern(); // wie bei der Kamera: die Galerie verdrängt den Tab
     final picker = ImagePicker();
     final image = await picker.pickImage(
       source: ImageSource.gallery,
@@ -636,6 +899,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       // sonst zeigte der Pfad auf das alte Bild.
       if (mounted && identical(bytes, _fotoBytes)) {
         setState(() => _hochgeladenerPfad = pfad);
+        // Das Foto ist das Wertvollste am Entwurf — gleich festhalten.
+        _entwurfSichern();
       }
     } catch (e) {
       debugPrint('[Foto] Upload fehlgeschlagen: $e');
@@ -859,6 +1124,13 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       }
 
       await ReinigungRepository.save(r);
+
+      // Gespeichert — der Entwurf hat ausgedient (V2). Nie awaited: Er darf
+      // die Abschlusskette nicht aufhalten.
+      if (!_isEdit) {
+        _entwurfErledigt = true;
+        _entwurfEntfernen();
+      }
 
       // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
       // (R1: nur bei preisrelevanter Änderung, Sperre oben schon geprüft).
@@ -1430,6 +1702,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
   @override
   void dispose() {
+    _entwurfTimer?.cancel();
     _uhrzeitStartController.dispose();
     _uhrzeitEndeController.dispose();
     _notizenController.dispose();
@@ -1512,6 +1785,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Angefangene Reinigung (Tab verworfen) — fortsetzen? (V2)
+              _entwurfBand(),
+
               // === Betrieb-Info ===
               if (_betrieb != null) ...[
                 _buildBetriebCard(),
@@ -1651,6 +1927,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 _sectionTitle(context, 'Service-Art'),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
+                  key: ValueKey('serviceArt-$_entwurfRunde'),
                   initialValue: _serviceArt,
                   decoration: const InputDecoration(
                     labelText: 'Service-Art',
@@ -2200,6 +2477,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         children: [
           // Service-Typ
           DropdownButtonFormField<String>(
+            key: ValueKey('serviceTyp-$_entwurfRunde'),
             initialValue: _serviceTyp,
             decoration: const InputDecoration(
               labelText: 'Service-Typ',
