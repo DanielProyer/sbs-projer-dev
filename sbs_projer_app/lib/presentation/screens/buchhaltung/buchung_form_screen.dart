@@ -60,6 +60,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
     'kasse': 'Kasse',
     'bank': 'Bank',
     'privat': 'Privat',
+    'intern': 'Intern (ohne Geldfluss)',
   };
 
   // Beleg (wird nach Buchungs-Erstellung hochgeladen)
@@ -337,8 +338,10 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                           // Nie einen Wert ausserhalb der Einträge
                           // übergeben (kreditor/debitor einer Vorlage).
                           initialValue: zahlungswegFuerFreiBuchen(_zahlungsweg),
+                          // Freiwillig — ohne Wahl wird ohne Zahlungsweg
+                          // gebucht (siehe zahlungsweg_frei_buchen.dart).
                           decoration: const InputDecoration(
-                            labelText: 'Zahlungsweg',
+                            labelText: 'Zahlungsweg (freiwillig)',
                           ),
                           items: [
                             for (final z in kZahlungswegeFreiBuchen)
@@ -347,8 +350,6 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                                 child: Text(_zahlungswegFreiLabels[z] ?? z),
                               ),
                           ],
-                          validator: (v) =>
-                              v == null ? 'Zahlungsweg wählen' : null,
                           onChanged: (v) => setState(() => _zahlungsweg = v),
                         ),
                       ],
@@ -670,15 +671,22 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_freiBuchen && _selectedVorlage == null) return;
-    // «Frei buchen» speichert nur kasse/bank/privat — nie ein kreditor/
-    // debitor, das von einer vorher gewählten Vorlage übrig blieb.
-    final zahlungswegFrei = zahlungswegFuerFreiBuchen(_zahlungsweg);
-    if (_freiBuchen && zahlungswegFrei == null) {
+    // «Frei buchen» speichert nur kasse/bank/privat/intern oder keinen
+    // Zahlungsweg — nie ein kreditor/debitor, der von einer vorher gewählten
+    // Vorlage übrig blieb. Die Sperre gilt nur solchen Werten, nicht `null`.
+    if (_freiBuchen && !zahlungswegFreiErlaubt(_zahlungsweg)) {
+      setState(() => _zahlungsweg = null);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Zahlungsweg wählen')),
+        const SnackBar(
+          content: Text(
+            'Diesen Zahlungsweg gibt es beim freien Buchen nicht — bitte '
+            'neu wählen oder leer lassen.',
+          ),
+        ),
       );
       return;
     }
+    final zahlungswegFrei = zahlungswegFuerFreiBuchen(_zahlungsweg);
 
     setState(() => _saving = true);
 

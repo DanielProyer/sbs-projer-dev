@@ -36,6 +36,10 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
   double _pauschale = 80.0;
   int _anzahlFeiertage = 0;
   double _feiertagZuschlagProTag = 80.0;
+
+  /// Der Zuschlag pro Feiertag stammt aus dem gespeicherten Dienst (siehe
+  /// `_loadPikett`) — dann darf die Preisliste ihn nicht mehr überschreiben.
+  bool _zuschlagAusDienst = false;
   List<Feiertag> _erkanneFeiertage = []; // automatisch erkannte Feiertage
 
   bool get _isEdit => widget.pikettId != null;
@@ -73,6 +77,12 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
     });
   }
 
+  /// Preisliste: Pauschale und Zuschlag pro Feiertag VORBELEGEN — nur beim
+  /// Anlegen. Beim Bearbeiten gilt, was am Dienst gespeichert ist: Beide
+  /// Ladevorgänge laufen parallel, und kam die Preisliste als zweite an,
+  /// überschrieb sie die gespeicherte Pauschale still mit dem heutigen
+  /// Tarif; das nächste Speichern schrieb ihn in den alten Dienst (Review
+  /// 26.09.2026).
   Future<void> _loadPauschale() async {
     try {
       final preisRows = await SupabaseService.client
@@ -88,8 +98,8 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
           preisRows.first['pikett_feiertag_zuschlag']?.toString() ?? '',
         );
         setState(() {
-          if (p != null) _pauschale = p;
-          if (f != null) _feiertagZuschlagProTag = f;
+          if (p != null && !_isEdit) _pauschale = p;
+          if (f != null && !_zuschlagAusDienst) _feiertagZuschlagProTag = f;
         });
       }
     } catch (_) {}
@@ -112,6 +122,14 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
       // Neu gezählt wird nur, wenn der Nutzer Jahr oder KW wechselt.
       _anzahlFeiertage = p.anzahlFeiertage;
       _erkanneFeiertage = _feiertageDerKw(jahr, kw);
+      // Gespeichert ist nur die Summe der Zuschläge — pro Tag lässt sie
+      // sich nur mit mindestens einem Feiertag zurückrechnen. Sonst gilt
+      // die Preisliste (kommt erst bei einem KW-Wechsel zum Tragen).
+      final zuschlag = p.feiertagZuschlag;
+      if (zuschlag != null && p.anzahlFeiertage > 0) {
+        _feiertagZuschlagProTag = zuschlag / p.anzahlFeiertage;
+        _zuschlagAusDienst = true;
+      }
     });
   }
 

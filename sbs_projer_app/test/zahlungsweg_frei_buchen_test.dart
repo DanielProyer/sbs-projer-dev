@@ -9,10 +9,14 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/buchung_form_scr
 /// Buchungsformular: Wechsel von einer Vorlage mit `kreditor`/`debitor` auf
 /// «Frei buchen». Bis 26.09.2026 blieb der Wert stehen — Assertion im
 /// Debug-Modus, sonst leeres Feld und `kreditor` wurde mitgespeichert.
+///
+/// Der Zahlungsweg bleibt dort aber FREIWILLIG (Spalte nullable, Migration
+/// 089), und `intern` ist wählbar — die Pflichtwahl aus dem ersten Fix
+/// machte Umbuchungen ohne Geldfluss unmöglich (Review 26.09.2026).
 void main() {
   group('zahlungswegFuerFreiBuchen', () {
-    test('kasse, bank und privat bleiben', () {
-      for (final z in const ['kasse', 'bank', 'privat']) {
+    test('kasse, bank, privat und intern bleiben', () {
+      for (final z in const ['kasse', 'bank', 'privat', 'intern']) {
         expect(zahlungswegFuerFreiBuchen(z), z);
       }
     });
@@ -24,12 +28,30 @@ void main() {
       expect(zahlungswegFuerFreiBuchen(null), isNull);
     });
 
-    test('genau drei Wege im freien Modus', () {
-      expect(kZahlungswegeFreiBuchen, ['kasse', 'bank', 'privat']);
+    test('genau vier Wege im freien Modus', () {
+      expect(kZahlungswegeFreiBuchen, ['kasse', 'bank', 'privat', 'intern']);
     });
   });
 
-  testWidgets('Vorlage mit kreditor → Frei buchen: leer, Pflicht zu wählen', (
+  group('zahlungswegFreiErlaubt', () {
+    test('kein Zahlungsweg ist erlaubt', () {
+      expect(zahlungswegFreiErlaubt(null), isTrue);
+    });
+
+    test('die vier Wege sind erlaubt', () {
+      for (final z in kZahlungswegeFreiBuchen) {
+        expect(zahlungswegFreiErlaubt(z), isTrue, reason: z);
+      }
+    });
+
+    test('Reste einer Vorlage sind gesperrt', () {
+      expect(zahlungswegFreiErlaubt('kreditor'), isFalse);
+      expect(zahlungswegFreiErlaubt('debitor'), isFalse);
+      expect(zahlungswegFreiErlaubt('rechnung'), isFalse);
+    });
+  });
+
+  testWidgets('Vorlage mit kreditor → Frei buchen: leer, aber nicht Pflicht', (
     tester,
   ) async {
     // Hoch genug, dass die ListView alle Felder aufbaut (auch Speichern).
@@ -75,11 +97,45 @@ void main() {
     expect(frei.value, isNull);
     expect(
       frei.items!.map((i) => i.value),
-      ['kasse', 'bank', 'privat'],
+      ['kasse', 'bank', 'privat', 'intern'],
     );
 
+    // Speichern scheitert hier an den leeren Pflichtfeldern (Betrag,
+    // Konten) — der Zahlungsweg meldet sich dabei nicht.
     await tester.tap(find.text('Buchung speichern'));
     await tester.pumpAndSettle();
-    expect(find.text('Zahlungsweg wählen'), findsOneWidget);
+    expect(find.text('Pflicht'), findsWidgets, reason: 'Prüfung lief');
+    expect(find.text('Zahlungsweg wählen'), findsNothing);
+    expect(find.textContaining('Zahlungsweg gibt es'), findsNothing);
+  });
+
+  testWidgets('Frei buchen bietet «Intern» an und übernimmt es', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          manuelleBuchungsVorlagenProvider.overrideWith((ref) async => []),
+        ],
+        child: const MaterialApp(home: BuchungFormScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Frei buchen'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Intern (ohne Geldfluss)').last);
+    await tester.pumpAndSettle();
+
+    final frei = tester.widget<DropdownButton<String>>(
+      find.byType(DropdownButton<String>),
+    );
+    expect(frei.value, 'intern');
   });
 }

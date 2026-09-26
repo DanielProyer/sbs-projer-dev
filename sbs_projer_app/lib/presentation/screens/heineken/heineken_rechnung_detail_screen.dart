@@ -503,6 +503,11 @@ class _HeinekenRechnungDetailScreenState
   }
 
   Future<void> _delete() async {
+    // Container VOR den awaits holen: Ist der Screen nach dem Löschen weg,
+    // wirft `ref` — und ohne Invalidieren zeigten Liste und Journal die
+    // gelöschte Rechnung samt Buchungen weiter (Review 26.09.2026). Der
+    // Container gehört zur App, nicht zum Screen.
+    final container = ProviderScope.containerOf(context, listen: false);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -539,16 +544,15 @@ class _HeinekenRechnungDetailScreenState
         for (final b in buchungen) {
           await BuchungRepository.delete(b.id);
         }
-        if (buchungen.isNotEmpty && mounted) {
-          ref.invalidate(buchungenStreamProvider);
+        if (buchungen.isNotEmpty) {
+          container.invalidate(buchungenStreamProvider);
         }
       } catch (_) {}
 
       await RechnungRepository.delete(widget.rechnungId);
-      // Nach den awaits kann der Screen weg sein — `ref` wirft dann
-      // (StateError). Gelöscht ist trotzdem: die DB-Schritte liefen oben.
+      // Unabhängig von `mounted` — siehe `container` oben.
+      container.invalidate(heinekenRechnungenProvider);
       if (!mounted) return;
-      ref.invalidate(heinekenRechnungenProvider);
       // Direkt per URL geöffnet (Aufgabe, Kalender, Reload) gibt es nichts
       // zum Poppen → auf die Liste.
       zurueckOderZu(context, '/heineken');

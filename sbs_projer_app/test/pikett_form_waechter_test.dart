@@ -31,6 +31,36 @@ void main() {
     );
   });
 
+  // Review 26.09.2026 (h): Preisliste und gespeicherter Dienst laden
+  // parallel. Kam die Preisliste als zweite, überschrieb sie beim Bearbeiten
+  // die gespeicherte Pauschale mit dem heutigen Tarif.
+  test('Bearbeiten: die Preisliste überschreibt die Pauschale nicht', () {
+    final preise = methode('Future<void> _loadPauschale()');
+    expect(
+      RegExp(r'if \([^)]*!_isEdit[^)]*\) _pauschale = ').hasMatch(preise),
+      isTrue,
+      reason: 'die Pauschale aus der Preisliste nur beim Anlegen vorbelegen',
+    );
+    expect(
+      RegExp(r'if \([^)]*!_zuschlagAusDienst[^)]*\) _feiertagZuschlagProTag = ')
+          .hasMatch(preise),
+      isTrue,
+      reason: 'den aus dem Dienst zurückgerechneten Zuschlag nicht ersetzen',
+    );
+    for (final zeile in preise.split('\n')) {
+      if (!zeile.contains('_pauschale = ')) continue;
+      expect(
+        zeile,
+        contains('!_isEdit'),
+        reason: 'keine unbedingte Zuweisung der Preisliste an _pauschale',
+      );
+    }
+
+    final laden = methode('Future<void> _loadPikett()');
+    expect(laden, contains('_pauschale = p.pauschale'));
+    expect(laden, contains('_zuschlagAusDienst = true'));
+  });
+
   test('das Jahr ist das ISO-Wochenjahr, nicht das Kalenderjahr', () {
     expect(
       RegExp(r'_jahr = [^;]*\.year;').hasMatch(code),
