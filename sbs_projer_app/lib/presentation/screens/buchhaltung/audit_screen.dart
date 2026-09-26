@@ -14,7 +14,7 @@ import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
     show kSteuerJahrAb;
 
-/// Abschlussprüfung: 14 Regeln je Geschäftsjahr, gruppiert und nach Ampel
+/// Abschlussprüfung: alle Regeln je Geschäftsjahr, gruppiert und nach Ampel
 /// sortiert. Grüne Befunde sind eingeklappt — offen bleibt, was zu tun ist.
 class AuditScreen extends ConsumerStatefulWidget {
   final int? jahr;

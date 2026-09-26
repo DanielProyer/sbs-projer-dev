@@ -560,15 +560,21 @@ class MahnfallService {
   /// Verlust buchen. Dann wird GAR NICHTS abgeschrieben, nicht nur diese
   /// Rechnung übersprungen: Ein halb abgeschriebener Fall wäre schlimmer.
   static Future<void> _offeneAbschreiben(Mahnfall fall, DateTime datum) async {
+    // `_laden` holt jede Rechnung frisch aus der DB (getById).
     final offen = [
       for (final r in await _laden(fall))
         if (r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben') r,
     ];
+    // Dieselbe Sperre wie `MahnwesenService.abschreiben` — VOR der Schleife
+    // für alle Rechnungen. Sonst griffe sie erst dort und der Fall bräche
+    // halb abgeschrieben ab (z. B. Zahlungsfelder gesetzt, aber keine
+    // Buchung).
     for (final r in offen) {
-      if (zahlungGebucht(await BuchungRepository.getByBeleg(r.id))) {
+      final sperre = abschreibSperre(r,
+          hatZahlung: zahlungGebucht(await BuchungRepository.getByBeleg(r.id)));
+      if (sperre != null) {
         throw MahnfallFehler(
-          'Rechnung ${r.rechnungsnummer ?? r.id} hat eine gebuchte Zahlung — '
-          'zuerst Status prüfen. Nichts abgeschrieben.',
+          'Rechnung ${r.rechnungsnummer ?? r.id}: $sperre — nichts abgeschrieben',
           fallId: fall.id,
         );
       }
