@@ -25,9 +25,16 @@ class MahnwesenService {
   /// So bleibt im Fehlerfall die Rechnung offen, und der zweite Versuch
   /// erkennt die schon gebuchte Abschreibung ([abschreibungSchonGebucht])
   /// und zieht nur den Status nach.
-  static Future<void> abschreiben(Rechnung rechnung, {DateTime? heute}) async {
+  static Future<void> abschreiben(Rechnung angezeigt, {DateTime? heute}) async {
+    // Frisch laden: Die Liste kann einen veralteten Stand zeigen (Zahlung
+    // inzwischen eingegangen). Sperre und Statusschutz auf dem DB-Stand.
+    final rechnung = await RechnungRepository.getById(angezeigt.id) ?? angezeigt;
     final a = einzelAbschreibung(rechnung, heute: heute ?? DateTime.now());
     final buchungen = await BuchungRepository.getByBeleg(rechnung.id);
+    // Analyse 25.09.2026 Befund D: nie eine Rechnung mit Zahlung abschreiben.
+    final sperre =
+        abschreibSperre(rechnung, hatZahlung: zahlungGebucht(buchungen));
+    if (sperre != null) throw Exception(sperre);
     // Verrechnetes Kundenguthaben zuerst ausbuchen (2030/1100), dann nur
     // «zu zahlen» abschreiben (Review Kundenguthaben I3). Steht die
     // Verrechnung schon (Abbruch beim ersten Versuch), nicht doppelt.
@@ -47,9 +54,18 @@ class MahnwesenService {
         belegId: rechnung.id,
       );
     }
-    await RechnungRepository.update(rechnung.id, {
-      'zahlungsstatus': 'abgeschrieben',
-    });
+    // Nur wenn der Status noch der geprüfte ist — sonst hat inzwischen ein
+    // anderer Weg (Zahlung, Mahnlauf) die Rechnung angefasst.
+    final ok = await RechnungRepository.updateWennStatus(
+      rechnung.id,
+      {'zahlungsstatus': 'abgeschrieben'},
+      erwarteterStatus: rechnung.zahlungsstatus,
+    );
+    if (!ok) {
+      throw Exception(
+          'inzwischen geändert — Status nicht gesetzt, '
+          'Rechnungsdetail prüfen');
+    }
     debugPrint(
       schon
           ? '[Mahnwesen] Rechnung ${rechnung.rechnungsnummer}: Abschreibung war schon '

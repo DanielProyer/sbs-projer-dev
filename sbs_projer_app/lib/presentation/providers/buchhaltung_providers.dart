@@ -296,6 +296,7 @@ final abschlussPruefungProvider =
     offeneForderungenAnzahl: offene.where(zaehltAlsForderung).length,
     jahreskundenUnverrechnet: jahreskunden,
     kundenguthabenJeBetrieb: kundenguthaben,
+    offeneRechnungenVoll: offene,
   ));
 });
 

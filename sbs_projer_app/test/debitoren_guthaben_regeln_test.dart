@@ -25,6 +25,7 @@ Rechnung rg(
   String typ = 'kundenrechnung',
   double guthaben = 0,
   String? betrieb,
+  int stufe = 0,
 }) => Rechnung(
   id: id,
   userId: 'u',
@@ -35,6 +36,7 @@ Rechnung rg(
   betragBrutto: brutto,
   zahlungsstatus: status,
   guthabenVerrechnet: guthaben,
+  mahnungStufe: stufe,
 );
 
 Buchung bu(
@@ -66,6 +68,7 @@ AbschlussKontext kx({
   int offeneForderungenAnzahl = 0,
   Map<String, double>? kundenguthaben,
   int jahr = 2026,
+  List<Rechnung> offeneVoll = const [],
 }) => AbschlussKontext(
   jahr: jahr,
   heute: DateTime(2026, 9, 25),
@@ -80,6 +83,7 @@ AbschlussKontext kx({
   jahreskundenUnverrechnet: jahreskunden,
   offeneForderungenAnzahl: offeneForderungenAnzahl,
   kundenguthabenJeBetrieb: kundenguthaben,
+  offeneRechnungenVoll: offeneVoll,
 );
 
 Pruefbefund lauf(String id, AbschlussKontext k) =>
@@ -316,6 +320,61 @@ void main() {
 
     test('Guthaben nicht geladen → gelb', () {
       expect(lauf('kundenguthaben_2030', kx()).status, PruefStatus.gelb);
+    });
+  });
+
+  group('statusMahnstufeWiderspruch', () {
+    test('offen/gesendet ohne Mahnstufe: stimmig', () {
+      expect(statusMahnstufeWiderspruch(rg('a', 10)), isFalse);
+      expect(statusMahnstufeWiderspruch(rg('a', 10, status: 'gesendet')),
+          isFalse);
+    });
+
+    test('offen/gesendet mit Mahnstufe: Widerspruch', () {
+      expect(statusMahnstufeWiderspruch(rg('a', 10, stufe: 1)), isTrue);
+      expect(
+        statusMahnstufeWiderspruch(rg('a', 10, status: 'gesendet', stufe: 2)),
+        isTrue,
+      );
+    });
+
+    test('gemahnt mit Mahnstufe: stimmig', () {
+      expect(
+        statusMahnstufeWiderspruch(rg('a', 10, status: 'erinnert', stufe: 1)),
+        isFalse,
+      );
+      expect(
+        statusMahnstufeWiderspruch(rg('a', 10, status: 'mahnung_2', stufe: 3)),
+        isFalse,
+      );
+    });
+
+    test('gemahnt ohne Mahnstufe: Widerspruch', () {
+      for (final s in ['erinnert', 'mahnung_1', 'mahnung_2']) {
+        expect(statusMahnstufeWiderspruch(rg('a', 10, status: s)), isTrue,
+            reason: s);
+      }
+    });
+
+    test('Regel: 3 Rechnungen, 2 widersprüchlich → gelb, ist 2', () {
+      final b = lauf(
+        'status_mahnstufe',
+        kx(offeneVoll: [
+          rg('a', 10),
+          rg('b', 10, stufe: 1),
+          rg('c', 10, status: 'mahnung_1'),
+        ]),
+      );
+      expect(b.status, PruefStatus.gelb);
+      expect(b.ist, '2');
+      expect(b.aktionRoute, '/rechnungen');
+    });
+
+    test('Regel: keine Widersprüche → grün', () {
+      expect(
+        lauf('status_mahnstufe', kx(offeneVoll: [rg('a', 10)])).status,
+        PruefStatus.gruen,
+      );
     });
   });
 }

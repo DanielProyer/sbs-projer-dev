@@ -6,7 +6,6 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/core/util/suche.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
-import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart'
     show buchungenStreamProvider;
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
@@ -16,7 +15,6 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
     show betriebNameMapProvider;
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
-import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/debitoren_header.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
@@ -78,6 +76,9 @@ Color _statusColor(String status) {
   }
 }
 
+/// Nächster Schritt: Mahnstufen führen in den Mahnlauf, `mahnung_2` ins
+/// Abschreiben. Einen direkten Statuswechsel gibt es nicht mehr — «bezahlt»
+/// setzt nur `zahlung_erfassen` (ZahlungKern).
 String? _naechsterStatus(String current) {
   switch (current) {
     case 'offen':
@@ -553,7 +554,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         children: [
           _warnungOhneRechnung(),
           _warnungOhneBuchung(),
-          // ── Abschnitt 1: Offene Forderungen + Debitoren/Abschreibungen ──
+          // ── Abschnitt 1: Offene Forderungen ──
           // (Wunsch Daniel 07.08.2026: offene Rechnungen ganz nach oben,
           //  klar getrennt vom Rechnungs-Archiv darunter.)
           Padding(
@@ -623,10 +624,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                 ),
               ),
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: DebitorenHeader(),
           ),
           // ── Klare Trennung zum Rechnungs-Archiv ──
           Padding(
@@ -891,7 +888,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       return;
     }
 
-    // Für Abschreiben
+    // Übrig bleibt nur das Abschreiben (Mahnstufe 2 → abgeschrieben).
     if (naechster == 'abgeschrieben') {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -902,9 +899,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
             'Eine Buchung auf Konto 3805 (Debitorenverlust) wird erstellt.',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen'),
+            TapKnopf(
+              text: 'Abbrechen',
+              primaer: false,
+              onTap: () => Navigator.pop(ctx, false),
             ),
             TapKnopf(
               text: 'Abschreiben',
@@ -922,53 +920,6 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('${rechnung.rechnungsnummer} abgeschrieben'),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
-          );
-        }
-      }
-      return;
-    }
-
-    // Einfacher Status-Wechsel (fallback)
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Status ändern?'),
-        content: Text(
-          '${rechnung.rechnungsnummer ?? "Rechnung"}\n\n'
-          '${_statusLabel(rechnung.zahlungsstatus)} → ${_statusLabel(naechster)}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_statusLabel(naechster)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await RechnungRepository.update(rechnung.id, {
-          'zahlungsstatus': naechster,
-        });
-        ref.invalidate(rechnungenStreamProvider);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${rechnung.rechnungsnummer}: ${_statusLabel(naechster)}',
-              ),
             ),
           );
         }

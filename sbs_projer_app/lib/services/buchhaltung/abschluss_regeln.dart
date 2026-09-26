@@ -380,6 +380,43 @@ class DebitorenStatusRegel extends AbschlussRegel {
   }
 }
 
+/// Passen Zahlungsstatus und Mahnstufe nicht zusammen?
+///
+/// «offen»/«gesendet» mit einer Mahnstufe > 0, oder «erinnert»/«mahnung_1»/
+/// «mahnung_2» mit Stufe 0. Beides entstand früher durch Wege, die nur eines
+/// der beiden Felder setzten (Status-Fallback in der Rechnungsliste,
+/// Zahlungs-Rücknahme vor ZahlungKern). Der Mahnlauf rechnet mit der Stufe —
+/// ein Widerspruch führt zur falschen nächsten Mahnung.
+bool statusMahnstufeWiderspruch(Rechnung r) {
+  const ungemahnt = {'offen', 'gesendet'};
+  const gemahnt = {'erinnert', 'mahnung_1', 'mahnung_2'};
+  return (ungemahnt.contains(r.zahlungsstatus) && r.mahnungStufe > 0) ||
+      (gemahnt.contains(r.zahlungsstatus) && r.mahnungStufe == 0);
+}
+
+class StatusMahnstufeRegel extends AbschlussRegel {
+  @override
+  String get id => 'status_mahnstufe';
+  @override
+  String get gruppe => 'Debitoren';
+  @override
+  String get titel => 'Status und Mahnstufe widersprüchlich';
+  @override
+  Pruefbefund pruefe(AbschlussKontext k) {
+    final n = k.offeneRechnungenVoll.where(statusMahnstufeWiderspruch).length;
+    return befund(
+      n == 0 ? PruefStatus.gruen : PruefStatus.gelb,
+      ist: '$n',
+      soll: '0',
+      hinweis: n == 0
+          ? ''
+          : 'Mahnstufe im Rechnungsdetail prüfen (Rücknahme über ZahlungKern '
+              'stellt beide her).',
+      route: '/rechnungen',
+    );
+  }
+}
+
 /// Zählt die Rechnung als Forderung auf 1100?
 ///
 /// Kunden- und Jahresrechnungen, solange weder bezahlt noch abgeschrieben —
@@ -871,6 +908,7 @@ List<AbschlussRegel> alleAbschlussRegeln() => [
   DelkredereRegel(),
   DebitorenStatusRegel(),
   DebitorenOffeneRechnungenRegel(),
+  StatusMahnstufeRegel(),
   Kundenguthaben2030Regel(),
   RueckstellungRegel(),
   NegativeSaldenRegel(),

@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_regeln.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
 
@@ -97,6 +98,11 @@ class AbschlussKontext {
   /// geladen.
   final Map<String, double>? kundenguthabenJeBetrieb;
 
+  /// Alle nicht erledigten Rechnungen (weder bezahlt noch abgeschrieben,
+  /// `RechnungRepository.getOffene`) als volles Modell — für Regeln, die
+  /// mehr als Datum und Betrag brauchen (Status gegen Mahnstufe).
+  final List<Rechnung> offeneRechnungenVoll;
+
   AbschlussKontext({
     required this.jahr,
     required this.heute,
@@ -114,6 +120,7 @@ class AbschlussKontext {
     this.offeneForderungenAnzahl = 0,
     this.jahreskundenUnverrechnet = 0,
     this.kundenguthabenJeBetrieb,
+    this.offeneRechnungenVoll = const [],
   });
 
   bool get jahrAbgeschlossen => jahr < heute.year;

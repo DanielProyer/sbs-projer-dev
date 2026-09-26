@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
+import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
     show kSteuerJahrAb;
@@ -168,6 +174,50 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
     );
   }
 
+  bool _delkredereLaeuft = false;
+
+  /// Delkredere (1109) auf 5 % des heutigen Debitorensaldos (1100) — mit
+  /// Rückfrage, weil es eine Aufwandbuchung auf 3805 erzeugt.
+  Future<void> _delkredereBuchen() async {
+    setState(() => _delkredereLaeuft = true);
+    try {
+      ref.invalidate(debitorenUebersichtProvider);
+      final d = await ref.read(debitorenUebersichtProvider.future);
+      final debitoren = d['debitoren_total'] ?? 0;
+      final ziel = rundeAufRappen(debitoren * 0.05);
+      if (!mounted) return;
+      final ok = await gefahrRueckfrage(
+        context,
+        titel: 'Delkredere auf 5 % buchen?',
+        text: 'Debitoren 1100: CHF ${chf(debitoren)}\n'
+            'Delkredere 1109 neu: CHF ${chf(ziel)} '
+            '(bisher CHF ${chf(d['delkredere'] ?? 0)})\n\n'
+            'Die Differenz wird heute gegen 3805 gebucht.',
+        bestaetigen: 'Buchen',
+      );
+      if (!ok) return;
+      await AbschreibungService.delkredereSetzen(
+        zielWertberichtigung: ziel,
+        datum: DateTime.now(),
+      );
+      ref.invalidate(debitorenUebersichtProvider);
+      ref.invalidate(abschlussPruefungProvider(_jahr));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delkredere auf CHF ${chf(ziel)} gesetzt')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _delkredereLaeuft = false);
+    }
+  }
+
   Widget _fehler(Object e) => Center(
     child: Padding(
       padding: const EdgeInsets.all(16),
@@ -239,6 +289,23 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
+                    ),
+                  ),
+                // Früher im Debitoren-Header der Rechnungsliste, ohne
+                // Rückfrage (Analyse 25.09.2026 Befund E). Nur im laufenden
+                // Jahr: `delkredereSetzen` bucht heute gegen den heutigen
+                // Saldo — für ein Vorjahr wäre das die falsche Periode.
+                if (b.regelId == 'delkredere' &&
+                    b.status != PruefStatus.gruen &&
+                    _jahr == DateTime.now().year)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: TapKnopf(
+                      text: 'Delkredere auf 5 % buchen',
+                      icon: Icons.percent,
+                      primaer: false,
+                      laeuft: _delkredereLaeuft,
+                      onTap: _delkredereBuchen,
                     ),
                   ),
               ],

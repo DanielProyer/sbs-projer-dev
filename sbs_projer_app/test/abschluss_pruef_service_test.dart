@@ -449,9 +449,9 @@ void main() {
     expect(k(jahr: 2025).letztesQuartalsende(), DateTime(2025, 12, 31));
     expect(k(jahr: 2026).letztesQuartalsende(), DateTime(2026, 6, 30));
   });
-  test('Sortierung: rot vor gelb vor grün; 19 Regeln', () {
+  test('Sortierung: rot vor gelb vor grün; 20 Regeln', () {
     final l = AbschlussPruefService.pruefe(k(buchungen: [b(6200, 1020, 5, d)]));
-    expect(l.length, 19);
+    expect(l.length, 20);
     expect(l.first.status, PruefStatus.rot);
     expect(l.last.status, PruefStatus.gruen);
   });

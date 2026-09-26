@@ -35,4 +35,15 @@ void main() {
     expect(d.contains('BarzahlungService.rueckgaengig('), isFalse);
     expect(File('lib/services/camt/forderungs_abgleich_service.dart').readAsStringSync().contains('zahlungRueckgaengig'), isFalse);
   });
+  test('Debitoren-Header und Status-Fallback sind weg', () {
+    expect(File('lib/presentation/screens/rechnungen/widgets/debitoren_header.dart').existsSync(), isFalse);
+    final l = File('lib/presentation/screens/rechnungen/rechnungen_list_screen.dart').readAsStringSync();
+    expect(l.contains("'zahlungsstatus': naechster"), isFalse);
+    expect(l.contains('DebitorenHeader'), isFalse);
+  });
+  test('Einzelabschreibung prueft Sperre und Status', () {
+    final m = File('lib/services/rechnung/mahnwesen_service.dart').readAsStringSync();
+    expect(m.contains('abschreibSperre('), isTrue);
+    expect(m.contains('updateWennStatus('), isTrue);
+  });
 }

@@ -91,3 +91,21 @@ bool zahlungGebucht(Iterable<Buchung> buchungenDerRechnung) =>
         b.belegTyp != 'abschreibung' &&
         // Guthaben-Verrechnung (2030/1100) ist keine Zahlung (Review I3).
         !(b.sollKonto == 2030 && b.belegTyp == 'sonstiges'));
+
+/// Darf [r] einzeln abgeschrieben werden? `null` = ja, sonst der Grund.
+///
+/// WARUM (Analyse 25.09.2026, Befund D): Die Einzelabschreibung prüfte nur
+/// den Status. Stand schon ein Zahlungseingang auf der Rechnung (Teilzahlung,
+/// oder eine Zahlung ohne nachgezogenen Status), buchte sie zusätzlich den
+/// vollen Debitorenverlust — 1100 lief ins Minus. Vorbild:
+/// `BarzahlungService.kassierSperre`. [hatZahlung] aus [zahlungGebucht].
+String? abschreibSperre(Rechnung r, {required bool hatZahlung}) {
+  if (r.zahlungsstatus == 'bezahlt') return 'bereits bezahlt';
+  if (r.zahlungsstatus == 'abgeschrieben') return 'bereits abgeschrieben';
+  if (hatZahlung ||
+      r.zahlungEingegangenAm != null ||
+      (r.zahlungBetrag ?? 0) != 0) {
+    return 'Zahlung gebucht — nicht abschreibbar, im Rechnungsdetail prüfen';
+  }
+  return null;
+}
