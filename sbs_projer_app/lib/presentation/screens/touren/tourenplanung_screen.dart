@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/core/util/einsatz_start.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
+import 'package:sbs_projer_app/core/util/tagesplan_ist_zeiten.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/tourenplan_refresh.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
@@ -20,6 +21,7 @@ import 'package:sbs_projer_app/core/util/war_geschlossen.dart';
 import 'package:sbs_projer_app/core/util/zeitplan.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
+import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
@@ -1419,64 +1421,22 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     // `readOnly` heisst: vergangener Tag ODER heute mit erfasstem Feierabend
     // — dann ist der Tag abgeschlossen und wird statisch dargestellt.
     final istHeute = _istHeute && !widget.readOnly;
-    final istZeiten = <String, ({int von, int bis})>{};
-    if (istHeute || _istVergangen || widget.readOnly) {
-      // Reinigungs-Besuch erledigt = am Plantag abgeschlossene Reinigung
-      // desselben Betriebs mit brauchbaren Zeiten. `hist_`-Einträge (die
-      // tatsächlichen Reinigungen vergangener Tage) matchen exakt über ihre
-      // Reinigungs-Id — zwei Besuche am selben Betrieb behalten so je ihre
-      // eigenen Zeiten.
-      final heutigeJeBetrieb = <String, ({int von, int bis})>{};
-      final jeReinigung = <String, ({int von, int bis})>{};
-      for (final r in ref.watch(reinigungenProvider)) {
-        if (r.status != 'abgeschlossen' || r.betriebId.isEmpty) continue;
-        if (r.datum.year != widget.datum.year ||
-            r.datum.month != widget.datum.month ||
-            r.datum.day != widget.datum.day) {
-          continue;
-        }
-        final von = minutenAusHhmm(r.uhrzeitStart);
-        final bis = minutenAusHhmm(r.uhrzeitEnde);
-        if (von == null || bis == null || bis <= von) continue;
-        heutigeJeBetrieb[r.betriebId] = (von: von, bis: bis);
-        if (r.serverId != null) {
-          jeReinigung[r.routeId] = (von: von, bis: bis);
-        }
-      }
-      final wegpunkte =
-          ref.watch(wegpunkteFuerTagProvider(widget.datum)).valueOrNull ??
-          const <WegpunktTag>[];
-      for (final e in eintraege) {
-        if (e.id.startsWith('hist_')) {
-          final ist = jeReinigung[e.id.substring(5)];
-          if (ist != null) istZeiten[e.id] = ist;
-        } else if (e.typ == TourEintragTyp.reinigung) {
-          final ist = e.betriebId != null
-              ? heutigeJeBetrieb[e.betriebId!]
-              : null;
-          if (ist != null) istZeiten[e.id] = ist;
-        } else {
-          // Störung/Montage erledigt = heutiger Wegpunkt-Stempel desselben
-          // Betriebs. Der Stempel markiert das ENDE des Einsatzes; als Start
-          // dient Stempel minus geplante Dauer — grobe, aber ehrliche
-          // Annahme, denn Uhrzeiten werden dort nicht erfasst.
-          final quelle = e.typ == TourEintragTyp.stoerung
-              ? 'stoerung'
-              : 'montage';
-          for (final w in wegpunkte) {
-            if (w.quelle != quelle ||
-                w.betriebId == null ||
-                w.betriebId != e.betriebId) {
-              continue;
-            }
-            final bis = w.zeitpunkt.hour * 60 + w.zeitpunkt.minute;
-            final von = (bis - _dauerFuer(e, historie)).clamp(0, 1439);
-            istZeiten[e.id] = (von: von, bis: bis);
-            break;
-          }
-        }
-      }
-    }
+    // Ermittlung geteilt mit «Ganzen Tag verschieben» (erledigte Stopps
+    // bleiben dort am alten Tag) — siehe `core/util/tagesplan_ist_zeiten.dart`.
+    final erledigtePruefen = istHeute || _istVergangen || widget.readOnly;
+    final istZeiten = ermittleIstZeiten(
+      eintraege: eintraege,
+      datum: widget.datum,
+      erledigtePruefen: erledigtePruefen,
+      reinigungen: erledigtePruefen
+          ? ref.watch(reinigungenProvider)
+          : const <ReinigungLocal>[],
+      wegpunkte: erledigtePruefen
+          ? (ref.watch(wegpunkteFuerTagProvider(widget.datum)).valueOrNull ??
+                const <WegpunktTag>[])
+          : const <WegpunktTag>[],
+      dauerFuer: (e) => _dauerFuer(e, historie),
+    );
     final jetztNow = DateTime.now();
     final jetztMin = jetztNow.hour * 60 + jetztNow.minute;
 

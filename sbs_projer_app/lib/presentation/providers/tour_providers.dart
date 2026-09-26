@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/core/util/besuch_dauer.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
 import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
+import 'package:sbs_projer_app/core/util/tagesplan_verschieben.dart';
 import 'package:sbs_projer_app/core/util/termin_abgleich.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
@@ -488,6 +489,8 @@ class TourEintrag {
     Object? dauerMinuten = _unset,
     Object? ankerZeit = _unset,
     bool? uebernommen,
+    // Nur zum Umsetzen (Verschieben auf einen anderen Tag), nie zum Leeren.
+    DateTime? geplantAm,
   }) => TourEintrag(
     typ: typ,
     id: id,
@@ -511,7 +514,7 @@ class TourEintrag {
         ? this.ankerZeit
         : ankerZeit as String?,
     uebernommen: uebernommen ?? this.uebernommen,
-    geplantAm: geplantAm,
+    geplantAm: geplantAm ?? this.geplantAm,
     geplantZeit: geplantZeit,
     geplantDauerMin: geplantDauerMin,
   );
@@ -1552,6 +1555,53 @@ Future<void> einsatzInTagesplanAufnehmen(
     eintraege.add(eintrag);
   }
   await tagesplanSpeichern(tagOhneZeit, eintraege);
+  ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
+}
+
+/// Hängt [neu] an den gespeicherten Plan von [tag] an — mit EINEM Speichern,
+/// neue Einträge ans Ende, ohne doppelte ids (der bereits dort stehende
+/// Eintrag gewinnt, siehe [planNachAnhaengen]). Läuft der Screen gerade auf
+/// [tag], geht es über den Notifier (UI live, Auto-Save).
+///
+/// Grundlage fürs Verschieben auf einen anderen Tag (Daniel 26.09.2026). Die
+/// Zahl der dort schon stehenden Einträge (für die Rückfrage) liest der
+/// Aufrufer vorher separat über [gespeicherterTagesplanProvider].
+Future<void> eintraegeInTagesplanAnhaengen(
+  WidgetRef ref,
+  DateTime tag,
+  List<TourEintrag> neu,
+) async {
+  if (neu.isEmpty) return;
+  final tagOhneZeit = DateTime(tag.year, tag.month, tag.day);
+  final notifier = ref.read(tagesplanProvider.notifier);
+  final aktivesDatum = notifier.datum;
+  final istAktiverTag =
+      aktivesDatum != null &&
+      aktivesDatum.year == tagOhneZeit.year &&
+      aktivesDatum.month == tagOhneZeit.month &&
+      aktivesDatum.day == tagOhneZeit.day;
+  if (istAktiverTag) {
+    notifier.setzePlan(planNachAnhaengen(ref.read(tagesplanProvider), neu));
+    return;
+  }
+  // Frisch und direkt laden, NICHT über [gespeicherterTagesplanProvider]:
+  // der schluckt Ladefehler und liefert dann `null` — hier hiesse das, der
+  // bestehende Plan des Zieltags würde mit den neuen Einträgen
+  // überschrieben. Ein Fehler bricht deshalb ab (der Aufrufer entfernt die
+  // Einträge am alten Tag erst danach, es geht nichts verloren).
+  final datumStr =
+      '${tagOhneZeit.year}-${tagOhneZeit.month.toString().padLeft(2, '0')}-${tagOhneZeit.day.toString().padLeft(2, '0')}';
+  final rows = await SupabaseService.client
+      .from('tagesplaene')
+      .select('eintraege')
+      .eq('datum', datumStr)
+      .limit(1);
+  final bestehend = rows.isEmpty
+      ? <TourEintrag>[]
+      : ((rows.first['eintraege'] as List<dynamic>?) ?? const [])
+            .map((e) => tourEintragFromJson(Map<String, dynamic>.from(e)))
+            .toList();
+  await tagesplanSpeichern(tagOhneZeit, planNachAnhaengen(bestehend, neu));
   ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
 }
 
