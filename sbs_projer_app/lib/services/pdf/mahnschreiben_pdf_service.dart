@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 /// Ein Rechnungsposten des Sammelschreibens: die Rechnung und die Mahnstufe,
 /// in der SIE steht (bei einer Sammelmahnung können mehrere Rechnungen eines
@@ -43,7 +44,6 @@ class MahnschreibenPdfService {
   /// gleiche Rundung wie Rechnung und Kontoauszug (Review 23.09.2026, Minor 5:
   /// der QR-Betrag muss wie der Rechnungsbetrag runden, sonst zeigen Brief-
   /// tabelle und Zahlteil zwei leicht verschiedene Zahlen).
-  static double _roundTo5Rappen(double value) => (value * 20).roundToDouble() / 20;
 
   /// Text des Schreibens. Rein, ohne PDF-Widgets, damit die Formulierung ohne
   /// Rendering geprüft werden kann (`test/mahnschreiben_pdf_test.dart`).
@@ -351,7 +351,7 @@ class MahnschreibenPdfService {
           ),
         ),
         QrZahlteil.bauen(
-          _roundTo5Rappen(rechnung.betragBrutto),
+          rundeAuf5Rappen(rechnung.betragBrutto),
           kundeAddr,
           mitteilung: 'Rechnung ${rechnung.rechnungsnummer ?? ''}',
           referenz: rechnung.qrReferenz,

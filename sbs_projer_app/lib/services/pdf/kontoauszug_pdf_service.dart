@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 /// Eine Bewegung auf dem Kunden-Konto: Rechnung (Soll) oder Zahlung (Haben).
 class _Bewegung {
@@ -351,7 +352,8 @@ class KontoauszugPdfService {
     // beliebig viele Seiten mit Rand. Beides auf derselben Seite ginge nur mit
     // reserviertem Fussraum auf JEDER Seite — die eigene Seite ist die
     // normkonforme und im Alltag übliche Lösung (Perforation).
-    final zahlbar = _rundeAuf5Rappen(offenerSaldo);
+    // Auf 5 Rappen — ein Einzahlungsschein über 113.47 wäre nicht bezahlbar.
+    final zahlbar = rundeAuf5Rappen(offenerSaldo);
     if (!mitZahlteil || zahlbar <= 0) {
       return 0;
     }
@@ -388,9 +390,6 @@ class KontoauszugPdfService {
     return 1;
   }
 
-  /// Auf 5 Rappen runden — ein Einzahlungsschein über 113.47 wäre in der
-  /// Schweiz nicht bezahlbar.
-  static double _rundeAuf5Rappen(double v) => (v * 20).roundToDouble() / 20;
 
   /// Die Referenz für den Einzahlungsschein. Öffentlich, damit die Regel
   /// prüfbar ist — `test/kontoauszug_jahr_test.dart`.

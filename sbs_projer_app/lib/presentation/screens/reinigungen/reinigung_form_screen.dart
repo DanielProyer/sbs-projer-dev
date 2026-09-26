@@ -44,6 +44,7 @@ import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 class ReinigungFormScreen extends ConsumerStatefulWidget {
   final String? reinigungId; // null = neu
@@ -1397,9 +1398,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     super.dispose();
   }
 
-  double _roundTo5Rappen(double value) {
-    return (value * 20).roundToDouble() / 20;
-  }
 
   /// MwSt-Satz (Prozent) der zum Reinigungsdatum geladenen Preisliste.
   double get _mwstSatzProzent =>
@@ -1442,7 +1440,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     // Bergkunden-Zuschlag NICHT in Netto/Brutto — wird Heineken separat verrechnet
     final netto = grundtarif + zusatz;
     final mwstSatz = _mwstSatzProzent;
-    final brutto = _roundTo5Rappen(netto * (1 + mwstSatz / 100));
+    final brutto = rundeAuf5Rappen(netto * (1 + mwstSatz / 100));
     final mwst = brutto - netto;
 
     return {

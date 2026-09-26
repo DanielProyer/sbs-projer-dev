@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dar
 import 'package:sbs_projer_app/services/buchhaltung/mwst_faktor.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 /// Zahlungsarten, die eine Debitoren-Buchung auslösen. 'jahresrechnung' ist
 /// dabei, obwohl sie KEINE Einzelrechnung erzeugt — die Forderung entsteht
@@ -39,8 +40,6 @@ bool brauchtErtragsbuchung({
 
 class ReinigungBuchungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
-  /// Schweizer Rappenrundung: auf 5 Rappen (0.05 CHF) runden.
-  static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
 
   /// Netto-Betrag einer Reinigung — auch für die Nachhol-Suche, damit dort
   /// dieselbe Zahl über «buchen oder nicht» entscheidet wie hier.
@@ -130,7 +129,7 @@ class ReinigungBuchungService {
 
     // Beträge: 5-Rappen-Rundung für alle CHF-Beträge (Schweizer Standard)
     final bruttoRaw = netto * (1 + mwstSatz / 100);
-    final brutto = _round5Rappen(bruttoRaw);
+    final brutto = rundeAuf5Rappen(bruttoRaw);
     final mwstBetrag = _round2(brutto - netto);
 
     final zahlungsweg = istBar ? 'kasse' : 'rechnung';

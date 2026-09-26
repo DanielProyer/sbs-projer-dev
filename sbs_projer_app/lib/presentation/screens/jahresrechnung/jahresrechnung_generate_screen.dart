@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/services/rechnung/jahresrechnung_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 class JahresrechnungGenerateScreen extends ConsumerStatefulWidget {
   const JahresrechnungGenerateScreen({super.key});
@@ -32,7 +33,6 @@ class _JahresrechnungGenerateScreenState
   /// [JahresrechnungService.erstelleJahresrechnung] rechnet.
   MwstAngabe _mwst = MwstAngabe.fallback;
 
-  static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
 
   @override
@@ -149,7 +149,7 @@ class _JahresrechnungGenerateScreenState
     }
 
     final mwst = _round2(netto * _mwst.faktor);
-    final brutto = _round5Rappen(netto + mwst);
+    final brutto = rundeAuf5Rappen(netto + mwst);
     return (
       anzahlBetriebe: betriebe,
       anzahlReinigungen: reinigungen,
@@ -369,7 +369,7 @@ class _JahresrechnungGenerateScreenState
       0,
       (sum, r) => sum + JahresrechnungService.calcNetto(r, _mwst.faktor),
     );
-    final brutto = _round5Rappen(netto + _round2(netto * _mwst.faktor));
+    final brutto = rundeAuf5Rappen(netto + _round2(netto * _mwst.faktor));
     final dateFormat = DateFormat('dd.MM.');
 
     return Card(

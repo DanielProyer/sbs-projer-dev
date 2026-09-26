@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/services/spesen/beleg_bild_service.dart';
 import 'package:sbs_projer_app/services/spesen/beleg_scan_service.dart';
 import 'package:sbs_projer_app/services/spesen/spesen_import_service.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 class SpesenScannerScreen extends ConsumerStatefulWidget {
   const SpesenScannerScreen({super.key});
@@ -124,7 +125,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       );
 
   double _barRundung() =>
-      double.parse((runde5Rappen(_total()) - _total()).toStringAsFixed(2));
+      double.parse((rundeAuf5Rappen(_total()) - _total()).toStringAsFixed(2));
 
   Future<void> _datumWaehlen() async {
     final gewaehlt = await zeigeDatumsauswahl(
@@ -794,7 +795,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textSecondary)),
-                  Text('${runde5Rappen(_total()).toStringAsFixed(2)} CHF',
+                  Text('${rundeAuf5Rappen(_total()).toStringAsFixed(2)} CHF',
                       style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -866,7 +867,7 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
               const SizedBox(height: 8),
               Text(
                 'Bar gerundet auf 5 Rappen: '
-                '${runde5Rappen(_total()).toStringAsFixed(2)} CHF '
+                '${rundeAuf5Rappen(_total()).toStringAsFixed(2)} CHF '
                 '(${_barRundung() > 0 ? '+' : ''}'
                 '${_barRundung().toStringAsFixed(2)})',
                 style: const TextStyle(

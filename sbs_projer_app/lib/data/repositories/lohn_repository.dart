@@ -2,6 +2,7 @@ import 'package:sbs_projer_app/data/models/lohn_einstellungen.dart';
 import 'package:sbs_projer_app/data/models/lohn_abrechnung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 class LohnRepository {
   static String get _userId => SupabaseService.dataUserId;
@@ -45,19 +46,19 @@ class LohnRepository {
   /// Berechnet die Lohnabrechnung aus den Einstellungen + variablem Bruttolohn.
   static LohnAbrechnung berechnen(
       LohnEinstellungen e, DateTime datum, double brutto) {
-    final ahvAn = _runden5(brutto * e.ahvIvEoAnSatz / 100);
-    final alvAn = _runden5(brutto * e.alvAnSatz / 100);
-    final nbuAn = _runden5(brutto * e.nbuAnSatz / 100);
-    final bvgAn = _runden5(e.bvgAnBetrag);
-    final ktgAn = _runden5(brutto * e.ktgAnSatz / 100);
-    final netto = _runden5(brutto - ahvAn - alvAn - nbuAn - bvgAn - ktgAn);
+    final ahvAn = rundeAuf5Rappen(brutto * e.ahvIvEoAnSatz / 100);
+    final alvAn = rundeAuf5Rappen(brutto * e.alvAnSatz / 100);
+    final nbuAn = rundeAuf5Rappen(brutto * e.nbuAnSatz / 100);
+    final bvgAn = rundeAuf5Rappen(e.bvgAnBetrag);
+    final ktgAn = rundeAuf5Rappen(brutto * e.ktgAnSatz / 100);
+    final netto = rundeAuf5Rappen(brutto - ahvAn - alvAn - nbuAn - bvgAn - ktgAn);
 
-    final ahvAg = _runden5(brutto * e.ahvIvEoAgSatz / 100);
-    final alvAg = _runden5(brutto * e.alvAgSatz / 100);
-    final buAg = _runden5(brutto * e.buAgSatz / 100);
-    final fakAg = _runden5(brutto * e.fakAgSatz / 100);
-    final bvgAg = _runden5(e.bvgAgBetrag);
-    final ktgAg = _runden5(brutto * e.ktgAgSatz / 100);
+    final ahvAg = rundeAuf5Rappen(brutto * e.ahvIvEoAgSatz / 100);
+    final alvAg = rundeAuf5Rappen(brutto * e.alvAgSatz / 100);
+    final buAg = rundeAuf5Rappen(brutto * e.buAgSatz / 100);
+    final fakAg = rundeAuf5Rappen(brutto * e.fakAgSatz / 100);
+    final bvgAg = rundeAuf5Rappen(e.bvgAgBetrag);
+    final ktgAg = rundeAuf5Rappen(brutto * e.ktgAgSatz / 100);
 
     return LohnAbrechnung(
       id: '',
@@ -233,7 +234,4 @@ class LohnRepository {
     };
   }
 
-  static double _runden5(double betrag) {
-    return (betrag * 20).round() / 20;
-  }
 }

@@ -34,6 +34,7 @@ import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 /// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
 class MontageVorbefuellung {
@@ -567,19 +568,18 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
     final haehneBrutto =
         (grundtarif + hahnZuschlag) * (1 + _preisliste!.mwstFaktor);
     final bergkunde = _istBergkunde ? _preisliste!.bergkundenZuschlag : 0.0;
-    return _round5Rappen(haehneBrutto + bergkunde);
+    return rundeAuf5Rappen(haehneBrutto + bergkunde);
   }
 
   /// Brutto-Einzelpreise für Anzeige
-  double _grundtarifBrutto() => _round5Rappen(
+  double _grundtarifBrutto() => rundeAuf5Rappen(
     _preisliste!.grundtarifHeigenie * (1 + _preisliste!.mwstFaktor),
   );
 
-  double _zusatzHahnBrutto() => _round5Rappen(
+  double _zusatzHahnBrutto() => rundeAuf5Rappen(
     _preisliste!.zusatzHahnEigen * (1 + _preisliste!.mwstFaktor),
   );
 
-  static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
 
   // ── Save ──────────────────────────────────────────────────────────
 
@@ -1355,7 +1355,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                 if (_anzahlHaehne > 1)
                   _preisRow(
                     '${_anzahlHaehne - 1} Zusatz-Hähne × ${_zusatzHahnBrutto().toStringAsFixed(2)}',
-                    '${_round5Rappen(_zusatzHahnBrutto() * (_anzahlHaehne - 1)).toStringAsFixed(2)} CHF',
+                    '${rundeAuf5Rappen(_zusatzHahnBrutto() * (_anzahlHaehne - 1)).toStringAsFixed(2)} CHF',
                   ),
                 if (_istBergkunde)
                   _preisRow(

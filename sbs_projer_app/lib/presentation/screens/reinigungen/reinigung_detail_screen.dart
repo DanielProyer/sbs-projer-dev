@@ -29,6 +29,7 @@ import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_provid
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 class ReinigungDetailScreen extends ConsumerWidget {
   final String reinigungId;
@@ -238,9 +239,6 @@ class _ReinigungDetailContent extends ConsumerWidget {
         r.servicekarteAusgefuellt;
   }
 
-  static double _roundTo5Rappen(double value) {
-    return (value * 20).roundToDouble() / 20;
-  }
 
   static String _serviceArtLabel(String serviceArt) {
     return switch (serviceArt) {
@@ -1130,7 +1128,7 @@ class _PreisCard extends StatelessWidget {
     final artColor = kulanz ? AppColors.warning : AppColors.primary;
 
     final brutto = reinigung.preisBrutto != null
-        ? _ReinigungDetailContent._roundTo5Rappen(reinigung.preisBrutto!)
+        ? rundeAuf5Rappen(reinigung.preisBrutto!)
         : null;
     final mwst = (brutto != null && reinigung.preisNetto != null)
         ? brutto - reinigung.preisNetto!

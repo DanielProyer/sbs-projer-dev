@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 /// Eine Zeile im Summenblock der Rechnung (rein, testbar).
 class SummenZeile {
@@ -357,7 +358,7 @@ class RechnungPdfService {
   /// Betrag auf dem QR-Zahlteil: was der Kunde zahlt (nach Verrechnung
   /// eines Kundenguthabens), auf 5 Rappen.
   static double qrBetrag(Rechnung rechnung) =>
-      _roundTo5Rappen(rechnung.zuZahlen);
+      rundeAuf5Rappen(rechnung.zuZahlen);
 
   /// Zahlteil nur, wenn etwas zu zahlen ist — deckt das Guthaben alles,
   /// wäre ein Einzahlungsschein über 0.00 verwirrend (Review I2).
@@ -383,7 +384,7 @@ class RechnungPdfService {
       SummenZeile('MwSt $satz%', rechnung.mwstBetrag),
       SummenZeile(
         'Total CHF',
-        _roundTo5Rappen(rechnung.betragBrutto),
+        rundeAuf5Rappen(rechnung.betragBrutto),
         fett: true,
         linieDavor: true,
       ),
@@ -476,9 +477,6 @@ class RechnungPdfService {
     return value.toStringAsFixed(2);
   }
 
-  static double _roundTo5Rappen(double value) {
-    return (value * 20).roundToDouble() / 20;
-  }
 
   // Adressaufbau: siehe core/util/rechnungsadresse_zeilen.dart (eine Wahrheit
   // für Rechnung, Mahnung und Kontoauszug, per Test abgesichert).

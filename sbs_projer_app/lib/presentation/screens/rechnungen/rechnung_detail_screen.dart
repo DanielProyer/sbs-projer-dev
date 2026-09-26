@@ -36,6 +36,7 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 class RechnungDetailScreen extends ConsumerWidget {
   final String rechnungId;
@@ -449,7 +450,7 @@ class _RechnungDetailContentState
               const Divider(),
               _SummenRow(
                 'Total CHF',
-                (_rechnung.betragBrutto * 20).roundToDouble() / 20,
+                rundeAuf5Rappen(_rechnung.betragBrutto),
                 bold: true,
               ),
               if (_rechnung.guthabenVerrechnet > 0) ...[
@@ -459,7 +460,7 @@ class _RechnungDetailContentState
                 ),
                 _SummenRow(
                   'Zu zahlen CHF',
-                  (_rechnung.zuZahlen * 20).roundToDouble() / 20,
+                  rundeAuf5Rappen(_rechnung.zuZahlen),
                   bold: true,
                 ),
               ],

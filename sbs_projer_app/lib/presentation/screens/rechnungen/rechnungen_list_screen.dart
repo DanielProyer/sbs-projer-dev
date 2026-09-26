@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 const _monatNamen = [
   '',
@@ -1191,7 +1192,7 @@ class _RechnungListItem extends StatelessWidget {
     final parts = <String>[];
     if (betriebName != null) parts.add(betriebName!);
     parts.add(_formatDate(rechnung.rechnungsdatum));
-    final brutto = (rechnung.betragBrutto * 20).roundToDouble() / 20;
+    final brutto = rundeAuf5Rappen(rechnung.betragBrutto);
     parts.add('CHF ${brutto.toStringAsFixed(2)}');
     if (aktionLabel != null) parts.add('$aktionLabel fällig');
     return parts.join(' · ');

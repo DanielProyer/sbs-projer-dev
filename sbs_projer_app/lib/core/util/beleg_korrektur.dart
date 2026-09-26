@@ -1,7 +1,5 @@
 // Reine Rechen- und Prüflogik rund um den Spesenbeleg-Scan.
-
-/// Schweizer 5-Rappen-Rundung.
-double runde5Rappen(double betrag) => (betrag * 20).roundToDouble() / 20;
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 double _zwei(double v) => double.parse(v.toStringAsFixed(2));
 
@@ -16,7 +14,7 @@ List<double> verteileBarRundung(List<double> betraege) {
 
   final positionen = betraege.map(_zwei).toList();
   final summe = positionen.reduce((a, b) => a + b);
-  final differenz = _zwei(runde5Rappen(summe) - summe);
+  final differenz = _zwei(rundeAuf5Rappen(summe) - summe);
   if (differenz == 0) return positionen;
 
   var groesster = 0;

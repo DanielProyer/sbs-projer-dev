@@ -1,13 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/beleg_korrektur.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 
 void main() {
-  group('runde5Rappen', () {
+  group('rundeAuf5Rappen', () {
     test('rundet kaufmännisch auf 5 Rappen', () {
-      expect(runde5Rappen(89.68), 89.70);
-      expect(runde5Rappen(6.72), 6.70);
-      expect(runde5Rappen(10.13), 10.15);
-      expect(runde5Rappen(0.02), 0.0);
+      expect(rundeAuf5Rappen(89.68), 89.70);
+      expect(rundeAuf5Rappen(6.72), 6.70);
+      expect(rundeAuf5Rappen(10.13), 10.15);
+      expect(rundeAuf5Rappen(0.02), 0.0);
     });
   });
 
@@ -28,7 +29,7 @@ void main() {
       ]) {
         final r = verteileBarRundung(fall);
         final summe = r.reduce((a, b) => a + b);
-        final total = runde5Rappen(fall.reduce((a, b) => a + b));
+        final total = rundeAuf5Rappen(fall.reduce((a, b) => a + b));
         expect(summe, closeTo(total, 0.001), reason: '$fall');
       }
     });
