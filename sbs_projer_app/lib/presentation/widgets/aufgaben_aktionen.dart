@@ -33,19 +33,34 @@ class AufgabenAktionen {
     ref.invalidate(aufgabenListeProvider);
   }
 
-  Future<void> _sicher(BuildContext context, Future<void> Function() f) async {
+  Future<void> _sicher(BuildContext context, Future<void> Function() f) =>
+      _sicherMit(ScaffoldMessenger.maybeOf(context), f);
+
+  /// Wie [_sicher], mit einem VORHER geholten [messenger] — für Abläufe, in
+  /// denen erst ein Sheet offen war: danach den Kontext zu fragen, ist nicht
+  /// mehr sicher, und ein `mounted`-Abbruch wäre genau der stille Abbruch,
+  /// den diese Klasse ausschliesst.
+  Future<void> _sicherMit(
+    ScaffoldMessengerState? messenger,
+    Future<void> Function() f, {
+    String praefix = 'Fehler',
+  }) async {
     try {
       await f();
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
-        );
-      }
+      messenger?.showSnackBar(
+        SnackBar(content: Text('$praefix: ${kurzeFehlermeldung(e)}')),
+      );
     } finally {
       _neuLaden();
     }
   }
+
+  /// Meldung, wenn [einsatzUmplanen] scheitert. Welcher der drei Schritte
+  /// (Plandatum, alter Tag, neuer Tag) es war, ist offen — deshalb der
+  /// Hinweis auf den Tagesplan statt «nicht eingeplant».
+  static const _umplanenFehler =
+      'Einplanen nicht vollständig — bitte Tagesplan prüfen';
 
   /// «Dorthin». Im Sheet erst das Sheet schliessen — der Router-Push aus
   /// dem Sheet-Kontext heraus landete sonst unter dem Sheet.
@@ -106,6 +121,8 @@ class AufgabenAktionen {
   Future<void> einplanen(BuildContext context, AufgabenEintrag a) async {
     final e = a.einsatz;
     if (e == null) return;
+    // Vor dem Sheet holen — siehe [_sicherMit].
+    final messenger = ScaffoldMessenger.maybeOf(context);
     final lookup = ref.read(betriebLookupProvider);
     if (e.typ == EinsatzTyp.stoerung) {
       final s = ref
@@ -131,36 +148,41 @@ class AufgabenAktionen {
       // dort als „Geisterblock" stehen (Fehlerbericht 02.08.2026,
       // beide Teile).
       final altesDatum = s.geplantAm;
-      await einsatzUmplanen(
-        ref,
-        altesDatum: altesDatum,
-        neuesDatum: ergebnis.tag,
-        schreiben: () async {
-          await StoerungRepository.einplanen(
-            id: s.routeId,
+      // Ein Fehler (z. B. Tagesplan nicht ladbar) wird gemeldet, nicht
+      // verschluckt — bis 26.09.2026 lief er hier ungefangen durch.
+      await _sicherMit(
+        messenger,
+        praefix: _umplanenFehler,
+        () => einsatzUmplanen(
+          ref,
+          altesDatum: altesDatum,
+          neuesDatum: ergebnis.tag,
+          schreiben: () async {
+            await StoerungRepository.einplanen(
+              id: s.routeId,
+              tag: ergebnis.tag,
+              zeit: ergebnis.zeit,
+              dauerMin: ergebnis.dauerMin,
+            );
+            ref.invalidate(stoerungenStreamProvider);
+          },
+          eintrag: geplanterEinsatzEintrag(
+            typ: TourEintragTyp.stoerung,
+            routeId: s.routeId,
+            betriebId: s.betriebId,
+            anlageId: s.anlageId,
+            betriebName: betrieb?.name ?? '?',
+            betriebOrt: betrieb?.ort,
+            regionId: betrieb?.regionId,
+            beschreibung: s.problemBeschreibung,
+            ruhetage: betrieb?.ruhetage ?? const [],
+            servicezeit: servicezeitAus(betrieb),
             tag: ergebnis.tag,
             zeit: ergebnis.zeit,
             dauerMin: ergebnis.dauerMin,
-          );
-          ref.invalidate(stoerungenStreamProvider);
-        },
-        eintrag: geplanterEinsatzEintrag(
-          typ: TourEintragTyp.stoerung,
-          routeId: s.routeId,
-          betriebId: s.betriebId,
-          anlageId: s.anlageId,
-          betriebName: betrieb?.name ?? '?',
-          betriebOrt: betrieb?.ort,
-          regionId: betrieb?.regionId,
-          beschreibung: s.problemBeschreibung,
-          ruhetage: betrieb?.ruhetage ?? const [],
-          servicezeit: servicezeitAus(betrieb),
-          tag: ergebnis.tag,
-          zeit: ergebnis.zeit,
-          dauerMin: ergebnis.dauerMin,
+          ),
         ),
       );
-      _neuLaden();
     } else if (e.typ == EinsatzTyp.montage) {
       final m = ref
           .read(montagenProvider)
@@ -185,39 +207,42 @@ class AufgabenAktionen {
       // dort als „Geisterblock" stehen (Fehlerbericht 02.08.2026,
       // beide Teile).
       final altesDatum = m.geplantAm;
-      await einsatzUmplanen(
-        ref,
-        altesDatum: altesDatum,
-        neuesDatum: ergebnis.tag,
-        schreiben: () async {
-          await MontageRepository.einplanen(
-            id: m.routeId,
+      await _sicherMit(
+        messenger,
+        praefix: _umplanenFehler,
+        () => einsatzUmplanen(
+          ref,
+          altesDatum: altesDatum,
+          neuesDatum: ergebnis.tag,
+          schreiben: () async {
+            await MontageRepository.einplanen(
+              id: m.routeId,
+              tag: ergebnis.tag,
+              zeit: ergebnis.zeit,
+              dauerMin: ergebnis.dauerMin,
+            );
+            ref.invalidate(montagenStreamProvider);
+          },
+          eintrag: geplanterEinsatzEintrag(
+            typ: m.montageTyp == 'heigenie_service'
+                ? TourEintragTyp.heigenie
+                : TourEintragTyp.montage,
+            routeId: m.routeId,
+            betriebId: m.betriebId,
+            anlageId: m.anlageId,
+            betriebName: betrieb?.name ?? '?',
+            betriebOrt: betrieb?.ort,
+            regionId: betrieb?.regionId,
+            beschreibung: m.beschreibung,
+            ruhetage: betrieb?.ruhetage ?? const [],
+            servicezeit: servicezeitAus(betrieb),
             tag: ergebnis.tag,
             zeit: ergebnis.zeit,
             dauerMin: ergebnis.dauerMin,
-          );
-          ref.invalidate(montagenStreamProvider);
-        },
-        eintrag: geplanterEinsatzEintrag(
-          typ: m.montageTyp == 'heigenie_service'
-              ? TourEintragTyp.heigenie
-              : TourEintragTyp.montage,
-          routeId: m.routeId,
-          betriebId: m.betriebId,
-          anlageId: m.anlageId,
-          betriebName: betrieb?.name ?? '?',
-          betriebOrt: betrieb?.ort,
-          regionId: betrieb?.regionId,
-          beschreibung: m.beschreibung,
-          ruhetage: betrieb?.ruhetage ?? const [],
-          servicezeit: servicezeitAus(betrieb),
-          tag: ergebnis.tag,
-          zeit: ergebnis.zeit,
-          dauerMin: ergebnis.dauerMin,
-          montageTyp: m.montageTyp,
+            montageTyp: m.montageTyp,
+          ),
         ),
       );
-      _neuLaden();
     }
   }
 }

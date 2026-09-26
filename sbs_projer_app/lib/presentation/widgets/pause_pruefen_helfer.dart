@@ -34,8 +34,7 @@ Future<void> pausePruefenNachEreignis(
   try {
     final heute = DateTime.now();
     final tag = DateTime(heute.year, heute.month, heute.day);
-    final at = ref.read(arbeitstagProvider(tag));
-    final pauseStart = at.pauseStart;
+    final pauseStart = ref.read(arbeitstagProvider(tag)).pauseStart;
     if (pauseStart == null) return; // keine Pause aktiv
 
     final pauseStartMinuten = minutenAusHhmm(pauseStart);
@@ -101,6 +100,32 @@ Future<void> pausePruefenNachEreignis(
     );
     if (antwort == null) return; // weggetippt: Pause laeuft einfach weiter
 
+    // Das Speichern unten schreibt Beginn/Ende/km IMMER mit. Ist der
+    // gespeicherte Stand nicht verlaesslich geladen, hiesse der Beginn
+    // `null` — der erfasste Arbeitsbeginn waere geloescht (Review
+    // 26.09.2026). Dann nichts schreiben, die Pause laeuft weiter.
+    ScaffoldMessengerState? messenger;
+    if (context.mounted) messenger = ScaffoldMessenger.maybeOf(context);
+    if (!arbeitstagStandBereit(
+      ref,
+      tag,
+      messenger,
+      meldung:
+          'Pause nicht beendet — Tagesplan nicht geladen. Bitte über '
+          '«Pause aus» beenden.',
+    )) {
+      return;
+    }
+    final beginnDb = ref
+        .read(gespeicherterTagesplanProvider(tag))
+        .valueOrNull
+        ?.arbeitsbeginn;
+    // Den Stand JETZT nehmen, nicht den von vor GPS und Rückfrage: Ende und
+    // km werden mitgeschrieben. Ist die Pause inzwischen anders beendet
+    // worden, gibt es nichts mehr zu tun.
+    final at = ref.read(arbeitstagProvider(tag));
+    if (at.pauseStart != pauseStart) return;
+
     final bisherigeSumme = at.pauseMinuten ?? 0;
     var neueSumme = bisherigeSumme;
     if (antwort is PausePruefenEnde) {
@@ -126,10 +151,6 @@ Future<void> pausePruefenNachEreignis(
     );
     ref.read(arbeitstagProvider(tag).notifier).state = neu;
 
-    final beginnDb = ref
-        .read(gespeicherterTagesplanProvider(tag))
-        .valueOrNull
-        ?.arbeitsbeginn;
     await arbeitstagFelderSpeichern(
       tag,
       const [],

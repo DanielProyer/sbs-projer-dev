@@ -273,6 +273,50 @@ void main() {
     });
   });
 
+  // M4 (Review 26.09.2026): Die Arbeitstag-Schreiber schreiben Beginn, Ende
+  // und km IMMER. Bei einem Ladefehler hiess der erfasste Beginn `null` — ein
+  // Tipp auf «Pause» löschte ihn.
+  group('arbeitstagSchreibbereit', () {
+    const keinPlan = AsyncData<GespeicherterTagesplan?>(null);
+
+    test('geladen (auch «keine Zeile») → darf schreiben', () {
+      expect(arbeitstagSchreibbereit(keinPlan), isTrue);
+    });
+
+    test('lädt zum ersten Mal → nicht schreiben', () {
+      expect(
+        arbeitstagSchreibbereit(const AsyncLoading<GespeicherterTagesplan?>()),
+        isFalse,
+      );
+    });
+
+    test('Ladefehler → nicht schreiben', () {
+      expect(
+        arbeitstagSchreibbereit(
+          AsyncError<GespeicherterTagesplan?>('offline', StackTrace.empty),
+        ),
+        isFalse,
+      );
+    });
+
+    test('lädt neu nach dem Speichern → nicht auf dem alten Wert schreiben',
+        () {
+      final neuLaden = const AsyncLoading<GespeicherterTagesplan?>()
+          .copyWithPrevious(keinPlan);
+      expect(neuLaden.hasValue, isTrue);
+      expect(arbeitstagSchreibbereit(neuLaden), isFalse);
+    });
+
+    test('Fehler beim Neuladen mit altem Wert → nicht schreiben', () {
+      final fehler = AsyncError<GespeicherterTagesplan?>(
+        'offline',
+        StackTrace.empty,
+      ).copyWithPrevious(keinPlan);
+      expect(fehler.hasValue, isTrue);
+      expect(arbeitstagSchreibbereit(fehler), isFalse);
+    });
+  });
+
   // Review 26.09.2026 (Klein b): Im Lade-Fenster zählte die Wochenleiste
   // unter dem neuen Tag die Einträge des Plans vom vorigen Tag.
   group('tagesCountsProvider im Lade-Fenster', () {

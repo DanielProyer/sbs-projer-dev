@@ -35,6 +35,8 @@ import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/tagesplan_verschieben.dart'
+    show kurzTag;
 import 'package:sbs_projer_app/core/util/rundung.dart';
 
 /// Vorbefüllung für eine neue Anlass-Montage (aus dem Event-Zeit-Tab, E4).
@@ -739,8 +741,27 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
           m.geplantAm!.month,
           m.geplantAm!.day,
         );
+        // Nicht abgewartet, aber abgefangen: scheitert das Laden des Plans,
+        // steht der Block dort noch — das soll man erfahren (Review
+        // 26.09.2026). Der Messenger jetzt, der Screen ist gleich weg.
+        ScaffoldMessengerState? messenger;
+        if (mounted) messenger = ScaffoldMessenger.of(context);
         unawaited(
-          einsatzAusTagesplanEntfernen(ref, geplanterTag, 'm_${m.routeId}'),
+          einsatzAusTagesplanEntfernen(
+            ref,
+            geplanterTag,
+            'm_${m.routeId}',
+          ).catchError((Object e) {
+            debugPrint('[Montage] Aus Tagesplan entfernen fehlgeschlagen: $e');
+            messenger?.showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Montage steht evtl. noch im Tagesplan vom '
+                  '${kurzTag(geplanterTag)}: ${kurzeFehlermeldung(e)}',
+                ),
+              ),
+            );
+          }),
         );
       }
       // Wegpunkt beim NEU-Erfassen einer sofort erledigten Montage UND beim

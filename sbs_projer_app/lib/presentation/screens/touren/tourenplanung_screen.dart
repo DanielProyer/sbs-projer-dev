@@ -2320,7 +2320,12 @@ class _BlockSheet extends ConsumerWidget {
     void ersetze(TourEintrag neu) {
       ref.read(tagesplanProvider.notifier).ersetze(eintragId, neu);
       if (neu.typ != TourEintragTyp.reinigung) {
-        _einsatzEinplanungZurueckschreiben(ref, neu, datum);
+        _einsatzEinplanungZurueckschreiben(
+          ref,
+          neu,
+          datum,
+          ScaffoldMessenger.maybeOf(context),
+        );
       }
     }
 
@@ -2600,11 +2605,14 @@ class _BlockSheet extends ConsumerWidget {
 /// `MontageRepository.einplanen`). `eintrag.id` trägt das Präfix `s_`/`m_`
 /// vor der eigentlichen `routeId` (siehe `faelligeEintraegeProvider`,
 /// gleiche Konvention wie `_navigateToDetail`). Fire-and-forget, dann die
-/// Störung/Montage-Liste auffrischen (Web lädt sonst nicht neu).
+/// Störung/Montage-Liste auffrischen (Web lädt sonst nicht neu). Fehler
+/// landen im Log und — solange es ihn gibt — über [messenger] beim Nutzer;
+/// bis 26.09.2026 liefen sie ungefangen durch (Review).
 void _einsatzEinplanungZurueckschreiben(
   WidgetRef ref,
   TourEintrag eintrag,
   DateTime datum,
+  ScaffoldMessengerState? messenger,
 ) {
   final id = eintrag.id.substring(2);
   final dauer = eintrag.dauerMinuten ?? kDauerDefaultMinuten;
@@ -2628,27 +2636,53 @@ void _einsatzEinplanungZurueckschreiben(
     }
   }
 
-  if (eintrag.typ == TourEintragTyp.stoerung) {
-    StoerungRepository.einplanen(
-      id: id,
-      tag: datum,
-      zeit: eintrag.ankerZeit,
-      dauerMin: dauer,
-    ).then((_) {
-      ref.invalidate(stoerungenStreamProvider);
-      alterEintragAufraeumen();
-    });
-  } else {
-    MontageRepository.einplanen(
-      id: id,
-      tag: datum,
-      zeit: eintrag.ankerZeit,
-      dauerMin: dauer,
-    ).then((_) {
-      ref.invalidate(montagenStreamProvider);
-      alterEintragAufraeumen();
-    });
+  void melden(String text, Object e) {
+    debugPrint('[Tourenplan] $text: $e');
+    messenger?.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text('$text: ${kurzeFehlermeldung(e)}'),
+      ),
+    );
   }
+
+  Future<void> zurueckschreiben() async {
+    try {
+      if (eintrag.typ == TourEintragTyp.stoerung) {
+        await StoerungRepository.einplanen(
+          id: id,
+          tag: datum,
+          zeit: eintrag.ankerZeit,
+          dauerMin: dauer,
+        );
+        ref.invalidate(stoerungenStreamProvider);
+      } else {
+        await MontageRepository.einplanen(
+          id: id,
+          tag: datum,
+          zeit: eintrag.ankerZeit,
+          dauerMin: dauer,
+        );
+        ref.invalidate(montagenStreamProvider);
+      }
+    } catch (e) {
+      melden('Zeit/Dauer nicht am Einsatz gespeichert', e);
+      return;
+    }
+    try {
+      await alterEintragAufraeumen();
+    } catch (e) {
+      final alt = altesDatum;
+      melden(
+        alt == null
+            ? 'Alter Plan-Eintrag nicht entfernt'
+            : 'Steht evtl. noch im Tagesplan vom ${kurzTag(alt)}',
+        e,
+      );
+    }
+  }
+
+  unawaited(zurueckschreiben());
 }
 
 /// Plan-Eintrag für den Zieltag. Bei Einsätzen zieht `geplantAm` mit — das
@@ -2869,6 +2903,10 @@ class _ArbeitstagZeile extends ConsumerWidget {
       // nur im debugPrint, und der Datum-Guard brach wortlos ab — es sah
       // beides nach «gespeichert» aus, obwohl nichts geschrieben wurde.
       final messenger = ScaffoldMessenger.of(context);
+      // Das Speichern unten reicht den Ist-Beginn aus dem gespeicherten Plan
+      // durch und schreibt ihn IMMER — bei einem Ladefehler als `null`, der
+      // erfasste Arbeitsbeginn wäre gelöscht (Review 26.09.2026).
+      if (!arbeitstagStandBereit(ref, datum, messenger)) return;
       ref.read(arbeitstagProvider(datum).notifier).state = neu;
       // Datum-Guard: gehört der In-Memory-Plan inzwischen einem anderen Tag
       // (Tagwechsel während des Dialogs), würde der Fallback-Pfad die Einträge
@@ -3306,6 +3344,8 @@ class _FaelligEintragKarte extends ConsumerWidget {
   /// trägt das Präfix `s_`/`m_` vor der `routeId` — gleiche Konvention wie
   /// `_navigateToDetail` im Screen.
   Future<void> _einplanen(BuildContext context, WidgetRef ref) async {
+    // Vor dem Sheet holen: danach kann die Kachel schon neu aufgebaut sein.
+    final messenger = ScaffoldMessenger.maybeOf(context);
     final ergebnis = await zeigeEinplanenSheet(
       context,
       titel: eintrag.betriebOrt != null && eintrag.betriebOrt!.isNotEmpty
@@ -3324,45 +3364,61 @@ class _FaelligEintragKarte extends ConsumerWidget {
     // ohne das Entfernen aus dem alten Tag bleibt er dort als
     // „Geisterblock" stehen (Fehlerbericht 02.08.2026, beide Teile).
     final altesDatum = eintrag.geplantAm;
-    await einsatzUmplanen(
-      ref,
-      altesDatum: altesDatum,
-      neuesDatum: ergebnis.tag,
-      schreiben: () async {
-        if (eintrag.typ == TourEintragTyp.stoerung) {
-          await StoerungRepository.einplanen(
-            id: id,
-            tag: ergebnis.tag,
-            zeit: ergebnis.zeit,
-            dauerMin: ergebnis.dauerMin,
-          );
-          ref.invalidate(stoerungenStreamProvider);
-        } else {
-          await MontageRepository.einplanen(
-            id: id,
-            tag: ergebnis.tag,
-            zeit: ergebnis.zeit,
-            dauerMin: ergebnis.dauerMin,
-          );
-          ref.invalidate(montagenStreamProvider);
-        }
-      },
-      eintrag: geplanterEinsatzEintrag(
-        typ: eintrag.typ,
-        routeId: id,
-        betriebId: eintrag.betriebId,
-        anlageId: eintrag.anlageId,
-        betriebName: eintrag.betriebName,
-        betriebOrt: eintrag.betriebOrt,
-        regionId: eintrag.regionId,
-        beschreibung: eintrag.beschreibung,
-        ruhetage: eintrag.ruhetage,
-        servicezeit: eintrag.servicezeit,
-        tag: ergebnis.tag,
-        zeit: ergebnis.zeit,
-        dauerMin: ergebnis.dauerMin,
-      ),
-    );
+    // Ein Fehler (z. B. Tagesplan nicht ladbar) wird gemeldet — bis
+    // 26.09.2026 lief er hier ungefangen durch. Welcher Schritt scheiterte,
+    // ist offen, deshalb der Hinweis auf den Tagesplan.
+    try {
+      await einsatzUmplanen(
+        ref,
+        altesDatum: altesDatum,
+        neuesDatum: ergebnis.tag,
+        schreiben: () async {
+          if (eintrag.typ == TourEintragTyp.stoerung) {
+            await StoerungRepository.einplanen(
+              id: id,
+              tag: ergebnis.tag,
+              zeit: ergebnis.zeit,
+              dauerMin: ergebnis.dauerMin,
+            );
+            ref.invalidate(stoerungenStreamProvider);
+          } else {
+            await MontageRepository.einplanen(
+              id: id,
+              tag: ergebnis.tag,
+              zeit: ergebnis.zeit,
+              dauerMin: ergebnis.dauerMin,
+            );
+            ref.invalidate(montagenStreamProvider);
+          }
+        },
+        eintrag: geplanterEinsatzEintrag(
+          typ: eintrag.typ,
+          routeId: id,
+          betriebId: eintrag.betriebId,
+          anlageId: eintrag.anlageId,
+          betriebName: eintrag.betriebName,
+          betriebOrt: eintrag.betriebOrt,
+          regionId: eintrag.regionId,
+          beschreibung: eintrag.beschreibung,
+          ruhetage: eintrag.ruhetage,
+          servicezeit: eintrag.servicezeit,
+          tag: ergebnis.tag,
+          zeit: ergebnis.zeit,
+          dauerMin: ergebnis.dauerMin,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[Tourenplan] Einplanen fehlgeschlagen: $e');
+      messenger?.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text(
+            'Einplanen nicht vollständig — bitte Tagesplan prüfen: '
+            '${kurzeFehlermeldung(e)}',
+          ),
+        ),
+      );
+    }
   }
 }
 

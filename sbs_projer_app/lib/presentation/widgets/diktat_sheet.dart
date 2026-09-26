@@ -27,6 +27,8 @@ import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
 import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_entwurf_speicher.dart';
 import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/tagesplan_verschieben.dart'
+    show kurzTag;
 import 'package:sbs_projer_app/core/util/telefon.dart';
 
 /// Zeigt das Diktier-Sheet: freier Text (übers Mikrofon der Tastatur
@@ -337,6 +339,11 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
       return;
     }
     setState(() => _loading = true);
+    // Meldung für Schritte NACH dem Speichern (Einplanen, Tagesplan): Ist
+    // der Einsatz schon gespeichert, darf ein Fehler dort nicht als
+    // «Speichern fehlgeschlagen» ankommen — ein zweiter Tipp legte ihn
+    // doppelt an (Review 26.09.2026).
+    String? hinweisNachSpeichern;
     try {
       final beschreibung = _beschreibungCtrl.text.trim();
       switch (_art) {
@@ -349,20 +356,19 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
             ..status = 'offen';
           await StoerungRepository.save(s);
           if (_geplantTag != null) {
-            await StoerungRepository.einplanen(
-              id: s.routeId,
-              tag: _geplantTag!,
-              zeit: _geplantZeit,
-              dauerMin: _geplantDauerMin,
-            );
-            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
-            // Zieltags, nie in der Zeitachse — siehe Doku bei
+            // Ohne das Aufnehmen landet der Einsatz nur in der Fällig-Liste
+            // des Zieltags, nie in der Zeitachse — siehe Doku bei
             // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
             final betrieb = ref.read(betriebLookupProvider)[_betriebId];
-            await einsatzInTagesplanAufnehmen(
-              ref,
-              _geplantTag!,
-              geplanterEinsatzEintrag(
+            hinweisNachSpeichern = await _einplanenNachSpeichern(
+              tag: _geplantTag!,
+              einplanen: () => StoerungRepository.einplanen(
+                id: s.routeId,
+                tag: _geplantTag!,
+                zeit: _geplantZeit,
+                dauerMin: _geplantDauerMin,
+              ),
+              eintrag: geplanterEinsatzEintrag(
                 typ: TourEintragTyp.stoerung,
                 routeId: s.routeId,
                 betriebId: _betriebId,
@@ -390,20 +396,17 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
             ..status = 'geplant';
           await MontageRepository.save(m);
           if (_geplantTag != null) {
-            await MontageRepository.einplanen(
-              id: m.routeId,
-              tag: _geplantTag!,
-              zeit: _geplantZeit,
-              dauerMin: _geplantDauerMin,
-            );
-            // Ohne das hier landet der Einsatz nur in der Fällig-Liste des
-            // Zieltags, nie in der Zeitachse — siehe Doku bei
-            // `einsatzInTagesplanAufnehmen` (Fehlerbericht 02.08.2026).
+            // Siehe Störung oben.
             final betrieb = ref.read(betriebLookupProvider)[_betriebId];
-            await einsatzInTagesplanAufnehmen(
-              ref,
-              _geplantTag!,
-              geplanterEinsatzEintrag(
+            hinweisNachSpeichern = await _einplanenNachSpeichern(
+              tag: _geplantTag!,
+              einplanen: () => MontageRepository.einplanen(
+                id: m.routeId,
+                tag: _geplantTag!,
+                zeit: _geplantZeit,
+                dauerMin: _geplantDauerMin,
+              ),
+              eintrag: geplanterEinsatzEintrag(
                 typ: TourEintragTyp.montage,
                 routeId: m.routeId,
                 betriebId: _betriebId,
@@ -451,9 +454,17 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
       }
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
+      // Auch mit Hinweis schliessen: gespeichert IST — offen lassen hiesse,
+      // dass ein zweiter Tipp auf Speichern den Einsatz doppelt anlegt.
       Navigator.of(context).pop();
+      final hinweis = hinweisNachSpeichern;
       messenger.showSnackBar(
-        SnackBar(content: Text('${_artLabel(_art)} gespeichert.')),
+        hinweis == null
+            ? SnackBar(content: Text('${_artLabel(_art)} gespeichert.'))
+            : SnackBar(
+                duration: const Duration(seconds: 10),
+                content: Text(hinweis),
+              ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -464,6 +475,35 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
         ),
       );
     }
+  }
+
+  /// Plant einen eben GESPEICHERTEN Einsatz ein und nimmt ihn in den
+  /// Tagesplan von [tag] auf. Fehler bleiben hier: der Aufrufer schliesst
+  /// das Sheet trotzdem und meldet den zurückgegebenen Hinweis — `null`,
+  /// wenn beides durchlief. Würde der Fehler weitergeworfen, meldete das
+  /// Sheet «Speichern fehlgeschlagen», bliebe offen, und ein zweiter Tipp
+  /// legte den Einsatz doppelt an (Review 26.09.2026).
+  Future<String?> _einplanenNachSpeichern({
+    required DateTime tag,
+    required Future<void> Function() einplanen,
+    required TourEintrag eintrag,
+  }) async {
+    final wann = kurzTag(tag);
+    try {
+      await einplanen();
+    } catch (e) {
+      debugPrint('[Diktat] Einplanen nach dem Speichern fehlgeschlagen: $e');
+      return '${_artLabel(_art)} gespeichert, aber nicht auf $wann '
+          'eingeplant: ${kurzeFehlermeldung(e)}';
+    }
+    try {
+      await einsatzInTagesplanAufnehmen(ref, tag, eintrag);
+    } catch (e) {
+      debugPrint('[Diktat] Tagesplan-Aufnahme fehlgeschlagen: $e');
+      return '${_artLabel(_art)} gespeichert, aber nicht in den Tagesplan '
+          'vom $wann aufgenommen: ${kurzeFehlermeldung(e)}';
+    }
+    return null;
   }
 
   // ─── Speichern: Neuer Betrieb ───

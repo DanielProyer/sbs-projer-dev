@@ -25,6 +25,8 @@ import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/tagesplan_verschieben.dart'
+    show kurzTag;
 
 class StoerungFormScreen extends ConsumerStatefulWidget {
   final String? stoerungId; // null = neu
@@ -511,8 +513,27 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
           s.geplantAm!.month,
           s.geplantAm!.day,
         );
+        // Nicht abgewartet, aber abgefangen: scheitert das Laden des Plans,
+        // steht der Block dort noch — das soll man erfahren (Review
+        // 26.09.2026). Der Messenger jetzt, der Screen ist gleich weg.
+        ScaffoldMessengerState? messenger;
+        if (mounted) messenger = ScaffoldMessenger.of(context);
         unawaited(
-          einsatzAusTagesplanEntfernen(ref, geplanterTag, 's_${s.routeId}'),
+          einsatzAusTagesplanEntfernen(
+            ref,
+            geplanterTag,
+            's_${s.routeId}',
+          ).catchError((Object e) {
+            debugPrint('[Störung] Aus Tagesplan entfernen fehlgeschlagen: $e');
+            messenger?.showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Störung steht evtl. noch im Tagesplan vom '
+                  '${kurzTag(geplanterTag)}: ${kurzeFehlermeldung(e)}',
+                ),
+              ),
+            );
+          }),
         );
       }
       // Wegpunkt beim NEU-Erfassen eines sofort erledigten Einsatzes UND

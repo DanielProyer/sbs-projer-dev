@@ -1657,11 +1657,13 @@ Future<void> einsatzInTagesplanAufnehmen(
   }
   // Ein Ladefehler wirft und bricht ab. `null` heisst nur noch «keine Zeile»
   // — als der Provider Fehler zu `null` machte, ersetzte der eine neue
-  // Eintrag hier den ganzen Plan des Tages.
-  final gespeichert = await ref.read(
-    gespeicherterTagesplanProvider(tagOhneZeit).future,
-  );
-  final eintraege = List<TourEintrag>.of(gespeichert?.eintraege ?? const []);
+  // Eintrag hier den ganzen Plan des Tages. Frisch geladen, am Cache von
+  // [gespeicherterTagesplanProvider] vorbei: der ist nicht autoDispose, ein
+  // einmaliger Ladefehler lag dort bei JEDEM weiteren Einplanen wieder vor,
+  // und ein gecachter Stand kann älter sein als die Zeile (Review
+  // 26.09.2026).
+  final gespeichert = await _gespeicherteEintraegeLaden(tagOhneZeit);
+  final eintraege = List<TourEintrag>.of(gespeichert ?? const []);
   final index = eintraege.indexWhere((e) => e.id == eintrag.id);
   if (index >= 0) {
     eintraege[index] = eintrag;
@@ -1833,12 +1835,11 @@ Future<void> einsatzAusTagesplanEntfernen(
     return;
   }
   // Ein Ladefehler wirft (der Eintrag bleibt dann stehen); `null` heisst
-  // «keine Zeile», dann gibt es nichts zu entfernen.
-  final gespeichert = await ref.read(
-    gespeicherterTagesplanProvider(tagOhneZeit).future,
-  );
+  // «keine Zeile», dann gibt es nichts zu entfernen. Frisch geladen statt
+  // aus dem Cache — siehe [einsatzInTagesplanAufnehmen].
+  final gespeichert = await _gespeicherteEintraegeLaden(tagOhneZeit);
   if (gespeichert == null) return;
-  final eintraege = List<TourEintrag>.of(gespeichert.eintraege);
+  final eintraege = List<TourEintrag>.of(gespeichert);
   final vorherigeLaenge = eintraege.length;
   eintraege.removeWhere((e) => e.id == eintragId);
   if (eintraege.length == vorherigeLaenge) return; // war gar nicht drin
@@ -1975,6 +1976,43 @@ Future<void> arbeitstagFelderSpeichern(
         .eq('user_id', userId)
         .eq('datum', datumStr);
   }
+}
+
+/// Darf ein Arbeitstag-Schreiber (Beginn, Pause, Feierabend, km) auf dem
+/// gespeicherten Stand [stand] aufbauen?
+///
+/// [arbeitstagFelderSpeichern] schreibt Beginn, Ende und km IMMER — auch
+/// `null`. Den erfassten Beginn holen die Schreiber aus dem gespeicherten
+/// Plan (`valueOrNull?.arbeitsbeginn`). Bei einem Ladefehler war das `null`:
+/// ein Tipp auf «Pause» löschte den erfassten Arbeitsbeginn (Review
+/// 26.09.2026). Während eines Neuladens (nach jedem Speichern) kann der
+/// vorige Wert den eben geschriebenen Stand noch nicht enthalten — auch
+/// dann wird nicht geschrieben.
+bool arbeitstagSchreibbereit(AsyncValue<GespeicherterTagesplan?> stand) =>
+    stand.hasValue && !stand.hasError && !stand.isLoading;
+
+/// Meldung, wenn [arbeitstagSchreibbereit] nein sagt.
+const kArbeitstagNichtGeladen =
+    'Tagesplan nicht geladen — nichts gespeichert. Bitte gleich nochmals '
+    'tippen.';
+
+/// Prüft [arbeitstagSchreibbereit] für [tag] VOR dem Schreiben. Nein: Meldung
+/// über [messenger], `false`, und bei einem Ladefehler wird neu geladen —
+/// der Provider ist nicht autoDispose, der Fehler bliebe sonst im Cache und
+/// jeder weitere Tipp scheiterte gleich.
+bool arbeitstagStandBereit(
+  WidgetRef ref,
+  DateTime tag,
+  ScaffoldMessengerState? messenger, {
+  String meldung = kArbeitstagNichtGeladen,
+}) {
+  final stand = ref.read(gespeicherterTagesplanProvider(tag));
+  if (arbeitstagSchreibbereit(stand)) return true;
+  if (stand.hasError && !stand.isLoading) {
+    ref.invalidate(gespeicherterTagesplanProvider(tag));
+  }
+  messenger?.showSnackBar(SnackBar(content: Text(meldung)));
+  return false;
 }
 
 // ─── Tages-Counts (für Day-Chips, alle Typen) ───

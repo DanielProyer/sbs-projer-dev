@@ -112,8 +112,15 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
   /// 30.07.2026: 25 min zwischen Migros Golfpark und Restaurant Linden).
   Future<void> _pause() async {
     final heute = _heute;
-    final at = ref.read(arbeitstagProvider(heute));
     final messenger = ScaffoldMessenger.of(context);
+    // Ladefehler ist nicht «kein Beginn erfasst»: das Speichern unten
+    // schreibt den Beginn immer mit und löschte ihn sonst (Review 26.09.2026).
+    if (!arbeitstagStandBereit(ref, heute, messenger)) return;
+    final beginnDb = ref
+        .read(gespeicherterTagesplanProvider(heute))
+        .valueOrNull
+        ?.arbeitsbeginn;
+    final at = ref.read(arbeitstagProvider(heute));
     final jetzt = DateTime.now();
     final jetztText = hhmmAusMinuten(jetzt.hour * 60 + jetzt.minute);
     final laeuft = at.pauseStart;
@@ -133,10 +140,7 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
           pauseMinuten: at.pauseMinuten,
           pauseStart: jetztText,
         ),
-        beginnDb: ref
-            .read(gespeicherterTagesplanProvider(heute))
-            .valueOrNull
-            ?.arbeitsbeginn,
+        beginnDb: beginnDb,
         pauseSchreiben: true,
       );
       unawaited(WegpunktRepository.stempeln(quelle: 'pause_start'));
@@ -167,10 +171,7 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
         pauseMinuten: summe,
         pauseStart: null,
       ),
-      beginnDb: ref
-          .read(gespeicherterTagesplanProvider(heute))
-          .valueOrNull
-          ?.arbeitsbeginn,
+      beginnDb: beginnDb,
       pauseSchreiben: true,
     );
     unawaited(WegpunktRepository.stempeln(quelle: 'pause_ende'));
@@ -290,8 +291,11 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
 
   Future<void> _startJetzt() async {
     final heute = _heute;
-    final bisher = ref.read(arbeitstagProvider(heute));
     final messenger = ScaffoldMessenger.of(context);
+    // Ohne geladenen Stand fehlte unten die Rückfrage «bereits erfasst» —
+    // und ein bestehender Arbeitstag würde still ersetzt (Review 26.09.2026).
+    if (!arbeitstagStandBereit(ref, heute, messenger)) return;
+    final bisher = ref.read(arbeitstagProvider(heute));
 
     // Fehleingabe-Schutz (31.07.2026: versehentlicher Neustart 19:29 hat den
     // Tag überschrieben): Läuft der Tag schon oder ist er gar abgeschlossen,
@@ -386,12 +390,15 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
 
   Future<void> _feierabend() async {
     final heute = _heute;
+    final messenger = ScaffoldMessenger.of(context);
+    // Ohne geladenen Stand stünde der Beginn leer im Sheet — Speichern
+    // hiesse dann «Beginn löschen» (Review 26.09.2026).
+    if (!arbeitstagStandBereit(ref, heute, messenger)) return;
     final at = ref.read(arbeitstagProvider(heute));
     final erfassterBeginn = ref
         .read(gespeicherterTagesplanProvider(heute))
         .valueOrNull
         ?.arbeitsbeginn;
-    final messenger = ScaffoldMessenger.of(context);
     final eingabe = await showModalBottomSheet<ArbeitstagEingabe>(
       context: context,
       isScrollControlled: true,
