@@ -1,5 +1,8 @@
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 
+/// PO-Nummer der Heineken-Monatsrechnung, wenn die Preisliste keine nennt.
+const String kHeinekenPoNummerFallback = '6100259429';
+
 /// Repräsentiert eine einzelne Position in der Heineken-Monatsrechnung.
 class HeinekenPosition {
   final DateTime datum;
@@ -41,6 +44,11 @@ class HeinekenMonatsDaten {
   final Map<String, String> materialNames;
   final double mwstFaktor;
 
+  /// PO-Nummer aus der Preisliste des Monats — reist wie [mwstFaktor] pro
+  /// Aufruf mit (Rechnungszeile + PDF), statt aus einem static-Feld zu kommen,
+  /// das ein Aufruf für einen anderen Monat überschrieben haben kann.
+  final String poNummer;
+
   HeinekenMonatsDaten({
     required this.monat,
     this.stoerungen = const [],
@@ -61,6 +69,7 @@ class HeinekenMonatsDaten {
     this.betriebMap = const {},
     this.materialNames = const {},
     this.mwstFaktor = kMwstFaktorFallback,
+    this.poNummer = kHeinekenPoNummerFallback,
   });
 
   double get totalStoerungen =>

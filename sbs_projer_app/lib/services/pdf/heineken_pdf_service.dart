@@ -22,7 +22,6 @@ class HeinekenPdfService {
   static const _heinekenAbt = 'Finanz- und Rechnungswesen';
   static const _heinekenStrasse = 'Obergrundstrasse 110';
   static const _heinekenOrt = '6005 Luzern';
-  static String _heinekenPo = 'PO 6100259429';
   static const _heinekenTel1 = 'Telefon 081 / 256 03 66 Lynn Meier';
   static const _heinekenEmail = 'kreditoren.ch@heineken.com';
 
@@ -39,7 +38,10 @@ class HeinekenPdfService {
       String? poNummer,
       String? mwstLabel,
       GeschaeftEinstellungen geschaeft = const GeschaeftEinstellungen()}) {
-    if (poNummer != null) _heinekenPo = 'PO $poNummer';
+    // Lokal statt static: die build-Closure läuft erst bei pdf.save() — ein
+    // static-Feld konnte bis dahin von einer anderen Rechnung überschrieben
+    // sein (Runde 5, 26.09.2026).
+    final heinekenPo = 'PO ${poNummer ?? kHeinekenPoNummerFallback}';
     final rechnungsDatum = DateTime(daten.monat.year, daten.monat.month + 1, 0);
     final monatsName = _capitalize(_monatFormat.format(daten.monat));
 
@@ -112,7 +114,7 @@ class HeinekenPdfService {
                           style: const pw.TextStyle(fontSize: 10)),
                       pw.Text(_heinekenOrt,
                           style: const pw.TextStyle(fontSize: 10)),
-                      pw.Text(_heinekenPo,
+                      pw.Text(heinekenPo,
                           style: pw.TextStyle(
                               fontSize: 10, fontWeight: pw.FontWeight.bold)),
                       pw.SizedBox(height: 8),

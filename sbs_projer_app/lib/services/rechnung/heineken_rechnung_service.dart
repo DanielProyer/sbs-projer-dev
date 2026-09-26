@@ -20,26 +20,32 @@ import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 
 class HeinekenRechnungService {
-  // Defaults als Fallback, werden dynamisch aus Preisen geladen
-  static double _anfahrtPauschale = 180.0;
-  static String _heinekenPoNummer = '6100259429';
+  /// Rückfall ohne Preisliste (Spalten-Default `bergkunden_zuschlag`).
+  static const double _anfahrtPauschaleFallback = 180.0;
 
-  static Future<Preis?> _loadPreise({DateTime? datum}) async {
-    final preis = await PreisRepository.getAktuell(datum: datum);
-    if (preis != null) {
-      _anfahrtPauschale = preis.bergkundenZuschlag;
-      _heinekenPoNummer = preis.heinekenPoNummer ?? '6100259429';
-    }
-    return preis;
-  }
+  /// Anfahrtspauschale und PO-Nummer aus der Preisliste des Monats, mit
+  /// Rückfall. Pro Aufruf berechnet — bis v0.145.0 standen die Werte in
+  /// veränderlichen `static`-Feldern, die jedes Laden der Preisliste
+  /// überschrieb: ein Aufruf für einen anderen Monat bestimmte dann PO-Nummer
+  /// und Pauschale des nächsten (gleiches Muster wie der MwSt-Fehler aus
+  /// Runde 4). `test/heineken_service_keine_statik_test.dart` hält das fest.
+  @visibleForTesting
+  static ({double anfahrtPauschale, String poNummer}) werteAusPreis(
+    Preis? preis,
+  ) => (
+    anfahrtPauschale: preis?.bergkundenZuschlag ?? _anfahrtPauschaleFallback,
+    poNummer: preis?.heinekenPoNummer ?? kHeinekenPoNummerFallback,
+  );
 
   static String get _userId => SupabaseService.dataUserId;
 
   /// Sammelt alle Heineken-relevanten Daten für den gegebenen Monat.
   static Future<HeinekenMonatsDaten> sammleMonatsDaten(DateTime monat) async {
-    // Preise für den Monat laden. Der MwSt-Satz reist in den Monatsdaten
-    // mit (kein statisches Feld mehr, das der nächste Aufruf überschreibt).
-    final preis = await _loadPreise(datum: monat);
+    // Preise für den Monat laden. MwSt-Satz und PO-Nummer reisen in den
+    // Monatsdaten mit, die Anfahrtspauschale geht direkt in die Positionen
+    // (keine statischen Felder, die der nächste Aufruf überschreibt).
+    final preis = await PreisRepository.getAktuell(datum: monat);
+    final werte = werteAusPreis(preis);
     final start = DateTime(monat.year, monat.month, 1);
     final end = DateTime(monat.year, monat.month + 1, 1);
     final startStr = start.toIso8601String().split('T').first;
@@ -116,8 +122,11 @@ class HeinekenRechnungService {
       eroeffnungen: _mapEroeffnungen(eroeffnungRows, betriebe),
       montagen: _mapMontagen(montageRows, betriebe),
       pikettDienste: _mapPikett(pikettRows),
-      berghaeuserAnfahrt:
-          _mapBerghaeuserAnfahrt(bergkundenRows, betriebe),
+      berghaeuserAnfahrt: _mapBerghaeuserAnfahrt(
+        bergkundenRows,
+        betriebe,
+        werte.anfahrtPauschale,
+      ),
       gratisreinigungen:
           _mapGratisreinigungen(reinigungData['gratisreinigungen']!, betriebe),
       // Raw data for rapport PDF generation
@@ -131,6 +140,7 @@ class HeinekenRechnungService {
       betriebMap: betriebMap,
       materialNames: materialNames,
       mwstFaktor: preis?.mwstFaktor ?? kMwstFaktorFallback,
+      poNummer: werte.poNummer,
     );
   }
 
@@ -143,7 +153,7 @@ class HeinekenRechnungService {
     // 1. Rechnung erstellen
     final rechnung = await RechnungRepository.create({
       'rechnungstyp': 'heineken_monat',
-      'heineken_po_nummer': _heinekenPoNummer,
+      'heineken_po_nummer': daten.poNummer,
       'heineken_monat':
           daten.monat.toIso8601String().split('T').first,
       'rechnungsdatum': DateTime(daten.monat.year, daten.monat.month + 1, 0)
@@ -200,7 +210,7 @@ class HeinekenRechnungService {
       pdf.addPage(HeinekenPdfService.buildUebersichtPage(
           daten, rechnung.rechnungsnummer,
           logoBytes: logoBytes,
-          poNummer: _heinekenPoNummer,
+          poNummer: daten.poNummer,
           mwstLabel: daten.mwstLabel,
           geschaeft: await GeschaeftRepository.getOderFallback()));
       debugPrint('[HEI] Übersicht-Seite hinzugefügt');
@@ -273,7 +283,7 @@ class HeinekenRechnungService {
     pdf.addPage(HeinekenPdfService.buildUebersichtPage(
         daten, rechnung.rechnungsnummer,
         logoBytes: logoBytes,
-        poNummer: _heinekenPoNummer,
+        poNummer: daten.poNummer,
         mwstLabel: daten.mwstLabel,
         geschaeft: await GeschaeftRepository.getOderFallback()));
     final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);
@@ -578,15 +588,18 @@ class HeinekenRechnungService {
     }).toList();
   }
 
+  /// [anfahrtPauschale] = Rückfall für Zeilen ohne eigenen Betrag, aus der
+  /// Preisliste des Monats (siehe [werteAusPreis]).
   static List<HeinekenPosition> _mapBerghaeuserAnfahrt(
     List<Map<String, dynamic>> rows,
     Map<String, _BetriebInfo> betriebe,
+    double anfahrtPauschale,
   ) {
     return rows.map((r) {
       return HeinekenPosition(
         datum: DateTime.parse(r['datum']),
         kunde: _betriebLabel(r['betrieb_id'], betriebe),
-        betrag: _toDoubleN(r['betrag']) ?? _anfahrtPauschale,
+        betrag: _toDoubleN(r['betrag']) ?? anfahrtPauschale,
       );
     }).toList();
   }
