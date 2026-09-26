@@ -116,6 +116,7 @@ DECLARE
   v_user UUID := auth.uid();
   v_gruppe UUID;
   v_fehler TEXT;
+  v_jahr INTEGER;
   z JSONB;          -- eine Buchungszeile (FOR über eine Einspalten-Abfrage)
   r RECORD;
   v_n INTEGER;
@@ -135,6 +136,17 @@ BEGIN
      OR (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(p_updates) AS o(k))
         IS DISTINCT FROM (SELECT array_agg(DISTINCT u.id::text ORDER BY u.id::text) FROM unnest(p_rechnung_ids) AS u(id)) THEN
     RAISE EXCEPTION 'Rechnungsliste und Rechnungs-Updates passen nicht zusammen — nichts gebucht';
+  END IF;
+
+  -- 0. Jahressperre auch beim Erfassen (Review 26.09.2026, angewendet als
+  --    209d): keine Zeile in ein abgeschlossenes Geschäftsjahr — spät
+  --    eingelesener Dezember-Auszug, Guthaben-Verrechnung mit altem
+  --    Rechnungsdatum. Symmetrisch zur Rücknahme.
+  SELECT min((e.value ->> 'geschaeftsjahr')::int) INTO v_jahr
+  FROM jsonb_array_elements(p_buchungen) AS e(value)
+  WHERE geschaeftsjahr_abgeschlossen(v_user, (e.value ->> 'geschaeftsjahr')::int);
+  IF v_jahr IS NOT NULL THEN
+    RAISE EXCEPTION 'Zahlung in abgeschlossenem Geschäftsjahr % — nichts gebucht (Buchung von Hand im Journal)', v_jahr;
   END IF;
 
   -- 1. Sperren, dann prüfen — alles oder nichts.
