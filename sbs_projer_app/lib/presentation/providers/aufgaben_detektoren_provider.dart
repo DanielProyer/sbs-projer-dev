@@ -152,6 +152,27 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     debugPrint('[Aufgaben] Versandvermerk-Detektor: $e');
   }
 
+  // f2) Reinigungen ohne Protokollfoto — nur ab dem Stichtag, ab dem der
+  //     Upload sofort nach der Aufnahme läuft (T1). Heineken-Monteur-Einsätze
+  //     haben kein Protokoll. `ist_heineken_monteur` ist nullable (Migration
+  //     043: nur DEFAULT FALSE) — deshalb weder .neq() noch .eq(false)
+  //     (NULL-Falle), sondern mitlesen und in Dart aussortieren.
+  try {
+    final rows = await client
+        .from('reinigungen')
+        .select('id, ist_heineken_monteur')
+        .eq('status', 'abgeschlossen')
+        .isFilter('protokoll_foto_pfad', null)
+        .gte('datum', protokollPflichtAb.toIso8601String().split('T').first)
+        .limit(500);
+    final anzahl =
+        rows.where((r) => r['ist_heineken_monteur'] != true).length;
+    final a = protokollFehltAufgabe(anzahl);
+    if (a != null) detektoren.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Protokollfoto-Detektor: $e');
+  }
+
   // g) Bank-Prüfliste — camt-Buchungen, die der Import nicht zuordnen
   //    konnte. Derselbe Provider wie der Prüflisten-Screen, damit beide nie
   //    auseinanderlaufen.

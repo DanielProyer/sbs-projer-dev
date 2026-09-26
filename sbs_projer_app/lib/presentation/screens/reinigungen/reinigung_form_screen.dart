@@ -92,6 +92,16 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
   bool _fotoUploading = false;
   String? _existingFotoPfad;
 
+  /// Auf Web vorab erzeugt, damit das Foto sofort nach der Aufnahme in den
+  /// richtigen Ordner kann (T1). Beim Bearbeiten = serverId der Reinigung.
+  String? _fotoReinigungId;
+  String? _hochgeladenerPfad;
+  String? _fotoFehler;
+
+  /// Der gerade laufende Sofort-Upload — `_save` wartet darauf, statt einen
+  /// zweiten parallel zu starten.
+  Future<void>? _laufenderUpload;
+
   // Lade-Status
   bool _anlagenLoaded = false;
 
@@ -131,6 +141,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     super.initState();
     _datum = DateTime.now();
     _uhrzeitStartController.text = _formatTime(TimeOfDay.now());
+    if (kIsWeb && !_isEdit) _fotoReinigungId = const Uuid().v4();
     // Betrieb sofort aus Provider laden (synchron)
     if (widget.betriebId != null) {
       final betriebe = ref.read(betriebeProvider);
@@ -305,6 +316,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       _notizenController.text = r.notizen ?? '';
       _status = r.status;
       _existingFotoPfad = r.protokollFotoPfad;
+      _fotoReinigungId = r.serverId;
       _istKulanz = r.istKulanz;
       _istHeinekenMonteur = r.istHeinekenMonteur;
       _serviceArt = r.serviceArt ?? _serviceArt;
@@ -557,7 +569,39 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     setState(() {
       _fotoBytes = bytes;
       _existingFotoPfad = null;
+      _hochgeladenerPfad = null;
+      _fotoFehler = null;
     });
+    if (kIsWeb) _laufenderUpload = _fotoHochladen();
+  }
+
+  /// Lädt das Foto sofort hoch (Web). Ein Fehler ist sichtbar (rotes Band
+  /// mit «Erneut versuchen») und wird beim Speichern noch einmal probiert.
+  Future<void> _fotoHochladen() async {
+    final bytes = _fotoBytes;
+    final id = _fotoReinigungId;
+    if (bytes == null || id == null || _istHeinekenMonteur) return;
+    setState(() {
+      _fotoUploading = true;
+      _fotoFehler = null;
+    });
+    try {
+      final pfad = await ProtokollFotoStorage.uploadFoto(id, bytes);
+      // Nur übernehmen, wenn inzwischen kein neues Foto aufgenommen wurde —
+      // sonst zeigte der Pfad auf das alte Bild.
+      if (mounted && identical(bytes, _fotoBytes)) {
+        setState(() => _hochgeladenerPfad = pfad);
+      }
+    } catch (e) {
+      debugPrint('[Foto] Upload fehlgeschlagen: $e');
+      if (mounted && identical(bytes, _fotoBytes)) {
+        setState(() => _fotoFehler = kurzeFehlermeldung(e));
+      }
+    } finally {
+      if (mounted && identical(bytes, _fotoBytes)) {
+        setState(() => _fotoUploading = false);
+      }
+    }
   }
 
   Future<void> _save({bool abschliessen = false}) async {
@@ -706,30 +750,53 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
       r.userId = SupabaseService.currentUser!.id;
 
-      // Auf Web: UUID vorab generieren damit Foto-Upload und finaler Save dieselbe ID verwenden
+      // Web: dieselbe ID wie der Foto-Ordner, in den das Foto schon sofort
+      // nach der Aufnahme hochgeladen wurde (T1).
       if (kIsWeb && !_isEdit && r.serverId == null) {
-        r.serverId = const Uuid().v4();
+        r.serverId = _fotoReinigungId ??= const Uuid().v4();
       }
 
-      // Foto hochladen (wenn neues Foto aufgenommen)
+      // Protokollfoto — scheitert der Upload, wird NICHT blockiert (Daniel
+      // steht beim Kunden), aber laut gemeldet; die Aufgabe «Reinigung ohne
+      // Protokollfoto» erinnert danach daran.
       if (_fotoBytes != null && !_istHeinekenMonteur) {
-        setState(() => _fotoUploading = true);
-        try {
-          // Auf Native: zuerst speichern um eine Isar-ID zu haben
-          if (!kIsWeb && !_isEdit) {
-            await ReinigungRepository.save(r);
+        String? neuerPfad;
+        if (kIsWeb) {
+          await _laufenderUpload;
+          if (_hochgeladenerPfad == null) await _fotoHochladen(); // 2. Versuch
+          neuerPfad = _hochgeladenerPfad;
+        } else {
+          setState(() => _fotoUploading = true);
+          try {
+            // Nativ: zuerst speichern, um eine Isar-ID zu haben
+            if (!_isEdit) await ReinigungRepository.save(r);
+            neuerPfad = await ProtokollFotoStorage.uploadFoto(
+              r.serverId ?? r.routeId,
+              _fotoBytes!,
+            );
+          } catch (e) {
+            debugPrint('[Foto] Upload fehlgeschlagen (nativ): $e');
+            _fotoFehler = kurzeFehlermeldung(e);
+          } finally {
+            if (mounted) setState(() => _fotoUploading = false);
           }
-
-          final reinigungId = r.serverId ?? r.routeId;
-          final pfad = await ProtokollFotoStorage.uploadFoto(
-            reinigungId,
-            _fotoBytes!,
+        }
+        // Gescheitert: ein bisheriges Protokoll (Bearbeiten) bleibt stehen.
+        if (neuerPfad != null) r.protokollFotoPfad = neuerPfad;
+        if (neuerPfad == null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.error,
+              content: Text(
+                'PROTOKOLLFOTO NICHT HOCHGELADEN '
+                '(${_fotoFehler ?? 'unbekannt'}).\n'
+                '${r.protokollFotoPfad != null ? 'Das bisherige Protokoll bleibt' : 'Reinigung wird ohne Protokoll gespeichert'}'
+                ' — über «Bearbeiten» nachreichen.',
+                style: const TextStyle(color: Colors.white),
+              ),
+              duration: const Duration(seconds: 12),
+            ),
           );
-          r.protokollFotoPfad = pfad;
-        } catch (e) {
-          debugPrint('Foto-Upload fehlgeschlagen: $e');
-        } finally {
-          if (mounted) setState(() => _fotoUploading = false);
         }
       } else if (_existingFotoPfad != null && !_istHeinekenMonteur) {
         r.protokollFotoPfad = _existingFotoPfad;
@@ -1560,6 +1627,39 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 // === Protokoll ===
                 _sectionTitle(context, 'Protokoll'),
                 const SizedBox(height: 8),
+                if (_fotoFehler != null)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.12),
+                      border: Border.all(color: AppColors.error),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Foto nicht hochgeladen: $_fotoFehler',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        TapKnopf(
+                          text: 'Erneut versuchen',
+                          laeuft: _fotoUploading,
+                          onTap: _fotoUploading
+                              ? null
+                              : () => _laufenderUpload = _fotoHochladen(),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_fotoUploading && _fotoFehler == null)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: LinearProgressIndicator(),
+                  ),
                 if (_fotoBytes == null && _existingFotoPfad == null)
                   Row(
                     children: [
@@ -1904,6 +2004,22 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             ),
           ),
           const SizedBox(height: 8),
+          if (_hochgeladenerPfad != null) ...[
+            const Row(
+              children: [
+                Icon(Icons.cloud_done, size: 18, color: AppColors.success),
+                SizedBox(width: 6),
+                Text(
+                  'Hochgeladen ✓',
+                  style: TextStyle(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
         ] else if (_existingFotoPfad != null) ...[
           if (ProtokollFotoStorage.isPdf(_existingFotoPfad!))
             // PDF: Platzhalter mit Öffnen-Button

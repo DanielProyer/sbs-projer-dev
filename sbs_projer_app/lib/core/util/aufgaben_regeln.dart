@@ -184,6 +184,25 @@ Aufgabe? fehlendeBuchungenAufgabe(int anzahl) => anzahl <= 0
         istVorrat: true,
       );
 
+/// Abgeschlossene Reinigungen ohne Protokollfoto (seit dem Stichtag, ab dem
+/// das Foto sofort hochgeladen wird — Altbestand aus dem Excel-Import hat
+/// seine Scans anderswo). Bis v0.139.0 scheiterte der Upload still, die
+/// Reinigung galt als fertig, Mail und Beleg gingen ohne Protokoll raus.
+Aufgabe? protokollFehltAufgabe(int anzahl) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'protokoll_fehlt',
+        titel: anzahl == 1
+            ? '1 Reinigung ohne Protokollfoto'
+            : '$anzahl Reinigungen ohne Protokollfoto',
+        // '/reinigungen' allein ist keine Route — die Liste lebt unter Einsätze.
+        route: '/einsaetze?typ=reinigung',
+        istVorrat: true,
+      );
+
+/// Ab diesem Tag gilt: jede abgeschlossene Reinigung hat ein Foto.
+final protokollPflichtAb = DateTime(2026, 9, 26);
+
 /// Rechnungen, die per Mail hätten gehen sollen und trotzdem auf «offen»
 /// stehen.
 ///

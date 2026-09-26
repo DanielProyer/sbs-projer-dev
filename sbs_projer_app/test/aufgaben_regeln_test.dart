@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
 void main() {
   _buchungsTests();
   _versandvermerkTests();
+  _protokollFehltTests();
 
   group('heinekenAufgabe', () {
     // heute 05.08.2026 -> Vormonat Juli 2026
@@ -359,6 +360,24 @@ void _versandvermerkTests() {
       expect(a.route, '/rechnungen');
       expect(a.dringend, isTrue);
       expect(a.key, 'versandvermerk');
+    });
+  });
+}
+
+/// T1/R8: Reinigungen ohne Protokollfoto (Stichtag 26.09.2026).
+void _protokollFehltTests() {
+  group('protokollFehltAufgabe', () {
+    test('0 -> null', () => expect(protokollFehltAufgabe(0), isNull));
+    test('1 -> Singular, Vorrat, nicht dringend', () {
+      final a = protokollFehltAufgabe(1)!;
+      expect(a.key, 'protokoll_fehlt');
+      expect(a.titel, '1 Reinigung ohne Protokollfoto');
+      expect(a.istVorrat, isTrue);
+      expect(a.dringend, isFalse);
+      expect(a.route, '/einsaetze?typ=reinigung'); // '/reinigungen' ist keine Route
+    });
+    test('3 -> Plural', () {
+      expect(protokollFehltAufgabe(3)!.titel, '3 Reinigungen ohne Protokollfoto');
     });
   });
 }
