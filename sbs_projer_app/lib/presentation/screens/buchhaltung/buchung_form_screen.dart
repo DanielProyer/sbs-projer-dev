@@ -148,7 +148,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                         vorlagenAsync.when(
                           data: (vorlagen) =>
                               DropdownButtonFormField<BuchungsVorlage>(
-                                value: _selectedVorlage,
+                                initialValue: _selectedVorlage,
                                 decoration: const InputDecoration(
                                   labelText: 'Vorlage',
                                 ),
@@ -320,7 +320,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: _zahlungsweg,
+                          initialValue: _zahlungsweg,
                           decoration: const InputDecoration(
                             labelText: 'Zahlungsweg',
                           ),
@@ -571,7 +571,12 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
             const SizedBox(height: 8),
             if (!istFix && v.erlaubteZahlungswege.isNotEmpty)
               DropdownButtonFormField<String>(
-                value: _zahlungsweg,
+                // Der Wert wird von aussen gesetzt (Vorlagen-Wechsel belegt
+                // den ersten erlaubten Weg vor) — der Key hält das Feld mit
+                // _zahlungsweg deckungsgleich, auch wenn initialValue künftig
+                // nur noch den Anfangswert setzt.
+                key: ValueKey('zahlungsweg-${v.id}-$_zahlungsweg'),
+                initialValue: _zahlungsweg,
                 decoration: const InputDecoration(labelText: 'Zahlungsweg'),
                 items: v.erlaubteZahlungswege
                     .map(
