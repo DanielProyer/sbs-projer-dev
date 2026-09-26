@@ -539,16 +539,19 @@ class _HeinekenRechnungDetailScreenState
         for (final b in buchungen) {
           await BuchungRepository.delete(b.id);
         }
-        if (buchungen.isNotEmpty) {
+        if (buchungen.isNotEmpty && mounted) {
           ref.invalidate(buchungenStreamProvider);
         }
       } catch (_) {}
 
       await RechnungRepository.delete(widget.rechnungId);
+      // Nach den awaits kann der Screen weg sein — `ref` wirft dann
+      // (StateError). Gelöscht ist trotzdem: die DB-Schritte liefen oben.
+      if (!mounted) return;
       ref.invalidate(heinekenRechnungenProvider);
       // Direkt per URL geöffnet (Aufgabe, Kalender, Reload) gibt es nichts
       // zum Poppen → auf die Liste.
-      if (mounted) zurueckOderZu(context, '/heineken');
+      zurueckOderZu(context, '/heineken');
     }
   }
 
