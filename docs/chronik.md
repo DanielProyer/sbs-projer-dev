@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 26.09.2026 — v0.140.0 Analyse-Runde 2 Teil 1: eine Abschlusskette (R1, T1, T5, T6)
 - 25.09.2026 — v0.139.0 Analyse-Runde 1 «Sicherheit der Zahlen» (R2/R3/R4/R6/R11/Q1/Q3/Q5, R9 geklärt)
 - 25.09.2026 — Edge Function send-pdf-mail v15: JWT-Pflicht, Header-Schutz; Ferien nachgetragen
 - 25.09.2026 — v0.138.0 «Beleg»-Knopf auf Heute (Spesen-Scanner direkt)
@@ -25,6 +26,57 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 26.09.2026 — v0.140.0 Analyse-Runde 2 Teil 1: eine Abschlusskette (R1, T1, T5, T6)
+
+Plan `docs/superpowers/plans/2026-09-26-runde2-eine-kette.md`. Keine Migration.
+
+- **Eine Kette:** `ReinigungAbschlussService.abschliessen(r, betrieb)`
+  (services/rechnung) bündelt Rechnung + Versand (`erstelleUndSende`),
+  Ertragsbuchung, Nachholen (14 Tage, 20 s), Bergkundenpauschale (idempotent
+  pro Reinigung **und** pro Betrieb+Tag) und Kulanz-Merker. Formular und
+  Reinigungs-Detail rufen nur noch diesen Service und zeigen seine Meldungen
+  (Info/Warnung/Fehler). Das Formular schrumpfte von 2913 auf ~2470 Zeilen.
+  Wächter `abschlusskette_waechter_test.dart`.
+- **Versandvermerk (aus dem Review):** Nach einem Mail-/Post-Fehler fragt
+  `erstelleUndSende` den Server (`istVersandVermerkt`); nur bei belegtem
+  Versand gilt «nicht erneut senden», bei «unklar» setzt der Client keinen
+  Vermerk mehr; scheitert der Client-Vermerk selbst, ebenfalls Nachfrage statt
+  roter Kettenfehler. Eigene `VersandFehler`-Ausnahme mit genauem Text.
+  Wächter `versand_vermerk_hinweis_waechter_test.dart`.
+- **R1 Korrektur statt Löschen:** Bearbeiten einer abgeschlossenen Reinigung
+  fasst Rechnung/Buchung nur an, wenn sich Mengen/Typ/Kulanz/Bergkunde/Datum/
+  Zahlungsart/Anlagen geändert haben (`preisrelevantGeaendert`, Anlagen als
+  Menge — 5782 Altfälle ohne `anlage_ids`), und nur ohne Sperre
+  (`korrekturSperre`: bezahlt, Jahresrechnung, Mahnfall, gemahnt, versendet/
+  übergeben, abgeschlossenes Jahr). Sperre → Band im Formular + Dialog
+  «Änderung nicht möglich», nichts gespeichert; Detail-Löschen ebenso gesperrt.
+  Ohne Sperre: Ertragsbuchung **storniert** (nie mehr `deleteByBeleg`),
+  Rechnung entfernt, neu angelegt; Fehler sichtbar mit Phase («Buchung
+  storniert, Rechnung NICHT entfernt»). Gespeicherte Preise werden im Edit-Pfad
+  nicht mehr stillschweigend neu gerechnet. Duplikat-Check der Ertragsbuchung
+  und `belegIdsMitBuchung` ignorieren stornierte Zeilen. Nebenbefund behoben:
+  `wurdeGeradeAbgeschlossen` war wegen Objekt-Identität immer false
+  (Fahrzeit-Lernen/Pausenprüfung liefen beim Abschluss einer gespeicherten
+  Reinigung nie).
+- **T1 Protokollfoto:** Web lädt das Foto sofort nach der Aufnahme hoch
+  (Fortschrittsbalken, «Hochgeladen ✓»), Fehler als rotes Band mit «Erneut
+  versuchen»; Speichern wartet (max. 30 s) und versucht es nochmals, dann rote
+  Snackbar statt stillem `debugPrint`. Neue Aufgabe «Reinigung ohne
+  Protokollfoto» (Vorrat, ab 26.09.2026, ohne Heineken-Monteur, NULL-Falle
+  beachtet).
+- **T5:** Pausen-Prüfung (GPS + Sheet) läuft erst nach der Kette.
+- **T6:** Formular entrümpelt — «Wasser im Kühler gewechselt» weg (0 von 405),
+  «Ende» nur beim Bearbeiten, HeiGenie nur noch als Altwert sichtbar,
+  HeiGenie-Mail entfernt; 10 Material-Buttons → `TapKnopf` (Abschliessen,
+  Speichern, Dialog, Foto, PDF, QR); `TapKnopf` zentriert Inhalt, min. 48 px.
+- Browser geprüft (Sunset, versendet): Band, Sperr-Dialog, DB unverändert,
+  Detail-Löschen gesperrt; neues Formular ohne Ende-Feld, Knöpfe TapKnopf.
+- Hinweis Android-Vorlage: Kette und Kulanz-Merker laufen nur auf Web (vorher
+  lief nur der Merker auch nativ).
+- 2337 Tests grün, `flutter analyze` 56 (unverändert).
 
 ---
 

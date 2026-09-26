@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.139.0 live** (Analyse-Runde 1 «Sicherheit der Zahlen») · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **207** · **2301 Tests grün**.
+**Stand:** **v0.140.0 live** (Analyse-Runde 2 Teil 1: eine Abschlusskette) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **207** · **2337 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -199,6 +199,14 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.140.0** — Reinigung abschliessen wie gewohnt (Knopf ist jetzt
+  TapKnopf, kein «Ende»-Feld mehr): Foto aufnehmen → Balken → «Hochgeladen ✓»
+  vor dem Abschliessen; danach die Snackbars (Mail/Buchung) und erst dann die
+  Pausen-Frage. Bearbeiten einer bezahlten/versendeten Reinigung: Band oben,
+  Notiz speichern geht, Hähne ändern → Dialog «Änderung nicht möglich».
+  Aufgaben-Screen: «Reinigung ohne Protokollfoto» erscheint, sobald eine ohne
+  Foto abgeschlossen wurde.
 
 - **v0.139.0** — Tour → Symbol «Tagesplan leeren» (rot, rechts in der
   Kopfzeile): fragt nach, «Abbrechen» lässt den Plan stehen. Einstellungen →
