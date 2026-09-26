@@ -16,6 +16,8 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
+import 'package:sbs_projer_app/presentation/widgets/mehrzahlung_wahl.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Ordnet eine in der Prüfliste geparkte **Kundenzahlung** (Kategorie
 /// `kundenzahlung`, Gutschrift) offenen Rechnungen zu und verbucht sie —
@@ -57,6 +59,8 @@ Future<void> showKundenzahlungZuordnenDialog(
   if (!context.mounted) return;
   final gewaehlt = <Rechnung>{};
   var suche = '';
+  // Wohin eine Mehrzahlung geht (null = keine Mehrzahlung → Standard im Kern).
+  MehrzahlungZiel? mehr;
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -77,6 +81,12 @@ Future<void> showKundenzahlungZuordnenDialog(
         );
         final info =
             bewerteDifferenz(e.betrag, fordSumme, guthaben: guthaben);
+        if (info.art == DifferenzArt.mehr) {
+          mehr ??= info.mehrzahlungZiel;
+        } else {
+          mehr = null;
+        }
+        final istMehr = info.art == DifferenzArt.mehr;
         return AlertDialog(
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -179,7 +189,7 @@ Future<void> showKundenzahlungZuordnenDialog(
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
-                      info.text,
+                      differenzTextMitWahl(info, mehr),
                       style: TextStyle(
                         fontSize: 12,
                         color: info.istMinder
@@ -188,16 +198,24 @@ Future<void> showKundenzahlungZuordnenDialog(
                       ),
                     ),
                   ),
+                if (istMehr && gewaehlt.isNotEmpty)
+                  MehrzahlungWahl(
+                    betrag: info.betrag,
+                    wert: mehr ?? info.mehrzahlungZiel!,
+                    onChanged: (z) => setDialogState(() => mehr = z),
+                  ),
               ],
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen'),
+            TapKnopf(
+              text: 'Abbrechen',
+              primaer: false,
+              onTap: () => Navigator.pop(ctx, false),
             ),
-            FilledButton(
-              onPressed: gewaehlt.isEmpty
+            TapKnopf(
+              text: 'Verbuchen',
+              onTap: gewaehlt.isEmpty
                   ? null
                   : () async {
                       try {
@@ -206,6 +224,7 @@ Future<void> showKundenzahlungZuordnenDialog(
                           datum: e.bookingDatum,
                           forderungen: gewaehlt.toList(),
                           camtTxKey: e.txKey,
+                          mehrzahlung: mehr,
                         );
                         if (ctx.mounted) Navigator.pop(ctx, true);
                       } catch (err) {
@@ -220,7 +239,6 @@ Future<void> showKundenzahlungZuordnenDialog(
                         }
                       }
                     },
-              child: const Text('Verbuchen'),
             ),
           ],
         );

@@ -25,6 +25,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
+import 'package:sbs_projer_app/presentation/widgets/mehrzahlung_wahl.dart';
 
 /// Wiederverwendbare Ergebnis-Vorschau für den camt-Forderungsabgleich:
 /// Kopf-Übersicht (KPIs) + vier klappbare Gruppen (🟢 Auto / 🟡 Manuell /
@@ -645,6 +646,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
       }
     }
 
+    MehrzahlungZiel? mehr; // Wahl bei Mehrzahlung (null = Standard im Kern)
     final verbucht = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -665,6 +667,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             );
             final info =
                 bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
+            if (info.art == DifferenzArt.mehr) {
+              mehr ??= info.mehrzahlungZiel;
+            } else {
+              mehr = null;
+            }
             final kannVerbuchen =
                 gewaehlteGutschriften.isNotEmpty &&
                 gewaehlteForderungen.isNotEmpty;
@@ -835,7 +842,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  info.text,
+                                  differenzTextMitWahl(info, mehr),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: info.istMinder
@@ -846,6 +853,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                               ),
                             ],
                           ),
+                        ),
+                      ],
+                      if (info.art == DifferenzArt.mehr) ...[
+                        const SizedBox(height: 8),
+                        MehrzahlungWahl(
+                          betrag: info.betrag,
+                          wert: mehr ?? info.mehrzahlungZiel!,
+                          onChanged: (z) => setDialogState(() => mehr = z),
                         ),
                       ],
                     ],
@@ -873,6 +888,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                               forderungen: gewaehlteForderungen.toList(),
                               camtTxKey: gewaehlteGutschriften.first.txKey,
                               gutschriften: gewaehlteGutschriften.toList(),
+                              mehrzahlung: mehr,
                             );
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           } catch (e) {
@@ -977,6 +993,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // Exakte Betrags-Treffer nach oben + markieren — bei Sammelzahlern ohne
     // Vermerk (Goodfast) ist der Betrag das beste Signal für die Handarbeit.
     bool passtBetrag(Rechnung r) => (r.zuZahlen - g.amount).abs() < 0.005;
+    MehrzahlungZiel? mehr; // Wahl bei Mehrzahlung (null = Standard im Kern)
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1010,6 +1027,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           );
           final info =
               bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
+          if (info.art == DifferenzArt.mehr) {
+            mehr ??= info.mehrzahlungZiel;
+          } else {
+            mehr = null;
+          }
           return AlertDialog(
             title: Text(
               'Zahlung zuordnen — ${g.amount.toStringAsFixed(2)} CHF',
@@ -1121,10 +1143,18 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                                 : AppColors.success,
                           ),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(info.text)),
+                          Expanded(child: Text(differenzTextMitWahl(info, mehr))),
                         ],
                       ),
                     ),
+                  if (info.art == DifferenzArt.mehr) ...[
+                    const SizedBox(height: 8),
+                    MehrzahlungWahl(
+                      betrag: info.betrag,
+                      wert: mehr ?? info.mehrzahlungZiel!,
+                      onChanged: (z) => setDialogState(() => mehr = z),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1153,6 +1183,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             datum: g.bookingDate,
                             forderungen: gewaehlt.toList(),
                             camtTxKey: g.txKey,
+                            mehrzahlung: mehr,
                           );
                           if (ctx.mounted) Navigator.pop(ctx, true);
                         } catch (e) {
@@ -1527,6 +1558,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // Betrags-Treffer gegen IRGENDEINE Zahlung der Gruppe nach oben + markieren.
     bool passtBetrag(Rechnung r) =>
         guts.any((g) => (r.zuZahlen - g.amount).abs() < 0.005);
+    MehrzahlungZiel? mehr; // Wahl bei Mehrzahlung (null = Standard im Kern)
 
     final ok = await showDialog<bool>(
       context: context,
@@ -1564,6 +1596,11 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           );
           final info =
               bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
+          if (info.art == DifferenzArt.mehr) {
+            mehr ??= info.mehrzahlungZiel;
+          } else {
+            mehr = null;
+          }
           final kannVerbuchen =
               gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
           final badges = _paarNummern(
@@ -1686,7 +1723,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          info.text,
+                          differenzTextMitWahl(info, mehr),
                           style: TextStyle(
                             fontSize: 12,
                             color: info.istMinder
@@ -1695,6 +1732,14 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           ),
                         ),
                       ),
+                    if (info.art == DifferenzArt.mehr) ...[
+                      const SizedBox(height: 8),
+                      MehrzahlungWahl(
+                        betrag: info.betrag,
+                        wert: mehr ?? info.mehrzahlungZiel!,
+                        onChanged: (z) => setDialogState(() => mehr = z),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1720,6 +1765,7 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                             forderungen: gewaehlteForderungen.toList(),
                             camtTxKey: gewaehlteGuts.first.txKey,
                             gutschriften: gewaehlteGuts.toList(),
+                            mehrzahlung: mehr,
                           );
                           if (ctx.mounted) Navigator.pop(ctx, true);
                         } catch (e) {
