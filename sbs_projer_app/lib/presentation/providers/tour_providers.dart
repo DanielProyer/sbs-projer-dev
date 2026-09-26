@@ -1173,6 +1173,17 @@ final startortProvider = Provider<({double lat, double lng})?>((ref) {
   return (lat: g.startortLat!, lng: g.startortLng!);
 });
 
+/// Status jedes Störungs-/Montage-Einsatzes, geschlüsselt wie die Plan-Ids
+/// (`s_<routeId>`, `m_<routeId>` — siehe [faelligeEintraegeProvider]).
+/// Grundlage für `abgeschlosseneEinsatzEintragIds` (Verschieben: ein
+/// abgeschlossener Einsatz bleibt am Tag, Review 26.09.2026).
+final einsatzStatusJePlanIdProvider = Provider<Map<String, String>>(
+  (ref) => {
+    for (final s in ref.watch(stoerungenProvider)) 's_${s.routeId}': s.status,
+    for (final m in ref.watch(montagenProvider)) 'm_${m.routeId}': m.status,
+  },
+);
+
 // ─── Tagesplan State ───
 
 final aktiverTagesplanTagProvider = StateProvider<DateTime?>((ref) => null);

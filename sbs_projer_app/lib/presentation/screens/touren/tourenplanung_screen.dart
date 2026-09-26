@@ -23,12 +23,14 @@ import 'package:sbs_projer_app/core/util/zeitplan.dart';
 import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/data/models/termin.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
@@ -972,11 +974,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   }
 
   /// Kopfzeilen-Menü «Ganzen Tag verschieben…»: alle offenen Stopps auf
-  /// einen anderen Tag. Erledigte (dieselbe Ermittlung wie die Zeitachse)
-  /// bleiben hier; der Arbeitstag-Rahmen (Beginn/Ende/km) bleibt unberührt.
+  /// einen anderen Tag. Hier bleiben: erledigte (dieselbe Ermittlung wie die
+  /// Zeitachse, dazu abgeschlossene Einsätze) und abgemachte Saison-Termine
+  /// ([terminEintragIds]). Der Arbeitstag-Rahmen (Beginn/Ende/km) bleibt
+  /// unberührt.
   Future<void> _ganzenTagVerschieben() async {
     final plantag = _selectedDate;
     final plan = ref.read(tagesplanProvider);
+    final messenger = ScaffoldMessenger.of(context);
 
     final j = DateTime.now();
     final heute = DateTime(j.year, j.month, j.day);
@@ -991,18 +996,52 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       }
       if (!mounted) return;
     }
+    // Termine: ohne sie gingen abgemachte Saison-Termine mit, deren Datum
+    // und Kalender-Ereignis am alten Tag blieben — lieber abbrechen.
+    final List<TerminDto> termine;
+    try {
+      termine = await ref.read(offeneTermineProvider.future);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Termine nicht geladen — Verschieben abgebrochen '
+            '(${kurzeFehlermeldung(e)})',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
     final historie = ref.read(besuchHistorieProvider);
-    final erledigt = ermittleIstZeiten(
-      eintraege: plan,
-      datum: plantag,
-      erledigtePruefen: erledigtePruefen,
-      reinigungen: erledigtePruefen
-          ? ref.read(reinigungenProvider)
-          : const <ReinigungLocal>[],
-      wegpunkte: wegpunkte,
-      dauerFuer: (e) => _dauerFuer(e, historie),
-    ).keys.toSet();
-    final verschiebbar = verschiebbareEintraege(plan, erledigt);
+    final erledigt = {
+      ...ermittleIstZeiten(
+        eintraege: plan,
+        datum: plantag,
+        erledigtePruefen: erledigtePruefen,
+        reinigungen: erledigtePruefen
+            ? ref.read(reinigungenProvider)
+            : const <ReinigungLocal>[],
+        wegpunkte: wegpunkte,
+        dauerFuer: (e) => _dauerFuer(e, historie),
+      ).keys,
+      ...abgeschlosseneEinsatzEintragIds(
+        plan,
+        ref.read(einsatzStatusJePlanIdProvider),
+      ),
+    };
+    final lookup = ref.read(betriebLookupProvider);
+    final aufteilung = tagesplanAufteilen(
+      plan,
+      erledigtIds: erledigt,
+      terminIds: terminEintragIds(
+        plan,
+        termine,
+        plantag,
+        betriebSchluessel: (id) => lookup[id]?.routeId ?? id,
+      ),
+    );
+    final verschiebbar = aufteilung.mit;
     if (verschiebbar.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nichts zu verschieben')),
@@ -1028,7 +1067,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         ziel: ziel,
         schonDort: schonDort,
         ruhetag: ruhetagBetriebe(verschiebbar, ziel),
-        erledigt: plan.length - verschiebbar.length,
+        erledigt: aufteilung.erledigt,
+        termine: aufteilung.termine,
       ),
     );
     if (!ok || !mounted) return;
@@ -1702,6 +1742,19 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
           : const <WegpunktTag>[],
       dauerFuer: (e) => _dauerFuer(e, historie),
     );
+    // Nicht verschiebbar (Block-Sheet ohne «Auf anderen Tag verschieben»),
+    // zusätzlich zu den gemessenen: abgeschlossene Einsätze (K1) und
+    // abgemachte Saison-Termine (M4) — gleiche Regeln wie beim ganzen Tag.
+    final abgeschlosseneEinsaetze = abgeschlosseneEinsatzEintragIds(
+      eintraege,
+      ref.watch(einsatzStatusJePlanIdProvider),
+    );
+    final terminIds = terminEintragIds(
+      eintraege,
+      ref.watch(offeneTermineProvider).valueOrNull ?? const <TerminDto>[],
+      widget.datum,
+      betriebSchluessel: (id) => lookup[id]?.routeId ?? id,
+    );
     final jetztNow = DateTime.now();
     final jetztMin = jetztNow.hour * 60 + jetztNow.minute;
 
@@ -1959,7 +2012,10 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                         ),
                   onTap: () => _oeffneBlockSheet(
                     eintrag,
-                    erledigt: istZeiten.containsKey(eintrag.id),
+                    erledigt:
+                        istZeiten.containsKey(eintrag.id) ||
+                        abgeschlosseneEinsaetze.contains(eintrag.id),
+                    istTermin: terminIds.contains(eintrag.id),
                   ),
                 ),
               );
@@ -1991,7 +2047,11 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     if (erfolg && mounted) ref.invalidate(fahrzeitenMapProvider);
   }
 
-  void _oeffneBlockSheet(TourEintrag eintrag, {required bool erledigt}) {
+  void _oeffneBlockSheet(
+    TourEintrag eintrag, {
+    required bool erledigt,
+    required bool istTermin,
+  }) {
     // Vergangener Tag: die Blöcke sind tatsächliche Reinigungen — Tap führt
     // direkt zur Reinigung (das Block-Sheet bearbeitet nur Plan-Einträge).
     if (widget.readOnly) {
@@ -2006,8 +2066,9 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
       builder: (_) => _BlockSheet(
         eintragId: eintrag.id,
         datum: widget.datum,
-        // Erledigte und tatsächliche (`hist_`) Stopps bleiben, wo sie sind.
-        onVerschieben: erledigt || eintrag.id.startsWith('hist_')
+        // Erledigte, tatsächliche (`hist_`) und abgemachte Termin-Stopps
+        // bleiben, wo sie sind — ein Termin wird im Betrieb umgeplant.
+        onVerschieben: erledigt || istTermin || eintrag.id.startsWith('hist_')
             ? null
             : widget.onVerschieben,
       ),
@@ -2411,6 +2472,9 @@ TourEintrag _alsVerschobenerEintrag(TourEintrag e, DateTime ziel) {
 /// Montage schrumpfte so auf 60 min). HeiGenie zählt mit: bliebe sein
 /// `geplant_am` stehen, tauchte er am alten Tag wieder als fällig auf.
 ///
+/// Ein nicht mehr offener Einsatz wird übersprungen — kein neues Plandatum
+/// und kein Kalender-Push auf einen abgeschlossenen Einsatz (K1).
+///
 /// Anders als [_einsatzEinplanungZurueckschreiben] wird gewartet — schlägt
 /// es fehl, bricht das Verschieben ab, bevor der Plan angefasst wird.
 /// Liefert die Zahl der umgeplanten Einsätze (für eine ehrliche
@@ -2420,12 +2484,16 @@ Future<int> _einsaetzeAufTagUmplanen(
   List<TourEintrag> eintraege,
   DateTime ziel,
 ) async {
+  final abgeschlossen = abgeschlosseneEinsatzEintragIds(
+    eintraege,
+    ref.read(einsatzStatusJePlanIdProvider),
+  );
   var stoerungen = false;
   var montagen = false;
   final auftraege = <Future<void>>[];
   for (final e in eintraege) {
     final id = geplanteEinsatzId(e);
-    if (id == null) continue;
+    if (id == null || abgeschlossen.contains(e.id)) continue;
     if (e.typ == TourEintragTyp.stoerung) {
       stoerungen = true;
       auftraege.add(StoerungRepository.umplanenAufTag(id: id, tag: ziel));
