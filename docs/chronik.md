@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 26.09.2026 — v0.146.0 Restposten-Runde: analyze 0, Datumsauswahl deutsch, CanvasKit-Ratsche 83, Tourenplan-Ladefenster, Altlasten
 - 26.09.2026 — v0.145.0 Touren auf einen anderen Tag verschieben (Stopp und ganzer Tag)
 - 26.09.2026 — v0.144.0 Analyse-Runde 5: Tagesbetrieb (Start-Weg, Entwurf, Heute-Karte, Betriebs-Akte, Zahlungsart)
 - 26.09.2026 — v0.143.0 Analyse-Runde 4: Bausteine & Aufräumen (−3700 Zeilen netto)
@@ -31,6 +32,72 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 26.09.2026 — v0.146.0 Restposten-Runde («mach alles, was du selbständig machen kannst»)
+
+Keine Migration. Fünf Implementer (Opus, teils in Worktrees) und zwei
+Reviews. Alles ohne Frist, aber lange aufgelaufen.
+
+- **`flutter analyze` 14 → 0:** `dart:html` → `package:web` + `dart:js_interop`
+  (4 Web-Helfer: Download, camt-Datei-Picker, Google-Redirect, PDF-Tab; Weichen
+  auf `dart.library.js_interop`), `value` → `initialValue` an 6 Dropdowns (mit
+  `ValueKey`, wo der Wert von aussen gesetzt wird; Wächter-Widget-Test hält
+  das SDK-Verhalten fest).
+- **Datumsauswahl und Material-Texte auf Deutsch:** `flutter_localizations`,
+  Delegates + `Locale('de','CH')` (Konstanten in `core/config/lokalisierung.dart`,
+  Wächter). Kein stiller Formatwechsel: `Intl.defaultLocale` bleibt ungesetzt,
+  alle `NumberFormat` tragen eine Locale, Datumsmuster sind zahlenbasiert
+  (vom Reviewer mit 87 Formatierungen vorher/nachher belegt). Bundle +82 KB gzip.
+- **CanvasKit-Ratsche 96 → 83:** «Arbeit beginnen» (`TapKnopf` mit `farbe`),
+  Abgleich-Vorschau (5), Störungs- und Montage-Formular (7) auf `TapKnopf`.
+- **Tourenplan, drei Altlasten mit Datenverlust-Potenzial:** (1) eine Änderung
+  im Lade-Fenster nach dem Tag-Tipp wurde unter dem NEUEN Tag gespeichert
+  (`_scheduleSave` liest jetzt den Tag, dem der Plan gehört); (2) im Fenster
+  ist die Zeitachse jetzt gesperrt («Plan wird geladen…»), Übernehmen und
+  Verschieben tun nichts; (3) ein Ladefehler wird nicht mehr als leerer Plan
+  behandelt (Fehlerzustand mit «Erneut laden» statt `resetLeer`).
+- **Heineken:** Rechnungsdetail hat einen Rückweg (`RueckwegKnopf`, Rückfall
+  `/heineken`, auch nach dem Löschen); Service ohne veränderliche
+  `static`-Felder (PO-Nummer und Anfahrtspauschale pro Aufruf — im PDF-Dienst
+  war es ein echtes Rennen, weil die build-Closure erst bei `save()` läuft;
+  Wächter); `regenerierePdf` nimmt die gespeicherte PO-Nummer; Zuweisungen
+  setzen das Dropdown bei Speicherfehler zurück.
+- **PDF im neuen Tab ohne Popup-Blocker:** Dokumente-Liste öffnet den Tab
+  synchron im Tipp und lädt das PDF nach (vorher nach `await` blockiert,
+  ohne Rückmeldung).
+- **camt-Import:** Abbrechen des Datei-Dialogs endet still (vorher hing der
+  Spinner endlos; seit dem Umbau kurz ein roter Text).
+- **Pikett:** gespeicherte Feiertagszahl wird beim Bearbeiten nicht mehr
+  überschrieben; ISO-Wochenjahr statt Kalenderjahr (29.12.2025 = KW 1/2026).
+- **Buchung frei buchen:** Wechsel von einer Vorlage mit Zahlungsweg
+  kreditor/debitor stürzte im Debug ab bzw. speicherte `kreditor` still mit.
+- **Aufräumen:** 24 aufruferlose Repository-Methoden + `zaehleBelege` entfernt
+  (native Isar-Vorlage unangetastet); drei Server-Migrationen ohne lokale
+  Datei rekonstruiert (101b, 165b, 166b) — Migrations-Ablage komplett.
+- **Daten:** sechs historische Ferien-Slots aus den Altspalten in
+  `betrieb_ferien` nachgetragen (Tabelle jetzt vollständig; Altspalten bleiben
+  vorerst — 403 Code-Stellen + Isar-Schema, siehe ToDo).
+- **Zweiter Review, vor dem Deploy behoben:** Ladekreis ohne Ende nach einem
+  Glocken-Sprung in eine zweite Tourenplan-Instanz (`isCurrent`-Prüfung);
+  Ladefehler blieb im Provider-Cache und wurde in den Einplanen-Pfaden
+  (Aufgaben, Diktat, Störungs-/Montageformular) nicht abgefangen — das Diktat
+  meldete «Speichern fehlgeschlagen», obwohl der Einsatz gespeichert war
+  (Duplikat-Gefahr); «Frei buchen» wieder ohne Pflicht-Zahlungsweg, neu mit
+  «Intern (ohne Geldfluss)»; `_selectedDate`/Wochenleiste rechnen in
+  Kalendertagen (ab 25.10.2026 hätte «nächste Woche» auf So 23:00 gezeigt);
+  Arbeitstag-Schreiber (Pause, Start, Feierabend) schreiben bei Ladefehler
+  nichts mehr (vorher löschte ein Pause-Tipp Beginn/Ende/km); Pikett-Pauschale
+  beim Bearbeiten nicht mehr überschrieben.
+- Konsolenmeldung «Null check operator» beim Laden von Heute: mit Source-Maps
+  nicht reproduzierbar (v0.145/v0.146), Beobachtung geschlossen.
+- Browser geprüft (360 px): Datumsauswahl («Fr., 25. Sept.», ABBRECHEN/OK),
+  Störungs-, Montage-, Buchungs-, Pikett-, Kontakt-Formular, Heineken-Detail
+  per URL (Pfeil → Liste), Startseite. Nicht sichtbar prüfbar: «Arbeit
+  beginnen» (keine offene Störung/Montage) und PDF-Tab (Panel fängt keine
+  Popups) — beides per Widget-Test bzw. Code-Vergleich abgedeckt.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 

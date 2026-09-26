@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.145.0 live** (Touren auf anderen Tag verschieben; davor v0.144.0 Analyse-Runde 5 — alle fünf Runden erledigt) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2559 Tests grün**.
+**Stand:** **v0.146.0 live** (Restposten-Runde: analyze 0, deutsch, CanvasKit 83, Tourenplan-Altlasten; davor v0.145.0 Touren verschieben, v0.144.0 Runde 5) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2657 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -200,6 +200,14 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.146.0** — Datumsauswahl irgendwo öffnen (deutsch, Montag zuerst);
+  Störung bearbeiten → «Arbeit beginnen» (blau, TapKnopf) → «Beenden»;
+  Bankabgleich → Abgleich-Vorschau → «Verbuchen»; Dokumente → PDF antippen
+  (öffnet im neuen Tab, auch am Handy); camt-Import → Datei wählen →
+  Abbrechen (kein roter Text); Tourenplan: Tag wechseln — kurz «Plan wird
+  geladen…», dann Zeitachse; Heineken-Rechnung per Link öffnen → Pfeil führt
+  zur Liste; Pikett bearbeiten → Feiertage bleiben.
+
 - **v0.145.0 Touren verschieben** — Tourenplan → Stopp antippen → «Auf anderen
   Tag verschieben» (Datum, Ruhetag-Hinweis) · Kopfzeile ⋮ → «Ganzen Tag
   verschieben…» (Rückfrage; erledigte Stopps und abgemachte Termine bleiben)
@@ -224,12 +232,9 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   suchen; Eigenauftrag mit Material; ein Datum wählen (z. B. Betrieb →
   Saison). Rechnungs-PDF öffnen: QR-Zahlteil und Fuss unverändert. **Offen
   (Folgearbeit):** Isar einfrieren? (Entscheid Daniel — widerspricht heute
-  der Regel «nativen Pfad als Android-Vorlage pflegen»); `dart:html` →
-  `package:web` (8); `value` → `initialValue` mit Sichtprüfung (6);
-  «Arbeit beginnen» auf TapKnopf; Repository-Methoden, die durch das Löschen
-  toter Provider selbst aufruferlos wurden (z. B. `watchByBetrieb` einiger
-  Repos); statische `_heinekenPoNummer`/`_anfahrtPauschale` im
-  Heineken-Service (gleiches Muster wie der MwSt-Fehler).
+  der Regel «nativen Pfad als Android-Vorlage pflegen»). ✅ Erledigt in
+  v0.146.0: `package:web`, `initialValue`, «Arbeit beginnen», aufruferlose
+  Repository-Methoden, statische Felder im Heineken-Service.
 
 - **v0.142.0 — ✅ vier Buchhaltungs-Entscheide von Daniel bestätigt
   (26.09.2026)**, so gebaut: ① Minderzahlung erlassen = 3805
@@ -243,9 +248,9 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
   nächsten Import wieder da → erneut zuordnen; Barzahlung beim Service
   (gemahnte Rechnung) → Detail → rückgängig → Mahnstufe wieder da.
   Abschlussprüfung: Regel «Status und Mahnstufe» grün; Delkredere-Knopf
-  fragt nach. **Offen (Folgearbeit):** Abgleich-Vorschau hat noch
-  Material-Buttons (CanvasKit-Risiko); Heineken-Detail ohne Rückweg;
-  Statusmodell entflechten (Analyse §2); SQL 194 gegen Journal prüfen;
+  fragt nach. **Offen (Folgearbeit):** Statusmodell entflechten
+  (Analyse §2); SQL 194 gegen Journal prüfen (✅ v0.146.0: Abgleich-Vorschau
+  auf TapKnopf, Heineken-Detail mit Rückweg);
   Mehrzahlung auf 2030 rappengenau, `guthabenAbzug` rundet auf 5 Rappen
   (Rappenreste auf 2030 möglich).
 
@@ -377,9 +382,26 @@ Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
 - **Tote Zeitfelder aufräumen** (Entscheid Daniel 26.08.: später): `uhrzeit_ende`
   und `dauer_minuten` bei Reinigungen, doppelter Störungseingang, leere
   Montage-Zeiten.
-- **Migrations-Ablage:** Rund ein Dutzend Server-Migrationen haben keine lokale
-  Datei — meist Einmal-Operationen (Storage-Policies, RLS-Nachzieher, Snapshots).
-  Rezept im Archiv-Abschnitt zu 192b.
+- ✅ **Migrations-Ablage komplett (26.09.2026):** Von zwölf «fehlenden»
+  Servernamen existierten neun lokal unter anderer Nummer; drei rekonstruiert
+  (101b Storage-Policies camt, 165b RLS Wartungs-Snapshots, 166b Snapshot
+  camt-Abgleich). Rezept im Archiv-Abschnitt zu 192b.
+- **Altspalten `ferien*` auf `betriebe`:** Tabelle `betrieb_ferien` ist seit
+  26.09.2026 vollständig (6 historische Slots nachgetragen). Das Entfernen
+  der Spalten bleibt ein eigenes Vorhaben: 403 Code-Stellen (Model, Mapper,
+  Isar-Local + `build_runner`, Web-Stub, `betrieb_ferien.dart`-Rückfall) —
+  erst den Rückfall auf die Altspalten abschalten, eine Woche beobachten,
+  dann `DROP COLUMN` mit Archiv-Tabelle.
+- **Buchhaltungs-Restfälle (Befund 26.09.2026, Entscheid Daniel):**
+  (a) **Chalet Güggel 2026-04-0249** (Rechnungsdatum 13.01.2026, Excel-Zeit):
+  Rechnung 171.90, Zahlung 15.01. 169.70 gebucht (1020/1100), Status «bezahlt»
+  mit `zahlung_betrag` 171.90 — Minderzahlung **2.20 ohne 3805**. Vorschlag:
+  per heute 2.20 auf 3805/1100 (inkl. MWST-Anteil) abschreiben — NICHT per
+  15.01., Q1/2026 ist eingereicht. (b) **Chleina Pub 2026-08-1386** (Tresen
+  27.08.2026, 74.60): Ertrag 1100/3400 gebucht, aber die «Zahlung» vom
+  17.09. steht als **8000/1100 74.60** ohne Beleg-Verknüpfung — Ausbuchung
+  statt Kasseneingang. Frage: Bar am Tresen erhalten? Dann 1000/1100
+  (Kasse) und die 8000-Buchung stornieren.
 - ✅ **`Projekt.md` abgeglichen (22.09.2026, abends).** Der Befund vom
   Arbeitsschluss war falsch: Der Kopf mit der Chronik war bis zum **17.09.**
   (v0.109.2) gepflegt, rund 45 Commits seit Juni. Gefehlt haben die fünf Tage
@@ -677,10 +699,22 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 
 ### 🔭 Beobachten
 
-- **Konsole beim Laden von Heute (25.09.2026, lokal v0.138.0):** einmal «Null
-  check operator used on a null value» nach einem 403/400 einer Ressource —
-  sichtbar nichts kaputt. Beim nächsten Mal mit Source-Map nachsehen, welcher
-  Provider das wirft (Kandidat: Google-Kalender/Kontakte-Status ohne Token).
+- **Tourenplan-Restfenster (Review 26.09.2026, gering):** Nach dem Zurück aus
+  einer zweiten Tourenplan-Instanz wendet `.when` einen noch nachladenden Plan
+  mit dessen vorigem Wert an; läuft das Speichern von Tag A in diesem Moment
+  noch, kann kurz ein älterer Stand übernommen werden. Ansatz:
+  `skipLoadingOnRefresh: false` + Abgleich mit laufendem Speichern.
+- **Frei buchen:** Zahlungsweg lässt sich nach einer Wahl nicht mehr auf
+  «keiner» zurücksetzen, nur auf «Intern». Falls das stört: leere Option.
+- **Tourenplan, vergangener Tag mit Ladefehler:** Fällig-«+» verlangt «Erneut
+  laden», den Knopf gibt es dort nicht (Ist-Ansicht). Kosmetisch.
+- **PDF-Tab bei blockiertem Popup** endet stumm (Rückfall nach `await`) — bei
+  Bedarf SnackBar oder Download anbieten. Am Pixel prüfen, ob Chrome die
+  Blob-PDF im Tab zeigt oder herunterlädt.
+- ✅ **Konsole beim Laden von Heute:** «Null check operator» vom 25.09. war
+  mit Source-Maps am 26.09. (v0.145/0.146) nicht reproduzierbar; die zwei 404
+  stammten vom Produktions-Build im lokalen Server. Geschlossen; taucht sie
+  wieder auf, mit `flutter build web --source-maps` nachsehen.
 
 - ✅ **Function v22 hält — Punkt erledigt (20.09.2026).** Belegt statt vermutet:
   Von den Mail-Rechnungen seit 01.03.2026 tragen **122 von 122** ein
