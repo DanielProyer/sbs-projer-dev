@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
-import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 
 /// Generiert die Heineken-Monatsrechnung als PDF im exakten Original-Layout.
 class HeinekenPdfService {
@@ -35,42 +33,6 @@ class HeinekenPdfService {
 
   static final _dateFormat = DateFormat('dd.MM.yyyy');
   static final _monatFormat = DateFormat('MMMM yyyy', 'de_CH');
-
-  /// Generiert das komplette Heineken-Monatsrechnungs-PDF.
-  static Future<Uint8List> generate({
-    required HeinekenMonatsDaten daten,
-    String? rechnungsnummer,
-  }) async {
-    // Logo laden
-    Uint8List? logoBytes;
-    try {
-      final data = await rootBundle.load('assets/images/heineken_logo.png');
-      logoBytes = data.buffer.asUint8List();
-    } catch (e) {
-      debugPrint('Heineken Logo laden fehlgeschlagen: $e');
-    }
-
-    final pdf = await pdfDokument();
-
-    // Seite 1: Übersicht
-    pdf.addPage(buildUebersichtPage(daten, rechnungsnummer, logoBytes: logoBytes));
-
-    // Seite 2+: Details (Spalten-Header wiederholt sich auf jeder Seite)
-    final detailWidgets = buildDetailWidgets(daten);
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 40),
-        header: (context) => pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 8),
-          child: buildDetailHeader(),
-        ),
-        build: (context) => detailWidgets,
-      ),
-    );
-
-    return pdf.save();
-  }
 
   // ═══════════════════════════════════════════════════════════════
   // SEITE 1: ÜBERSICHT

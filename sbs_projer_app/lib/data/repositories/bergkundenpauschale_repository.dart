@@ -59,17 +59,6 @@ class BergkundenpauschaleRepository {
     throw UnimplementedError('Native nicht implementiert');
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from(_table)
-          .select('id')
-          .eq('user_id', _userId);
-      return rows.length;
-    }
-    throw UnimplementedError('Native nicht implementiert');
-  }
-
   /// Gibt es für diesen Besuch schon eine Pauschale — zur Reinigung selbst
   /// ODER am selben Tag im selben Betrieb? Die Pauschale gilt pro Besuch
   /// (Betrieb + Tag), nicht pro Anlage. Die Abschlusskette läuft auch als
@@ -105,16 +94,6 @@ class BergkundenpauschaleRepository {
         .select();
     return BergkundenpauschaleMapper.fromDto(
         Bergkundenpauschale.fromJson(rows.first));
-  }
-
-  static Future<void> save(BergkundenpauschaleLocal entry) async {
-    entry.userId = _userId;
-    if (kIsWeb) {
-      final json = BergkundenpauschaleMapper.toJson(entry);
-      await SupabaseService.client.from(_table).upsert(json);
-      return;
-    }
-    throw UnimplementedError('Native nicht implementiert');
   }
 
   static Future<void> delete(String id) async {

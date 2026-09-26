@@ -45,10 +45,6 @@ final betriebeProvider = Provider<List<BetriebLocal>>((ref) {
     ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 });
 
-final betriebCountProvider = Provider<int>((ref) {
-  return ref.watch(betriebeProvider).length;
-});
-
 final betriebNameMapProvider = Provider<Map<String, String>>((ref) {
   final list = ref.watch(betriebeProvider);
   return {

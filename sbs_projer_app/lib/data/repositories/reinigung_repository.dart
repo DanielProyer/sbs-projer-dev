@@ -199,11 +199,6 @@ class ReinigungRepository {
     return IsarService.reinigungGet(int.parse(id));
   }
 
-  static Future<ReinigungLocal?> getByServerId(String serverId) async {
-    if (kIsWeb) return getById(serverId);
-    return IsarService.reinigungFindByServerId(serverId);
-  }
-
   static Future<List<ReinigungLocal>> getByAnlage(String anlageId) async {
     if (kIsWeb) {
       final rows = await _pagedByUser(col: 'anlage_id', val: anlageId);
@@ -228,24 +223,6 @@ class ReinigungRepository {
   static Stream<List<ReinigungLocal>> watchByBetrieb(String betriebId) {
     if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
     return IsarService.reinigungWatchByBetrieb(betriebId);
-  }
-
-  static Future<int> count() async {
-    if (kIsWeb) {
-      int total = 0;
-      const pageSize = 1000;
-      int from = 0;
-      while (true) {
-        final rows = await SupabaseService.client
-            .from('reinigungen').select('id').eq('user_id', _userId)
-            .order('id').range(from, from + pageSize - 1);
-        total += rows.length;
-        if (rows.length < pageSize) break;
-        from += pageSize;
-      }
-      return total;
-    }
-    return IsarService.reinigungCount();
   }
 
   static Future<void> save(ReinigungLocal reinigung) async {

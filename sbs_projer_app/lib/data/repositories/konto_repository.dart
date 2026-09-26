@@ -18,17 +18,6 @@ class KontoRepository {
     return Stream.fromFuture(getAll());
   }
 
-  static Future<Konto?> getByNummer(int kontonummer) async {
-    final rows = await SupabaseService.client
-        .from('konten')
-        .select()
-        .eq('user_id', _userId)
-        .eq('kontonummer', kontonummer)
-        .limit(1);
-    if (rows.isEmpty) return null;
-    return Konto.fromJson(rows.first);
-  }
-
   static Future<int> count() async {
     final rows = await SupabaseService.client
         .from('konten')

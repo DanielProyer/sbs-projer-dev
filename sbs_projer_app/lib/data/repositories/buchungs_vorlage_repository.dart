@@ -21,8 +21,6 @@ class BuchungsVorlageRepository {
   static List<BuchungsVorlage>? _cache;
 
   /// Verwirft den Cache — für Tests und einen erzwungenen Neuabruf.
-  static void cacheLeeren() => _cache = null;
-
   static Future<List<BuchungsVorlage>> getAll({bool frisch = false}) async {
     if (!frisch && _cache != null) return _cache!;
     try {
@@ -45,26 +43,6 @@ class BuchungsVorlageRepository {
   /// zeigen, nicht den gecachten, und läuft ohnehin am Schreibtisch mit Netz.
   static Stream<List<BuchungsVorlage>> watchAll() {
     return Stream.fromFuture(getAll(frisch: true));
-  }
-
-  static Future<BuchungsVorlage?> getById(String id) async {
-    final rows = await SupabaseService.client
-        .from('buchungs_vorlagen')
-        .select()
-        .eq('id', id)
-        .limit(1);
-    if (rows.isEmpty) return null;
-    return BuchungsVorlage.fromJson(rows.first);
-  }
-
-  static Future<List<BuchungsVorlage>> getByTrigger(String trigger) async {
-    final rows = await SupabaseService.client
-        .from('buchungs_vorlagen')
-        .select()
-        .eq('user_id', _userId)
-        .eq('auto_trigger', trigger)
-        .eq('ist_aktiv', true);
-    return rows.map((r) => BuchungsVorlage.fromJson(r)).toList();
   }
 
   /// Gibt nur manuelle Vorlagen zurück (ohne auto_trigger).

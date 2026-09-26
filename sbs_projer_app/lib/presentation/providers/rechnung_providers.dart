@@ -12,19 +12,10 @@ final rechnungenProvider = Provider<List<Rechnung>>((ref) {
   return ref.watch(rechnungenStreamProvider).valueOrNull ?? [];
 });
 
-final rechnungCountProvider = Provider<int>((ref) {
-  return ref.watch(rechnungenProvider).length;
-});
-
 final offeneRechnungenCountProvider = Provider<int>((ref) {
   return ref.watch(rechnungenProvider)
       .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
       .length;
-});
-
-final rechnungenByBetriebProvider =
-    StreamProvider.family<List<Rechnung>, String>((ref, betriebId) {
-  return RechnungRepository.watchByBetrieb(betriebId);
 });
 
 /// Abgeschlossene Reinigungen ohne Kundenrechnung — Frühwarnung in den

@@ -7,15 +7,6 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 class MaterialArtikelRepository {
   static String get _userId => SupabaseService.dataUserId;
 
-  static Future<List<MaterialArtikel>> getAll() async {
-    final rows = await SupabaseService.client
-        .from('material')
-        .select()
-        .eq('user_id', _userId)
-        .order('dbo_nr');
-    return rows.map((r) => MaterialArtikel.fromJson(r)).toList();
-  }
-
   static Future<MaterialArtikel?> getById(String id) async {
     final rows = await SupabaseService.client
         .from('material')

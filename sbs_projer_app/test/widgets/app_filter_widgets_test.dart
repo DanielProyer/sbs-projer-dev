@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
-import 'package:sbs_projer_app/presentation/widgets/filter/app_active_filters.dart';
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
@@ -77,19 +76,5 @@ void main() {
     await t.tap(find.text('Alpha'));
     await t.pumpAndSettle();
     expect(sel, {'b'});
-  });
-
-  testWidgets('AppActiveFilters: leer -> shrink, sonst löschbar', (t) async {
-    await t.pumpWidget(_wrap(const AppActiveFilters(chips: [])));
-    expect(find.byType(Chip), findsNothing);
-
-    var entfernt = false;
-    await t.pumpWidget(_wrap(AppActiveFilters(chips: [
-      ('Region: Chur', () => entfernt = true),
-    ])));
-    expect(find.text('Region: Chur'), findsOneWidget);
-    await t.tap(find.byIcon(Icons.close));
-    await t.pumpAndSettle();
-    expect(entfernt, isTrue);
   });
 }

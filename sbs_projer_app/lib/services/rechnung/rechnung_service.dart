@@ -37,12 +37,6 @@ class RechnungService {
     'rechnung_tresen',
   ];
 
-  /// Löst diese Rechnungsstellung eine Kundenrechnung pro Reinigung aus?
-  /// (`heineken` läuft über den Monatslauf, `barzahlung`/`jahresrechnung`
-  /// bekommen keine Einzelrechnung.)
-  static bool brauchtRechnung(String? rechnungsstellung) =>
-      _invoiceRechnungsstellungen.contains(rechnungsstellung);
-
   /// Rechnet den Bruttobetrag aus, den [createFromReinigung] für diese
   /// Reinigung erzeugen würde — ohne etwas zu schreiben. Nutzt exakt dieselben
   /// Schritte, damit eine Vorschau nicht lügen kann.

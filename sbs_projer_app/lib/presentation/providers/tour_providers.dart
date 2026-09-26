@@ -339,14 +339,6 @@ final tourVorschlagProvider = Provider.family<List<ReinigungLocal>, DateTime>((
   }).toList()..sort((a, b) => a.datum.compareTo(b.datum));
 });
 
-// ─── Fällige Anlagen Count ───
-
-final faelligeAnlagenCountProvider = Provider<int>((ref) {
-  final heute = DateTime.now();
-  final datum = DateTime(heute.year, heute.month, heute.day);
-  return ref.watch(faelligeAnlagenProvider(datum)).length;
-});
-
 // ─── TourEintrag (UI-only Wrapper für alle planbaren Typen) ───
 
 enum TourEintragTyp { reinigung, stoerung, montage, heigenie }
@@ -989,120 +981,6 @@ String _montageTypLabel(String typ) {
       return typ;
   }
 }
-
-// ─── Erweiterter Vorschlag (alle Typen) ───
-
-final tourVorschlagErweitertProvider =
-    Provider.family<List<TourEintrag>, DateTime>((ref, datum) {
-      final betriebe = ref.watch(betriebeProvider);
-      final anlagen = ref.watch(anlagenProvider);
-      final reinigungen = ref.watch(reinigungenProvider);
-      final betriebMap = _buildBetriebMap(betriebe);
-      final serviceArtMap = _buildLetzteServiceArtMap(reinigungen);
-      final eintraege = <TourEintrag>[];
-
-      // Anlagen-Lookup
-      final anlageMap = <String, AnlageLocal>{};
-      for (final a in anlagen) {
-        anlageMap[a.routeId] = a;
-        if (a.serverId != null) anlageMap[a.serverId!] = a;
-      }
-
-      // 1. Reinigungen von vor ~28 Tagen
-      final vorschlagReinigungen = ref.watch(tourVorschlagProvider(datum));
-      final seenAnlagen = <String>{};
-      for (final r in vorschlagReinigungen) {
-        // Deduplizieren nach Anlage
-        final aId = r.anlageIds.isNotEmpty ? r.anlageIds.first : r.betriebId;
-        if (!seenAnlagen.add(aId)) continue;
-
-        final anlage = anlageMap[aId];
-        if (anlage != null && anlage.status != 'aktiv') continue;
-
-        final betrieb = betriebMap[r.betriebId];
-        if (betrieb != null && !isBetriebOffen(betrieb, datum)) continue;
-
-        eintraege.add(
-          TourEintrag(
-            typ: TourEintragTyp.reinigung,
-            id: 'r_$aId',
-            betriebId: r.betriebId,
-            anlageId: aId,
-            betriebName: betrieb?.name ?? '?',
-            betriebOrt: betrieb?.ort,
-            regionId: betrieb?.regionId,
-            beschreibung: anlage != null
-                ? '${anlage.typAnlage} · ${anlage.anzahlHaehne} Hähne'
-                : 'Reinigung',
-            faelligkeit: anlage != null
-                ? getFaelligkeit(
-                    anlage,
-                    datum,
-                    betrieb: betrieb,
-                    letzteServiceArt: anlage.serverId != null
-                        ? serviceArtMap[anlage.serverId!]
-                        : null,
-                  )
-                : null,
-            datum: r.datum,
-            ruhetage: betrieb?.ruhetage ?? const [],
-            servicezeit: _servicezeitAus(betrieb),
-          ),
-        );
-      }
-
-      // 2. Offene Störungen (immer relevant)
-      final stoerungen = ref.watch(stoerungenProvider);
-      for (final s in stoerungen) {
-        if (s.status != 'offen') continue;
-        final betrieb = s.betriebId != null ? betriebMap[s.betriebId!] : null;
-        eintraege.add(
-          TourEintrag(
-            typ: TourEintragTyp.stoerung,
-            id: 's_${s.routeId}',
-            betriebId: s.betriebId,
-            anlageId: s.anlageId,
-            betriebName: betrieb?.name ?? '?',
-            betriebOrt: betrieb?.ort,
-            regionId: betrieb?.regionId,
-            beschreibung: s.problemBeschreibung,
-            datum: s.datum,
-            ruhetage: betrieb?.ruhetage ?? const [],
-            servicezeit: _servicezeitAus(betrieb),
-          ),
-        );
-      }
-
-      // 3. Montagen an diesem Datum
-      final montagen = ref.watch(montagenProvider);
-      for (final m in montagen) {
-        if (m.status != 'geplant') continue;
-        final mDatum = DateTime(m.datum.year, m.datum.month, m.datum.day);
-        final selDate = DateTime(datum.year, datum.month, datum.day);
-        if (mDatum != selDate) continue;
-
-        final betrieb = m.betriebId != null ? betriebMap[m.betriebId!] : null;
-        final istHeiGenie = m.montageTyp == 'heigenie_service';
-        eintraege.add(
-          TourEintrag(
-            typ: istHeiGenie ? TourEintragTyp.heigenie : TourEintragTyp.montage,
-            id: 'm_${m.routeId}',
-            betriebId: m.betriebId,
-            anlageId: m.anlageId,
-            betriebName: betrieb?.name ?? '?',
-            betriebOrt: betrieb?.ort,
-            regionId: betrieb?.regionId,
-            beschreibung:
-                '${_montageTypLabel(m.montageTyp)} · ${m.beschreibung}',
-            datum: m.datum,
-            ruhetage: betrieb?.ruhetage ?? const [],
-            servicezeit: _servicezeitAus(betrieb),
-          ),
-        );
-      }
-
-      return eintraege;
-    });
 
 // ─── Zeitachse: Dauer-Historie, Fahrzeiten, Arbeitstag (Task 6) ───
 
@@ -1841,15 +1719,6 @@ Future<void> arbeitstagFelderSpeichern(
         .eq('user_id', userId)
         .eq('datum', datumStr);
   }
-}
-
-Future<void> tagesplanLoeschen(DateTime datum) async {
-  final datumStr =
-      '${datum.year}-${datum.month.toString().padLeft(2, '0')}-${datum.day.toString().padLeft(2, '0')}';
-  await SupabaseService.client
-      .from('tagesplaene')
-      .delete()
-      .eq('datum', datumStr);
 }
 
 // ─── Tages-Counts (für Day-Chips, alle Typen) ───

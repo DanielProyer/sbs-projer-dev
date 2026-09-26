@@ -52,11 +52,6 @@ class MwstSatzService {
     return satzFuer(datum, await laden());
   }
 
-  /// Reduzierter Satz für ein Datum (lädt + cached).
-  static Future<double> reduzierterSatzFuerDatum(DateTime datum) async {
-    return reduzierterSatzFuer(datum, await laden());
-  }
-
   /// Legt einen neuen Satz ab Datum an und leert den Cache.
   static Future<void> hinzufuegen({
     required DateTime gueltigAb,

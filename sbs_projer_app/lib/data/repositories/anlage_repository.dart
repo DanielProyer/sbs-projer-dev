@@ -51,15 +51,6 @@ class AnlageRepository {
     return IsarService.anlageWatchByBetrieb(betriebId);
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('anlagen').select('id').eq('user_id', _userId);
-      return rows.length;
-    }
-    return IsarService.anlageCount();
-  }
-
   static Future<void> save(AnlageLocal anlage) async {
     anlage.userId = _userId;
     if (kIsWeb) {

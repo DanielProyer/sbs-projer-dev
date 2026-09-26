@@ -16,16 +16,6 @@ class MaterialBestellungRepository {
     return rows.map((r) => MaterialBestellung.fromJson(r)).toList();
   }
 
-  static Future<MaterialBestellung?> getById(String id) async {
-    final rows = await SupabaseService.client
-        .from('material_bestellungen')
-        .select()
-        .eq('id', id)
-        .limit(1);
-    if (rows.isEmpty) return null;
-    return MaterialBestellung.fromJson(rows.first);
-  }
-
   static Future<List<MaterialBestellposition>> getPositionen(
       String bestellungId) async {
     final rows = await SupabaseService.client

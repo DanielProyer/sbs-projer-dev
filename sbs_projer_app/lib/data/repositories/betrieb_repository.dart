@@ -26,15 +26,6 @@ class BetriebRepository {
     return IsarService.betriebWatchAll();
   }
 
-  static Future<List<BetriebLocal>> getAktive() async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('betriebe').select().eq('user_id', _userId).eq('status', 'aktiv');
-      return rows.map((r) => BetriebMapper.fromDto(Betrieb.fromJson(r))).toList();
-    }
-    return IsarService.betriebFilterByStatus('aktiv');
-  }
-
   static Future<BetriebLocal?> getById(String id) async {
     if (kIsWeb) {
       final rows = await SupabaseService.client
@@ -48,24 +39,6 @@ class BetriebRepository {
   static Future<BetriebLocal?> getByServerId(String serverId) async {
     if (kIsWeb) return getById(serverId);
     return IsarService.betriebFindByServerId(serverId);
-  }
-
-  static Future<List<BetriebLocal>> getByRegion(String regionId) async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('betriebe').select().eq('user_id', _userId).eq('region_id', regionId);
-      return rows.map((r) => BetriebMapper.fromDto(Betrieb.fromJson(r))).toList();
-    }
-    return IsarService.betriebFilterByRegion(regionId);
-  }
-
-  static Future<int> count() async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('betriebe').select('id').eq('user_id', _userId);
-      return rows.length;
-    }
-    return IsarService.betriebCount();
   }
 
   static Future<void> save(BetriebLocal betrieb) async {

@@ -56,28 +56,6 @@ Buchung _b({
 void main() {
   _meldungTests();
   _nachbesserungTests();
-  group('darfKassieren', () {
-    test('gemahnte offene Rechnung ohne Zahlung: ja', () {
-      expect(BarzahlungService.darfKassieren(_r(), hatZahlung: false), isTrue);
-    });
-    test('bezahlt / abgeschrieben: nein', () {
-      expect(BarzahlungService.darfKassieren(_r(status: 'bezahlt'), hatZahlung: false), isFalse);
-      expect(BarzahlungService.darfKassieren(_r(status: 'abgeschrieben'), hatZahlung: false),
-          isFalse);
-    });
-    test('gebuchte Zahlung: nein', () {
-      expect(BarzahlungService.darfKassieren(_r(), hatZahlung: true), isFalse);
-    });
-    test('vermerkter Zahlungseingang oder -betrag: nein', () {
-      expect(
-          BarzahlungService.darfKassieren(_r(zahlungEingegangen: '2026-09-01'),
-              hatZahlung: false),
-          isFalse);
-      expect(BarzahlungService.darfKassieren(_r(zahlungBetrag: 50), hatZahlung: false),
-          isFalse);
-    });
-  });
-
   group('barzahlungAus', () {
     test('findet aktive Kassen-Zahlung 1000/1100', () {
       expect(BarzahlungService.barzahlungAus([_b()])?.id, 'b1');

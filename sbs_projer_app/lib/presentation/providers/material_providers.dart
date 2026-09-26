@@ -14,10 +14,6 @@ final materialienProvider = Provider<List<Lager>>((ref) {
   return ref.watch(materialienStreamProvider).valueOrNull ?? [];
 });
 
-final materialCountProvider = Provider<int>((ref) {
-  return ref.watch(materialienProvider).length;
-});
-
 final niedrigCountProvider = Provider<int>((ref) {
   return ref.watch(materialienProvider).where((m) => m.bestandNiedrig == true).length;
 });

@@ -9,8 +9,3 @@ final kontenStreamProvider = StreamProvider<List<Konto>>((ref) {
 final kontenProvider = Provider<List<Konto>>((ref) {
   return ref.watch(kontenStreamProvider).valueOrNull ?? [];
 });
-
-final kontenCountProvider = FutureProvider<int>((ref) {
-  ref.watch(kontenStreamProvider);
-  return KontoRepository.count();
-});

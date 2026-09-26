@@ -13,12 +13,3 @@ final biersorteLeitungenCountProvider =
   ref.watch(biersortenProvider); // invalidiert mit
   return BiersorteRepository.getLeitungenCounts();
 });
-
-/// Map: name.toLowerCase() → kategorie (für schnellen Lookup).
-final biersorteKategorieMapProvider =
-    FutureProvider<Map<String, String>>((ref) async {
-  final biersorten = await ref.watch(biersortenProvider.future);
-  return {
-    for (final b in biersorten) b.name.toLowerCase(): b.kategorie,
-  };
-});

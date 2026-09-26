@@ -82,13 +82,6 @@ class EigenauftragRepository {
     return IsarService.eigenauftragWatchByBetrieb(betriebId);
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      return (await _pagedByUser()).length;
-    }
-    return IsarService.eigenauftragCount();
-  }
-
   static Future<void> save(EigenauftragLocal eigenauftrag) async {
     eigenauftrag.userId = _userId;
     if (kIsWeb) {

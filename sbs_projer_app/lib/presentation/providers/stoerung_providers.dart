@@ -9,24 +9,3 @@ final stoerungenStreamProvider = StreamProvider<List<StoerungLocal>>((ref) {
 final stoerungenProvider = Provider<List<StoerungLocal>>((ref) {
   return ref.watch(stoerungenStreamProvider).valueOrNull ?? [];
 });
-
-final stoerungCountProvider = Provider<int>((ref) {
-  return ref.watch(stoerungenProvider).length;
-});
-
-/// Anzahl Störungen im aktuellen Jahr
-final stoerungCountAktuellesJahrProvider = Provider<int>((ref) {
-  final all = ref.watch(stoerungenProvider);
-  final jahr = DateTime.now().year;
-  return all.where((s) => s.datum.year == jahr).length;
-});
-
-final stoerungenByAnlageProvider =
-    StreamProvider.family<List<StoerungLocal>, String>((ref, anlageId) {
-  return StoerungRepository.watchByAnlage(anlageId);
-});
-
-final stoerungenByBetriebProvider =
-    StreamProvider.family<List<StoerungLocal>, String>((ref, betriebId) {
-  return StoerungRepository.watchByBetrieb(betriebId);
-});

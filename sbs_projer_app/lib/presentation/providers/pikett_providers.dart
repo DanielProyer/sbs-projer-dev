@@ -9,7 +9,3 @@ final pikettDiensteStreamProvider = StreamProvider<List<PikettDienstLocal>>((ref
 final pikettDiensteProvider = Provider<List<PikettDienstLocal>>((ref) {
   return ref.watch(pikettDiensteStreamProvider).valueOrNull ?? [];
 });
-
-final pikettDienstCountProvider = Provider<int>((ref) {
-  return ref.watch(pikettDiensteProvider).length;
-});

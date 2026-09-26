@@ -82,13 +82,6 @@ class EroeffnungsreinigungRepository {
     return IsarService.eroeffnungsreinigungWatchByBetrieb(betriebId);
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      return (await _pagedByUser()).length;
-    }
-    return IsarService.eroeffnungsreinigungCount();
-  }
-
   static Future<void> save(EroeffnungsreinigungLocal er) async {
     er.userId = _userId;
     if (kIsWeb) {

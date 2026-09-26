@@ -13,13 +13,6 @@ class CamtPrueflisteRepository {
     return rows.map((r) => CamtPrueflisteEintrag.fromJson(r)).toList();
   }
 
-  static Future<Set<String>> getAlleTxKeys() async {
-    final rows = await SupabaseService.client
-        .from('camt_pruefliste')
-        .select('tx_key');
-    return rows.map((r) => r['tx_key'] as String).toSet();
-  }
-
   /// txKeys, die einen Re-Import blockieren sollen: nur ERLEDIGTE/IGNORIERTE
   /// Einträge. Offene Einträge werden beim nächsten Import neu bewertet —
   /// mit aktuellem Datenstand kann aus einem offenen Fall ein buchbarer

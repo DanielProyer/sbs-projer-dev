@@ -37,15 +37,6 @@ class RegionRepository {
     return IsarService.regionFindByServerId(serverId);
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('regionen').select('id').eq('user_id', _userId);
-      return rows.length;
-    }
-    return IsarService.regionCount();
-  }
-
   static Future<void> save(RegionLocal region) async {
     region.userId = _userId;
     if (kIsWeb) {

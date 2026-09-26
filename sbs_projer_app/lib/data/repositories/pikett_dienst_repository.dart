@@ -68,13 +68,6 @@ class PikettDienstRepository {
     return IsarService.pikettDienstWatchAll();
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      return (await _pagedByUser()).length;
-    }
-    return IsarService.pikettDienstCount();
-  }
-
   static Future<void> save(PikettDienstLocal pikett) async {
     pikett.userId = SupabaseService.currentUser!.id;
     pikett.serverId ??= const Uuid().v4();

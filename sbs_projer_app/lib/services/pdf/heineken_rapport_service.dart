@@ -721,24 +721,6 @@ class HeinekenRapportService {
     );
   }
 
-  static Future<Uint8List> generateAnfahrtspauschale({
-    required String referenzNr,
-    required DateTime datum,
-    required String kunde,
-    required String ort,
-  }) async {
-    final logo = await _loadLogo();
-    final pdf = await pdfDokument();
-    pdf.addPage(buildAnfahrtspauschPage(
-      referenzNr: referenzNr,
-      datum: datum,
-      kunde: kunde,
-      ort: ort,
-      logoBytes: logo,
-    ));
-    return pdf.save();
-  }
-
   // ═══════════════════════════════════════════════════════════════
   // SHARED HELPER WIDGETS
   // ═══════════════════════════════════════════════════════════════

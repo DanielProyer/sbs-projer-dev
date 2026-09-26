@@ -11,20 +11,6 @@ class MahnschreibenRepository {
     await SupabaseService.client.from(_tabelle).insert(json);
   }
 
-  /// Neueste zuerst — eindeutig sortiert (`id` als zweiter Schlüssel, siehe
-  /// CLAUDE.md «Seitenweises Laden»), auch wenn hier noch nicht seitenweise
-  /// geladen wird: ein Betrieb hat praktisch nie genug Mahnschreiben, um die
-  /// 1000er-Grenze von PostgREST zu erreichen.
-  static Future<List<Mahnschreiben>> getByBetrieb(String betriebId) async {
-    final rows = await SupabaseService.client
-        .from(_tabelle)
-        .select()
-        .eq('betrieb_id', betriebId)
-        .order('erstellt_am', ascending: false)
-        .order('id');
-    return rows.map((r) => Mahnschreiben.fromJson(r)).toList();
-  }
-
   /// Ein Schreiben per Id — für «Zurücknehmen» direkt nach einem
   /// abgebrochenen Mahnlauf (`MahnlaufFehler.mahnschreibenId`).
   static Future<Mahnschreiben?> getById(String id) async {

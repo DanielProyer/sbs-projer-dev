@@ -75,13 +75,4 @@ class ProtokollFotoStorage {
   /// Prüft ob der Pfad ein PDF ist (neues Format) oder ein JPG (altes Format).
   static bool isPdf(String pfad) => pfad.endsWith('.pdf');
 
-  /// Foto/PDF aus Storage löschen.
-  static Future<void> deleteFoto(String pfad) async {
-    final paths = [pfad];
-    // Auch JPEG-Version löschen falls vorhanden
-    if (pfad.endsWith('.pdf')) {
-      paths.add(jpgPathFromPdf(pfad));
-    }
-    await SupabaseService.client.storage.from(_bucket).remove(paths);
-  }
 }

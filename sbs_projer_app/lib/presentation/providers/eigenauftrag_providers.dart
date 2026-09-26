@@ -9,19 +9,3 @@ final eigenauftraegeStreamProvider = StreamProvider<List<EigenauftragLocal>>((re
 final eigenauftraegeProvider = Provider<List<EigenauftragLocal>>((ref) {
   return ref.watch(eigenauftraegeStreamProvider).value ?? [];
 });
-
-final eigenauftragCountProvider = Provider<int>((ref) {
-  return ref.watch(eigenauftraegeProvider).length;
-});
-
-/// Anzahl Eigenaufträge im aktuellen Jahr
-final eigenauftragCountAktuellesJahrProvider = Provider<int>((ref) {
-  final all = ref.watch(eigenauftraegeProvider);
-  final jahr = DateTime.now().year;
-  return all.where((e) => e.datum.year == jahr).length;
-});
-
-final eigenauftraegeByBetriebProvider =
-    StreamProvider.family<List<EigenauftragLocal>, String>((ref, betriebId) {
-  return EigenauftragRepository.watchByBetrieb(betriebId);
-});

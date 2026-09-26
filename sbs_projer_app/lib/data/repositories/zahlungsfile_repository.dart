@@ -15,14 +15,4 @@ class ZahlungsfileRepository {
         .select();
     return Zahlungsfile.fromJson(rows.first);
   }
-
-  /// Liefert alle Zahlungsfiles des Users, neueste zuerst.
-  static Future<List<Zahlungsfile>> getAll() async {
-    final rows = await SupabaseService.client
-        .from('zahlungsfile')
-        .select()
-        .eq('user_id', _userId)
-        .order('erstellt_am', ascending: false);
-    return rows.map((r) => Zahlungsfile.fromJson(r)).toList();
-  }
 }

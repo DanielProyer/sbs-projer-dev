@@ -10,12 +10,6 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 class GuthabenRepository {
   static String get _userId => SupabaseService.currentUser!.id;
 
-  /// Offenes Guthaben aller Betriebe (Schlüssel `''` = Buchungen ohne
-  /// zuordenbare Rechnung).
-  static Future<Map<String, double>> offenesGuthabenAlle() async =>
-      // Seitenweise, `.order('id')` — siehe BuchungRepository.getByKonto.
-      _jeBetrieb(await BuchungRepository.getByKonto(kKontoKundenguthaben));
-
   static Future<Map<String, double>> _jeBetrieb(List<Buchung> buchungen) async {
     final rechnungIds = buchungen
         .map((b) => b.belegId)

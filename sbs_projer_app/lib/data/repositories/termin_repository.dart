@@ -88,10 +88,4 @@ class TerminRepository {
   /// Löscht den Termin. Der Push danach räumt den verwaisten
   /// Kalender-Eintrag auf (die Zeile ist dann weg, `pushOne` löscht das
   /// gemappte Google-Event, wenn es die Entität nicht mehr findet).
-  static Future<void> loeschen(String id) async {
-    await SupabaseService.client.from(_table).delete().eq('id', id);
-    try {
-      await GoogleCalendarSyncService.push('termin', id);
-    } catch (_) {}
-  }
 }

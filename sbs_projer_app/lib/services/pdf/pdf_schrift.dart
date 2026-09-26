@@ -41,8 +41,6 @@ class PdfSchrift {
     return erstellt;
   }
 
-  /// Nur für Tests: erzwingt das Neuladen der Schriften.
-  static void zuruecksetzen() => _theme = null;
 }
 
 /// Erzeugt ein PDF-Dokument mit Unicode-fähiger Schrift.

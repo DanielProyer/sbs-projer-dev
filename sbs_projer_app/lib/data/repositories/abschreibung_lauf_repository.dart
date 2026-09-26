@@ -16,17 +16,6 @@ class AbschreibungLaufRepository {
     return [for (final r in rows) AbschreibungLauf.fromJson(r)];
   }
 
-  static Future<List<AbschreibungPosition>> getPositionen(String laufId) async {
-    final rows = await SupabaseService.client
-        .from('abschreibung_positionen')
-        .select()
-        .eq('lauf_id', laufId)
-        .order('jahrgang')
-        .order('rechnungsnummer')
-        .order('id');
-    return [for (final r in rows) AbschreibungPosition.fromJson(r)];
-  }
-
   /// Bucht alle [rechnungIds] per 31.12.[geschaeftsjahr] in EINER
   /// Transaktion (SQL-Funktion prüft jede Rechnung nochmals). Liefert die
   /// Lauf-ID.

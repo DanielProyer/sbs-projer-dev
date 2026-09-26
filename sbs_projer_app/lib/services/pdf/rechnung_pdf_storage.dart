@@ -125,14 +125,6 @@ class RechnungPdfStorage {
         );
   }
 
-  /// Signed URL für ein Mahnfall-PDF (z. B. den Kontoauszug an Heineken).
-  static Future<String> getMahnfallSignedUrl(String fallId, String datei) async {
-    final path = '${SupabaseService.dataUserId}/mahnfaelle/$fallId/$datei';
-    return await SupabaseService.client.storage
-        .from(_bucket)
-        .createSignedUrl(path, 3600);
-  }
-
   /// Signed URL für ein Mahnlauf-PDF (Mahnschreiben, Kontoauszug oder Druck).
   static Future<String> getMahnlaufSignedUrl(
       String mahnschreibenId, String datei) async {

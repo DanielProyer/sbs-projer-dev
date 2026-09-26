@@ -108,13 +108,6 @@ class StoerungRepository {
     return IsarService.stoerungWatchByBetrieb(betriebId);
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      return (await _pagedByUser()).length;
-    }
-    return IsarService.stoerungCount();
-  }
-
   static Future<void> save(StoerungLocal stoerung) async {
     stoerung.userId = _userId;
     if (kIsWeb) {

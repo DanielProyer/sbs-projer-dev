@@ -424,7 +424,7 @@ final router = GoRouter(
     GoRoute(
       path: '/eigenauftraege/neu',
       redirect: (context, state) =>
-          SupabaseService.isGuest ? '/eigenauftraege' : null,
+          SupabaseService.isGuest ? '/einsaetze' : null,
       builder: (context, state) {
         final betriebId = state.uri.queryParameters['betriebId'];
         return EigenauftragFormScreen(betriebId: betriebId);
@@ -440,7 +440,7 @@ final router = GoRouter(
     GoRoute(
       path: '/eigenauftraege/:id/bearbeiten',
       redirect: (context, state) =>
-          SupabaseService.isGuest ? '/eigenauftraege' : null,
+          SupabaseService.isGuest ? '/einsaetze' : null,
       builder: (context, state) {
         final id = state.pathParameters['id']!;
         return EigenauftragFormScreen(eigenauftragId: id);
@@ -451,7 +451,7 @@ final router = GoRouter(
     GoRoute(
       path: '/eroeffnungsreinigungen/neu',
       redirect: (context, state) =>
-          SupabaseService.isGuest ? '/eroeffnungsreinigungen' : null,
+          SupabaseService.isGuest ? '/einsaetze' : null,
       builder: (context, state) {
         final betriebId = state.uri.queryParameters['betriebId'];
         return EroeffnungsreinigungFormScreen(betriebId: betriebId);
@@ -467,7 +467,7 @@ final router = GoRouter(
     GoRoute(
       path: '/eroeffnungsreinigungen/:id/bearbeiten',
       redirect: (context, state) =>
-          SupabaseService.isGuest ? '/eroeffnungsreinigungen' : null,
+          SupabaseService.isGuest ? '/einsaetze' : null,
       builder: (context, state) {
         final id = state.pathParameters['id']!;
         return EroeffnungsreinigungFormScreen(eroeffnungsreinigungId: id);

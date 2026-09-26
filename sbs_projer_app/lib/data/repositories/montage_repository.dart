@@ -108,13 +108,6 @@ class MontageRepository {
     return IsarService.montageWatchByBetrieb(betriebId);
   }
 
-  static Future<int> count() async {
-    if (kIsWeb) {
-      return (await _pagedByUser()).length;
-    }
-    return IsarService.montageCount();
-  }
-
   static Future<void> save(MontageLocal montage) async {
     montage.userId = SupabaseService.currentUser!.id;
     if (kIsWeb) {

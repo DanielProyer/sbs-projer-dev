@@ -79,10 +79,6 @@ class BarzahlungService {
     return null;
   }
 
-  /// Rein: Darf auf diese Rechnung bar kassiert werden?
-  static bool darfKassieren(Rechnung r, {required bool hatZahlung}) =>
-      kassierSperre(r, hatZahlung: hatZahlung) == null;
-
   /// Rein: Meldung für die Oberfläche. Bei einem Teilfehler
   /// «X von Y kassiert (CHF …) — Rechnung N: Grund» (Review I-1).
   static String fehlerText(BarzahlungFehler f, {required int gesamt}) {

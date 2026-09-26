@@ -106,12 +106,6 @@ class BuchungService {
     return saldi;
   }
 
-  /// Saldo eines Kontos (inkl. MWST-Anteil, falls das Konto ein Steuerkonto ist).
-  static Future<double> getKontoSaldo(int kontonummer) async {
-    final saldi = await getAllSaldi();
-    return saldi[kontonummer] ?? 0;
-  }
-
   /// Bank-Saldo 1020 per Stichtag (einschliesslich) — für den Bank-Wächter.
   /// Bewusst OHNE SaldoExpansion: auf 1020 liegt nie ein `mwst_konto`.
   static Future<double> bankSaldoPer(DateTime bis) async {

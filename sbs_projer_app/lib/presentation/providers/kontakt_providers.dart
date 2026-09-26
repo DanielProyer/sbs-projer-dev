@@ -13,10 +13,3 @@ final kontakteByKategorieProvider =
     FutureProvider.family<List<KontaktLocal>, String>((ref, kategorie) async {
   return KontaktRepository.getByKategorie(kategorie);
 });
-
-/// Kontakte eines Betriebs.
-final kontakteByBetriebProvider =
-    FutureProvider.family<List<KontaktLocal>, String>((ref, betriebId) async {
-  return KontaktRepository.getByBetrieb(betriebId);
-});
-

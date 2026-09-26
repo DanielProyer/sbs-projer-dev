@@ -31,23 +31,6 @@ class LagerRepository {
     return Lager.fromJson(rows.first);
   }
 
-  static Future<int> count() async {
-    final rows = await SupabaseService.client
-        .from('lager')
-        .select('id')
-        .eq('user_id', _userId);
-    return rows.length;
-  }
-
-  static Future<int> countNiedrig() async {
-    final rows = await SupabaseService.client
-        .from('lager')
-        .select('id')
-        .eq('user_id', _userId)
-        .eq('bestand_niedrig', true);
-    return rows.length;
-  }
-
   static Future<List<Lager>> getBestellliste() async {
     final rows = await SupabaseService.client
         .from('lager')
@@ -80,14 +63,6 @@ class LagerRepository {
         .from('lager')
         .update({'vorgemerkt': value})
         .eq('id', id);
-  }
-
-  static Future<void> clearVorgemerkt() async {
-    await SupabaseService.client
-        .from('lager')
-        .update({'vorgemerkt': false})
-        .eq('user_id', _userId)
-        .eq('vorgemerkt', true);
   }
 
   static Future<void> delete(String id) async {

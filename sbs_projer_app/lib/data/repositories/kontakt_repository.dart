@@ -31,11 +31,6 @@ class KontaktRepository {
     return IsarService.kontaktFilterByBetrieb(betriebId);
   }
 
-  static Stream<List<KontaktLocal>> watchByBetrieb(String betriebId) {
-    if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
-    return IsarService.kontaktWatchByBetrieb(betriebId);
-  }
-
   static Future<List<KontaktLocal>> getByKategorie(String kategorie) async {
     if (kIsWeb) {
       final rows = await SupabaseService.client
@@ -81,28 +76,6 @@ class KontaktRepository {
   }
 
   /// Gibt die erste E-Mail-Adresse für eine Kategorie+Rolle zurück.
-  static Future<String?> getEmailByKategorieRolle(String kategorie, String rolle) async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('kontakte').select('email')
-          .eq('user_id', _userId)
-          .eq('kategorie', kategorie)
-          .eq('rolle', rolle)
-          .not('email', 'is', null)
-          .limit(1);
-      if (rows.isEmpty) return null;
-      final email = rows.first['email'] as String?;
-      return (email != null && email.isNotEmpty) ? email : null;
-    }
-    final all = await getByKategorie(kategorie);
-    for (final k in all) {
-      if (k.rolle == rolle && k.email != null && k.email!.isNotEmpty) {
-        return k.email;
-      }
-    }
-    return null;
-  }
-
   // --- Heineken Kontakt-Zuweisungen ---
 
   /// Alle Zuweisungen laden (Map: funktion → KontaktLocal?).

@@ -12,8 +12,3 @@ final lohnAbrechnungenProvider =
     FutureProvider.family<List<LohnAbrechnung>, int>((ref, jahr) {
   return LohnRepository.getAbrechnungen(jahr);
 });
-
-final lohnJahresTotaleProvider =
-    FutureProvider.family<Map<String, double>, int>((ref, jahr) {
-  return LohnRepository.jahresTotale(jahr);
-});
