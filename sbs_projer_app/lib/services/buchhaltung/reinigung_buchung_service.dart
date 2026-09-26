@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Zahlungsarten, die eine Debitoren-Buchung auslösen. 'jahresrechnung' ist
@@ -103,9 +104,11 @@ class ReinigungBuchungService {
       return null;
     }
 
-    // Duplikat-Check via belegId
+    // Duplikat-Check via belegId — stornierte Zeilen und Storno-Gegenbuchungen
+    // zählen nicht (Korrektur storniert seit R1 statt zu löschen).
     final existing = await BuchungRepository.getByBeleg(reinigung.serverId!);
-    if (existing.isNotEmpty) {
+    if (existing.any((b) =>
+        zaehltFuerSaldo(istStorniert: b.istStorniert, stornoVonId: b.stornoVonId))) {
       debugPrint('ReinigungBuchung: Buchung existiert bereits für ${reinigung.serverId}');
       return null;
     }

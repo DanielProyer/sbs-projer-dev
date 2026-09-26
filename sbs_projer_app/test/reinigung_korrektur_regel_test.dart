@@ -147,5 +147,19 @@ void main() {
       final anderesDatum = _rein()..datum = DateTime(2026, 9, 27);
       expect(preisrelevantGeaendert(_rein(), anderesDatum), true);
     });
+    test('Schnappschuss ist eine Kopie, kein Verweis (r == _existing im Formular)', () {
+      final r = _rein(eigen: 3, grundtarif: 90, zahlungsart: 'rechnung_mail')
+        ..anlageIdsJson = '["a1","a2"]';
+      final alt = preisSchnappschuss(r);
+      expect(identical(alt, r), false);
+      expect(preisrelevantGeaendert(alt, r), false);
+      r.notizen = 'nur Notiz';
+      expect(preisrelevantGeaendert(alt, r), false);
+      r.anzahlHaehneEigen = 4;
+      expect(preisrelevantGeaendert(alt, r), true);
+      r.anzahlHaehneEigen = 3;
+      r.istKulanz = true;
+      expect(preisrelevantGeaendert(alt, r), true);
+    });
   });
 }

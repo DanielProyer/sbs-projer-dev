@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/reinigung_korrektur_regel.dart';
 import 'package:sbs_projer_app/core/util/versand_meldung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
@@ -315,6 +316,45 @@ class _ReinigungDetailContent extends ConsumerWidget {
       '${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    // R1: Ist die Rechnung bezahlt, gemahnt, beim Kunden oder im
+    // abgeschlossenen Jahr, darf die Reinigung nicht mehr verschwinden —
+    // sonst hinge eine Zahlung/Mahnung ohne Grundlage in der Luft.
+    final mitBuchhaltung =
+        reinigung.serverId != null && reinigung.status == 'abgeschlossen';
+    if (mitBuchhaltung) {
+      final KorrekturStand stand;
+      try {
+        stand = await ReinigungKorrekturService.sperrePruefen(reinigung.serverId!);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.error,
+              content: Text(
+                'Löschen nicht möglich — Rechnung nicht prüfbar: '
+                '${kurzeFehlermeldung(e)}',
+                style: const TextStyle(color: Colors.white),
+              ),
+              duration: const Duration(seconds: 10),
+            ),
+          );
+        }
+        return;
+      }
+      if (!context.mounted) return;
+      if (stand.sperre != KorrekturSperre.keine) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text('Löschen nicht möglich. ${stand.text}',
+                style: const TextStyle(color: Colors.white)),
+            duration: const Duration(seconds: 10),
+          ),
+        );
+        return;
+      }
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -334,11 +374,11 @@ class _ReinigungDetailContent extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       try {
-        // Buchhaltung aufräumen (Rechnung + Buchungen) falls vorhanden
-        if (reinigung.serverId != null && reinigung.status == 'abgeschlossen') {
-          await ReinigungKorrekturService.cleanupBuchhaltung(
-            reinigung.serverId!,
-          );
+        // Buchhaltung zurücknehmen: Buchungen stornieren (nie löschen),
+        // unversendete Rechnung entfernen. Prüft die Sperre erneut und wirft
+        // — dann wird die Reinigung auch nicht gelöscht.
+        if (mitBuchhaltung) {
+          await ReinigungKorrekturService.zuruecknehmen(reinigung.serverId!);
         }
 
         // Bergkundenpauschale löschen falls vorhanden

@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
+import 'package:sbs_projer_app/core/util/reinigung_korrektur_regel.dart';
 import 'package:sbs_projer_app/presentation/widgets/saison_abmachung_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -96,6 +97,19 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   ReinigungLocal? _existing;
+
+  /// Preisrelevanter Stand beim Laden (R1). Eigene Kopie, weil `_save` das
+  /// geladene Objekt direkt bearbeitet (`r = _existing`) — ein Vergleich mit
+  /// `_existing` wäre immer «unverändert».
+  ReinigungLocal? _ausgangsstand;
+
+  /// Beim Laden bereits abgeschlossen? Festgehalten, weil `_save` den Status
+  /// am selben Objekt überschreibt.
+  bool _warAbgeschlossen = false;
+
+  /// Sperre der Buchhaltung beim Bearbeiten einer abgeschlossenen Reinigung
+  /// (R1). null = noch nicht geprüft oder keine Rechnung.
+  KorrekturStand? _korrekturStand;
 
   // Zeiterfassung
   late DateTime _datum;
@@ -313,6 +327,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
     setState(() {
       _existing = r;
+      _ausgangsstand = preisSchnappschuss(r);
+      _warAbgeschlossen = r.status == 'abgeschlossen';
       _datum = r.datum;
       _uhrzeitStartController.text = r.uhrzeitStart ?? '';
       _uhrzeitEndeController.text = r.uhrzeitEnde ?? '';
@@ -352,6 +368,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       }
     });
     _loadPreisData();
+    if (kIsWeb && _warAbgeschlossen && r.serverId != null) {
+      try {
+        final stand = await ReinigungKorrekturService.sperrePruefen(r.serverId!);
+        if (mounted) setState(() => _korrekturStand = stand);
+      } catch (e) {
+        debugPrint('[Korrektur] Sperre nicht pruefbar: $e');
+      }
+    }
   }
 
   Future<void> _loadPreisData() async {
@@ -652,6 +676,38 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         }
       }
 
+      // R1: Abgeschlossene Reinigung bearbeiten — Buchhaltung nur anfassen,
+      // wenn sich etwas Preisrelevantes geändert hat, und nur ohne Sperre.
+      // Verglichen wird mit dem Schnappschuss beim Laden, NICHT mit
+      // `_existing` (das ist dasselbe Objekt wie `r`).
+      final korrekturNoetig = _isEdit &&
+          !abschliessen &&
+          kIsWeb &&
+          _warAbgeschlossen &&
+          _ausgangsstand != null &&
+          r.serverId != null &&
+          preisrelevantGeaendert(_ausgangsstand!, r);
+      if (korrekturNoetig) {
+        final stand = await ReinigungKorrekturService.sperrePruefen(r.serverId!);
+        if (stand.sperre != KorrekturSperre.keine) {
+          // `r` trägt schon die Formularwerte, ist aber nicht gespeichert;
+          // jedes weitere Speichern schreibt sie ohnehin neu aus dem Formular.
+          if (mounted) {
+            await showDialog<void>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Änderung nicht möglich'),
+                content: Text(stand.text),
+                actions: [
+                  TapKnopf(text: 'Verstanden', onTap: () => Navigator.pop(ctx)),
+                ],
+              ),
+            );
+          }
+          return; // nichts gespeichert — finally setzt _isLoading zurück
+        }
+      }
+
       // Status ZUERST setzen (vor Foto-Upload, damit kein Doppel-Eintrag entsteht)
       if (abschliessen) {
         r.status = 'abgeschlossen';
@@ -804,28 +860,35 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       }
 
       // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
+      // (R1: nur bei preisrelevanter Änderung, Sperre oben schon geprüft).
+      // Kein Kulanz-/Monteur-Guard mehr: ein Wechsel auf Kulanz ist
+      // preisrelevant — `korrigieren` storniert die alte Buchung, und
+      // `createFromReinigung` legt bei Kulanz bewusst nichts Neues an.
       bool buchungKorrigiert = false;
       String? korrekturTypLabel;
-      if (_isEdit &&
-          !abschliessen &&
-          kIsWeb &&
-          r.status == 'abgeschlossen' &&
-          r.serverId != null &&
-          !_istKulanz &&
-          !_istHeinekenMonteur) {
+      if (korrekturNoetig) {
         try {
-          await ReinigungKorrekturService.cleanupBuchhaltung(r.serverId!);
-          final result = await ReinigungKorrekturService.recreateBuchhaltung(
-            r,
-            _betrieb ??
-                await BetriebRepository.getByServerId(r.betriebId) ??
-                _betrieb!,
-          );
-          buchungKorrigiert = result.buchungVerbucht;
-          korrekturTypLabel = result.buchungTypLabel;
-          debugPrint('[Korrektur] Buchhaltung neu erstellt');
+          final betrieb =
+              _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
+          if (betrieb == null) throw StateError('Betrieb nicht geladen');
+          final erg = await ReinigungKorrekturService.korrigieren(r, betrieb);
+          buchungKorrigiert = erg.buchungVerbucht;
+          korrekturTypLabel = erg.buchungTypLabel;
         } catch (e) {
           debugPrint('[Korrektur] Fehler: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.error,
+                content: Text(
+                  'Reinigung gespeichert, aber Rechnung/Buchung NICHT korrigiert: '
+                  '${kurzeFehlermeldung(e)}\nBitte im Rechnungsbereich prüfen.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                duration: const Duration(seconds: 12),
+              ),
+            );
+          }
         }
       }
 
@@ -1348,7 +1411,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
           ref.invalidate(reinigungenByJahrProvider);
           ref.invalidate(reinigungJahreProvider);
           ref.invalidate(anlagenStreamProvider);
-          if (abschliessen || buchungKorrigiert) {
+          // korrekturNoetig: auch ohne neue Buchung (Wechsel auf Kulanz) wurde
+          // storniert und die Rechnung entfernt.
+          if (abschliessen || buchungKorrigiert || korrekturNoetig) {
             ref.invalidate(rechnungenStreamProvider);
             ref.invalidate(buchungenStreamProvider);
           }
@@ -1794,6 +1859,30 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                   case final hinweis?) ...[
                 _hinweisBox(hinweis, Icons.power_settings_new),
                 const SizedBox(height: 16),
+              ],
+
+              // R1: Rechnung bezahlt/gemahnt/versendet/altes Jahr — Preis und
+              // Positionen gesperrt; Notiz, Foto, Zeiten gehen weiter.
+              if (_korrekturStand != null &&
+                  _korrekturStand!.sperre != KorrekturSperre.keine) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.warning),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.lock_outline, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(_korrekturStand!.text)),
+                    ],
+                  ),
+                ),
               ],
 
               // === Zeiterfassung ===

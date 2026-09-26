@@ -220,6 +220,11 @@ class BuchungRepository {
           .eq('user_id', _userId)
           .eq('beleg_typ', 'rechnung')
           .eq('ist_storniert', false)
+          // Storno-Gegenbuchungen tragen denselben beleg_typ/beleg_id und
+          // ist_storniert=false — ohne diesen Filter gälte eine stornierte
+          // Reinigung weiter als «verrechnet» (seit R1 wird storniert statt
+          // gelöscht). isFilter statt neq: storno_von_id ist nullbar.
+          .isFilter('storno_von_id', null)
           .gte('datum', abStr)
           .lte('datum', bisStr)
           .not('beleg_id', 'is', null)

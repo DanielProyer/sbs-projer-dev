@@ -93,3 +93,31 @@ bool preisrelevantGeaendert(ReinigungLocal alt, ReinigungLocal neu) {
       alt.anzahlHaehneAndererStandort != neu.anzahlHaehneAndererStandort ||
       alt.anlageIdsJson != neu.anlageIdsJson;
 }
+
+/// Kopie genau der Felder, die [preisrelevantGeaendert] vergleicht.
+///
+/// WARUM: Das Formular bearbeitet das geladene Objekt direkt
+/// (`r = _existing ?? ReinigungLocal()`), `_existing` und `r` sind also
+/// dasselbe Objekt — ein Vergleich `preisrelevantGeaendert(_existing!, r)`
+/// wäre immer false und der Wächter blind. Deshalb hält das Formular beim
+/// Laden diesen Schnappschuss fest. Bewusst hier neben dem Vergleich statt
+/// über einen Mapper-Roundtrip: Kommt ein Feld zum Vergleich dazu, muss es
+/// hier mit (sonst meldet der Vergleich für dieses Feld immer «geändert»,
+/// sobald es gesetzt ist — sicher, aber lästig).
+ReinigungLocal preisSchnappschuss(ReinigungLocal r) => ReinigungLocal()
+  ..datum = r.datum
+  ..zahlungsart = r.zahlungsart
+  ..serviceTyp = r.serviceTyp
+  ..istKulanz = r.istKulanz
+  ..istHeinekenMonteur = r.istHeinekenMonteur
+  ..preisGrundtarif = r.preisGrundtarif
+  ..preisZusatzHaehne = r.preisZusatzHaehne
+  ..bergkundenZuschlag = r.bergkundenZuschlag
+  ..preisNetto = r.preisNetto
+  ..preisBrutto = r.preisBrutto
+  ..anzahlHaehneEigen = r.anzahlHaehneEigen
+  ..anzahlHaehneOrion = r.anzahlHaehneOrion
+  ..anzahlHaehneFremd = r.anzahlHaehneFremd
+  ..anzahlHaehneWein = r.anzahlHaehneWein
+  ..anzahlHaehneAndererStandort = r.anzahlHaehneAndererStandort
+  ..anlageIdsJson = r.anlageIdsJson;
