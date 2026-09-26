@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
 import 'package:sbs_projer_app/data/local/eroeffnungsreinigung_local_export.dart';
-import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/eroeffnungsreinigung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
@@ -37,7 +36,8 @@ class _EroeffnungsreinigungFormScreenState
 
   // Felder
   String? _betriebId;
-  String _betriebSearchText = '';
+  /// Bergkunde schon aus dem gewählten Betrieb übernommen?
+  bool _betriebUebernommen = false;
   String _art = 'eroeffnung';
   bool _istBergkunde = false;
   late DateTime _datum;
@@ -241,99 +241,40 @@ class _EroeffnungsreinigungFormScreenState
   }
 
   Widget _buildBetriebField() {
-    final betriebe = ref
-        .watch(betriebeProvider)
-        .where((b) => b.serverId != null)
-        .toList();
+    final betriebe = ref.watch(betriebeProvider);
 
-    // Aktuellen Betrieb-Namen finden
-    if (_betriebId != null && _betriebSearchText.isEmpty) {
-      final match = betriebe.where((b) => b.serverId == _betriebId).toList();
-      if (match.isNotEmpty) {
-        _betriebSearchText = match.first.name;
-        // Auto-detect Bergkunde
-        _istBergkunde = match.first.istBergkunde;
+    // Bergkunde aus dem vorbelegten Betrieb übernehmen, sobald er geladen
+    // ist — einmal, bis der Betrieb gewechselt oder geleert wird (bisheriges
+    // Verhalten, stand früher mitten im Autocomplete).
+    if (_betriebId != null && !_betriebUebernommen) {
+      final match = betriebe
+          .where((b) => b.serverId != null && b.serverId == _betriebId)
+          .firstOrNull;
+      if (match != null) {
+        _betriebUebernommen = true;
+        _istBergkunde = match.istBergkunde;
       }
     }
 
-    return Autocomplete<BetriebLocal>(
-      initialValue: TextEditingValue(text: _betriebSearchText),
-      displayStringForOption: (b) => b.name,
-      optionsBuilder: (textEditingValue) {
-        if (textEditingValue.text.isEmpty) return betriebe;
-        final query = textEditingValue.text.toLowerCase();
-        return betriebe.where(
-          (b) => betriebPasst(
-            name: b.name,
-            ort: b.ort,
-            betriebNr: b.betriebNr,
-            suche: query,
-          ),
-        );
-      },
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: const InputDecoration(
-            labelText: 'Betrieb *',
-            prefixIcon: Icon(Icons.store),
-          ),
-          validator: (_) =>
-              _betriebId == null ? 'Bitte Betrieb auswählen' : null,
-          onChanged: (v) {
-            if (v.isEmpty) {
-              markiereGeaendert();
-              setState(() {
-                _betriebId = null;
-                _betriebSearchText = '';
-                _istBergkunde = false;
-              });
-            }
-          },
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250, maxWidth: 350),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final b = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    title: Text(b.name),
-                    subtitle: b.ort != null ? Text(b.ort!) : null,
-                    trailing: b.istBergkunde
-                        ? Icon(
-                            Icons.terrain,
-                            size: 16,
-                            color: AppColors.warning,
-                          )
-                        : null,
-                    onTap: () => onSelected(b),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-      onSelected: (b) {
-        markiereGeaendert();
-        setState(() {
-          _betriebId = b.serverId;
-          _betriebSearchText = b.name;
-          _istBergkunde = b.istBergkunde;
-        });
-      },
+    return BetriebFeld(
+      betriebe: betriebe,
+      betriebId: _betriebId,
+      label: 'Betrieb *',
+      pflichtMeldung: 'Bitte Betrieb auswählen',
+      leerMax: null,
+      leeren: BetriebLeeren.tippen,
+      bergkundeZeigen: true,
+      onGeaendert: markiereGeaendert,
+      onGeleert: () => setState(() {
+        _betriebId = null;
+        _betriebUebernommen = false;
+        _istBergkunde = false;
+      }),
+      onGewaehlt: (b) => setState(() {
+        _betriebId = b.serverId;
+        _betriebUebernommen = true;
+        _istBergkunde = b.istBergkunde;
+      }),
     );
   }
 

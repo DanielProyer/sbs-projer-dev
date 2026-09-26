@@ -5,12 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_block.dart';
 import 'package:sbs_projer_app/core/util/arbeitszeit_vorschlag.dart';
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
-import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/models/preis.dart';
@@ -32,7 +31,7 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
-import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
@@ -100,7 +99,6 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
   late final _arbeitVonController = TextEditingController();
   late final _arbeitBisController = TextEditingController();
   bool _arbeitBeginnLaeuft = false;
-  Timer? _laufendZeitTimer;
 
   // Material
   List<Lager> _lagerItems = [];
@@ -284,19 +282,6 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
         }
       }
     });
-    _ensureLaufendZeitTimer();
-  }
-
-  /// Startet — falls noch nicht aktiv — einen periodischen Timer, der die
-  /// laufende Zeitanzeige ("seit HH:mm · NN min") beim Beginn-Knopf aktuell
-  /// haelt, solange ein Beginn ohne Ende erfasst ist.
-  void _ensureLaufendZeitTimer() {
-    if (_laufendZeitTimer != null) return;
-    if (_emptyToNull(_arbeitVonController.text) == null) return;
-    if (_emptyToNull(_arbeitBisController.text) != null) return;
-    _laufendZeitTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
-    });
   }
 
   String? _emptyToNull(String text) {
@@ -308,20 +293,6 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       _isEdit &&
       _existing != null &&
       (_existing!.status == 'geplant' || _existing!.status == 'in_bearbeitung');
-
-  /// "seit HH:mm · NN min" fuer die laufende Arbeitszeit-Anzeige.
-  /// Null, sobald ein Ende erfasst ist — sonst zaehlte die Anzeige nach dem
-  /// Feierabend munter weiter («seit 11:30 · 10'000 min», Fall Sartons).
-  String? _elapsedText() {
-    if (_emptyToNull(_arbeitBisController.text) != null) return null;
-    final von = _parseZeit(_arbeitVonController.text);
-    if (von == null) return null;
-    final now = DateTime.now();
-    var start = DateTime(now.year, now.month, now.day, von.hour, von.minute);
-    if (start.isAfter(now)) start = start.subtract(const Duration(days: 1));
-    final minuten = now.difference(start).inMinutes;
-    return 'seit ${_arbeitVonController.text} · $minuten min';
-  }
 
   String _formatZeit(TimeOfDay time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
@@ -422,8 +393,6 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       _existing?.status = 'abgeschlossen';
       _arbeitBeginnLaeuft = true;
     });
-    _laufendZeitTimer?.cancel();
-    _laufendZeitTimer = null;
 
     final hinweis = _stundenVorschlagen();
 
@@ -472,7 +441,6 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       _existing?.status = 'in_bearbeitung';
       _arbeitBeginnLaeuft = true;
     });
-    _ensureLaufendZeitTimer();
 
     final id = widget.montageId;
     try {
@@ -869,7 +837,6 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
 
   @override
   void dispose() {
-    _laufendZeitTimer?.cancel();
     _stundenController.dispose();
     _betragController.dispose();
     _arbeitVonController.dispose();
@@ -936,10 +903,30 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
 
                   // === Arbeitszeit (Beginn-Knopf + von Hand aenderbare
                   // Zeitfelder) — typ-unabhaengig, gilt fuer jede Montage. ===
-                  _buildArbeitBeginnBlock(),
-                  _sectionTitle(context, 'Arbeitszeit'),
-                  const SizedBox(height: 8),
-                  _buildArbeitZeitfelder(),
+                  ArbeitszeitBlock(
+                    vonController: _arbeitVonController,
+                    bisController: _arbeitBisController,
+                    beginnMoeglich: _warGeplant,
+                    laeuft: _arbeitBeginnLaeuft,
+                    onBeginnen: _arbeitBeginnen,
+                    onBeenden: _arbeitBeenden,
+                    onGeaendert: () {
+                      // Die Zeitfelder sind InputDecorator, keine FormFields —
+                      // Form.onChanged sieht sie nicht. Neu zeichnen wegen
+                      // des «gemessen»-Hinweises.
+                      markiereGeaendert();
+                      setState(() {});
+                      // Sobald beide Zeiten stehen, den Vorschlag gleich
+                      // eintragen — der «Beenden»-Knopf erscheint nur bei
+                      // laufender Arbeit und greift bei nachträglich
+                      // erfassten Zeiten deshalb nie.
+                      _stundenVorschlagFallsLeer();
+                    },
+                    zwischen: [
+                      _sectionTitle(context, 'Arbeitszeit'),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // === Betrieb ===
@@ -1285,7 +1272,16 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                       _montageTyp != 'aufwandsentschaedigung') ...[
                     _sectionTitle(context, 'Verwendetes Material'),
                     const SizedBox(height: 8),
-                    ..._buildMaterialSlots(),
+                    MaterialSlots(
+                      lager: _lagerItems,
+                      ids: _materialIds,
+                      namen: _materialControllers,
+                      mengenController: _materialMengenControllers,
+                      mengen: _materialMengen,
+                      feldController: _autoCompleteControllers,
+                      mengenBreite: 105,
+                      onGeaendert: markiereGeaendert,
+                    ),
                     const SizedBox(height: 24),
                   ],
 
@@ -1668,147 +1664,7 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
 
   // ── Standard-Widgets (unverändert) ────────────────────────────────
 
-  List<Widget> _buildMaterialSlots() {
-    return List.generate(
-      5,
-      (i) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: _lagerItems.isNotEmpty
-                  ? Autocomplete<Lager>(
-                      initialValue: TextEditingValue(
-                        text: _materialControllers[i].text,
-                      ),
-                      displayStringForOption: (l) => l.name,
-                      optionsViewOpenDirection: OptionsViewOpenDirection.up,
-                      optionsBuilder: (textEditingValue) {
-                        if (textEditingValue.text.isEmpty) {
-                          return _lagerItems.take(10);
-                        }
-                        final q = textEditingValue.text.toLowerCase();
-                        return _lagerItems.where(
-                          (l) => l.name.toLowerCase().contains(q),
-                        );
-                      },
-                      fieldViewBuilder:
-                          (context, controller, focusNode, onSubmitted) {
-                            _autoCompleteControllers[i] = controller;
-                            return TextFormField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              decoration: InputDecoration(
-                                labelText: 'Material ${i + 1}',
-                                isDense: true,
-                                prefixIcon: const Icon(
-                                  Icons.inventory_2,
-                                  size: 20,
-                                ),
-                                suffixIcon: controller.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 16),
-                                        onPressed: () {
-                                          controller.clear();
-                                          markiereGeaendert();
-                                          setState(() {
-                                            _materialIds[i] = null;
-                                            _materialControllers[i].clear();
-                                          });
-                                        },
-                                      )
-                                    : null,
-                              ),
-                            );
-                          },
-                      optionsViewBuilder: (context, onSelected, options) {
-                        return Align(
-                          alignment: Alignment.bottomLeft,
-                          child: Material(
-                            elevation: 4,
-                            borderRadius: BorderRadius.circular(8),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxHeight: 200,
-                                maxWidth: 350,
-                              ),
-                              child: ListView.builder(
-                                padding: EdgeInsets.zero,
-                                shrinkWrap: true,
-                                itemCount: options.length,
-                                itemBuilder: (context, index) {
-                                  final l = options.elementAt(index);
-                                  return ListTile(
-                                    dense: true,
-                                    title: Text(l.name),
-                                    subtitle: l.dboNr != null
-                                        ? Text(
-                                            l.dboNr!,
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                            ),
-                                          )
-                                        : null,
-                                    onTap: () => onSelected(l),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      onSelected: (l) {
-                        markiereGeaendert();
-                        setState(() {
-                          _materialIds[i] = l.id;
-                          _materialControllers[i].text = l.name;
-                        });
-                      },
-                    )
-                  : TextFormField(
-                      controller: _materialControllers[i],
-                      decoration: InputDecoration(
-                        labelText: 'Material ${i + 1}',
-                        isDense: true,
-                        prefixIcon: const Icon(Icons.inventory_2, size: 20),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 105,
-              child: TextFormField(
-                controller: _materialMengenControllers[i],
-                decoration: const InputDecoration(
-                  labelText: 'Anz.',
-                  isDense: true,
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (v) {
-                  _materialMengen[i] = double.tryParse(v) ?? 1;
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildBetriebField() {
-    final betriebe = ref
-        .watch(betriebeProvider)
-        .where((b) => b.serverId != null)
-        .toList();
-
-    final currentName = _betriebId != null
-        ? betriebe
-              .where((b) => b.serverId == _betriebId)
-              .map((b) => b.name)
-              .firstOrNull
-        : null;
-
     if (_betriebDisabled) {
       return InputDecorator(
         decoration: const InputDecoration(
@@ -1819,83 +1675,21 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       );
     }
 
-    return Autocomplete<BetriebLocal>(
-      initialValue: currentName != null
-          ? TextEditingValue(text: currentName)
-          : TextEditingValue.empty,
-      displayStringForOption: (b) => b.name,
-      optionsBuilder: (textEditingValue) {
-        if (textEditingValue.text.isEmpty) return betriebe.take(20);
-        final query = textEditingValue.text.toLowerCase();
-        return betriebe.where(
-          (b) => betriebPasst(
-            name: b.name,
-            ort: b.ort,
-            betriebNr: b.betriebNr,
-            suche: query,
-          ),
-        );
-      },
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: 'Betrieb suchen *',
-            prefixIcon: const Icon(Icons.store),
-            suffixIcon: _betriebId != null
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      controller.clear();
-                      markiereGeaendert();
-                      setState(() {
-                        _betriebId = null;
-                        _istBergkunde = false;
-                      });
-                    },
-                  )
-                : null,
-          ),
-          validator: (_) => _betriebId == null ? 'Betrieb auswählen' : null,
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250, maxWidth: 400),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final b = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    title: Text(b.name),
-                    subtitle: b.ort != null
-                        ? Text(b.ort!, style: const TextStyle(fontSize: 12))
-                        : null,
-                    onTap: () => onSelected(b),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-      onSelected: (b) {
-        markiereGeaendert();
-        setState(() {
-          _betriebId = b.serverId;
-          // Bergkunde automatisch aus Betrieb übernehmen
-          _istBergkunde = b.istBergkunde;
-        });
-      },
+    return BetriebFeld(
+      betriebe: ref.watch(betriebeProvider),
+      betriebId: _betriebId,
+      label: 'Betrieb suchen *',
+      pflichtMeldung: 'Betrieb auswählen',
+      onGeaendert: markiereGeaendert,
+      onGeleert: () => setState(() {
+        _betriebId = null;
+        _istBergkunde = false;
+      }),
+      onGewaehlt: (b) => setState(() {
+        _betriebId = b.serverId;
+        // Bergkunde automatisch aus Betrieb übernehmen
+        _istBergkunde = b.istBergkunde;
+      }),
     );
   }
 
@@ -1993,108 +1787,6 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                 ),
               ],
             ),
-    );
-  }
-
-  /// «Arbeit beginnen»-Knopf — nur beim Bearbeiten einer noch geplanten/
-  /// laufenden Montage. Nach dem ersten Tap zeigt derselbe Platz die
-  /// laufende Zeit an (Daniel 31.07.2026).
-  Widget _buildArbeitBeginnBlock() {
-    if (!_warGeplant) return const SizedBox.shrink();
-    final von = _emptyToNull(_arbeitVonController.text);
-    if (von == null) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: FilledButton.icon(
-            onPressed: _arbeitBeginnLaeuft ? null : _arbeitBeginnen,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.info),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text(
-              'Arbeit beginnen',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-      );
-    }
-    final bis = _emptyToNull(_arbeitBisController.text);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.success.withAlpha(30),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.success),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            bis == null ? Icons.timer : Icons.check_circle,
-            color: AppColors.success,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              bis != null
-                  ? 'Arbeit erfasst: $von – $bis'
-                  : (_elapsedText() ?? 'Arbeit läuft seit $von'),
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-          ),
-          // «Arbeit beenden» — bis 11.08.2026 fehlte dieser Knopf ganz: Der
-          // einzige Weg zum Abschluss war der Schalter «Erst geplant», was
-          // niemand erraten konnte (Fall Sartons).
-          if (bis == null)
-            ArbeitBeendenKnopf(
-              onTap: _arbeitBeenden,
-              laeuft: _arbeitBeginnLaeuft,
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Zwei von Hand änderbare Zeitfelder — für den Fall, dass der
-  /// «Beginn»-Knopf vergessen wurde oder eine Korrektur nötig ist.
-  Widget _buildArbeitZeitfelder() {
-    Widget feld(String label, TextEditingController controller, IconData icon) {
-      return Expanded(
-        child: InkWell(
-          onTap: () async {
-            final initial = _parseZeit(controller.text) ?? TimeOfDay.now();
-            final picked = await zeigeZeitauswahl(context, initial: initial);
-            if (picked != null) {
-              // Die Zeitfelder sind InputDecorator, keine FormFields —
-              // Form.onChanged sieht sie nicht.
-              markiereGeaendert();
-              setState(() => controller.text = _formatZeit(picked));
-              // Sobald beide Zeiten stehen, den Vorschlag gleich eintragen —
-              // der «Beenden»-Knopf erscheint nur bei laufender Arbeit und
-              // greift bei nachträglich erfassten Zeiten deshalb nie.
-              _stundenVorschlagFallsLeer();
-            }
-          },
-          child: InputDecorator(
-            decoration: InputDecoration(
-              labelText: label,
-              prefixIcon: Icon(icon),
-              isDense: true,
-            ),
-            child: Text(controller.text.isEmpty ? '—' : controller.text),
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        feld('Arbeit von', _arbeitVonController, Icons.play_circle_outline),
-        const SizedBox(width: 12),
-        feld('Arbeit bis', _arbeitBisController, Icons.stop_circle_outlined),
-      ],
     );
   }
 

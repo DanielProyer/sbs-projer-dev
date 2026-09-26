@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/kontakt_local_export.dart';
 import 'package:sbs_projer_app/data/models/kontakt.dart';
@@ -15,7 +15,6 @@ import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/services/google/kontakt_picker_export.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/telefon.dart';
-import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 
 class KontaktFormScreen extends ConsumerStatefulWidget {
   final String? kontaktId;
@@ -176,84 +175,14 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
   }
 
   Widget _buildBetriebAutocomplete(List<BetriebLocal> betriebe) {
-    final filtered = betriebe.where((b) => b.serverId != null).toList();
-    final currentName = _betriebId != null
-        ? filtered
-              .where((b) => b.serverId == _betriebId)
-              .map((b) => betriebMitOrt(b.name, b.ort))
-              .firstOrNull
-        : null;
-
-    return Autocomplete<BetriebLocal>(
-      initialValue: currentName != null
-          ? TextEditingValue(text: currentName)
-          : TextEditingValue.empty,
+    return BetriebFeld(
+      betriebe: betriebe,
+      betriebId: _betriebId,
       // Mit Ort: mehrere Betriebe heissen gleich (Daniel 23.09.2026).
-      displayStringForOption: (b) => betriebMitOrt(b.name, b.ort),
-      optionsBuilder: (textEditingValue) {
-        if (textEditingValue.text.isEmpty) return filtered.take(20);
-        final query = textEditingValue.text.toLowerCase();
-        return filtered.where(
-          (b) => betriebPasst(
-            name: b.name,
-            ort: b.ort,
-            betriebNr: b.betriebNr,
-            suche: query,
-          ),
-        );
-      },
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: 'Betrieb suchen',
-            prefixIcon: const Icon(Icons.store),
-            suffixIcon: _betriebId != null
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      controller.clear();
-                      markiereGeaendert();
-                      setState(() => _betriebId = null);
-                    },
-                  )
-                : null,
-          ),
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250, maxWidth: 400),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final b = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    title: Text(b.name),
-                    subtitle: b.ort != null
-                        ? Text(b.ort!, style: const TextStyle(fontSize: 12))
-                        : null,
-                    onTap: () => onSelected(b),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-      onSelected: (b) {
-        markiereGeaendert();
-        setState(() => _betriebId = b.serverId);
-      },
+      mitOrt: true,
+      onGeaendert: markiereGeaendert,
+      onGeleert: () => setState(() => _betriebId = null),
+      onGewaehlt: (b) => setState(() => _betriebId = b.serverId),
     );
   }
 

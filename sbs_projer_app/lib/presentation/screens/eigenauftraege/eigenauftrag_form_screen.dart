@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/core/util/betrieb_suche.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
 import 'package:sbs_projer_app/data/local/eigenauftrag_local_export.dart';
-import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/repositories/eigenauftrag_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
@@ -38,7 +38,6 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
 
   // Felder
   String? _betriebId;
-  String _betriebSearchText = '';
   late DateTime _datum;
   late final _stoerungsnummerController = TextEditingController();
   late final _beschreibungController = TextEditingController();
@@ -259,7 +258,18 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
               const SizedBox(height: 8),
-              ..._buildMaterialSlots(),
+              MaterialSlots(
+                lager: _lagerItems,
+                ids: _materialIds,
+                namen: _materialControllers,
+                mengenController: _materialMengenControllers,
+                // Bisheriges Verhalten: Der Autocomplete-Controller ersetzt
+                // den Namen-Controller — _save liest den getippten Text dort.
+                feldController: _materialControllers,
+                mengenBreite: 60,
+                einfach: true,
+                onGeaendert: markiereGeaendert,
+              ),
               const SizedBox(height: 16),
 
               const SizedBox(height: 24),
@@ -285,90 +295,18 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
   }
 
   Widget _buildBetriebField() {
-    final betriebe = ref
-        .watch(betriebeProvider)
-        .where((b) => b.serverId != null)
-        .toList();
-
-    // Aktuellen Betrieb-Namen finden
-    if (_betriebId != null && _betriebSearchText.isEmpty) {
-      final match = betriebe.where((b) => b.serverId == _betriebId).toList();
-      if (match.isNotEmpty) {
-        _betriebSearchText = match.first.name;
-      }
-    }
-
-    return Autocomplete<BetriebLocal>(
-      initialValue: TextEditingValue(text: _betriebSearchText),
-      displayStringForOption: (b) => b.name,
-      optionsBuilder: (textEditingValue) {
-        if (textEditingValue.text.isEmpty) return betriebe;
-        final query = textEditingValue.text.toLowerCase();
-        return betriebe.where(
-          (b) => betriebPasst(
-            name: b.name,
-            ort: b.ort,
-            betriebNr: b.betriebNr,
-            suche: query,
-          ),
-        );
-      },
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: const InputDecoration(
-            labelText: 'Betrieb *',
-            prefixIcon: Icon(Icons.store),
-          ),
-          validator: (_) =>
-              _betriebId == null ? 'Bitte Betrieb auswählen' : null,
-          onChanged: (v) {
-            if (v.isEmpty) {
-              setState(() {
-                _betriebId = null;
-                _betriebSearchText = '';
-              });
-            }
-          },
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250, maxWidth: 350),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final b = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    title: Text(b.name),
-                    subtitle: b.ort != null ? Text(b.ort!) : null,
-                    onTap: () => onSelected(b),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-      onSelected: (b) {
-        markiereGeaendert();
-        setState(() {
-          _betriebId = b.serverId;
-          _betriebSearchText = b.name;
-        });
-      },
+    return BetriebFeld(
+      betriebe: ref.watch(betriebeProvider),
+      betriebId: _betriebId,
+      label: 'Betrieb *',
+      pflichtMeldung: 'Bitte Betrieb auswählen',
+      leerMax: null,
+      leeren: BetriebLeeren.tippen,
+      onGeaendert: markiereGeaendert,
+      onGeleert: () => setState(() => _betriebId = null),
+      onGewaehlt: (b) => setState(() => _betriebId = b.serverId),
     );
   }
-
   Widget _buildPreisPreview() {
     final anzahl = int.tryParse(_anzahlController.text) ?? 0;
     final total = anzahl * 30.0;
@@ -385,75 +323,6 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
         ),
       ),
     );
-  }
-
-  List<Widget> _buildMaterialSlots() {
-    return List.generate(3, (i) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: _lagerItems.isNotEmpty
-                  ? Autocomplete<Lager>(
-                      initialValue: TextEditingValue(
-                        text: _materialControllers[i].text,
-                      ),
-                      displayStringForOption: (l) => l.name,
-                      optionsBuilder: (textEditingValue) {
-                        if (textEditingValue.text.isEmpty) return [];
-                        final query = textEditingValue.text.toLowerCase();
-                        return _lagerItems
-                            .where(
-                              (l) =>
-                                  l.name.toLowerCase().contains(query) ||
-                                  (l.dboNr?.toLowerCase().contains(query) ??
-                                      false),
-                            )
-                            .take(10);
-                      },
-                      fieldViewBuilder:
-                          (context, controller, focusNode, onSubmitted) {
-                            _materialControllers[i] = controller;
-                            return TextFormField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              decoration: InputDecoration(
-                                labelText: 'Material ${i + 1}',
-                                isDense: true,
-                              ),
-                            );
-                          },
-                      onSelected: (l) {
-                        markiereGeaendert();
-                        setState(() => _materialIds[i] = l.id);
-                      },
-                    )
-                  : TextFormField(
-                      controller: _materialControllers[i],
-                      decoration: InputDecoration(
-                        labelText: 'Material ${i + 1}',
-                        isDense: true,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 60,
-              child: TextFormField(
-                controller: _materialMengenControllers[i],
-                decoration: const InputDecoration(
-                  labelText: 'Anz.',
-                  isDense: true,
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-          ],
-        ),
-      );
-    });
   }
 
   Future<void> _pickDate() async {
