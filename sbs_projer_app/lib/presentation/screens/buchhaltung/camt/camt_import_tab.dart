@@ -160,24 +160,34 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
   Future<void> _pickFile() async {
     String schritt = 'Datei wählen';
     try {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
+      // Der Spinner kommt erst NACH der Auswahl: Während der Dialog offen
+      // ist, gibt es nichts zu warten — und meldet ein Browser das
+      // Abbrechen nicht, bliebe der Reiter sonst im Ladezustand hängen.
+      setState(() => _error = null);
 
-      final picked = await pickXmlFile();
+      final wahl = await pickXmlFile();
+      if (!mounted) return;
 
-      if (picked == null) {
-        setState(() {
-          _loading = false;
-          _error =
-              'Keine Datei ausgewählt oder Datei konnte nicht gelesen werden.';
-        });
-        return;
+      final DateiGelesen picked;
+      switch (wahl) {
+        case DateiAbgebrochen():
+          // Abbrechen ist kein Fehler — still enden.
+          setState(() => _loading = false);
+          return;
+        case DateiFehler(:final text):
+          setState(() {
+            _loading = false;
+            _error = text;
+          });
+          return;
+        case DateiGelesen():
+          picked = wahl;
       }
 
+      setState(() => _loading = true);
+
       schritt = 'XML parsen';
-      var xmlString = picked.content;
+      var xmlString = picked.inhalt;
       // BOM entfernen falls vorhanden
       if (xmlString.startsWith('﻿')) {
         xmlString = xmlString.substring(1);
