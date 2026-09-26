@@ -1,5 +1,6 @@
 import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
+import 'package:sbs_projer_app/core/util/zahlung_kern_plan.dart';
 
 // Plausibilitätsprüfungen einer Zahlungszuordnung im camt-Abgleich:
 // Betragsdifferenz (Minder-/Mehrzahlung) und Datumsfolge.
@@ -36,8 +37,12 @@ class DifferenzInfo {
   /// Hinweis zum Kundenguthaben (Konto 2030) oder leer (v0.137.0).
   final String guthabenHinweis;
 
+  /// Standard-Ziel einer Mehrzahlung (8000 bis CHF 5.00, darüber 2030);
+  /// null ausser bei [DifferenzArt.mehr]. Siehe [mehrzahlungStandard].
+  final MehrzahlungZiel? mehrzahlungZiel;
+
   const DifferenzInfo(this.art, this.betrag, this.istBagatelle,
-      {this.guthabenHinweis = ''});
+      {this.guthabenHinweis = '', this.mehrzahlungZiel});
 
   bool get istMinder => art == DifferenzArt.minder;
   bool get istKeine => art == DifferenzArt.keine;
@@ -60,11 +65,16 @@ class DifferenzInfo {
         final basis = 'Minderzahlung CHF ${betrag.toStringAsFixed(2)}';
         return istBagatelle
             ? '$basis — geringe Abweichung, keine Nachforderung. '
-                'Wird als Debitorenverlust (3805) gebucht'
-            : '$basis — wird als Debitorenverlust (3805) gebucht';
+                'Wird als Debitorenverlust (3805) gebucht, '
+                'MWST-Anteil zurück (2200)'
+            : '$basis — wird als Debitorenverlust (3805) gebucht, '
+                'MWST-Anteil zurück (2200)';
       case DifferenzArt.mehr:
-        return 'Mehrzahlung CHF ${betrag.toStringAsFixed(2)} — '
-            'wird als a.o. Ertrag (8000) gebucht';
+        final basis = 'Mehrzahlung CHF ${betrag.toStringAsFixed(2)}';
+        return mehrzahlungZiel == MehrzahlungZiel.guthaben
+            ? '$basis — Kundenguthaben ($kKontoKundenguthaben), wird mit der '
+                'nächsten Rechnung verrechnet'
+            : '$basis — a.o. Ertrag (8000)';
     }
   }
 }
@@ -114,7 +124,7 @@ DifferenzInfo bewerteDifferenz(double zahlung, double forderung,
         DifferenzArt.minder, betrag, betrag <= kBagatellGrenze,
         guthabenHinweis: hinweis);
   }
-  return DifferenzInfo(
-      DifferenzArt.mehr, double.parse(diff.toStringAsFixed(2)), false,
-      guthabenHinweis: hinweis);
+  final mehr = double.parse(diff.toStringAsFixed(2));
+  return DifferenzInfo(DifferenzArt.mehr, mehr, false,
+      guthabenHinweis: hinweis, mehrzahlungZiel: mehrzahlungStandard(mehr));
 }

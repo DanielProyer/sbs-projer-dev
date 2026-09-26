@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/util/zahlung_kern_plan.dart';
 import 'package:sbs_projer_app/core/util/zahlungsdifferenz_text.dart';
 
 void main() {
@@ -77,12 +78,31 @@ void main() {
     test('Rappen-Rundung unter 1 Rappen zaehlt nicht', () {
       expect(bewerteDifferenz(74.604, 74.60).art, DifferenzArt.keine);
     });
-    test('Mehrzahlung -> a.o. Ertrag, nie Bagatelle', () {
+    test('Mehrzahlung bis 5.00 -> a.o. Ertrag, nie Bagatelle', () {
+      final d = bewerteDifferenz(79.60, 74.60);
+      expect(d.art, DifferenzArt.mehr);
+      expect(d.betrag, closeTo(5.00, 0.001));
+      expect(d.istBagatelle, isFalse);
+      expect(d.mehrzahlungZiel, MehrzahlungZiel.aoErtrag);
+      expect(d.text, 'Mehrzahlung CHF 5.00 — a.o. Ertrag (8000)');
+    });
+    test('Mehrzahlung ueber 5.00 -> Kundenguthaben 2030', () {
       final d = bewerteDifferenz(80.00, 74.60);
       expect(d.art, DifferenzArt.mehr);
       expect(d.betrag, closeTo(5.40, 0.001));
-      expect(d.istBagatelle, isFalse);
-      expect(d.text, contains('8000'));
+      expect(d.mehrzahlungZiel, MehrzahlungZiel.guthaben);
+      expect(
+          d.text,
+          'Mehrzahlung CHF 5.40 — Kundenguthaben (2030), wird mit der '
+          'nächsten Rechnung verrechnet');
+    });
+    test('Minderzahlung -> 3805 + MWST-Anteil 2200, kein Mehrzahlungs-Ziel', () {
+      final d = bewerteDifferenz(60.00, 74.60);
+      expect(d.mehrzahlungZiel, isNull);
+      expect(
+          d.text,
+          'Minderzahlung CHF 14.60 — wird als Debitorenverlust (3805) '
+          'gebucht, MWST-Anteil zurück (2200)');
     });
     test('Minderzahlung ueber der Bagatellgrenze -> ohne Zusatz', () {
       final d = bewerteDifferenz(60.00, 74.60);
@@ -126,7 +146,9 @@ void main() {
       expect(d.art, DifferenzArt.mehr);
       expect(d.betrag, 6.25);
       expect(d.text, contains('wird verrechnet'));
-      expect(d.text, contains('8000'));
+      // 6.25 > 5.00 → Standard Kundenguthaben (Entscheid 26.09.2026).
+      expect(d.mehrzahlungZiel, MehrzahlungZiel.guthaben);
+      expect(d.text, contains('Kundenguthaben (2030)'));
     });
     test('Review I1: 143.70 → nicht verrechnet, Minderzahlung 0.05', () {
       final d = bewerteDifferenz(143.70, 113.75, guthaben: 30);
