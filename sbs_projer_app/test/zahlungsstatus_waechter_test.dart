@@ -17,6 +17,11 @@ import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 /// 'mahnung_2', 'abgeschrieben') und vergleicht ihn mit [Zahlungsstatus.alle].
 /// Kommt eine neue Migration mit einem neuen CHECK dazu, schlägt der Test an
 /// und zeigt genau, was fehlt.
+///
+/// GRENZE: Erkannt wird nur die Schreibweise `CHECK (zahlungsstatus IN (...))`.
+/// Eine künftige Migration in der Form `= ANY (ARRAY[...])` fände der Regex
+/// nicht — dann bliebe der Test grün, obwohl die Liste veraltet ist. Neue
+/// CHECKs deshalb in derselben Schreibweise wie 083 formulieren.
 void main() {
   test('Zahlungsstatus.alle entspricht dem letzten DB-CHECK', () {
     final migrationsOrdner = Directory('../Datenbank/migrations');

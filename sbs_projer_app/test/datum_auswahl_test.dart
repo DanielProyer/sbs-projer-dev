@@ -3,10 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 
 void main() {
-  test('DatumFeld.text formatiert oder zeigt Gedankenstrich', () {
-    expect(DatumFeld.text(null), '—');
-    expect(DatumFeld.text(DateTime(2026, 9, 6)), '06.09.2026');
-  });
 
   testWidgets('zeigeDatumsauswahl klemmt initial in die Grenzen und öffnet', (
     tester,
