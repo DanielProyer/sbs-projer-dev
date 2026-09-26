@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/mahnfall_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnfall_service.dart';
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
@@ -711,11 +712,11 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
 
   Future<void> _datumWaehlen(Mahnfall f, String feld, DateTime? aktuell) async {
     final jetzt = DateTime.now();
-    final p = await showDatePicker(
-      context: context,
-      initialDate: aktuell != null ? DateTime(aktuell.year, aktuell.month, aktuell.day) : jetzt,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(jetzt.year + 2, 12, 31),
+    final p = await zeigeDatumsauswahl(
+      context,
+      initial: aktuell != null ? DateTime(aktuell.year, aktuell.month, aktuell.day) : jetzt,
+      erstes: DateTime(2020),
+      letztes: DateTime(jetzt.year + 2, 12, 31),
     );
     if (p == null) return;
     await _aktion(feld, () => MahnfallService.betreibungSpeichern(f, {feld: p}));

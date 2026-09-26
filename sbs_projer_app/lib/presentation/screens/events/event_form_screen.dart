@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/repositories/event_repository.dart';
 import 'package:sbs_projer_app/data/repositories/event_stand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
@@ -458,11 +459,11 @@ class _DatePickerField extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: value ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2101),
+    final picked = await zeigeDatumsauswahl(
+      context,
+      initial: value ?? DateTime.now(),
+      erstes: DateTime(2020),
+      letztes: DateTime(2101),
     );
     if (picked != null) onChanged(picked);
   }

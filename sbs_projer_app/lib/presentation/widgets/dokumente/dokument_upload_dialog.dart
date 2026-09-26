@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/core/util/chf_betrag.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/dokument.dart';
 import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/steuern/dokument_pfad.dart';
 
@@ -281,11 +282,11 @@ class _UploadDialogState extends State<_UploadDialog> {
                   ),
                   TextButton(
                     onPressed: () async {
-                      final p = await showDatePicker(
-                        context: context,
-                        initialDate: _datum ?? DateTime.now(),
-                        firstDate: DateTime(2015),
-                        lastDate: DateTime(2035),
+                      final p = await zeigeDatumsauswahl(
+                        context,
+                        initial: _datum ?? DateTime.now(),
+                        erstes: DateTime(2015),
+                        letztes: DateTime(2035),
                       );
                       if (p != null && mounted) setState(() => _datum = p);
                     },

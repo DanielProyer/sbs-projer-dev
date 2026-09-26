@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/steuern_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/steuern/steuer_zuordnung_dialog.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/dokumente/dokument_liste.dart';
 import 'package:sbs_projer_app/presentation/widgets/dokumente/dokument_upload_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/steuern/steuer_ampel.dart';
@@ -361,11 +362,11 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
           Expanded(child: Text('$label: ${v == null ? '—' : _df.format(v)}')),
           TextButton(
             onPressed: () async {
-              final p = await showDatePicker(
-                context: context,
-                initialDate: v ?? DateTime.now(),
-                firstDate: DateTime(kSteuerJahrAb),
-                lastDate: DateTime(2035),
+              final p = await zeigeDatumsauswahl(
+                context,
+                initial: v ?? DateTime.now(),
+                erstes: DateTime(kSteuerJahrAb),
+                letztes: DateTime(2035),
               );
               if (p != null && mounted) {
                 setState(() {

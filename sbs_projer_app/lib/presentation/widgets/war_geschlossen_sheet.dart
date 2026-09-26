@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 
 enum _WgGrund { betriebsferien, ruhetag, anderes }
 
@@ -75,11 +76,11 @@ class _WarGeschlossenSheetState extends ConsumerState<WarGeschlossenSheet> {
   }
 
   Future<void> _datumWaehlen({required bool istVon}) async {
-    final gewaehlt = await showDatePicker(
-      context: context,
-      initialDate: istVon ? _ferienVon : _ferienBis,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+    final gewaehlt = await zeigeDatumsauswahl(
+      context,
+      initial: istVon ? _ferienVon : _ferienBis,
+      erstes: DateTime.now().subtract(const Duration(days: 1)),
+      letztes: DateTime.now().add(const Duration(days: 365)),
     );
     if (gewaehlt == null) return;
     setState(() {

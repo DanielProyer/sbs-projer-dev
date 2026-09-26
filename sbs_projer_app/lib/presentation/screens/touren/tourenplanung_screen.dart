@@ -25,6 +25,7 @@ import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
@@ -901,12 +902,12 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   Future<void> _planVonDatumUebernehmen() async {
     final heuteReal = DateTime.now();
     final heuteDatum = DateTime(heuteReal.year, heuteReal.month, heuteReal.day);
-    final gewaehlt = await showDatePicker(
-      context: context,
-      initialDate: heuteDatum.subtract(const Duration(days: 1)),
-      firstDate: DateTime(2025, 1, 1),
-      lastDate: heuteDatum,
-      helpText: 'Reinigungen von welchem Tag übernehmen?',
+    final gewaehlt = await zeigeDatumsauswahl(
+      context,
+      initial: heuteDatum.subtract(const Duration(days: 1)),
+      erstes: DateTime(2025, 1, 1),
+      letztes: heuteDatum,
+      hilfetext: 'Reinigungen von welchem Tag übernehmen?',
     );
     if (gewaehlt == null || !mounted) return;
     final quelltag = DateTime(gewaehlt.year, gewaehlt.month, gewaehlt.day);

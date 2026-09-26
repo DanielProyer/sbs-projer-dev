@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/preis.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -202,11 +203,11 @@ class _PreisVersionFormScreenState extends ConsumerState<PreisVersionFormScreen>
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _gueltigAb,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+    final picked = await zeigeDatumsauswahl(
+      context,
+      initial: _gueltigAb,
+      erstes: DateTime(2020),
+      letztes: DateTime(2030),
     );
     if (picked != null) {
       markiereGeaendert();

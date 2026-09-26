@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchungs_vorlage_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/services/buchhaltung/geschaeftsfall_resolver.dart';
 import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
@@ -185,11 +186,11 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _datum,
-                      firstDate: DateTime(2019),
-                      lastDate: DateTime.now().add(const Duration(days: 30)),
+                    final picked = await zeigeDatumsauswahl(
+                      context,
+                      initial: _datum,
+                      erstes: DateTime(2019),
+                      letztes: DateTime.now().add(const Duration(days: 30)),
                     );
                     if (picked != null) {
                       markiereGeaendert();

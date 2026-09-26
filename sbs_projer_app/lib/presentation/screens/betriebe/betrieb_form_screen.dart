@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/betrieb_ferien_liste.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_ferien_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
@@ -1224,11 +1225,11 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
                 const SizedBox(height: 12),
                 InkWell(
                   onTap: () async {
-                    final d = await showDatePicker(
-                      context: context,
-                      initialDate: _schliessungsdatum ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
+                    final d = await zeigeDatumsauswahl(
+                      context,
+                      initial: _schliessungsdatum ?? DateTime.now(),
+                      erstes: DateTime(2000),
+                      letztes: DateTime(2100),
                     );
                     if (d != null) {
                       markiereGeaendert();
@@ -1845,11 +1846,11 @@ class _DatePickerField extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: value ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2050),
+    final picked = await zeigeDatumsauswahl(
+      context,
+      initial: value ?? DateTime.now(),
+      erstes: DateTime(2020),
+      letztes: DateTime(2050),
     );
     if (picked != null) onChanged(picked);
   }

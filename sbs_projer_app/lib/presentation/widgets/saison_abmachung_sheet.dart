@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_saison_historie_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
@@ -311,11 +312,11 @@ class _SaisonAbmachungSheetState extends State<_SaisonAbmachungSheet> {
   Widget _datum(String label, DateTime? wert, ValueChanged<DateTime?> onNeu) =>
       InkWell(
         onTap: () async {
-          final d = await showDatePicker(
-            context: context,
-            initialDate: wert ?? DateTime.now(),
-            firstDate: DateTime(DateTime.now().year - 1),
-            lastDate: DateTime(DateTime.now().year + 3),
+          final d = await zeigeDatumsauswahl(
+            context,
+            initial: wert ?? DateTime.now(),
+            erstes: DateTime(DateTime.now().year - 1),
+            letztes: DateTime(DateTime.now().year + 3),
           );
           if (d != null) onNeu(d);
         },

@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
@@ -241,11 +242,11 @@ Future<void> neueAufgabeDialog(BuildContext context, WidgetRef ref) async {
                 ),
                 TextButton(
                   onPressed: () async {
-                    final gewaehlt = await showDatePicker(
-                      context: ctx,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 730)),
+                    final gewaehlt = await zeigeDatumsauswahl(
+                      ctx,
+                      initial: DateTime.now(),
+                      erstes: DateTime.now(),
+                      letztes: DateTime.now().add(const Duration(days: 730)),
                     );
                     if (gewaehlt != null) setState(() => faellig = gewaehlt);
                   },

@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/core/util/reinigung_korrektur_regel.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/saison_abmachung_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -1545,11 +1546,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                     flex: 4,
                     child: InkWell(
                       onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _datum,
-                          firstDate: DateTime(2024),
-                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        final picked = await zeigeDatumsauswahl(
+                          context,
+                          initial: _datum,
+                          erstes: DateTime(2024),
+                          letztes: DateTime.now().add(const Duration(days: 1)),
                         );
                         if (picked != null) {
                           markiereGeaendert();

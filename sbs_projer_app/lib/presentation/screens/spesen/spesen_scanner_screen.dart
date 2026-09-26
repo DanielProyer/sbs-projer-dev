@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/data/models/beleg_scan_result.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/services/spesen/beleg_bild_service.dart';
 import 'package:sbs_projer_app/services/spesen/beleg_scan_service.dart';
 import 'package:sbs_projer_app/services/spesen/spesen_import_service.dart';
@@ -126,11 +127,11 @@ class _SpesenScannerScreenState extends ConsumerState<SpesenScannerScreen> {
       double.parse((runde5Rappen(_total()) - _total()).toStringAsFixed(2));
 
   Future<void> _datumWaehlen() async {
-    final gewaehlt = await showDatePicker(
-      context: context,
-      initialDate: _datum,
-      firstDate: DateTime(_datum.year - 2),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+    final gewaehlt = await zeigeDatumsauswahl(
+      context,
+      initial: _datum,
+      erstes: DateTime(_datum.year - 2),
+      letztes: DateTime.now().add(const Duration(days: 1)),
     );
     if (gewaehlt != null) setState(() => _datum = gewaehlt);
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 final _ddMMyyyy = DateFormat('dd.MM.yyyy');
@@ -50,11 +51,11 @@ Future<ServiceTerminEingabe?> zeigeServiceTerminDialog(
               const SizedBox(height: 12),
               InkWell(
                 onTap: () async {
-                  final d = await showDatePicker(
-                    context: ctx,
-                    initialDate: datum,
-                    firstDate: DateTime(heute.year - 1),
-                    lastDate: DateTime(heute.year + 3),
+                  final d = await zeigeDatumsauswahl(
+                    ctx,
+                    initial: datum,
+                    erstes: DateTime(heute.year - 1),
+                    letztes: DateTime(heute.year + 3),
                   );
                   if (d != null) setLokal(() => datum = d);
                 },

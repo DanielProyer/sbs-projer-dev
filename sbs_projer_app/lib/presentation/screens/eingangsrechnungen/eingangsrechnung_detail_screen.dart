@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_buchun
 import 'package:sbs_projer_app/services/eingangsrechnung/eingangsrechnung_reversal_service.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/konto_vorschlag.dart';
 import 'package:sbs_projer_app/services/eingangsrechnung/kreditor_lern_service.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
@@ -336,11 +337,11 @@ class _EingangsrechnungDetailScreenState
 
   Future<void> _pickFaelligkeit() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _faelligkeit ?? now,
-      firstDate: DateTime(now.year - 5),
-      lastDate: DateTime(now.year + 5),
+    final picked = await zeigeDatumsauswahl(
+      context,
+      initial: _faelligkeit ?? now,
+      erstes: DateTime(now.year - 5),
+      letztes: DateTime(now.year + 5),
     );
     if (picked != null) {
       setState(() => _faelligkeit = picked);

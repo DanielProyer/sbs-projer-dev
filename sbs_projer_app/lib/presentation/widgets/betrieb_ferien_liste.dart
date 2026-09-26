@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/util/war_geschlossen.dart';
 import 'package:sbs_projer_app/data/local/betrieb_ferien_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_ferien_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
@@ -276,11 +277,11 @@ class _FerienDialogState extends State<_FerienDialog> {
   Future<DateTime?> _waehle(DateTime initial, {DateTime? erster}) {
     final jetzt = DateTime.now();
     final heute = DateTime(jetzt.year, jetzt.month, jetzt.day);
-    return showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: erster ?? DateTime(2019),
-      lastDate: heute.add(const Duration(days: 730)),
+    return zeigeDatumsauswahl(
+      context,
+      initial: initial,
+      erstes: erster ?? DateTime(2019),
+      letztes: heute.add(const Duration(days: 730)),
     );
   }
 

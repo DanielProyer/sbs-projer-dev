@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 
 final _df = DateFormat('dd.MM.yyyy');
@@ -51,11 +52,11 @@ class StichtagPicker extends StatelessWidget {
             icon: const Icon(Icons.calendar_today, size: 16),
             label: Text(_df.format(stichtag)),
             onPressed: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: stichtag,
-                firstDate: DateTime(2019, 1, 1),
-                lastDate: jetzt,
+              final picked = await zeigeDatumsauswahl(
+                context,
+                initial: stichtag,
+                erstes: DateTime(2019, 1, 1),
+                letztes: jetzt,
               );
               if (picked != null) onChanged(_d(picked));
             },

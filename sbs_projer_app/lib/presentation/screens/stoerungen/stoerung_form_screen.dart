@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
@@ -821,11 +822,11 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
                     flex: 2,
                     child: InkWell(
                       onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _datum,
-                          firstDate: DateTime(2024),
-                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        final picked = await zeigeDatumsauswahl(
+                          context,
+                          initial: _datum,
+                          erstes: DateTime(2024),
+                          letztes: DateTime.now().add(const Duration(days: 1)),
                         );
                         if (picked != null) {
                           markiereGeaendert();

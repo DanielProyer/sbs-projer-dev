@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart'
     show minutenAusHhmm;
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 /// Ergebnis des Einplanen-Sheets: Tag, optionale fixe Uhrzeit, Dauer.
@@ -101,12 +102,12 @@ class _EinplanenSheetState extends State<_EinplanenSheet> {
   Future<void> _datumWaehlen() async {
     final heute = DateTime.now();
     final heuteTag = DateTime(heute.year, heute.month, heute.day);
-    final gewaehlt = await showDatePicker(
-      context: context,
-      initialDate: _tag,
-      firstDate: heuteTag.subtract(const Duration(days: 365)),
-      lastDate: heuteTag.add(const Duration(days: 730)),
-      helpText: 'Einsatz einplanen',
+    final gewaehlt = await zeigeDatumsauswahl(
+      context,
+      initial: _tag,
+      erstes: heuteTag.subtract(const Duration(days: 365)),
+      letztes: heuteTag.add(const Duration(days: 730)),
+      hilfetext: 'Einsatz einplanen',
     );
     if (gewaehlt == null || !mounted) return;
     _tagSetzen(gewaehlt);

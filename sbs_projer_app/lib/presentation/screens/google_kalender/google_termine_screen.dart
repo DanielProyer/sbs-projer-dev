@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -175,11 +176,11 @@ class _GoogleTermineScreenState extends ConsumerState<GoogleTermineScreen> {
   }
 
   Future<void> _pickDatum(bool von) async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: von ? _von : _bis,
-      firstDate: DateTime(2015),
-      lastDate: DateTime(2035),
+    final d = await zeigeDatumsauswahl(
+      context,
+      initial: von ? _von : _bis,
+      erstes: DateTime(2015),
+      letztes: DateTime(2035),
     );
     if (d != null) setState(() => von ? _von = d : _bis = d);
   }

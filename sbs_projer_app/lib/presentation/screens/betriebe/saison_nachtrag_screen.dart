@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_saison_historie_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 final _ddMMyyyy = DateFormat('dd.MM.yyyy');
@@ -516,11 +517,11 @@ class _DatumFeld extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: value ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2050),
+    final picked = await zeigeDatumsauswahl(
+      context,
+      initial: value ?? DateTime.now(),
+      erstes: DateTime(2020),
+      letztes: DateTime(2050),
     );
     if (picked != null) onChanged(picked);
   }

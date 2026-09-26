@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/core/util/event_aufwand_slots.dart';
 import 'package:sbs_projer_app/data/local/event_aufwand_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/event_aufwand_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
@@ -75,11 +76,11 @@ class _EventAufwandFormScreenState extends ConsumerState<EventAufwandFormScreen>
   }
 
   Future<void> _datumWaehlen() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _datum,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+    final d = await zeigeDatumsauswahl(
+      context,
+      initial: _datum,
+      erstes: DateTime(2020),
+      letztes: DateTime(2100),
     );
     if (d != null && mounted) {
       markiereGeaendert();

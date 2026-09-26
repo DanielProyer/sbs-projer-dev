@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/data/models/lohn_einstellungen.dart';
 import 'package:sbs_projer_app/data/models/lohn_abrechnung.dart';
@@ -546,11 +547,11 @@ class _LohnlaufFormSheetState extends State<_LohnlaufFormSheet> {
   }
 
   Future<void> _pickDatum() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _datum,
-      firstDate: DateTime(_datum.year, 1, 1),
-      lastDate: DateTime(_datum.year, 12, 31),
+    final picked = await zeigeDatumsauswahl(
+      context,
+      initial: _datum,
+      erstes: DateTime(_datum.year, 1, 1),
+      letztes: DateTime(_datum.year, 12, 31),
     );
     if (picked != null) {
       setState(() => _datum = picked);

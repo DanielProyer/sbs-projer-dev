@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/data/repositories/event_einsatz_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/event_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -108,11 +109,11 @@ class _EventEinsatzFormScreenState extends ConsumerState<EventEinsatzFormScreen>
   }
 
   Future<void> _zeitpunktWaehlen() async {
-    final datum = await showDatePicker(
-      context: context,
-      initialDate: _zeitpunkt,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+    final datum = await zeigeDatumsauswahl(
+      context,
+      initial: _zeitpunkt,
+      erstes: DateTime(2020),
+      letztes: DateTime(2100),
     );
     if (datum == null || !mounted) return;
     final zeit = await zeigeZeitauswahl(
