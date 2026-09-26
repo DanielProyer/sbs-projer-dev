@@ -123,6 +123,63 @@ void main() {
     });
   });
 
+  group('verschiebenFehlerText', () {
+    test('nichts geschrieben → schlichter Fehler', () {
+      expect(
+        verschiebenFehlerText(
+          fehler: 'keine Verbindung',
+          ziel: dienstag,
+          angehaengt: false,
+          einsaetzeUmgeplant: 0,
+        ),
+        'Verschieben fehlgeschlagen: keine Verbindung',
+      );
+    });
+
+    test('Einsätze schon umgeplant → sagt, wo sie stehen', () {
+      expect(
+        verschiebenFehlerText(
+          fehler: 'keine Verbindung',
+          ziel: dienstag,
+          angehaengt: false,
+          einsaetzeUmgeplant: 1,
+        ),
+        'Verschieben fehlgeschlagen: keine Verbindung — der Einsatz steht '
+        'aber schon auf Di 29.09.',
+      );
+      expect(
+        verschiebenFehlerText(
+          fehler: 'x',
+          ziel: dienstag,
+          angehaengt: false,
+          einsaetzeUmgeplant: 3,
+        ),
+        'Verschieben fehlgeschlagen: x — die 3 Einsätze stehen aber schon '
+        'auf Di 29.09.',
+      );
+    });
+
+    test('am Zieltag angehängt, hier nicht entfernt → Teilfehler', () {
+      expect(
+        verschiebenFehlerText(
+          fehler: 'Tagesplan vom Mo 28.09. nicht gefunden',
+          ziel: dienstag,
+          angehaengt: true,
+          einsaetzeUmgeplant: 2,
+        ),
+        'Am Zieltag angehängt, aber hier nicht entfernt — bitte Tag prüfen '
+        '(Tagesplan vom Mo 28.09. nicht gefunden)',
+      );
+    });
+  });
+
+  test('TagesplanNichtGefunden nennt den Tag', () {
+    expect(
+      TagesplanNichtGefunden(DateTime(2026, 9, 28)).toString(),
+      'Tagesplan vom Mo 28.09. nicht gefunden',
+    );
+  });
+
   test('Ruhetag-Hinweis für einen einzelnen Stopp', () {
     expect(
       ruhetagHinweisText('Rössli', dienstag),

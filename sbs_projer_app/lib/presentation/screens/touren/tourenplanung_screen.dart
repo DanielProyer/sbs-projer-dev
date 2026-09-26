@@ -1012,10 +1012,13 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
 
     final ziel = await _zieltagWaehlen(plantag);
     if (ziel == null || !mounted) return;
+    // `refresh` statt `read`: der Cache des Zieltags kann veraltet sein
+    // (z. B. auf einem anderen Gerät geändert) — die Rückfrage soll die
+    // wirkliche Zahl nennen.
     final schonDort =
-        (await ref.read(gespeicherterTagesplanProvider(ziel).future))
-            ?.eintraege
-            .length ??
+        (await ref.refresh(
+          gespeicherterTagesplanProvider(ziel).future,
+        ))?.eintraege.length ??
         0;
     if (!mounted) return;
     final ok = await _verschiebenBestaetigen(
@@ -1032,27 +1035,75 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     await _aufTagVerschieben(plantag, verschiebbar, ziel);
   }
 
+  /// Sperrt den Screen, solange [arbeit] läuft: ein Ladekreis, der sich
+  /// weder per Tipp daneben noch per Zurück schliessen lässt.
+  ///
+  /// Warum (Review 26.09.2026): Das Verschieben braucht 0,5–3 s. Tippte
+  /// Daniel währenddessen den Zieltag in der Wochenleiste an, lud der
+  /// Notifier dessen alten Stand und überschrieb später das Angehängte — die
+  /// Stopps stünden an keinem Tag mehr.
+  ///
+  /// Die Route wird selbst gebaut und am Ende gezielt entfernt statt per
+  /// `pop`: so trifft das Schliessen sicher den Sperr-Dialog (und nie den
+  /// Screen) — auch wenn die Arbeit vor dem ersten Frame endet oder der
+  /// Screen inzwischen weg ist (dann bliebe die App sonst gesperrt).
+  Future<T> _mitSperre<T>(Future<T> Function() arbeit) async {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final sperre = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+    unawaited(navigator.push(sperre));
+    try {
+      return await arbeit();
+    } finally {
+      if (sperre.isActive) navigator.removeRoute(sperre);
+    }
+  }
+
   /// Gemeinsamer Ablauf für Stopp und ganzen Tag. Reihenfolge bewusst:
   /// Einsätze umplanen, **dann** am Zieltag anhängen, **erst danach** hier
-  /// entfernen — bricht ein Schritt ab, steht nichts verloren da.
+  /// entfernen — bricht ein Schritt ab, steht nichts verloren da. Die
+  /// Fehlermeldung sagt, wie weit es kam ([verschiebenFehlerText]).
   Future<void> _aufTagVerschieben(
     DateTime plantag,
     List<TourEintrag> eintraege,
     DateTime ziel,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
+    var einsaetzeUmgeplant = 0;
+    var angehaengt = false;
     try {
-      await _einsaetzeAufTagEinplanen(ref, eintraege, ziel);
-      await eintraegeInTagesplanAnhaengen(ref, ziel, [
-        for (final e in eintraege) _alsVerschobenerEintrag(e, ziel),
-      ]);
-      await eintraegeAusTagesplanEntfernen(ref, plantag, {
-        for (final e in eintraege) e.id,
+      await _mitSperre(() async {
+        einsaetzeUmgeplant = await _einsaetzeAufTagEinplanen(
+          ref,
+          eintraege,
+          ziel,
+        );
+        await eintraegeInTagesplanAnhaengen(ref, ziel, [
+          for (final e in eintraege) _alsVerschobenerEintrag(e, ziel),
+        ]);
+        angehaengt = true;
+        await eintraegeAusTagesplanEntfernen(ref, plantag, {
+          for (final e in eintraege) e.id,
+        });
       });
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Verschieben fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+          duration: const Duration(seconds: 8),
+          content: Text(
+            verschiebenFehlerText(
+              fehler: kurzeFehlermeldung(e),
+              ziel: ziel,
+              angehaengt: angehaengt,
+              einsaetzeUmgeplant: einsaetzeUmgeplant,
+            ),
+          ),
         ),
       );
       return;
@@ -2363,8 +2414,10 @@ TourEintrag _alsVerschobenerEintrag(TourEintrag e, DateTime ziel) {
 /// Schreibt das neue Plandatum an alle Störungen/Montagen unter [eintraege]
 /// (Anker-Zeit und Dauer bleiben) und frischt deren Listen auf. Anders als
 /// [_einsatzEinplanungZurueckschreiben] wird gewartet — schlägt es fehl,
-/// bricht das Verschieben ab, bevor der Plan angefasst wird.
-Future<void> _einsaetzeAufTagEinplanen(
+/// bricht das Verschieben ab, bevor der Plan angefasst wird. Liefert die
+/// Zahl der umgeplanten Einsätze (für eine ehrliche Fehlermeldung, falls ein
+/// späterer Schritt scheitert).
+Future<int> _einsaetzeAufTagEinplanen(
   WidgetRef ref,
   List<TourEintrag> eintraege,
   DateTime ziel,
@@ -2397,9 +2450,10 @@ Future<void> _einsaetzeAufTagEinplanen(
       );
     }
   }
-  if (auftraege.isEmpty) return;
+  if (auftraege.isEmpty) return 0;
   try {
     await Future.wait(auftraege);
+    return auftraege.length;
   } finally {
     // Auch bei einem Teilfehler: was geschrieben wurde, soll sichtbar sein.
     if (stoerungen) ref.invalidate(stoerungenStreamProvider);

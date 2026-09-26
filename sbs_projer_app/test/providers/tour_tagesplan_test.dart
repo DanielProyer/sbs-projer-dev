@@ -43,4 +43,75 @@ void main() {
       expect(container.read(tagesplanProvider), isEmpty);
     });
   });
+
+  // Z1 (Review 26.09.2026): Ein Tag-Wechsel innerhalb der 600 ms Entprellung
+  // verwarf das ausstehende Speichern — die letzte Änderung war weg.
+  group('TagesplanNotifier – ausstehendes Speichern beim Tag-Wechsel', () {
+    late List<(DateTime, String)> gespeichert;
+    late ProviderContainer container;
+
+    setUp(() {
+      gespeichert = [];
+      container = ProviderContainer(
+        overrides: [
+          tagesplanProvider.overrideWith(
+            (ref) => TagesplanNotifier(
+              ref,
+              speichern: (tag, eintraege) async {
+                gespeichert.add((tag, eintraege.map((e) => e.id).join(',')));
+              },
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+    });
+
+    final tag1 = DateTime(2026, 9, 28);
+    final tag2 = DateTime(2026, 9, 29);
+
+    for (final wechsel in ['setFromGespeichert', 'resetLeer']) {
+      test(
+        '$wechsel speichert den ALTEN Tag sofort mit dem alten Stand',
+        () async {
+          final notifier = container.read(tagesplanProvider.notifier);
+          container.read(aktiverTagesplanTagProvider.notifier).state = tag1;
+          notifier.setFromGespeichert(tag1, [_e('a')]);
+          notifier.hinzufuegen(_e('b')); // entprellt, noch nicht gespeichert
+          expect(gespeichert, isEmpty);
+
+          container.read(aktiverTagesplanTagProvider.notifier).state = tag2;
+          if (wechsel == 'setFromGespeichert') {
+            notifier.setFromGespeichert(tag2, [_e('x')]);
+          } else {
+            notifier.resetLeer(tag2);
+          }
+          await Future<void>.delayed(Duration.zero);
+          expect(gespeichert, [(tag1, 'a,b')]);
+
+          // Der Timer ist weg: nach Ablauf der Entprellung kommt kein zweites
+          // Speichern — schon gar nicht mit dem neuen Stand unter tag2.
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          expect(gespeichert, hasLength(1));
+        },
+      );
+    }
+
+    test('ohne ausstehende Änderung speichert der Wechsel nichts', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      notifier.setFromGespeichert(tag1, [_e('a')]);
+      notifier.setFromGespeichert(tag2, [_e('x')]);
+      await Future<void>.delayed(Duration.zero);
+      expect(gespeichert, isEmpty);
+    });
+
+    test('entprelltes Speichern ohne Wechsel läuft wie bisher', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag1;
+      notifier.setFromGespeichert(tag1, [_e('a')]);
+      notifier.entfernen('a');
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      expect(gespeichert, [(tag1, '')]);
+    });
+  });
 }

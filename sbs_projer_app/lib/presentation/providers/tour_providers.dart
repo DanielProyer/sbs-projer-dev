@@ -1183,9 +1183,17 @@ final tagesplanProvider =
     });
 
 class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
-  TagesplanNotifier(this._ref) : super([]);
+  /// [speichern] ersetzt [tagesplanSpeichern] — nur für Tests
+  /// (`test/providers/tour_tagesplan_test.dart`).
+  TagesplanNotifier(
+    this._ref, {
+    Future<void> Function(DateTime tag, List<TourEintrag> eintraege)? speichern,
+  }) : _speichern = speichern ?? tagesplanSpeichern,
+       super([]);
 
   final Ref _ref;
+  final Future<void> Function(DateTime tag, List<TourEintrag> eintraege)
+  _speichern;
   Timer? _saveTimer;
 
   /// Tag, dem der aktuelle State „gehört" bzw. den der User zuletzt bearbeitet
@@ -1200,35 +1208,57 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
     // damit ein spät eintreffender Lade-Fetch diesen Tag nicht überschreibt.
     _datum = _ref.read(aktiverTagesplanTagProvider);
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 600), () async {
+    _saveTimer = Timer(const Duration(milliseconds: 600), () {
       final tag = _datum;
       if (tag == null) return;
-      try {
-        await tagesplanSpeichern(tag, state);
-        // Cache invalidieren, damit erneutes Öffnen des Tags den frischen
-        // Stand lädt (sonst käme der veraltete gecachte Stand zurück).
-        _ref.invalidate(gespeicherterTagesplanProvider(tag));
-      } catch (e) {
-        debugPrint('[Tagesplan] Speichern fehlgeschlagen: $e');
-      }
+      unawaited(_speichernImHintergrund(tag, state));
     });
   }
 
-  void _cancelSave() {
-    _saveTimer?.cancel();
-    _saveTimer = null;
+  /// Speichert [eintraege] für [tag] und frischt danach den Lade-Cache auf.
+  /// Ein Fehler landet im Log — der Aufrufer wartet nicht darauf.
+  Future<void> _speichernImHintergrund(
+    DateTime tag,
+    List<TourEintrag> eintraege,
+  ) async {
+    try {
+      await _speichern(tag, eintraege);
+      // Cache invalidieren, damit erneutes Öffnen des Tags den frischen
+      // Stand lädt (sonst käme der veraltete gecachte Stand zurück).
+      _ref.invalidate(gespeicherterTagesplanProvider(tag));
+    } catch (e) {
+      debugPrint('[Tagesplan] Speichern fehlgeschlagen: $e');
+    }
   }
 
-  /// Gespeicherten Plan laden — löst KEINE Speicherung aus.
+  /// Führt ein noch ausstehendes (entprelltes) Speichern SOFORT aus — mit
+  /// dem Tag und dem Stand, die jetzt gelten. Muss vor jedem Tag-Wechsel
+  /// laufen, BEVOR `state`/`_datum` überschrieben werden: bis v0.144.0
+  /// verwarfen `setFromGespeichert`/`resetLeer` den Timer, und eine Änderung
+  /// kurz vor dem Wechsel (< 600 ms) ging still verloren.
+  void _ausstehendesSpeichernSofort() {
+    final timer = _saveTimer;
+    _saveTimer = null;
+    if (timer == null || !timer.isActive) return;
+    timer.cancel();
+    final tag = _datum;
+    if (tag == null) return;
+    unawaited(_speichernImHintergrund(tag, state));
+  }
+
+  /// Gespeicherten Plan laden — löst für den NEUEN Tag keine Speicherung
+  /// aus; ein ausstehendes Speichern des bisherigen Tages läuft sofort.
   void setFromGespeichert(DateTime datum, List<TourEintrag> eintraege) {
-    _cancelSave();
+    _ausstehendesSpeichernSofort();
     _datum = datum;
     state = List.of(eintraege);
   }
 
-  /// Tag ohne gespeicherten Plan → leer starten (KEINE Speicherung).
+  /// Tag ohne gespeicherten Plan → leer starten (für den neuen Tag KEINE
+  /// Speicherung; ein ausstehendes Speichern des bisherigen Tages läuft
+  /// sofort).
   void resetLeer(DateTime datum) {
-    _cancelSave();
+    _ausstehendesSpeichernSofort();
     _datum = datum;
     state = [];
   }
@@ -1561,7 +1591,8 @@ Future<void> einsatzInTagesplanAufnehmen(
 /// Hängt [neu] an den gespeicherten Plan von [tag] an — mit EINEM Speichern,
 /// neue Einträge ans Ende, ohne doppelte ids (der bereits dort stehende
 /// Eintrag gewinnt, siehe [planNachAnhaengen]). Läuft der Screen gerade auf
-/// [tag], geht es über den Notifier (UI live, Auto-Save).
+/// [tag], geht es über den Notifier (UI live) und wird trotzdem sofort
+/// gespeichert.
 ///
 /// Grundlage fürs Verschieben auf einen anderen Tag (Daniel 26.09.2026). Die
 /// Zahl der dort schon stehenden Einträge (für die Rückfrage) liest der
@@ -1574,46 +1605,59 @@ Future<void> eintraegeInTagesplanAnhaengen(
   if (neu.isEmpty) return;
   final tagOhneZeit = DateTime(tag.year, tag.month, tag.day);
   final notifier = ref.read(tagesplanProvider.notifier);
-  final aktivesDatum = notifier.datum;
-  final istAktiverTag =
-      aktivesDatum != null &&
-      aktivesDatum.year == tagOhneZeit.year &&
-      aktivesDatum.month == tagOhneZeit.month &&
-      aktivesDatum.day == tagOhneZeit.day;
-  if (istAktiverTag) {
-    notifier.setzePlan(planNachAnhaengen(ref.read(tagesplanProvider), neu));
+  if (_notifierAufTag(notifier, tagOhneZeit)) {
+    // Sofort speichern statt nur entprellt: der Aufrufer entfernt die
+    // Einträge gleich danach am alten Tag — stünden sie am Zieltag erst im
+    // Speicher, wären sie nach einem Absturz an keinem Tag mehr.
+    await _aktivenPlanSofortSpeichern(
+      ref,
+      notifier,
+      tagOhneZeit,
+      planNachAnhaengen(ref.read(tagesplanProvider), neu),
+    );
     return;
   }
-  // Frisch und direkt laden, NICHT über [gespeicherterTagesplanProvider]:
-  // der schluckt Ladefehler und liefert dann `null` — hier hiesse das, der
-  // bestehende Plan des Zieltags würde mit den neuen Einträgen
-  // überschrieben. Ein Fehler bricht deshalb ab (der Aufrufer entfernt die
-  // Einträge am alten Tag erst danach, es geht nichts verloren).
-  final datumStr =
-      '${tagOhneZeit.year}-${tagOhneZeit.month.toString().padLeft(2, '0')}-${tagOhneZeit.day.toString().padLeft(2, '0')}';
-  final rows = await SupabaseService.client
-      .from('tagesplaene')
-      .select('eintraege')
-      .eq('datum', datumStr)
-      .limit(1);
-  final bestehend = rows.isEmpty
-      ? <TourEintrag>[]
-      : ((rows.first['eintraege'] as List<dynamic>?) ?? const [])
-            .map((e) => tourEintragFromJson(Map<String, dynamic>.from(e)))
-            .toList();
+  // Ein Ladefehler bricht ab (der Aufrufer entfernt die Einträge am alten
+  // Tag erst danach, es geht nichts verloren).
+  final bestehend = await _gespeicherteEintraegeLaden(tagOhneZeit) ?? [];
   await tagesplanSpeichern(tagOhneZeit, planNachAnhaengen(bestehend, neu));
   ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
+  // Ist der Screen inzwischen auf den Zieltag gewechselt, hält der Notifier
+  // dessen ALTEN Stand — sein nächstes Speichern überschriebe das eben
+  // Angehängte, die Stopps stünden an keinem Tag mehr. Deshalb auch dort
+  // anhängen (bereits vorhandene ids bleiben, siehe planNachAnhaengen).
+  if (_notifierAufTag(notifier, tagOhneZeit)) {
+    await _aktivenPlanSofortSpeichern(
+      ref,
+      notifier,
+      tagOhneZeit,
+      planNachAnhaengen(ref.read(tagesplanProvider), neu),
+    );
+  }
+}
+
+/// Der gespeicherte Plan des Tages, aus dem verschobene Stopps entfernt
+/// werden sollten, fehlt — die Stopps können dann an zwei Tagen stehen.
+class TagesplanNichtGefunden implements Exception {
+  final DateTime tag;
+  const TagesplanNichtGefunden(this.tag);
+
+  @override
+  String toString() => 'Tagesplan vom ${kurzTag(tag)} nicht gefunden';
 }
 
 /// Entfernt die Einträge [ids] aus dem Plan von [tag] und speichert SOFORT
 /// (nicht nur entprellt) — zweiter Schritt des Verschiebens, nachdem
 /// [eintraegeInTagesplanAnhaengen] am Zieltag durchlief.
 ///
-/// Warum sofort: Ein Tag-Wechsel im Screen (z. B. «Anzeigen» in der
-/// Verschoben-Meldung) bricht den entprellten Auto-Save ab
-/// (`setFromGespeichert` → `_cancelSave`). Die Stopps stünden dann an zwei
-/// Tagen. Der Notifier bekommt den Stand trotzdem gesetzt, damit die UI
-/// sofort stimmt.
+/// Warum sofort: Das entprellte Speichern hängt am Timer des Notifiers —
+/// schliesst Daniel den Tab vorher, stünden die Stopps an zwei Tagen. Der
+/// Notifier bekommt den Stand trotzdem gesetzt, damit die UI sofort stimmt.
+///
+/// Lässt sich der Plan von [tag] nicht laden oder fehlt er, wirft die
+/// Funktion (Ladefehler bzw. [TagesplanNichtGefunden]) statt still
+/// zurückzukehren — der Aufrufer meldet dann ehrlich, dass die Stopps am
+/// alten Tag noch stehen können.
 Future<void> eintraegeAusTagesplanEntfernen(
   WidgetRef ref,
   DateTime tag,
@@ -1622,32 +1666,67 @@ Future<void> eintraegeAusTagesplanEntfernen(
   if (ids.isEmpty) return;
   final tagOhneZeit = DateTime(tag.year, tag.month, tag.day);
   final notifier = ref.read(tagesplanProvider.notifier);
-  final aktivesDatum = notifier.datum;
-  final istAktiverTag =
-      aktivesDatum != null &&
-      aktivesDatum.year == tagOhneZeit.year &&
-      aktivesDatum.month == tagOhneZeit.month &&
-      aktivesDatum.day == tagOhneZeit.day;
-  if (istAktiverTag) {
-    final rest = [
+  if (_notifierAufTag(notifier, tagOhneZeit)) {
+    await _aktivenPlanSofortSpeichern(ref, notifier, tagOhneZeit, [
       for (final e in ref.read(tagesplanProvider))
         if (!ids.contains(e.id)) e,
-    ];
-    notifier.setzePlan(rest);
-    await tagesplanSpeichern(tagOhneZeit, rest);
-  } else {
-    final gespeichert = await ref.read(
-      gespeicherterTagesplanProvider(tagOhneZeit).future,
-    );
-    if (gespeichert == null) return;
-    final rest = [
-      for (final e in gespeichert.eintraege)
-        if (!ids.contains(e.id)) e,
-    ];
-    if (rest.length == gespeichert.eintraege.length) return;
-    await tagesplanSpeichern(tagOhneZeit, rest);
+    ]);
+    return;
   }
+  final gespeichert = await _gespeicherteEintraegeLaden(tagOhneZeit);
+  if (gespeichert == null) throw TagesplanNichtGefunden(tagOhneZeit);
+  final rest = [
+    for (final e in gespeichert)
+      if (!ids.contains(e.id)) e,
+  ];
+  // Steht keiner der Stopps (mehr) dort, gibt es nichts zu entfernen — sie
+  // stehen dann auch nicht doppelt.
+  if (rest.length == gespeichert.length) return;
+  await tagesplanSpeichern(tagOhneZeit, rest);
   ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
+}
+
+/// Liegt der In-Memory-Plan ([TagesplanNotifier]) gerade auf [tag]?
+bool _notifierAufTag(TagesplanNotifier notifier, DateTime tag) {
+  final aktiv = notifier.datum;
+  return aktiv != null &&
+      aktiv.year == tag.year &&
+      aktiv.month == tag.month &&
+      aktiv.day == tag.day;
+}
+
+/// Einträge des gespeicherten Plans von [tag], frisch und direkt geladen —
+/// `null`, wenn es für den Tag keine Zeile gibt. Ein Ladefehler wird
+/// geworfen, NICHT geschluckt wie in [gespeicherterTagesplanProvider]: beim
+/// Verschieben hiesse «leer» sonst, der bestehende Plan des Zieltags würde
+/// überschrieben bzw. ein nicht entfernter Stopp als verschoben gemeldet.
+Future<List<TourEintrag>?> _gespeicherteEintraegeLaden(DateTime tag) async {
+  final datumStr =
+      '${tag.year}-${tag.month.toString().padLeft(2, '0')}-${tag.day.toString().padLeft(2, '0')}';
+  final rows = await SupabaseService.client
+      .from('tagesplaene')
+      .select('eintraege')
+      .eq('datum', datumStr)
+      .limit(1);
+  if (rows.isEmpty) return null;
+  return ((rows.first['eintraege'] as List<dynamic>?) ?? const [])
+      .map((e) => tourEintragFromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
+
+/// Setzt [plan] im Notifier (UI sofort richtig) und speichert SOFORT für
+/// [tag], nicht nur entprellt. Der entprellte Auto-Save läuft zusätzlich und
+/// schreibt denselben Stand ein zweites Mal — das schadet nicht und fängt
+/// einen Fehler beim sofortigen Speichern auf.
+Future<void> _aktivenPlanSofortSpeichern(
+  WidgetRef ref,
+  TagesplanNotifier notifier,
+  DateTime tag,
+  List<TourEintrag> plan,
+) async {
+  notifier.setzePlan(plan);
+  await tagesplanSpeichern(tag, plan);
+  ref.invalidate(gespeicherterTagesplanProvider(tag));
 }
 
 /// Entfernt den Eintrag mit [eintragId] aus dem Tagesplan von [tag] —

@@ -82,3 +82,29 @@ String ruhetagHinweisText(String betriebName, DateTime ziel) =>
 /// Meldung nach dem Verschieben, z. B. «5 Stopps auf Di 29.09. verschoben».
 String verschobenText(int anzahl, DateTime ziel) =>
     '${_stopps(anzahl)} auf ${kurzTag(ziel)} verschoben';
+
+/// Fehlermeldung beim Verschieben — sagt ehrlich, wie weit es kam.
+///
+/// - [angehaengt]: Am Zieltag stehen die Stopps schon, nur das Entfernen am
+///   alten Tag scheiterte → sie stehen doppelt (nicht verloren).
+/// - [einsaetzeUmgeplant]: Störungen/Montagen, deren Plandatum schon auf
+///   [ziel] steht, obwohl der Plan danach scheiterte.
+String verschiebenFehlerText({
+  required String fehler,
+  required DateTime ziel,
+  required bool angehaengt,
+  required int einsaetzeUmgeplant,
+}) {
+  if (angehaengt) {
+    return 'Am Zieltag angehängt, aber hier nicht entfernt — '
+        'bitte Tag prüfen ($fehler)';
+  }
+  final zusatz = switch (einsaetzeUmgeplant) {
+    0 => '',
+    1 => ' — der Einsatz steht aber schon auf ${kurzTag(ziel)}',
+    _ =>
+      ' — die $einsaetzeUmgeplant Einsätze stehen aber schon auf '
+          '${kurzTag(ziel)}',
+  };
+  return 'Verschieben fehlgeschlagen: $fehler$zusatz';
+}
