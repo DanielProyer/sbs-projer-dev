@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/core/util/einsatz_start.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
+import 'package:sbs_projer_app/core/util/kalenderwoche.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/core/util/tagesplan_ist_zeiten.dart';
 import 'package:sbs_projer_app/core/util/tagesplan_verschieben.dart';
@@ -113,31 +114,32 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     super.dispose();
   }
 
-  DateTime get _weekStart {
-    final d = _selectedDate;
-    return d.subtract(Duration(days: d.weekday - 1));
-  }
+  // Wochenrechnung in Kalendertagen (`wochenStart`/`wochePlus`), nie mit
+  // `Duration(days: …)`: über die Zeitumstellung landete «Nächste Woche» ab
+  // Mo 19.10.2026 auf So 25.10. 23:00 (Review 26.09.2026).
+  DateTime get _weekStart => wochenStart(_selectedDate);
 
   void _changeWeek(int delta) {
     setState(() {
-      _selectedDate = _selectedDate.add(Duration(days: 7 * delta));
+      _selectedDate = wochePlus(_selectedDate, delta);
       _loadedForDate = null;
     });
   }
 
+  /// [day] wird auf Mitternacht gesetzt — «Zur heutigen Woche» reicht
+  /// `DateTime.now()` mit Uhrzeit herein. Mit Uhrzeit wäre `_selectedDate`
+  /// ein anderer Schlüssel für `gespeicherterTagesplanProvider` als der
+  /// Kalendertag, den alle anderen Stellen invalidieren.
   void _selectDay(DateTime day) {
     setState(() {
-      _selectedDate = day;
+      _selectedDate = DateTime(day.year, day.month, day.day);
       _loadedForDate = null;
     });
   }
 
   /// Liegen beide Daten in derselben Kalenderwoche?
-  bool _gleicheWoche(DateTime a, DateTime b) {
-    final montagA = a.subtract(Duration(days: a.weekday - 1));
-    final montagB = b.subtract(Duration(days: b.weekday - 1));
-    return gleicherTag(montagA, montagB);
-  }
+  bool _gleicheWoche(DateTime a, DateTime b) =>
+      gleicherTag(wochenStart(a), wochenStart(b));
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +161,20 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final gespeichertAsync = ref.watch(
       gespeicherterTagesplanProvider(_selectedDate),
     );
+    // Zweite Instanz: Eine Aufgabe mit `/touren?datum=B` öffnet per
+    // `router.push` eine zweite Tourenplanung, die B in den EINEN globalen
+    // `tagesplanProvider` lädt. Nach dem Zurück stand hier `_loadedForDate`
+    // noch auf A, geladen wurde nicht neu, `gehoertZu(A)` blieb falsch — der
+    // Ladekreis drehte ohne Ende (Review 26.09.2026). Gehört der Plan nicht
+    // (mehr) zu diesem Tag, also neu übernehmen — aber nur als oberste
+    // Route, sonst holten sich zwei Instanzen den Plan gegenseitig weg.
+    // `ModalRoute.of` baut nach dem Zurück neu auf.
+    final aufTag = ref
+        .read(tagesplanProvider.notifier)
+        .gehoertZu(_selectedDate);
+    if (!aufTag && (ModalRoute.of(context)?.isCurrent ?? true)) {
+      _loadedForDate = null;
+    }
     if (_loadedForDate != _selectedDate) {
       final tag = _selectedDate;
       void anwenden(GespeicherterTagesplan? gespeichert) {

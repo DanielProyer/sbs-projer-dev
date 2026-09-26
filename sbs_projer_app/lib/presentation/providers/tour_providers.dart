@@ -953,7 +953,21 @@ final saisonTermineFuerTagProvider =
           ref.watch(offeneTermineProvider).valueOrNull ?? const <TerminDto>[];
       final betriebMap = _buildBetriebMap(ref.watch(betriebeProvider));
       final anlagen = ref.watch(anlagenProvider);
-      final imPlan = ref.watch(tagesplanProvider).map((e) => e.id).toSet();
+      // Im Lade-Fenster hält der Notifier noch den Plan des vorigen Tages
+      // ([TagesplanNotifier.gehoertZu]) — dann zählt der gespeicherte Plan
+      // dieses Tages. `watch` auf den State baut neu, sobald der Plan kommt.
+      final aktiverPlan = ref.watch(tagesplanProvider);
+      final imPlan = ref.read(tagesplanProvider.notifier).gehoertZu(datum)
+          ? aktiverPlan.map((e) => e.id).toSet()
+          : {
+              for (final e
+                  in ref
+                          .watch(gespeicherterTagesplanProvider(datum))
+                          .valueOrNull
+                          ?.eintraege ??
+                      const <TourEintrag>[])
+                e.id,
+            };
       return [
         for (final e in saisonTermineFuerTag(
           tag: datum,
@@ -1973,18 +1987,24 @@ final tagesCountsProvider = Provider.family<List<int>, DateTime>((
 
   final aktiverTag = ref.watch(aktiverTagesplanTagProvider);
   final aktiverPlan = ref.watch(tagesplanProvider);
+  final notifier = ref.read(tagesplanProvider.notifier);
   final reinigungen = ref.watch(reinigungenProvider);
   final stoerungen = ref.watch(stoerungenProvider);
   final montagen = ref.watch(montagenProvider);
 
   for (int i = 0; i < 6; i++) {
-    final day = weekStart.add(Duration(days: i));
+    // Kalendertage, nicht `Duration(days: i)` (Zeitumstellung, siehe
+    // `wochenStart` in core/util/kalenderwoche.dart).
+    final day = DateTime(weekStart.year, weekStart.month, weekStart.day + i);
 
-    // Aktiver Tag: In-Memory-State hat Vorrang (Live-Updates)
+    // Aktiver Tag: In-Memory-State hat Vorrang (Live-Updates) — aber nur,
+    // wenn er diesem Tag gehört. Im Lade-Fenster hält der Notifier noch den
+    // Plan des vorigen Tages; dessen Zahl stünde sonst unter dem neuen Tag.
     if (aktiverTag != null &&
         day.year == aktiverTag.year &&
         day.month == aktiverTag.month &&
-        day.day == aktiverTag.day) {
+        day.day == aktiverTag.day &&
+        notifier.gehoertZu(day)) {
       counts[i] = aktiverPlan.length;
       continue;
     }

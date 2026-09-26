@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 void main() {
   test('tourenplanNeuLaden lädt alle Datenquellen des Tourenplans neu',
@@ -38,17 +39,25 @@ void main() {
         zaehle('montagen');
         return Stream.value(const []);
       }),
+      gespeicherterTagesplanProvider.overrideWith((ref, datum) async {
+        zaehle('plan');
+        return null;
+      }),
     ]);
     addTearDown(container.dispose);
+    final tag = DateTime(2026, 10, 26);
 
     // Erstbezug — entspricht dem App-Start.
     await tourenplanNeuLaden(container);
+    await container.read(gespeicherterTagesplanProvider(tag).future);
     expect(laeufe.values, everyElement(1),
         reason: 'Jede Quelle genau einmal geladen');
 
     // Refresh: JEDE Quelle muss neu laden — eine vergessene Quelle hiesse
-    // z.B. frische Anlagen, aber veraltete Reinigungen.
+    // z.B. frische Anlagen, aber veraltete Reinigungen. Der gespeicherte
+    // Tagesplan zählt dazu: ein Ladefehler bliebe sonst im Cache stehen.
     await tourenplanNeuLaden(container);
+    await container.read(gespeicherterTagesplanProvider(tag).future);
     expect(laeufe, {
       'betriebe': 2,
       'ferien': 2,
@@ -56,6 +65,7 @@ void main() {
       'reinigungen': 2,
       'stoerungen': 2,
       'montagen': 2,
+      'plan': 2,
     });
   });
 }

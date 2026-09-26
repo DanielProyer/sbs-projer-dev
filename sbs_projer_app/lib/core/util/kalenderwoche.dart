@@ -25,6 +25,22 @@ int kalenderwoche(DateTime datum) {
 /// ein ganzes Jahr daneben (Pikett-Formular bis 26.09.2026).
 int isoWochenjahr(DateTime datum) => _donnerstagDerWoche(datum).year;
 
+/// Montag der Woche von [datum], Mitternacht Ortszeit.
+///
+/// In Kalendertagen gerechnet, nie mit `Duration(days: …)`: Dort ist ein Tag
+/// 24 Stunden lang, am Tag der Zeitumstellung aber 23 oder 25. Im Tourenplan
+/// wurde so aus Mo 19.10.2026 + 7 × 24 h der So 25.10. um 23:00 — «Nächste
+/// Woche» landete auf dem Sonntag, und die Woche begann danach an einem
+/// Dienstag (Review 26.09.2026). `DateTime(j, m, t − n)` lässt Unter- und
+/// Überläufe (0. oder 32. eines Monats) selbst in den Nachbarmonat laufen.
+DateTime wochenStart(DateTime datum) =>
+    DateTime(datum.year, datum.month, datum.day - (datum.weekday - 1));
+
+/// Derselbe Wochentag [wochen] Wochen später (negativ: früher), Mitternacht
+/// Ortszeit — in Kalendertagen, siehe [wochenStart].
+DateTime wochePlus(DateTime datum, int wochen) =>
+    DateTime(datum.year, datum.month, datum.day + 7 * wochen);
+
 /// Donnerstag derselben ISO-Woche (UTC): Montag (1) + 3, Sonntag (7) − 3.
 DateTime _donnerstagDerWoche(DateTime datum) {
   final tag = DateTime.utc(datum.year, datum.month, datum.day);

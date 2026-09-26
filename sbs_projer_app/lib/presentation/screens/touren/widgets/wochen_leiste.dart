@@ -47,6 +47,12 @@ class WochenLeiste extends StatelessWidget {
   Widget build(BuildContext context) {
     final heute = DateTime.now();
     final heuteDatum = DateTime(heute.year, heute.month, heute.day);
+    // Kalendertage statt `Duration(days: i)` — über eine Zeitumstellung
+    // hätte ein Tag sonst 23 oder 25 Stunden (siehe `wochenStart`).
+    final tage = [
+      for (var i = 0; i < 6; i++)
+        DateTime(weekStart.year, weekStart.month, weekStart.day + i),
+    ];
 
     return Container(
       color: AppColors.primary.withAlpha(15),
@@ -61,18 +67,12 @@ class WochenLeiste extends StatelessWidget {
           for (var i = 0; i < 6; i++)
             Expanded(
               child: _Tag(
-                tag: weekStart.add(Duration(days: i)),
+                tag: tage[i],
                 kuerzel: _tage[i],
                 anzahl: i < counts.length ? counts[i] : 0,
-                gewaehlt: gleicherTag(
-                  weekStart.add(Duration(days: i)),
-                  selectedDate,
-                ),
-                istHeute: gleicherTag(
-                  weekStart.add(Duration(days: i)),
-                  heuteDatum,
-                ),
-                onTap: () => onSelect(weekStart.add(Duration(days: i))),
+                gewaehlt: gleicherTag(tage[i], selectedDate),
+                istHeute: gleicherTag(tage[i], heuteDatum),
+                onTap: () => onSelect(tage[i]),
               ),
             ),
           _Pfeil(
@@ -114,7 +114,7 @@ String wochenTitel(DateTime weekStart) {
     'Nov',
     'Dez',
   ];
-  final ende = weekStart.add(const Duration(days: 5));
+  final ende = DateTime(weekStart.year, weekStart.month, weekStart.day + 5);
   // Läuft die Woche über einen Monatswechsel, stehen beide Monate da —
   // sonst wüsste man bei «Mo 28 … Sa 3» nicht, wohin die 3 gehört.
   final monat = weekStart.month == ende.month

@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 TourEintrag _e(String id) => TourEintrag(
@@ -267,6 +270,65 @@ void main() {
           TagesplanAnsicht.plan,
         );
       }
+    });
+  });
+
+  // Review 26.09.2026 (Klein b): Im Lade-Fenster zählte die Wochenleiste
+  // unter dem neuen Tag die Einträge des Plans vom vorigen Tag.
+  group('tagesCountsProvider im Lade-Fenster', () {
+    final montag = DateTime(2026, 9, 28);
+    final dienstag = DateTime(2026, 9, 29);
+
+    GespeicherterTagesplan plan(List<String> ids) => (
+      eintraege: [for (final id in ids) _e(id)],
+      arbeitsbeginn: null,
+      planBeginn: null,
+      arbeitsende: null,
+      kmStand: null,
+      kmStart: null,
+      startLat: null,
+      startLng: null,
+      endLat: null,
+      endLng: null,
+      pauseMinuten: null,
+      pauseStart: null,
+    );
+
+    ProviderContainer containerMitPlaenen() {
+      final container = ProviderContainer(
+        overrides: [
+          reinigungenProvider.overrideWithValue(const []),
+          stoerungenProvider.overrideWithValue(const []),
+          montagenProvider.overrideWithValue(const []),
+          gespeicherterTagesplanProvider.overrideWith(
+            (ref, tag) async =>
+                tag.day == dienstag.day ? plan(['d1']) : null,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('der Plan des vorigen Tages zählt nicht unter dem neuen', () async {
+      final container = containerMitPlaenen();
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = montag;
+      notifier.setFromGespeichert(montag, [_e('a'), _e('b'), _e('c')]);
+      expect(container.read(tagesCountsProvider(montag))[0], 3);
+
+      // Tipp auf Dienstag: aktiver Tag umgestellt, Plan noch beim Montag.
+      container.read(aktiverTagesplanTagProvider.notifier).state = dienstag;
+      await container.read(gespeicherterTagesplanProvider(dienstag).future);
+      expect(
+        container.read(tagesCountsProvider(montag))[1],
+        1,
+        reason: 'gespeicherter Plan vom Dienstag, nicht die 3 vom Montag',
+      );
+
+      // Plan vom Dienstag ist übernommen — jetzt zählt der Live-Stand.
+      notifier.setFromGespeichert(dienstag, [_e('x'), _e('y')]);
+      expect(container.read(tagesCountsProvider(montag))[1], 2);
     });
   });
 }

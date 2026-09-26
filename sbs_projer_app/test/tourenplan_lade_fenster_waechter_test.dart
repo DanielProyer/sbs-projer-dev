@@ -107,6 +107,72 @@ void main() {
     expect(fehlerZweig, isNot(contains('resetLeer')));
   });
 
+  // K1 (Review 26.09.2026): Eine Aufgabe mit `/touren?datum=B` öffnet per
+  // `router.push` eine zweite Tourenplanung; sie lädt B in den EINEN
+  // globalen `tagesplanProvider`. Nach dem Zurück hielt die erste Instanz
+  // `_loadedForDate == A`, lud nicht neu, und «Plan wird geladen…» blieb
+  // stehen. Die Rücksetzung muss VOR der Lade-Prüfung stehen und darf nur
+  // als oberste Route greifen (sonst Hin-und-Her zweier Instanzen).
+  test('zweite Instanz: Plan wird neu übernommen, wenn er nicht zum Tag '
+      'gehört', () {
+    final zustand = screen.substring(
+      screen.indexOf('class _TourenplanungScreenState'),
+    );
+    final build = _rumpf(zustand, 'Widget build(BuildContext context)');
+    final ruecksetzung = build.indexOf('isCurrent');
+    final pruefung = build.indexOf('if (_loadedForDate != _selectedDate)');
+    expect(ruecksetzung, greaterThanOrEqualTo(0),
+        reason: 'Rücksetzung mit ModalRoute…isCurrent fehlt');
+    expect(pruefung, greaterThan(ruecksetzung),
+        reason: 'die Rücksetzung gehört VOR die Lade-Prüfung');
+
+    final zeile = build.substring(
+      build.lastIndexOf('\n', ruecksetzung),
+      build.indexOf('\n', ruecksetzung),
+    );
+    expect(zeile, contains('!aufTag'));
+    expect(zeile, contains('ModalRoute.of(context)'));
+    expect(
+      build.substring(ruecksetzung, pruefung),
+      contains('_loadedForDate = null'),
+    );
+    expect(
+      build.substring(0, ruecksetzung),
+      contains('.gehoertZu(_selectedDate)'),
+    );
+  });
+
+  // M3 (Review 26.09.2026): `Duration(days: 7)` sind über die Zeitumstellung
+  // 167/169 Stunden — «Nächste Woche» ab Mo 19.10.2026 landete auf
+  // So 25.10. 23:00. Die Regel selbst testet `kalenderwoche_test.dart`.
+  test('Wochenrechnung in Kalendertagen, gewählter Tag ohne Uhrzeit', () {
+    final zustand = screen.substring(
+      screen.indexOf('class _TourenplanungScreenState'),
+    );
+    expect(_rumpf(zustand, 'void _changeWeek('), contains('wochePlus('));
+    expect(
+      _rumpf(zustand, 'void _selectDay('),
+      contains('DateTime(day.year, day.month, day.day)'),
+    );
+    expect(zustand, contains('_weekStart => wochenStart(_selectedDate)'));
+
+    // Kommentare zählen nicht — dort steht, WARUM nicht so gerechnet wird.
+    String ohneKommentare(String quelle) =>
+        quelle.replaceAll(RegExp(r'//.*'), '');
+    final code = ohneKommentare(screen);
+    expect(code, isNot(contains('Duration(days: 7')));
+    expect(
+      RegExp(r'Duration\(days: \w+\.weekday').hasMatch(code),
+      isFalse,
+      reason: 'Wochenstart über wochenStart(), nicht über Stunden',
+    );
+
+    final leiste = File(
+      'lib/presentation/screens/touren/widgets/wochen_leiste.dart',
+    ).readAsStringSync();
+    expect(ohneKommentare(leiste), isNot(contains('Duration(days')));
+  });
+
   test('gespeicherterTagesplanProvider reicht Ladefehler weiter', () {
     final quelle = File(
       'lib/presentation/providers/tour_providers.dart',

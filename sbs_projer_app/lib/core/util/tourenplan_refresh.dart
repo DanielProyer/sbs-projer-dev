@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 /// Lädt alle Datenquellen des Tourenplans neu und wartet, bis sie da sind.
 ///
@@ -22,6 +23,11 @@ Future<void> tourenplanNeuLaden(ProviderContainer container) async {
   container.invalidate(reinigungenStreamProvider);
   container.invalidate(stoerungenStreamProvider);
   container.invalidate(montagenStreamProvider);
+  // Die gespeicherten Tagespläne (ganze Familie): Ein einmaliger Ladefehler
+  // bliebe sonst im Cache liegen — der Provider ist nicht autoDispose, und
+  // «Aktualisieren» hätte den Tag nie neu geholt (Review 26.09.2026). Nicht
+  // abgewartet: der Tourenplan zeigt Laden bzw. Fehler selbst an.
+  container.invalidate(gespeicherterTagesplanProvider);
   await Future.wait([
     container.read(betriebeStreamProvider.future),
     container.read(ferienPeriodenProvider.future),
