@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 
 class EroeffnungsreinigungDetailScreen extends ConsumerWidget {
   final String eroeffnungsreinigungId;
@@ -117,20 +118,20 @@ class _DetailContent extends ConsumerWidget {
           if (item.betriebId != null) _BetriebCard(betriebId: item.betriebId!),
 
           // Info
-          _SectionCard(
-            title: 'Details',
+          DetailKarte(
+            titel: 'Details',
             icon: Icons.cleaning_services_outlined,
-            children: [
-              _InfoRow(
+            kinder: [
+              InfoZeile(
                 'Art',
                 item.art == 'endreinigung'
                     ? 'Endreinigung'
                     : 'Eröffnungsreinigung',
               ),
-              _InfoRow('Störungsnummer', item.stoerungsnummer),
-              _InfoRow('Datum', _formatDate(item.datum)),
+              InfoZeile('Störungsnummer', item.stoerungsnummer),
+              InfoZeile('Datum', _formatDate(item.datum)),
               if (item.preis != null)
-                _InfoRow('Preis', '${item.preis!.toStringAsFixed(2)} CHF'),
+                InfoZeile('Preis', '${item.preis!.toStringAsFixed(2)} CHF'),
             ],
           ),
 
@@ -280,74 +281,3 @@ class _BetriebCard extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
-    );
-  }
-}

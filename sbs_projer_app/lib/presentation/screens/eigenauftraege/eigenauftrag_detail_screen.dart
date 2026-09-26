@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 
 class EigenauftragDetailScreen extends ConsumerWidget {
   final String eigenauftragId;
@@ -113,22 +114,22 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
           if (ea.betriebId != null) _BetriebCard(betriebId: ea.betriebId!),
 
           // Auftragsinfo
-          _SectionCard(
-            title: 'Auftragsinfo',
+          DetailKarte(
+            titel: 'Auftragsinfo',
             icon: Icons.build_circle_outlined,
-            children: [
-              _InfoRow('Störungsnummer', ea.stoerungsnummer),
-              _InfoRow('Datum', _formatDate(ea.datum)),
-              _InfoRow('Beschreibung', ea.problemBeschreibung),
+            kinder: [
+              InfoZeile('Störungsnummer', ea.stoerungsnummer),
+              InfoZeile('Datum', _formatDate(ea.datum)),
+              InfoZeile('Beschreibung', ea.problemBeschreibung),
             ],
           ),
 
           // Preis
           if (ea.pauschale != null)
-            _SectionCard(
-              title: 'Preis',
+            DetailKarte(
+              titel: 'Preis',
               icon: Icons.attach_money,
-              children: [
+              kinder: [
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(
@@ -160,10 +161,10 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
 
           // Material
           if (_hasMaterial)
-            _SectionCard(
-              title: 'Material',
+            DetailKarte(
+              titel: 'Material',
               icon: Icons.inventory_2,
-              children: _buildMaterialRows(),
+              kinder: _buildMaterialRows(),
             ),
 
           // Sync-Info
@@ -211,7 +212,7 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
       if (ids[i] != null) {
         final name = _materialNames[ids[i]!] ?? 'Laden...';
         final menge = (mengen[i] ?? 1).toStringAsFixed(0);
-        rows.add(_InfoRow('Position ${i + 1}', '$name (${menge}x)'));
+        rows.add(InfoZeile('Position ${i + 1}', '$name (${menge}x)'));
       }
     }
     return rows;
@@ -378,80 +379,3 @@ class _StatusRow extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    if (label.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(value, style: const TextStyle(fontSize: 14)),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
-    );
-  }
-}

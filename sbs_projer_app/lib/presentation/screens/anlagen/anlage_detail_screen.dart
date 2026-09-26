@@ -24,6 +24,7 @@ import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/anlagen/anlage_steckbrief_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 
 class AnlageDetailScreen extends ConsumerWidget {
   final String anlageId;
@@ -108,60 +109,60 @@ class _AnlageDetailContent extends ConsumerWidget {
             _FotosSection(anlageId: anlage.serverId!),
 
           // Grunddaten
-          _SectionCard(
-            title: 'Grunddaten',
+          DetailKarte(
+            titel: 'Grunddaten',
             icon: Icons.precision_manufacturing,
-            children: [
-              _InfoRow('Typ', anlage.typAnlage),
+            kinder: [
+              InfoZeile('Typ', anlage.typAnlage),
               if (anlage.bezeichnung != null)
-                _InfoRow('Bezeichnung', anlage.bezeichnung!),
+                InfoZeile('Bezeichnung', anlage.bezeichnung!),
               if (anlage.seriennummer != null)
-                _InfoRow('Seriennummer', anlage.seriennummer!),
+                InfoZeile('Seriennummer', anlage.seriennummer!),
               if (anlage.typSaeule != null)
-                _InfoRow('Säulen-Typ', anlage.typSaeule!),
-              _InfoRow('Anzahl Hähne', '${anlage.anzahlHaehne}'),
+                InfoZeile('Säulen-Typ', anlage.typSaeule!),
+              InfoZeile('Anzahl Hähne', '${anlage.anzahlHaehne}'),
             ],
           ),
 
           // Kühlung & Gas
-          _SectionCard(
-            title: 'Kühlung & Gas',
+          DetailKarte(
+            titel: 'Kühlung & Gas',
             icon: Icons.ac_unit,
-            children: [
-              _InfoRow('Vorkühler', _vorkuehlerLabel(anlage.vorkuehler)),
+            kinder: [
+              InfoZeile('Vorkühler', _vorkuehlerLabel(anlage.vorkuehler)),
               if (anlage.durchlaufkuehler != null)
-                _InfoRow('Durchlaufkühler', anlage.durchlaufkuehler!),
-              _InfoRow('Backpython', anlage.backpython ? 'Ja' : 'Nein'),
-              _InfoRow('Booster', anlage.booster ? 'Ja' : 'Nein'),
-              _InfoRow('Eissäule', anlage.eissaeule ? 'Ja' : 'Nein'),
+                InfoZeile('Durchlaufkühler', anlage.durchlaufkuehler!),
+              InfoZeile('Backpython', anlage.backpython ? 'Ja' : 'Nein'),
+              InfoZeile('Booster', anlage.booster ? 'Ja' : 'Nein'),
+              InfoZeile('Eissäule', anlage.eissaeule ? 'Ja' : 'Nein'),
               if (anlage.gasTyp1 != null)
-                _InfoRow('Gas Typ 1', anlage.gasTyp1!),
+                InfoZeile('Gas Typ 1', anlage.gasTyp1!),
               if (anlage.gasTyp2 != null)
-                _InfoRow('Gas Typ 2', anlage.gasTyp2!),
+                InfoZeile('Gas Typ 2', anlage.gasTyp2!),
               if (anlage.hauptdruckBar != null)
-                _InfoRow('Hauptdruck', '${anlage.hauptdruckBar} bar'),
-              _InfoRow('Niederdruck', anlage.hatNiederdruck ? 'Ja' : 'Nein'),
+                InfoZeile('Hauptdruck', '${anlage.hauptdruckBar} bar'),
+              InfoZeile('Niederdruck', anlage.hatNiederdruck ? 'Ja' : 'Nein'),
             ],
           ),
 
           // Reinigung
-          _SectionCard(
-            title: 'Reinigung',
+          DetailKarte(
+            titel: 'Reinigung',
             icon: Icons.cleaning_services,
-            children: [
-              _InfoRow('Rhythmus', anlage.reinigungRhythmus),
+            kinder: [
+              InfoZeile('Rhythmus', anlage.reinigungRhythmus),
               if (anlage.letzteReinigung != null)
-                _InfoRow(
+                InfoZeile(
                   'Letzte Reinigung',
                   _formatDate(anlage.letzteReinigung!),
                 ),
               if (anlage.naechsteReinigung != null)
-                _InfoRow(
+                InfoZeile(
                   'Nächste Reinigung',
                   _formatDate(anlage.naechsteReinigung!),
                 ),
               if (anlage.letzterWasserwechsel != null)
-                _InfoRow(
+                InfoZeile(
                   'Letzter Wasserwechsel',
                   _formatDate(anlage.letzterWasserwechsel!),
                 ),
@@ -179,10 +180,10 @@ class _AnlageDetailContent extends ConsumerWidget {
 
           // Notizen
           if (anlage.notizen != null)
-            _SectionCard(
-              title: 'Notizen',
+            DetailKarte(
+              titel: 'Notizen',
               icon: Icons.note,
-              children: [_InfoRow('', anlage.notizen!)],
+              kinder: [InfoZeile('', anlage.notizen!)],
             ),
 
           // Zuletzt geändert
@@ -1290,82 +1291,3 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    if (label.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(value, style: const TextStyle(fontSize: 14)),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
-    );
-  }
-}

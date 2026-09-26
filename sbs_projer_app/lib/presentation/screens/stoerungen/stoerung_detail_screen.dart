@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 
 // === Anlagentyp-Helpers (shared zwischen Content + StatusRow) ===
 String _anlageTypLetter(String? typ) {
@@ -204,32 +205,32 @@ class _StoerungDetailContentState
             _BetriebAnlageCard(stoerung: stoerung),
 
           // Zeiterfassung
-          _SectionCard(
-            title: 'Zeiterfassung',
+          DetailKarte(
+            titel: 'Zeiterfassung',
             icon: Icons.schedule,
-            children: [
-              _InfoRow('Datum', _formatDate(stoerung.datum)),
+            kinder: [
+              InfoZeile('Datum', _formatDate(stoerung.datum)),
               if (stoerung.referenzNr != null &&
                   !stoerung.istKilometerabrechnung)
-                _InfoRow('Störungsnummer', stoerung.referenzNr!),
+                InfoZeile('Störungsnummer', stoerung.referenzNr!),
               if (stoerung.uhrzeitStart != null)
-                _InfoRow('Störungseingang', _kurzZeit(stoerung.uhrzeitStart!)),
+                InfoZeile('Störungseingang', _kurzZeit(stoerung.uhrzeitStart!)),
             ],
           ),
 
           // Störungsdetails / Beschreibung
-          _SectionCard(
-            title: stoerung.istKilometerabrechnung
+          DetailKarte(
+            titel: stoerung.istKilometerabrechnung
                 ? 'Beschreibung'
                 : 'Störungsdetails',
             icon: stoerung.istKilometerabrechnung
                 ? Icons.directions_car
                 : Icons.build,
-            children: [
+            kinder: [
               if (!stoerung.istKilometerabrechnung &&
                   stoerung.stoerungBereiche != null &&
                   stoerung.stoerungBereiche!.isNotEmpty)
-                _InfoRow(
+                InfoZeile(
                   'Bereiche',
                   stoerung.stoerungBereiche!.map(_bereichLabel).join(', '),
                 ),
@@ -265,35 +266,35 @@ class _StoerungDetailContentState
                     ],
                   ),
                 ),
-              _InfoRow('Beschreibung', stoerung.problemBeschreibung),
+              InfoZeile('Beschreibung', stoerung.problemBeschreibung),
             ],
           ),
 
           // Preis
           if (_hasPreis)
-            _SectionCard(
-              title: 'Preis',
+            DetailKarte(
+              titel: 'Preis',
               icon: Icons.attach_money,
-              children: [
+              kinder: [
                 if (stoerung.preisBasis != null)
-                  _InfoRow(
+                  InfoZeile(
                     'Grundtarif',
                     '${stoerung.preisBasis!.toStringAsFixed(2)} CHF',
                   ),
                 if (stoerung.preisAnfahrt != null && stoerung.preisAnfahrt! > 0)
-                  _InfoRow(
+                  InfoZeile(
                     'Anfahrt',
                     '${stoerung.preisAnfahrt!.toStringAsFixed(2)} CHF',
                   ),
                 if (stoerung.preisWochenende != null &&
                     stoerung.preisWochenende! > 0)
-                  _InfoRow(
+                  InfoZeile(
                     'Wochenende',
                     '${stoerung.preisWochenende!.toStringAsFixed(2)} CHF',
                   ),
                 if (stoerung.komplexitaetZuschlag != null &&
                     stoerung.komplexitaetZuschlag! > 0)
-                  _InfoRow(
+                  InfoZeile(
                     'Zuschlag',
                     '${stoerung.komplexitaetZuschlag!.toStringAsFixed(2)} CHF',
                   ),
@@ -332,32 +333,32 @@ class _StoerungDetailContentState
               stoerung.istPikettEinsatz ||
               stoerung.istWochenende ||
               stoerung.anfahrtKm > 0)
-            _SectionCard(
-              title: 'Zusatzinformationen',
+            DetailKarte(
+              titel: 'Zusatzinformationen',
               icon: Icons.info_outline,
-              children: [
-                if (stoerung.istPikettEinsatz) _InfoRow('Pikett-Einsatz', 'Ja'),
-                if (stoerung.istBergkunde) _InfoRow('Bergkunde', 'Ja'),
-                if (stoerung.istWochenende) _InfoRow('Wochenende', 'Ja'),
+              kinder: [
+                if (stoerung.istPikettEinsatz) InfoZeile('Pikett-Einsatz', 'Ja'),
+                if (stoerung.istBergkunde) InfoZeile('Bergkunde', 'Ja'),
+                if (stoerung.istWochenende) InfoZeile('Wochenende', 'Ja'),
                 if (stoerung.anfahrtKm > 0)
-                  _InfoRow('Anfahrt', '${stoerung.anfahrtKm} km'),
+                  InfoZeile('Anfahrt', '${stoerung.anfahrtKm} km'),
               ],
             ),
 
           // Material
           if (_hasMaterial)
-            _SectionCard(
-              title: 'Material',
+            DetailKarte(
+              titel: 'Material',
               icon: Icons.inventory_2,
-              children: _buildMaterialRows(),
+              kinder: _buildMaterialRows(),
             ),
 
           // Notizen
           if (stoerung.notizen != null)
-            _SectionCard(
-              title: 'Notizen',
+            DetailKarte(
+              titel: 'Notizen',
               icon: Icons.note,
-              children: [_InfoRow('', stoerung.notizen!)],
+              kinder: [InfoZeile('', stoerung.notizen!)],
             ),
 
           // Sync-Info
@@ -422,7 +423,7 @@ class _StoerungDetailContentState
       if (ids[i] != null) {
         final name = _materialNames[ids[i]!] ?? 'Laden...';
         final menge = (mengen[i] ?? 1).toStringAsFixed(0);
-        rows.add(_InfoRow('Position ${i + 1}', '$name (${menge}x)'));
+        rows.add(InfoZeile('Position ${i + 1}', '$name (${menge}x)'));
       }
     }
     return rows;
@@ -789,82 +790,3 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    if (label.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(value, style: const TextStyle(fontSize: 14)),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
-    );
-  }
-}

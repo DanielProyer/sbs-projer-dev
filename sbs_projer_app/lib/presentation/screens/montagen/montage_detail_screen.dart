@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 
 class MontageDetailScreen extends ConsumerWidget {
   final String montageId;
@@ -155,13 +156,13 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
           if (montage.betriebId != null) _BetriebAnlageCard(montage: montage),
 
           // Datum & Aufwand
-          _SectionCard(
-            title: 'Datum & Aufwand',
+          DetailKarte(
+            titel: 'Datum & Aufwand',
             icon: Icons.schedule,
-            children: [
-              _InfoRow('Datum', _formatDate(montage.datum)),
+            kinder: [
+              InfoZeile('Datum', _formatDate(montage.datum)),
               if (montage.dauerStunden != null)
-                _InfoRow(
+                InfoZeile(
                   'Stunden',
                   '${montage.dauerStunden!.toStringAsFixed(2)} h',
                 ),
@@ -169,25 +170,25 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
           ),
 
           // Details
-          _SectionCard(
-            title: 'Beschreibung',
+          DetailKarte(
+            titel: 'Beschreibung',
             icon: Icons.description,
-            children: [_InfoRow('', montage.beschreibung)],
+            kinder: [InfoZeile('', montage.beschreibung)],
           ),
 
           // Kosten
           if (_hasKosten)
-            _SectionCard(
-              title: 'Kosten',
+            DetailKarte(
+              titel: 'Kosten',
               icon: Icons.attach_money,
-              children: [
+              kinder: [
                 if (montage.stundensatz != null)
-                  _InfoRow(
+                  InfoZeile(
                     'Stundensatz',
                     '${montage.stundensatz!.toStringAsFixed(2)} CHF/h',
                   ),
                 if (montage.dauerStunden != null)
-                  _InfoRow(
+                  InfoZeile(
                     'Stunden',
                     '${montage.dauerStunden!.toStringAsFixed(2)} h',
                   ),
@@ -225,22 +226,22 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
 
           // Material / Anlass-Tage
           if (_hasMaterial)
-            _SectionCard(
-              title: montage.montageTyp == 'anlass'
+            DetailKarte(
+              titel: montage.montageTyp == 'anlass'
                   ? 'Tage & Spesen'
                   : 'Material',
               icon: montage.montageTyp == 'anlass'
                   ? Icons.event_note
                   : Icons.inventory_2,
-              children: _buildMaterialRows(),
+              kinder: _buildMaterialRows(),
             ),
 
           // Notizen
           if (montage.notizen != null)
-            _SectionCard(
-              title: 'Notizen',
+            DetailKarte(
+              titel: 'Notizen',
               icon: Icons.note,
-              children: [_InfoRow('', montage.notizen!)],
+              kinder: [InfoZeile('', montage.notizen!)],
             ),
 
           // Sync-Info
@@ -307,11 +308,11 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
         if (isAnlass) {
           // Bei Anlass: Freitext + Stunden
           final stunden = (mengen[i] ?? 0).toStringAsFixed(2);
-          rows.add(_InfoRow(ids[i]!, '$stunden h'));
+          rows.add(InfoZeile(ids[i]!, '$stunden h'));
         } else {
           final name = _materialNames[ids[i]!] ?? 'Laden...';
           final menge = (mengen[i] ?? 1).toStringAsFixed(0);
-          rows.add(_InfoRow('Position ${i + 1}', '$name (${menge}x)'));
+          rows.add(InfoZeile('Position ${i + 1}', '$name (${menge}x)'));
         }
       }
     }
@@ -693,82 +694,3 @@ class _TypeChip extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    if (label.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(value, style: const TextStyle(fontSize: 14)),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
-    );
-  }
-}

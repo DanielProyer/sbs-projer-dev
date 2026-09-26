@@ -31,6 +31,7 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
+import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:intl/intl.dart';
@@ -123,25 +124,25 @@ class _BetriebDetailContent extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Adresse
-          _SectionCard(
-            title: 'Adresse',
+          DetailKarte(
+            titel: 'Adresse',
             icon: Icons.location_on,
-            children: [
+            kinder: [
               if (betrieb.strasse != null)
-                _InfoRow('Strasse', '${betrieb.strasse} ${betrieb.nr ?? ''}'),
+                InfoZeile('Strasse', '${betrieb.strasse} ${betrieb.nr ?? ''}', labelBreite: 120),
               if (betrieb.plz != null || betrieb.ort != null)
-                _InfoRow(
+                InfoZeile(
                   'Ort',
-                  '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim(),
-                ),
+                  '${betrieb.plz ?? ''} ${betrieb.ort ?? ''}'.trim()
+                , labelBreite: 120),
             ],
           ),
 
           // Kontakt
-          _SectionCard(
-            title: 'Kontakt',
+          DetailKarte(
+            titel: 'Kontakt',
             icon: Icons.contact_phone,
-            children: [
+            kinder: [
               if (betrieb.telefon != null)
                 _LinkRow(
                   'Telefon',
@@ -168,44 +169,44 @@ class _BetriebDetailContent extends ConsumerWidget {
           ),
 
           // Details
-          _SectionCard(
-            title: 'Details',
+          DetailKarte(
+            titel: 'Details',
             icon: Icons.info_outline,
-            children: [
-              _InfoRow('Status', betrieb.status),
+            kinder: [
+              InfoZeile('Status', betrieb.status, labelBreite: 120),
               if (betrieb.status == 'geschlossen') ...[
-                _InfoRow(
+                InfoZeile(
                   'Schliessungsgrund',
-                  _schliessungsgrundLabel(betrieb.schliessungsgrund),
-                ),
+                  _schliessungsgrundLabel(betrieb.schliessungsgrund)
+                , labelBreite: 120),
                 if (betrieb.schliessungsdatum != null)
-                  _InfoRow(
+                  InfoZeile(
                     'Schliessungsdatum',
-                    _formatDate(betrieb.schliessungsdatum!),
-                  ),
+                    _formatDate(betrieb.schliessungsdatum!)
+                  , labelBreite: 120),
               ],
-              _InfoRow(
+              InfoZeile(
                 'Zapfsysteme',
                 betrieb.zapfsysteme.isEmpty
                     ? '–'
-                    : betrieb.zapfsysteme.join(', '),
-              ),
-              _InfoRow('Mein Kunde', betrieb.istMeinKunde ? 'Ja' : 'Nein'),
-              _InfoRow('Bergkunde', betrieb.istBergkunde ? 'Ja' : 'Nein'),
-              _InfoRow(
+                    : betrieb.zapfsysteme.join(', ')
+              , labelBreite: 120),
+              InfoZeile('Mein Kunde', betrieb.istMeinKunde ? 'Ja' : 'Nein', labelBreite: 120),
+              InfoZeile('Bergkunde', betrieb.istBergkunde ? 'Ja' : 'Nein', labelBreite: 120),
+              InfoZeile(
                 'Saisonbetrieb',
-                betrieb.istSaisonbetrieb ? 'Ja' : 'Nein',
-              ),
+                betrieb.istSaisonbetrieb ? 'Ja' : 'Nein'
+              , labelBreite: 120),
               if (betrieb.istMeinKunde)
-                _InfoRow(
+                InfoZeile(
                   'Rechnungsstellung',
-                  _rechnungsstellungLabel(betrieb.rechnungsstellung),
-                ),
+                  _rechnungsstellungLabel(betrieb.rechnungsstellung)
+                , labelBreite: 120),
               if (betrieb.regionId != null)
                 FutureBuilder(
                   future: RegionRepository.getByServerId(betrieb.regionId!),
                   builder: (context, snap) =>
-                      _InfoRow('Region', snap.data?.name ?? '–'),
+                      InfoZeile('Region', snap.data?.name ?? '–', labelBreite: 120),
                 ),
             ],
           ),
@@ -214,37 +215,37 @@ class _BetriebDetailContent extends ConsumerWidget {
           if (betrieb.betriebNr != null ||
               betrieb.weNummer != null ||
               betrieb.agNummer != null)
-            _SectionCard(
-              title: 'Nummern',
+            DetailKarte(
+              titel: 'Nummern',
               icon: Icons.tag,
-              children: [
+              kinder: [
                 if (betrieb.betriebNr != null)
-                  _InfoRow('Betrieb Nr.', betrieb.betriebNr!),
+                  InfoZeile('Betrieb Nr.', betrieb.betriebNr!, labelBreite: 120),
                 if (betrieb.weNummer != null)
-                  _InfoRow('WE-Nummer', betrieb.weNummer!),
+                  InfoZeile('WE-Nummer', betrieb.weNummer!, labelBreite: 120),
                 if (betrieb.agNummer != null)
-                  _InfoRow('AG-Nummer', betrieb.agNummer!),
+                  InfoZeile('AG-Nummer', betrieb.agNummer!, labelBreite: 120),
               ],
             ),
 
           // Saison (nur bei Saisonbetrieb)
           if (betrieb.istSaisonbetrieb)
-            _SectionCard(
-              title: 'Saison',
+            DetailKarte(
+              titel: 'Saison',
               icon: Icons.calendar_month,
-              children: [
+              kinder: [
                 if (betrieb.winterSaisonAktiv &&
                     betrieb.winterStartDatum != null)
-                  _InfoRow(
+                  InfoZeile(
                     'Winter',
-                    '${_formatDate(betrieb.winterStartDatum!)} – ${betrieb.winterEndeDatum != null ? _formatDate(betrieb.winterEndeDatum!) : '?'}',
-                  ),
+                    '${_formatDate(betrieb.winterStartDatum!)} – ${betrieb.winterEndeDatum != null ? _formatDate(betrieb.winterEndeDatum!) : '?'}'
+                  , labelBreite: 120),
                 if (betrieb.sommerSaisonAktiv &&
                     betrieb.sommerStartDatum != null)
-                  _InfoRow(
+                  InfoZeile(
                     'Sommer',
-                    '${_formatDate(betrieb.sommerStartDatum!)} – ${betrieb.sommerEndeDatum != null ? _formatDate(betrieb.sommerEndeDatum!) : '?'}',
-                  ),
+                    '${_formatDate(betrieb.sommerStartDatum!)} – ${betrieb.sommerEndeDatum != null ? _formatDate(betrieb.sommerEndeDatum!) : '?'}'
+                  , labelBreite: 120),
               ],
             ),
 
@@ -255,19 +256,19 @@ class _BetriebDetailContent extends ConsumerWidget {
           if (betrieb.ruhetage.isNotEmpty ||
               betrieb.keineBetriebsferien ||
               betrieb.serverId != null)
-            _SectionCard(
-              title: 'Ruhetage & Ferien',
+            DetailKarte(
+              titel: 'Ruhetage & Ferien',
               icon: Icons.event_busy,
-              children: [
+              kinder: [
                 if (betrieb.ruhetage.isNotEmpty)
-                  _InfoRow(
+                  InfoZeile(
                     'Ruhetage',
                     betrieb.ruhetage.contains('keine')
                         ? 'Keine'
-                        : betrieb.ruhetage.join(', '),
-                  ),
+                        : betrieb.ruhetage.join(', ')
+                  , labelBreite: 120),
                 if (betrieb.keineBetriebsferien)
-                  const _InfoRow('Betriebsferien', 'Keine'),
+                  const InfoZeile('Betriebsferien', 'Keine', labelBreite: 120),
                 if (!betrieb.keineBetriebsferien && betrieb.serverId != null)
                   BetriebFerienListe(
                     betriebId: betrieb.serverId!,
@@ -278,10 +279,10 @@ class _BetriebDetailContent extends ConsumerWidget {
 
           // Öffnungszeiten
           if (_hasOeffnungszeiten(betrieb))
-            _SectionCard(
-              title: 'Öffnungszeiten',
+            DetailKarte(
+              titel: 'Öffnungszeiten',
               icon: Icons.access_time,
-              children: _buildOeffnungszeiten(betrieb),
+              kinder: _buildOeffnungszeiten(betrieb),
             ),
 
           // Servicezeiten
@@ -291,22 +292,22 @@ class _BetriebDetailContent extends ConsumerWidget {
           // unterscheiden.
           if (betrieb.servicezeitMorgenAb != null ||
               betrieb.servicezeitNachmittagAb != null)
-            _SectionCard(
-              title: 'Servicezeiten',
+            DetailKarte(
+              titel: 'Servicezeiten',
               icon: Icons.schedule,
-              children: [
-                _InfoRow(
+              kinder: [
+                InfoZeile(
                   'Morgen',
                   betrieb.servicezeitMorgenAb != null
                       ? '${betrieb.servicezeitMorgenAb} – ${betrieb.servicezeitMorgenBis ?? '?'}'
-                      : 'kein Service',
-                ),
-                _InfoRow(
+                      : 'kein Service'
+                , labelBreite: 120),
+                InfoZeile(
                   'Nachmittag',
                   betrieb.servicezeitNachmittagAb != null
                       ? '${betrieb.servicezeitNachmittagAb} – ${betrieb.servicezeitNachmittagBis ?? '?'}'
-                      : 'kein Service',
-                ),
+                      : 'kein Service'
+                , labelBreite: 120),
               ],
             ),
 
@@ -345,14 +346,14 @@ class _BetriebDetailContent extends ConsumerWidget {
 
           // Zugang & Notizen
           if (betrieb.zugangNotizen != null || betrieb.notizen != null)
-            _SectionCard(
-              title: 'Notizen',
+            DetailKarte(
+              titel: 'Notizen',
               icon: Icons.note,
-              children: [
+              kinder: [
                 if (betrieb.zugangNotizen != null)
-                  _InfoRow('Zugang', betrieb.zugangNotizen!),
+                  InfoZeile('Zugang', betrieb.zugangNotizen!, labelBreite: 120),
                 if (betrieb.notizen != null)
-                  _InfoRow('Notizen', betrieb.notizen!),
+                  InfoZeile('Notizen', betrieb.notizen!, labelBreite: 120),
               ],
             ),
 
@@ -447,7 +448,7 @@ class _BetriebDetailContent extends ConsumerWidget {
           final slotsStr = slots
               .map((s) => '${s['von']} – ${s['bis']}')
               .join(', ');
-          widgets.add(_InfoRow(tageLabel[tag]!, slotsStr));
+          widgets.add(InfoZeile(tageLabel[tag]!, slotsStr, labelBreite: 120));
         }
       }
       return widgets;
@@ -1900,80 +1901,6 @@ class _StatusChip extends StatelessWidget {
               fontSize: 12,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );

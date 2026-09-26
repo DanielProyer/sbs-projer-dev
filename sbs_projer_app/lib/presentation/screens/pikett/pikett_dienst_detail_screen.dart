@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/util/kalenderwoche.dart';
+import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
@@ -113,16 +114,16 @@ class _PikettDetailContent extends ConsumerWidget {
             ),
 
           // Einsatzzeiten
-          _SectionCard(
-            title: 'Einsatzzeiten',
+          DetailKarte(
+            titel: 'Einsatzzeiten',
             icon: Icons.schedule,
-            children: [
-              _InfoRow('Kalenderwoche', 'KW ${kalenderwoche(pikett.datumStart)}'),
-              _InfoRow(
+            kinder: [
+              InfoZeile('Kalenderwoche', 'KW ${kalenderwoche(pikett.datumStart)}'),
+              InfoZeile(
                 'Freitag',
                 '${_formatDate(pikett.datumStart)}, 17:00 – 22:00',
               ),
-              _InfoRow(
+              InfoZeile(
                 'Samstag',
                 '${_formatDate(pikett.datumEnde)}, 08:00 – 22:00',
               ),
@@ -130,19 +131,19 @@ class _PikettDetailContent extends ConsumerWidget {
           ),
 
           // Vergütung
-          _SectionCard(
-            title: 'Vergütung',
+          DetailKarte(
+            titel: 'Vergütung',
             icon: Icons.attach_money,
-            children: [
-              _InfoRow(
+            kinder: [
+              InfoZeile(
                 'Pauschale',
                 '${(pikett.pauschale ?? 80).toStringAsFixed(2)} CHF',
               ),
               if (pikett.anzahlFeiertage > 0)
-                _InfoRow('Feiertage', '${pikett.anzahlFeiertage}'),
+                InfoZeile('Feiertage', '${pikett.anzahlFeiertage}'),
               if (pikett.feiertagZuschlag != null &&
                   pikett.feiertagZuschlag! > 0)
-                _InfoRow(
+                InfoZeile(
                   'Feiertag-Zuschlag',
                   '${pikett.feiertagZuschlag!.toStringAsFixed(2)} CHF',
                 ),
@@ -178,16 +179,16 @@ class _PikettDetailContent extends ConsumerWidget {
 
           // Abrechnung
           if (pikett.abrechnungsMonat != null || pikett.abgerechnet)
-            _SectionCard(
-              title: 'Abrechnung',
+            DetailKarte(
+              titel: 'Abrechnung',
               icon: Icons.receipt_long,
-              children: [
+              kinder: [
                 if (pikett.abrechnungsMonat != null)
-                  _InfoRow(
+                  InfoZeile(
                     'Abrechnungsmonat',
                     '${pikett.abrechnungsMonat!.month.toString().padLeft(2, '0')}/${pikett.abrechnungsMonat!.year}',
                   ),
-                _InfoRow(
+                InfoZeile(
                   'Status',
                   pikett.abgerechnet ? 'Abgerechnet' : 'Offen',
                 ),
@@ -305,76 +306,3 @@ String _formatDate(DateTime date) {
   return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
-    );
-  }
-}
