@@ -924,9 +924,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
           );
         }
       } catch (e) {
+        final meldung = e is AbschreibGesperrt ? e.text : kurzeFehlermeldung(e);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+            SnackBar(content: Text('Fehler: $meldung')),
           );
         }
       }

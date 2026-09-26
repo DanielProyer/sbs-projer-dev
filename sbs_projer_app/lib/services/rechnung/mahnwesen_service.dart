@@ -7,6 +7,16 @@ import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/zahlungsdifferenz_service.dart';
 
+/// Abschreiben gesperrt (Zahlung gebucht, falscher Status, …) — die Meldung
+/// in [text] ist bereits nutzertauglich und soll unverändert in der
+/// Snackbar landen, nicht durch [kurzeFehlermeldung] verkürzt werden.
+class AbschreibGesperrt implements Exception {
+  final String text;
+  const AbschreibGesperrt(this.text);
+  @override
+  String toString() => text;
+}
+
 /// Abschreiben einer einzelnen Rechnung.
 ///
 /// Das Mahnen selbst läuft seit v0.134.0 ausschliesslich über den
@@ -34,7 +44,7 @@ class MahnwesenService {
     // Analyse 25.09.2026 Befund D: nie eine Rechnung mit Zahlung abschreiben.
     final sperre =
         abschreibSperre(rechnung, hatZahlung: zahlungGebucht(buchungen));
-    if (sperre != null) throw Exception(sperre);
+    if (sperre != null) throw AbschreibGesperrt(sperre);
     // Verrechnetes Kundenguthaben zuerst ausbuchen (2030/1100), dann nur
     // «zu zahlen» abschreiben (Review Kundenguthaben I3). Steht die
     // Verrechnung schon (Abbruch beim ersten Versuch), nicht doppelt.
@@ -62,7 +72,7 @@ class MahnwesenService {
       erwarteterStatus: rechnung.zahlungsstatus,
     );
     if (!ok) {
-      throw Exception(
+      throw AbschreibGesperrt(
           'inzwischen geändert — Status nicht gesetzt, '
           'Rechnungsdetail prüfen');
     }

@@ -61,6 +61,9 @@ Future<void> showKundenzahlungZuordnenDialog(
   var suche = '';
   // Wohin eine Mehrzahlung geht (null = keine Mehrzahlung → Standard im Kern).
   MehrzahlungZiel? mehr;
+  // true sobald die Auswahl von Hand geändert wurde — sonst überschreibt eine
+  // Neuberechnung (andere Häkchen) die Handwahl mit dem Standard-Vorschlag.
+  var mehrVonHand = false;
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
@@ -82,9 +85,10 @@ Future<void> showKundenzahlungZuordnenDialog(
         final info =
             bewerteDifferenz(e.betrag, fordSumme, guthaben: guthaben);
         if (info.art == DifferenzArt.mehr) {
-          mehr ??= info.mehrzahlungZiel;
+          if (!mehrVonHand) mehr = info.mehrzahlungZiel;
         } else {
           mehr = null;
+          mehrVonHand = false;
         }
         final istMehr = info.art == DifferenzArt.mehr;
         return AlertDialog(
@@ -202,7 +206,10 @@ Future<void> showKundenzahlungZuordnenDialog(
                   MehrzahlungWahl(
                     betrag: info.betrag,
                     wert: mehr ?? info.mehrzahlungZiel!,
-                    onChanged: (z) => setDialogState(() => mehr = z),
+                    onChanged: (z) => setDialogState(() {
+                      mehr = z;
+                      mehrVonHand = true;
+                    }),
                   ),
               ],
             ),

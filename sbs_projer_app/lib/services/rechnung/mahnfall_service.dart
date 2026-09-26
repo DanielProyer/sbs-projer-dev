@@ -573,9 +573,8 @@ class MahnfallService {
       final sperre = abschreibSperre(r,
           hatZahlung: zahlungGebucht(await BuchungRepository.getByBeleg(r.id)));
       if (sperre != null) {
-        throw MahnfallFehler(
+        throw AbschreibGesperrt(
           'Rechnung ${r.rechnungsnummer ?? r.id}: $sperre — nichts abgeschrieben',
-          fallId: fall.id,
         );
       }
     }

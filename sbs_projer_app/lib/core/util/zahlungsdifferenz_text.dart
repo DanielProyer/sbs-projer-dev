@@ -83,7 +83,8 @@ class DifferenzInfo {
 /// Bis zu diesem Betrag gilt eine Minderzahlung als Bagatelle.
 const double kBagatellGrenze = 1.00;
 
-/// Vergleicht Zahlung und Forderung (5-Rappen-gerundet, wie die Buchung).
+/// Vergleicht Zahlung und Forderung (rappengenau, wie die Buchung — die
+/// Rechnungsbasis selbst ist 5-Rappen gestellt).
 ///
 /// Ohne zugeordnete Forderung gibt es **keine** Differenz: Solange nichts
 /// angehakt ist, wäre die Zahlung sonst als Mehrzahlung in voller Höhe

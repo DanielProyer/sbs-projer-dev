@@ -152,16 +152,12 @@ class _RechnungDetailContentState
     if (!ok) return;
     try {
       final anzahl = await ZahlungKern.zuruecknehmen(_rechnung.id);
-      final frisch = await RechnungRepository.getById(_rechnung.id);
       ref.invalidate(rechnungenStreamProvider);
       // Auch Buchungs-Sichten auffrischen — Kontensaldi/Journal zeigen die
       // gelöschten Zahlungszeilen sonst bis zum Neuladen weiter an.
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
-      setState(() {
-        if (frisch != null) _rechnung = frisch;
-        _barzahlung = null;
-      });
+      setState(() => _barzahlung = null);
       await _reloadRechnung();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -217,7 +213,6 @@ class _RechnungDetailContentState
       if (mounted) setState(() => _loadingPositionen = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {

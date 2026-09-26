@@ -53,9 +53,11 @@ class ZahlungsPlanZeile {
   /// Verrechnung Soll 2030 / Haben 1100. 0 = keine Zeile.
   final double verrechnung;
 
-  /// Wird `guthaben_verrechnet` auf 0 zurückgesetzt: der alte Wert (für die
-  /// Notiz der Zahlungsbuchung, damit «Zahlung rückgängig» ihn
-  /// zurückschreiben kann — Review I5). Sonst 0.
+  /// Wird `guthaben_verrechnet` auf 0 zurückgesetzt: der alte Wert (nur für
+  /// die Notiz der Zahlungsbuchung, zur Nachvollziehbarkeit im Journal —
+  /// Review I5). Die Rücknahme selbst liest den Vorher-Stand NICHT aus
+  /// dieser Notiz, sondern aus `zahlungsgruppen.vorher` (zahlung_zuruecknehmen).
+  /// Sonst 0.
   final double guthabenVorher;
 
   const ZahlungsPlanZeile(this.rechnung, this.bank, this.verrechnung,
@@ -66,7 +68,8 @@ class ZahlungsPlanZeile {
 class DifferenzPlan {
   final List<ZahlungsPlanZeile> zeilen;
 
-  /// > 0 Mehrzahlung (8000), < 0 Minderzahlung (3805), 5-Rappen-gerundet.
+  /// > 0 Mehrzahlung (8000), < 0 Minderzahlung (3805), rappengenau (der
+  /// Zahlbetrag selbst ist es — nur die Rechnungsbasen sind 5-Rappen).
   final double differenz;
 
   /// Guthaben wird verrechnet (Verrechnungszeilen vorhanden).
@@ -99,7 +102,8 @@ class DifferenzPlan {
 /// Plant die Buchungen einer (Sammel-)Zahlung über [rechnungen].
 ///
 /// - Hauptzeile je Rechnung = «zu zahlen» (bzw. Brutto ohne Verrechnung),
-///   5-Rappen-gerundet. Bei erlassener Minderzahlung wird der Verlust von
+///   5-Rappen gestellt (die Rechnungsbasis) — der Zahlbetrag selbst bleibt
+///   rappengenau. Bei erlassener Minderzahlung wird der Verlust von
 ///   HINTEN über die Hauptzeilen verteilt (je höchstens deren Basis) — die
 ///   Bank erhält genau den Zahlbetrag (Review I4).
 /// - Verrechnungszeile je Rechnung mit Guthaben (nur wenn verrechnet).
@@ -183,24 +187,10 @@ bool istGuthabenVerrechnung(Buchung b) =>
 const _notizSchluessel = 'guthaben_verrechnet';
 
 /// Notiz der Zahlungsbuchung, wenn `guthaben_verrechnet` beim Verbuchen auf
-/// 0 gesetzt wurde — «Zahlung rückgängig» schreibt den Wert zurück (I5).
+/// 0 gesetzt wurde — nur zur Nachvollziehbarkeit im Journal. Die Rücknahme
+/// liest den Vorher-Stand NICHT aus dieser Notiz, sondern aus
+/// `zahlungsgruppen.vorher` (zahlung_zuruecknehmen, I5).
 String guthabenNotiz(double vorher) => jsonEncode({_notizSchluessel: vorher});
-
-/// Gesicherter `guthaben_verrechnet`-Wert aus einer Buchungsnotiz, oder
-/// null (robust gegen fremde Notizen und Unsinn).
-double? guthabenAusNotiz(String? notizen) {
-  if (notizen == null || notizen.trim().isEmpty) return null;
-  Object? roh;
-  try {
-    roh = jsonDecode(notizen);
-  } catch (_) {
-    return null;
-  }
-  if (roh is! Map) return null;
-  final w = roh[_notizSchluessel];
-  if (w is! num || w <= 0) return null;
-  return w.toDouble();
-}
 
 /// Betrag einer Forderung für Abgleich-Listen: «zu zahlen», bei Guthaben
 /// mit Hinweis.

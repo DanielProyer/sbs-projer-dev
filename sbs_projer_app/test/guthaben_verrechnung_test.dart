@@ -215,19 +215,6 @@ void main() {
     });
   });
 
-  group('Review I5: Guthaben-Stand in der Notiz', () {
-    test('Notiz hin und zurück', () {
-      expect(guthabenAusNotiz(guthabenNotiz(30)), 30);
-    });
-    test('fremde oder leere Notiz → null', () {
-      expect(guthabenAusNotiz(null), isNull);
-      expect(guthabenAusNotiz(''), isNull);
-      expect(guthabenAusNotiz('Phase2c Abschreibung'), isNull);
-      expect(guthabenAusNotiz('{"zahlungsstatus":"offen"}'), isNull);
-      expect(guthabenAusNotiz('{"guthaben_verrechnet":-3}'), isNull);
-    });
-  });
-
   group('Review I2: ganz durch Guthaben gedeckt', () {
     test('zu zahlen 0 → voll gedeckt', () {
       expect(istVollMitGuthabenGedeckt(_rg('a', 20, guthaben: 20)), isTrue);

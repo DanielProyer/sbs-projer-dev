@@ -45,5 +45,9 @@ void main() {
     final m = File('lib/services/rechnung/mahnwesen_service.dart').readAsStringSync();
     expect(m.contains('abschreibSperre('), isTrue);
     expect(m.contains('updateWennStatus('), isTrue);
+    expect(
+      File('lib/services/rechnung/mahnfall_service.dart').readAsStringSync().contains('abschreibSperre('),
+      isTrue,
+    );
   });
 }

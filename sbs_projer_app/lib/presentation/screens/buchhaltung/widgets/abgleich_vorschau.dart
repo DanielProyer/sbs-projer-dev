@@ -647,6 +647,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     }
 
     MehrzahlungZiel? mehr; // Wahl bei Mehrzahlung (null = Standard im Kern)
+    // true sobald die Auswahl von Hand geändert wurde — sonst überschreibt eine
+    // Neuberechnung (andere Häkchen) die Handwahl mit dem Standard-Vorschlag.
+    var mehrVonHand = false;
     final verbucht = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -668,9 +671,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             final info =
                 bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
             if (info.art == DifferenzArt.mehr) {
-              mehr ??= info.mehrzahlungZiel;
+              if (!mehrVonHand) mehr = info.mehrzahlungZiel;
             } else {
               mehr = null;
+              mehrVonHand = false;
             }
             final kannVerbuchen =
                 gewaehlteGutschriften.isNotEmpty &&
@@ -860,7 +864,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         MehrzahlungWahl(
                           betrag: info.betrag,
                           wert: mehr ?? info.mehrzahlungZiel!,
-                          onChanged: (z) => setDialogState(() => mehr = z),
+                          onChanged: (z) => setDialogState(() {
+                            mehr = z;
+                            mehrVonHand = true;
+                          }),
                         ),
                       ],
                     ],
@@ -994,6 +1001,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     // Vermerk (Goodfast) ist der Betrag das beste Signal für die Handarbeit.
     bool passtBetrag(Rechnung r) => (r.zuZahlen - g.amount).abs() < 0.005;
     MehrzahlungZiel? mehr; // Wahl bei Mehrzahlung (null = Standard im Kern)
+    // true sobald die Auswahl von Hand geändert wurde — sonst überschreibt eine
+    // Neuberechnung (andere Häkchen) die Handwahl mit dem Standard-Vorschlag.
+    var mehrVonHand = false;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1028,9 +1038,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           final info =
               bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
           if (info.art == DifferenzArt.mehr) {
-            mehr ??= info.mehrzahlungZiel;
+            if (!mehrVonHand) mehr = info.mehrzahlungZiel;
           } else {
             mehr = null;
+            mehrVonHand = false;
           }
           return AlertDialog(
             title: Text(
@@ -1152,7 +1163,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                     MehrzahlungWahl(
                       betrag: info.betrag,
                       wert: mehr ?? info.mehrzahlungZiel!,
-                      onChanged: (z) => setDialogState(() => mehr = z),
+                      onChanged: (z) => setDialogState(() {
+                        mehr = z;
+                        mehrVonHand = true;
+                      }),
                     ),
                   ],
                 ],
@@ -1559,6 +1573,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
     bool passtBetrag(Rechnung r) =>
         guts.any((g) => (r.zuZahlen - g.amount).abs() < 0.005);
     MehrzahlungZiel? mehr; // Wahl bei Mehrzahlung (null = Standard im Kern)
+    // true sobald die Auswahl von Hand geändert wurde — sonst überschreibt eine
+    // Neuberechnung (andere Häkchen) die Handwahl mit dem Standard-Vorschlag.
+    var mehrVonHand = false;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -1597,9 +1614,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
           final info =
               bewerteDifferenz(zahlSumme, fordSumme, guthaben: guthaben);
           if (info.art == DifferenzArt.mehr) {
-            mehr ??= info.mehrzahlungZiel;
+            if (!mehrVonHand) mehr = info.mehrzahlungZiel;
           } else {
             mehr = null;
+            mehrVonHand = false;
           }
           final kannVerbuchen =
               gewaehlteGuts.isNotEmpty && gewaehlteForderungen.isNotEmpty;
@@ -1737,7 +1755,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                       MehrzahlungWahl(
                         betrag: info.betrag,
                         wert: mehr ?? info.mehrzahlungZiel!,
-                        onChanged: (z) => setDialogState(() => mehr = z),
+                        onChanged: (z) => setDialogState(() {
+                          mehr = z;
+                          mehrVonHand = true;
+                        }),
                       ),
                     ],
                   ],

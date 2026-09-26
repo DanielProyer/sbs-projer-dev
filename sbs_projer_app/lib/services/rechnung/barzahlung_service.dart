@@ -1,4 +1,3 @@
-
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
@@ -129,7 +128,9 @@ class BarzahlungService {
     final frische = <Rechnung>[];
     for (final r in rechnungen) {
       final f = await RechnungRepository.getById(r.id);
-      if (f == null) throw BarzahlungFehler('Rechnung ${_nr(r)}: nicht gefunden');
+      if (f == null) {
+        throw BarzahlungFehler('Rechnung ${_nr(r)}: nicht gefunden');
+      }
       final buchungen = await BuchungRepository.getByBeleg(f.id);
       final sperre = kassierSperre(f, hatZahlung: zahlungGebucht(buchungen));
       if (sperre != null) {
