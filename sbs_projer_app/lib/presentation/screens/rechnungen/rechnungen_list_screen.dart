@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/core/util/suche.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -100,6 +101,7 @@ const rechnungStatusFilterWerte = {
   'alle',
   'mahnfaellig',
   'nicht_versendet',
+  'unbezahlt',
   'offen',
   'erinnert',
   'mahnung_1',
@@ -507,6 +509,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         // Anzeige-Filter: gemessen an heute. Die Sicherungen (Bankauszug als
         // Stichtag, Sperren) greifen erst im Mahnlauf, wo gemahnt wird.
         if (faelligeStufe(r, stichtag: DateTime.now()) == null) return false;
+      } else if (_statusFilter == 'unbezahlt') {
+        // Offen und gemahnt — dieselbe Menge wie der Geld-Block der Akte.
+        if (Zahlungsstatus.erledigt.contains(r.zahlungsstatus)) return false;
       } else if (_statusFilter != 'alle' && r.zahlungsstatus != _statusFilter) {
         return false;
       }
@@ -648,6 +653,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                         ? 'Nicht versendet ($nichtVersendetCount)'
                         : 'Nicht versendet',
                   ),
+                  const ('unbezahlt', 'Unbezahlt (inkl. gemahnt)'),
                   const ('offen', 'Offen'),
                   const ('erinnert', 'Erinnert'),
                   const ('mahnung_1', 'Mahnung 1'),

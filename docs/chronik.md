@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 26.09.2026 — v0.144.0 Analyse-Runde 5: Tagesbetrieb (Start-Weg, Entwurf, Heute-Karte, Betriebs-Akte, Zahlungsart)
 - 26.09.2026 — v0.143.0 Analyse-Runde 4: Bausteine & Aufräumen (−3700 Zeilen netto)
 - 26.09.2026 — v0.142.0 ZahlungKern: ein Zahlungsweg, atomar (Migration 209)
 - 26.09.2026 — v0.141.0 Betriebsferien aus der Tabelle (R7), Kalender-Schlüssel nach Datum
@@ -29,6 +30,49 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 26.09.2026 — v0.144.0 Analyse-Runde 5: Tagesbetrieb
+
+Plan `docs/superpowers/plans/2026-09-26-runde5-tagesbetrieb.md`. Keine
+Migration. Letzte der fünf Runden aus der App-Analyse vom 25.09.
+
+- **Ein Start-Weg** (`einsatz_start.dart`): Tourenplan, Heute-Karte und
+  Diktat starten einen Einsatz über dieselbe Funktion; Saison-Art und
+  Diktat-Notiz gehen als Query mit ins Reinigungsformular.
+- **Entwurf** (`reinigung_entwurf.dart`, `reinigung_entwurf_speicher.dart`):
+  Das Reinigungsformular sichert alle 2 s lokal (shared_preferences, je
+  Betrieb, 2 Tage gültig). Beim Wiederöffnen erscheint das Band
+  «Angefangene Reinigung von 09:12 — Fortsetzen / Verwerfen». Die erste
+  Änderung bei offenem Band gilt als «neu beginnen» (alter Entwurf weg).
+  Eine Diktat-Notiz wird beim Fortsetzen nicht überschrieben, sondern
+  angehängt.
+- **Heute-Karte nur Draussen-Aufgaben** (`Aufgabe.draussen`): Entwürfe,
+  laufende Arbeit (nur offene Einsätze — abgeschlossene ohne Arbeitsende
+  zählen nicht), Arbeitstag ohne Ende, Diktate, Einsätze, Termine. Büro
+  (Saison-Zähler, Versandvermerke, Rechnungen) nur in der Glocke.
+  Versandvermerk-Abgleich ohne N+1.
+- **Betriebsseite als Akte:** Geld-Block (offen, Mahnstufe, letzte Zahlung;
+  Tipp → Rechnungsliste mit neuem Filter «Unbezahlt (inkl. gemahnt)» und
+  Betriebssuche) und eine Einsätze-Sektion inkl. Montagen (Einsätze-Screen
+  `?betrieb=<id>`, alle Jahre).
+- **Zahlungsart im Formular:** Zeile «Zahlungsart · …» mit Bottom-Sheet;
+  der Abschluss-Dialog kommt nur noch, wenn etwas zu entscheiden ist
+  (`abschluss_dialog_regel.dart`).
+- **Ladewege:** `countOffene` statt Vollladen, ein Buchungs-Load für die
+  Berichte, autoDispose-Listen.
+- **Umwege geschlossen:** Vorschläge-Zeile, Google-Termine unter Mehr,
+  Lohn-Sätze-Icon, Suche mit Zusatzzielen, Tages-Karte als Route
+  `/touren/karte?datum=`; doppelte Einstiege entfernt.
+- **Fix Mahnstufe:** `rechnungen.mahnung_stufe` ist 1–3 (erinnert = 1),
+  vorher wurde 0–2 geschrieben; `mahnschreiben.stufe` bleibt der Index.
+- Review (Opus) → Nachbesserungen `a7904ccc` + Filter «unbezahlt».
+- Browser geprüft: Startseite (keine Büro-Aufgaben, keine Falschmeldung
+  «Arbeit läuft» für die abgeschlossene Montage), Reinigungsformular
+  (Zahlungsart-Zeile), Betriebsseite Blue Cinema (Geld-Block, Anlagen 3,
+  Einsätze 44), Rechnungsliste aus dem Geld-Block.
+- 2515 Tests grün, `flutter analyze` 14 (unverändert).
 
 ---
 

@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.143.0 live** (Analyse-Runde 4: Bausteine & Aufräumen) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2415 Tests grün**.
+**Stand:** **v0.144.0 live** (Analyse-Runde 5: Tagesbetrieb — alle fünf Runden der App-Analyse erledigt) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2515 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -199,6 +199,17 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.144.0** — Reinigung aus dem Tourenplan starten, Handy weglegen,
+  Formular neu öffnen → Band «Angefangene Reinigung» → Fortsetzen (Felder
+  da?); Diktat mit Notiz → Formular zeigt Notiz; Zahlungsart-Zeile antippen
+  und wechseln, Abschluss ohne Dialog wenn nichts zu entscheiden; Heute-Karte
+  zeigt nur Draussen-Punkte, Glocke den Rest; Betriebsseite: Geld-Block
+  antippen → Rechnungsliste «Unbezahlt», Einsätze-Sektion → alle Jahre;
+  Mehr → Google-Termine, Tages-Karte. **Offene Entscheide:** Planung auf der
+  Startseite einklappen? Events (Stände/Lageplan) weiter hier pflegen oder
+  einfrieren (Gampel läuft im eigenen Repo)? Isar einfrieren? Filter
+  «Unbezahlt» auch als Standard der Kopfkarte der Rechnungsliste?
 
 - **v0.143.0** — Störung und Montage neu anlegen: Betrieb suchen und wählen,
   «Arbeit beginnen»/«beenden» (Timer läuft, Zeiten übernommen), Material

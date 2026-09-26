@@ -109,7 +109,7 @@ Reihenfolge: R2, R3, R4, R6 (je Minuten bis 1 h) → R1, R11 → R7, R8 → R9 �
 | **2 — Eine Kette** (v0.140–0.141) | ✅ **erledigt 26.09.2026, live v0.140.0 + v0.141.0:** R1, Abschlusskette Screen → Service (§3 Zeile 1), T1/T5/T6, R7 Ferien (+ Kalender-Schlüssel nach Datum) | 1 Tag |
 | **3 — ZahlungKern** (v0.142) | ✅ **erledigt 26.09.2026, live v0.142.0:** ein Zahlungsweg (`zahlung_erfassen`, Migration 209), Rückgängig als Gruppe mit Jahressperre, Debitoren-Header weg, Wahl 8000/2030, 3805 netto + MWST; vier Entscheide von Daniel bestätigt (26.09.) | 1 Tag |
 | **4 — Bausteine & Aufräumen** (v0.143) | ✅ **erledigt 26.09.2026, live v0.143.0:** Formular-Bausteine, `zeigeDatumsauswahl`, Detail-Gerüst, toter Code (−3400 Z.), MwSt pro Aufruf, eine Rundung, Firmendaten/Zahlungs-IBAN zentral, Q2/Q4/Q7 (analyze 56→14). Isar einfrieren offen (Entscheid Daniel) | 1 Tag |
-| **5 — Tagesbetrieb** (v0.144) | T2, T3, T4, T7–T11, Q6 | 4–5 Tage |
+| **5 — Tagesbetrieb** (v0.144) | ✅ **erledigt 26.09.2026, live v0.144.0:** ein Start-Weg (T2), Entwurf (T3), Heute-Karte nur Draussen (T4), Betriebs-Akte (T10), Zahlungsart im Formular (V6), Ladewege (Q6), Umwege (T11), Mahnstufen-Fix. Damit alle fünf Runden abgeschlossen | 1 Tag |
 
 Nicht vorgeschlagen: ein einziges Einsatz-Formular für alle sechs Typen (Speicherlogik zu verschieden — Anforderung für die v2), Aufteilen der grossen Dateien ohne anderen Anlass, Löschen der Event-Tabellen.
 

@@ -7,6 +7,7 @@ void main() {
   test('bekannter Status wird übernommen', () {
     expect(rechnungStartStatus('offen'), 'offen');
     expect(rechnungStartStatus('mahnung_1'), 'mahnung_1');
+    expect(rechnungStartStatus('unbezahlt'), 'unbezahlt');
   });
 
   test('fehlend oder unbekannt -> alle', () {

@@ -82,4 +82,4 @@ String mahnstufeLabel(int stufe) => switch (stufe) {
 /// Ziel des Geld-Blocks: Rechnungsliste, gesucht nach dem Betriebsnamen und
 /// auf den Statusfilter «offen» gestellt (Review Runde 5).
 String betriebOffeneRechnungenRoute(String betriebName) =>
-    '/rechnungen?suche=${Uri.encodeQueryComponent(betriebName)}&status=offen';
+    '/rechnungen?suche=${Uri.encodeQueryComponent(betriebName)}&status=unbezahlt';
