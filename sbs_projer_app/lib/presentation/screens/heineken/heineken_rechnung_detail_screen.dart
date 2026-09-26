@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -20,6 +19,7 @@ import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/presentation/widgets/rueckweg_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
@@ -546,15 +546,23 @@ class _HeinekenRechnungDetailScreenState
 
       await RechnungRepository.delete(widget.rechnungId);
       ref.invalidate(heinekenRechnungenProvider);
-      if (mounted) context.pop();
+      // Direkt per URL geöffnet (Aufgabe, Kalender, Reload) gibt es nichts
+      // zum Poppen → auf die Liste.
+      if (mounted) zurueckOderZu(context, '/heineken');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Top-Level-Route ohne Eltern: direkt geöffnet zeigte die AppBar keinen
+    // Zurück-Pfeil — RueckwegKnopf fällt dann auf die Liste zurück.
+    const rueckweg = RueckwegKnopf(fallback: '/heineken');
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Heineken-Rechnung')),
+        appBar: AppBar(
+          leading: rueckweg,
+          title: const Text('Heineken-Rechnung'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -562,7 +570,10 @@ class _HeinekenRechnungDetailScreenState
     final r = _rechnung;
     if (r == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Heineken-Rechnung')),
+        appBar: AppBar(
+          leading: rueckweg,
+          title: const Text('Heineken-Rechnung'),
+        ),
         body: const Center(child: Text('Rechnung nicht gefunden')),
       );
     }
@@ -572,6 +583,7 @@ class _HeinekenRechnungDetailScreenState
 
     return Scaffold(
       appBar: AppBar(
+        leading: rueckweg,
         title: Text('Heineken $monatsName'),
         actions: [
           PopupMenuButton<String>(
