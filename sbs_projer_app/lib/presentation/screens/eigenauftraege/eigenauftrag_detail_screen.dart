@@ -261,20 +261,18 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
         materialien: materialien,
       );
 
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        await Printing.layoutPdf(
-          onLayout: (_) => pdfBytes,
-          name: 'Rapport_Eigenauftrag_${ea.stoerungsnummer}',
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      await Printing.layoutPdf(
+        onLayout: (_) => pdfBytes,
+        name: 'Rapport_Eigenauftrag_${ea.stoerungsnummer}',
+      );
     } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+      );
     }
   }
 
@@ -296,20 +294,19 @@ class _DetailContentState extends ConsumerState<_DetailContent> {
       ),
     );
 
-    if (confirmed == true && context.mounted) {
-      try {
-        await EigenauftragRepository.delete(ea.routeId);
-        ref.invalidate(eigenauftraegeStreamProvider);
-        if (context.mounted) context.pop();
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Löschen nur mit Internetverbindung möglich'),
-            ),
-          );
-        }
-      }
+    if (confirmed != true || !mounted) return;
+    try {
+      await EigenauftragRepository.delete(ea.routeId);
+      ref.invalidate(eigenauftraegeStreamProvider);
+      if (!mounted) return;
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Löschen nur mit Internetverbindung möglich'),
+        ),
+      );
     }
   }
 }

@@ -78,7 +78,7 @@ String zahlungsartKlartext(String art, {required String? kundenEmail}) {
 }
 
 /// SCOR-Referenz für den Direkt-Zahlen-QR im Reinigungstab — DIESELBE Referenz,
-/// die die Rechnung bekommt (Ziffern aus 'YYYY-MM-DD-<betriebNr>', identisch zu
+/// die die Rechnung bekommt (Ziffern aus `YYYY-MM-DD-<betriebNr>`, identisch zu
 /// RechnungService.createFromReinigung). Damit ist auch eine spontane
 /// Direktzahlung im camt über die Referenz zuordenbar. Bar/Heineken -> null.
 String? qrReferenzFuerReinigung({

@@ -461,14 +461,18 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             _letzteReinigung = letzte;
             setState(() {
               _serviceTyp ??= letzte.serviceTyp;
-              if (_anzahlHaehneEigen == 0)
+              if (_anzahlHaehneEigen == 0) {
                 _anzahlHaehneEigen = letzte.anzahlHaehneEigen;
-              if (_anzahlHaehneOrion == 0)
+              }
+              if (_anzahlHaehneOrion == 0) {
                 _anzahlHaehneOrion = letzte.anzahlHaehneOrion;
-              if (_anzahlHaehneFremd == 0)
+              }
+              if (_anzahlHaehneFremd == 0) {
                 _anzahlHaehneFremd = letzte.anzahlHaehneFremd;
-              if (_anzahlHaehneWein == 0)
+              }
+              if (_anzahlHaehneWein == 0) {
                 _anzahlHaehneWein = letzte.anzahlHaehneWein;
+              }
               if (_anzahlHaehneAndererStandort == 0) {
                 _anzahlHaehneAndererStandort =
                     letzte.anzahlHaehneAndererStandort;

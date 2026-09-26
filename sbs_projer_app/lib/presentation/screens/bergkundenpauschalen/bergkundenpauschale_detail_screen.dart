@@ -194,9 +194,9 @@ class _BergkundenpauschaleDetailScreenState
     try {
       await BergkundenpauschaleRepository.delete(widget.pauschaleId);
       ref.invalidate(bergkundenpauschaleStreamProvider);
-      if (mounted) context.pop();
+      if (context.mounted) context.pop();
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
         );

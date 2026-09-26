@@ -54,7 +54,7 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       final ctx = router.routerDelegate.navigatorKey.currentContext;
-      if (ctx != null) _showUpdatePasswordDialog(ctx);
+      if (ctx != null && ctx.mounted) _showUpdatePasswordDialog(ctx);
     });
   }
 

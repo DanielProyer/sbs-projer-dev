@@ -377,8 +377,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
 
   Map<String, double> _calculatePreis() {
     if (_preisliste == null ||
-        (_stoerungBereiche.isEmpty && !_istKilometerabrechnung))
+        (_stoerungBereiche.isEmpty && !_istKilometerabrechnung)) {
       return {};
+    }
     final p = _preisliste!;
 
     // Basis: Summe über alle gewählten Bereiche (0 bei Kilometerabrechnung)
@@ -1039,8 +1040,9 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
                       displayStringForOption: (l) => l.name,
                       optionsViewOpenDirection: OptionsViewOpenDirection.up,
                       optionsBuilder: (textEditingValue) {
-                        if (textEditingValue.text.isEmpty)
+                        if (textEditingValue.text.isEmpty) {
                           return _lagerItems.take(10);
+                        }
                         final q = textEditingValue.text.toLowerCase();
                         return _lagerItems.where(
                           (l) => l.name.toLowerCase().contains(q),

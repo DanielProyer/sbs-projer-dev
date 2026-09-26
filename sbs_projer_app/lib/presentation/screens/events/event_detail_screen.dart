@@ -2687,11 +2687,12 @@ class _KontaktZuordnenSheetState extends ConsumerState<_KontaktZuordnenSheet> {
                     )
                     .toList(),
                 onChanged: (v) {
-                  if (v != null)
+                  if (v != null) {
                     setState(() {
                       _rolle = v;
                       if (v != 'stand') _standId = null;
                     });
+                  }
                 },
               ),
               if (_rolle == 'stand') ...[

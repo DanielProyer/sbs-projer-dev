@@ -4,6 +4,7 @@
 /// Die Rohmeldungen kommen von Google und sind für den Anwender unbrauchbar
 /// («People API has not been used in project 1040401919292 before or it is
 /// disabled…»). Wichtiger als der Wortlaut ist, was zu tun ist.
+library;
 
 /// Was hinter dem Fehler steckt — bestimmt, ob und wie gemeldet wird.
 enum GoogleFehlerArt {

@@ -1,7 +1,7 @@
 /// Generische Bank-Platzhalter, die als Zahlername nichts taugen: Die GKB
 /// setzt bei Schaltereinzahlungen den Debtor-Namen wörtlich auf
 /// «Schaltereinzahlung» — der echte Einzahler steht nur im AddtlNtryInf
-/// («Gutschrift <Name>»). Solche Werte zählen nicht als Name, sonst bleibt
+/// («Gutschrift `<Name>`»). Solche Werte zählen nicht als Name, sonst bleibt
 /// der Rohtext in Abgleich/Dialogen versteckt und das Matching läuft ins Leere.
 const _kPlatzhalterNamen = {'schaltereinzahlung'};
 

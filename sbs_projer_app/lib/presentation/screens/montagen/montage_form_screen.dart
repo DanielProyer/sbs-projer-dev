@@ -276,8 +276,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
             _materialControllers[i].text = ids[i]!;
           } else {
             final match = _lagerItems.where((l) => l.id == ids[i]);
-            if (match.isNotEmpty)
+            if (match.isNotEmpty) {
               _materialControllers[i].text = match.first.name;
+            }
           }
         }
       }
@@ -1683,8 +1684,9 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                       displayStringForOption: (l) => l.name,
                       optionsViewOpenDirection: OptionsViewOpenDirection.up,
                       optionsBuilder: (textEditingValue) {
-                        if (textEditingValue.text.isEmpty)
+                        if (textEditingValue.text.isEmpty) {
                           return _lagerItems.take(10);
+                        }
                         final q = textEditingValue.text.toLowerCase();
                         return _lagerItems.where(
                           (l) => l.name.toLowerCase().contains(q),

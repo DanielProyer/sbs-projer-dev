@@ -582,21 +582,19 @@ class _StoerungDetailContentState
         materialien: materialien,
       );
 
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        await Printing.layoutPdf(
-          onLayout: (_) => pdfBytes,
-          name:
-              'Rapport_Stoerung_${stoerung.referenzNr ?? _formatDate(stoerung.datum)}',
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      await Printing.layoutPdf(
+        onLayout: (_) => pdfBytes,
+        name:
+            'Rapport_Stoerung_${stoerung.referenzNr ?? _formatDate(stoerung.datum)}',
+      );
     } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF-Fehler: ${kurzeFehlermeldung(e)}')),
+      );
     }
   }
 
@@ -618,20 +616,19 @@ class _StoerungDetailContentState
       ),
     );
 
-    if (confirmed == true && context.mounted) {
-      try {
-        await StoerungRepository.delete(stoerung.routeId);
-        ref.invalidate(stoerungenStreamProvider);
-        if (context.mounted) context.pop();
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Löschen nur mit Internetverbindung möglich'),
-            ),
-          );
-        }
-      }
+    if (confirmed != true || !mounted) return;
+    try {
+      await StoerungRepository.delete(stoerung.routeId);
+      ref.invalidate(stoerungenStreamProvider);
+      if (!mounted) return;
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Löschen nur mit Internetverbindung möglich'),
+        ),
+      );
     }
   }
 }
