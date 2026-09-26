@@ -43,26 +43,13 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
     super.dispose();
   }
 
-  // "Via Rezia 8" -> ("Via Rezia", "8")
-  (String, String) _splitStrasse(String s) {
-    final i = s.trimRight().lastIndexOf(' ');
-    if (i <= 0) return (s.trim(), '');
-    return (s.substring(0, i).trim(), s.substring(i + 1).trim());
-  }
-
-  // "7013 Domat/Ems" -> ("7013", "Domat/Ems")
-  (String, String) _splitPlzOrt(String s) {
-    final i = s.trim().indexOf(' ');
-    if (i <= 0) return ('', s.trim());
-    return (s.substring(0, i).trim(), s.substring(i + 1).trim());
-  }
-
   @override
   Widget build(BuildContext context) {
-    final iban = (widget.firma.firmenIban ?? '').replaceAll(' ', '');
+    // Dieselben Empfängerdaten wie der QR-Zahlteil der Rechnungs-PDFs.
+    final iban = widget.firma.ibanKompakt;
     final betrag = double.tryParse(_betragCtrl.text.replaceAll(',', '.'));
-    final (strasse, nr) = _splitStrasse(widget.firma.adresseStrasse);
-    final (plz, ort) = _splitPlzOrt(widget.firma.adressePlzOrt);
+    final (strasse, nr) = widget.firma.strasseUndNr;
+    final (plz, ort) = widget.firma.plzUndOrt;
     final datumStr =
         '${widget.datum.day.toString().padLeft(2, '0')}.${widget.datum.month.toString().padLeft(2, '0')}.${widget.datum.year}';
 
@@ -114,7 +101,7 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '${widget.firma.firma}\n${widget.firma.firmenIban}',
+                  '${widget.firma.firma}\n${widget.firma.ibanFormatiert}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,

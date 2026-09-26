@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 /// Ein Rechnungsposten des Sammelschreibens: die Rechnung und die Mahnstufe,
 /// in der SIE steht (bei einer Sammelmahnung können mehrere Rechnungen eines
@@ -31,14 +32,6 @@ class MahnschreibenPdfService {
   static const _lineGrey = PdfColor.fromInt(0xFFCCCCCC);
 
   static final _df = DateFormat('dd.MM.yyyy');
-
-  // Firmendaten für den Briefkopf — eine Wahrheit mit dem QR-Zahlteil, damit
-  // Briefkopf und Einzahlungsschein nie auseinanderlaufen.
-  static const _firmaName = QrZahlteil.firmaName;
-  static const _firmaStrasse = QrZahlteil.firmaStrasse;
-  static const _firmaNr = QrZahlteil.firmaNr;
-  static const _firmaPlz = QrZahlteil.firmaPlz;
-  static const _firmaOrt = QrZahlteil.firmaOrt;
 
   /// Ein Einzahlungsschein über 113.47 wäre in der Schweiz nicht bezahlbar —
   /// gleiche Rundung wie Rechnung und Kontoauszug (Review 23.09.2026, Minor 5:
@@ -181,6 +174,7 @@ class MahnschreibenPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    GeschaeftEinstellungen geschaeft = const GeschaeftEinstellungen(),
   }) async {
     final pdf = await pdfDokument();
     final stufen = posten.map((p) => p.stufe).toList();
@@ -223,6 +217,7 @@ class MahnschreibenPdfService {
             firmaStrasse: firmaStrasse,
             firmaPlzOrt: firmaPlzOrt,
             firmaMwst: firmaMwst,
+            geschaeft: geschaeft,
           ),
           pw.SizedBox(height: 30),
           _buildKundenAdresse(betrieb, rechnungsadresse),
@@ -233,7 +228,7 @@ class MahnschreibenPdfService {
           pw.Align(
             alignment: pw.Alignment.centerRight,
             child: pw.Text(
-              '$_firmaOrt, ${_df.format(datum)}',
+              '${geschaeft.plzUndOrt.$2}, ${_df.format(datum)}',
               style: const pw.TextStyle(fontSize: 10),
             ),
           ),
@@ -279,7 +274,7 @@ class MahnschreibenPdfService {
           pw.Text('Freundliche Grüsse', style: const pw.TextStyle(fontSize: 10)),
           pw.SizedBox(height: 4),
           pw.Text(
-            _firmaName,
+            geschaeft.firma,
             style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
           ),
         ],
@@ -305,7 +300,7 @@ class MahnschreibenPdfService {
           build: (context) => pw.Column(
             children: [
               pw.Spacer(),
-              _buildQrBlock(p.rechnung, betrieb, kundeAddr),
+              _buildQrBlock(p.rechnung, betrieb, kundeAddr, geschaeft),
             ],
           ),
         ),
@@ -323,6 +318,7 @@ class MahnschreibenPdfService {
         firmaStrasse: firmaStrasse,
         firmaPlzOrt: firmaPlzOrt,
         firmaMwst: firmaMwst,
+        geschaeft: geschaeft,
         jahr: kontoauszugJahr,
         muster: muster,
         // Kein zweiter, summierter Zahlteil im Mahn-Druck-PDF — siehe
@@ -338,6 +334,7 @@ class MahnschreibenPdfService {
     Rechnung rechnung,
     BetriebLocal betrieb,
     QrEmpfaenger kundeAddr,
+    GeschaeftEinstellungen geschaeft,
   ) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -353,6 +350,7 @@ class MahnschreibenPdfService {
         QrZahlteil.bauen(
           rundeAuf5Rappen(rechnung.betragBrutto),
           kundeAddr,
+          geschaeft: geschaeft,
           mitteilung: 'Rechnung ${rechnung.rechnungsnummer ?? ''}',
           referenz: rechnung.qrReferenz,
         ),
@@ -367,12 +365,13 @@ class MahnschreibenPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    required GeschaeftEinstellungen geschaeft,
   }) {
-    final displayName = firmaName ?? _firmaName;
-    final displayStrasse = firmaStrasse ?? '$_firmaStrasse $_firmaNr';
-    final displayPlzOrt = firmaPlzOrt ?? '$_firmaPlz $_firmaOrt';
+    final displayName = firmaName ?? geschaeft.firma;
+    final displayStrasse = firmaStrasse ?? geschaeft.adresseStrasse;
+    final displayPlzOrt = firmaPlzOrt ?? geschaeft.adressePlzOrt;
     final mwstLeer = firmaMwst == null || firmaMwst.isEmpty;
-    final displayMwst = mwstLeer ? 'CHE-413.083.919 MWST' : firmaMwst;
+    final displayMwst = mwstLeer ? geschaeft.mwstZeileOderFallback : firmaMwst;
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -390,7 +389,7 @@ class MahnschreibenPdfService {
         pw.Text(displayPlzOrt, style: const pw.TextStyle(fontSize: 9, color: _grey)),
         pw.SizedBox(height: 4),
         pw.Text(
-          'Tel 076 566 58 06 | sbs.projer@gmail.com',
+          'Tel ${geschaeft.telefonOrFallback} | ${geschaeft.mailGeschaeftOderFallback}',
           style: const pw.TextStyle(fontSize: 9, color: _grey),
         ),
         pw.Text(displayMwst, style: const pw.TextStyle(fontSize: 9, color: _grey)),

@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/core/util/swiss_qr_bill.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 /// Der Schweizer QR-Zahlteil (untere 105 mm einer A4-Seite).
 ///
@@ -13,33 +14,64 @@ import 'package:sbs_projer_app/core/util/swiss_qr_bill.dart';
 /// ist mit dieser Datei entfallen (v0.134.0); das Mahnschreiben nutzt diesen
 /// Zahlteil.
 ///
-/// Die Firmendaten sind bewusst Konstanten und kommen NICHT aus
-/// `geschaeft_einstellungen`: Ein Zahlteil mit einer versehentlich leeren oder
-/// falschen IBAN führt Geld auf ein fremdes Konto. Die Einstellungen
-/// überschreiben nur den Briefkopf.
-class QrZahlteil {
-  static const iban = 'CH6600774010376550601';
-  static const ibanFormatted = 'CH66 0077 4010 3765 5060 1';
-  static const firmaName = 'SBS Projer GmbH';
-  static const firmaStrasse = 'Via Rezia';
-  static const firmaNr = '8';
-  static const firmaPlz = '7013';
-  static const firmaOrt = 'Domat/Ems';
-  static const firmaLand = 'CH';
+/// Die Firmendaten (Zahlungsempfänger) kommen seit Runde 4 (26.09.2026) aus
+/// [GeschaeftEinstellungen] — vorher standen sie hier als zweite Kopie. Die
+/// frühere Sorge «eine versehentlich leere oder falsche IBAN führt Geld auf
+/// ein fremdes Konto» fängt [GeschaeftEinstellungen.ibanKompakt] ab: leer
+/// oder mit falscher Prüfziffer gilt die feste [GeschaeftEinstellungen.kIban].
+class QrKreditor {
+  final String iban;
+  final String ibanFormatiert;
+  final String name;
+  final String strasse;
+  final String nr;
+  final String plz;
+  final String ort;
+  final String land;
 
+  const QrKreditor({
+    required this.iban,
+    required this.ibanFormatiert,
+    required this.name,
+    required this.strasse,
+    required this.nr,
+    required this.plz,
+    required this.ort,
+    this.land = 'CH',
+  });
+
+  factory QrKreditor.aus(GeschaeftEinstellungen g) {
+    final (strasse, nr) = g.strasseUndNr;
+    final (plz, ort) = g.plzUndOrt;
+    return QrKreditor(
+      iban: g.ibanKompakt,
+      ibanFormatiert: g.ibanFormatiert,
+      name: g.firma,
+      strasse: strasse,
+      nr: nr,
+      plz: plz,
+      ort: ort,
+    );
+  }
+}
+
+class QrZahlteil {
   static pw.Widget bauen(
     double betrag,
     QrEmpfaenger kunde, {
+    required GeschaeftEinstellungen geschaeft,
     String? mitteilung,
     String? referenz,
   }) {
     const mm = PdfPageFormat.mm;
     final betragStr = betrag.toStringAsFixed(2);
+    final kreditor = QrKreditor.aus(geschaeft);
 
     // QR-Code Daten (Swiss Payment Standards v2.3)
-    final qrData = _qrDaten(
+    final qrData = qrDaten(
       betrag,
       kunde,
+      kreditor,
       mitteilung: mitteilung,
       referenz: referenz,
     );
@@ -78,10 +110,10 @@ class QrZahlteil {
                 ),
                 pw.SizedBox(height: 6),
                 _sectionTitle('Konto / Zahlbar an'),
-                _qrText(ibanFormatted),
-                _qrText(firmaName),
-                _qrText('$firmaStrasse $firmaNr'),
-                _qrText('$firmaPlz $firmaOrt'),
+                _qrText(kreditor.ibanFormatiert),
+                _qrText(kreditor.name),
+                _qrText('${kreditor.strasse} ${kreditor.nr}'),
+                _qrText('${kreditor.plz} ${kreditor.ort}'),
                 pw.SizedBox(height: 6),
                 if (kunde.name.isNotEmpty) ...[
                   _sectionTitle('Zahlbar durch'),
@@ -198,10 +230,10 @@ class QrZahlteil {
                   ),
                   pw.SizedBox(height: 6),
                   _sectionTitle('Konto / Zahlbar an'),
-                  _qrText(ibanFormatted),
-                  _qrText(firmaName),
-                  _qrText('$firmaStrasse $firmaNr'),
-                  _qrText('$firmaPlz $firmaOrt'),
+                  _qrText(kreditor.ibanFormatiert),
+                  _qrText(kreditor.name),
+                  _qrText('${kreditor.strasse} ${kreditor.nr}'),
+                  _qrText('${kreditor.plz} ${kreditor.ort}'),
                   pw.SizedBox(height: 6),
                   if (referenz != null && referenz.isNotEmpty) ...[
                     _sectionTitle('Referenz'),
@@ -278,21 +310,22 @@ class QrZahlteil {
   }
 
   /// Baut den QR-Code Datenstring gemäss Swiss Payment Standards.
-  static String _qrDaten(
+  static String qrDaten(
     double betrag,
-    QrEmpfaenger kunde, {
+    QrEmpfaenger kunde,
+    QrKreditor kreditor, {
     String? mitteilung,
     String? referenz,
   }) {
     // Nutzt die gemeinsame reine Funktion (byte-identisch zur bisherigen Ausgabe).
     return swissQrPayload(
-      iban: iban,
-      creditorName: firmaName,
-      creditorStreet: firmaStrasse,
-      creditorNr: firmaNr,
-      creditorPlz: firmaPlz,
-      creditorOrt: firmaOrt,
-      creditorLand: firmaLand,
+      iban: kreditor.iban,
+      creditorName: kreditor.name,
+      creditorStreet: kreditor.strasse,
+      creditorNr: kreditor.nr,
+      creditorPlz: kreditor.plz,
+      creditorOrt: kreditor.ort,
+      creditorLand: kreditor.land,
       betrag: betrag,
       debtorName: kunde.name,
       debtorStreet: kunde.strasse,

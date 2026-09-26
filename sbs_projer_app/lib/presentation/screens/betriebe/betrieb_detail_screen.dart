@@ -40,6 +40,7 @@ import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/service_termin_dialog.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 class BetriebDetailScreen extends ConsumerWidget {
   final String betriebId;
@@ -664,6 +665,7 @@ class _BetriebDetailContent extends ConsumerWidget {
         firmaStrasse: g?.adresseStrasse,
         firmaPlzOrt: g?.adressePlzOrt,
         firmaMwst: g?.mwstZeile,
+        geschaeft: g ?? const GeschaeftEinstellungen(),
       );
       await Printing.sharePdf(
         bytes: bytes,

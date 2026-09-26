@@ -100,8 +100,8 @@ class _ZahlungsfileExportScreenState
 
   /// Baut den Auftraggeber (Dbtr) aus den Geschäfts-Stammdaten.
   Pain001Debtor _buildDebtor(GeschaeftEinstellungen g) {
-    final strasse = g.adresseStrasse; // z.B. "Via Rezia 8"
-    final plzOrt = g.adressePlzOrt; // z.B. "7013 Domat/Ems"
+    final strasse = g.adresseStrasse; // «Strasse Nr»
+    final plzOrt = g.adressePlzOrt; // «PLZ Ort»
 
     // Strasse am LETZTEN Leerzeichen splitten (Hausnummer am Ende).
     String strtNm = strasse;

@@ -21,6 +21,7 @@ import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnwesen_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 
 /// Fehler eines Mahnfall-Schritts. `toString()` liefert NUR [meldung] (wie
 /// `MahnlaufFehler`) — die Meldung darf ohne Weiteres auf die Oberfläche.
@@ -257,6 +258,7 @@ class MahnfallService {
       DateTime.utc(jahre.first, 1, 1),
       betriebId: betriebId,
     );
+    final geschaeft = await GeschaeftRepository.getOderFallback();
     final auszuege = <Map<String, dynamic>>[];
     for (final jahr in jahre) {
       final kontoauszug = await KontoauszugPdfService.generate(
@@ -266,6 +268,7 @@ class MahnfallService {
         jahr: jahr,
         muster: muster,
         mitZahlteil: false,
+        geschaeft: geschaeft,
       );
       final datei = 'kontoauszug_$jahr.pdf';
       await RechnungPdfStorage.uploadMahnfallPdf(fall.id, datei, kontoauszug);

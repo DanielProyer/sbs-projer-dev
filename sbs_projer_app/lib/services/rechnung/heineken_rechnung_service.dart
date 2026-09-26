@@ -17,6 +17,7 @@ import 'package:sbs_projer_app/data/models/preis.dart';
 import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
+import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 
 class HeinekenRechnungService {
   // Defaults als Fallback, werden dynamisch aus Preisen geladen
@@ -200,7 +201,8 @@ class HeinekenRechnungService {
           daten, rechnung.rechnungsnummer,
           logoBytes: logoBytes,
           poNummer: _heinekenPoNummer,
-          mwstLabel: daten.mwstLabel));
+          mwstLabel: daten.mwstLabel,
+          geschaeft: await GeschaeftRepository.getOderFallback()));
       debugPrint('[HEI] Übersicht-Seite hinzugefügt');
 
       final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);
@@ -272,7 +274,8 @@ class HeinekenRechnungService {
         daten, rechnung.rechnungsnummer,
         logoBytes: logoBytes,
         poNummer: _heinekenPoNummer,
-        mwstLabel: daten.mwstLabel));
+        mwstLabel: daten.mwstLabel,
+        geschaeft: await GeschaeftRepository.getOderFallback()));
     final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,

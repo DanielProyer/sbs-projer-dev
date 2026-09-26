@@ -14,6 +14,7 @@ import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.d
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 
 /// Der Versand ist laut Server NICHT erfolgt. Trägt den fertigen,
 /// nutzerlesbaren Text aus [versandMeldung] — der Aufrufer zeigt ihn statt
@@ -214,7 +215,7 @@ class ReinigungRechnungVersand {
               '${zahlungsSatzMail(rechnung)}\n\n'
               'Mit freundlichen Grüssen\n\n'
               'Daniel Projer\n\n'
-              'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
+              '${(await GeschaeftRepository.getOderFallback()).mailSignatur}',
           'rechnungId': rechnung.id,
           'userId': SupabaseService.dataUserId,
           // Der Versandvermerk wird seit v15 SERVERSEITIG gesetzt, direkt nach

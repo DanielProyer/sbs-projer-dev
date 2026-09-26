@@ -5,6 +5,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/material_bestellung.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
+import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 
 class BestellungPdfService {
   static const _heinekenGreen = PdfColor.fromInt(0xFF00843D);
@@ -13,19 +15,16 @@ class BestellungPdfService {
   static const _lightGrey = PdfColor.fromInt(0xFFF5F5F5);
   static const _lineGrey = PdfColor.fromInt(0xFFDDDDDD);
 
-  static const _firmaName = 'SBS Projer GmbH';
-  static const _firmaStrasse = 'Via Rezia 8';
-  static const _firmaOrt = '7013 Domat/Ems';
-  static const _firmaTel = '076 566 58 06';
-  static const _firmaEmail = 'sbs.projer@gmail.com';
-
   static final _dateFormat = DateFormat('dd.MM.yyyy');
 
   static Future<Uint8List> generate({
     required MaterialBestellung bestellung,
     required List<MaterialBestellposition> positionen,
+    GeschaeftEinstellungen? geschaeft,
   }) async {
     final pdf = await pdfDokument();
+    // Firmendaten aus GeschaeftEinstellungen (ohne Zeile: Rückfall-Konstanten).
+    final g = geschaeft ?? await GeschaeftRepository.getOderFallback();
 
     int dboSort(MaterialBestellposition a, MaterialBestellposition b) {
       final aDbo = a.dboNr ?? '';
@@ -56,7 +55,7 @@ class BestellungPdfService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              _buildHeader(bestellung),
+              _buildHeader(bestellung, g),
               pw.SizedBox(height: 24),
               _buildEmpfaenger(bestellung),
               pw.SizedBox(height: 24),
@@ -83,7 +82,7 @@ class BestellungPdfService {
               pw.SizedBox(height: 8),
               _buildSummary(positionen),
               pw.Spacer(),
-              _buildFooter(),
+              _buildFooter(g),
             ],
           );
         },
@@ -93,7 +92,8 @@ class BestellungPdfService {
     return pdf.save();
   }
 
-  static pw.Widget _buildHeader(MaterialBestellung bestellung) {
+  static pw.Widget _buildHeader(
+      MaterialBestellung bestellung, GeschaeftEinstellungen g) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -101,15 +101,15 @@ class BestellungPdfService {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(_firmaName,
+            pw.Text(g.firma,
                 style: pw.TextStyle(
                     fontSize: 20,
                     fontWeight: pw.FontWeight.bold,
                     color: _heinekenGreen)),
             pw.SizedBox(height: 2),
-            pw.Text('$_firmaStrasse, $_firmaOrt',
+            pw.Text('${g.adresseStrasse}, ${g.adressePlzOrt}',
                 style: const pw.TextStyle(fontSize: 9, color: _grey)),
-            pw.Text('$_firmaTel  |  $_firmaEmail',
+            pw.Text('${g.telefonOrFallback}  |  ${g.mailGeschaeftOderFallback}',
                 style: const pw.TextStyle(fontSize: 9, color: _grey)),
           ],
         ),
@@ -298,7 +298,7 @@ class BestellungPdfService {
     );
   }
 
-  static pw.Widget _buildFooter() {
+  static pw.Widget _buildFooter(GeschaeftEinstellungen g) {
     return pw.Container(
       padding: const pw.EdgeInsets.only(top: 8),
       decoration: const pw.BoxDecoration(
@@ -307,14 +307,14 @@ class BestellungPdfService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(_firmaName,
+          pw.Text(g.firma,
               style: pw.TextStyle(
                   fontSize: 8,
                   fontWeight: pw.FontWeight.bold,
                   color: _heinekenGreen)),
-          pw.Text('$_firmaStrasse, $_firmaOrt',
+          pw.Text('${g.adresseStrasse}, ${g.adressePlzOrt}',
               style: const pw.TextStyle(fontSize: 8, color: _grey)),
-          pw.Text('$_firmaTel  |  $_firmaEmail',
+          pw.Text('${g.telefonOrFallback}  |  ${g.mailGeschaeftOderFallback}',
               style: const pw.TextStyle(fontSize: 8, color: _grey)),
         ],
       ),

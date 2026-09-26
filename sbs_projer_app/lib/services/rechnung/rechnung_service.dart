@@ -217,6 +217,7 @@ class RechnungService {
         firmaStrasse: geschaeft.adresseStrasse,
         firmaPlzOrt: geschaeft.adressePlzOrt,
         firmaMwst: geschaeft.mwstZeile,
+        geschaeft: geschaeft,
       );
       await RechnungPdfStorage.uploadPdf(rechnung.id, pdfBytes);
 

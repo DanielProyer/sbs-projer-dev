@@ -2,11 +2,14 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 class BerichtPdfCommon {
-  static const firma = 'SBS Projer GmbH';
-  static const strasse = 'Via Rezia 8';
-  static const ort = '7013 Domat/Ems';
+  // Rückfall, wenn der Aufrufer keine Firmendaten übergibt — aus der
+  // einen Quelle GeschaeftEinstellungen.
+  static const firma = GeschaeftEinstellungen.kFirma;
+  static const strasse = GeschaeftEinstellungen.kStrasse;
+  static const ort = GeschaeftEinstellungen.kPlzOrt;
   static const dunkel = PdfColor.fromInt(0xFF1A3A5C);
 
   static pw.Widget kopf(String titel, String periode,

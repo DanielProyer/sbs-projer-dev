@@ -20,6 +20,7 @@ import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 /// Offene Rechnungen, gebündelt pro Betrieb, wahlweise auf ein Jahr begrenzt.
 ///
@@ -91,6 +92,7 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
         firmaStrasse: firma?.adresseStrasse,
         firmaPlzOrt: firma?.adressePlzOrt,
         firmaMwst: firma?.mwstZeile,
+        geschaeft: firma ?? const GeschaeftEinstellungen(),
         jahr: _jahr,
       );
       final sauber = g.name.replaceAll(RegExp(r'[^A-Za-z0-9äöüÄÖÜ]+'), '_');

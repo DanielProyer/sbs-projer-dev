@@ -16,6 +16,7 @@ import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/mahnschreiben_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 
 /// Fehler eines Mahnlaufs — mit der Protokoll-Id, WENN das Mahnschreiben
 /// beim Auftreten des Fehlers bereits geschrieben ist: Der Screen kann dann
@@ -185,6 +186,9 @@ class MahnlaufService {
       };
       final rechnungIds = postenKorrigiert.map((p) => p.rechnung.id).toList();
 
+      // Firmendaten für Briefkopf und Zahlteil (wirft nie; ohne Zeile die
+      // Rückfall-Konstanten).
+      final geschaeft = await GeschaeftRepository.getOderFallback();
       String? hauptdateiPfad;
       String? tatsaechlicherEmpfaenger;
       Uint8List? druckPdf;
@@ -202,6 +206,7 @@ class MahnlaufService {
           datum: datum,
           frist: frist,
           muster: muster,
+          geschaeft: geschaeft,
         );
         await RechnungPdfStorage.uploadMahnlaufPdf(
           mahnschreibenId,
@@ -223,6 +228,7 @@ class MahnlaufService {
             jahr: datum.year,
             muster: muster,
             mitZahlteil: false,
+            geschaeft: geschaeft,
           );
           await RechnungPdfStorage.uploadMahnlaufPdf(
             mahnschreibenId,
@@ -241,6 +247,7 @@ class MahnlaufService {
             muster: muster,
             kontoauszugRechnungen: beilegen ? jahresKorrigiert : null,
             kontoauszugJahr: datum.year,
+            geschaeft: geschaeft,
           );
           await RechnungPdfStorage.uploadMahnlaufPdf(
             mahnschreibenId,
@@ -324,6 +331,7 @@ class MahnlaufService {
           muster: muster,
           kontoauszugRechnungen: beilegen ? jahresKorrigiert : null,
           kontoauszugJahr: datum.year,
+          geschaeft: geschaeft,
         );
         await RechnungPdfStorage.uploadMahnlaufPdf(mahnschreibenId, 'druck.pdf', druckPdf);
         hauptdateiPfad =

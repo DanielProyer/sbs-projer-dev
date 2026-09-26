@@ -1100,7 +1100,7 @@ final wegpunkteFuerTagProvider =
 /// Die beiden erfassten Startorte (Migration 156/157). Die Zeitachse wählt
 /// anhand der GPS-Position des Arbeitsbeginns den näheren aus.
 const kStartorte = <String, ({double lat, double lng})>{
-  'domat_ems': (lat: 46.8328452, lng: 9.4529918), // Via Rezia 8
+  'domat_ems': (lat: 46.8328452, lng: 9.4529918), // Firmensitz
   'chur': (lat: 46.8639692, lng: 9.5278708), // Giacomettistrasse 89
 };
 

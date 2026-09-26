@@ -37,6 +37,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 class RechnungDetailScreen extends ConsumerWidget {
   final String rechnungId;
@@ -478,7 +479,12 @@ class _RechnungDetailContentState
               const SizedBox(height: 8),
               const _InfoRow('Zahlungsfrist', '30 Tage netto'),
               const _InfoRow('Bank', 'Graubündner Kantonalbank'),
-              const _InfoRow('IBAN', 'CH66 0077 4010 3765 5060 1'),
+              _InfoRow(
+                'IBAN',
+                (ref.watch(geschaeftProvider).valueOrNull ??
+                        const GeschaeftEinstellungen())
+                    .ibanFormatiert,
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -672,6 +678,7 @@ class _RechnungDetailContentState
         firmaStrasse: g?.adresseStrasse,
         firmaPlzOrt: g?.adressePlzOrt,
         firmaMwst: g?.mwstZeile,
+        geschaeft: g ?? const GeschaeftEinstellungen(),
       );
       await RechnungPdfStorage.uploadPdf(_rechnung.id, pdfBytes);
 
@@ -696,7 +703,7 @@ class _RechnungDetailContentState
               '${zahlungsSatzMail(_rechnung)}\n\n'
               'Mit freundlichen Grüssen\n\n'
               'Daniel Projer\n\n'
-              'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
+              '${(ref.read(geschaeftProvider).valueOrNull ?? const GeschaeftEinstellungen()).mailSignatur}',
           'rechnungId': _rechnung.id,
           'userId': SupabaseService.dataUserId,
           // Versandvermerk serverseitig (ab Function v15) — greift auch, wenn
@@ -881,6 +888,7 @@ class _RechnungDetailContentState
         firmaStrasse: g?.adresseStrasse,
         firmaPlzOrt: g?.adressePlzOrt,
         firmaMwst: g?.mwstZeile,
+        geschaeft: g ?? const GeschaeftEinstellungen(),
       );
 
       if (context.mounted) {

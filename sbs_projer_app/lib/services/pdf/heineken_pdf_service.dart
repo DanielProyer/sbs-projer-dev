@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 /// Generiert die Heineken-Monatsrechnung als PDF im exakten Original-Layout.
 class HeinekenPdfService {
@@ -11,16 +12,10 @@ class HeinekenPdfService {
   static const _heinekenGreen = PdfColor.fromInt(0xFF00843D);
   static const _heinekenRed = PdfColor.fromInt(0xFFE4002B);
 
-  // Firmendaten
-  static const _firmaName = 'SBS Projer GmbH';
-  static const _firmaStrasse = 'Via Rezia 8';
-  static const _firmaPlz = '7013 Domat/Ems';
-  static const _mwstNr = 'CHE-413.083.919 ';
-  static const _natel = '076 / 566 58 06';
-  static const _email = 'sbs.projer@gmail.com';
+  // Firmendaten (Name, Adresse, Telefon, Mail, MWST-Nr., IBAN) kommen aus
+  // GeschaeftEinstellungen — siehe [buildUebersichtPage].
   static const _bankName = 'Graubündner Kantonalbank';
   static const _bankOrt = '7001 Chur';
-  static const _iban = 'CH66 0077 4010 3765 5060 1';
 
   // Heineken-Empfänger
   static const _heinekenName = 'Heineken Switzerland AG';
@@ -40,7 +35,10 @@ class HeinekenPdfService {
 
   static pw.Page buildUebersichtPage(
       HeinekenMonatsDaten daten, String? rechnungsnummer,
-      {Uint8List? logoBytes, String? poNummer, String? mwstLabel}) {
+      {Uint8List? logoBytes,
+      String? poNummer,
+      String? mwstLabel,
+      GeschaeftEinstellungen geschaeft = const GeschaeftEinstellungen()}) {
     if (poNummer != null) _heinekenPo = 'PO $poNummer';
     final rechnungsDatum = DateTime(daten.monat.year, daten.monat.month + 1, 0);
     final monatsName = _capitalize(_monatFormat.format(daten.monat));
@@ -65,18 +63,18 @@ class HeinekenPdfService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(_firmaName,
+                      pw.Text(geschaeft.firma,
                           style: pw.TextStyle(
                               fontSize: 11,
                               fontWeight: pw.FontWeight.bold)),
-                      pw.Text(_firmaStrasse,
+                      pw.Text(geschaeft.adresseStrasse,
                           style: const pw.TextStyle(fontSize: 10)),
-                      pw.Text(_firmaPlz,
+                      pw.Text(geschaeft.adressePlzOrt,
                           style: const pw.TextStyle(fontSize: 10)),
                       pw.SizedBox(height: 6),
-                      pw.Text('Natel-Nr.   $_natel',
+                      pw.Text('Natel-Nr.   ${geschaeft.telefonOrFallback}',
                           style: const pw.TextStyle(fontSize: 10)),
-                      pw.Text('Email         $_email',
+                      pw.Text('Email         ${geschaeft.mailGeschaeftOderFallback}',
                           style: const pw.TextStyle(fontSize: 10)),
                     ],
                   ),
@@ -87,7 +85,7 @@ class HeinekenPdfService {
                   children: [
                     _infoRow('Datum:', _dateFormat.format(rechnungsDatum)),
                     _infoRow('RG Nr.:', rechnungsnummer ?? ''),
-                    _infoRow('MWST Nr.:', _mwstNr),
+                    _infoRow('MWST Nr.:', geschaeft.mwstNummerOderFallback),
                   ],
                 ),
               ],
@@ -165,7 +163,7 @@ class HeinekenPdfService {
             pw.Spacer(),
 
             // Footer
-            _buildFooter(),
+            _buildFooter(geschaeft),
           ],
         );
       },
@@ -236,7 +234,7 @@ class HeinekenPdfService {
     );
   }
 
-  static pw.Widget _buildFooter() {
+  static pw.Widget _buildFooter(GeschaeftEinstellungen geschaeft) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -263,11 +261,14 @@ class HeinekenPdfService {
                 pw.Text(_bankName, style: const pw.TextStyle(fontSize: 10)),
                 pw.Text(_bankOrt, style: const pw.TextStyle(fontSize: 10)),
                 pw.SizedBox(height: 4),
-                pw.Text(_iban, style: const pw.TextStyle(fontSize: 10)),
-                pw.Text(_firmaName, style: const pw.TextStyle(fontSize: 10)),
-                pw.Text(_firmaStrasse,
+                pw.Text(geschaeft.ibanFormatiert,
                     style: const pw.TextStyle(fontSize: 10)),
-                pw.Text(_firmaPlz, style: const pw.TextStyle(fontSize: 10)),
+                pw.Text(geschaeft.firma,
+                    style: const pw.TextStyle(fontSize: 10)),
+                pw.Text(geschaeft.adresseStrasse,
+                    style: const pw.TextStyle(fontSize: 10)),
+                pw.Text(geschaeft.adressePlzOrt,
+                    style: const pw.TextStyle(fontSize: 10)),
                 pw.SizedBox(height: 8),
                 pw.Text('VISUM DES REGIONALEN SERVICELEITERS',
                     style: pw.TextStyle(

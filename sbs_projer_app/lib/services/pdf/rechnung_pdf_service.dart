@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 /// Eine Zeile im Summenblock der Rechnung (rein, testbar).
 class SummenZeile {
@@ -36,18 +37,13 @@ class RechnungPdfService {
   static const _grey = PdfColor.fromInt(0xFF666666);
   static const _lightGrey = PdfColor.fromInt(0xFFEEEEEE);
   static const _lineGrey = PdfColor.fromInt(0xFFCCCCCC);
-  // Firmendaten fuer den Briefkopf — eine Wahrheit mit dem QR-Zahlteil,
-  // damit Briefkopf und Einzahlungsschein nie auseinanderlaufen.
-  static const _firmaName = QrZahlteil.firmaName;
-  static const _firmaStrasse = QrZahlteil.firmaStrasse;
-  static const _firmaNr = QrZahlteil.firmaNr;
-  static const _firmaPlz = QrZahlteil.firmaPlz;
-  static const _firmaOrt = QrZahlteil.firmaOrt;
 
   /// Generiert eine professionelle A4-Kundenrechnung mit QR-Zahlteil.
   /// [mitteilung] überschreibt den Standard-Buchungstext im QR-Zahlteil (Ustrd).
   /// [firmaName], [firmaStrasse], [firmaPlzOrt], [firmaMwst] überschreiben nur
-  /// den Briefkopf (Letterhead) — QR/IBAN-Daten bleiben immer auf den Konstanten.
+  /// den Briefkopf (Letterhead). Alles andere (Telefon, Mail, MWST-Nr., IBAN
+  /// und Empfänger im QR-Zahlteil) kommt aus [geschaeft] — eine Quelle für
+  /// Briefkopf und Einzahlungsschein; ohne DB-Zeile die Rückfall-Konstanten.
   static Future<Uint8List> generate({
     required Rechnung rechnung,
     required List<RechnungsPosition> positionen,
@@ -58,6 +54,7 @@ class RechnungPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    GeschaeftEinstellungen geschaeft = const GeschaeftEinstellungen(),
   }) async {
     final pdf = await pdfDokument();
     final dateFormat = DateFormat('dd.MM.yyyy');
@@ -89,6 +86,7 @@ class RechnungPdfService {
                       firmaStrasse: firmaStrasse,
                       firmaPlzOrt: firmaPlzOrt,
                       firmaMwst: firmaMwst,
+                      geschaeft: geschaeft,
                     ),
                     pw.SizedBox(height: 30),
                     _buildKundenAdresse(betrieb, rechnungsadresse),
@@ -125,6 +123,7 @@ class RechnungPdfService {
                 QrZahlteil.bauen(
                 zahlBetrag,
                 kundeAddr,
+                geschaeft: geschaeft,
                 mitteilung:
                     mitteilung ??
                     '${betrieb.ort ?? ''} - ${betrieb.name} - ${dateFormat.format(rechnung.rechnungsdatum)}',
@@ -146,12 +145,13 @@ class RechnungPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    required GeschaeftEinstellungen geschaeft,
   }) {
-    final displayName = firmaName ?? _firmaName;
-    final displayStrasse = firmaStrasse ?? '$_firmaStrasse $_firmaNr';
-    final displayPlzOrt = firmaPlzOrt ?? '$_firmaPlz $_firmaOrt';
+    final displayName = firmaName ?? geschaeft.firma;
+    final displayStrasse = firmaStrasse ?? geschaeft.adresseStrasse;
+    final displayPlzOrt = firmaPlzOrt ?? geschaeft.adressePlzOrt;
     final mwstLeer = firmaMwst == null || firmaMwst.isEmpty;
-    final displayMwst = mwstLeer ? 'CHE-413.083.919 MWST' : firmaMwst;
+    final displayMwst = mwstLeer ? geschaeft.mwstZeileOderFallback : firmaMwst;
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -175,7 +175,7 @@ class RechnungPdfService {
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          'Tel 076 566 58 06 | sbs.projer@gmail.com',
+          'Tel ${geschaeft.telefonOrFallback} | ${geschaeft.mailGeschaeftOderFallback}',
           style: const pw.TextStyle(fontSize: 9, color: _grey),
         ),
         pw.Text(

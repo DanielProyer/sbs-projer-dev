@@ -241,6 +241,7 @@ class JahresrechnungService {
       firmaStrasse: geschaeft.adresseStrasse,
       firmaPlzOrt: geschaeft.adressePlzOrt,
       firmaMwst: geschaeft.mwstZeile,
+      geschaeft: geschaeft,
     );
 
     // Rechnungs-PDF hochladen

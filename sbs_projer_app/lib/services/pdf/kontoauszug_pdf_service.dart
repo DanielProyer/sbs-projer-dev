@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 
 /// Eine Bewegung auf dem Kunden-Konto: Rechnung (Soll) oder Zahlung (Haben).
 class _Bewegung {
@@ -47,8 +48,6 @@ class KontoauszugPdfService {
   static const _lineGrey = PdfColor.fromInt(0xFFCCCCCC);
   static const _rot = PdfColor.fromInt(0xFFB00020);
   static const _gruen = PdfColor.fromInt(0xFF1B5E20);
-
-  static const _ibanFormatted = 'CH66 0077 4010 3765 5060 1';
 
   // Schweizer Schreibweise mit geradem Apostroph als Tausendertrennung
   // (einheitlich zu den übrigen Auswertungen; seit der eingebetteten
@@ -207,6 +206,7 @@ class KontoauszugPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    GeschaeftEinstellungen geschaeft = const GeschaeftEinstellungen(),
     int? jahr,
     bool muster = false,
     bool mitZahlteil = true,
@@ -221,6 +221,7 @@ class KontoauszugPdfService {
       firmaStrasse: firmaStrasse,
       firmaPlzOrt: firmaPlzOrt,
       firmaMwst: firmaMwst,
+      geschaeft: geschaeft,
       jahr: jahr,
       muster: muster,
       mitZahlteil: mitZahlteil,
@@ -255,6 +256,7 @@ class KontoauszugPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    GeschaeftEinstellungen geschaeft = const GeschaeftEinstellungen(),
     int? jahr,
     bool muster = false,
     bool mitZahlteil = true,
@@ -327,6 +329,7 @@ class KontoauszugPdfService {
             firmaStrasse: firmaStrasse,
             firmaPlzOrt: firmaPlzOrt,
             firmaMwst: firmaMwst,
+            geschaeft: geschaeft,
           ),
           pw.SizedBox(height: 24),
           _adresseUndTitel(betrieb, rechnungsadresse, zeitraum, heute),
@@ -342,7 +345,7 @@ class KontoauszugPdfService {
           pw.SizedBox(height: 16),
           _tabelle(bewegungen, salden, dateFormat),
           pw.SizedBox(height: 18),
-          _fusszeile(offenerSaldo, jahr, mitZahlteil: mitZahlteil),
+          _fusszeile(offenerSaldo, jahr, geschaeft, mitZahlteil: mitZahlteil),
         ],
       ),
     );
@@ -370,6 +373,7 @@ class KontoauszugPdfService {
             pw.Spacer(),
             QrZahlteil.bauen(
               zahlbar,
+              geschaeft: geschaeft,
               qrEmpfaenger(
                 betriebName: betrieb.name,
                 betriebStrasse: betrieb.strasse,
@@ -438,12 +442,13 @@ class KontoauszugPdfService {
     String? firmaStrasse,
     String? firmaPlzOrt,
     String? firmaMwst,
+    required GeschaeftEinstellungen geschaeft,
   }) {
-    final name = firmaName ?? 'SBS Projer GmbH';
-    final strasse = firmaStrasse ?? 'Via Rezia 8';
-    final plzOrt = firmaPlzOrt ?? '7013 Domat/Ems';
+    final name = firmaName ?? geschaeft.firma;
+    final strasse = firmaStrasse ?? geschaeft.adresseStrasse;
+    final plzOrt = firmaPlzOrt ?? geschaeft.adressePlzOrt;
     final mwst = (firmaMwst == null || firmaMwst.isEmpty)
-        ? 'CHE-413.083.919 MWST'
+        ? geschaeft.mwstZeileOderFallback
         : firmaMwst;
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -471,7 +476,7 @@ class KontoauszugPdfService {
             ),
             pw.SizedBox(height: 4),
             pw.Text(
-              'Tel 076 566 58 06 | sbs.projer@gmail.com',
+              'Tel ${geschaeft.telefonOrFallback} | ${geschaeft.mailGeschaeftOderFallback}',
               style: const pw.TextStyle(fontSize: 9, color: _grey),
             ),
             pw.Text(mwst, style: const pw.TextStyle(fontSize: 9, color: _grey)),
@@ -760,7 +765,12 @@ class KontoauszugPdfService {
         'diesem Auszug berücksichtigt.';
   }
 
-  static pw.Widget _fusszeile(double offen, int? jahr, {bool mitZahlteil = true}) {
+  static pw.Widget _fusszeile(
+    double offen,
+    int? jahr,
+    GeschaeftEinstellungen geschaeft, {
+    bool mitZahlteil = true,
+  }) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
@@ -792,7 +802,8 @@ class KontoauszugPdfService {
           ],
           pw.SizedBox(height: 5),
           pw.Text(
-            'Zahlungsverbindung: Graubündner Kantonalbank · IBAN $_ibanFormatted · SBS Projer GmbH, Via Rezia 8, 7013 Domat/Ems',
+            'Zahlungsverbindung: Graubündner Kantonalbank · IBAN ${geschaeft.ibanFormatiert} · '
+            '${geschaeft.firma}, ${geschaeft.adresseStrasse}, ${geschaeft.adressePlzOrt}',
             style: const pw.TextStyle(fontSize: 8, color: _grey),
           ),
         ],

@@ -17,6 +17,17 @@ class GeschaeftRepository {
     return GeschaeftEinstellungen.fromJson(rows.first);
   }
 
+  /// Wie [get], wirft aber nie: schlägt das Laden fehl, gilt das leere Model
+  /// (Rückfall-Konstanten). Für PDFs und Mails, die nicht an den
+  /// Firmendaten scheitern dürfen.
+  static Future<GeschaeftEinstellungen> getOderFallback() async {
+    try {
+      return await get();
+    } catch (_) {
+      return const GeschaeftEinstellungen();
+    }
+  }
+
   /// Upsert auf user_id (eine Zeile pro User).
   static Future<GeschaeftEinstellungen> save(Map<String, dynamic> fields) async {
     final json = {
