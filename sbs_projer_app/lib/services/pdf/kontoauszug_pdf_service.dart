@@ -373,7 +373,6 @@ class KontoauszugPdfService {
             pw.Spacer(),
             QrZahlteil.bauen(
               zahlbar,
-              geschaeft: geschaeft,
               qrEmpfaenger(
                 betriebName: betrieb.name,
                 betriebStrasse: betrieb.strasse,
@@ -802,7 +801,7 @@ class KontoauszugPdfService {
           ],
           pw.SizedBox(height: 5),
           pw.Text(
-            'Zahlungsverbindung: Graubündner Kantonalbank · IBAN ${geschaeft.ibanFormatiert} · '
+            'Zahlungsverbindung: Graubündner Kantonalbank · IBAN ${GeschaeftEinstellungen.zahlungsIbanFormatiert} · '
             '${geschaeft.firma}, ${geschaeft.adresseStrasse}, ${geschaeft.adressePlzOrt}',
             style: const pw.TextStyle(fontSize: 8, color: _grey),
           ),

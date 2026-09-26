@@ -123,7 +123,6 @@ class RechnungPdfService {
                 QrZahlteil.bauen(
                 zahlBetrag,
                 kundeAddr,
-                geschaeft: geschaeft,
                 mitteilung:
                     mitteilung ??
                     '${betrieb.ort ?? ''} - ${betrieb.name} - ${dateFormat.format(rechnung.rechnungsdatum)}',

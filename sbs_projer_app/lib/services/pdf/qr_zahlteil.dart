@@ -14,11 +14,12 @@ import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 /// ist mit dieser Datei entfallen (v0.134.0); das Mahnschreiben nutzt diesen
 /// Zahlteil.
 ///
-/// Die Firmendaten (Zahlungsempfänger) kommen seit Runde 4 (26.09.2026) aus
-/// [GeschaeftEinstellungen] — vorher standen sie hier als zweite Kopie. Die
-/// frühere Sorge «eine versehentlich leere oder falsche IBAN führt Geld auf
-/// ein fremdes Konto» fängt [GeschaeftEinstellungen.ibanKompakt] ab: leer
-/// oder mit falscher Prüfziffer gilt die feste [GeschaeftEinstellungen.kIban].
+/// Die Firmendaten des Zahlungsempfängers sind bewusst Konstanten und kommen
+/// NICHT aus der DB-Zeile `geschaeft_einstellungen`. Grund: Ein Zahlteil mit
+/// einer versehentlich leeren oder falschen IBAN führt Geld auf ein fremdes
+/// Konto. Die Werte stehen einmal als statische Zahlungsdaten in
+/// [GeschaeftEinstellungen] (`zahlungsIban…`, `zahlungsEmpfaenger…`); die
+/// Einstellungen überschreiben nur den Briefkopf.
 class QrKreditor {
   final String iban;
   final String ibanFormatiert;
@@ -40,13 +41,14 @@ class QrKreditor {
     this.land = 'CH',
   });
 
-  factory QrKreditor.aus(GeschaeftEinstellungen g) {
-    final (strasse, nr) = g.strasseUndNr;
-    final (plz, ort) = g.plzUndOrt;
+  /// Der feste Zahlungsempfänger (siehe Klassenkommentar).
+  factory QrKreditor.fest() {
+    final (strasse, nr) = GeschaeftEinstellungen.zahlungsEmpfaengerStrasse;
+    final (plz, ort) = GeschaeftEinstellungen.zahlungsEmpfaengerPlzOrt;
     return QrKreditor(
-      iban: g.ibanKompakt,
-      ibanFormatiert: g.ibanFormatiert,
-      name: g.firma,
+      iban: GeschaeftEinstellungen.zahlungsIbanKompakt,
+      ibanFormatiert: GeschaeftEinstellungen.zahlungsIbanFormatiert,
+      name: GeschaeftEinstellungen.zahlungsEmpfaengerName,
       strasse: strasse,
       nr: nr,
       plz: plz,
@@ -59,13 +61,12 @@ class QrZahlteil {
   static pw.Widget bauen(
     double betrag,
     QrEmpfaenger kunde, {
-    required GeschaeftEinstellungen geschaeft,
     String? mitteilung,
     String? referenz,
   }) {
     const mm = PdfPageFormat.mm;
     final betragStr = betrag.toStringAsFixed(2);
-    final kreditor = QrKreditor.aus(geschaeft);
+    final kreditor = QrKreditor.fest();
 
     // QR-Code Daten (Swiss Payment Standards v2.3)
     final qrData = qrDaten(

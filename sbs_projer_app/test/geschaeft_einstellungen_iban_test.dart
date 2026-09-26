@@ -3,44 +3,26 @@ import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
 
-/// Die IBAN kommt seit Runde 4 aus GeschaeftEinstellungen. Ohne DB-Zeile
-/// muss exakt herauskommen, was vorher fest im Code stand.
+/// Zahlungsdaten (IBAN, QR-Zahlungsempfänger) sind bewusst Konstanten und
+/// kommen nie aus der DB-Zeile — eine geänderte Einstellung darf Kundengeld
+/// nicht auf ein anderes Konto lenken (Entscheid Runde 4, 26.09.2026).
 void main() {
-  const fallback = GeschaeftEinstellungen();
-
-  group('IBAN-Getter', () {
-    test('Rückfall liefert die bisherigen Strings', () {
-      expect(fallback.ibanFormatiert, 'CH66 0077 4010 3765 5060 1');
-      expect(fallback.ibanKompakt, 'CH6600774010376550601');
-    });
-
-    test('firmenIban mit und ohne Leerzeichen wird normalisiert', () {
-      const kompakt = GeschaeftEinstellungen(firmenIban: 'CH6600774010376550601');
-      const gruppiert =
-          GeschaeftEinstellungen(firmenIban: ' ch66 0077 4010 3765 5060 1 ');
-      for (final g in [kompakt, gruppiert]) {
-        expect(g.ibanKompakt, 'CH6600774010376550601');
-        expect(g.ibanFormatiert, 'CH66 0077 4010 3765 5060 1');
-      }
-    });
-
-    test('eine andere gültige IBAN aus der DB gilt', () {
-      // Beispiel-IBAN der SIX-Dokumentation (gültige Prüfziffer).
-      const g = GeschaeftEinstellungen(firmenIban: 'CH93 0076 2011 6238 5295 7');
-      expect(g.ibanKompakt, 'CH9300762011623852957');
-      expect(g.ibanFormatiert, 'CH93 0076 2011 6238 5295 7');
-    });
-
-    test('leer oder vertippt fällt auf die feste IBAN zurück', () {
-      for (final roh in ['', '   ', 'CH66 0077 4010 3765 5060 2', 'DE89370400440532013000']) {
-        final g = GeschaeftEinstellungen(firmenIban: roh);
-        expect(g.ibanKompakt, 'CH6600774010376550601', reason: roh);
-      }
+  group('Feste Zahlungsdaten', () {
+    test('liefern exakt die bisherigen Strings', () {
+      expect(GeschaeftEinstellungen.zahlungsIbanFormatiert,
+          'CH66 0077 4010 3765 5060 1');
+      expect(GeschaeftEinstellungen.zahlungsIbanKompakt,
+          'CH6600774010376550601');
+      expect(GeschaeftEinstellungen.zahlungsEmpfaengerName, 'SBS Projer GmbH');
+      expect(GeschaeftEinstellungen.zahlungsEmpfaengerStrasse,
+          ('Via Rezia', '8'));
+      expect(GeschaeftEinstellungen.zahlungsEmpfaengerPlzOrt,
+          ('7013', 'Domat/Ems'));
     });
   });
 
-  group('QR-Zahlteil mit Rückfall', () {
-    final kreditor = QrKreditor.aus(fallback);
+  group('QR-Zahlteil', () {
+    final kreditor = QrKreditor.fest();
 
     test('Empfängerdaten wie die früheren Konstanten', () {
       expect(kreditor.iban, 'CH6600774010376550601');
@@ -53,7 +35,17 @@ void main() {
       expect(kreditor.land, 'CH');
     });
 
-    test('QR-Daten tragen IBAN und Empfänger an der Norm-Position', () {
+    test('QR-Daten tragen die feste IBAN — auch bei abweichender '
+        'Einstellung in der DB', () {
+      // Eine andere (gültige) IBAN und Adresse in der Einstellungs-Zeile darf
+      // den Zahlteil nicht beeinflussen.
+      const abweichend = GeschaeftEinstellungen(
+        firmaName: 'Andere GmbH',
+        strasse: 'Bahnhofstrasse 1',
+        plzOrt: '8000 Zürich',
+        firmenIban: 'CH93 0076 2011 6238 5295 7',
+      );
+      expect(abweichend.firma, 'Andere GmbH'); // Briefkopf darf abweichen
       final daten = QrZahlteil.qrDaten(
         150.25,
         const QrEmpfaenger(
@@ -63,7 +55,7 @@ void main() {
           plz: '7000',
           ort: 'Chur',
         ),
-        kreditor,
+        QrKreditor.fest(),
         mitteilung: 'Rechnung 2026-09-26-0001',
       );
       final zeilen = daten.split('\n');
@@ -81,6 +73,7 @@ void main() {
         'Domat/Ems',
         'CH',
       ]);
+      expect(daten.contains('CH9300762011623852957'), isFalse);
     });
   });
 }

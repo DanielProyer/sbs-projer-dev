@@ -480,11 +480,7 @@ class _RechnungDetailContentState
               const _InfoRow('Zahlungsfrist', '30 Tage netto'),
               const _InfoRow('Bank', 'Graubündner Kantonalbank'),
               _InfoRow(
-                'IBAN',
-                (ref.watch(geschaeftProvider).valueOrNull ??
-                        const GeschaeftEinstellungen())
-                    .ibanFormatiert,
-              ),
+                  'IBAN', GeschaeftEinstellungen.zahlungsIbanFormatiert),
             ],
           ),
           const SizedBox(height: 16),

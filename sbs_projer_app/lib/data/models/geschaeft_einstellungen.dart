@@ -50,8 +50,7 @@ class GeschaeftEinstellungen {
   static const kMwstNummer = 'CHE-413.083.919';
 
   /// Firmen-IBAN (Graubündner Kantonalbank). Einzige Stelle im Code, an der
-  /// sie steht — QR-Zahlteil, Rechnungs-/Mahn-/Kontoauszug-/Heineken-PDF und
-  /// Rechnungsdetail lesen sie über [ibanKompakt] bzw. [ibanFormatiert].
+  /// sie steht — gelesen über [zahlungsIbanKompakt]/[zahlungsIbanFormatiert].
   static const kIban = 'CH66 0077 4010 3765 5060 1';
 
   static String? _clean(String? s) =>
@@ -60,6 +59,13 @@ class GeschaeftEinstellungen {
   String get firma => _clean(firmaName) ?? kFirma;
   String get adresseStrasse => _clean(strasse) ?? kStrasse;
   String get adressePlzOrt => _clean(plzOrt) ?? kPlzOrt;
+  /// Nur der Ort aus «PLZ Ort» (Briefdatum «Domat/Ems, 26.09.2026»).
+  String get adresseOrt {
+    final s = adressePlzOrt;
+    final i = s.indexOf(' ');
+    return i <= 0 ? s : s.substring(i + 1).trim();
+  }
+
   String get telefonOrFallback => _clean(telefon) ?? kTelefon;
   String get gfVollname => '${gfVorname ?? ''} ${gfName ?? ''}'.trim();
   String get mailEmpfaenger =>
@@ -81,54 +87,39 @@ class GeschaeftEinstellungen {
   /// «CHE-… MWST» für Briefkopf/Fuss, mit Rückfall auf [kMwstNummer].
   String get mwstZeileOderFallback => '$mwstNummerOderFallback MWST';
 
-  /// Strasse und Hausnummer getrennt (die QR-Rechnung verlangt beides
-  /// einzeln): «Via Rezia 8» → («Via Rezia», «8»).
-  (String, String) get strasseUndNr {
-    final s = adresseStrasse.trim();
+  // ── Zahlungsdaten: bewusst KONSTANT, nie aus der DB ────────────────────
+  //
+  // Grund: Eine versehentlich geänderte, leere oder falsche Einstellung
+  // (`firmen_iban`, Adresse) würde Kundengeld über den QR-Zahlteil auf ein
+  // fremdes Konto lenken. Wer zahlt, sieht nur den QR-Code. Deshalb lesen
+  // QR-Zahlteil, QR-Dialog, IBAN-Zeilen in PDFs und im Rechnungsdetail nur
+  // diese statischen Werte (Entscheid Runde 4, 26.09.2026). `firmenIban` dient
+  // allein dem eigenen Zahlerkonto im pain.001-Export.
+
+  /// IBAN ohne Leerzeichen (für den QR-Code).
+  static String get zahlungsIbanKompakt => kIban.replaceAll(' ', '');
+
+  /// IBAN in Vierergruppen (für die Anzeige).
+  static String get zahlungsIbanFormatiert => kIban;
+
+  /// Zahlungsempfänger im QR-Zahlteil.
+  static String get zahlungsEmpfaengerName => kFirma;
+
+  /// («Via Rezia», «8») — Strasse und Hausnummer getrennt, wie die
+  /// QR-Rechnung sie verlangt.
+  static (String, String) get zahlungsEmpfaengerStrasse {
+    const s = kStrasse;
     final i = s.lastIndexOf(' ');
     if (i <= 0) return (s, '');
     return (s.substring(0, i).trim(), s.substring(i + 1).trim());
   }
 
-  /// PLZ und Ort getrennt: «7013 Domat/Ems» → («7013», «Domat/Ems»).
-  (String, String) get plzUndOrt {
-    final s = adressePlzOrt.trim();
+  /// («7013», «Domat/Ems»).
+  static (String, String) get zahlungsEmpfaengerPlzOrt {
+    const s = kPlzOrt;
     final i = s.indexOf(' ');
     if (i <= 0) return ('', s);
     return (s.substring(0, i).trim(), s.substring(i + 1).trim());
-  }
-
-  /// IBAN ohne Leerzeichen, wie sie in den QR-Code gehört. Aus [firmenIban],
-  /// sofern das eine gültige CH/LI-IBAN ist (Prüfziffer mod 97) — eine leere
-  /// oder vertippte Einstellung darf keine Zahlung auf ein falsches Konto
-  /// lenken; dann gilt [kIban].
-  String get ibanKompakt =>
-      ibanNormalisiert(firmenIban) ?? kIban.replaceAll(' ', '');
-
-  /// IBAN in Vierergruppen für die Anzeige, z. B. «CH66 0077 … 1».
-  String get ibanFormatiert {
-    final k = ibanKompakt;
-    final sb = StringBuffer();
-    for (var i = 0; i < k.length; i += 4) {
-      if (i > 0) sb.write(' ');
-      sb.write(k.substring(i, i + 4 > k.length ? k.length : i + 4));
-    }
-    return sb.toString();
-  }
-
-  /// Normalisiert eine IBAN (Leerzeichen weg, Grossbuchstaben) und prüft sie;
-  /// null, wenn leer, nicht CH/LI oder die Prüfziffer nicht stimmt.
-  static String? ibanNormalisiert(String? roh) {
-    if (roh == null) return null;
-    final k = roh.replaceAll(RegExp(r'\s'), '').toUpperCase();
-    if (!RegExp(r'^(CH|LI)\d{2}[0-9A-Z]{17}$').hasMatch(k)) return null;
-    final umgestellt = k.substring(4) + k.substring(0, 4);
-    var rest = 0;
-    for (final c in umgestellt.codeUnits) {
-      final wert = c >= 65 ? c - 55 : c - 48; // A=10 … Z=35
-      rest = int.parse('$rest$wert') % 97;
-    }
-    return rest == 1 ? k : null;
   }
 
   factory GeschaeftEinstellungen.fromJson(Map<String, dynamic> j) =>

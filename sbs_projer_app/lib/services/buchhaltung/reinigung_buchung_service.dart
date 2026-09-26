@@ -48,6 +48,17 @@ class ReinigungBuchungService {
   static double netto(ReinigungLocal reinigung, double mwstFaktor) =>
       _calcNetto(reinigung, mwstFaktor);
 
+  /// Netto, MwSt und Brutto der Ertragsbuchung beim Satz [mwst] — rein.
+  /// Brutto auf 5 Rappen, MwSt als Differenz; dieselbe Rechnung wie
+  /// `RechnungService.bruttoAusReinigung`, damit Buchung und Rechnung
+  /// übereinstimmen.
+  static ({double netto, double mwst, double brutto}) buchungsBetraege(
+      ReinigungLocal reinigung, MwstAngabe mwst) {
+    final netto = _calcNetto(reinigung, mwst.faktor);
+    final brutto = rundeAuf5Rappen(netto * (1 + mwst.prozent / 100));
+    return (netto: netto, mwst: _round2(brutto - netto), brutto: brutto);
+  }
+
   /// Berechnet den tatsächlichen Netto-Betrag aus allen Komponenten.
   /// preis_netto in der DB kann unvollständig sein (nur Grundtarif).
   static double _calcNetto(ReinigungLocal reinigung, double mwstFaktor) {
@@ -79,7 +90,8 @@ class ReinigungBuchungService {
     BetriebLocal betrieb,
   ) async {
     // MwSt-Satz des Reinigungsdatums — pro Aufruf, nie aus einem Vorlauf
-    final mwstFaktor = await mwstFaktorFuer(reinigung.datum);
+    final mwst = await mwstAusPreisliste(reinigung.datum);
+    final mwstFaktor = mwst.faktor;
 
     // Massgebend ist die Zahlungsart der REINIGUNG (Ursache der 38: hier stand
     // betrieb.rechnungsstellung — heineken fiel lautlos durch, Cache veraltete).
@@ -124,13 +136,16 @@ class ReinigungBuchungService {
       return null;
     }
 
-    final mwstSatz = vorlage.mwstSatz ?? 0.0;
+    // Satz des Reinigungsdatums (Preisliste) statt `vorlage.mwstSatz`: Die
+    // Vorlage kennt nur EINEN Satz — bei Reinigungen vor 2024 lief die
+    // Buchung (8.1 %) sonst von der Rechnung (7.7 %) weg.
+    final mwstSatz = mwst.prozent;
     final datumStr = reinigung.datum.toIso8601String().split('T').first;
 
     // Beträge: 5-Rappen-Rundung für alle CHF-Beträge (Schweizer Standard)
-    final bruttoRaw = netto * (1 + mwstSatz / 100);
-    final brutto = rundeAuf5Rappen(bruttoRaw);
-    final mwstBetrag = _round2(brutto - netto);
+    final betraege = buchungsBetraege(reinigung, mwst);
+    final brutto = betraege.brutto;
+    final mwstBetrag = betraege.mwst;
 
     final zahlungsweg = istBar ? 'kasse' : 'rechnung';
     final typLabel = istBar ? 'Bar' : 'Rechnung';

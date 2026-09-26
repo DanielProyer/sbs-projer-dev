@@ -261,7 +261,7 @@ class HeinekenPdfService {
                 pw.Text(_bankName, style: const pw.TextStyle(fontSize: 10)),
                 pw.Text(_bankOrt, style: const pw.TextStyle(fontSize: 10)),
                 pw.SizedBox(height: 4),
-                pw.Text(geschaeft.ibanFormatiert,
+                pw.Text(GeschaeftEinstellungen.zahlungsIbanFormatiert,
                     style: const pw.TextStyle(fontSize: 10)),
                 pw.Text(geschaeft.firma,
                     style: const pw.TextStyle(fontSize: 10)),

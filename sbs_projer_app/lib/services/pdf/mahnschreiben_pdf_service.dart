@@ -228,7 +228,7 @@ class MahnschreibenPdfService {
           pw.Align(
             alignment: pw.Alignment.centerRight,
             child: pw.Text(
-              '${geschaeft.plzUndOrt.$2}, ${_df.format(datum)}',
+              '${geschaeft.adresseOrt}, ${_df.format(datum)}',
               style: const pw.TextStyle(fontSize: 10),
             ),
           ),
@@ -350,7 +350,6 @@ class MahnschreibenPdfService {
         QrZahlteil.bauen(
           rundeAuf5Rappen(rechnung.betragBrutto),
           kundeAddr,
-          geschaeft: geschaeft,
           mitteilung: 'Rechnung ${rechnung.rechnungsnummer ?? ''}',
           referenz: rechnung.qrReferenz,
         ),

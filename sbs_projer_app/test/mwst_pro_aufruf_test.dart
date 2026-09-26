@@ -89,6 +89,20 @@ void main() {
     expect(j24.mwst, 23.35);
   });
 
+  test('Ertragsbuchung = Rechnungsbrutto, auch vor 2024 (7.7 %)', () {
+    for (final (r, satz) in [
+      (alt, satz2023),
+      (neu, satz2024),
+      (ocrReinigung(DateTime(2023, 6, 1)), satz2023),
+    ]) {
+      final b = ReinigungBuchungService.buchungsBetraege(r, satz);
+      expect(b.brutto, RechnungService.bruttoAusReinigung(r, satz));
+      expect(b.netto + b.mwst, closeTo(b.brutto, 1e-9));
+    }
+    expect(ReinigungBuchungService.buchungsBetraege(alt, satz2023).brutto,
+        148.65);
+  });
+
   test('Rückfall ist 8.1 % und steht nur an einer Stelle', () {
     expect(MwstAngabe.fallback.faktor, 0.081);
     expect(MwstAngabe.fallback.prozent, 8.1);

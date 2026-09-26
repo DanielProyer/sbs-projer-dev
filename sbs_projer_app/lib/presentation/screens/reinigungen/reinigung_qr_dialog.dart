@@ -46,10 +46,10 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
   @override
   Widget build(BuildContext context) {
     // Dieselben Empfängerdaten wie der QR-Zahlteil der Rechnungs-PDFs.
-    final iban = widget.firma.ibanKompakt;
+    final iban = GeschaeftEinstellungen.zahlungsIbanKompakt;
     final betrag = double.tryParse(_betragCtrl.text.replaceAll(',', '.'));
-    final (strasse, nr) = widget.firma.strasseUndNr;
-    final (plz, ort) = widget.firma.plzUndOrt;
+    final (strasse, nr) = GeschaeftEinstellungen.zahlungsEmpfaengerStrasse;
+    final (plz, ort) = GeschaeftEinstellungen.zahlungsEmpfaengerPlzOrt;
     final datumStr =
         '${widget.datum.day.toString().padLeft(2, '0')}.${widget.datum.month.toString().padLeft(2, '0')}.${widget.datum.year}';
 
@@ -57,7 +57,7 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
         ? null
         : swissQrPayload(
             iban: iban,
-            creditorName: widget.firma.firma,
+            creditorName: GeschaeftEinstellungen.zahlungsEmpfaengerName,
             creditorStreet: strasse,
             creditorNr: nr,
             creditorPlz: plz,
@@ -101,7 +101,7 @@ class _ReinigungQrDialogState extends State<ReinigungQrDialog> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '${widget.firma.firma}\n${widget.firma.ibanFormatiert}',
+                  '${GeschaeftEinstellungen.zahlungsEmpfaengerName}\n${GeschaeftEinstellungen.zahlungsIbanFormatiert}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
