@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
 
 /// «HH:mm» → [TimeOfDay]; `null` bei allem, was keine Uhrzeit ist.
@@ -165,14 +166,14 @@ class _ArbeitszeitBlockState extends State<ArbeitszeitBlock> {
         child: SizedBox(
           width: double.infinity,
           height: 52,
-          child: FilledButton.icon(
-            onPressed: widget.laeuft ? null : widget.onBeginnen,
-            style: FilledButton.styleFrom(backgroundColor: AppColors.info),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text(
-              'Arbeit beginnen',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            ),
+          // TapKnopf statt FilledButton (CanvasKit-Regel, CLAUDE.md): Der
+          // Einstieg in die Zeiterfassung darf nicht unsichtbar sein.
+          child: TapKnopf(
+            text: 'Arbeit beginnen',
+            icon: Icons.play_arrow,
+            farbe: AppColors.info,
+            laeuft: widget.laeuft,
+            onTap: widget.onBeginnen,
           ),
         ),
       );

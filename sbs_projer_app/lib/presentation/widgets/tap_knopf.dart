@@ -24,6 +24,11 @@ class TapKnopf extends StatelessWidget {
   /// `test/gefahr_knopf_waechter_test.dart` hält die Regel fest.
   final bool gefahr;
 
+  /// Eigene Füllfarbe eines primären Knopfs mit fester Bedeutung — etwa das
+  /// Info-Blau von «Arbeit beginnen», das sich vom grünen Laufband danach
+  /// abheben soll. Ohne Wirkung bei `primaer: false`; `gefahr` hat Vorrang.
+  final Color? farbe;
+
   const TapKnopf({
     super.key,
     required this.text,
@@ -32,14 +37,15 @@ class TapKnopf extends StatelessWidget {
     this.icon,
     this.laeuft = false,
     this.gefahr = false,
+    this.farbe,
   });
 
   @override
   Widget build(BuildContext context) {
-    final farbe = gefahr
+    final fuellung = gefahr
         ? AppColors.error
         : primaer
-        ? Theme.of(context).colorScheme.primary
+        ? (farbe ?? Theme.of(context).colorScheme.primary)
         : Colors.white;
     final textFarbe = (gefahr || primaer)
         ? Colors.white
@@ -60,7 +66,7 @@ class TapKnopf extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: aktiv ? farbe : Colors.grey.shade400,
+                color: aktiv ? fuellung : Colors.grey.shade400,
                 borderRadius: BorderRadius.circular(8),
                 border: (primaer || gefahr)
                     ? null

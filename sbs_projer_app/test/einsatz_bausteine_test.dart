@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_block.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 BetriebLocal _betrieb(
   String? id,
@@ -224,6 +226,7 @@ void main() {
 
     Widget block({
       required bool beginnMoeglich,
+      bool laeuft = false,
       VoidCallback? onBeginnen,
       VoidCallback? onBeenden,
     }) => _huelle(
@@ -231,7 +234,7 @@ void main() {
         vonController: von,
         bisController: bis,
         beginnMoeglich: beginnMoeglich,
-        laeuft: false,
+        laeuft: laeuft,
         onBeginnen: onBeginnen ?? () {},
         onBeenden: onBeenden ?? () {},
         onGeaendert: () {},
@@ -254,6 +257,36 @@ void main() {
       );
       await tester.tap(find.text('Arbeit beginnen'));
       expect(begonnen, isTrue);
+    });
+
+    // CanvasKit-Regel (CLAUDE.md): Material-Buttons rendern dort teils nicht.
+    // Der Einstieg in die Zeiterfassung ist ein TapKnopf in Info-Blau.
+    testWidgets('«Arbeit beginnen» ist ein blauer TapKnopf, kein FilledButton', (
+      tester,
+    ) async {
+      await tester.pumpWidget(block(beginnMoeglich: true));
+      expect(find.byType(FilledButton), findsNothing);
+      final knopf = find.widgetWithText(TapKnopf, 'Arbeit beginnen');
+      expect(knopf, findsOneWidget);
+      final kasten = tester.widget<Container>(
+        find.descendant(of: knopf, matching: find.byType(Container)).first,
+      );
+      expect((kasten.decoration as BoxDecoration).color, AppColors.info);
+    });
+
+    testWidgets('«Arbeit beginnen» ist gesperrt, solange gespeichert wird', (
+      tester,
+    ) async {
+      var begonnen = false;
+      await tester.pumpWidget(
+        block(
+          beginnMoeglich: true,
+          laeuft: true,
+          onBeginnen: () => begonnen = true,
+        ),
+      );
+      await tester.tap(find.text('Arbeit beginnen'), warnIfMissed: false);
+      expect(begonnen, isFalse);
     });
 
     testWidgets('laufend: Band mit Beenden, Timer läuft und endet', (

@@ -26,6 +26,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/presentation/widgets/mehrzahlung_wahl.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Wiederverwendbare Ergebnis-Vorschau für den camt-Forderungsabgleich:
 /// Kopf-Übersicht (KPIs) + vier klappbare Gruppen (🟢 Auto / 🟡 Manuell /
@@ -109,10 +110,10 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _verbucheAlle,
-                    icon: const Icon(Icons.done_all),
-                    label: const Text('Alle verbuchen'),
+                  child: TapKnopf(
+                    text: 'Alle verbuchen',
+                    icon: Icons.done_all,
+                    onTap: _verbucheAlle,
                   ),
                 ),
               ),
@@ -359,9 +360,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Abbrechen'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Trotzdem zuordnen'),
+          TapKnopf(
+            text: 'Trotzdem zuordnen',
+            onTap: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
@@ -879,8 +880,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                   onPressed: () => Navigator.pop(ctx, false),
                   child: const Text('Abbrechen'),
                 ),
-                FilledButton(
-                  onPressed: kannVerbuchen
+                TapKnopf(
+                  text: 'Verbuchen',
+                  onTap: kannVerbuchen
                       ? () async {
                           if (!await _pruefeDatumsfolge(
                             gewaehlteGutschriften.toList(),
@@ -911,7 +913,6 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           }
                         }
                       : null,
-                  child: const Text('Verbuchen'),
                 ),
               ],
             );
@@ -1184,8 +1185,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('Abbrechen'),
               ),
-              FilledButton(
-                onPressed: gewaehlt.isEmpty
+              TapKnopf(
+                text: 'Verbuchen',
+                onTap: gewaehlt.isEmpty
                     ? null
                     : () async {
                         if (!await _pruefeDatumsfolge([g], gewaehlt)) {
@@ -1212,7 +1214,6 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                           }
                         }
                       },
-                child: const Text('Verbuchen'),
               ),
             ],
           );
@@ -1770,8 +1771,9 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('Abbrechen'),
               ),
-              FilledButton(
-                onPressed: kannVerbuchen
+              TapKnopf(
+                text: 'Verbuchen',
+                onTap: kannVerbuchen
                     ? () async {
                         if (!await _pruefeDatumsfolge(
                           gewaehlteGuts.toList(),
@@ -1802,7 +1804,6 @@ class _AbgleichVorschauState extends ConsumerState<AbgleichVorschau> {
                         }
                       }
                     : null,
-                child: const Text('Verbuchen'),
               ),
             ],
           );
