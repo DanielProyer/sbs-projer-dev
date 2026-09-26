@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/config/lokalisierung.dart';
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 
 /// Die App spricht in ALLEN Material-Texten Deutsch (Schweiz).
@@ -12,20 +13,41 @@ import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 /// Datumsauswahl zeigte deshalb «Tue, Nov 17» und «Cancel/OK» — obwohl
 /// `main.dart` `initializeDateFormatting('de_CH')` aufruft. Das eine lädt nur
 /// die Datumsformate für `intl`, das andere stellt die Material-Texte um.
+///
+/// Die Konfiguration steht seit 26.09.2026 als Konstanten in
+/// `lib/core/config/lokalisierung.dart`; `app.dart` und dieser Test nutzen
+/// dieselben Werte — der Widget-Test prüft also die echte Konfiguration,
+/// keine Kopie.
 void main() {
-  test('app.dart setzt die drei Global-Delegates und Locale de_CH', () {
+  test('die Konstanten enthalten die drei Global-Delegates und de_CH', () {
+    expect(
+      kLokalisierungDelegates,
+      contains(GlobalMaterialLocalizations.delegate),
+    );
+    expect(
+      kLokalisierungDelegates,
+      contains(GlobalWidgetsLocalizations.delegate),
+    );
+    expect(
+      kLokalisierungDelegates,
+      contains(GlobalCupertinoLocalizations.delegate),
+    );
+    expect(kAppLocale, const Locale('de', 'CH'));
+    expect(kUnterstuetzteLocales, contains(kAppLocale));
+  });
+
+  test('app.dart setzt die Lokalisierung aus den Konstanten', () {
     final code = File('lib/app.dart').readAsStringSync();
     for (final pflicht in const [
-      'GlobalMaterialLocalizations.delegate',
-      'GlobalWidgetsLocalizations.delegate',
-      'GlobalCupertinoLocalizations.delegate',
-      "Locale('de', 'CH')",
+      'localizationsDelegates: kLokalisierungDelegates',
+      'supportedLocales: kUnterstuetzteLocales',
+      'locale: kAppLocale',
     ]) {
       expect(
         code.contains(pflicht),
         isTrue,
         reason:
-            '$pflicht fehlt in lib/app.dart — ohne die Lokalisierung zeigen '
+            '«$pflicht» fehlt in lib/app.dart — ohne die Lokalisierung zeigen '
             'Datumsauswahl und Dialoge wieder englische Texte.',
       );
     }
@@ -39,13 +61,9 @@ void main() {
   testWidgets('Datumsauswahl zeigt mit de_CH deutsche Knöpfe', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [Locale('de', 'CH'), Locale('de')],
-        locale: const Locale('de', 'CH'),
+        localizationsDelegates: kLokalisierungDelegates,
+        supportedLocales: kUnterstuetzteLocales,
+        locale: kAppLocale,
         home: Builder(
           builder: (context) => GestureDetector(
             onTap: () =>

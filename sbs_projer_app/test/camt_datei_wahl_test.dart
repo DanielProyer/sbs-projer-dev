@@ -34,7 +34,9 @@ void main() {
   });
 
   test('gelesene Datei liefert Name und UTF-8-Text', () {
-    final bytes = Uint8List.fromList(utf8.encode('<Document>Zürich</Document>'));
+    final bytes = Uint8List.fromList(
+      utf8.encode('<Document>Zürich</Document>'),
+    );
     final wahl = dateiWahlAus(FilePickerResult([datei('auszug.xml', bytes)]));
     expect(wahl, isA<DateiGelesen>());
     final g = wahl as DateiGelesen;

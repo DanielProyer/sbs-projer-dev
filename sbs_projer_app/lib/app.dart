@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sbs_projer_app/core/config/lokalisierung.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_glocke.dart';
@@ -160,17 +160,12 @@ class _SbsProjerAppState extends State<SbsProjerApp> {
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: AppTheme.light,
       routerConfig: router,
-      // Deutsch (Schweiz) für alle Material-Texte: Ohne diese Delegates zeigt
-      // die Datumsauswahl «Tue, Nov 17» und «Cancel/OK». Die 24-h-Zeitauswahl
-      // erzwingt `zeigeZeitauswahl` weiterhin selbst über MediaQuery.
+      // Deutsch (Schweiz) für alle Material-Texte — Begründung in
+      // core/config/lokalisierung.dart.
       // Wächter: test/lokalisierung_waechter_test.dart.
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('de', 'CH'), Locale('de')],
-      locale: const Locale('de', 'CH'),
+      localizationsDelegates: kLokalisierungDelegates,
+      supportedLocales: kUnterstuetzteLocales,
+      locale: kAppLocale,
       // Reihenfolge: Die Glocke liegt AUSSERHALB der Breitenbegrenzung, damit
       // sie am PC in der Fensterecke bleibt und nicht an der Spaltenkante
       // klebt. Die Navigationsleiste dagegen gehört INNERHALB — sie ist Teil
