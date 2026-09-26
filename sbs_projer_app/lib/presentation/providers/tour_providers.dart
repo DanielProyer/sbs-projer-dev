@@ -1605,6 +1605,51 @@ Future<void> eintraegeInTagesplanAnhaengen(
   ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
 }
 
+/// Entfernt die Einträge [ids] aus dem Plan von [tag] und speichert SOFORT
+/// (nicht nur entprellt) — zweiter Schritt des Verschiebens, nachdem
+/// [eintraegeInTagesplanAnhaengen] am Zieltag durchlief.
+///
+/// Warum sofort: Ein Tag-Wechsel im Screen (z. B. «Anzeigen» in der
+/// Verschoben-Meldung) bricht den entprellten Auto-Save ab
+/// (`setFromGespeichert` → `_cancelSave`). Die Stopps stünden dann an zwei
+/// Tagen. Der Notifier bekommt den Stand trotzdem gesetzt, damit die UI
+/// sofort stimmt.
+Future<void> eintraegeAusTagesplanEntfernen(
+  WidgetRef ref,
+  DateTime tag,
+  Set<String> ids,
+) async {
+  if (ids.isEmpty) return;
+  final tagOhneZeit = DateTime(tag.year, tag.month, tag.day);
+  final notifier = ref.read(tagesplanProvider.notifier);
+  final aktivesDatum = notifier.datum;
+  final istAktiverTag =
+      aktivesDatum != null &&
+      aktivesDatum.year == tagOhneZeit.year &&
+      aktivesDatum.month == tagOhneZeit.month &&
+      aktivesDatum.day == tagOhneZeit.day;
+  if (istAktiverTag) {
+    final rest = [
+      for (final e in ref.read(tagesplanProvider))
+        if (!ids.contains(e.id)) e,
+    ];
+    notifier.setzePlan(rest);
+    await tagesplanSpeichern(tagOhneZeit, rest);
+  } else {
+    final gespeichert = await ref.read(
+      gespeicherterTagesplanProvider(tagOhneZeit).future,
+    );
+    if (gespeichert == null) return;
+    final rest = [
+      for (final e in gespeichert.eintraege)
+        if (!ids.contains(e.id)) e,
+    ];
+    if (rest.length == gespeichert.eintraege.length) return;
+    await tagesplanSpeichern(tagOhneZeit, rest);
+  }
+  ref.invalidate(gespeicherterTagesplanProvider(tagOhneZeit));
+}
+
 /// Entfernt den Eintrag mit [eintragId] aus dem Tagesplan von [tag] —
 /// Gegenstück zu [einsatzInTagesplanAufnehmen], nach demselben Muster: läuft
 /// der Tourenplan-Screen gerade auf diesem Tag, über den In-Memory-State

@@ -122,4 +122,11 @@ void main() {
       expect(verschobenText(1, dienstag), '1 Stopp auf Di 29.09. verschoben');
     });
   });
+
+  test('Ruhetag-Hinweis für einen einzelnen Stopp', () {
+    expect(
+      ruhetagHinweisText('Rössli', dienstag),
+      'Rössli hat am Di Ruhetag. Trotzdem verschieben?',
+    );
+  });
 }

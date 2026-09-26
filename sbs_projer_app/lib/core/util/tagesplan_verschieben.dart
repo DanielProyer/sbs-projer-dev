@@ -74,6 +74,11 @@ String verschiebenRueckfrageText({
   return zeilen.join('\n');
 }
 
+/// Hinweis beim Verschieben eines einzelnen Stopps auf einen Ruhetag.
+String ruhetagHinweisText(String betriebName, DateTime ziel) =>
+    '$betriebName hat am ${_wochentage[ziel.weekday - 1]} Ruhetag. '
+    'Trotzdem verschieben?';
+
 /// Meldung nach dem Verschieben, z. B. «5 Stopps auf Di 29.09. verschoben».
 String verschobenText(int anzahl, DateTime ziel) =>
     '${_stopps(anzahl)} auf ${kurzTag(ziel)} verschoben';

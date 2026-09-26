@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/core/util/ferien_vorjahr.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/core/util/tagesplan_ist_zeiten.dart';
+import 'package:sbs_projer_app/core/util/tagesplan_verschieben.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/core/util/tourenplan_refresh.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
@@ -394,6 +395,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                                   : (id) => ref
                                         .read(tagesplanProvider.notifier)
                                         .entfernen(id),
+                              onVerschieben: istVergangenTag
+                                  ? null
+                                  : _stoppVerschieben,
                             ),
                     ),
                   ],
@@ -896,6 +900,120 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     ref.read(tagesplanProvider.notifier).leeren();
   }
 
+  // ─── Verschieben auf einen anderen Tag (Daniel 26.09.2026) ───
+
+  /// Zieltag wählen: ab heute bis in einem Jahr, vorbelegt mit dem Folgetag.
+  /// `null` bei Abbruch oder wenn derselbe Tag gewählt wurde.
+  Future<DateTime?> _zieltagWaehlen(DateTime plantag) async {
+    final j = DateTime.now();
+    final heute = DateTime(j.year, j.month, j.day);
+    // Kalendertage statt `Duration(days: …)` — sonst frisst die Umstellung
+    // der Sommerzeit einen Tag.
+    final gewaehlt = await zeigeDatumsauswahl(
+      context,
+      initial: DateTime(plantag.year, plantag.month, plantag.day + 1),
+      erstes: heute,
+      letztes: DateTime(heute.year, heute.month, heute.day + 365),
+      hilfetext: 'Auf welchen Tag verschieben?',
+    );
+    if (gewaehlt == null) return null;
+    final ziel = DateTime(gewaehlt.year, gewaehlt.month, gewaehlt.day);
+    if (gleicherTag(ziel, plantag)) return null;
+    return ziel;
+  }
+
+  /// Rückfrage mit «Verschieben»/«Abbrechen» — kein Gefahr-Rot, denn das
+  /// Verschieben ist nicht destruktiv und lässt sich zurückschieben.
+  Future<bool> _verschiebenBestaetigen({
+    required String titel,
+    required String text,
+  }) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(titel),
+        content: Text(text),
+        actions: [
+          TapKnopf(
+            text: 'Abbrechen',
+            primaer: false,
+            onTap: () => Navigator.pop(ctx, false),
+          ),
+          TapKnopf(
+            text: 'Verschieben',
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
+  /// Block-Sheet «Auf anderen Tag verschieben»: ein einzelner Stopp, ohne
+  /// Rückfrage — ausser der Betrieb hat am Zieltag Ruhetag.
+  Future<void> _stoppVerschieben(String eintragId) async {
+    final plantag = _selectedDate;
+    final treffer = ref
+        .read(tagesplanProvider)
+        .where((e) => e.id == eintragId);
+    if (treffer.isEmpty) return;
+    final eintrag = treffer.first;
+    final ziel = await _zieltagWaehlen(plantag);
+    if (ziel == null || !mounted) return;
+    if (istRuhetag(eintrag.ruhetage, ziel)) {
+      final ok = await _verschiebenBestaetigen(
+        titel: 'Ruhetag',
+        text: ruhetagHinweisText(eintrag.betriebName, ziel),
+      );
+      if (!ok || !mounted) return;
+    }
+    await _aufTagVerschieben(plantag, [eintrag], ziel);
+  }
+
+  /// Gemeinsamer Ablauf für Stopp und ganzen Tag. Reihenfolge bewusst:
+  /// Einsätze umplanen, **dann** am Zieltag anhängen, **erst danach** hier
+  /// entfernen — bricht ein Schritt ab, steht nichts verloren da.
+  Future<void> _aufTagVerschieben(
+    DateTime plantag,
+    List<TourEintrag> eintraege,
+    DateTime ziel,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _einsaetzeAufTagEinplanen(ref, eintraege, ziel);
+      await eintraegeInTagesplanAnhaengen(ref, ziel, [
+        for (final e in eintraege) _alsVerschobenerEintrag(e, ziel),
+      ]);
+      await eintraegeAusTagesplanEntfernen(ref, plantag, {
+        for (final e in eintraege) e.id,
+      });
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Verschieben fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(verschobenText(eintraege.length, ziel)),
+        duration: const Duration(seconds: 5),
+        // Im selben Screen auf den Zieltag wechseln statt eine zweite
+        // Tourenplanung zu öffnen: beide teilen sich den einen
+        // `tagesplanProvider` — nach dem Zurück zeigte die erste sonst den
+        // Plan des Zieltags unter dem alten Datum (und speicherte ihn dort).
+        action: SnackBarAction(
+          label: 'Anzeigen',
+          onPressed: () {
+            if (mounted) _selectDay(ziel);
+          },
+        ),
+      ),
+    );
+  }
+
   /// Menüpunkt „Reinigungen eines Tages übernehmen": die TATSÄCHLICH
   /// abgeschlossenen Reinigungen des Quelltags (ohne Störungen/Montagen) in
   /// ihrer echten Reihenfolge an den aktuellen Plan anhängen — nicht den
@@ -1201,12 +1319,16 @@ class _TagesplanZeitachse extends ConsumerStatefulWidget {
   final void Function(int, int) onReorder;
   final void Function(String) onDismiss;
 
+  /// Block-Sheet «Auf anderen Tag verschieben» (null = nicht anbieten).
+  final void Function(String eintragId)? onVerschieben;
+
   const _TagesplanZeitachse({
     required this.datum,
     required this.eintraege,
     this.readOnly = false,
     required this.onReorder,
     required this.onDismiss,
+    this.onVerschieben,
   });
 
   @override
@@ -1692,7 +1814,10 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
                             ),
                           ),
                         ),
-                  onTap: () => _oeffneBlockSheet(eintrag),
+                  onTap: () => _oeffneBlockSheet(
+                    eintrag,
+                    erledigt: istZeiten.containsKey(eintrag.id),
+                  ),
                 ),
               );
             },
@@ -1723,7 +1848,7 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     if (erfolg && mounted) ref.invalidate(fahrzeitenMapProvider);
   }
 
-  void _oeffneBlockSheet(TourEintrag eintrag) {
+  void _oeffneBlockSheet(TourEintrag eintrag, {required bool erledigt}) {
     // Vergangener Tag: die Blöcke sind tatsächliche Reinigungen — Tap führt
     // direkt zur Reinigung (das Block-Sheet bearbeitet nur Plan-Einträge).
     if (widget.readOnly) {
@@ -1735,18 +1860,32 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _BlockSheet(eintragId: eintrag.id, datum: widget.datum),
+      builder: (_) => _BlockSheet(
+        eintragId: eintrag.id,
+        datum: widget.datum,
+        // Erledigte und tatsächliche (`hist_`) Stopps bleiben, wo sie sind.
+        onVerschieben: erledigt || eintrag.id.startsWith('hist_')
+            ? null
+            : widget.onVerschieben,
+      ),
     );
   }
 }
 
-// ─── Block-Sheet: Anlagen, Dauer, Anker, Entfernen ───
+// ─── Block-Sheet: Anlagen, Dauer, Anker, Verschieben, Entfernen ───
 
 class _BlockSheet extends ConsumerWidget {
   final String eintragId;
   final DateTime datum;
 
-  const _BlockSheet({required this.eintragId, required this.datum});
+  /// «Auf anderen Tag verschieben» — null blendet die Aktion aus.
+  final void Function(String eintragId)? onVerschieben;
+
+  const _BlockSheet({
+    required this.eintragId,
+    required this.datum,
+    this.onVerschieben,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2033,6 +2172,15 @@ class _BlockSheet extends ConsumerWidget {
                 ),
 
               const Divider(height: 20),
+              if (onVerschieben != null)
+                _SheetAktion(
+                  icon: Icons.event_repeat,
+                  text: 'Auf anderen Tag verschieben',
+                  onTap: () {
+                    Navigator.pop(context);
+                    onVerschieben!(eintragId);
+                  },
+                ),
               _SheetAktion(
                 icon: Icons.delete_outline,
                 text: 'Aus Plan entfernen',
@@ -2104,6 +2252,66 @@ void _einsatzEinplanungZurueckschreiben(
       ref.invalidate(montagenStreamProvider);
       alterEintragAufraeumen();
     });
+  }
+}
+
+/// Ist der Eintrag ein Störungs-/Montage-Einsatz mit eigenem `geplant_am`
+/// (Präfix `s_`/`m_`)? HeiGenie läuft als Montage und zählt mit — bliebe sein
+/// `geplant_am` stehen, tauchte er am alten Tag wieder als fällig auf.
+bool _istEinsatzMitPlandatum(TourEintrag e) =>
+    e.typ != TourEintragTyp.reinigung &&
+    (e.id.startsWith('s_') || e.id.startsWith('m_'));
+
+/// Plan-Eintrag für den Zieltag; bei Einsätzen zieht `geplantAm` mit.
+TourEintrag _alsVerschobenerEintrag(TourEintrag e, DateTime ziel) {
+  final plan = e.alsPlanEintrag();
+  return _istEinsatzMitPlandatum(e) ? plan.copyWith(geplantAm: ziel) : plan;
+}
+
+/// Schreibt das neue Plandatum an alle Störungen/Montagen unter [eintraege]
+/// (Anker-Zeit und Dauer bleiben) und frischt deren Listen auf. Anders als
+/// [_einsatzEinplanungZurueckschreiben] wird gewartet — schlägt es fehl,
+/// bricht das Verschieben ab, bevor der Plan angefasst wird.
+Future<void> _einsaetzeAufTagEinplanen(
+  WidgetRef ref,
+  List<TourEintrag> eintraege,
+  DateTime ziel,
+) async {
+  var stoerungen = false;
+  var montagen = false;
+  final auftraege = <Future<void>>[];
+  for (final e in eintraege) {
+    if (!_istEinsatzMitPlandatum(e)) continue;
+    final dauer = e.dauerMinuten ?? kDauerDefaultMinuten;
+    if (e.id.startsWith('s_')) {
+      stoerungen = true;
+      auftraege.add(
+        StoerungRepository.einplanen(
+          id: e.id.substring(2),
+          tag: ziel,
+          zeit: e.ankerZeit,
+          dauerMin: dauer,
+        ),
+      );
+    } else {
+      montagen = true;
+      auftraege.add(
+        MontageRepository.einplanen(
+          id: e.id.substring(2),
+          tag: ziel,
+          zeit: e.ankerZeit,
+          dauerMin: dauer,
+        ),
+      );
+    }
+  }
+  if (auftraege.isEmpty) return;
+  try {
+    await Future.wait(auftraege);
+  } finally {
+    // Auch bei einem Teilfehler: was geschrieben wurde, soll sichtbar sein.
+    if (stoerungen) ref.invalidate(stoerungenStreamProvider);
+    if (montagen) ref.invalidate(montagenStreamProvider);
   }
 }
 
