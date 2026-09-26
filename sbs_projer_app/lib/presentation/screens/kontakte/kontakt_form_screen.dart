@@ -251,7 +251,10 @@ class _KontaktFormScreenState extends ConsumerState<KontaktFormScreen>
               // Rolle
               if (rollen.isNotEmpty)
                 DropdownButtonFormField<String>(
-                  value: _rolle,
+                  // Kategorie-Wechsel setzt _rolle von aussen auf null und
+                  // tauscht die Rollen-Liste — der Key baut das Feld dann neu.
+                  key: ValueKey('rolle-$_kategorie-$_rolle'),
+                  initialValue: _rolle,
                   decoration: const InputDecoration(
                     labelText: 'Rolle',
                     prefixIcon: Icon(Icons.work_outline),

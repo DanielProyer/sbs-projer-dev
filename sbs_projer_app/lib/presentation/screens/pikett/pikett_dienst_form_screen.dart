@@ -298,7 +298,10 @@ class _PikettDienstFormScreenState extends ConsumerState<PikettDienstFormScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      value: _anzahlFeiertage,
+                      // Jahr/KW-Wechsel zählt die Feiertage neu
+                      // (_berechneFeiertage) — der Key zeigt den neuen Wert.
+                      key: ValueKey('feiertage-$_jahr-$_kw-$_anzahlFeiertage'),
+                      initialValue: _anzahlFeiertage,
                       decoration: const InputDecoration(
                         labelText: 'Feiertage',
                         prefixIcon: Icon(Icons.celebration),

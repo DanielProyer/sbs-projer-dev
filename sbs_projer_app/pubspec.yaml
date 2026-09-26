@@ -30,6 +30,10 @@ dependencies:
 
   # Datum & Internationalisierung
   intl: any
+  # Deutsche Material-Texte (Datumsauswahl «Abbrechen/OK», Wochentage) —
+  # ohne die Delegates in app.dart zeigt showDatePicker Englisch.
+  flutter_localizations:
+    sdk: flutter
 
   # PDF
   pdf: ^3.10.0
@@ -53,6 +57,9 @@ dependencies:
   # Links (tel, mailto, https)
   url_launcher: ^6.2.0
 
+  # Browser-APIs (Nachfolger von dart:html): Download, Datei-Picker,
+  # PDF-Tab, OAuth-Redirect — nur in den *_web.dart-Dateien
+  web: ^1.1.0
 
   # Kalender
   table_calendar: ^3.1.0

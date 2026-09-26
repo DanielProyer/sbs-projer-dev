@@ -195,7 +195,7 @@ class _ZuweisungCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
-              value: currentKontakt?.routeId,
+              initialValue: currentKontakt?.routeId,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(

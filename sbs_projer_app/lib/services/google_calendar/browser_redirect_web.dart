@@ -1,13 +1,13 @@
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
-void navigateTo(String url) => html.window.location.href = url;
+void navigateTo(String url) => web.window.location.href = url;
 
 void clearQuery(String cleanUrl) =>
-    html.window.history.replaceState(null, '', cleanUrl);
+    web.window.history.replaceState(null, '', cleanUrl);
 
 void sessionSet(String key, String value) =>
-    html.window.sessionStorage[key] = value;
+    web.window.sessionStorage.setItem(key, value);
 
-String? sessionGet(String key) => html.window.sessionStorage[key];
+String? sessionGet(String key) => web.window.sessionStorage.getItem(key);
 
-void sessionRemove(String key) => html.window.sessionStorage.remove(key);
+void sessionRemove(String key) => web.window.sessionStorage.removeItem(key);
