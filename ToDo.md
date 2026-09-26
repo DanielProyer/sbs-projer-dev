@@ -41,7 +41,7 @@ damit beantwortet sich, ob der August ein Einzelfall war.
 |---|---|---|
 | **Steuererklärung 2025** | **30.09.2026** | Lohnausweis und Jahresrechnung liegen in der App. **Es fehlt nur der GKB Zins-/Kapitalausweis per 31.12.2025** — bei der Bank holen. Dann Formular 11a (Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht». **Bussen 2025 aufrechnen: 320.00** (120.00 Verkehrsbusse Bern auf 6280 + 200.00 Steuerbusse, damals auf 8900 gebucht) — Bussen sind nicht abzugsfähig (Befund 23.09.). |
 | **AXA-Zahlung** | überfällig | Vorgesehen 4'467.90, **offen 8'935.80** (Q1+Q2/2026). |
-| **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | **Zwei Zeilen**, seit 20.09. beide in der App unter Buchhaltung → MwSt-Abrechnung → Q3: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90** (Abschreibung Jahrgang 2019) und **69.00 netto in Zeile 303 (8.1 %) → 5.60** (Einzelabschreibung Dischma). Zusammen 2'145.00 netto → **165.50**. Im Portal prüfen, ob die Zeilen eine reduzierende Eingabe annehmen; sonst ESTV-Hotline. |
+| **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | **Zwei Zeilen**, seit 20.09. beide in der App unter Buchhaltung → MwSt-Abrechnung → Q3: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90** (Abschreibung Jahrgang 2019) und **71.04 netto in Zeile 303 (8.1 %) → 5.76** (Einzelabschreibungen Dischma 69.00 + Chalet Güggel 2.04, Stand 26.09.). Zusammen 2'147.04 netto → **165.66**. *(Triel 3.00 vom 24.09. wurde ohne MWST-Anteil und als Belegtyp «zahlung» gebucht — zählt in der Sicht nicht mit; 0.22 MWST, bei Gelegenheit auf «abschreibung» + 2200-Zeile umstellen.)* Im Portal prüfen, ob die Zeilen eine reduzierende Eingabe annehmen; sonst ESTV-Hotline. |
 
 ### ☎️ Ein Nachmittag Telefonate: die eine Lohnsumme
 
