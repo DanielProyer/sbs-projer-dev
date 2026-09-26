@@ -1209,17 +1209,24 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
   _speichern;
   Timer? _saveTimer;
 
-  /// Tag, dem der aktuelle State „gehört" bzw. den der User zuletzt bearbeitet
-  /// hat. Schützt davor, dass ein verspätet eintreffender Lade-Fetch die
+  /// Tag, dem der aktuelle State „gehört" — gesetzt durch
+  /// [setFromGespeichert]/[resetLeer], vor dem ersten Laden durch die erste
+  /// Mutation. Schützt davor, dass ein verspätet eintreffender Lade-Fetch die
   /// gerade getätigten Änderungen überschreibt (Race).
   DateTime? _datum;
   DateTime? get datum => _datum;
 
-  /// Speichert den aktuellen Stand entprellt für den aktiven Tag.
+  /// Speichert den aktuellen Stand entprellt für den Tag, dem der State
+  /// gehört ([_datum]).
   void _scheduleSave() {
-    // Aktiven Tag SOFORT beanspruchen (nicht erst wenn der Timer feuert),
-    // damit ein spät eintreffender Lade-Fetch diesen Tag nicht überschreibt.
-    _datum = _ref.read(aktiverTagesplanTagProvider);
+    // NICHT den aktiven Tag aus dem Provider übernehmen, solange der State
+    // einem Tag gehört: Der Screen stellt aktiverTagesplanTagProvider schon
+    // beim Tipp auf den neuen Tag um, lädt dessen Plan aber erst danach. Eine
+    // Mutation in diesem Fenster schrieb bis v0.145.0 den ALTEN Plan unter
+    // den NEUEN Tag. Nur vor dem ersten Laden (`_datum == null`) den aktiven
+    // Tag SOFORT beanspruchen, damit ein spät eintreffender Lade-Fetch die
+    // Änderung nicht überschreibt.
+    _datum ??= _ref.read(aktiverTagesplanTagProvider);
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 600), () {
       final tag = _datum;

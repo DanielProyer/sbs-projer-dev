@@ -105,6 +105,46 @@ void main() {
       expect(gespeichert, isEmpty);
     });
 
+    // A1 (Runde 5, 26.09.2026): Der Screen stellt aktiverTagesplanTagProvider
+    // schon beim Tipp auf den neuen Tag, lädt dessen Plan aber erst danach.
+    // Eine Mutation in diesem Fenster schrieb den ALTEN Plan unter den NEUEN
+    // Tag. Gespeichert wird unter dem Tag, dem der State gehört.
+    test('Mutation im Lade-Fenster speichert unter dem Tag des States',
+        () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag1;
+      notifier.setFromGespeichert(tag1, [_e('a')]);
+
+      // Tipp auf tag2: Provider schon umgestellt, Plan noch nicht geladen.
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag2;
+      notifier.hinzufuegen(_e('b'));
+      expect(notifier.datum, tag1);
+
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      expect(gespeichert, [(tag1, 'a,b')]);
+    });
+
+    test('Lade-Fetch nach Mutation im Fenster: alter Tag sofort gesichert, '
+        'neuer Tag wird geladen', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag1;
+      notifier.setFromGespeichert(tag1, [_e('a')]);
+
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag2;
+      notifier.hinzufuegen(_e('b'));
+      // Race-Schutz des Screens: `datum != tag2` → der Lade-Fetch darf den
+      // State für tag2 setzen.
+      expect(notifier.datum == tag2, isFalse);
+      notifier.setFromGespeichert(tag2, [_e('x')]);
+      await Future<void>.delayed(Duration.zero);
+      expect(gespeichert, [(tag1, 'a,b')]);
+      expect(notifier.datum, tag2);
+      expect(container.read(tagesplanProvider).map((e) => e.id), ['x']);
+
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      expect(gespeichert, hasLength(1));
+    });
+
     test('entprelltes Speichern ohne Wechsel läuft wie bisher', () async {
       final notifier = container.read(tagesplanProvider.notifier);
       container.read(aktiverTagesplanTagProvider.notifier).state = tag1;
